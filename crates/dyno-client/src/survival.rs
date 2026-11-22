@@ -20,6 +20,22 @@ fn col(rgb: [f32; 3], k: f32) -> Color32 {
 /// A small isometric cube for a block.
 pub fn block_icon(painter: &egui::Painter, r: Rect, b: w::BlockId) {
     let rgb = w::block(b).color;
+    if w::shape(b) == w::Shape::Post {
+        // torch: a stick with a flame
+        let c = r.center();
+        let s = r.width() * 0.5;
+        painter.line_segment(
+            [c + Vec2::new(0.0, s * 0.9), c + Vec2::new(0.0, -s * 0.2)],
+            Stroke::new(s * 0.25, Color32::from_rgb(140, 102, 60)),
+        );
+        painter.circle_filled(c + Vec2::new(0.0, -s * 0.45), s * 0.32, col(rgb, 1.0));
+        painter.circle_filled(
+            c + Vec2::new(0.0, -s * 0.5),
+            s * 0.16,
+            Color32::from_rgb(255, 245, 200),
+        );
+        return;
+    }
     let c = r.center();
     let s = r.width() * 0.5;
     let top = Pos2::new(c.x, c.y - s);
@@ -474,7 +490,7 @@ pub fn pack_window(
                 });
                 ui.separator();
                 ui.vertical(|ui| {
-                    ui.set_width(330.0);
+                    ui.set_width(380.0);
                     if v.mode == Mode::Creative {
                         ui.label(
                             RichText::new("Creative: click any item to put it in hotbar slot")
@@ -597,11 +613,30 @@ pub fn pack_window(
                                             } else {
                                                 name.to_string()
                                             };
-                                            ui.label(RichText::new(label).strong().color(if can {
-                                                Color32::WHITE
-                                            } else {
-                                                Color32::GRAY
-                                            }));
+                                            ui.horizontal(|ui| {
+                                                ui.label(RichText::new(label).strong().color(
+                                                    if can {
+                                                        Color32::WHITE
+                                                    } else {
+                                                        Color32::GRAY
+                                                    },
+                                                ));
+                                                if can {
+                                                    if ui.small_button("Craft").clicked() {
+                                                        out.push(PackCmd::Craft(r.id, 1));
+                                                    }
+                                                    if ui
+                                                        .small_button("×5")
+                                                        .on_hover_text("Craft five times")
+                                                        .clicked()
+                                                    {
+                                                        out.push(PackCmd::Craft(r.id, 5));
+                                                    }
+                                                } else if let Err(why) = &ok {
+                                                    ui.label(RichText::new("?").weak())
+                                                        .on_hover_text(why.as_str());
+                                                }
+                                            });
                                             ui.horizontal_wrapped(|ui| {
                                                 for ing in &r.inputs {
                                                     let have: u32 =
@@ -643,26 +678,6 @@ pub fn pack_window(
                                                 };
                                             });
                                         });
-                                        ui.with_layout(
-                                            egui::Layout::right_to_left(egui::Align::Center),
-                                            |ui| {
-                                                if can {
-                                                    if ui
-                                                        .button("×5")
-                                                        .on_hover_text("Craft five times")
-                                                        .clicked()
-                                                    {
-                                                        out.push(PackCmd::Craft(r.id, 5));
-                                                    }
-                                                    if ui.button("Craft").clicked() {
-                                                        out.push(PackCmd::Craft(r.id, 1));
-                                                    }
-                                                } else if let Err(why) = &ok {
-                                                    ui.label(RichText::new("?").weak())
-                                                        .on_hover_text(why);
-                                                }
-                                            },
-                                        );
                                     });
                                 });
                             }

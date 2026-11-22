@@ -14,6 +14,7 @@ USAGE:
                                Run a dedicated game server
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out f.ppm]
+                               [--ui hud|pack|dig|dead] [--as NAME]
                                Join, render one frame off-screen to an image, leave
   dyno bot <address> [name] [seconds]
                                Join as a bot that walks in a circle (demos, tests)
@@ -121,6 +122,8 @@ fn main() {
                 width: 1280,
                 height: 720,
                 out: "shot.ppm".into(),
+                ui: "none".into(),
+                player: None,
             };
             let nums = |v: &str| -> Vec<f32> {
                 v.split(',').filter_map(|x| x.trim().parse().ok()).collect()
@@ -143,6 +146,8 @@ fn main() {
                     }
                     "--out" => o.out = v.into(),
                     "--name" => o.name = v,
+                    "--ui" => o.ui = v,
+                    "--as" => o.player = Some(v),
                     other => fail(&format!("unknown shot option {other}")),
                 }
                 i += 2;

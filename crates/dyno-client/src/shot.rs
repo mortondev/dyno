@@ -22,10 +22,28 @@ pub struct ShotOptions {
     pub width: u32,
     pub height: u32,
     pub out: PathBuf,
+    /// "none" for the world only; "hud", "pack", "dig" or "dead" to draw the UI
+    pub ui: String,
+    /// join as this player instead of as an invisible observer
+    pub player: Option<String>,
 }
 
 /// Returns a one-line description of what was rendered.
 pub fn shot(o: ShotOptions) -> Result<String, String> {
+    if o.ui != "none" || o.player.is_some() {
+        let name = o.player.clone().unwrap_or_else(|| o.name.clone());
+        let observer = o.player.is_none();
+        let j = net::connect(
+            &o.addr,
+            &name,
+            crate::settings::tool_token(&name),
+            observer,
+            Duration::from_secs(10),
+        )?;
+        let mut g = Gfx::new_headless(o.width, o.height)?;
+        let ui = if o.ui == "none" { "hud" } else { &o.ui };
+        return crate::app::shot_with_ui(j, &mut g, o.pos, o.yaw, o.pitch, o.time, ui, o.out);
+    }
     let j = net::connect(&o.addr, &o.name, 0, true, Duration::from_secs(10))?;
     let mut server_time = 0.25;
     let mut poses: Vec<Pose> = j.players.iter().map(|p| p.pose).collect();

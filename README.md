@@ -25,26 +25,26 @@ The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host nam
 
 ### Controls
 
-| Key | Action |
-|---|---|
-| Mouse | Look |
-| W A S D | Move |
-| Space | Jump (up when flying) |
-| Shift | Sneak (slow, and you do not fall off edges); down when flying |
-| Ctrl or R | Sprint |
-| F | Fly on or off |
-| Left click | Break block |
-| Right click | Place block |
-| Middle click | Pick the block you look at |
-| 1 to 9, mouse wheel | Choose a hotbar slot |
-| E | All blocks: pick one for the current slot |
-| G, then G | Mark two corners of a box |
-| V / X | Fill the box with your block / clear it (up to 32,768 blocks) |
-| Ctrl+Z | Undo your last block change |
-| T or Enter | Chat |
-| / | Chat command: `/help`, `/tp <player>`, `/spawn`, `/time night` |
-| Tab | Player list |
-| Esc | Menu |
+| Key | Survival | Creative |
+|---|---|---|
+| Mouse | Look | Look |
+| W A S D, Space | Move, jump | Move, jump (Space up when flying) |
+| Shift | Sneak (do not fall off edges) | Down when flying |
+| Ctrl or R | Sprint | Sprint |
+| Left mouse | Hold to break a block | Break at once |
+| Right mouse | Place a block, eat food, open a chest, set your bed | Place a block |
+| E | Pack and recipes (open a table or furnace with right click) | All items |
+| 1 to 9, wheel | Choose a hotbar slot | Choose a hotbar slot |
+| Q / Ctrl+Q | Throw one / the stack | Throw |
+| F | | Fly |
+| G, G then V / X | | Fill / clear a box |
+| Ctrl+Z | | Undo |
+| T or Enter, / | Chat, commands (`/help`) | Chat, commands |
+| Tab, Esc | Players, menu | Players, menu |
+
+### Survival in short
+
+Punch a tree for logs. In your pack (E), turn logs into planks, sticks and a crafting table. Place the table, then make a wooden pickaxe, mine stone, and make stone tools. Find coal for torches before night: Shades rise where it is dark. Iron needs a stone pickaxe and a furnace. Emberstone lies deep and needs iron. Berries and meat keep hunger away. When you die, your items stay where you fell. The full design is in [docs/design/survival.md](docs/design/survival.md).
 
 ## Host a world
 
@@ -96,9 +96,9 @@ dyno version             Print the version
 
 This is a bootstrap slice. These parts of [the spec](docs/spec/index.html) are not built yet:
 
-- **No Luau and no content store.** Blocks and rules are Rust code for now (spec sections 6 to 9).
+- **No Luau yet.** Game rules are Rust (`crates/dyno-sim`, `crates/dyno-server`). Items, recipes, block drops, creatures and milestones are data in [content/hearthblock.json](content/hearthblock.json), sent to players on join; `/reload` changes them live. This is the first step toward the spec's content store.
 - **Transport is WebSocket over TCP**, not QUIC (NET-001), so the server also works through HTTPS tunnels.
-- **Movement is client-authoritative.** The server checks block reach and bounds only (spec PRED-001 to PRED-016).
+- **Movement is client-authoritative.** The server checks reach, break time, item use and crafting; falls and drowning are reported by the client (spec PRED-001 to PRED-016).
 - **One fixed-size world** (256 × 96 × 256) sent whole on join, not streamed chunks.
 - **One release signing key**, not the root key list of REL-013. The private key stays offline with the maintainer; CI holds a copy as an Actions secret.
 - **No accounts.** Anyone who knows the address can join. Names are not reserved.

@@ -1150,3 +1150,123 @@ impl Gfx {
         clip.x.abs() <= w * 1.2 && clip.y.abs() <= w * 1.2
     }
 }
+
+/// Draw the item held in the first-person hand. `ax` are the hand's axes
+/// (right, up, forward) and `hand` its centre.
+pub fn push_held(
+    out: &mut Vec<Vertex>,
+    c: &dyno_world::content::Content,
+    item: Option<dyno_world::content::ItemId>,
+    hand: Vec3,
+    ax: [Vec3; 3],
+    light: f32,
+) {
+    use dyno_world::content::ToolKind;
+    let skin = [0.91, 0.76, 0.62];
+    let Some(item) = item else {
+        push_oriented_box(
+            out,
+            hand - ax[1] * 0.06,
+            ax,
+            Vec3::new(0.06, 0.18, 0.06),
+            skin,
+            false,
+            light,
+        );
+        return;
+    };
+    let it = c.item(item);
+    let glow = it.light > 0 || it.block.is_some_and(|b| w::emission(b) > 0);
+    if it.block.is_some() {
+        push_oriented_box(out, hand, ax, Vec3::splat(0.11), it.color, glow, light);
+        return;
+    }
+    // tilt tools forward so the head points up and away
+    let (s, k) = (-0.55f32).sin_cos();
+    let hu = ax[1] * k + ax[2] * s;
+    let hf = ax[2] * k - ax[1] * s;
+    let axes = [ax[0], hu, hf];
+    let wood = [0.55, 0.40, 0.24];
+    match it.tool.map(|t| t.kind) {
+        Some(kind) => {
+            if kind != ToolKind::Sword {
+                push_oriented_box(
+                    out,
+                    hand + hu * 0.04,
+                    axes,
+                    Vec3::new(0.022, 0.17, 0.022),
+                    wood,
+                    false,
+                    light,
+                );
+            }
+            match kind {
+                ToolKind::Pickaxe => push_oriented_box(
+                    out,
+                    hand + hu * 0.2,
+                    axes,
+                    Vec3::new(0.14, 0.028, 0.03),
+                    it.color,
+                    glow,
+                    light,
+                ),
+                ToolKind::Axe => push_oriented_box(
+                    out,
+                    hand + hu * 0.16 + ax[0] * 0.05,
+                    axes,
+                    Vec3::new(0.065, 0.06, 0.02),
+                    it.color,
+                    glow,
+                    light,
+                ),
+                ToolKind::Shovel | ToolKind::Hoe => push_oriented_box(
+                    out,
+                    hand + hu * 0.25,
+                    axes,
+                    Vec3::new(0.05, 0.07, 0.014),
+                    it.color,
+                    glow,
+                    light,
+                ),
+                ToolKind::Sword => {
+                    push_oriented_box(
+                        out,
+                        hand - hu * 0.06,
+                        axes,
+                        Vec3::new(0.02, 0.06, 0.02),
+                        wood,
+                        false,
+                        light,
+                    );
+                    push_oriented_box(
+                        out,
+                        hand + hu * 0.0,
+                        axes,
+                        Vec3::new(0.08, 0.014, 0.022),
+                        wood,
+                        false,
+                        light,
+                    );
+                    push_oriented_box(
+                        out,
+                        hand + hu * 0.22,
+                        axes,
+                        Vec3::new(0.03, 0.21, 0.01),
+                        it.color,
+                        glow,
+                        light,
+                    );
+                }
+            }
+        }
+        None => push_oriented_box(
+            out,
+            hand,
+            axes,
+            Vec3::new(0.08, 0.08, 0.02),
+            it.color,
+            glow,
+            light,
+        ),
+    }
+}

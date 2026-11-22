@@ -354,6 +354,73 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
     Ok(Tunnel { child, url, error })
 }
 
+/// Play state for a freshly joined server.
+fn new_play(j: Joined) -> Play {
+    let light = Light::new(&j.world);
+    Play {
+        player: Player::new(j.spawn),
+        remotes: j
+            .players
+            .iter()
+            .filter(|i| i.id != j.your_id)
+            .map(|i| (i.id, Remote::new(i.name.clone(), i.pose)))
+            .collect(),
+        chat: vec![Chat {
+            at: Instant::now(),
+            from: None,
+            text: j.motd.clone(),
+        }],
+        world: j.world,
+        conn: j.conn,
+        my_id: j.your_id,
+        server_version: j.server_version,
+        url: j.url,
+        chat_open: false,
+        chat_text: String::new(),
+        focus_chat: false,
+        menu_open: false,
+        captured: false,
+        keys: HashSet::new(),
+        slot: 0,
+        last_pose: Instant::now(),
+        target: None,
+        fps: (Instant::now(), 0, 0),
+        light,
+        particles: Vec::new(),
+        time: 0.05,
+        day_seconds: 1200.0,
+        time_at: Instant::now(),
+        swing: 0.0,
+        bob: 0.0,
+        step_acc: 0.0,
+        fov_kick: 0.0,
+        picker_open: false,
+        fireflies: Vec::new(),
+        next_cricket: 3.0,
+        undo: Vec::new(),
+        sel: (None, None),
+        content: j.content,
+        mode: j.mode,
+        pack: vec![None; dyno_sim::SLOTS],
+        health: 20.0,
+        food: 20.0,
+        fuel: 0,
+        chest: None,
+        selected: None,
+        recipe_filter: String::new(),
+        entities: HashMap::new(),
+        dig: None,
+        mouse_left: false,
+        dead: None,
+        hurt_flash: 0.0,
+        toasts: Vec::new(),
+        fall_from: None,
+        air: 10.0,
+        drown_clock: 0.0,
+        sent_held: 99,
+    }
+}
+
 impl App {
     fn window(&self) -> Option<&Arc<Window>> {
         self.gfx.as_ref().and_then(|g| g.window.as_ref())
@@ -445,69 +512,7 @@ impl App {
         if let Screen::Joining { rx, .. } = &self.screen {
             match rx.try_recv() {
                 Ok(Ok(j)) => {
-                    let light = Light::new(&j.world);
-                    let mut p = Play {
-                        player: Player::new(j.spawn),
-                        remotes: j
-                            .players
-                            .iter()
-                            .filter(|i| i.id != j.your_id)
-                            .map(|i| (i.id, Remote::new(i.name.clone(), i.pose)))
-                            .collect(),
-                        chat: vec![Chat {
-                            at: Instant::now(),
-                            from: None,
-                            text: j.motd.clone(),
-                        }],
-                        world: j.world,
-                        conn: j.conn,
-                        my_id: j.your_id,
-                        server_version: j.server_version,
-                        url: j.url,
-                        chat_open: false,
-                        chat_text: String::new(),
-                        focus_chat: false,
-                        menu_open: false,
-                        captured: false,
-                        keys: HashSet::new(),
-                        slot: 0,
-                        last_pose: Instant::now(),
-                        target: None,
-                        fps: (Instant::now(), 0, 0),
-                        light,
-                        particles: Vec::new(),
-                        time: 0.05,
-                        day_seconds: 1200.0,
-                        time_at: Instant::now(),
-                        swing: 0.0,
-                        bob: 0.0,
-                        step_acc: 0.0,
-                        fov_kick: 0.0,
-                        picker_open: false,
-                        fireflies: Vec::new(),
-                        next_cricket: 3.0,
-                        undo: Vec::new(),
-                        sel: (None, None),
-                        content: j.content,
-                        mode: j.mode,
-                        pack: vec![None; dyno_sim::SLOTS],
-                        health: 20.0,
-                        food: 20.0,
-                        fuel: 0,
-                        chest: None,
-                        selected: None,
-                        recipe_filter: String::new(),
-                        entities: HashMap::new(),
-                        dig: None,
-                        mouse_left: false,
-                        dead: None,
-                        hurt_flash: 0.0,
-                        toasts: Vec::new(),
-                        fall_from: None,
-                        air: 10.0,
-                        drown_clock: 0.0,
-                        sent_held: 99,
-                    };
+                    let mut p = new_play(j);
                     p.chat.push(Chat { at: Instant::now(), from: None, text: if p.creative() { "Creative mode. Click to play. WASD move, F fly, left click break, right click place, E all items, G G then V to fill, Ctrl+Z undo, T chat, /help.".into() } else { "Survival mode. Hold left click to break blocks, E opens your pack and recipes, right click places or eats, Q throws, T chat, /help. Punch a tree to start, and make light before night falls.".into() } });
                     if let Some(g) = self.gfx.as_mut() {
                         g.load_world(&p.world, &p.light);
@@ -1126,18 +1131,12 @@ impl App {
                 - up * (0.34 + sw * 0.1 - (p.bob * 0.5).cos().abs() * 0.015 * bob_amt);
             let (s1, c1) = (0.6f32 - sw * 0.8).sin_cos();
             let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];
-            render::push_oriented_box(
+            render::push_held(
                 &mut boxes,
+                &p.content,
+                held_item.map(|s| s.item),
                 hand,
                 ax,
-                Vec3::splat(0.11),
-                held_item
-                    .map(|s| p.content.item(s.item).color)
-                    .unwrap_or([0.91, 0.76, 0.62]),
-                held_item
-                    .and_then(|s| p.content.item(s.item).block)
-                    .is_some_and(|b| w::emission(b) > 0)
-                    || held_item.is_some_and(|s| p.content.item(s.item).light > 0),
                 light_at(&p.light, eye),
             );
             // items lying in the world: small spinning cubes
@@ -2029,7 +2028,7 @@ fn hud(
                 actions.push(Action::Disconnect);
             }
         });
-    } else if !p.captured && !p.chat_open {
+    } else if !p.captured && !p.chat_open && !p.picker_open && p.dead.is_none() {
         egui::Area::new(egui::Id::new("click"))
             .anchor(Align2::CENTER_CENTER, Vec2::new(0.0, 40.0))
             .show(ctx, |ui| {
@@ -2190,4 +2189,200 @@ impl ApplicationHandler for App {
             w.request_redraw();
         }
     }
+}
+
+/// Render one frame with the real HUD, for `dyno shot --ui` (tests and agents).
+/// `ui` is "hud", "pack", "dig" or "dead".
+#[allow(clippy::too_many_arguments)]
+pub fn shot_with_ui(
+    j: Joined,
+    gfx: &mut Gfx,
+    pos: Option<[f32; 3]>,
+    yaw: f32,
+    pitch: f32,
+    time: Option<f32>,
+    ui: &str,
+    out: std::path::PathBuf,
+) -> Result<String, String> {
+    let mut p = new_play(j);
+    let until = Instant::now() + Duration::from_millis(700);
+    while Instant::now() < until {
+        match p.conn.rx.recv_timeout(Duration::from_millis(30)) {
+            Ok(NetEvent::Msg(m)) => match m {
+                ServerMsg::Pack(s) => p.pack = s,
+                ServerMsg::Status {
+                    health,
+                    food,
+                    mode,
+                    fuel,
+                } => {
+                    p.health = health;
+                    p.food = food;
+                    p.mode = mode;
+                    p.fuel = fuel;
+                }
+                ServerMsg::Time { time, day_seconds } => {
+                    p.time = time;
+                    p.day_seconds = day_seconds;
+                    p.time_at = Instant::now();
+                }
+                ServerMsg::EntitySpawn { id, kind, pos, yaw } => {
+                    p.entities.insert(
+                        id,
+                        ClientEntity {
+                            kind,
+                            from: pos,
+                            to: pos,
+                            at: Instant::now(),
+                            yaw,
+                            born: Instant::now(),
+                        },
+                    );
+                }
+                ServerMsg::Container(c) => p.chest = c,
+                ServerMsg::Milestone { title } => p.toast(format!("Journal: {title}")),
+                ServerMsg::Chat { from, text } => p.chat.push(Chat {
+                    at: Instant::now(),
+                    from: Some(from),
+                    text,
+                }),
+                ServerMsg::System { text } => p.chat.push(Chat {
+                    at: Instant::now(),
+                    from: None,
+                    text,
+                }),
+                _ => {}
+            },
+            Ok(NetEvent::Closed(r)) => return Err(r),
+            Err(_) => {}
+        }
+    }
+    if let Some(pos) = pos {
+        p.player.pos = pos.into();
+    }
+    p.player.yaw = yaw;
+    p.player.pitch = pitch;
+    p.captured = ui != "pack";
+    p.picker_open = ui == "pack";
+    p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+    if ui == "dig"
+        && let Some(t) = &p.target
+    {
+        p.dig = Some((t.block, 0.65, 1.0));
+    }
+    if ui == "dead" {
+        p.dead = Some("You fell from a high place.".into());
+    }
+    let t = time.unwrap_or(p.time);
+    let sky_now = sky(t);
+    gfx.load_world(&p.world, &p.light);
+    let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
+    let far = 160.0;
+    let eye = p.player.eye();
+    let dir = p.player.look_dir();
+    let right = dir.cross(Vec3::Y).normalize_or_zero();
+    let up = right.cross(dir);
+    let vp = glam::Mat4::perspective_rh(75f32.to_radians(), wdt / hgt, 0.05, far)
+        * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+    let mut boxes = Vec::new();
+    let mut lines = Vec::new();
+    let light_at = |l: &Light, v: Vec3| {
+        l.get(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32) as f32 / 15.0
+    };
+    for e in p.entities.values() {
+        if let EntityKind::Item(s) = e.kind {
+            let it = p.content.item(s.item);
+            let size = if it.block.is_some() { 0.13 } else { 0.1 };
+            render::push_oriented_box(
+                &mut boxes,
+                e.pos() + Vec3::Y * 0.2,
+                [Vec3::X, Vec3::Y, Vec3::Z],
+                Vec3::splat(size),
+                it.color,
+                false,
+                light_at(&p.light, e.pos()),
+            );
+        }
+    }
+    {
+        let hand = eye + dir * 0.62 + right * 0.36 - up * 0.34;
+        let (s1, c1) = 0.6f32.sin_cos();
+        let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];
+        render::push_held(
+            &mut boxes,
+            &p.content,
+            p.held().map(|s| s.item),
+            hand,
+            ax,
+            light_at(&p.light, eye),
+        );
+    }
+    if let Some(tg) = &p.target {
+        let b = Vec3::new(tg.block[0] as f32, tg.block[1] as f32, tg.block[2] as f32);
+        let (lo, hi) = (b - Vec3::splat(0.002), b + Vec3::splat(1.002));
+        let cs = [
+            Vec3::new(lo.x, lo.y, lo.z),
+            Vec3::new(hi.x, lo.y, lo.z),
+            Vec3::new(hi.x, lo.y, hi.z),
+            Vec3::new(lo.x, lo.y, hi.z),
+            Vec3::new(lo.x, hi.y, lo.z),
+            Vec3::new(hi.x, hi.y, lo.z),
+            Vec3::new(hi.x, hi.y, hi.z),
+            Vec3::new(lo.x, hi.y, hi.z),
+        ];
+        for (a, b) in [
+            (0, 1),
+            (1, 2),
+            (2, 3),
+            (3, 0),
+            (4, 5),
+            (5, 6),
+            (6, 7),
+            (7, 4),
+            (0, 4),
+            (1, 5),
+            (2, 6),
+            (3, 7),
+        ] {
+            for i in [a, b] {
+                lines.push(Vertex {
+                    pos: cs[i].into(),
+                    normal: [0.0; 3],
+                    color: [0.02, 0.02, 0.02, 0.75],
+                    light: 1.0,
+                    sky: 1.0,
+                    pattern: 0.0,
+                });
+            }
+        }
+    }
+    let ctx = egui::Context::default();
+    ctx.set_visuals(egui::Visuals::dark());
+    ctx.style_mut(|s| {
+        s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
+        s.animation_time = 0.0;
+    });
+    let raw = || egui::RawInput {
+        screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(wdt, hgt))),
+        ..Default::default()
+    };
+    let mut host = None;
+    let mut actions = Vec::new();
+    // two passes so windows settle their size; the first pass loads the font atlas
+    let first = ctx.run(raw(), |ctx| {
+        hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+    });
+    gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
+    let second = ctx.run(raw(), |ctx| {
+        hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+    });
+    gfx.screenshot = Some(out.clone());
+    gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, second);
+    Ok(format!(
+        "rendered {ui} at {:?}, {} items in pack, health {}, to {}",
+        p.player.pos,
+        p.pack.iter().flatten().count(),
+        p.health,
+        out.display()
+    ))
 }
