@@ -406,7 +406,17 @@ impl State {
             .filter(|(t, _)| last > 0 && *t > last)
             .map(|(_, e)| e.clone())
             .collect();
-        self.event(format!("{name} joined"));
+        // joins go to chat and Discord, but not to the away replay
+        let joined = format!("{name} joined");
+        self.broadcast(
+            &ServerMsg::System {
+                text: joined.clone(),
+            },
+            None,
+        );
+        if let Some(w) = &self.webhook {
+            let _ = w.send(joined);
+        }
         self.players.insert(id, p);
         if empty && self.is_night() {
             // every session starts at dawn

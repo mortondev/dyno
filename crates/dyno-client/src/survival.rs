@@ -18,21 +18,85 @@ fn col(rgb: [f32; 3], k: f32) -> Color32 {
 }
 
 /// A small isometric cube for a block.
+/// Every block texture in one egui image, for icons.
+#[derive(Clone)]
+struct Atlas {
+    tex: egui::TextureHandle,
+    cols: usize,
+    rows: usize,
+}
+
+const ATLAS_COLS: usize = 16;
+
+fn atlas(ctx: &egui::Context) -> Atlas {
+    let id = egui::Id::new("dyno-block-atlas");
+    if let Some(a) = ctx.data(|d| d.get_temp::<Atlas>(id)) {
+        return a;
+    }
+    let t = crate::render::textures();
+    let tile = crate::textures::TILE;
+    let n = t.layers.len().max(1);
+    let (cols, rows) = (ATLAS_COLS, n.div_ceil(ATLAS_COLS));
+    let (wd, ht) = (cols * tile, rows * tile);
+    let mut buf = vec![0u8; wd * ht * 4];
+    for (i, layer) in t.layers.iter().enumerate() {
+        let (ox, oy) = ((i % cols) * tile, (i / cols) * tile);
+        for y in 0..tile {
+            let src = &layer[y * tile * 4..(y + 1) * tile * 4];
+            let o = ((oy + y) * wd + ox) * 4;
+            buf[o..o + tile * 4].copy_from_slice(src);
+        }
+    }
+    let img = egui::ColorImage::from_rgba_unmultiplied([wd, ht], &buf);
+    let tex = ctx.load_texture("dyno-blocks", img, egui::TextureOptions::NEAREST);
+    let a = Atlas { tex, cols, rows };
+    ctx.data_mut(|d| d.insert_temp(id, a.clone()));
+    a
+}
+
+impl Atlas {
+    fn uv(&self, layer: u16, x: f32, y: f32) -> Pos2 {
+        let (l, c) = (layer as usize, self.cols);
+        Pos2::new(
+            ((l % c) as f32 + x) / c as f32,
+            ((l / c) as f32 + y) / self.rows as f32,
+        )
+    }
+}
+
+/// A pixel sprite for an item that is not a block, made once per item.
+fn item_texture(ctx: &egui::Context, c: &Content, item: ItemId) -> egui::TextureHandle {
+    let it = c.item(item);
+    let id = egui::Id::new((
+        "dyno-item",
+        c.item_key(item).to_string(),
+        it.name.to_string(),
+    ));
+    if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) {
+        return t;
+    }
+    let px = crate::textures::item_sprite(&it);
+    let n = crate::textures::TILE;
+    let img = egui::ColorImage::from_rgba_unmultiplied([n, n], &px);
+    let t = ctx.load_texture(format!("item-{item}"), img, egui::TextureOptions::NEAREST);
+    ctx.data_mut(|d| d.insert_temp(id, t.clone()));
+    t
+}
+
 pub fn block_icon(painter: &egui::Painter, r: Rect, b: w::BlockId) {
-    let rgb = w::block(b).color;
+    let a = atlas(painter.ctx());
+    let t = crate::render::textures();
     if w::shape(b) == w::Shape::Post {
-        // torch: a stick with a flame
+        // a torch: the side texture as an upright stick
+        let layer = t.face(b, 1);
         let c = r.center();
-        let s = r.width() * 0.5;
-        painter.line_segment(
-            [c + Vec2::new(0.0, s * 0.9), c + Vec2::new(0.0, -s * 0.2)],
-            Stroke::new(s * 0.25, Color32::from_rgb(140, 102, 60)),
-        );
-        painter.circle_filled(c + Vec2::new(0.0, -s * 0.45), s * 0.32, col(rgb, 1.0));
-        painter.circle_filled(
-            c + Vec2::new(0.0, -s * 0.5),
-            s * 0.16,
-            Color32::from_rgb(255, 245, 200),
+        let (hw, hh) = (r.width() * 0.11, r.height() * 0.46);
+        let rect = Rect::from_center_size(c, Vec2::new(hw * 2.0, hh * 2.0));
+        painter.image(
+            a.tex.id(),
+            rect,
+            Rect::from_min_max(a.uv(layer, 6.5 / 16.0, 0.0), a.uv(layer, 9.5 / 16.0, 1.0)),
+            Color32::WHITE,
         );
         return;
     }
@@ -45,35 +109,45 @@ pub fn block_icon(painter: &egui::Painter, r: Rect, b: w::BlockId) {
     let bl = Pos2::new(c.x - s * 0.87, c.y + s * 0.5);
     let br = Pos2::new(c.x + s * 0.87, c.y + s * 0.5);
     let bot = Pos2::new(c.x, c.y + s);
-    painter.add(Shape::convex_polygon(
-        vec![top, right, mid, left],
-        col(rgb, 1.0),
-        Stroke::NONE,
-    ));
-    painter.add(Shape::convex_polygon(
-        vec![left, mid, bot, bl],
-        col(rgb, 0.78),
-        Stroke::NONE,
-    ));
-    painter.add(Shape::convex_polygon(
-        vec![mid, right, br, bot],
-        col(rgb, 0.62),
-        Stroke::NONE,
-    ));
-    if w::emission(b) > 0 {
-        painter.circle_stroke(
-            c,
-            s * 1.05,
-            Stroke::new(1.5_f32, col(rgb, 1.0).gamma_multiply(0.5)),
-        );
-    }
+    let glow = w::emission(b) > 0;
+    let (top_l, side_l) = (t.face(b, 0), t.face(b, 1));
+    let mut mesh = egui::Mesh::with_texture(a.tex.id());
+    let mut quad = |pts: [Pos2; 4], layer: u16, shade: u8| {
+        let i = mesh.vertices.len() as u32;
+        let tint = Color32::from_gray(if glow { 255 } else { shade });
+        for (p, (x, y)) in pts
+            .into_iter()
+            .zip([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)])
+        {
+            mesh.vertices.push(egui::epaint::Vertex {
+                pos: p,
+                uv: a.uv(layer, x, y),
+                color: tint,
+            });
+        }
+        mesh.add_triangle(i, i + 1, i + 2);
+        mesh.add_triangle(i, i + 2, i + 3);
+    };
+    quad([left, top, right, mid], top_l, 255);
+    quad([left, mid, bot, bl], side_l, 205);
+    quad([mid, right, br, bot], side_l, 160);
+    painter.add(Shape::mesh(mesh));
 }
 
-/// Draw any item: blocks as cubes, others as simple pixel-style shapes.
 pub fn item_icon(painter: &egui::Painter, r: Rect, c: &Content, item: ItemId) {
     let it = c.item(item);
     if let (Icon::Block, Some(b)) = (it.icon, it.block) {
         return block_icon(painter, r.shrink(r.width() * 0.08), b);
+    }
+    if it.block.is_none() {
+        let t = item_texture(painter.ctx(), c, item);
+        painter.image(
+            t.id(),
+            r.shrink(r.width() * 0.02),
+            Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+            Color32::WHITE,
+        );
+        return;
     }
     let rgb = it.color;
     let center = r.center();

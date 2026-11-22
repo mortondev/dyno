@@ -611,7 +611,9 @@ impl World {
                 if r2 <= 30 && natural(self.get(x + dx, y, z + dz)) {
                     self.set(x + dx, y, z + dz, GRASS);
                 }
-                if r2 <= 20 {
+                if r2 <= 20
+                    && (self.get(x + dx, y, z + dz) == AIR || natural(self.get(x + dx, y, z + dz)))
+                {
                     let b = if hash(x + dx, z + dz, 7).is_multiple_of(3) {
                         19
                     } else {
@@ -630,16 +632,18 @@ impl World {
         for (i, (dx, dz)) in [(-3, -3), (3, -3), (-3, 3), (3, 3)].into_iter().enumerate() {
             let h = [3, 1, 2, 4][i];
             for yy in 1..=h {
-                self.set(
-                    x + dx,
-                    y + yy,
-                    z + dz,
-                    if yy == h && i % 2 == 0 { 19 } else { COBBLE },
-                );
+                let here = self.get(x + dx, y + yy, z + dz);
+                if here == AIR || natural(here) {
+                    let b = if yy == h && i % 2 == 0 { 19 } else { COBBLE };
+                    self.set(x + dx, y + yy, z + dz, b);
+                }
             }
         }
         // the hearth sits on the floor, ringed by low stones
         for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+            if !natural(self.get(x + dx, y + 1, z + dz)) {
+                continue;
+            }
             self.set(x + dx, y + 1, z + dz, AIR);
         }
         self.set(x, y + 1, z, HEARTH);

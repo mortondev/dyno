@@ -23,8 +23,31 @@ pub struct Vertex {
     pub light: f32,
     /// sky light 0..1
     pub sky: f32,
-    /// surface pattern id (see dyno_world::pattern)
-    pub pattern: f32,
+    /// texture: u, v, layer (negative: untextured, use `color`), and
+    /// animation (frame count + seconds per frame / 100)
+    pub tex: [f32; 4],
+}
+
+/// No texture: the vertex colour is the surface colour.
+pub const NO_TEX: [f32; 4] = [0.0, 0.0, -1.0, 0.0];
+
+/// The block textures, built once.
+pub fn textures() -> &'static crate::textures::Textures {
+    static T: std::sync::OnceLock<crate::textures::Textures> = std::sync::OnceLock::new();
+    T.get_or_init(crate::textures::Textures::blocks)
+}
+
+/// Texture coordinates for one face corner, plus the layer and animation.
+fn face_tex(b: BlockId, face: usize, u: f32, v: f32) -> [f32; 4] {
+    let t = textures();
+    let layer = t.face(b, face);
+    let anim = t
+        .animated
+        .iter()
+        .find(|(first, _, _)| *first == layer)
+        .map(|(_, n, spf)| *n as f32 + (spf / 100.0).min(0.99))
+        .unwrap_or(0.0);
+    [u, v, layer as f32, anim]
 }
 
 #[repr(C)]
@@ -56,7 +79,10 @@ const SHADER: &str = r#"
 struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32> };
 @group(0) @binding(0) var<uniform> u: U;
 
-struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32>, @location(3) light: f32, @location(4) sky: f32, @location(5) pattern: f32 };
+@group(0) @binding(1) var tex_array: texture_2d_array<f32>;
+@group(0) @binding(2) var tex_samp: sampler;
+
+struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32>, @location(3) light: f32, @location(4) sky: f32, @location(5) tex: vec4<f32> };
 struct VOut {
   @builtin(position) clip: vec4<f32>,
   @location(0) wpos: vec3<f32>,
@@ -64,7 +90,7 @@ struct VOut {
   @location(2) color: vec4<f32>,
   @location(3) light: f32,
   @location(4) sky: f32,
-  @location(5) pattern: f32,
+  @location(5) tex: vec4<f32>,
 };
 
 @vertex fn vs(v: VIn) -> VOut {
@@ -75,7 +101,7 @@ struct VOut {
   o.color = v.color;
   o.light = v.light;
   o.sky = v.sky;
-  o.pattern = v.pattern;
+  o.tex = v.tex;
   return o;
 }
 
@@ -83,16 +109,30 @@ fn hash3(p: vec3<f32>) -> f32 {
   return fract(sin(dot(p, vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
 }
 
+// The texel for a textured vertex, with animated layers stepping through frames.
+fn texel(t: vec4<f32>) -> vec4<f32> {
+  var layer = t.z;
+  let frames = floor(t.w);
+  if (frames > 1.0) {
+    let spf = max(fract(t.w) * 100.0, 0.02);
+    layer = layer + (floor(u.cam.w / spf) % frames);
+  }
+  return textureSample(tex_array, tex_samp, t.xy, i32(layer + 0.5));
+}
+
 @fragment fn fs(i: VOut) -> @location(0) vec4<f32> {
-  // 16 x 16 texel grain so blocks read as pixel-art surfaces
+  let tx = texel(i.tex);
+  if (i.tex.z >= 0.0 && tx.a < 0.5) { discard; }
+  // 16 x 16 texel grain on untextured boxes so they read as pixel art
   let t = floor(i.wpos * 16.0 - i.normal * 0.01);
-  let grain = select(1.0, 0.86 + 0.24 * hash3(t), dot(i.normal, i.normal) > 0.5);
+  let grain = select(1.0, 0.86 + 0.24 * hash3(t), dot(i.normal, i.normal) > 0.5 && i.tex.z < 0.0);
   // daylight (u.cam.w) or warm block light, whichever is brighter
   let bl = i.light * i.light;
   let sl = i.sky * i.sky;
   let lit = max(u.light.rgb * (sl * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * bl * 1.1);
   var base = i.color.rgb;
-  let pt = i32(i.pattern + 0.5);
+  if (i.tex.z >= 0.0) { base = base * tx.rgb; }
+  let pt = 0;
   if (pt > 0) {
     let h = hash3(t + vec3<f32>(17.0, 3.0, 11.0));
     let h2 = hash3(floor(t / 2.0) + vec3<f32>(5.0, 9.0, 1.0));
@@ -113,7 +153,7 @@ fn hash3(p: vec3<f32>) -> f32 {
     if (pt == 6 && h > 0.92) { base = vec3<f32>(0.86, 0.12, 0.22); }
   }
   var c = base * grain * min(i.color.a, 1.0) * lit;
-  if (i.color.a > 1.9) { c = i.color.rgb * grain * 1.1; }
+  if (i.color.a > 1.9) { c = base * grain * 1.1; }
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   c = mix(c, u.fog.rgb, f);
@@ -178,8 +218,14 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   let lit = max(u.light.rgb * (i.sky * i.sky * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * i.light * i.light);
+  let tx = texel(i.tex);
   var c = i.color.rgb * lit;
   var a = i.color.a;
+  if (i.tex.z >= 0.0) {
+    c = c * tx.rgb;
+    a = tx.a;
+    if (a < 0.02) { discard; }
+  }
   // water (alpha 0.62): moving shimmer, and the sky reflects at grazing angles
   if (abs(i.color.a - 0.62) < 0.02 && i.normal.y > 0.5) {
     let t = u.cam.w;
@@ -240,11 +286,15 @@ pub fn mesh_section(
                 if b == w::AIR {
                     continue;
                 }
-                let (rgb, alpha) = block_color(b);
-                let lin = srgb(rgb);
+                if w::shape(b) == w::Shape::Post {
+                    let c = Vec3::new(x as f32 + 0.5, y as f32 + 11.0 / 32.0, z as f32 + 0.5);
+                    let l = light.get(x, y, z) as f32 / 15.0;
+                    push_post(&mut opaque, c, b, l);
+                    continue;
+                }
+                let alpha = w::block(b).alpha;
                 let tr = translucent(b);
                 let emissive = w::emission(b) > 0;
-                let pat = w::pattern(b) as f32;
                 for (n, u, v, shade) in FACES {
                     let nb = world.get(x + n[0], y + n[1], z + n[2]);
                     if w::is_opaque(nb) || (tr && nb == b) || (w::is_leaves(b) && w::is_leaves(nb))
@@ -318,10 +368,16 @@ pub fn mesh_section(
                         corners[i] = (p, shade_ao, bl, sl);
                     }
                     let nf = [n[0] as f32, n[1] as f32, n[2] as f32];
+                    // textured: the texture carries the colour
                     let col = if tr {
-                        [lin[0] * shade, lin[1] * shade, lin[2] * shade]
+                        [shade, shade, shade]
                     } else {
-                        lin
+                        [1.0, 1.0, 1.0]
+                    };
+                    let face_id = match n[1] {
+                        1 => 0,
+                        -1 => 2,
+                        _ => 1,
                     };
                     // flip the diagonal so ambient occlusion interpolates without seams
                     let order = if corners[0].1 + corners[2].1 > corners[1].1 + corners[3].1 {
@@ -332,13 +388,25 @@ pub fn mesh_section(
                     let out = if tr { &mut trans } else { &mut opaque };
                     for i in order {
                         let (p, l, bl, sl) = corners[i];
+                        let (su, sv) =
+                            [(-1.0f32, -1.0f32), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)][i];
+                        // sides: v runs down from the top; mirror u on the far faces
+                        let (tu, tv) = if face_id == 1 {
+                            let uu = (su + 1.0) * 0.5;
+                            (
+                                if n[0] + n[2] < 0 { uu } else { 1.0 - uu },
+                                (1.0 - sv) * 0.5,
+                            )
+                        } else {
+                            ((su + 1.0) * 0.5, (sv + 1.0) * 0.5)
+                        };
                         out.push(Vertex {
                             pos: p,
                             normal: nf,
                             color: [col[0], col[1], col[2], l],
                             light: bl,
                             sky: sl,
-                            pattern: pat,
+                            tex: face_tex(b, face_id, tu, tv),
                         });
                     }
                 }
@@ -368,7 +436,7 @@ pub fn push_box(out: &mut Vec<Vertex>, min: Vec3, max: Vec3, rgb: [f32; 3], ligh
                 color: [c[0], c[1], c[2], shade],
                 light,
                 sky: 1.0,
-                pattern: 0.0,
+                tex: NO_TEX,
             });
         }
     }
@@ -402,7 +470,7 @@ pub fn push_oriented_box(
                 color: [c[0], c[1], c[2], a],
                 light,
                 sky: 1.0,
-                pattern: 0.0,
+                tex: NO_TEX,
             });
         }
     }
@@ -771,6 +839,195 @@ pub fn push_creature(
     }
 }
 
+/// A torch-like post: a narrow textured stick, 3/16 wide and 11/16 tall, glowing.
+fn push_post(out: &mut Vec<Vertex>, center: Vec3, b: BlockId, light: f32) {
+    push_post_oriented(out, center, [Vec3::X, Vec3::Y, Vec3::Z], 1.0, b, light);
+}
+
+/// A post with any orientation and size (held and dropped torches).
+pub fn push_post_oriented(
+    out: &mut Vec<Vertex>,
+    center: Vec3,
+    axes: [Vec3; 3],
+    scale: f32,
+    b: BlockId,
+    light: f32,
+) {
+    let half = Vec3::new(1.5 / 16.0, 11.0 / 32.0, 1.5 / 16.0) * scale;
+    let (u0, u1) = (6.5 / 16.0, 9.5 / 16.0);
+    for (n, u, v, _) in FACES {
+        let pick = |a: [i32; 3]| {
+            axes[0] * (a[0] as f32 * half.x)
+                + axes[1] * (a[1] as f32 * half.y)
+                + axes[2] * (a[2] as f32 * half.z)
+        };
+        let face = match n[1] {
+            1 => 0,
+            -1 => 2,
+            _ => 1,
+        };
+        let (nf, uf, vf) = (pick(n), pick(u), pick(v));
+        let fc = center + nf;
+        let cs = [(-1.0f32, -1.0f32), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)];
+        for i in [0, 1, 2, 0, 2, 3] {
+            let (su, sv) = cs[i];
+            let (tu, tv) = if face == 1 {
+                (u0 + (u1 - u0) * (su + 1.0) * 0.5, (1.0 - sv) * 0.5)
+            } else {
+                (
+                    u0 + (u1 - u0) * (su + 1.0) * 0.5,
+                    u0 + (u1 - u0) * (sv + 1.0) * 0.5,
+                )
+            };
+            out.push(Vertex {
+                pos: (fc + uf * su + vf * sv).into(),
+                normal: [0.0; 3],
+                color: [1.0, 1.0, 1.0, 2.0],
+                light,
+                sky: 1.0,
+                tex: face_tex(b, face, tu, tv),
+            });
+        }
+    }
+}
+
+/// A small textured block, for dropped and held blocks.
+pub fn push_block_cube(
+    out: &mut Vec<Vertex>,
+    center: Vec3,
+    axes: [Vec3; 3],
+    half: f32,
+    b: BlockId,
+    light: f32,
+) {
+    let glow = w::emission(b) > 0;
+    for (n, u, v, shade) in FACES {
+        let pick = |a: [i32; 3]| {
+            (axes[0] * a[0] as f32 + axes[1] * a[1] as f32 + axes[2] * a[2] as f32) * half
+        };
+        let face = match n[1] {
+            1 => 0,
+            -1 => 2,
+            _ => 1,
+        };
+        let (nf, uf, vf) = (pick(n), pick(u), pick(v));
+        let fc = center + nf;
+        let cs = [(-1.0f32, -1.0f32), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)];
+        for i in [0, 1, 2, 0, 2, 3] {
+            let (su, sv) = cs[i];
+            let (tu, tv) = if face == 1 {
+                ((su + 1.0) * 0.5, (1.0 - sv) * 0.5)
+            } else {
+                ((su + 1.0) * 0.5, (sv + 1.0) * 0.5)
+            };
+            out.push(Vertex {
+                pos: (fc + uf * su + vf * sv).into(),
+                normal: [0.0; 3],
+                color: [1.0, 1.0, 1.0, if glow { 2.0 } else { shade }],
+                light,
+                sky: 1.0,
+                tex: face_tex(b, face, tu, tv),
+            });
+        }
+    }
+}
+
+/// Upload every block texture as one array texture, with mipmaps for distance.
+fn upload_textures(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+) -> (wgpu::TextureView, wgpu::Sampler) {
+    use crate::textures::TILE;
+    let t = textures();
+    let layers = t.layers.len().max(1) as u32;
+    let mips = 5; // 16, 8, 4, 2, 1
+    let tex = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("blocks"),
+        size: wgpu::Extent3d {
+            width: TILE as u32,
+            height: TILE as u32,
+            depth_or_array_layers: layers,
+        },
+        mip_level_count: mips,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8UnormSrgb,
+        usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+        view_formats: &[],
+    });
+    for (li, layer) in t.layers.iter().enumerate() {
+        let mut img: Vec<u8> = layer.to_vec();
+        let mut size = TILE;
+        for mip in 0..mips {
+            queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &tex,
+                    mip_level: mip,
+                    origin: wgpu::Origin3d {
+                        x: 0,
+                        y: 0,
+                        z: li as u32,
+                    },
+                    aspect: wgpu::TextureAspect::All,
+                },
+                &img,
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(size as u32 * 4),
+                    rows_per_image: Some(size as u32),
+                },
+                wgpu::Extent3d {
+                    width: size as u32,
+                    height: size as u32,
+                    depth_or_array_layers: 1,
+                },
+            );
+            if size == 1 {
+                break;
+            }
+            // halve: average in linear light, weighting colour by alpha
+            let half = size / 2;
+            let mut next = vec![0u8; half * half * 4];
+            let lin = |c: u8| (c as f32 / 255.0).powf(2.2);
+            for y in 0..half {
+                for x in 0..half {
+                    let mut acc = [0.0f32; 4];
+                    for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                        let i = ((y * 2 + dy) * size + x * 2 + dx) * 4;
+                        let a = img[i + 3] as f32 / 255.0;
+                        for k in 0..3 {
+                            acc[k] += lin(img[i + k]) * a;
+                        }
+                        acc[3] += a;
+                    }
+                    let o = (y * half + x) * 4;
+                    for k in 0..3 {
+                        let v = if acc[3] > 0.0 { acc[k] / acc[3] } else { 0.0 };
+                        next[o + k] = (v.powf(1.0 / 2.2) * 255.0).round() as u8;
+                    }
+                    next[o + 3] = (acc[3] / 4.0 * 255.0).round() as u8;
+                }
+            }
+            img = next;
+            size = half;
+        }
+    }
+    let view = tex.create_view(&wgpu::TextureViewDescriptor {
+        dimension: Some(wgpu::TextureViewDimension::D2Array),
+        ..Default::default()
+    });
+    let samp = device.create_sampler(&wgpu::SamplerDescriptor {
+        label: Some("pixels"),
+        address_mode_u: wgpu::AddressMode::Repeat,
+        address_mode_v: wgpu::AddressMode::Repeat,
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Nearest,
+        mipmap_filter: wgpu::FilterMode::Linear,
+        ..Default::default()
+    });
+    (view, samp)
+}
+
 fn render_limb(
     out: &mut Vec<Vertex>,
     center: Vec3,
@@ -941,26 +1198,55 @@ impl Gfx {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let (tex_view, tex_samp) = upload_textures(&device, &queue);
         let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
-                count: None,
-            }],
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
         });
         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &bgl,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: ubuf.as_entire_binding(),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: ubuf.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&tex_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&tex_samp),
+                },
+            ],
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
@@ -970,7 +1256,7 @@ impl Gfx {
         let vlayout = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4, 3 => Float32, 4 => Float32, 5 => Float32],
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4, 3 => Float32, 4 => Float32, 5 => Float32x4],
         };
         let make = |fs: &str,
                     topo: wgpu::PrimitiveTopology,
@@ -1462,8 +1748,13 @@ pub fn push_held(
     };
     let it = c.item(item);
     let glow = it.light > 0 || it.block.is_some_and(|b| w::emission(b) > 0);
-    if it.block.is_some() {
-        push_oriented_box(out, hand, ax, Vec3::splat(0.11), it.color, glow, light);
+    if let Some(b) = it.block {
+        let _ = glow;
+        if w::shape(b) == w::Shape::Post {
+            push_post_oriented(out, hand + ax[1] * 0.02, ax, 0.45, b, light);
+        } else {
+            push_block_cube(out, hand, ax, 0.11, b, light);
+        }
         return;
     }
     // tilt tools forward so the head points up and away

@@ -1258,7 +1258,7 @@ impl App {
                             color: edge,
                             light: 1.0,
                             sky: 1.0,
-                            pattern: 0.0,
+                            tex: render::NO_TEX,
                         });
                     }
                 }
@@ -1307,7 +1307,7 @@ impl App {
                             color: [1.0, 0.55, 0.15, 0.95],
                             light: 1.0,
                             sky: 1.0,
-                            pattern: 0.0,
+                            tex: render::NO_TEX,
                         });
                     }
                 }
@@ -1363,6 +1363,30 @@ impl App {
                     let n = if s.count > 1 { 2 } else { 1 };
                     for k in 0..n {
                         let off = Vec3::new(k as f32 * 0.08, k as f32 * 0.06, k as f32 * 0.05);
+                        if let Some(b) = it.block
+                            && w::shape(b) == w::Shape::Post
+                        {
+                            render::push_post_oriented(
+                                &mut boxes,
+                                pos + Vec3::Y * (bob + 0.05) + off,
+                                ax,
+                                0.5,
+                                b,
+                                light_at(&p.light, pos),
+                            );
+                            continue;
+                        }
+                        if let Some(b) = it.block {
+                            render::push_block_cube(
+                                &mut boxes,
+                                pos + Vec3::Y * bob + off,
+                                ax,
+                                size,
+                                b,
+                                light_at(&p.light, pos),
+                            );
+                            continue;
+                        }
                         render::push_oriented_box(
                             &mut boxes,
                             pos + Vec3::Y * bob + off,
@@ -2620,7 +2644,7 @@ pub fn shot_with_ui(
                     color: [0.02, 0.02, 0.02, 0.75],
                     light: 1.0,
                     sky: 1.0,
-                    pattern: 0.0,
+                    tex: render::NO_TEX,
                 });
             }
         }
