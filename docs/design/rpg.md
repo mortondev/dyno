@@ -47,43 +47,80 @@ The pace follows classic WoW, scaled for a small world of 20 levels.
 - **Target pace**: level 2 in about 5 minutes, level 5 in about 45 minutes, level 10 in about 4 hours, level 20 in about 20 hours. About 60% of XP comes from quests.
 - **Rested XP** (from the hearth review): logging out at a hearth doubles kill XP for a while.
 
-## Classes (three to start)
+## Classes
 
-| Class | Resource | Role | First abilities |
-|---|---|---|---|
-| Warden (warrior) | Rage, built by hitting and being hit | Tank, melee | Strike, Shield Bash (interrupt), Taunt |
-| Emberwright (mage) | Mana | Ranged damage | Ember Bolt (cast 1.5 s), Frost Snare, Blink |
-| Lightbearer (healer) | Mana | Heals, holy damage, strong against Shades | Mend, Radiance (hurts Shades, heals friends nearby), Smite |
+The six traditional classes, chosen when you first enter the world (`/class <name>` also works):
 
-New abilities arrive at levels 2, 4, 6, 8, 10, 14 and 20. Talents come later.
+| Class | Resource | Armour | Weapons | Abilities to level 10 |
+|---|---|---|---|---|
+| Warrior | Rage (from hitting and being hit) | Mail, shield | Sword, axe, mace, polearm | Heroic Blow, Battle Cry, Onrush (charge), Rending Cut (bleed), Ground Slam, Last Stand |
+| Paladin | Mana | Mail, shield | Mace, sword | Judging Blow, Holy Mend, Valour, Rebuke (stun), Devout Ward, Hallowed Ground |
+| Hunter | Mana | Leather | Bow, axe, sword, dagger | Auto-shot, Quick Shot, Barbed Arrow, Snare Shot, Hawk's Eye, Volley |
+| Rogue | Energy (10 a second), 5 combo points | Leather | Dagger, sword | Vicious Strike, Finishing Cut, Low Blow, Flurry, Open Vein, Slip Away |
+| Priest | Mana | Cloth | Mace, staff, wand | Smite, Mend, Withering Word, Renewal, Fortify, Radiance |
+| Mage | Mana | Cloth | Staff, dagger, wand | Fireball, Scholar's Focus, Fire Blast, Ice Ring, Blink, Flame Nova |
 
-## The spell bar
+Effects available to abilities:
+- direct damage (optionally plus a weapon swing);
+- healing;
+- area damage around you or your target;
+- root and stun;
+- damage over time and healing over time (ticks every 3 seconds);
+- timed buffs: damage, damage taken, attack speed, stats;
+- Rogue combo points: builders add one, finishers spend all;
+- charge to the target;
+- blink;
+- a bonus against Shades.
 
-The bar at the bottom of the screen holds abilities, not items:
+The global cooldown is 1.5 seconds (Rogues 1.0).
 
-- Keys 1 to 7: your class abilities, in the order you learn them.
-- Key 8: Recall. An 8-second cast that returns you to your bed, or to Hearthstead. It is ready again after 5 minutes. You cannot use it in combat.
-- Key 9: eat the most filling food in your bags (out of combat).
+## Design review (22 November 2026)
 
-Your weapon and gathering tools are chosen from your bags automatically: the hardest-hitting weapon, and the best tool for each node. Items live in your bags (E).
+An independent review against classic MMO conventions found these problems, and they were fixed:
+- the first-person-only camera;
+- click-spam combat with knockback;
+- mobs that always chased the nearest player;
+- no equipment, stats, quality or tooltips;
+- no character screen, bags, spellbook or professions;
+- tool and bed quest rewards;
+- loot on the ground;
+- generous health regeneration.
 
-Casting: abilities with a cast time are cancelled by moving. Every ability triggers a 1.2-second global cooldown. Click a creature or press Tab to target it; abilities use that target.
+Now:
+- **Camera:** third person, with the mouse wheel zooming in and out (fully in is first person).
+- **Combat:** clicking a creature starts auto-attack at weapon speed.
+- **Creatures:**
+  - Threat: they attack whoever has hurt them most.
+  - Aggro and leashing: they aggro at about 10 blocks (more for higher levels) and give up, heal and walk home if pulled 30 blocks.
+  - Neutral creatures fight back.
+- **Gear:** equipment with quality colours and class armour and weapon limits. Quests reward green gear choices.
+- **Loot:** loot goes straight into your bags.
+- **Regeneration:** health returns slowly out of combat (Spirit), and food heals.
 
-Rage (Warden) builds by hitting (8 a blow) and by being hit, and fades out of combat. Mana refills at 3% a second out of combat and 0.6% in combat.
-
-## Look and feel
-
-The goal is a warm, hand-painted fantasy look:
-
-- 32 × 32 painted textures.
-- Sun shadows, cool blue shade and warm light.
-- A colour grade with soft highlight roll-off.
-- Painted clouds.
-- Chunky heroic characters with outfits.
-- A gilded interface: portrait frames, parchment quest windows and a carved action bar.
-- Hearthstead is a timber-framed village with an inn, a smithy, a watch tower and the Hearthkeeper's library.
+Still to do from the review: corpse loot windows, vendors that sell, repairs and durability, ghost runs, a minimap, rested XP, chat channels, a combat log and talents.
 
 ## Stats and gear
+
+Formulas (`crates/dyno-sim/src/character.rs`):
+- Health is 20 + 5 × Stamina, and mana is 20 + 8 × Intellect.
+- Attack power is 2 × Strength (Rogues and Hunters: Strength + Agility). A swing does weapon damage + attack power / 14 × weapon speed.
+- Armour reduces damage by armour / (armour + 100 + 50 × attacker level), at most 75%.
+- Crit is 5% + Agility / 10 (×2 damage), or 5% + Intellect / 15 for spells (×1.5).
+- Class base stats grow each level.
+
+## Screens
+
+| Key | Screen |
+|---|---|
+| C | Character: paper doll with 17 places (head to ranged), and the stat sheet |
+| B or E | Bags: 36 slots, quality borders, tooltips. Right click equips, eats, or sells at a merchant |
+| P | Spellbook: every class ability, greyed until learned. Bind any ability to any of the 12 bar keys |
+| K | Skills: professions (Mining, Herbalism, Woodcutting, Blacksmithing, Cooking), 1 to 150, rising orange, yellow, green, grey |
+| L | Quest log |
+
+The action bar has 12 keys (1 to 0, -, =). By default, Recall is on - and Eat is on =.
+
+## More on gear
 
 - **Stats**: Strength, Agility, Intellect, Stamina, Spirit. Health = base for class and level + 10 × Stamina.
 - **Slots**: head, chest, legs, feet, hands, main hand, off hand, two rings, trinket.

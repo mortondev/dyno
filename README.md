@@ -28,22 +28,21 @@ The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host nam
 | Key | Action |
 |---|---|
 | Mouse, W A S D, Space | Look, move, jump |
-| Ctrl or R | Sprint |
-| Left mouse | Attack the creature you look at; hold to gather from trees, ore and bushes |
-| Right mouse | Talk to people (a yellow **!** means they have a quest for you, **?** means you can hand one in); eat; open chests |
-| Tab | Target the nearest creature in front of you |
-| L | Quest log |
-| E | Pack and recipes |
-| 1 to 9, wheel | Hotbar |
-| Q / Ctrl+Q | Drop one / the stack |
-| T or Enter, / | Chat, commands (`/help`) |
+| Mouse wheel | Zoom the camera (all the way in is first person) |
+| Left or right click a creature | Target it and start attacking |
+| Right click a person | Talk (yellow **!** has a quest, **?** can take one back) |
+| 1 to 0, -, = | Action bar: your class abilities; Recall on -, eat on = |
+| Tab | Target the nearest creature ahead |
+| C / B / P / K / L | Character, Bags, Spellbook, Skills, Quest log |
+| Hold left mouse on a tree, ore or bush | Gather (Woodcutting, Mining, Herbalism) |
+| T or Enter, / | Chat and commands (`/help`) |
 | Esc | Menu, or close a window |
 
-Operators building the world use `/gamemode creative` for flight, free blocks and the fill tool (G, V, X, Ctrl+Z).
+Operators building the world use `/gamemode creative` for flight, free blocks and the fill tool.
 
 ### Hearthblock Online in short
 
-You wake by the cold ruins of the Great Hearth in Hearthstead. Talk to Old Brannoc, Captain Maren, Tilda and Hollis to pick up quests: hunt Grazers, gather wood, coal and iron, find the old North Watch beacon, and fight the Shades that rise at night. Quests and kills give experience; you level up from 1 to 5 in the first chain, with gold and gear as rewards. The land is protected, but trees, ore and bushes grow back after you gather them. You never lose items when you die. The plan for classes, gear, zones and a dungeon is in [docs/design/rpg.md](docs/design/rpg.md).
+Pick a class (Warrior, Paladin, Hunter, Rogue, Priest or Mage) and wake in Hearthstead, a village around the cold ruins of the Great Hearth. Talk to Old Brannoc, Captain Maren, Tilda and Hollis to pick up quests: hunt Grazers, gather wood, coal and iron, find the old North Watch beacon, and fight the Shades that rise at night. Quests and kills give experience; you level up from 1 to 5 in the first chain, with gold and gear as rewards. The land is protected, but trees, ore and bushes grow back after you gather them. You never lose items when you die. The plan for classes, gear, zones and a dungeon is in [docs/design/rpg.md](docs/design/rpg.md).
 
 ## Host a world
 
