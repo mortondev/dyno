@@ -14,6 +14,8 @@ USAGE:
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out f.ppm]
                                Join, render one frame off-screen to an image, leave
+  dyno bot <address> [name] [seconds]
+                               Join as a bot that walks in a circle (demos, tests)
   dyno update                  Check for a new release and install it
   dyno version                 Print version, target and protocol
   dyno verify-manifest <manifest.json> <manifest.json.sig>
@@ -142,6 +144,41 @@ fn main() {
                     eprintln!("FAILED: {e}");
                     std::process::exit(1);
                 }
+            }
+        }
+        "bot" => {
+            // A simple bot: walks in a circle near spawn and says hello. For demos and tests.
+            let Some(addr) = args.get(1) else {
+                eprintln!("usage: dyno bot <address> [name] [seconds]");
+                std::process::exit(2);
+            };
+            let name = args.get(2).cloned().unwrap_or_else(|| "bot".into());
+            let secs: u64 = args.get(3).and_then(|v| v.parse().ok()).unwrap_or(60);
+            let j = dyno_client::net::connect(addr, &name, Duration::from_secs(10))
+                .unwrap_or_else(|e| fail(&e));
+            let _ = j.conn.tx.send(dyno_protocol::ClientMsg::Chat {
+                text: "Hello! I am a test bot.".into(),
+            });
+            let start = std::time::Instant::now();
+            let c = j.spawn;
+            while start.elapsed() < Duration::from_secs(secs) {
+                let t = start.elapsed().as_secs_f32() * 0.5;
+                let (x, z) = (c[0] + 4.0 * t.cos(), c[2] + 4.0 * t.sin());
+                let y = j.world.surface(x.floor() as i32, z.floor() as i32) as f32 + 1.0;
+                let pose = dyno_protocol::Pose {
+                    pos: [x, y, z],
+                    yaw: -t,
+                    pitch: 0.0,
+                };
+                if j.conn
+                    .tx
+                    .send(dyno_protocol::ClientMsg::Pose(pose))
+                    .is_err()
+                {
+                    break;
+                }
+                while j.conn.rx.try_recv().is_ok() {}
+                std::thread::sleep(Duration::from_millis(50));
             }
         }
         "verify-manifest" => {

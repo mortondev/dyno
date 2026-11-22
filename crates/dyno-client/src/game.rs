@@ -273,6 +273,15 @@ impl Remote {
         self.at = Instant::now();
     }
 
+    /// Horizontal speed in blocks per second.
+    pub fn speed(&self) -> f32 {
+        let d = [
+            self.to.pos[0] - self.from.pos[0],
+            self.to.pos[2] - self.from.pos[2],
+        ];
+        (d[0] * d[0] + d[1] * d[1]).sqrt() / 0.05
+    }
+
     pub fn current(&self) -> Pose {
         let t = (self.at.elapsed().as_secs_f32() / 0.05).clamp(0.0, 1.0);
         let l = |a: f32, b: f32| a + (b - a) * t;

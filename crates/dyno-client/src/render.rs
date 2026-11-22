@@ -298,23 +298,21 @@ pub fn push_oriented_box(
     out: &mut Vec<Vertex>,
     center: Vec3,
     axes: [Vec3; 3],
-    half: f32,
+    half: Vec3,
     rgb: [f32; 3],
     emissive: bool,
     light: f32,
 ) {
     let c = srgb(rgb);
     for (n, u, v, shade) in FACES {
-        let pick =
-            |a: [i32; 3]| axes[0] * a[0] as f32 + axes[1] * a[1] as f32 + axes[2] * a[2] as f32;
+        let pick = |a: [i32; 3]| {
+            axes[0] * (a[0] as f32 * half.x)
+                + axes[1] * (a[1] as f32 * half.y)
+                + axes[2] * (a[2] as f32 * half.z)
+        };
         let (nf, uf, vf) = (pick(n), pick(u), pick(v));
-        let fc = center + nf * half;
-        let p = [
-            fc - (uf + vf) * half,
-            fc + (uf - vf) * half,
-            fc + (uf + vf) * half,
-            fc + (vf - uf) * half,
-        ];
+        let fc = center + nf;
+        let p = [fc - uf - vf, fc + uf - vf, fc + uf + vf, fc + vf - uf];
         let a = if emissive { 2.0 } else { shade };
         for i in [0, 1, 2, 0, 2, 3] {
             out.push(Vertex {
@@ -325,6 +323,95 @@ pub fn push_oriented_box(
             });
         }
     }
+}
+
+/// Draw a player: legs and arms swing with `walk` (0 standing, 1 walking).
+#[allow(clippy::too_many_arguments)]
+pub fn push_avatar(
+    out: &mut Vec<Vertex>,
+    feet: Vec3,
+    yaw: f32,
+    pitch: f32,
+    color: [f32; 3],
+    light: f32,
+    phase: f32,
+    walk: f32,
+) {
+    let (sy, cy) = yaw.sin_cos();
+    let right = Vec3::new(cy, 0.0, -sy);
+    let fwd = Vec3::new(-sy, 0.0, -cy);
+    let up = Vec3::Y;
+    let skin = [0.91, 0.76, 0.62];
+    let pants = [color[0] * 0.45, color[1] * 0.45, color[2] * 0.5];
+    let swing = phase.sin() * 0.7 * walk;
+    let limb = |out: &mut Vec<Vertex>, pivot: Vec3, angle: f32, len: f32, w: f32, rgb: [f32; 3]| {
+        let (s, c) = angle.sin_cos();
+        let u2 = up * c + fwd * s;
+        let f2 = fwd * c - up * s;
+        render_limb(
+            out,
+            pivot - u2 * (len * 0.5),
+            [right, u2, f2],
+            Vec3::new(w, len * 0.5, w),
+            rgb,
+            light,
+        );
+    };
+    // legs
+    let hip = feet + up * 0.75;
+    limb(out, hip + right * 0.12, swing, 0.75, 0.115, pants);
+    limb(out, hip - right * 0.12, -swing, 0.75, 0.115, pants);
+    // body
+    push_oriented_box(
+        out,
+        feet + up * 1.1,
+        [right, up, fwd],
+        Vec3::new(0.25, 0.35, 0.13),
+        color,
+        false,
+        light,
+    );
+    // arms
+    let shoulder = feet + up * 1.42;
+    limb(out, shoulder + right * 0.36, -swing * 0.8, 0.66, 0.1, color);
+    limb(out, shoulder - right * 0.36, swing * 0.8, 0.66, 0.1, color);
+    // head, tilted by pitch
+    let (sp, cp) = (pitch * 0.6).sin_cos();
+    let hu = up * cp - fwd * sp;
+    let hf = fwd * cp + up * sp;
+    let head = feet + up * 1.71;
+    push_oriented_box(
+        out,
+        head,
+        [right, hu, hf],
+        Vec3::splat(0.24),
+        skin,
+        false,
+        light,
+    );
+    // eyes
+    for side in [-1.0f32, 1.0] {
+        push_oriented_box(
+            out,
+            head + hf * 0.245 + right * (0.09 * side) + hu * 0.03,
+            [right, hu, hf],
+            Vec3::new(0.04, 0.045, 0.01),
+            [0.12, 0.12, 0.16],
+            false,
+            light,
+        );
+    }
+}
+
+fn render_limb(
+    out: &mut Vec<Vertex>,
+    center: Vec3,
+    axes: [Vec3; 3],
+    half: Vec3,
+    rgb: [f32; 3],
+    light: f32,
+) {
+    push_oriented_box(out, center, axes, half, rgb, false, light);
 }
 
 struct SectionMesh {

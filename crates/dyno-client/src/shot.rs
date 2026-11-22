@@ -59,19 +59,15 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
             base.z.floor() as i32,
         ) as f32
             / 15.0;
-        render::push_box(
+        render::push_avatar(
             &mut boxes,
-            base + Vec3::new(-0.3, 0.0, -0.3),
-            base + Vec3::new(0.3, 1.35, 0.3),
+            base,
+            pose.yaw,
+            pose.pitch,
             game::player_color(i as u32 + 1),
             bl,
-        );
-        render::push_box(
-            &mut boxes,
-            base + Vec3::new(-0.25, 1.35, -0.25),
-            base + Vec3::new(0.25, 1.85, 0.25),
-            [0.91, 0.76, 0.62],
-            bl,
+            0.8,
+            0.6,
         );
     }
     g.screenshot = Some(o.out.clone());

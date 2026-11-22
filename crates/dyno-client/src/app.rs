@@ -629,24 +629,21 @@ impl App {
             let light_at = |l: &Light, v: Vec3| {
                 l.get(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32) as f32 / 15.0
             };
+            let anim_t = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
             for (id, r) in &p.remotes {
                 let pose = r.current();
                 let base = Vec3::from(pose.pos);
-                let c = game::player_color(*id);
                 let bl = light_at(&p.light, base + Vec3::Y);
-                render::push_box(
+                let walk = (r.speed() / 4.0).min(1.0);
+                render::push_avatar(
                     &mut boxes,
-                    base + Vec3::new(-0.3, 0.0, -0.3),
-                    base + Vec3::new(0.3, 1.35, 0.3),
-                    c,
+                    base,
+                    pose.yaw,
+                    pose.pitch,
+                    game::player_color(*id),
                     bl,
-                );
-                render::push_box(
-                    &mut boxes,
-                    base + Vec3::new(-0.25, 1.35, -0.25),
-                    base + Vec3::new(0.25, 1.85, 0.25),
-                    [0.91, 0.76, 0.62],
-                    bl,
+                    anim_t * 9.0,
+                    walk,
                 );
             }
             // particles
@@ -745,7 +742,7 @@ impl App {
                 &mut boxes,
                 hand,
                 ax,
-                0.11,
+                Vec3::splat(0.11),
                 w::block(held).color,
                 w::emission(held) > 0,
                 light_at(&p.light, eye),
