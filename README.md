@@ -81,8 +81,10 @@ dyno version             Print the version
 
 ## What is in the world
 
-- A shared day and night cycle (20 minutes). Sunsets, stars, and a dark night where glowing blocks matter.
-- 33 blocks: natural blocks, building blocks, 10 colours, glass, ice, and light sources (Lantern, Emberstone, Glowshroom) that light up their surroundings.
+- A 256 × 96 × 256 world: meadows, oak and birch forests, pine-covered hills, snowy mountains and lakes with sandy shores.
+- A shared day and night cycle (20 minutes). Drifting clouds, sunsets, stars, fireflies and crickets, and a dark night where glowing blocks matter.
+- The server remembers where you were, so you rejoin where you left off.
+- 36 blocks: natural blocks, building blocks, 10 colours, glass, ice, and light sources (Lantern, Emberstone, Glowshroom) that light up their surroundings.
 - Sounds for breaking, placing and footsteps, and particles when blocks break. All sounds are generated in code.
 
 ## Where this build differs from the spec
@@ -92,7 +94,7 @@ This is a bootstrap slice. These parts of [the spec](docs/spec/index.html) are n
 - **No Luau and no content store.** Blocks and rules are Rust code for now (spec sections 6 to 9).
 - **Transport is WebSocket over TCP**, not QUIC (NET-001), so the server also works through HTTPS tunnels.
 - **Movement is client-authoritative.** The server checks block reach and bounds only (spec PRED-001 to PRED-016).
-- **One fixed-size world** (192 × 64 × 192) sent whole on join, not streamed chunks.
+- **One fixed-size world** (256 × 96 × 256) sent whole on join, not streamed chunks.
 - **One release signing key**, not the root key list of REL-013. The private key stays offline with the maintainer; CI holds a copy as an Actions secret.
 - **No accounts.** Anyone who knows the address can join. Names are not reserved.
 

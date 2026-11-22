@@ -32,7 +32,7 @@ impl Default for Config {
         Config {
             bind: SocketAddr::from(([0, 0, 0, 0], proto::DEFAULT_PORT)),
             world_path: PathBuf::from("world/world.dynw"),
-            world_size: [192, 64, 192],
+            world_size: [256, 96, 256],
             seed: 20261122,
             motd: "Welcome to Dyno! Build together.".into(),
             max_players: 32,

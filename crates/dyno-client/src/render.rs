@@ -202,7 +202,8 @@ pub fn mesh_section(
                 let emissive = w::emission(b) > 0;
                 for (n, u, v, shade) in FACES {
                     let nb = world.get(x + n[0], y + n[1], z + n[2]);
-                    if w::is_opaque(nb) || (tr && nb == b) || (b == w::LEAVES && nb == w::LEAVES) {
+                    if w::is_opaque(nb) || (tr && nb == b) || (w::is_leaves(b) && w::is_leaves(nb))
+                    {
                         continue;
                     }
                     let base = [x + n[0], y + n[1], z + n[2]];

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// Default TCP port of the game server.
 pub const DEFAULT_PORT: u16 = 7400;

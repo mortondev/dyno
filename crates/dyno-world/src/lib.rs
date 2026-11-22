@@ -24,6 +24,9 @@ pub const COBBLE: BlockId = 12;
 pub const WATER: BlockId = 13;
 pub const LANTERN: BlockId = 14;
 pub const GLOWSHROOM: BlockId = 33;
+pub const BIRCH_LOG: BlockId = 34;
+pub const BIRCH_LEAVES: BlockId = 35;
+pub const PINE_LEAVES: BlockId = 36;
 
 /// How a block sounds when it is broken, placed or walked on.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -134,6 +137,9 @@ pub const BLOCKS: &[BlockDef] = &[
         emission: 13,
         material: Foliage,
     },
+    def("Birch log", [0.88, 0.87, 0.82], Wood),
+    def("Birch leaves", [0.45, 0.62, 0.28], Foliage),
+    def("Pine leaves", [0.18, 0.36, 0.22], Foliage),
 ];
 
 /// Number of block IDs in use. IDs at or above this are rejected.
@@ -160,7 +166,12 @@ pub fn is_solid(b: BlockId) -> bool {
 
 /// True for blocks that hide the faces of their neighbours and block light.
 pub fn is_opaque(b: BlockId) -> bool {
-    b != AIR && b != LEAVES && block(b).alpha >= 1.0
+    b != AIR && !is_leaves(b) && block(b).alpha >= 1.0
+}
+
+/// Leaf blocks: drawn with their neighbours' faces showing through.
+pub fn is_leaves(b: BlockId) -> bool {
+    matches!(b, LEAVES | BIRCH_LEAVES | PINE_LEAVES)
 }
 
 /// Light level a block gives off.
@@ -224,25 +235,37 @@ impl World {
         }
     }
 
-    /// Generate the default terrain: hills, sand, a lake, trees and some emberstone.
+    /// Generate the default terrain: meadows, forests of oak and birch, pine on
+    /// the hills, snowy mountain peaks, lakes with sandy shores, glowshrooms and
+    /// emberstone.
     pub fn generate(size: [u32; 3], seed: u32) -> Self {
         let mut w = World::empty(size);
         let [sx, sy, sz] = size;
-        let water_level = 17;
+        let water_level = 24;
+        let snow_line = 58;
         for z in 0..sz as i32 {
             for x in 0..sx as i32 {
-                let h = height(x, z, seed).clamp(4, sy as i32 - 12);
+                let h = height(x, z, seed).clamp(4, sy as i32 - 16);
+                let beach = h <= water_level + 1;
                 for y in 0..=h {
                     let b = if y == h {
-                        if h <= water_level + 1 {
+                        if beach {
                             SAND
-                        } else if h > 38 {
+                        } else if h >= snow_line + (hash(x, z, seed) % 4) as i32 {
                             SNOW
+                        } else if h > snow_line - 8 {
+                            STONE
                         } else {
                             GRASS
                         }
                     } else if y > h - 4 {
-                        if h <= water_level + 1 { SAND } else { DIRT }
+                        if beach {
+                            SAND
+                        } else if h > snow_line - 8 {
+                            STONE
+                        } else {
+                            DIRT
+                        }
                     } else {
                         STONE
                     };
@@ -251,53 +274,105 @@ impl World {
                 for y in h + 1..=water_level {
                     w.set(x, y, z, WATER);
                 }
-                // glowing mushrooms here and there on grass
-                if h > water_level + 1 && h <= 38 && hash(x, z, seed ^ 0x9105).is_multiple_of(173) {
+                if !beach
+                    && w.get(x, h, z) == GRASS
+                    && hash(x, z, seed ^ 0x9105).is_multiple_of(420)
+                {
                     w.set(x, h + 1, z, GLOWSHROOM);
                 }
-                // emberstone veins near the surface of stone areas
-                if hash(x, z, seed ^ 0x5eed).is_multiple_of(211) && h > water_level + 2 {
+                if h > water_level + 2 && hash(x, z, seed ^ 0x5eed).is_multiple_of(181) {
                     w.set(x, h - 2, z, EMBERSTONE);
                 }
             }
         }
-        // trees
-        for z in (3..sz as i32 - 3).step_by(5) {
-            for x in (3..sx as i32 - 3).step_by(5) {
+        // trees: density follows the forest noise; kind follows height
+        for z in 2..sz as i32 - 2 {
+            for x in 2..sx as i32 - 2 {
                 let r = hash(x, z, seed ^ 0x7ee5);
-                if !r.is_multiple_of(3) {
+                let f = forest(x, z, seed);
+                let chance = if f > 0.62 {
+                    9
+                } else if f > 0.45 {
+                    40
+                } else {
+                    400
+                };
+                if !r.is_multiple_of(chance as u32) {
                     continue;
                 }
-                let tx = x + (r % 4) as i32 - 1;
-                let tz = z + ((r >> 4) % 4) as i32 - 1;
-                let h = height(tx, tz, seed);
-                if w.get(tx, h, tz) != GRASS {
+                let h = w.surface(x, z);
+                if w.get(x, h, z) != GRASS {
                     continue;
                 }
-                let trunk = 4 + (r >> 8) as i32 % 3;
-                for y in 1..=trunk {
-                    w.set(tx, h + y, tz, LOG);
+                // keep trees apart
+                if (-2..=2).any(|dz| {
+                    (-2..=2).any(|dx| matches!(w.get(x + dx, h + 1, z + dz), LOG | BIRCH_LOG))
+                }) {
+                    continue;
                 }
-                for dy in -2..=1i32 {
-                    let rad: i32 = if dy == 1 { 1 } else { 2 };
-                    for dz in -rad..=rad {
-                        for dx in -rad..=rad {
-                            if dx.abs() == rad
-                                && dz.abs() == rad
-                                && (dy == 1 || hash(tx + dx, tz + dz, dy as u32).is_multiple_of(2))
-                            {
-                                continue;
-                            }
-                            let (px, py, pz) = (tx + dx, h + trunk + dy, tz + dz);
-                            if w.get(px, py, pz) == AIR {
-                                w.set(px, py, pz, LEAVES);
-                            }
-                        }
-                    }
+                if h > snow_line - 16 {
+                    w.pine(x, h, z, r);
+                } else if (r >> 12).is_multiple_of(3) {
+                    w.round_tree(x, h, z, r, BIRCH_LOG, BIRCH_LEAVES);
+                } else {
+                    w.round_tree(x, h, z, r, LOG, LEAVES);
                 }
             }
         }
         w
+    }
+
+    fn put_if_air(&mut self, x: i32, y: i32, z: i32, b: BlockId) {
+        if self.get(x, y, z) == AIR {
+            self.set(x, y, z, b);
+        }
+    }
+
+    fn round_tree(&mut self, x: i32, h: i32, z: i32, r: u32, log: BlockId, leaves: BlockId) {
+        let trunk = 4 + (r >> 8) as i32 % 3;
+        for y in 1..=trunk {
+            self.set(x, h + y, z, log);
+        }
+        for dy in -2..=1i32 {
+            let rad: i32 = if dy == 1 { 1 } else { 2 };
+            for dz in -rad..=rad {
+                for dx in -rad..=rad {
+                    if dx.abs() == rad
+                        && dz.abs() == rad
+                        && (dy == 1 || hash(x + dx, z + dz, dy as u32).is_multiple_of(2))
+                    {
+                        continue;
+                    }
+                    self.put_if_air(x + dx, h + trunk + dy, z + dz, leaves);
+                }
+            }
+        }
+    }
+
+    fn pine(&mut self, x: i32, h: i32, z: i32, r: u32) {
+        let trunk = 6 + (r >> 8) as i32 % 4;
+        for y in 1..=trunk {
+            self.set(x, h + y, z, LOG);
+        }
+        let mut rad: i32 = 2;
+        for y in (3..=trunk + 1).rev().step_by(1) {
+            let ry = if (trunk + 1 - y) % 2 == 0 {
+                rad.min(1)
+            } else {
+                rad
+            };
+            for dz in -ry..=ry {
+                for dx in -ry..=ry {
+                    if dx.abs() + dz.abs() <= ry + 1 {
+                        self.put_if_air(x + dx, h + y, z + dz, PINE_LEAVES);
+                    }
+                }
+            }
+            if (trunk + 1 - y) % 3 == 2 && rad < 3 {
+                rad += 1;
+            }
+        }
+        self.put_if_air(x, h + trunk + 2, z, PINE_LEAVES);
     }
 
     /// Highest solid block in a column, or -1.
@@ -312,10 +387,27 @@ impl World {
 
     /// A spawn point at the centre of the world, on top of the surface.
     pub fn spawn(&self) -> [f32; 3] {
-        let x = self.size[0] as i32 / 2;
-        let z = self.size[2] as i32 / 2;
-        let y = self.surface(x, z).max(self.surface_water(x, z));
-        [x as f32 + 0.5, y as f32 + 1.01, z as f32 + 0.5]
+        let (cx, cz) = (self.size[0] as i32 / 2, self.size[2] as i32 / 2);
+        // look for open grass near the centre: no leaves overhead, no water
+        for r in 0..40i32 {
+            for dz in -r..=r {
+                for dx in -r..=r {
+                    if dx.abs() != r && dz.abs() != r {
+                        continue;
+                    }
+                    let (x, z) = (cx + dx, cz + dz);
+                    let y = self.surface(x, z);
+                    if y > 0
+                        && self.get(x, y, z) == GRASS
+                        && (y + 1..self.size[1] as i32).all(|yy| self.get(x, yy, z) == AIR)
+                    {
+                        return [x as f32 + 0.5, y as f32 + 1.01, z as f32 + 0.5];
+                    }
+                }
+            }
+        }
+        let y = self.surface(cx, cz).max(self.surface_water(cx, cz));
+        [cx as f32 + 0.5, y as f32 + 1.01, cz as f32 + 0.5]
     }
 
     fn surface_water(&self, x: i32, z: i32) -> i32 {
@@ -442,13 +534,22 @@ fn value_noise(x: f32, z: f32, seed: u32) -> f32 {
     top * (1.0 - w) + bot * w
 }
 
+/// Terrain height: rolling hills, plus ridged mountains in some regions.
 fn height(x: i32, z: i32, seed: u32) -> i32 {
     let (fx, fz) = (x as f32, z as f32);
     let n = value_noise(fx / 48.0, fz / 48.0, seed) * 0.6
         + value_noise(fx / 20.0, fz / 20.0, seed + 1) * 0.3
         + value_noise(fx / 8.0, fz / 8.0, seed + 2) * 0.1;
     let hills = value_noise(fx / 90.0, fz / 90.0, seed + 3);
-    (14.0 + n * 14.0 + hills * hills * 26.0) as i32
+    let region = value_noise(fx / 140.0, fz / 140.0, seed + 4);
+    let ridge = 1.0 - (value_noise(fx / 36.0, fz / 36.0, seed + 5) * 2.0 - 1.0).abs();
+    let mountain = ((region - 0.55) / 0.3).clamp(0.0, 1.0);
+    (18.0 + n * 12.0 + hills * hills * 20.0 + mountain * mountain * ridge * ridge * 46.0) as i32
+}
+
+/// 0..1: how forested an area is.
+fn forest(x: i32, z: i32, seed: u32) -> f32 {
+    value_noise(x as f32 / 60.0, z as f32 / 60.0, seed + 9)
 }
 
 #[cfg(test)]
