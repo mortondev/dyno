@@ -25,20 +25,28 @@ The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host nam
 
 ### Controls
 
-| Key | Action |
-|---|---|
-| Mouse, W A S D, Space | Look, move, jump |
-| Mouse wheel | Zoom the camera (all the way in is first person) |
-| Left or right click a creature | Target it and start attacking |
-| Right click a person | Talk (yellow **!** has a quest, **?** can take one back) |
-| 1 to 0, -, = | Action bar: your class abilities; Recall on -, eat on = |
-| Tab | Target the nearest creature ahead |
-| C / B / P / K / L | Character, Bags, Spellbook, Skills, Quest log |
-| Hold left mouse on a tree, ore or bush | Gather (Woodcutting, Mining, Herbalism) |
-| T or Enter, / | Chat and commands (`/help`) |
-| Esc | Menu, or close a window |
+Classic MMO controls: the cursor is free, and you hold a mouse button to steer.
 
-Operators building the world use `/gamemode creative` for flight, free blocks and the fill tool.
+| Input | Action |
+|---|---|
+| Hold right mouse | Steer: turn your character and camera together |
+| Hold left mouse | Look around your character without turning |
+| Hold both mouse buttons | Run forward |
+| W / S | Run forward / back up |
+| A / D | Turn (strafe while holding right mouse) |
+| Q / E | Strafe |
+| R | Autorun |
+| Space | Jump (you walk up one-block steps without jumping) |
+| Mouse wheel | Zoom the camera; all the way in is first person |
+| Left click | Select the creature or person under the cursor |
+| Right click | Attack a creature, talk to a person, gather from a tree, ore vein or bush |
+| Tab | Target the nearest creature ahead |
+| 1 to 0, -, = | Action bar: class abilities; Recall on -, eat on = |
+| C / B / P / K / L | Character, Bags, Spellbook, Skills, Quest log (press again to close) |
+| Esc | Close windows, then clear your target, then the menu |
+| T or Enter, / | Chat and commands (`/help`) |
+
+Operators building the world use `/gamemode creative`, which switches back to free-flying build controls.
 
 ### Hearthblock Online in short
 

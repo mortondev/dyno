@@ -48,10 +48,16 @@ pub struct Look {
     pub gloves: bool,
     /// chest emblem: 0 none, 1 diamond, 2 cross, 3 chevrons, 4 flame
     pub emblem: u8,
-    /// 0 hidden, 1 round, 2 pointed
+    /// 0 hidden, 1 round, 2 pointed, 3 goblin-kin (great ears, long nose)
     pub ears: u8,
     /// the set of the face: 0 cheerful, 1 stern, 2 calm
     pub mood: u8,
+    /// a scarf drawn up over the nose and mouth
+    pub scarf: Option<[f32; 3]>,
+    /// a sash at the waist, knotted at the hip
+    pub sash: Option<[f32; 3]>,
+    /// a lit candle stuck to the top of the head
+    pub candle: bool,
 }
 
 fn hash(n: u32) -> u32 {
@@ -62,6 +68,53 @@ fn hash(n: u32) -> u32 {
 }
 
 impl Look {
+    /// The palettes the character creator offers.
+    pub const SKINS: [[f32; 3]; 8] = [
+        [0.98, 0.86, 0.75],
+        [0.96, 0.80, 0.66],
+        [0.87, 0.68, 0.52],
+        [0.78, 0.58, 0.42],
+        [0.72, 0.52, 0.38],
+        [0.60, 0.42, 0.30],
+        [0.48, 0.33, 0.23],
+        [0.38, 0.26, 0.18],
+    ];
+    pub const HAIRS: [[f32; 3]; 10] = [
+        [0.12, 0.12, 0.14],
+        [0.18, 0.12, 0.08],
+        [0.30, 0.19, 0.10],
+        [0.45, 0.28, 0.12],
+        [0.62, 0.22, 0.10],
+        [0.78, 0.40, 0.15],
+        [0.85, 0.68, 0.35],
+        [0.92, 0.84, 0.62],
+        [0.85, 0.85, 0.82],
+        [0.45, 0.48, 0.55],
+    ];
+    pub const EYES: [[f32; 3]; 6] = [
+        [0.25, 0.42, 0.70],
+        [0.30, 0.52, 0.30],
+        [0.42, 0.28, 0.16],
+        [0.45, 0.48, 0.55],
+        [0.55, 0.40, 0.70],
+        [0.70, 0.55, 0.20],
+    ];
+
+    /// A player's look from the appearance they chose, dressed in their class colour.
+    pub fn from_appearance(a: &dyno_protocol::Appearance, color: [f32; 3]) -> Look {
+        let pick = |v: &[[f32; 3]], i: u8| v[i as usize % v.len()];
+        let mut l = Look::player(0, color);
+        l.skin = pick(&Self::SKINS, a.skin);
+        l.hair = pick(&Self::HAIRS, a.hair_color);
+        l.eyes = pick(&Self::EYES, a.eyes);
+        l.hair_style = a.hair_style.min(4);
+        l.beard = a.beard;
+        l.build = a.build.min(2);
+        l.mood = a.mood.min(2);
+        l.ears = a.ears.min(2);
+        l
+    }
+
     /// A traveller's look from a seed and a signature colour.
     pub fn player(seed: u32, color: [f32; 3]) -> Look {
         let h = hash(seed);
@@ -116,6 +169,9 @@ impl Look {
             emblem: 1 + ((h >> 16) % 4) as u8,
             ears: if (h >> 18).is_multiple_of(5) { 2 } else { 1 },
             mood: ((h >> 21) % 3) as u8,
+            scarf: None,
+            sash: None,
+            candle: false,
         }
     }
 
@@ -212,12 +268,14 @@ impl Look {
             f(self.eyes),
             o(self.apron),
             o(self.cape),
+            o(self.scarf),
+            o(self.sash),
         ];
-        let mut k = [0u32; 39];
+        let mut k = [0u32; 46];
         for (slot, c) in k.iter_mut().zip(colors.iter().flatten()) {
             *slot = *c;
         }
-        k[27..].copy_from_slice(&[
+        k[33..].copy_from_slice(&[
             self.hair_style as u32,
             self.beard as u32,
             self.pauldrons as u32,
@@ -230,6 +288,7 @@ impl Look {
             self.emblem as u32,
             self.ears as u32,
             self.mood as u32,
+            self.candle as u32,
         ]);
         key_of(&k)
     }
@@ -434,6 +493,32 @@ fn build_head(v: &mut Vox, l: &Look) {
             v.dye(2, 52, 7, mouth);
         }
     }
+    if l.ears == 3 {
+        // goblin-kin: great ears, a long nose, wide eyes and a snaggle tooth
+        let inner = v.ink(mix(l.skin, [0.85, 0.50, 0.45], 0.35));
+        for s in [1, -1] {
+            v.fill(mx(s, 9, 12), [54, 58], [-2, 1], skin_d);
+            v.fill(mx(s, 11, 14), [56, 60], [-2, 0], skin_d);
+            v.fill(mx(s, 13, 16), [58, 62], [-2, -1], skin_d);
+            v.fill(mx(s, 9, 13), [55, 58], [0, 1], inner);
+            v.dye(mi(s, 2), 54, 7, white);
+            v.dye(mi(s, 3), 54, 7, iris);
+            v.dye(mi(s, 4), 54, 7, white);
+            v.dye(mi(s, 3), 55, 7, pupil);
+        }
+        v.fill([-1, 1], [51, 55], [8, 11], nose);
+        v.fill([-1, 1], [51, 53], [11, 12], skin_d);
+        v.dye(-2, 50, 7, white);
+    }
+    if let Some(scarf) = l.scarf {
+        let c = v.ink(scarf);
+        let c_d = v.tone(scarf, 0.78);
+        v.repaint([-9, 9], [48, 55], [-1, 10], |_, y, _, _| {
+            if y % 3 == 0 { c_d } else { c }
+        });
+        // pulled up over the nose
+        v.fill([-2, 2], [53, 56], [8, 9], c);
+    }
 
     // hair, as shells around the skull
     let hair = v.ink(l.hair);
@@ -623,6 +708,27 @@ fn build_head(v: &mut Vox, l: &Look) {
                 v.fill(mx(s, 3, 5), [48, 52], [9, 10], b);
             }
         }
+    }
+    if l.candle {
+        // a stub of candle in a pool of its own wax, burning
+        let wax = v.ink([0.96, 0.93, 0.80]);
+        let wax_d = v.ink([0.84, 0.79, 0.62]);
+        let wick = v.ink([0.10, 0.08, 0.07]);
+        let flame = v.glow([1.0, 0.62, 0.12]);
+        let flame_hi = v.glow([1.0, 0.95, 0.62]);
+        let top = if l.hair_style == 0 { 64 } else { 66 };
+        v.fill([-3, 3], [top, top + 1], [-3, 3], wax_d);
+        v.fill([-2, 2], [top, top + 5], [-2, 2], wax);
+        v.fill([-2, 0], [top + 5, top + 6], [-2, 1], wax);
+        for (x, z, len) in [(3, 1, 3), (-4, -2, 2), (0, 3, 4), (-2, -4, 2), (4, -1, 2)] {
+            for y in top - len..top {
+                v.set(x, y, z, wax);
+            }
+        }
+        v.fill([-1, 0], [top + 5, top + 7], [-1, 0], wick);
+        v.fill([-2, 1], [top + 7, top + 10], [-2, 1], flame);
+        v.fill([-1, 0], [top + 7, top + 12], [-1, 0], flame_hi);
+        v.fill([-1, 0], [top + 12, top + 13], [-1, 0], flame);
     }
     if l.helmet {
         // an open helm: a steel cap with a brow band, nasal bar and crest
@@ -917,6 +1023,28 @@ fn build_torso(v: &mut Vox, l: &Look) -> i32 {
             if x.rem_euclid(4) == 1 { belt_hi } else { belt }
         },
     );
+    if let Some(sash) = l.sash {
+        // a broad sash over the belt, knotted at the hip, its ends hanging
+        let c = v.ink(sash);
+        let c_d = v.tone(sash, 0.75);
+        v.rbox(
+            [-hw - 1, hw + 1],
+            [27, 32],
+            [zb - 1, zf + 1],
+            1,
+            [true, false, true],
+            c,
+        );
+        v.repaint(
+            [-hw - 1, hw + 1],
+            [29, 30],
+            [zb - 1, zf + 1],
+            |_, _, _, _| c_d,
+        );
+        v.fill([-hw - 2, -hw + 2], [27, 31], [zf - 1, zf + 2], c_d);
+        v.fill([-hw - 1, -hw + 1], [17, 27], [zf, zf + 1], c);
+        v.fill([-hw + 1, -hw + 3], [20, 27], [zf, zf + 1], c_d);
+    }
     v.fill([-2, 2], [26, 31], [zf, zf + 2], trim);
     v.fill([-1, 1], [28, 29], [zf + 1, zf + 2], belt);
     if l.apron.is_none() {
@@ -1320,7 +1448,7 @@ fn build_cape(v: &mut Vox, l: &Look, hw: i32) {
 }
 
 fn build_person(l: &Look) -> [Person; 3] {
-    let mut v = Vox::new([-28, 0, -16], [28, 70, 16]);
+    let mut v = Vox::new([-28, 0, -16], [28, 82, 16]);
     build_legs(&mut v, l);
     let hw = build_torso(&mut v, l);
     build_arms(&mut v, l, hw);
@@ -1419,9 +1547,35 @@ pub fn push_person(
     phase: f32,
     walk: f32,
 ) {
+    let held = look.weapon.map(|(kind, color)| (weapon_kind(kind), color));
+    draw_person(
+        out,
+        feet,
+        yaw,
+        pitch,
+        look,
+        Paint::lit(light),
+        phase,
+        walk,
+        held,
+    );
+}
+
+/// A person, lit and tinted by `paint`, with `held` in the right hand.
+#[allow(clippy::too_many_arguments)]
+fn draw_person(
+    out: &mut Vec<Vertex>,
+    feet: Vec3,
+    yaw: f32,
+    pitch: f32,
+    look: &Look,
+    paint: Paint,
+    phase: f32,
+    walk: f32,
+    held: Option<(Kind, [f32; 3])>,
+) {
     let m = PEOPLE.with(|c| c.get(look.key(), || build_person(look)));
     let m = &m[lod_at(feet)];
-    let paint = Paint::lit(light);
     let (sin, cos) = phase.sin_cos();
     let swing = sin * 0.7 * walk;
     let breath = (phase * 0.5).sin();
@@ -1464,7 +1618,7 @@ pub fn push_person(
     }
     // arms swing against the legs; elbows a little bent
     for (i, s) in [1.0f32, -1.0].into_iter().enumerate() {
-        let armed = i == 0 && look.weapon.is_some();
+        let armed = i == 0 && held.is_some();
         let (a, bend) = if armed {
             (-0.45 - swing * 0.25 + breath * 0.02, -0.95)
         } else {
@@ -1485,10 +1639,14 @@ pub fn push_person(
             rx(bend),
         );
         emit(out, &m.arm_l[i], &fore, paint);
-        if armed && let Some((kind, color)) = look.weapon {
+        if armed && let Some((kind, color)) = held {
             // gripped in the fist, pointing up and ahead
-            let grip = joint(&fore, Vec3::new(0.0, 20.5 - ELBOW_Y, 0.5), rx(1.25));
-            push_weapon_frame(out, kind, color, &grip, light);
+            let lean = Mat3::from_rotation_z(-0.22);
+            let grip = joint(&fore, Vec3::new(0.0, 20.5 - ELBOW_Y, 0.5), rx(1.25) * lean);
+            let m = held_model(kind, color, 1, false);
+            let fit = Mat3::from_rotation_y(m.carry_turn)
+                * Mat3::from_diagonal(Vec3::splat(m.unit * FINE));
+            emit(out, &m.mesh, &(grip * Affine3A::from_mat3(fit)), paint);
         }
     }
     // head, tilted by pitch
@@ -1502,11 +1660,18 @@ pub fn push_person(
 
 // ------------------------------------------------------------- creatures
 
-struct Grazer {
+/// A four-legged beast: body, a head on a hinge, and four legs.
+struct Beast {
     body: Mesh,
     head: Mesh,
     /// front right, front left, back right, back left
     legs: [Mesh; 4],
+    neck: [f32; 3],
+    hip_y: f32,
+    /// leg centres: (x, z)
+    legs_at: [(f32, f32); 4],
+    /// dips its head to graze when standing
+    grazes: bool,
 }
 
 const G_BODY: u8 = 1;
@@ -1519,7 +1684,7 @@ const G_LEGS: [(f32, f32); 4] = [(6.5, 9.5), (-6.5, 9.5), (6.5, -9.5), (-6.5, -9
 
 /// A woolly grazer: a round fleece of clumps on four dark legs, with a long
 /// dark face, floppy ears and a pair of curled horns.
-fn build_grazer(color: [f32; 3]) -> [Grazer; 3] {
+fn build_grazer(color: [f32; 3]) -> [Beast; 3] {
     let mut v = Vox::new([-20, 0, -22], [20, 48, 38]);
     let wool = v.ink(color);
     let wool_hi = v.ink(mix(scale(color, 1.12), [1.0, 1.0, 1.0], 0.25));
@@ -1634,10 +1799,14 @@ fn build_grazer(color: [f32; 3]) -> [Grazer; 3] {
         }
     }
 
-    lods(&v, |v| Grazer {
+    lods(&v, |v| Beast {
         body: v.mesh(G_BODY, [0.0; 3]),
         head: v.mesh(G_HEAD, G_NECK),
         legs: [0, 1, 2, 3].map(|i| v.mesh(G_LEG[i], [G_LEGS[i].0, G_HIP_Y, G_LEGS[i].1])),
+        neck: G_NECK,
+        hip_y: G_HIP_Y,
+        legs_at: G_LEGS,
+        grazes: true,
     })
 }
 
@@ -1862,84 +2031,587 @@ fn build_shade(color: [f32; 3]) -> [Shade; 3] {
     })
 }
 
-struct Orb {
-    core: Mesh,
-    ring: Mesh,
-    shard: Mesh,
+/// A thornboar: a bristly, high-shouldered boar with curved tusks, small
+/// angry eyes and a ridge of thorns down its back.
+fn build_thornboar(color: [f32; 3]) -> [Beast; 3] {
+    const NECK: [f32; 3] = [0.0, 19.0, 11.0];
+    const HIP_Y: f32 = 11.0;
+    const LEGS: [(f32, f32); 4] = [(5.5, 8.5), (-5.5, 8.5), (5.5, -9.5), (-5.5, -9.5)];
+    let mut v = Vox::new([-16, 0, -24], [16, 40, 36]);
+    let hide = v.ink(color);
+    let hide_d = v.tone(color, 0.72);
+    let hide_hi = v.tone(color, 1.3);
+    let belly = v.tone(color, 0.58);
+    let hoof = v.ink([0.10, 0.08, 0.07]);
+    let snout = v.ink(mix(color, [0.75, 0.50, 0.45], 0.6));
+    let nostril = v.ink([0.12, 0.07, 0.07]);
+    let ivory = v.ink([0.95, 0.91, 0.76]);
+    let ivory_d = v.ink([0.74, 0.68, 0.50]);
+    let thorn = v.ink([0.20, 0.24, 0.12]);
+    let thorn_hi = v.ink([0.62, 0.66, 0.34]);
+    let eye = v.glow([1.0, 0.42, 0.10]);
+    let brow = v.ink([0.06, 0.04, 0.04]);
+    // coarse bristles: flecks of dark and light through the coat
+    let coat = |x: i32, y: i32, z: i32| match hash3(x, y / 2, z) % 9 {
+        0 | 1 => hide_d,
+        2 => hide_hi,
+        _ => hide,
+    };
+
+    for (i, (lx, lz)) in LEGS.iter().enumerate() {
+        v.part = G_LEG[i];
+        let (x0, z0) = (lx.floor() as i32 - 3, lz.floor() as i32 - 3);
+        v.rbox(
+            [x0, x0 + 6],
+            [0, 14],
+            [z0, z0 + 6],
+            1,
+            [true, false, true],
+            hide_d,
+        );
+        v.fill([x0, x0 + 6], [0, 3], [z0, z0 + 7], hoof);
+        v.cut([x0 + 2, x0 + 4], [0, 2], [z0 + 5, z0 + 7]);
+    }
+
+    v.part = G_BODY;
+    v.blob([0.0, 18.5, -2.0], [8.5, 7.5, 14.0], hide);
+    // high shoulders, lower rump
+    v.blob([0.0, 22.0, 6.0], [8.0, 8.5, 8.0], hide);
+    v.blob([0.0, 14.0, -1.0], [7.0, 4.0, 12.0], belly);
+    v.repaint([-16, 16], [0, 40], [-24, 36], |x, y, z, c| {
+        if c == hide { coat(x, y, z) } else { c }
+    });
+    // thorns: a ragged crest along the spine, and a shorter row each side
+    for z in -14i32..14 {
+        for (x, every, tall) in [(-1, 3, 6), (0, 3, 6), (-5, 4, 3), (4, 4, 3)] {
+            if (z + 40).rem_euclid(every) != 0 {
+                continue;
+            }
+            let Some(top) = (10..40).rev().find(|y| v.solid(x, *y, z)) else {
+                continue;
+            };
+            let h = tall - (hash3(x, 0, z) % 3) as i32;
+            for y in top + 1..top + 1 + h {
+                v.set(x, y, z, if y >= top + h - 1 { thorn_hi } else { thorn });
+            }
+        }
+    }
+    // a thin tail with a tuft
+    v.fill([-1, 1], [17, 21], [-17, -15], hide_d);
+    v.fill([-1, 1], [13, 17], [-18, -17], hide_d);
+    v.fill([-1, 1], [11, 13], [-19, -17], thorn);
+
+    v.part = G_HEAD;
+    v.rbox([-6, 6], [11, 26], [10, 23], 2, [true; 3], hide);
+    v.rbox([-4, 4], [10, 19], [21, 31], 1, [true; 3], hide_d);
+    v.repaint([-6, 6], [11, 26], [10, 23], |x, y, z, c| {
+        if c == hide { coat(x, y, z) } else { c }
+    });
+    // the snout's flat disc, and a dark mouth line
+    v.fill([-3, 3], [12, 18], [31, 32], snout);
+    v.fill([-2, -1], [14, 16], [32, 33], nostril);
+    v.fill([1, 2], [14, 16], [32, 33], nostril);
+    v.repaint([-4, 4], [12, 13], [24, 31], |_, _, _, _| nostril);
+    // bristles between the ears
+    for z in [12, 15, 18] {
+        v.fill([-1, 1], [26, 29], [z, z + 1], thorn);
+        v.fill([-1, 1], [29, 30], [z, z + 1], thorn_hi);
+    }
+    for s in [1, -1] {
+        // small, deep-set, angry: an ember under a slanted brow
+        v.set(mi(s, 3), 21, 23, eye);
+        v.set(mi(s, 4), 21, 23, eye);
+        v.set(mi(s, 2), 21, 23, brow);
+        v.fill(mx(s, 3, 6), [22, 23], [23, 24], brow);
+        v.set(mi(s, 5), 23, 23, brow);
+        v.set(mi(s, 2), 22, 23, hide_d);
+        // ears
+        v.fill(mx(s, 4, 7), [25, 28], [12, 15], hide_d);
+        v.fill(mx(s, 5, 7), [28, 30], [12, 14], hide_d);
+        // tusks: out of the jaw, sweeping up and back
+        for (dx, y, z, c) in [
+            (4, 12, 27, ivory_d),
+            (5, 12, 27, ivory_d),
+            (5, 13, 27, ivory),
+            (5, 14, 27, ivory),
+            (5, 15, 26, ivory),
+            (6, 15, 27, ivory),
+            (6, 16, 26, ivory),
+            (6, 17, 26, ivory),
+            (6, 18, 25, ivory),
+            (6, 19, 25, ivory_d),
+        ] {
+            v.set(mi(s, dx), y, z, c);
+            v.set(mi(s, dx), y, z + 1, c);
+        }
+    }
+
+    lods(&v, |v| Beast {
+        body: v.mesh(G_BODY, [0.0; 3]),
+        head: v.mesh(G_HEAD, NECK),
+        legs: [0, 1, 2, 3].map(|i| v.mesh(G_LEG[i], [LEGS[i].0, HIP_Y, LEGS[i].1])),
+        neck: NECK,
+        hip_y: HIP_Y,
+        legs_at: LEGS,
+        grazes: false,
+    })
 }
 
-/// An orb: a glowing faceted core inside two turning rings, with shards
-/// drifting around it.
-fn build_orb(color: [f32; 3]) -> [Orb; 3] {
+/// A leg or claw of a crawler: its mesh, where it hinges, which side it is
+/// on (+1 or -1) and where in the stride it steps.
+struct Limb {
+    mesh: Mesh,
+    pivot: [f32; 3],
+    side: f32,
+    phase: f32,
+}
+
+/// A many-legged thing: a body, legs that step in turn, and claws.
+struct Crawler {
+    body: Mesh,
+    legs: Vec<Limb>,
+    claws: Vec<Limb>,
+    /// legs reach fore and aft and the body travels sideways
+    sideways: bool,
+}
+
+/// Lay a jointed limb through the given points, about two voxels thick.
+fn strut(v: &mut Vox, path: &[[f32; 3]], thick: f32, ink: impl Fn(usize) -> Ink) {
+    let mut n = 0;
+    for pair in path.windows(2) {
+        let (a, b) = (Vec3::from(pair[0]), Vec3::from(pair[1]));
+        let steps = (a.distance(b) * 1.5).ceil() as usize;
+        for k in 0..=steps {
+            let p = a.lerp(b, k as f32 / steps.max(1) as f32);
+            v.blob(p.into(), [thick; 3], ink(n));
+            n += 1;
+        }
+    }
+}
+
+/// A mirepincher: a flat swamp crab with a mottled shell, eyes on stalks,
+/// two heavy claws and six legs. Its face is to its right (+x): it scuttles
+/// sideways.
+fn build_mirepincher(color: [f32; 3]) -> [Crawler; 3] {
+    let mut v = Vox::new([-14, 0, -26], [28, 26, 26]);
+    let shell = v.ink(color);
+    let shell_d = v.tone(color, 0.66);
+    let shell_hi = v.ink(mix(scale(color, 1.3), [0.8, 0.8, 0.5], 0.25));
+    let moss = v.ink(mix(color, [0.20, 0.38, 0.16], 0.6));
+    let belly = v.ink(mix(color, [0.85, 0.80, 0.62], 0.65));
+    let claw = v.ink(mix(color, [0.70, 0.42, 0.22], 0.55));
+    let claw_d = v.tone(mix(color, [0.70, 0.42, 0.22], 0.55), 0.7);
+    let leg = v.ink(mix(color, [0.70, 0.42, 0.22], 0.25));
+    let tip = v.ink([0.93, 0.88, 0.72]);
+    let black = v.ink([0.04, 0.04, 0.05]);
+    let white = v.ink([0.95, 0.95, 0.92]);
+
+    v.part = 1;
+    // a low dome over a pale plate
+    v.blob([0.0, 8.5, 0.0], [10.5, 6.0, 12.5], shell);
+    v.cut([-12, 12], [0, 7], [-14, 14]);
+    v.rbox([-9, 9], [5, 7], [-11, 11], 1, [true, false, true], belly);
+    // mottling in broad blotches, a pale rim, and a few warts
+    v.repaint([-12, 12], [7, 16], [-14, 14], |x, y, z, _| {
+        let blotch = hash3(x.div_euclid(3), 1, z.div_euclid(3)) % 7;
+        if y == 7 {
+            shell_hi
+        } else if blotch < 2 {
+            shell_d
+        } else if blotch == 2 {
+            moss
+        } else {
+            shell
+        }
+    });
+    for (x, z) in [(-3, -5), (2, 4), (-4, 6), (4, -6), (0, -1)] {
+        let top = (7..20).rev().find(|y| v.solid(x, *y, z)).unwrap_or(12);
+        v.set(x, top + 1, z, shell_hi);
+    }
+    for s in [1, -1] {
+        // eyes on stalks at the front
+        v.fill([7, 8], [10, 15], mx(s, 2, 3), shell_d);
+        v.fill([7, 9], [15, 17], mx(s, 1, 3), black);
+        v.set(8, 16, mi(s, 2), white);
+        // feelers
+        v.fill([9, 11], [8, 9], mx(s, 0, 1), claw_d);
+    }
+
+    let mut claws = Vec::new();
+    for (i, s) in [1, -1].into_iter().enumerate() {
+        v.part = 2 + i as u8;
+        // an arm, then a great pincer with a pale biting edge
+        v.fill([6, 13], [6, 9], mx(s, 6, 9), claw_d);
+        v.rbox([12, 23], [4, 12], mx(s, 4, 11), 2, [true; 3], claw);
+        v.cut([18, 23], [7, 8], mx(s, 4, 11));
+        v.repaint([17, 23], [6, 7], mx(s, 4, 11), |_, _, _, _| tip);
+        v.repaint([17, 23], [8, 9], mx(s, 4, 11), |_, _, _, _| tip);
+        v.repaint([12, 23], [11, 12], mx(s, 4, 11), |_, _, _, _| claw_d);
+        v.repaint([12, 16], [4, 12], mx(s, 4, 11), |x, y, z, c| {
+            if hash3(x, y, z).is_multiple_of(5) {
+                claw_d
+            } else {
+                c
+            }
+        });
+        claws.push((
+            2 + i as u8,
+            [7.0, 7.5, s as f32 * 7.5],
+            s as f32,
+            i as f32 * 2.0,
+        ));
+    }
+
+    let mut legs = Vec::new();
+    for (i, s) in [1.0f32, -1.0].into_iter().enumerate() {
+        for (k, x) in [-5.0f32, -0.5, 4.0].into_iter().enumerate() {
+            let part = 4 + (i * 3 + k) as u8;
+            v.part = part;
+            let splay = (k as f32 - 1.0) * 2.5;
+            strut(
+                &mut v,
+                &[
+                    [x, 7.5, s * 9.0],
+                    [x + splay * 0.5, 12.5, s * 15.0],
+                    [x + splay, 0.8, s * 20.0],
+                ],
+                1.2,
+                |n| if n % 5 == 4 { shell_d } else { leg },
+            );
+            v.blob([x + splay, 1.0, s * 20.0], [1.0, 1.4, 1.0], tip);
+            let phase = if (i + k) % 2 == 0 {
+                0.0
+            } else {
+                std::f32::consts::PI
+            };
+            legs.push((part, [x, 7.5, s * 9.0], s, phase));
+        }
+    }
+
+    lods(&v, |v| Crawler {
+        body: v.mesh(1, [0.0; 3]),
+        legs: limbs(v, &legs),
+        claws: limbs(v, &claws),
+        sideways: true,
+    })
+}
+
+fn limbs(v: &Vox, list: &[(u8, [f32; 3], f32, f32)]) -> Vec<Limb> {
+    list.iter()
+        .map(|(part, pivot, side, phase)| Limb {
+            mesh: v.mesh(*part, *pivot),
+            pivot: *pivot,
+            side: *side,
+            phase: *phase,
+        })
+        .collect()
+}
+
+/// A websnare: a wide, low weaver on eight arched legs, pale with dark
+/// bands, a cluster of glowing eyes, and sacs of silk under its tail.
+fn build_websnare(color: [f32; 3]) -> [Crawler; 3] {
+    let mut v = Vox::new([-30, 0, -26], [30, 30, 28]);
+    let pale = v.ink(color);
+    let pale_hi = v.ink(mix(color, [1.0, 1.0, 1.0], 0.4));
+    let band = v.ink(mix(scale(color, 0.3), [0.12, 0.08, 0.14], 0.5));
+    let dusk = v.tone(color, 0.62);
+    let silk = v.ink([0.95, 0.95, 0.90]);
+    let silk_d = v.ink([0.76, 0.78, 0.76]);
+    let fang = v.ink([0.10, 0.07, 0.09]);
+    let fang_tip = v.ink([0.90, 0.85, 0.70]);
+    let eye = v.glow([1.0, 0.30, 0.38]);
+    let eye_hi = v.glow([1.0, 0.78, 0.70]);
+
+    v.part = 1;
+    // a swollen abdomen, banded across, with a pale mark like an hourglass
+    v.blob([0.0, 12.5, -10.0], [8.5, 7.5, 10.5], pale);
+    v.repaint([-10, 10], [4, 22], [-22, 2], |x, y, z, _| {
+        let stripe = (z + 40).rem_euclid(5) == 0 && y > 9;
+        let mark =
+            (-2..2).contains(&x) && y > 17 && ((-13..-11).contains(&z) || (-8..-6).contains(&z));
+        if mark {
+            pale_hi
+        } else if stripe {
+            band
+        } else if y < 9 {
+            dusk
+        } else {
+            pale
+        }
+    });
+    // silk sacs slung beneath, and a spinneret
+    for (x, y, z, r) in [
+        (-4.5, 6.5, -17.0, 3.2),
+        (4.5, 6.5, -17.0, 3.2),
+        (0.0, 5.5, -20.5, 3.4),
+        (0.0, 8.0, -13.0, 2.6),
+    ] {
+        v.blob([x, y, z], [r, r, r], silk);
+    }
+    v.repaint([-9, 9], [2, 10], [-25, -9], |x, y, z, c| {
+        if c == silk && (x + y + z).rem_euclid(3) == 0 {
+            silk_d
+        } else {
+            c
+        }
+    });
+    v.fill([-1, 1], [11, 13], [-22, -20], band);
+    // the head end: darker, low and broad
+    v.blob([0.0, 10.0, 5.0], [6.5, 4.5, 7.0], dusk);
+    v.repaint([-7, 7], [12, 15], [-2, 12], |x, _, z, c| {
+        if (x + z).rem_euclid(4) == 0 { band } else { c }
+    });
+    // eyes: two great ones and six lesser, all aglow
+    for s in [1, -1] {
+        v.fill(mx(s, 1, 3), [10, 12], [11, 13], eye);
+        v.set(mi(s, 1), 11, 12, eye_hi);
+        v.set(mi(s, 4), 11, 11, eye);
+        v.set(mi(s, 4), 12, 10, eye);
+        v.set(mi(s, 2), 13, 10, eye);
+        v.set(mi(s, 0), 13, 11, eye_hi);
+        // fangs
+        v.fill(mx(s, 1, 3), [5, 9], [11, 13], fang);
+        v.fill(mx(s, 1, 2), [3, 5], [12, 13], fang_tip);
+    }
+
+    let mut legs = Vec::new();
+    for (i, s) in [1.0f32, -1.0].into_iter().enumerate() {
+        for (k, (z, reach)) in [(9.0f32, 8.0f32), (6.0, 3.0), (3.0, -3.0), (0.0, -9.0)]
+            .into_iter()
+            .enumerate()
+        {
+            let part = 2 + (i * 4 + k) as u8;
+            v.part = part;
+            // up to a high knee, then down to a foot far out
+            strut(
+                &mut v,
+                &[
+                    [s * 4.5, 10.0, z],
+                    [s * 13.0, 21.0, z + reach * 0.5],
+                    [s * 22.0, 12.0, z + reach * 0.85],
+                    [s * 26.0, 0.8, z + reach],
+                ],
+                1.15,
+                |n| if n % 7 >= 5 { band } else { pale },
+            );
+            let phase = if (i + k) % 2 == 0 {
+                0.0
+            } else {
+                std::f32::consts::PI
+            };
+            legs.push((part, [s * 4.5, 10.0, z], s, phase));
+        }
+    }
+
+    lods(&v, |v| Crawler {
+        body: v.mesh(1, [0.0; 3]),
+        legs: limbs(v, &legs),
+        claws: Vec::new(),
+        sideways: false,
+    })
+}
+
+/// A gloomwisp: a will-o'-the-wisp. A bright core in a violet veil, motes
+/// circling it, and a tail that trails behind.
+struct Wisp {
+    core: Mesh,
+    veil: Mesh,
+    mote: Mesh,
+    tail: [Mesh; 4],
+}
+
+fn build_wisp(color: [f32; 3]) -> [Wisp; 3] {
     let mut v = Vox::new([-12, -12, -12], [12, 12, 12]);
-    let hot = v.glow(mix(color, [1.0, 1.0, 1.0], 0.55));
+    let violet = mix(color, [0.62, 0.38, 1.0], 0.6);
+    let hot = v.glow(mix(color, [1.0, 1.0, 1.0], 0.7));
     let warm = v.glow(color);
-    let shell = v.tone(color, 0.5);
-    let shell_d = v.tone(color, 0.32);
-    let shell_hi = v.tone(color, 0.8);
+    let cool = v.glow(mix(color, violet, 0.5));
+    let dim = v.glow(violet);
+    let deep = v.glow(scale(violet, 0.7));
     v.part = 1;
     for y in -5i32..5 {
         for z in -5i32..5 {
             for x in -5i32..5 {
-                // an octahedron softened towards a ball
+                // an octahedron softened towards a ball, brightest within
                 let (a, b, c) = (
                     (x as f32 + 0.5).abs(),
                     (y as f32 + 0.5).abs(),
                     (z as f32 + 0.5).abs(),
                 );
-                if a + b + c < 6.6 && a * a + b * b + c * c < 23.0 {
-                    let bright = (x + y + z).rem_euclid(3) == 0 || a + b + c < 3.0;
-                    v.set(x, y, z, if bright { hot } else { warm });
+                let (taxi, round) = (a + b + c, a * a + b * b + c * c);
+                if taxi < 6.6 && round < 23.0 {
+                    let ink = if taxi < 3.0 || (x + y + z).rem_euclid(3) == 0 {
+                        hot
+                    } else if round > 15.0 {
+                        cool
+                    } else {
+                        warm
+                    };
+                    v.set(x, y, z, ink);
                 }
             }
         }
     }
-    // a ring in the x-z plane, studded
+    // the veil: tatters of violet light standing off the core
     v.part = 2;
-    for y in -1i32..1 {
-        for z in -10i32..10 {
-            for x in -10i32..10 {
-                let r = ((x as f32 + 0.5).powi(2) + (z as f32 + 0.5).powi(2)).sqrt();
-                if (7.6..9.4).contains(&r) {
-                    let stud = (x.abs() < 2 || z.abs() < 2) && y == 0;
-                    let c = if stud {
-                        shell_hi
-                    } else if (x + z).rem_euclid(4) == 0 {
-                        shell_d
-                    } else {
-                        shell
-                    };
-                    v.set(x, y, z, c);
+    for y in -8i32..8 {
+        for z in -8i32..8 {
+            for x in -8i32..8 {
+                let r = ((x as f32 + 0.5).powi(2)
+                    + (y as f32 + 0.5).powi(2) * 0.8
+                    + (z as f32 + 0.5).powi(2))
+                .sqrt();
+                let h = hash3(x.div_euclid(2), y.div_euclid(3), z.div_euclid(2)) % 9;
+                if (6.2..7.6).contains(&r) && h < 2 && v.get(x, y, z) == 0 {
+                    v.set(x, y, z, if y > 2 { dim } else { deep });
                 }
             }
         }
     }
     v.part = 3;
-    v.rbox([-2, 1], [-2, 2], [-1, 2], 1, [true; 3], shell);
-    v.set(-1, 0, 1, warm);
-    v.set(-1, 1, 0, shell_hi);
-    lods(&v, |v| Orb {
+    v.rbox([-1, 1], [-1, 2], [-1, 1], 0, [true; 3], warm);
+    v.set(-1, 1, 0, hot);
+    // the tail: four fading puffs, each its own small model
+    let puff = |i: usize| -> Vox {
+        let mut p = Vox::new([-5, -5, -5], [5, 5, 5]);
+        let tones = [color, mix(color, violet, 0.5), violet, scale(violet, 0.7)];
+        let ink = p.glow(tones[i]);
+        let core = p.glow(mix(color, [1.0, 1.0, 1.0], 0.7));
+        p.part = 1;
+        let r = 3.4 - i as f32 * 0.7;
+        p.blob([0.0, 0.0, 0.0], [r, r * 1.15, r], ink);
+        if i < 2 {
+            p.blob([0.0, 0.0, 0.0], [r * 0.5; 3], core);
+        }
+        p
+    };
+    let puffs = [0, 1, 2, 3].map(puff);
+    let tails = [
+        puffs[0].half(),
+        puffs[1].half(),
+        puffs[2].half(),
+        puffs[3].half(),
+    ];
+    let far = [
+        tails[0].half(),
+        tails[1].half(),
+        tails[2].half(),
+        tails[3].half(),
+    ];
+    let half = v.half();
+    let quarter = half.half();
+    let build = |v: &Vox, tail: &[Vox; 4]| Wisp {
         core: v.mesh(1, [0.0; 3]),
-        ring: v.mesh(2, [0.0; 3]),
-        shard: v.mesh(3, [0.0; 3]),
-    })
+        veil: v.mesh(2, [0.0; 3]),
+        mote: v.mesh(3, [0.0; 3]),
+        tail: [0, 1, 2, 3].map(|i| tail[i].mesh(1, [0.0; 3])),
+    };
+    [
+        build(&v, &puffs),
+        build(&half, &tails),
+        build(&quarter, &far),
+    ]
+}
+
+/// The look of an Ashcloak: a ragged hooded cloak in the creature's colour
+/// over leather, a scarf across the face. The leader wears mail and a red
+/// sash.
+fn ashcloak_look(color: [f32; 3], leader: bool) -> Look {
+    let mut l = Look::player(if leader { 11 } else { 5 }, color);
+    l.skin = if leader {
+        [0.72, 0.52, 0.38]
+    } else {
+        [0.84, 0.66, 0.52]
+    };
+    l.hair = [0.16, 0.12, 0.10];
+    l.hair_style = 3;
+    l.beard = false;
+    l.tunic = color;
+    l.trim = [0.50, 0.42, 0.30];
+    l.pants = [0.22, 0.20, 0.19];
+    l.boots = [0.20, 0.14, 0.10];
+    l.cape = Some(scale(color, 0.78));
+    l.armor = if leader {
+        ArmorType::Mail
+    } else {
+        ArmorType::Leather
+    };
+    l.pauldrons = leader;
+    l.gloves = true;
+    l.robe = false;
+    l.apron = None;
+    l.helmet = false;
+    l.weapon = None;
+    l.eyes = [0.30, 0.24, 0.18];
+    l.build = if leader { 2 } else { 1 };
+    l.elder = false;
+    l.emblem = 0;
+    l.ears = 0;
+    l.mood = 1;
+    l.scarf = Some(if leader {
+        [0.52, 0.12, 0.10]
+    } else {
+        scale(color, 0.5)
+    });
+    l.sash = leader.then_some([0.72, 0.13, 0.10]);
+    l
+}
+
+/// The look of a Candlekin: a wax-pale little mine dweller with great ears
+/// and a lit candle stuck to its head.
+fn candlekin_look(color: [f32; 3]) -> Look {
+    let mut l = Look::player(2, color);
+    l.skin = color;
+    l.hair_style = 0;
+    l.beard = false;
+    l.tunic = [0.36, 0.27, 0.19];
+    l.trim = [0.52, 0.40, 0.24];
+    l.pants = [0.24, 0.19, 0.15];
+    l.boots = scale(color, 0.7);
+    l.cape = None;
+    l.armor = ArmorType::Cloth;
+    l.pauldrons = false;
+    l.gloves = false;
+    l.robe = false;
+    l.apron = None;
+    l.helmet = false;
+    l.weapon = None;
+    l.eyes = [0.98, 0.78, 0.20];
+    l.build = 0;
+    l.elder = false;
+    l.emblem = 0;
+    l.ears = 3;
+    l.mood = 0;
+    l.candle = true;
+    l
 }
 
 thread_local! {
-    static GRAZERS: Cache<[Grazer; 3]> = Cache::default();
+    static BEASTS: Cache<[Beast; 3]> = Cache::default();
+    static CRAWLERS: Cache<[Crawler; 3]> = Cache::default();
     static SHADES: Cache<[Shade; 3]> = Cache::default();
-    static ORBS: Cache<[Orb; 3]> = Cache::default();
+    static WISPS: Cache<[Wisp; 3]> = Cache::default();
 }
 
-fn color_key(c: [f32; 3]) -> u64 {
-    key_of(&[c[0].to_bits(), c[1].to_bits(), c[2].to_bits()])
+fn color_key(variant: u8, c: [f32; 3]) -> u64 {
+    key_of(&[
+        variant as u32,
+        c[0].to_bits(),
+        c[1].to_bits(),
+        c[2].to_bits(),
+    ])
 }
 
-/// Draw a creature. `flash` (0 to 1) whitens it when hit; `t` is a clock in seconds.
+/// Draw a creature. `variant` picks the look within its model kind:
+/// quadrupeds are 0 Grazer, 1 Thornboar, 2 Mirepincher, 3 Websnare;
+/// humanoids 0 Shade, 1 Ashcloak bandit, 2 Ashcloak leader, 3 Candlekin; the
+/// orb is the Gloomwisp. `flash` (0 to 1) whitens it when hit; `t` is a clock
+/// in seconds.
 #[allow(clippy::too_many_arguments)]
 pub fn push_creature(
     out: &mut Vec<Vertex>,
     model: dyno_world::content::Model,
+    variant: u8,
     feet: Vec3,
     yaw: f32,
     color: [f32; 3],
@@ -1955,16 +2627,64 @@ pub fn push_creature(
         ..Paint::lit(if flash > 0.0 { 1.0 } else { light })
     };
     let lod = lod_at(feet);
-    match model {
-        Model::Quadruped => {
-            let m = GRAZERS.with(|c| c.get(color_key(color), || build_grazer(color)));
+    let key = color_key(variant, color);
+    match (model, variant) {
+        (Model::Quadruped, 2 | 3) => {
+            let m = CRAWLERS.with(|c| {
+                c.get(key, || {
+                    if variant == 2 {
+                        build_mirepincher(color)
+                    } else {
+                        build_websnare(color)
+                    }
+                })
+            });
+            let m = &m[lod];
+            let bob = (phase * 2.0).sin() * 0.5 * walk + (t * 1.6 + phase * 0.01).sin() * 0.35;
+            let base = root(feet, yaw, FINE) * Affine3A::from_translation(Vec3::Y * bob);
+            emit(out, &m.body, &base, paint);
+            for leg in &m.legs {
+                // each leg lifts as it comes forward, and twitches at rest
+                let (sin, cos) = (phase + leg.phase).sin_cos();
+                let lift = cos.max(0.0) * walk;
+                let idle = (t * 1.3 + leg.phase + leg.pivot[0] + leg.pivot[2]).sin() * 0.03;
+                let rot = if m.sideways {
+                    rx(-leg.side * (lift * 0.4 + sin * walk * 0.22 + idle))
+                } else {
+                    Mat3::from_rotation_y(-leg.side * sin * walk * 0.38)
+                        * Mat3::from_rotation_z(leg.side * (lift * 0.3 + idle))
+                };
+                emit(out, &leg.mesh, &joint(&base, leg.pivot.into(), rot), paint);
+            }
+            for claw in &m.claws {
+                // claws weigh the air, and rise when it runs
+                let a = 0.12 + (t * 1.7 + claw.phase).sin() * 0.14 + walk * 0.2;
+                let rot = Mat3::from_rotation_z(a) * Mat3::from_rotation_y(claw.side * -0.2);
+                emit(
+                    out,
+                    &claw.mesh,
+                    &joint(&base, claw.pivot.into(), rot),
+                    paint,
+                );
+            }
+        }
+        (Model::Quadruped, _) => {
+            let m = BEASTS.with(|c| {
+                c.get(key, || {
+                    if variant == 1 {
+                        build_thornboar(color)
+                    } else {
+                        build_grazer(color)
+                    }
+                })
+            });
             let m = &m[lod];
             // a trot: the body bobs and rocks a little
             let bob = (phase * 2.0).sin().abs() * 0.6 * walk;
             let base = root(feet, yaw, FINE)
                 * Affine3A::from_translation(Vec3::Y * bob)
                 * Affine3A::from_mat3(rx((phase * 2.0).cos() * 0.02 * walk));
-            for (i, (lx, lz)) in G_LEGS.iter().enumerate() {
+            for (i, (lx, lz)) in m.legs_at.iter().enumerate() {
                 // diagonal pairs move together
                 let ph = if i == 0 || i == 3 {
                     0.0
@@ -1972,27 +2692,47 @@ pub fn push_creature(
                     std::f32::consts::PI
                 };
                 let a = (phase + ph).sin() * 0.55 * walk;
-                let hip = joint(&base, Vec3::new(*lx, G_HIP_Y, *lz), rx(a));
+                let hip = joint(&base, Vec3::new(*lx, m.hip_y, *lz), rx(a));
                 emit(out, &m.legs[i], &hip, paint);
             }
             emit(out, &m.body, &base, paint);
-            // grazing dips the head now and then when standing
-            let graze = if walk < 0.15 {
-                ((t * 0.7 + phase * 0.1).sin() - 0.55).max(0.0) * 1.6
-            } else {
-                0.0
-            };
-            let chew = if graze > 0.3 {
-                (t * 9.0).sin() * 0.04
-            } else {
-                0.0
-            };
             let nod = (phase).sin() * 0.06 * walk;
-            let head = joint(&base, Vec3::from(G_NECK), rx(graze * 1.25 + chew + nod));
+            let tilt = if m.grazes {
+                // grazing dips the head now and then when standing
+                let graze = if walk < 0.15 {
+                    ((t * 0.7 + phase * 0.1).sin() - 0.55).max(0.0) * 1.6
+                } else {
+                    0.0
+                };
+                let chew = if graze > 0.3 {
+                    (t * 9.0).sin() * 0.04
+                } else {
+                    0.0
+                };
+                graze * 1.25 + chew
+            } else {
+                // head low, rooting and tossing
+                0.12 + (t * 1.9 + phase * 0.07).sin() * 0.07 - walk * 0.1
+            };
+            let head = joint(&base, Vec3::from(m.neck), rx(tilt + nod));
             emit(out, &m.head, &head, paint);
         }
-        Model::Humanoid => {
-            let m = SHADES.with(|c| c.get(color_key(color), || build_shade(color)));
+        (Model::Humanoid, 1..=3) => {
+            let (look, held) = match variant {
+                1 => (
+                    ashcloak_look(color, false),
+                    (Kind::Dagger, [0.62, 0.63, 0.68]),
+                ),
+                2 => (
+                    ashcloak_look(color, true),
+                    (Kind::BattleAxe, [0.55, 0.56, 0.62]),
+                ),
+                _ => (candlekin_look(color), (Kind::Pickaxe, [0.50, 0.50, 0.55])),
+            };
+            draw_person(out, feet, yaw, 0.0, &look, paint, phase, walk, Some(held));
+        }
+        (Model::Humanoid, _) => {
+            let m = SHADES.with(|c| c.get(key, || build_shade(color)));
             let m = &m[lod];
             let swing = phase.sin() * 0.6 * walk;
             let bob = (t * 2.1 + phase * 0.05).sin() * 2.2;
@@ -2055,40 +2795,43 @@ pub fn push_creature(
                 emit(out, &m.arm_l[i], &fore, paint);
             }
         }
-        Model::Orb => {
-            let m = ORBS.with(|c| c.get(color_key(color), || build_orb(color)));
+        (Model::Orb, _) => {
+            let m = WISPS.with(|c| c.get(key, || build_wisp(color)));
             let m = &m[lod];
-            let at = feet + Vec3::Y * (0.8 + (t * 1.7).sin() * 0.15);
-            let base = root(at, yaw, FINE);
-            let pulse = 1.0 + (t * 4.0).sin() * 0.06;
-            let core = base
-                * Affine3A::from_mat3(
-                    Mat3::from_rotation_y(t * 0.9) * Mat3::from_diagonal(Vec3::splat(pulse)),
-                );
-            emit(
-                out,
-                &m.core,
-                &core,
-                Paint {
-                    glow: true,
-                    ..paint
-                },
-            );
-            let tilt = Mat3::from_rotation_y(t * 1.6) * Mat3::from_rotation_x(0.5);
-            emit(out, &m.ring, &(base * Affine3A::from_mat3(tilt)), paint);
-            let tilt = Mat3::from_rotation_y(-t * 1.1) * Mat3::from_rotation_z(1.2);
-            let small = Mat3::from_diagonal(Vec3::splat(0.78));
-            emit(
-                out,
-                &m.ring,
-                &(base * Affine3A::from_mat3(tilt * small)),
-                paint,
-            );
-            for k in 0..3 {
-                let a = t * 1.3 + k as f32 * 2.1;
-                let p = Vec3::new(a.cos() * 11.0, (a * 1.7).sin() * 4.0, a.sin() * 11.0);
+            let glow = Paint {
+                glow: true,
+                ..paint
+            };
+            // it drifts: a slow bob with a quicker waver on top
+            let bob = (t * 1.7).sin() * 0.15 + (t * 4.3 + phase * 0.02).sin() * 0.03;
+            let base = root(feet + Vec3::Y * (0.85 + bob), yaw, FINE);
+            let pulse = 1.0 + (t * 4.0).sin() * 0.07;
+            let spin = Mat3::from_rotation_y(t * 0.9) * Mat3::from_rotation_x(0.3);
+            let core = base * Affine3A::from_mat3(spin * Mat3::from_diagonal(Vec3::splat(pulse)));
+            emit(out, &m.core, &core, glow);
+            let veil = Mat3::from_rotation_y(-t * 0.6)
+                * Mat3::from_diagonal(Vec3::splat(1.0 + (t * 2.3).sin() * 0.08));
+            emit(out, &m.veil, &(base * Affine3A::from_mat3(veil)), glow);
+            // motes circle on tilted rings
+            for k in 0..5 {
+                let kf = k as f32;
+                let a = t * (1.1 + kf * 0.23) + kf * 1.9;
+                let r = 9.5 + kf * 1.2;
+                let p = Mat3::from_rotation_z(0.5 * kf - 1.0)
+                    * Vec3::new(a.cos() * r, (a * 1.7).sin() * 2.0, a.sin() * r);
                 let spin = Mat3::from_rotation_y(a * 2.0) * Mat3::from_rotation_x(a);
-                emit(out, &m.shard, &joint(&base, p, spin), paint);
+                emit(out, &m.mote, &joint(&base, p, spin), glow);
+            }
+            // the tail hangs below at rest and streams behind when it moves
+            let back = 0.25 + walk * 0.9;
+            let dir = Vec3::new(0.0, -(1.0 - walk * 0.6), -back).normalize();
+            for (i, puff) in m.tail.iter().enumerate() {
+                let kf = i as f32;
+                let sway = (t * 3.1 - kf * 0.9).sin() * (1.0 + kf * 0.8);
+                let p = dir * (6.0 + kf * 4.4) + Vec3::new(sway, 0.0, (t * 2.3 - kf).cos() * 0.6);
+                let size = 1.0 + (t * 5.0 - kf * 1.3).sin() * 0.1;
+                let rot = Mat3::from_rotation_y(t + kf) * Mat3::from_diagonal(Vec3::splat(size));
+                emit(out, puff, &joint(&base, p, rot), glow);
             }
         }
     }
@@ -3095,30 +3838,6 @@ pub fn push_weapon_in_hand(
     );
 }
 
-/// A weapon in a figure's fist: `grip` is the fist's frame in figure voxels,
-/// with y along the blade.
-fn push_weapon_frame(
-    out: &mut Vec<Vertex>,
-    kind: WeaponKind,
-    color: [f32; 3],
-    grip: &Affine3A,
-    light: f32,
-) {
-    let m = grip.matrix3;
-    push_weapon_in_hand(
-        out,
-        kind,
-        color,
-        grip.translation.into(),
-        [
-            (m.x_axis * FINE).into(),
-            (m.y_axis * FINE).into(),
-            (m.z_axis * FINE).into(),
-        ],
-        light,
-    );
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3232,13 +3951,28 @@ mod tests {
                 g.frame(Some((vp, eye, far)), &sky, &boxes, &[], &ctx, out);
                 println!("{name}: {} vertices", boxes.len());
             };
-        let creature = |b: &mut Vec<Vertex>, m, at: Vec3, yaw: f32, walk: f32, flash: f32, t| {
-            let color = match m {
-                dyno_world::content::Model::Quadruped => [0.86, 0.82, 0.7],
-                dyno_world::content::Model::Humanoid => [0.16, 0.12, 0.22],
-                dyno_world::content::Model::Orb => [0.4, 0.8, 1.0],
+        let beast = |b: &mut Vec<Vertex>,
+                     m,
+                     variant: u8,
+                     at: Vec3,
+                     yaw: f32,
+                     walk: f32,
+                     flash: f32,
+                     t: f32| {
+            let color = match (m, variant) {
+                (dyno_world::content::Model::Quadruped, 1) => [0.33, 0.22, 0.15],
+                (dyno_world::content::Model::Quadruped, 2) => [0.38, 0.42, 0.24],
+                (dyno_world::content::Model::Quadruped, 3) => [0.80, 0.78, 0.72],
+                (dyno_world::content::Model::Quadruped, _) => [0.86, 0.82, 0.7],
+                (dyno_world::content::Model::Humanoid, 1 | 2) => [0.46, 0.45, 0.44],
+                (dyno_world::content::Model::Humanoid, 3) => [0.90, 0.86, 0.70],
+                (dyno_world::content::Model::Humanoid, _) => [0.16, 0.12, 0.22],
+                (dyno_world::content::Model::Orb, _) => [0.35, 0.85, 1.0],
             };
-            push_creature(b, m, at, yaw, color, 0.0, 1.0, walk, flash, t);
+            push_creature(b, m, variant, at, yaw, color, 0.0, 1.0, walk, flash, t);
+        };
+        let creature = |b: &mut Vec<Vertex>, m, at: Vec3, yaw: f32, walk: f32, flash: f32, t| {
+            beast(b, m, 0, at, yaw, walk, flash, t)
         };
         use dyno_world::content::Model;
         // figures face -z by default (yaw 0); the camera looks from -z
@@ -3255,6 +3989,62 @@ mod tests {
                 }
             },
         );
+        // the zone creatures: each from the front quarter, the side (walking),
+        // the back quarter, and hit
+        for (name, m, variant, eye, look_at) in [
+            ("thornboar", Model::Quadruped, 1u8, [0.0, 1.2, -4.4], 0.6f32),
+            ("mirepincher", Model::Quadruped, 2, [0.0, 1.5, -4.2], 0.3),
+            ("websnare", Model::Quadruped, 3, [0.0, 1.9, -5.0], 0.4),
+            ("ashcloak", Model::Humanoid, 1, [0.0, 1.5, -5.2], 1.05),
+            (
+                "ashcloak_leader",
+                Model::Humanoid,
+                2,
+                [0.0, 1.5, -5.2],
+                1.05,
+            ),
+            ("candlekin", Model::Humanoid, 3, [0.0, 1.5, -5.2], 1.05),
+            ("gloomwisp", Model::Orb, 0, [0.0, 1.2, -4.0], 0.8),
+        ] {
+            shoot(
+                &format!("zoo_{name}"),
+                Vec3::from(eye),
+                Vec3::new(0.0, look_at, 0.0),
+                40.0,
+                &|b| {
+                    beast(b, m, variant, Vec3::new(-2.6, 0.0, 0.0), 0.5, 0.0, 0.0, 0.5);
+                    beast(
+                        b,
+                        m,
+                        variant,
+                        Vec3::new(-0.8, 0.0, 0.0),
+                        pi / 2.0,
+                        1.0,
+                        0.0,
+                        1.4,
+                    );
+                    beast(
+                        b,
+                        m,
+                        variant,
+                        Vec3::new(1.0, 0.0, 0.0),
+                        pi + 0.6,
+                        0.0,
+                        0.0,
+                        2.3,
+                    );
+                    beast(b, m, variant, Vec3::new(2.7, 0.0, 0.0), -0.7, 1.0, 0.6, 3.1);
+                },
+            );
+            // and close, face on
+            shoot(
+                &format!("zoo_{name}_near"),
+                Vec3::new(1.0, look_at * 1.5 + 0.5, -2.2),
+                Vec3::new(0.0, look_at * 1.5, 0.0),
+                40.0,
+                &|b| beast(b, m, variant, Vec3::ZERO, 0.25, 0.0, 0.0, 0.5),
+            );
+        }
         // the coarser models, magnified from where they are used
         for (name, dist, fov) in [("lod1", 20.0f32, 10.0f32), ("lod2", 50.0, 4.2)] {
             shoot(

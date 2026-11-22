@@ -58,6 +58,98 @@ pub fn connect(
     observer: bool,
     timeout: Duration,
 ) -> Result<Joined, String> {
+    connect_as(input, name, token, observer, None, timeout)
+}
+
+/// Open a WebSocket and say hello (shared by joining and the realm query).
+fn open(input: &str, name: &str, timeout: Duration) -> Result<(Ws, String), String> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let url = proto::server_url(input)?;
+    let (ctx, crx) = channel();
+    let u = url.clone();
+    std::thread::spawn(move || {
+        let cfg = WebSocketConfig::default()
+            .max_message_size(Some(proto::MAX_SERVER_MESSAGE))
+            .max_frame_size(Some(proto::MAX_SERVER_MESSAGE));
+        let _ = ctx.send(tungstenite::client::connect_with_config(
+            u.as_str(),
+            Some(cfg),
+            3,
+        ));
+    });
+    let mut ws = match crx.recv_timeout(timeout) {
+        Ok(Ok((ws, _resp))) => ws,
+        Ok(Err(e)) => return Err(format!("Could not connect to {url}: {e}")),
+        Err(_) => {
+            return Err(format!(
+                "Could not reach {url} within {} s.",
+                timeout.as_secs()
+            ));
+        }
+    };
+    set_timeout(&mut ws, Duration::from_secs(2));
+    let hello = ClientMsg::Hello {
+        protocol: proto::PROTOCOL_VERSION,
+        version: env!("CARGO_PKG_VERSION").into(),
+        name: proto::clean_name(name),
+    };
+    ws.send(Message::Binary(proto::encode(&hello).into()))
+        .map_err(|e| format!("send: {e}"))?;
+    Ok((ws, url))
+}
+
+/// Ask a realm about itself and the characters `token` has there; with
+/// `delete`, delete that character first. Returns the realm, the list, and
+/// how long the answer took (ms).
+pub fn realm(
+    input: &str,
+    token: u64,
+    delete: Option<&str>,
+    timeout: Duration,
+) -> Result<(proto::RealmInfo, Vec<proto::CharacterSummary>, u32), String> {
+    let t0 = Instant::now();
+    let (mut ws, _) = open(input, "", timeout)?;
+    let ask = match delete {
+        Some(name) => ClientMsg::DeleteCharacter {
+            token,
+            name: name.to_string(),
+        },
+        None => ClientMsg::ListCharacters { token },
+    };
+    ws.send(Message::Binary(proto::encode(&ask).into()))
+        .map_err(|e| format!("send: {e}"))?;
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        match ws.read() {
+            Ok(Message::Binary(b)) => {
+                match proto::decode::<ServerMsg>(&b).map_err(|e| format!("bad message: {e}"))? {
+                    ServerMsg::Characters { realm, list } => {
+                        let _ = ws.close(None);
+                        return Ok((realm, list, t0.elapsed().as_millis() as u32));
+                    }
+                    ServerMsg::Reject { reason } => return Err(reason),
+                    _ => {}
+                }
+            }
+            Ok(Message::Close(_)) => return Err("The realm closed the connection.".into()),
+            Ok(_) => {}
+            Err(tungstenite::Error::Io(e))
+                if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
+            Err(e) => return Err(format!("Connection lost: {e}")),
+        }
+    }
+    Err("The realm did not answer in time.".into())
+}
+
+/// Join, creating a new character with `create` if this name is new here.
+pub fn connect_as(
+    input: &str,
+    name: &str,
+    token: u64,
+    observer: bool,
+    create: Option<proto::NewCharacter>,
+    timeout: Duration,
+) -> Result<Joined, String> {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let url = proto::server_url(input)?;
     let deadline = Instant::now() + timeout;
@@ -94,7 +186,12 @@ pub fn connect(
     ws.send(Message::Binary(proto::encode(&hello).into()))
         .map_err(|e| format!("send: {e}"))?;
     ws.send(Message::Binary(
-        proto::encode(&ClientMsg::Session { token, observer }).into(),
+        proto::encode(&ClientMsg::Session {
+            token,
+            observer,
+            create,
+        })
+        .into(),
     ))
     .map_err(|e| format!("send: {e}"))?;
 

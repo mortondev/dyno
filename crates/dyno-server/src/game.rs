@@ -91,6 +91,8 @@ pub struct Player {
     pub auras: Vec<crate::abilities::Aura>,
     /// the named area you stand in
     pub area: Option<usize>,
+    /// how the player chose to look
+    pub look: proto::Appearance,
 }
 
 impl Player {
@@ -167,6 +169,10 @@ pub struct State {
     /// camp spawn points of every area
     pub spawn_points: Vec<crate::camps::SpawnPoint>,
     pub zone_clock: f32,
+    /// nodes resting after gathering (trees, bushes): until (unix seconds)
+    pub depleted: HashMap<[i32; 3], u64>,
+    /// the Nightfall Incursion, when one is under way
+    pub incursion: Option<crate::events::Incursion>,
     /// weather kind (0 clear, 1 cloudy, 2 rain, 3 fog), strength, seconds left
     pub weather: (u8, f32, f32),
 }
@@ -286,6 +292,7 @@ impl State {
                 },
                 None,
             );
+            self.maybe_start_incursion();
         }
         if self.clock < before {
             self.day += 1;
@@ -298,6 +305,106 @@ impl State {
                 None,
             );
             self.event(format!("Day {} dawns in the valley.", self.day));
+        }
+    }
+
+    /// What other players see of someone: name, place, looks and class colour.
+    pub fn player_info(&self, id: PlayerId, p: &Player) -> PlayerInfo {
+        PlayerInfo {
+            id,
+            name: p.name.clone(),
+            pose: p.pose,
+            look: p.look,
+            color: p
+                .class
+                .and_then(|c| self.content.class(c))
+                .map(|c| c.color)
+                .unwrap_or([0.5, 0.5, 0.6]),
+        }
+    }
+
+    /// This realm, and the characters a token owns here (character select).
+    pub fn characters(&self, token: u64, motd: &str) -> ServerMsg {
+        let c = &self.content;
+        let classes = c
+            .classes
+            .iter()
+            .map(|k| proto::ClassInfo {
+                key: k.key.clone(),
+                name: k.name.clone(),
+                color: k.color,
+                blurb: k.blurb.clone(),
+                resource: format!("{:?}", k.resource),
+                armor: format!("{:?}", k.armor),
+                abilities: c
+                    .known_abilities(k.id, 6)
+                    .iter()
+                    .take(4)
+                    .map(|a| a.name.clone())
+                    .collect(),
+            })
+            .collect();
+        let online: Vec<&Player> = self.players.values().filter(|p| p.token == token).collect();
+        let mut list: Vec<proto::CharacterSummary> = self
+            .saved
+            .iter()
+            .filter(|(_, d)| d.token == token && token != 0)
+            .map(|(name, d)| {
+                let class = d
+                    .class
+                    .as_ref()
+                    .and_then(|k| c.classes.iter().find(|x| &x.key == k));
+                let live = online.iter().find(|p| p.name.eq_ignore_ascii_case(name));
+                proto::CharacterSummary {
+                    name: live.map(|p| p.name.clone()).unwrap_or_else(|| {
+                        if d.name.is_empty() {
+                            name.clone()
+                        } else {
+                            d.name.clone()
+                        }
+                    }),
+                    level: live.map(|p| p.level).unwrap_or(d.level),
+                    class: class
+                        .map(|k| k.name.clone())
+                        .unwrap_or_else(|| "Adventurer".into()),
+                    color: class.map(|k| k.color).unwrap_or([0.6, 0.6, 0.6]),
+                    zone: if d.zone.is_empty() {
+                        "Hearthstead".into()
+                    } else {
+                        d.zone.clone()
+                    },
+                    look: d.look,
+                }
+            })
+            .collect();
+        list.sort_by(|a, b| b.level.cmp(&a.level).then(a.name.cmp(&b.name)));
+        ServerMsg::Characters {
+            realm: proto::RealmInfo {
+                name: c.name.clone(),
+                motd: motd.to_string(),
+                version: env!("CARGO_PKG_VERSION").into(),
+                online: self.players.len() as u16,
+                classes,
+            },
+            list,
+        }
+    }
+
+    /// Delete one of a token's characters (not while it is online).
+    pub fn delete_character(&mut self, token: u64, name: &str) {
+        let key = name.to_lowercase();
+        let online = self
+            .players
+            .values()
+            .any(|p| p.name.eq_ignore_ascii_case(name));
+        if !online
+            && self
+                .saved
+                .get(&key)
+                .is_some_and(|d| d.token == token && token != 0)
+        {
+            self.saved.remove(&key);
+            log(format!("Deleted character {name}"));
         }
     }
 
@@ -375,6 +482,7 @@ impl State {
         name: &str,
         token: u64,
         tx: Sender<Arc<Vec<u8>>>,
+        create: Option<proto::NewCharacter>,
     ) -> Result<(PlayerId, Vec<ServerMsg>), String> {
         let key = name.to_lowercase();
         if self
@@ -394,10 +502,21 @@ impl State {
             None => PlayerData::new(self.default_mode, self.spawn_point()),
         };
         let fresh = !self.saved.contains_key(&key);
+        // a new character arrives with the class and looks chosen at creation
+        let mut data = data;
+        let mut new_class = None;
+        if fresh && let Some(c) = &create {
+            data.look = c.look;
+            new_class = self
+                .content
+                .classes
+                .iter()
+                .find(|k| k.key == c.class)
+                .map(|k| k.id);
+        }
         let id = self.next_id;
         self.next_id += 1;
         let mut pack = store::pack_from_keys(&self.content, &data.pack);
-        let mut data = data;
         if fresh && self.content.world.protected {
             data.health = dyno_sim::progression::max_health(1);
             for (k, n) in &self.content.world.starter {
@@ -495,15 +614,12 @@ impl State {
                 .is_some_and(|c| c.resource == dyno_world::content::Resource::Energy),
             auras: Vec::new(),
             area: None,
+            look: data.look,
         };
         let others: Vec<PlayerInfo> = self
             .players
             .iter()
-            .map(|(i, q)| PlayerInfo {
-                id: *i,
-                name: q.name.clone(),
-                pose: q.pose,
-            })
+            .map(|(i, q)| self.player_info(*i, q))
             .collect();
         let welcome = ServerMsg::Welcome {
             your_id: id,
@@ -560,6 +676,7 @@ impl State {
             };
             after.push(ServerMsg::Character {
                 class: p.class,
+                look: p.look,
                 level: p.level,
                 xp: p.xp,
                 xp_next: dyno_sim::progression::xp_to_next(p.level),
@@ -604,14 +721,7 @@ impl State {
                 message: "You died.".into(),
             });
         }
-        self.broadcast(
-            &ServerMsg::PlayerJoined(PlayerInfo {
-                id,
-                name: name.to_string(),
-                pose,
-            }),
-            None,
-        );
+        self.broadcast(&ServerMsg::PlayerJoined(self.player_info(id, &p)), None);
         let empty = self.players.is_empty();
         let last = p.last_seen;
         let missed: Vec<String> = self
@@ -632,6 +742,9 @@ impl State {
             let _ = w.send(joined);
         }
         self.players.insert(id, p);
+        if let Some(class) = new_class {
+            self.choose_class(id, class);
+        }
         if empty && self.is_night() {
             // every session starts at dawn
             self.set_time(0.0);
@@ -670,6 +783,13 @@ impl State {
 
     pub fn remember(&mut self, p: &Player) {
         let data = PlayerData {
+            name: p.name.clone(),
+            look: p.look,
+            zone: p
+                .area
+                .and_then(|a| self.content.areas.get(a))
+                .map(|a| a.name.clone())
+                .unwrap_or_default(),
             last_seen: now_secs(),
             level: p.level,
             xp: p.xp,
@@ -815,10 +935,15 @@ impl State {
             ClientMsg::Unequip { place } => self.unequip(id, place),
             ClientMsg::AutoAttack { target } => self.set_auto_attack(id, target),
             ClientMsg::Sell { from } => self.sell(id, from),
+            ClientMsg::Gather { pos } => self.gather(id, pos),
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
             ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
-            ClientMsg::Chat { .. } | ClientMsg::Hello { .. } | ClientMsg::Session { .. } => {}
+            ClientMsg::Chat { .. }
+            | ClientMsg::Hello { .. }
+            | ClientMsg::Session { .. }
+            | ClientMsg::ListCharacters { .. }
+            | ClientMsg::DeleteCharacter { .. } => {}
         }
         Ok(())
     }
@@ -1484,6 +1609,7 @@ impl State {
             self.zone_clock = 0.0;
             self.tick_camps();
             self.tick_zones();
+            self.tick_events();
         }
         self.tick_power(dt);
         self.tick_items(dt);

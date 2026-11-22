@@ -51,10 +51,12 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 10;
+pub const PROTOCOL_VERSION: u32 = 12;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
+/// The ability ID used for a gathering cast (Mining, Herbalism, Woodcutting).
+pub const GATHER: u16 = u16::MAX - 2;
 
 /// Default TCP port of the game server.
 pub const DEFAULT_PORT: u16 = 7400;
@@ -102,6 +104,17 @@ pub enum ClientMsg {
     Session {
         token: u64,
         observer: bool,
+        /// creating this character now (class and looks)
+        create: Option<NewCharacter>,
+    },
+    /// Instead of a session: list my characters here, and the realm's status.
+    ListCharacters {
+        token: u64,
+    },
+    /// Instead of a session: delete one of my characters.
+    DeleteCharacter {
+        token: u64,
+        name: String,
     },
     /// The hotbar slot in hand.
     Held {
@@ -198,6 +211,10 @@ pub enum ClientMsg {
     AutoAttack {
         target: Option<u32>,
     },
+    /// Gather from a resource node (a cast; the node is not broken).
+    Gather {
+        pos: [i32; 3],
+    },
     /// Sell a bag slot's stack to the NPC you are talking to.
     Sell {
         from: u8,
@@ -216,6 +233,66 @@ pub struct PlayerInfo {
     pub id: PlayerId,
     pub name: String,
     pub pose: Pose,
+    /// how they chose to look, and their class colour
+    pub look: Appearance,
+    pub color: [f32; 3],
+}
+
+/// How a character looks, chosen at creation (indices into the game's palettes).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, Hash)]
+pub struct Appearance {
+    pub skin: u8,
+    pub eyes: u8,
+    /// 0 bald, 1 short, 2 long, 3 hood, 4 bun
+    pub hair_style: u8,
+    pub hair_color: u8,
+    pub beard: bool,
+    /// 0 slight, 1 average, 2 burly
+    pub build: u8,
+    /// 0 cheerful, 1 stern, 2 calm
+    pub mood: u8,
+    /// 0 hidden, 1 round, 2 pointed
+    pub ears: u8,
+}
+
+/// A character to create on joining: class (by key) and looks.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NewCharacter {
+    pub class: String,
+    pub look: Appearance,
+}
+
+/// One of your characters on a realm, for the character select screen.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CharacterSummary {
+    pub name: String,
+    pub level: u8,
+    pub class: String,
+    pub color: [f32; 3],
+    pub zone: String,
+    pub look: Appearance,
+}
+
+/// A class as the creation screen shows it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ClassInfo {
+    pub key: String,
+    pub name: String,
+    pub color: [f32; 3],
+    pub blurb: String,
+    pub resource: String,
+    pub armor: String,
+    pub abilities: Vec<String>,
+}
+
+/// What a realm says about itself before you join.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RealmInfo {
+    pub name: String,
+    pub motd: String,
+    pub version: String,
+    pub online: u16,
+    pub classes: Vec<ClassInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -326,6 +403,8 @@ pub enum ServerMsg {
     /// Your level, XP, money (copper) and most health.
     Character {
         class: Option<u16>,
+        /// how you chose to look
+        look: Appearance,
         level: u8,
         xp: u32,
         xp_next: u32,
@@ -384,6 +463,11 @@ pub enum ServerMsg {
     },
     /// You have no class yet: choose one.
     ChooseClass,
+    /// The answer to ListCharacters or DeleteCharacter.
+    Characters {
+        realm: RealmInfo,
+        list: Vec<CharacterSummary>,
+    },
     /// What you wear, by paper-doll place.
     Equipment(Vec<Option<Stack>>),
     /// Your auto-attack target (None when it stops).
@@ -399,6 +483,12 @@ pub enum ServerMsg {
     Weather {
         kind: u8,
         strength: f32,
+    },
+    /// A world event near you: title, what to do, progress 0..1 (empty title: it ended).
+    WorldEvent {
+        title: String,
+        text: String,
+        progress: f32,
     },
     /// A creature with its own name (a rare elite).
     EntityName {

@@ -37,10 +37,32 @@ pub fn plan_spawn_points(
                 if !world.in_bounds([x, 1, z]) {
                     continue;
                 }
-                let y = world.surface(x, z) + 1;
-                if w::is_solid(world.get(x, y, z)) || world.get(x, y - 1, z) == w::WATER {
-                    continue;
-                }
+                let free = |y: i32| {
+                    w::is_solid(world.get(x, y - 1, z))
+                        && world.get(x, y - 1, z) != w::WATER
+                        && !w::is_solid(world.get(x, y, z))
+                        && !w::is_solid(world.get(x, y + 1, z))
+                };
+                let y = match camp.y {
+                    // underground: the nearest open floor to the wanted height
+                    Some(dy) => {
+                        let want = hearth[1] + dy;
+                        match (0..12)
+                            .flat_map(|d| [want - d, want + d])
+                            .find(|y| free(*y))
+                        {
+                            Some(y) => y,
+                            None => continue,
+                        }
+                    }
+                    None => {
+                        let y = world.surface(x, z) + 1;
+                        if !free(y) {
+                            continue;
+                        }
+                        y
+                    }
+                };
                 out.push(SpawnPoint {
                     area: ai,
                     camp: ci,

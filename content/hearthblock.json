@@ -1,6 +1,6 @@
 {
  "name": "Hearthblock Online",
- "version": 5,
+ "version": 6,
  "items": [
   {
    "key": "stick",
@@ -1048,6 +1048,377 @@
    "icon": "dust",
    "quality": 0,
    "value": 14
+  },
+  {
+   "key": "boar_tusk",
+   "name": "Boar Tusk",
+   "color": [
+    0.92,
+    0.88,
+    0.75
+   ],
+   "icon": "lump",
+   "quality": 0,
+   "value": 15
+  },
+  {
+   "key": "claw_meat",
+   "name": "Pincher Claw Meat",
+   "color": [
+    0.85,
+    0.5,
+    0.4
+   ],
+   "icon": "meat",
+   "quality": 1,
+   "value": 6,
+   "food": 5
+  },
+  {
+   "key": "pincher_shell",
+   "name": "Mottled Shell",
+   "color": [
+    0.4,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "quality": 0,
+   "value": 18
+  },
+  {
+   "key": "spider_silk",
+   "name": "Websnare Silk",
+   "color": [
+    0.92,
+    0.92,
+    0.9
+   ],
+   "icon": "lump",
+   "quality": 1,
+   "value": 20
+  },
+  {
+   "key": "coin_purse",
+   "name": "Stolen Coin Purse",
+   "color": [
+    0.6,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "quality": 0,
+   "value": 45
+  },
+  {
+   "key": "grain_sack",
+   "name": "Sack of Stolen Grain",
+   "color": [
+    0.85,
+    0.75,
+    0.45
+   ],
+   "icon": "lump",
+   "quality": 1,
+   "value": 0
+  },
+  {
+   "key": "wax_lump",
+   "name": "Lump of Candle Wax",
+   "color": [
+    0.95,
+    0.9,
+    0.75
+   ],
+   "icon": "lump",
+   "quality": 0,
+   "value": 16
+  },
+  {
+   "key": "wisp_essence",
+   "name": "Wisp Essence",
+   "color": [
+    0.5,
+    0.8,
+    1.0
+   ],
+   "icon": "dust",
+   "quality": 1,
+   "value": 30
+  },
+  {
+   "key": "ashcloak_hatchet",
+   "name": "Ashcloak Hatchet",
+   "color": [
+    0.72,
+    0.72,
+    0.78
+   ],
+   "icon": "tool",
+   "stack": 1,
+   "quality": 2,
+   "level": 5,
+   "value": 350,
+   "gear": {
+    "slot": "main_hand",
+    "weapon": {
+     "kind": "axe",
+     "min": 7,
+     "max": 11,
+     "speed": 2.3
+    },
+    "stats": {
+     "str": 2,
+     "sta": 1
+    }
+   }
+  },
+  {
+   "key": "candlelight_wand",
+   "name": "Candlelight Wand",
+   "color": [
+    1.0,
+    0.9,
+    0.6
+   ],
+   "icon": "tool",
+   "stack": 1,
+   "quality": 2,
+   "level": 7,
+   "value": 490,
+   "gear": {
+    "slot": "ranged",
+    "weapon": {
+     "kind": "wand",
+     "min": 10,
+     "max": 16,
+     "speed": 1.8
+    },
+    "stats": {
+     "int": 2,
+     "spi": 1
+    }
+   }
+  },
+  {
+   "key": "foremans_maul",
+   "name": "The Foreman's Maul",
+   "color": [
+    0.72,
+    0.72,
+    0.78
+   ],
+   "icon": "tool",
+   "stack": 1,
+   "quality": 3,
+   "level": 10,
+   "value": 980,
+   "gear": {
+    "slot": "two_hand",
+    "weapon": {
+     "kind": "mace",
+     "min": 18,
+     "max": 27,
+     "speed": 3.4
+    },
+    "stats": {
+     "str": 5,
+     "sta": 4
+    }
+   }
+  },
+  {
+   "key": "drowned_lamp_staff",
+   "name": "Staff of the Drowned Lamp",
+   "color": [
+    0.5,
+    0.8,
+    1.0
+   ],
+   "icon": "tool",
+   "stack": 1,
+   "quality": 3,
+   "level": 9,
+   "value": 882,
+   "gear": {
+    "slot": "two_hand",
+    "weapon": {
+     "kind": "staff",
+     "min": 16,
+     "max": 24,
+     "speed": 3.0
+    },
+    "stats": {
+     "int": 5,
+     "spi": 3,
+     "sta": 2
+    }
+   }
+  },
+  {
+   "key": "webspun_cloak",
+   "name": "Webspun Cloak",
+   "color": [
+    0.9,
+    0.9,
+    0.88
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 5,
+   "value": 250,
+   "gear": {
+    "slot": "back",
+    "armor_type": "cloth",
+    "armor": 6,
+    "stats": {
+     "agi": 1,
+     "sta": 2
+    }
+   }
+  },
+  {
+   "key": "thornhide_boots",
+   "name": "Thornhide Boots",
+   "color": [
+    0.38,
+    0.24,
+    0.16
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 4,
+   "value": 200,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "leather",
+    "armor": 7,
+    "stats": {
+     "agi": 1,
+     "sta": 1
+    }
+   }
+  },
+  {
+   "key": "mireshell_buckler",
+   "name": "Mireshell Buckler",
+   "color": [
+    0.4,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 5,
+   "value": 250,
+   "gear": {
+    "slot": "off_hand",
+    "armor": 30,
+    "stats": {
+     "sta": 2
+    },
+    "weapon": {
+     "kind": "shield",
+     "min": 0,
+     "max": 0,
+     "speed": 1.0
+    }
+   }
+  },
+  {
+   "key": "barrow_wardens_helm",
+   "name": "Barrow Warden's Helm",
+   "color": [
+    0.35,
+    0.35,
+    0.4
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 6,
+   "value": 420,
+   "gear": {
+    "slot": "head",
+    "armor_type": "plate",
+    "armor": 28,
+    "stats": {
+     "str": 2,
+     "sta": 3
+    }
+   }
+  },
+  {
+   "key": "rook_varns_sash",
+   "name": "Rook Varn's Sash",
+   "color": [
+    0.7,
+    0.15,
+    0.12
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 6,
+   "value": 420,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "leather",
+    "armor": 8,
+    "stats": {
+     "agi": 3,
+     "sta": 2
+    }
+   }
+  },
+  {
+   "key": "old_tusk_mantle",
+   "name": "Old Tusk's Mantle",
+   "color": [
+    0.38,
+    0.24,
+    0.16
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 5,
+   "value": 350,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "leather",
+    "armor": 10,
+    "stats": {
+     "str": 2,
+     "agi": 2
+    }
+   }
+  },
+  {
+   "key": "silkmother_gloves",
+   "name": "Silkmother's Gloves",
+   "color": [
+    0.92,
+    0.92,
+    0.9
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 6,
+   "value": 420,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "cloth",
+    "armor": 6,
+    "stats": {
+     "int": 3,
+     "spi": 2
+    }
+   }
   }
  ],
  "blocks": {
@@ -2150,7 +2521,7 @@
    "damage": 3,
    "levels": [
     1,
-    5
+    2
    ]
   },
   {
@@ -2187,8 +2558,443 @@
    "burns_in_daylight": true,
    "levels": [
     2,
-    8
+    9
    ]
+  },
+  {
+   "key": "thornboar",
+   "name": "Thornboar",
+   "model": "quadruped",
+   "variant": 1,
+   "health": 40,
+   "damage": 6,
+   "levels": [
+    3,
+    4
+   ],
+   "color": [
+    0.38,
+    0.24,
+    0.16
+   ],
+   "drops": [
+    {
+     "item": "raw_meat",
+     "min": 1,
+     "max": 1,
+     "chance": 0.7
+    },
+    {
+     "item": "boar_tusk",
+     "min": 1,
+     "max": 1,
+     "chance": 0.6
+    },
+    {
+     "item": "torn_hide",
+     "min": 1,
+     "max": 1,
+     "chance": 0.4
+    },
+    {
+     "item": "thornhide_boots",
+     "min": 1,
+     "max": 1,
+     "chance": 0.015
+    }
+   ],
+   "hostile": true,
+   "scale": 1.15,
+   "speed": 3.2,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false,
+   "ability": {
+    "charge": {
+     "range": 14
+    }
+   },
+   "aggro": 6
+  },
+  {
+   "key": "mirepincher",
+   "name": "Mirepincher",
+   "model": "quadruped",
+   "variant": 2,
+   "health": 48,
+   "damage": 6,
+   "levels": [
+    3,
+    5
+   ],
+   "color": [
+    0.36,
+    0.42,
+    0.22
+   ],
+   "drops": [
+    {
+     "item": "claw_meat",
+     "min": 1,
+     "max": 1,
+     "chance": 0.7
+    },
+    {
+     "item": "pincher_shell",
+     "min": 1,
+     "max": 1,
+     "chance": 0.4
+    },
+    {
+     "item": "mireshell_buckler",
+     "min": 1,
+     "max": 1,
+     "chance": 0.012
+    }
+   ],
+   "hostile": false,
+   "scale": 1.0,
+   "speed": 2.4,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false
+  },
+  {
+   "key": "websnare",
+   "name": "Websnare",
+   "model": "quadruped",
+   "variant": 3,
+   "health": 35,
+   "damage": 6,
+   "levels": [
+    4,
+    5
+   ],
+   "color": [
+    0.85,
+    0.82,
+    0.75
+   ],
+   "drops": [
+    {
+     "item": "spider_silk",
+     "min": 1,
+     "max": 1,
+     "chance": 0.7
+    },
+    {
+     "item": "webspun_cloak",
+     "min": 1,
+     "max": 1,
+     "chance": 0.012
+    }
+   ],
+   "hostile": true,
+   "scale": 1.1,
+   "speed": 3.4,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false,
+   "aggro": 10
+  },
+  {
+   "key": "ashcloak",
+   "name": "Ashcloak Bandit",
+   "model": "humanoid",
+   "variant": 1,
+   "health": 45,
+   "damage": 7,
+   "levels": [
+    4,
+    6
+   ],
+   "color": [
+    0.45,
+    0.45,
+    0.48
+   ],
+   "drops": [
+    {
+     "item": "coin_purse",
+     "min": 1,
+     "max": 1,
+     "chance": 0.4
+    },
+    {
+     "item": "grain_sack",
+     "min": 1,
+     "max": 1,
+     "chance": 0.55
+    },
+    {
+     "item": "ashcloak_hatchet",
+     "min": 1,
+     "max": 1,
+     "chance": 0.012
+    }
+   ],
+   "hostile": true,
+   "scale": 1.0,
+   "speed": 3.4,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false,
+   "ability": {
+    "flee": {
+     "below": 0.2
+    }
+   }
+  },
+  {
+   "key": "ashcloak_leader",
+   "name": "Ashcloak Cutthroat",
+   "model": "humanoid",
+   "variant": 2,
+   "health": 70,
+   "damage": 10,
+   "levels": [
+    5,
+    6
+   ],
+   "color": [
+    0.4,
+    0.4,
+    0.45
+   ],
+   "drops": [
+    {
+     "item": "coin_purse",
+     "min": 1,
+     "max": 2,
+     "chance": 0.8
+    },
+    {
+     "item": "ashcloak_hatchet",
+     "min": 1,
+     "max": 1,
+     "chance": 0.05
+    }
+   ],
+   "hostile": true,
+   "scale": 1.08,
+   "speed": 3.4,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false
+  },
+  {
+   "key": "rook_varn",
+   "name": "Rook Varn",
+   "model": "humanoid",
+   "variant": 2,
+   "health": 180,
+   "damage": 13,
+   "levels": [
+    6,
+    6
+   ],
+   "color": [
+    0.5,
+    0.12,
+    0.1
+   ],
+   "drops": [
+    {
+     "item": "rook_varns_sash",
+     "min": 1,
+     "max": 1,
+     "chance": 1.0
+    },
+    {
+     "item": "coin_purse",
+     "min": 2,
+     "max": 3,
+     "chance": 1.0
+    }
+   ],
+   "hostile": true,
+   "scale": 1.2,
+   "speed": 3.5,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false
+  },
+  {
+   "key": "candlekin",
+   "name": "Candlekin",
+   "model": "humanoid",
+   "variant": 3,
+   "health": 40,
+   "damage": 7,
+   "levels": [
+    5,
+    8
+   ],
+   "color": [
+    0.92,
+    0.88,
+    0.72
+   ],
+   "drops": [
+    {
+     "item": "wax_lump",
+     "min": 1,
+     "max": 1,
+     "chance": 0.6
+    },
+    {
+     "item": "coal",
+     "min": 1,
+     "max": 1,
+     "chance": 0.4
+    },
+    {
+     "item": "raw_iron",
+     "min": 1,
+     "max": 1,
+     "chance": 0.3
+    },
+    {
+     "item": "candlelight_wand",
+     "min": 1,
+     "max": 1,
+     "chance": 0.012
+    }
+   ],
+   "hostile": true,
+   "scale": 0.7,
+   "speed": 3.6,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false,
+   "aggro": 9
+  },
+  {
+   "key": "gloomwisp",
+   "name": "Gloomwisp",
+   "model": "orb",
+   "variant": 0,
+   "health": 35,
+   "damage": 8,
+   "levels": [
+    7,
+    9
+   ],
+   "color": [
+    0.45,
+    0.85,
+    1.0
+   ],
+   "drops": [
+    {
+     "item": "wisp_essence",
+     "min": 1,
+     "max": 1,
+     "chance": 0.6
+    },
+    {
+     "item": "ember_shard",
+     "min": 1,
+     "max": 1,
+     "chance": 0.4
+    }
+   ],
+   "hostile": true,
+   "scale": 1.0,
+   "speed": 2.8,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 2.6,
+   "burns_in_daylight": false,
+   "ability": {
+    "bolt": {
+     "range": 14
+    }
+   },
+   "aggro": 12
+  },
+  {
+   "key": "barrow_warden",
+   "name": "Barrow Warden",
+   "model": "humanoid",
+   "variant": 0,
+   "health": 260,
+   "damage": 14,
+   "levels": [
+    6,
+    6
+   ],
+   "color": [
+    0.2,
+    0.16,
+    0.3
+   ],
+   "drops": [
+    {
+     "item": "barrow_wardens_helm",
+     "min": 1,
+     "max": 1,
+     "chance": 1.0
+    },
+    {
+     "item": "shade_dust",
+     "min": 3,
+     "max": 5,
+     "chance": 1.0
+    }
+   ],
+   "hostile": true,
+   "scale": 1.4,
+   "speed": 3.0,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false
+  },
+  {
+   "key": "hollow_foreman",
+   "name": "The Hollow Foreman",
+   "model": "humanoid",
+   "variant": 3,
+   "health": 700,
+   "damage": 22,
+   "levels": [
+    10,
+    10
+   ],
+   "color": [
+    0.95,
+    0.85,
+    0.6
+   ],
+   "drops": [
+    {
+     "item": "foremans_maul",
+     "min": 1,
+     "max": 1,
+     "chance": 1.0
+    },
+    {
+     "item": "ember_shard",
+     "min": 3,
+     "max": 6,
+     "chance": 1.0
+    }
+   ],
+   "hostile": true,
+   "scale": 1.6,
+   "speed": 3.0,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false
   }
  ],
  "milestones": [
@@ -2370,6 +3176,102 @@
     7
    ],
    "greeting": "Hammer's ready. Iron isn't. Never is."
+  },
+  {
+   "key": "holt",
+   "name": "Sergeant Holt",
+   "title": "The North Watch",
+   "color": [
+    0.25,
+    0.35,
+    0.6
+   ],
+   "at": [
+    2,
+    0,
+    -53
+   ],
+   "greeting": "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  },
+  {
+   "key": "garrick",
+   "name": "Foreman Garrick",
+   "title": "Logging Camp",
+   "color": [
+    0.55,
+    0.4,
+    0.25
+   ],
+   "at": [
+    -44,
+    0,
+    -86
+   ],
+   "greeting": "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold."
+  },
+  {
+   "key": "ostrin",
+   "name": "Farmer Ostrin",
+   "title": "Ostrin's Farm",
+   "color": [
+    0.6,
+    0.5,
+    0.3
+   ],
+   "at": [
+    13,
+    0,
+    93
+   ],
+   "greeting": "Bandits in my fields, crabs in my ditches. Good thing the mill still turns."
+  },
+  {
+   "key": "wenna",
+   "name": "Old Wenna",
+   "title": "Fisher's Landing",
+   "color": [
+    0.3,
+    0.45,
+    0.55
+   ],
+   "at": [
+    -24,
+    0,
+    133
+   ],
+   "greeting": "The lake gives and the lake takes. Lately it only takes."
+  },
+  {
+   "key": "bree",
+   "name": "Quartermaster Bree",
+   "title": "Miner's Rest",
+   "color": [
+    0.5,
+    0.35,
+    0.3
+   ],
+   "at": [
+    128,
+    0,
+    9
+   ],
+   "greeting": "Supplies are short, the road's cut, and nobody will go back down that mine."
+  },
+  {
+   "key": "dunmore",
+   "name": "Prospector Dunmore",
+   "title": "Miner's Rest",
+   "color": [
+    0.45,
+    0.4,
+    0.35
+   ],
+   "at": [
+    133,
+    0,
+    6
+   ],
+   "greeting": "Something lit candles down in the Hollow. Something that isn't us."
   }
  ],
  "quests": [
@@ -2674,6 +3576,478 @@
    ],
    "xp": 1200,
    "money": 500
+  },
+  {
+   "key": "report_to_holt",
+   "title": "Report to the Watch",
+   "level": 3,
+   "giver": "maren",
+   "text": "Sergeant Holt keeps the North Watch. Take him my orders and do what he asks.",
+   "objectives": [
+    {
+     "talk": "holt"
+    }
+   ],
+   "requires": [
+    "north_watch"
+   ],
+   "money": 30,
+   "ender": "holt",
+   "done": "Maren's orders? Then you're with me now."
+  },
+  {
+   "key": "watchfire",
+   "title": "Feed the Watchfire",
+   "level": 3,
+   "giver": "holt",
+   "text": "The beacon needs coal or it dies by midnight. Three lumps will see us through the week.",
+   "objectives": [
+    {
+     "collect": "coal",
+     "count": 3
+    }
+   ],
+   "requires": [
+    "report_to_holt"
+   ],
+   "money": 60,
+   "done": "Hear that crackle? That's the sound of the dark backing off."
+  },
+  {
+   "key": "boar_trouble",
+   "title": "Boar Trouble",
+   "level": 3,
+   "giver": "holt",
+   "text": "Thornboars charge anything on the north road. Six fewer would make it walkable again.",
+   "objectives": [
+    {
+     "kill": "thornboar",
+     "count": 6
+    }
+   ],
+   "requires": [
+    "report_to_holt"
+   ],
+   "money": 80,
+   "done": "Road's clearer already. Take your pick from the armoury.",
+   "choice": [
+    [
+     "thornhide_boots",
+     1
+    ],
+    [
+     "woolen_cloak",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "garricks_camp",
+   "title": "Garrick's Camp",
+   "level": 3,
+   "giver": "holt",
+   "text": "West of here Foreman Garrick runs the logging camp. He sent for help two days ago. Go.",
+   "objectives": [
+    {
+     "talk": "garrick"
+    }
+   ],
+   "requires": [
+    "report_to_holt"
+   ],
+   "money": 20,
+   "ender": "garrick"
+  },
+  {
+   "key": "tusks_and_tempers",
+   "title": "Tusks and Tempers",
+   "level": 3,
+   "giver": "garrick",
+   "text": "Bring me five thornboar tusks. The lads want proof the beasts can bleed.",
+   "objectives": [
+    {
+     "collect": "boar_tusk",
+     "count": 5
+    }
+   ],
+   "requires": [
+    "garricks_camp"
+   ],
+   "money": 90,
+   "done": "Ha! Look at the size of that one."
+  },
+  {
+   "key": "silk_for_sails",
+   "title": "Silk for the Mill",
+   "level": 4,
+   "giver": "garrick",
+   "text": "Ostrin's mill sails are in tatters. The silk from the websnares at the Hollow Oak is the strongest thread there is. Six bundles.",
+   "objectives": [
+    {
+     "collect": "spider_silk",
+     "count": 6
+    }
+   ],
+   "requires": [
+    "garricks_camp"
+   ],
+   "money": 110,
+   "done": "Strong as rope. Ostrin will be grateful."
+  },
+  {
+   "key": "into_barrowwood",
+   "title": "Into Barrowwood",
+   "level": 5,
+   "giver": "garrick",
+   "text": "The woods past the Hollow Oak have gone grey and dead. Find the old barrow at their heart and tell me what you see.",
+   "objectives": [
+    {
+     "explore": "the Old Barrow",
+     "at": [
+      -130,
+      0,
+      10
+     ],
+     "radius": 9
+    }
+   ],
+   "requires": [
+    "tusks_and_tempers"
+   ],
+   "money": 120,
+   "done": "A barrow with the stones pushed outward? Then something climbed out."
+  },
+  {
+   "key": "barrow_warden",
+   "title": "The Barrow Warden",
+   "level": 6,
+   "giver": "garrick",
+   "text": "Whatever rose from that barrow wears the old warden's helm. End it. Take friends.",
+   "objectives": [
+    {
+     "kill": "barrow_warden",
+     "count": 1
+    }
+   ],
+   "requires": [
+    "into_barrowwood"
+   ],
+   "money": 300,
+   "done": "Then the barrow sleeps again. For now.",
+   "xp": 1400
+  },
+  {
+   "key": "windmill_breadcrumb",
+   "title": "Bread for the Mill",
+   "level": 3,
+   "giver": "tilda",
+   "text": "Farmer Ostrin owes me flour. Walk south to his farm and see what's keeping him.",
+   "objectives": [
+    {
+     "talk": "ostrin"
+    }
+   ],
+   "requires": [
+    "wool_for_winter"
+   ],
+   "money": 20,
+   "ender": "ostrin"
+  },
+  {
+   "key": "thieves_in_fields",
+   "title": "Thieves in the Fields",
+   "level": 4,
+   "giver": "ostrin",
+   "text": "Ashcloak bandits raid my fields at all hours. Drive five of them off for good.",
+   "objectives": [
+    {
+     "kill": "ashcloak",
+     "count": 5
+    }
+   ],
+   "requires": [
+    "windmill_breadcrumb"
+   ],
+   "money": 100,
+   "done": "That'll teach them. Mostly."
+  },
+  {
+   "key": "stolen_grain",
+   "title": "Stolen Grain",
+   "level": 4,
+   "giver": "ostrin",
+   "text": "They carried off my grain in sacks. Bring back six and Tilda gets her flour.",
+   "objectives": [
+    {
+     "collect": "grain_sack",
+     "count": 6
+    }
+   ],
+   "requires": [
+    "windmill_breadcrumb"
+   ],
+   "money": 100,
+   "done": "Every sack, near enough. You've a farmer's patience.",
+   "choice": [
+    [
+     "grazer_hide_leggings",
+     1
+    ],
+    [
+     "mudcaked_boots",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "down_to_water",
+   "title": "Down to the Water",
+   "level": 4,
+   "giver": "ostrin",
+   "text": "Old Wenna at Fisher's Landing could use a strong arm more than I can. Follow the shore west.",
+   "objectives": [
+    {
+     "talk": "wenna"
+    }
+   ],
+   "requires": [
+    "windmill_breadcrumb"
+   ],
+   "money": 20,
+   "ender": "wenna"
+  },
+  {
+   "key": "pincher_supper",
+   "title": "Pincher Supper",
+   "level": 4,
+   "giver": "wenna",
+   "text": "Mirepinchers have eaten every fish in the shallows. Return the favour: six portions of claw meat.",
+   "objectives": [
+    {
+     "collect": "claw_meat",
+     "count": 6
+    }
+   ],
+   "requires": [
+    "down_to_water"
+   ],
+   "money": 110,
+   "done": "We'll eat well tonight."
+  },
+  {
+   "key": "shells_for_nets",
+   "title": "Clear the Shallows",
+   "level": 5,
+   "giver": "wenna",
+   "text": "Seven mirepinchers, and my nets are safe again.",
+   "objectives": [
+    {
+     "kill": "mirepincher",
+     "count": 7
+    }
+   ],
+   "requires": [
+    "down_to_water"
+   ],
+   "money": 130,
+   "done": "The water's quiet. Thank you.",
+   "choice": [
+    [
+     "mireshell_buckler",
+     1
+    ],
+    [
+     "webspun_cloak",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "drowned_light",
+   "title": "The Drowned Light",
+   "level": 6,
+   "giver": "wenna",
+   "text": "At night a light burns under the water to the south-east. My grandmother said a hearth stood there before the lake. Go and look.",
+   "objectives": [
+    {
+     "explore": "the Sunken Shrine",
+     "at": [
+      20,
+      0,
+      155
+     ],
+     "radius": 9
+    }
+   ],
+   "requires": [
+    "pincher_supper"
+   ],
+   "money": 150,
+   "done": "An older hearth, drowned. So ours was not the first."
+  },
+  {
+   "key": "wisps_on_water",
+   "title": "Wisps on the Water",
+   "level": 7,
+   "giver": "wenna",
+   "text": "Gloomwisps drift over the shrine and lure fishers to drown. Put out four of them.",
+   "objectives": [
+    {
+     "kill": "gloomwisp",
+     "count": 4
+    }
+   ],
+   "requires": [
+    "drowned_light"
+   ],
+   "money": 200,
+   "done": "The water's dark again. Good dark."
+  },
+  {
+   "key": "word_from_east",
+   "title": "Word from the East",
+   "level": 4,
+   "giver": "hollis",
+   "text": "My ore came from Miner's Rest, east past the bridge. No shipment in a week. Find Quartermaster Bree and ask why. Mind the caravan on the road.",
+   "objectives": [
+    {
+     "talk": "bree"
+    }
+   ],
+   "requires": [
+    "iron_for_hollis"
+   ],
+   "money": 30,
+   "ender": "bree"
+  },
+  {
+   "key": "ambush_east_road",
+   "title": "Ambush on the East Road",
+   "level": 5,
+   "giver": "bree",
+   "text": "Ashcloaks hit every cart on the road. Six of them, and we can move supplies again.",
+   "objectives": [
+    {
+     "kill": "ashcloak",
+     "count": 6
+    }
+   ],
+   "requires": [
+    "word_from_east"
+   ],
+   "money": 150,
+   "done": "The road's ours again."
+  },
+  {
+   "key": "burn_stores",
+   "title": "Their Stockade",
+   "level": 5,
+   "giver": "bree",
+   "text": "The Ashcloaks hole up in a stockade south of the road. Scout it out.",
+   "objectives": [
+    {
+     "explore": "the Ashcloak Stockade",
+     "at": [
+      62,
+      0,
+      60
+     ],
+     "radius": 9
+    }
+   ],
+   "requires": [
+    "word_from_east"
+   ],
+   "money": 120,
+   "done": "Banners from Hearthstead as rugs? They've been at this a while."
+  },
+  {
+   "key": "rook_varn",
+   "title": "Rook Varn",
+   "level": 6,
+   "giver": "bree",
+   "text": "Their leader, Rook Varn, wears a red sash and fights like ten men. End him and the band breaks.",
+   "objectives": [
+    {
+     "kill": "rook_varn",
+     "count": 1
+    }
+   ],
+   "requires": [
+    "burn_stores"
+   ],
+   "money": 350,
+   "done": "Without Varn they'll scatter. You've earned this.",
+   "choice": [
+    [
+     "ashcloak_hatchet",
+     1
+    ],
+    [
+     "candlelight_wand",
+     1
+    ]
+   ],
+   "xp": 1300
+  },
+  {
+   "key": "candles_in_dark",
+   "title": "Candles in the Dark",
+   "level": 6,
+   "giver": "dunmore",
+   "text": "The Candlekin took the upper galleries. Eight of them, and my lads might go back down.",
+   "objectives": [
+    {
+     "kill": "candlekin",
+     "count": 8
+    }
+   ],
+   "requires": [
+    "word_from_east"
+   ],
+   "money": 180,
+   "done": "Wax everywhere. Disgusting little things."
+  },
+  {
+   "key": "wax_and_ore",
+   "title": "Wax and Ore",
+   "level": 7,
+   "giver": "dunmore",
+   "text": "Bring up eight lumps of their wax and four of raw iron. Proof the seams are workable.",
+   "objectives": [
+    {
+     "collect": "wax_lump",
+     "count": 8
+    },
+    {
+     "collect": "raw_iron",
+     "count": 4
+    }
+   ],
+   "requires": [
+    "candles_in_dark"
+   ],
+   "money": 220,
+   "done": "Good iron, and wax to light the next shift."
+  },
+  {
+   "key": "hollow_foreman",
+   "title": "The Hollow Foreman",
+   "level": 10,
+   "giver": "dunmore",
+   "text": "Something wears the old foreman's coat in the Deep Seam and gives the Candlekin their orders. Gather a party of three and finish it.",
+   "objectives": [
+    {
+     "kill": "hollow_foreman",
+     "count": 1
+    }
+   ],
+   "requires": [
+    "wax_and_ore"
+   ],
+   "money": 800,
+   "done": "The Hollow is ours. Hearthstead will hear of this.",
+   "xp": 3000
   }
  ],
  "classes": [
@@ -3712,6 +5086,544 @@
    "key": "cooking",
    "name": "Cooking",
    "gathering": false
+  }
+ ],
+ "areas": [
+  {
+   "key": "hearthstead",
+   "name": "Hearthstead",
+   "at": [
+    0,
+    0
+   ],
+   "radius": 36,
+   "levels": [
+    1,
+    1
+   ],
+   "safe": true
+  },
+  {
+   "key": "hearthmeadow",
+   "name": "Hearthmeadow",
+   "at": [
+    0,
+    0
+   ],
+   "radius": 80,
+   "levels": [
+    1,
+    2
+   ],
+   "camps": [
+    {
+     "creature": "grazer",
+     "count": 4,
+     "at": [
+      48,
+      22
+     ],
+     "spread": 10,
+     "respawn": 90
+    },
+    {
+     "creature": "grazer",
+     "count": 4,
+     "at": [
+      -52,
+      30
+     ],
+     "spread": 10,
+     "respawn": 90
+    },
+    {
+     "creature": "grazer",
+     "count": 3,
+     "at": [
+      30,
+      -52
+     ],
+     "spread": 9,
+     "respawn": 90
+    },
+    {
+     "creature": "grazer",
+     "count": 4,
+     "at": [
+      -44,
+      -46
+     ],
+     "spread": 10,
+     "respawn": 90
+    },
+    {
+     "creature": "grazer",
+     "count": 3,
+     "at": [
+      58,
+      -30
+     ],
+     "spread": 9,
+     "respawn": 90
+    },
+    {
+     "creature": "grazer",
+     "count": 3,
+     "at": [
+      -20,
+      60
+     ],
+     "spread": 9,
+     "respawn": 90
+    }
+   ]
+  },
+  {
+   "key": "north_watch",
+   "name": "The North Watch",
+   "at": [
+    0,
+    -56
+   ],
+   "radius": 10,
+   "levels": [
+    2,
+    3
+   ],
+   "safe": true
+  },
+  {
+   "key": "birchrise",
+   "name": "Birchrise",
+   "at": [
+    -30,
+    -92
+   ],
+   "radius": 46,
+   "levels": [
+    2,
+    4
+   ],
+   "camps": [
+    {
+     "creature": "thornboar",
+     "count": 3,
+     "at": [
+      -18,
+      -76
+     ],
+     "spread": 9,
+     "respawn": 120
+    },
+    {
+     "creature": "thornboar",
+     "count": 3,
+     "at": [
+      -58,
+      -104
+     ],
+     "spread": 9,
+     "respawn": 120,
+     "rare": {
+      "name": "Old Tusk",
+      "chance": 0.12,
+      "power": 2.2,
+      "levels": 1
+     }
+    },
+    {
+     "creature": "thornboar",
+     "count": 3,
+     "at": [
+      -8,
+      -118
+     ],
+     "spread": 9,
+     "respawn": 120
+    },
+    {
+     "creature": "grazer",
+     "count": 3,
+     "at": [
+      10,
+      -95
+     ],
+     "spread": 8,
+     "respawn": 90
+    }
+   ]
+  },
+  {
+   "key": "logging_camp",
+   "name": "Garrick's Logging Camp",
+   "at": [
+    -45,
+    -88
+   ],
+   "radius": 10,
+   "levels": [
+    3,
+    3
+   ],
+   "safe": true
+  },
+  {
+   "key": "hollow_oak",
+   "name": "The Hollow Oak",
+   "at": [
+    -100,
+    -55
+   ],
+   "radius": 22,
+   "levels": [
+    4,
+    5
+   ],
+   "camps": [
+    {
+     "creature": "websnare",
+     "count": 5,
+     "at": [
+      -100,
+      -55
+     ],
+     "spread": 12,
+     "respawn": 120,
+     "rare": {
+      "name": "Silkmother",
+      "chance": 0.12,
+      "power": 2.5,
+      "levels": 1
+     }
+    },
+    {
+     "creature": "websnare",
+     "count": 3,
+     "at": [
+      -118,
+      -40
+     ],
+     "spread": 8,
+     "respawn": 120
+    }
+   ]
+  },
+  {
+   "key": "barrowwood",
+   "name": "Barrowwood",
+   "at": [
+    -125,
+    0
+   ],
+   "radius": 52,
+   "levels": [
+    4,
+    6
+   ],
+   "camps": [
+    {
+     "creature": "websnare",
+     "count": 3,
+     "at": [
+      -140,
+      -25
+     ],
+     "spread": 8,
+     "respawn": 120
+    },
+    {
+     "creature": "thornboar",
+     "count": 3,
+     "at": [
+      -105,
+      30
+     ],
+     "spread": 9,
+     "respawn": 120
+    },
+    {
+     "creature": "barrow_warden",
+     "count": 1,
+     "at": [
+      -130,
+      10
+     ],
+     "spread": 2,
+     "respawn": 600
+    }
+   ]
+  },
+  {
+   "key": "mirrormere",
+   "name": "Mirrormere",
+   "at": [
+    0,
+    130
+   ],
+   "radius": 58,
+   "levels": [
+    3,
+    5
+   ],
+   "camps": [
+    {
+     "creature": "mirepincher",
+     "count": 4,
+     "at": [
+      -22,
+      118
+     ],
+     "spread": 10,
+     "respawn": 100
+    },
+    {
+     "creature": "mirepincher",
+     "count": 4,
+     "at": [
+      28,
+      138
+     ],
+     "spread": 10,
+     "respawn": 100
+    },
+    {
+     "creature": "mirepincher",
+     "count": 3,
+     "at": [
+      -40,
+      150
+     ],
+     "spread": 9,
+     "respawn": 100
+    },
+    {
+     "creature": "ashcloak",
+     "count": 3,
+     "at": [
+      22,
+      100
+     ],
+     "spread": 8,
+     "respawn": 120
+    },
+    {
+     "creature": "grazer",
+     "count": 3,
+     "at": [
+      5,
+      88
+     ],
+     "spread": 8,
+     "respawn": 90
+    }
+   ]
+  },
+  {
+   "key": "windmill",
+   "name": "Ostrin's Farm",
+   "at": [
+    15,
+    95
+   ],
+   "radius": 9,
+   "levels": [
+    3,
+    3
+   ],
+   "safe": true
+  },
+  {
+   "key": "fishers_landing",
+   "name": "Fisher's Landing",
+   "at": [
+    -25,
+    135
+   ],
+   "radius": 10,
+   "levels": [
+    4,
+    4
+   ],
+   "safe": true
+  },
+  {
+   "key": "sunken_shrine",
+   "name": "The Sunken Shrine",
+   "at": [
+    20,
+    155
+   ],
+   "radius": 14,
+   "levels": [
+    7,
+    8
+   ],
+   "camps": [
+    {
+     "creature": "gloomwisp",
+     "count": 3,
+     "at": [
+      20,
+      155
+     ],
+     "spread": 8,
+     "respawn": 150,
+     "rare": {
+      "name": "The Drowned Lamp",
+      "chance": 0.15,
+      "power": 2.5,
+      "levels": 1
+     }
+    }
+   ]
+  },
+  {
+   "key": "east_road",
+   "name": "The East Road",
+   "at": [
+    85,
+    0
+   ],
+   "radius": 52,
+   "levels": [
+    4,
+    6
+   ],
+   "camps": [
+    {
+     "creature": "ashcloak",
+     "count": 2,
+     "at": [
+      50,
+      -12
+     ],
+     "spread": 5,
+     "respawn": 120
+    },
+    {
+     "creature": "ashcloak",
+     "count": 6,
+     "at": [
+      62,
+      60
+     ],
+     "spread": 9,
+     "respawn": 120
+    },
+    {
+     "creature": "ashcloak_leader",
+     "count": 2,
+     "at": [
+      64,
+      62
+     ],
+     "spread": 4,
+     "respawn": 240
+    },
+    {
+     "creature": "rook_varn",
+     "count": 1,
+     "at": [
+      62,
+      58
+     ],
+     "spread": 1,
+     "respawn": 600
+    },
+    {
+     "creature": "ashcloak",
+     "count": 2,
+     "at": [
+      95,
+      8
+     ],
+     "spread": 5,
+     "respawn": 120
+    },
+    {
+     "creature": "thornboar",
+     "count": 3,
+     "at": [
+      110,
+      -30
+     ],
+     "spread": 9,
+     "respawn": 120
+    }
+   ]
+  },
+  {
+   "key": "miners_rest",
+   "name": "Miner's Rest",
+   "at": [
+    130,
+    8
+   ],
+   "radius": 10,
+   "levels": [
+    5,
+    5
+   ],
+   "safe": true
+  },
+  {
+   "key": "hollow_mines",
+   "name": "The Hollow Mines",
+   "at": [
+    165,
+    -20
+   ],
+   "radius": 40,
+   "levels": [
+    5,
+    10
+   ],
+   "camps": [
+    {
+     "creature": "candlekin",
+     "count": 5,
+     "at": [
+      165,
+      -20
+     ],
+     "spread": 10,
+     "respawn": 120,
+     "y": -10
+    },
+    {
+     "creature": "candlekin",
+     "count": 4,
+     "at": [
+      175,
+      -35
+     ],
+     "spread": 8,
+     "respawn": 120,
+     "y": -16
+    },
+    {
+     "creature": "gloomwisp",
+     "count": 3,
+     "at": [
+      160,
+      -40
+     ],
+     "spread": 8,
+     "respawn": 150,
+     "y": -22
+    },
+    {
+     "creature": "hollow_foreman",
+     "count": 1,
+     "at": [
+      170,
+      -25
+     ],
+     "spread": 1,
+     "respawn": 1200,
+     "y": -30
+    }
+   ]
   }
  ]
 }

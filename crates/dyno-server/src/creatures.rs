@@ -52,6 +52,12 @@ pub struct Mob {
     pub name: Option<String>,
     /// belongs to a camp: never despawns, the camp respawns it
     pub camp: bool,
+    /// special move timers: charging until, ready again at; has it fled yet
+    pub charge_until: Instant,
+    pub ability_ready: Instant,
+    pub fled: bool,
+    /// part of a world event (marches on its home, never leashes)
+    pub event: bool,
 }
 
 const HALF_W: f32 = 0.3;
@@ -233,6 +239,10 @@ impl State {
                     power: 1.0,
                     name: None,
                     camp: false,
+                    charge_until: now,
+                    ability_ready: now,
+                    fled: false,
+                    event: false,
                 }),
             },
         );
@@ -422,6 +432,7 @@ impl State {
         let levels: std::collections::HashMap<PlayerId, u8> =
             self.players.iter().map(|(i, p)| (*i, p.level)).collect();
         let mut heal_info: Vec<u32> = Vec::new();
+        let mut bolts: Vec<(PlayerId, f32, [f32; 3], [f32; 3], [f32; 3], u16)> = Vec::new();
         let mut gone: Vec<(u32, bool)> = Vec::new();
         let mut hurt: Vec<u32> = Vec::new();
         for id in ids {
@@ -450,7 +461,7 @@ impl State {
             mob.think -= dt;
             mob.burn_flash += dt;
             if c.burns_in_daylight {
-                if !night && sky >= 8 {
+                if !night && sky >= 4 {
                     // daylight unmakes it
                     mob.health -= 8.0 * dt;
                     if mob.burn_flash > 0.5 {
@@ -475,8 +486,10 @@ impl State {
             // decide where to go
             let mut want = [0.0f32; 2];
             // leash: pulled too far from home, it gives up, heals and walks back
-            if rpg && !mob.evading && hdist(e.pos, mob.home) > LEASH {
+            if rpg && mob.camp && !mob.evading && !mob.event && hdist(e.pos, mob.home) > LEASH {
                 mob.evading = true;
+                mob.health = mob.max_health;
+                heal_info.push(id);
                 mob.threat.clear();
                 mob.target = None;
                 mob.dots.clear();
@@ -485,7 +498,6 @@ impl State {
                 let dx = mob.home[0] - e.pos[0];
                 let dz = mob.home[2] - e.pos[2];
                 let d = (dx * dx + dz * dz).sqrt();
-                mob.health = mob.max_health;
                 if d < 2.0 {
                     mob.evading = false;
                     heal_info.push(id);
@@ -523,7 +535,9 @@ impl State {
                         .filter(|(pid, p, away)| {
                             let lvl = levels.get(pid).copied().unwrap_or(1) as f32;
                             let r = if rpg {
-                                (10.0 + mob.level as f32 - lvl).clamp(4.0, 20.0)
+                                ((if c.aggro > 0.0 { c.aggro } else { 10.0 }) + mob.level as f32
+                                    - lvl)
+                                    .clamp(4.0, 20.0)
                             } else {
                                 AGGRO
                             };
@@ -540,12 +554,61 @@ impl State {
                     if d > 1.1 {
                         want = [dx / d, dz / d];
                     }
+                    use dyno_world::content::CreatureAbility as Ab;
+                    match c.ability {
+                        // rush in from a distance
+                        Some(Ab::Charge { range })
+                            if d > 4.0 && d < range && mob.ability_ready <= now =>
+                        {
+                            mob.charge_until = now + Duration::from_millis(1200);
+                            mob.ability_ready = now + Duration::from_secs(10);
+                        }
+                        // stand off and shoot
+                        Some(Ab::Bolt { range }) if d < range && d > 2.5 => {
+                            want = [0.0, 0.0];
+                            e.yaw = (-dx).atan2(-dz);
+                            if mob.attack_cd <= 0.0 && mob.stunned_until <= now {
+                                mob.attack_cd = c.attack_speed;
+                                let dmg = mob.power
+                                    * c.damage
+                                    * if rpg {
+                                        dyno_sim::progression::mob_scale(mob.level).1
+                                    } else {
+                                        1.0
+                                    };
+                                bolts.push((
+                                    pid,
+                                    dmg,
+                                    [e.pos[0], e.pos[1] + 1.0, e.pos[2]],
+                                    [p[0], p[1] + 1.2, p[2]],
+                                    c.color,
+                                    c.id,
+                                ));
+                            }
+                        }
+                        // run at low health
+                        Some(Ab::Flee { below })
+                            if !mob.fled && mob.health < mob.max_health * below =>
+                        {
+                            mob.fled = true;
+                            mob.flee = 4.0;
+                            mob.flee_from = p;
+                        }
+                        _ => {}
+                    }
+                    if mob.flee > 0.0 {
+                        mob.flee -= dt;
+                        want = [-dx / d, -dz / d];
+                    }
+                    if mob.charge_until > now {
+                        speed *= 3.0;
+                    }
                     if d < 1.7
                         && (p[1] - e.pos[1]).abs() < 2.0
                         && mob.attack_cd <= 0.0
                         && mob.stunned_until <= now
                     {
-                        mob.attack_cd = 1.5;
+                        mob.attack_cd = c.attack_speed;
                         let dmg = mob.power
                             * c.damage
                             * if rpg {
@@ -568,6 +631,15 @@ impl State {
                 let d = (dx * dx + dz * dz).sqrt().max(0.001);
                 want = [dx / d, dz / d];
                 speed *= 2.2;
+            }
+            if want == [0.0, 0.0] && mob.event && mob.target.is_none() {
+                let dx = mob.home[0] - e.pos[0];
+                let dz = mob.home[2] - e.pos[2];
+                let d = (dx * dx + dz * dz).sqrt();
+                if d > 18.0 {
+                    want = [dx / d, dz / d];
+                    speed *= 0.7;
+                }
             }
             if want == [0.0, 0.0] {
                 if mob.think <= 0.0 {
@@ -665,6 +737,18 @@ impl State {
         for (id, drops) in gone {
             self.kill_mob(id, drops);
         }
+        for (pid, dmg, from, to, color, cid) in bolts {
+            self.broadcast(
+                &ServerMsg::Effect {
+                    color,
+                    from,
+                    to,
+                    radius: 0.0,
+                },
+                None,
+            );
+            attacks.push((pid, dmg, [0.0; 3], cid));
+        }
         for (pid, dmg, push, cid) in attacks {
             let name = self
                 .content
@@ -710,6 +794,9 @@ impl State {
         let Some(mob) = mob else {
             return;
         };
+        if mob.event {
+            self.event_kill(id, mob.last_hit.map(|(p, _)| p));
+        }
         if !drops {
             return;
         }

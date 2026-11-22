@@ -5,7 +5,9 @@
 
 pub mod content;
 pub mod light;
+pub mod poi;
 pub mod village;
+pub mod zones;
 
 use std::io::Write;
 use std::path::Path;

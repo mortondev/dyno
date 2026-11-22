@@ -8,8 +8,10 @@
 pub mod abilities;
 pub mod camps;
 pub mod creatures;
+pub mod events;
 pub mod game;
 pub mod gear;
+pub mod migrate;
 pub mod professions;
 pub mod rpg;
 pub mod store;
@@ -75,7 +77,7 @@ impl Default for Config {
         Config {
             bind: SocketAddr::from(([0, 0, 0, 0], proto::DEFAULT_PORT)),
             world_path: PathBuf::from("world/world.dynw"),
-            world_size: [256, 96, 256],
+            world_size: [384, 96, 384],
             seed: 20261122,
             motd: "Welcome to Dyno! Build together.".into(),
             max_players: 32,
@@ -128,7 +130,19 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
                 cfg.world_path.display(),
                 w.size
             ));
-            w
+            // an older, smaller world grows to the current map size, keeping everything
+            if w.size[0] < cfg.world_size[0]
+                && w.size[2] < cfg.world_size[2]
+                && w.size[1] == cfg.world_size[1]
+            {
+                let grown = migrate::expand(&cfg.world_path, w, cfg.world_size, cfg.seed);
+                if let Err(e) = grown.save(&cfg.world_path) {
+                    log(format!("Warning: cannot save the grown world: {e}"));
+                }
+                grown
+            } else {
+                w
+            }
         }
         Err(_) => {
             log(format!(
@@ -165,6 +179,13 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     }
     if content.world.protected && dyno_world::village::build_hearthstead(&mut world, spawn_hearth) {
         log("Built Hearthstead");
+        if let Err(e) = world.save(&cfg.world_path) {
+            log(format!("Warning: cannot save world: {e}"));
+        }
+    }
+    if content.world.protected && dyno_world::zones::build_world_features(&mut world, spawn_hearth)
+    {
+        log("Built the zones");
         if let Err(e) = world.save(&cfg.world_path) {
             log(format!("Warning: cannot save world: {e}"));
         }
@@ -214,6 +235,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         regrow: meta.regrow.clone(),
         spawn_points: Vec::new(),
         zone_clock: 0.0,
+        depleted: HashMap::new(),
+        incursion: None,
         weather: (0, 0.0, 240.0),
     };
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
@@ -425,8 +448,30 @@ impl Server {
             let _ = ws.close(None);
             return Err(format!("rejected {peer}: {reason}"));
         }
-        let ClientMsg::Session { token, observer } = read_msg(&mut ws)? else {
-            return Err("second message was not session".into());
+        let (token, observer, create) = match read_msg(&mut ws)? {
+            ClientMsg::Session {
+                token,
+                observer,
+                create,
+            } => (token, observer, create),
+            // the character select screen: list (or delete) my characters, then close
+            ClientMsg::ListCharacters { token } => {
+                let msg = self.state.lock().unwrap().characters(token, &self.cfg.motd);
+                send(&mut ws, &msg)?;
+                let _ = ws.close(None);
+                return Ok(());
+            }
+            ClientMsg::DeleteCharacter { token, name } => {
+                let msg = {
+                    let mut st = self.state.lock().unwrap();
+                    st.delete_character(token, &name);
+                    st.characters(token, &self.cfg.motd)
+                };
+                send(&mut ws, &msg)?;
+                let _ = ws.close(None);
+                return Ok(());
+            }
+            _ => return Err("second message was not session".into()),
         };
         let name = proto::clean_name(&name);
         let (tx, rx) = channel::<Arc<Vec<u8>>>();
@@ -446,11 +491,7 @@ impl Server {
                     players: st
                         .players
                         .iter()
-                        .map(|(i, p)| proto::PlayerInfo {
-                            id: *i,
-                            name: p.name.clone(),
-                            pose: p.pose,
-                        })
+                        .map(|(i, p)| st.player_info(*i, p))
                         .collect(),
                     mode: Mode::Creative,
                     content: Box::new(st.content.clone()),
@@ -470,7 +511,7 @@ impl Server {
                     )?;
                     return Err("server full".into());
                 }
-                match st.join(&name, token, tx) {
+                match st.join(&name, token, tx, create) {
                     Ok((id, mut msgs)) => {
                         if let Some(ServerMsg::Welcome { motd, .. }) = msgs.first_mut() {
                             *motd = self.cfg.motd.clone();
@@ -649,6 +690,16 @@ impl Server {
                         st.tell(id, format!("Teleported to {name}"));
                     }
                     None => st.tell(id, format!("No player called '{arg}'. Try /who")),
+                }
+            }
+            "/event" if op => {
+                if arg.trim() == "incursion" {
+                    st.maybe_start_incursion();
+                    if let Some(inc) = st.incursion.as_mut() {
+                        inc.next_wave = Instant::now() + Duration::from_secs(3);
+                    }
+                } else {
+                    st.tell(id, "Usage: /event incursion");
                 }
             }
             "/weather" if op => {

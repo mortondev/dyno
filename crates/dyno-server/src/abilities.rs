@@ -45,6 +45,8 @@ pub struct Casting {
     pub end: Instant,
     /// where the caster stood; moving away cancels the cast
     pub from: [f32; 3],
+    /// the resource node being gathered
+    pub node: Option<[i32; 3]>,
 }
 
 impl State {
@@ -147,6 +149,7 @@ impl State {
                 target: None,
                 end: now + Duration::from_secs_f32(RECALL_CAST),
                 from,
+                node: None,
             });
             p.gcd_until = now + Duration::from_secs_f32(if p.combo_class { GCD_FAST } else { GCD });
             self.broadcast(
@@ -206,6 +209,7 @@ impl State {
                 target,
                 end: now + Duration::from_secs_f32(a.cast),
                 from,
+                node: None,
             });
             self.broadcast(
                 &ServerMsg::Casting {
@@ -258,6 +262,12 @@ impl State {
                 },
                 None,
             );
+            if c.ability == dyno_protocol::GATHER {
+                if let Some(node) = c.node {
+                    self.finish_gather(id, node);
+                }
+                continue;
+            }
             if c.ability == RECALL {
                 let to = self.players[&id]
                     .spawn

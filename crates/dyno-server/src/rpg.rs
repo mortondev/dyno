@@ -38,6 +38,7 @@ impl State {
         if let Some(p) = self.players.get(&id) {
             p.send(&ServerMsg::Character {
                 class: p.class,
+                look: p.look,
                 level: p.level,
                 xp: p.xp,
                 xp_next: prog::xp_to_next(p.level),
@@ -377,6 +378,7 @@ impl State {
     /// Grow back harvested nodes whose time has come (if nobody stands there).
     pub fn tick_regrow(&mut self) {
         let now = crate::game::now_secs();
+        self.depleted.retain(|_, t| *t > now);
         let due: Vec<([i32; 3], u8)> = self
             .regrow
             .iter()
@@ -393,7 +395,8 @@ impl State {
                 continue;
             }
             self.regrow.retain(|(p, _, _)| *p != pos);
-            if self.world.get(pos[0], pos[1], pos[2]) == w::AIR {
+            let here = self.world.get(pos[0], pos[1], pos[2]);
+            if here == w::AIR || here == w::STONE {
                 self.set_block(pos, b);
             }
         }

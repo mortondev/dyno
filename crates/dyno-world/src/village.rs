@@ -1608,7 +1608,12 @@ mod tests {
 
     #[test]
     fn hearthstead_builds_once_and_spares_player_blocks() {
-        let npcs = content::Content::default_pack().npcs;
+        // the four townsfolk of Hearthstead (others live out in the zones)
+        let npcs: Vec<_> = content::Content::default_pack()
+            .npcs
+            .into_iter()
+            .filter(|n| ["brannoc", "maren", "tilda", "hollis"].contains(&n.key.as_str()))
+            .collect();
         assert_eq!(npcs.len(), 4);
         // the last two are small worlds, where the town runs into the edges
         for (i, seed) in [20261122u32, 1, 3, 777, 20261122, 5]

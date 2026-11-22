@@ -1,7 +1,9 @@
-//! wgpu renderer: voxel sections with ambient occlusion, fog, a block highlight
-//! and simple boxes for other players.
+//! wgpu renderer: smooth ground and leaf canopies over the block grid, cubes
+//! for built blocks, water, ground clutter, sun shadows and fog, plus a block
+//! highlight and boxes for everything that moves.
 
 use crate::light::Light;
+use crate::terrain_mesh::{self, Glow, SectionGeo, Tuft};
 use bytemuck::{Pod, Zeroable};
 use dyno_world::{self as w, BlockId, World};
 use egui_wgpu::wgpu;
@@ -31,23 +33,42 @@ pub struct Vertex {
 /// No texture: the vertex colour is the surface colour.
 pub const NO_TEX: [f32; 4] = [0.0, 0.0, -1.0, 0.0];
 
+// What a vertex is, told by `tex[2]`. From 0 up it is a texture layer plus
+// one of these bands; below 0 it is untextured.
+/// Smooth ground: textured by world position. `tex[1]` is the layer for steep faces.
+pub const KIND_TERRAIN: f32 = 4096.0;
+/// Leaves: textured by world position, alpha-tested, swaying in the wind.
+pub const KIND_FOLIAGE: f32 = 8192.0;
+/// The water surface: waves, shore foam (`normal[0]` is how near the shore is).
+pub const KIND_WATER: f32 = 12288.0;
+/// Ground clutter: `normal` is the offset from the root, `tex[0]` the sway.
+const KIND_CLUTTER: f32 = -2.0;
+/// A decal just above the ground: drawn a little in front of what it lies on.
+const KIND_DECAL: f32 = -3.0;
+/// A halo: a camera-facing square, added to the picture.
+const KIND_GLOW: f32 = -4.0;
+
 /// The block textures, built once.
 pub fn textures() -> &'static crate::textures::Textures {
     static T: std::sync::OnceLock<crate::textures::Textures> = std::sync::OnceLock::new();
     T.get_or_init(crate::textures::Textures::blocks)
 }
 
-/// Texture coordinates for one face corner, plus the layer and animation.
-fn face_tex(b: BlockId, face: usize, u: f32, v: f32) -> [f32; 4] {
-    let t = textures();
-    let layer = t.face(b, face);
-    let anim = t
+/// How a layer animates, as the shader wants it: frame count plus seconds
+/// per frame / 100. Zero for a still layer.
+pub(crate) fn layer_anim(layer: u16) -> f32 {
+    textures()
         .animated
         .iter()
         .find(|(first, _, _)| *first == layer)
         .map(|(_, n, spf)| *n as f32 + (spf / 100.0).min(0.99))
-        .unwrap_or(0.0);
-    [u, v, layer as f32, anim]
+        .unwrap_or(0.0)
+}
+
+/// Texture coordinates for one face corner, plus the layer and animation.
+pub(crate) fn face_tex(b: BlockId, face: usize, u: f32, v: f32) -> [f32; 4] {
+    let layer = textures().face(b, face);
+    [u, v, layer as f32, layer_anim(layer)]
 }
 
 #[repr(C)]
@@ -83,7 +104,9 @@ pub struct Sky {
 const SHADOW_SHADER: &str = r#"
 struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32>, shadow_vp: mat4x4<f32> };
 @group(0) @binding(0) var<uniform> u: U;
-@vertex fn vs(@location(0) pos: vec3<f32>) -> @builtin(position) vec4<f32> {
+@vertex fn vs(@location(0) pos: vec3<f32>, @location(5) tex: vec4<f32>) -> @builtin(position) vec4<f32> {
+  // decals and halos cast no shadow
+  if (tex.z < -2.5) { return vec4<f32>(2.0, 2.0, 2.0, 1.0); }
   return u.shadow_vp * vec4<f32>(pos, 1.0);
 }
 "#;
@@ -100,6 +123,16 @@ struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, f
 @group(0) @binding(2) var tex_samp: sampler;
 @group(0) @binding(3) var shadow_map: texture_depth_2d;
 @group(0) @binding(4) var shadow_samp: sampler_comparison;
+
+// What a vertex is, from tex.z (see the KIND constants in render.rs):
+//   below 0: untextured (-1 plain, -2 ground clutter, -3 ground decal, -4 halo)
+//   0..: textured with its own UVs
+//   4096..: smooth ground, textured by world position
+//   8192..: foliage, textured by world position, swaying
+//   12288..: water surface
+const K_TERRAIN: f32 = 4096.0;
+const K_FOLIAGE: f32 = 8192.0;
+const K_WATER: f32 = 12288.0;
 
 // 1 in sunlight, 0 in shadow; soft-edged (3 x 3 filter)
 fn sun_visible(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
@@ -130,6 +163,28 @@ fn grade(c0: vec3<f32>) -> vec3<f32> {
   return max(c, vec3<f32>(0.0));
 }
 
+fn hash3(p: vec3<f32>) -> f32 {
+  return fract(sin(dot(p, vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
+}
+fn hash2(p: vec2<f32>) -> f32 {
+  return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453);
+}
+fn vnoise(p: vec2<f32>) -> f32 {
+  let i = floor(p);
+  let f = fract(p);
+  let s = f * f * (3.0 - 2.0 * f);
+  let a = hash2(i);
+  let b = hash2(i + vec2<f32>(1.0, 0.0));
+  let c = hash2(i + vec2<f32>(0.0, 1.0));
+  let d = hash2(i + vec2<f32>(1.0, 1.0));
+  return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
+}
+
+// Height of the water's swell at a place and time.
+fn swell(p: vec2<f32>, t: f32) -> f32 {
+  return sin(p.x * 0.9 + t * 1.3) * 0.03 + sin(p.y * 1.3 - t * 1.1) * 0.025 + sin((p.x + p.y) * 0.45 + t * 0.7) * 0.03;
+}
+
 struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32>, @location(3) light: f32, @location(4) sky: f32, @location(5) tex: vec4<f32> };
 struct VOut {
   @builtin(position) clip: vec4<f32>,
@@ -143,45 +198,176 @@ struct VOut {
 
 @vertex fn vs(v: VIn) -> VOut {
   var o: VOut;
-  o.clip = u.view_proj * vec4<f32>(v.pos, 1.0);
-  o.wpos = v.pos;
-  o.normal = v.normal;
+  var pos = v.pos;
+  var normal = v.normal;
+  var tex = v.tex;
+  // how far to pull the depth towards the camera (decals and halos)
+  var pull = 0.0;
+  let t = u.cam.w;
+  let kz = v.tex.z;
+  if (kz >= K_WATER) {
+    pos.y = pos.y + swell(pos.xz, t);
+  } else if (kz >= K_FOLIAGE) {
+    // leaves stir in the wind
+    let ph = pos.x * 0.37 + pos.z * 0.29 + pos.y * 0.23;
+    pos.x = pos.x + sin(t * 1.2 + ph) * 0.045 + sin(t * 2.7 + ph * 2.3) * 0.015;
+    pos.z = pos.z + cos(t * 1.0 + ph * 1.3) * 0.045;
+    pos.y = pos.y + sin(t * 1.6 + ph * 1.7) * 0.02;
+  } else if (kz < -1.5 && kz > -2.5) {
+    // ground clutter: `normal` is the offset from the root, tex.x how much
+    // the vertex sways, tex.y its phase; it shrinks away with distance
+    let root = pos - v.normal;
+    let fade = 1.0 - smoothstep(30.0, 42.0, distance(root, u.cam.xyz));
+    let s = v.tex.x * (sin(t * 1.7 + v.tex.y + root.x * 0.6) * 0.07 + sin(t * 3.1 + v.tex.y * 1.7 + root.z * 0.8) * 0.03);
+    pos = root + (v.normal + vec3<f32>(s, 0.0, s * 0.6)) * fade;
+    normal = vec3<f32>(0.0, 1.0, 0.0);
+  } else if (kz < -2.5 && kz > -3.5) {
+    pull = 0.35;
+  } else if (kz < -3.5) {
+    // a halo: a square that faces the camera; `normal` is corner x, y and size
+    let f = normalize(pos - u.cam.xyz);
+    let r = normalize(cross(f, vec3<f32>(0.0, 1.0, 0.0)) + vec3<f32>(0.0001, 0.0, 0.0));
+    let up = cross(r, f);
+    pos = pos + (r * v.normal.x + up * v.normal.y) * v.normal.z;
+    tex = vec4<f32>(v.normal.xy, kz, 0.0);
+    normal = vec3<f32>(0.0);
+    pull = 0.95;
+  }
+  o.clip = u.view_proj * vec4<f32>(pos, 1.0);
+  if (pull > 0.0) {
+    let nearer = u.view_proj * vec4<f32>(pos + normalize(u.cam.xyz - pos) * pull, 1.0);
+    o.clip.z = nearer.z / nearer.w * o.clip.w;
+  }
+  o.wpos = pos;
+  o.normal = normal;
   o.color = v.color;
   o.light = v.light;
   o.sky = v.sky;
-  o.tex = v.tex;
+  o.tex = tex;
   return o;
 }
 
-fn hash3(p: vec3<f32>) -> f32 {
-  return fract(sin(dot(p, vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
-}
-
-// The texel for a textured vertex, with animated layers stepping through frames.
-fn texel(t: vec4<f32>) -> vec4<f32> {
-  var layer = t.z;
-  let frames = floor(t.w);
+// The layer to show now: animated layers step through their frames.
+fn anim_layer(layer: f32, anim: f32) -> i32 {
+  var l = layer;
+  let frames = floor(anim);
   if (frames > 1.0) {
-    let spf = max(fract(t.w) * 100.0, 0.02);
-    layer = layer + (floor(u.cam.w / spf) % frames);
+    let spf = max(fract(anim) * 100.0, 0.02);
+    l = l + (floor(u.cam.w / spf) % frames);
   }
-  return textureSample(tex_array, tex_samp, t.xy, i32(layer + 0.5));
+  return i32(l + 0.5);
 }
 
-@fragment fn fs(i: VOut) -> @location(0) vec4<f32> {
-  let tx = texel(i.tex);
-  if (i.tex.z >= 0.0 && tx.a < 0.5) { discard; }
-  // 16 x 16 texel grain on untextured boxes so they read as pixel art
-  let t = floor(i.wpos * 16.0 - i.normal * 0.01);
-  let grain = select(1.0, 0.86 + 0.24 * hash3(t), dot(i.normal, i.normal) > 0.5 && i.tex.z < 0.0);
+// How much each of the three flat projections shows for a normal: only the
+// one or two faces the surface leans to.
+fn tri_weights(n: vec3<f32>) -> vec3<f32> {
+  let w = max(abs(n) - vec3<f32>(0.5), vec3<f32>(0.0)) + vec3<f32>(0.00001);
+  return w / (w.x + w.y + w.z);
+}
+
+// A layer laid over the world from the side (x), from above (y) or from the
+// front (z). Gradients are passed in so this may sit inside branches.
+fn side_x(layer: i32, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec4<f32> {
+  return textureSampleGrad(tex_array, tex_samp, vec2<f32>(p.z, -p.y), layer, vec2<f32>(dx.z, -dx.y), vec2<f32>(dy.z, -dy.y));
+}
+fn side_y(layer: i32, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec4<f32> {
+  return textureSampleGrad(tex_array, tex_samp, p.xz, layer, dx.xz, dy.xz);
+}
+fn side_z(layer: i32, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec4<f32> {
+  return textureSampleGrad(tex_array, tex_samp, vec2<f32>(p.x, -p.y), layer, vec2<f32>(dx.x, -dx.y), vec2<f32>(dy.x, -dy.y));
+}
+
+// One kind of ground: its top layer where it lies level, its steep layer on
+// slopes, walls and ceilings.
+fn ground(top: i32, steep: i32, level0: f32, w3: vec3<f32>, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec3<f32> {
+  var level = level0;
+  if (top == steep) { level = 1.0; }
+  var c = vec3<f32>(0.0);
+  if (w3.y > 0.001) {
+    var cy = vec3<f32>(0.0);
+    if (level > 0.001) { cy += level * side_y(top, p, dx, dy).rgb; }
+    if (level < 0.999) { cy += (1.0 - level) * side_y(steep, p, dx, dy).rgb; }
+    c += w3.y * cy;
+  }
+  if (w3.x > 0.001) { c += w3.x * side_x(steep, p, dx, dy).rgb; }
+  if (w3.z > 0.001) { c += w3.z * side_z(steep, p, dx, dy).rgb; }
+  return c;
+}
+
+fn ground_tone(p: vec2<f32>) -> vec3<f32> {
+  let m = vnoise(p * 0.06) * 0.6 + vnoise(p * 0.23 + vec2<f32>(13.7, 5.1)) * 0.4;
+  return mix(vec3<f32>(0.84, 0.87, 0.80), vec3<f32>(1.10, 1.08, 1.02), m);
+}
+
+@fragment fn fs(i: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
+  let dpx = dpdx(i.wpos);
+  let dpy = dpdy(i.wpos);
+  let dux = dpdx(i.tex.xy);
+  let duy = dpdy(i.tex.xy);
+  let kz = i.tex.z;
+  let d = distance(i.wpos, u.cam.xyz);
+  let has_n = dot(i.normal, i.normal) > 0.25;
+  var n = vec3<f32>(0.0, 1.0, 0.0);
+  if (has_n) { n = normalize(i.normal); }
+  var base = i.color.rgb;
+  var grain = 1.0;
+  // 0: hard sunlight; towards 1: light wraps round the form (foliage)
+  var wrap = 0.0;
+  var dim = 1.0;
+  if (kz >= K_FOLIAGE) {
+    let layer = anim_layer(kz - K_FOLIAGE, i.tex.w);
+    let w3 = tri_weights(n);
+    var tx = vec4<f32>(0.0);
+    if (w3.y > 0.001) { tx += w3.y * side_y(layer, i.wpos, dpx, dpy); }
+    if (w3.x > 0.001) { tx += w3.x * side_x(layer, i.wpos, dpx, dpy); }
+    if (w3.z > 0.001) { tx += w3.z * side_z(layer, i.wpos, dpx, dpy); }
+    // gaps between the leaves close up with distance, where they would only flicker
+    let cut = mix(0.5, 0.06, smoothstep(18.0, 44.0, d));
+    if (tx.a < cut) { discard; }
+    // big soft patches of light and dark over the canopy
+    let m = vnoise(i.wpos.xz * 0.35 + i.wpos.y * 0.21);
+    base = base * tx.rgb * (0.86 + 0.28 * m);
+    if (!front) { n = -n; dim = 0.72; }
+    // darker underneath and inside
+    dim = dim * (0.74 + 0.26 * smoothstep(-0.6, 0.5, n.y));
+    wrap = 0.55;
+  } else if (kz >= K_TERRAIN) {
+    let w3 = tri_weights(n);
+    // the top layer on level ground, giving way to the steep layer on slopes
+    let ragged = (vnoise(i.wpos.xz * 1.3 + i.wpos.y * 0.7) - 0.5) * 0.16;
+    let level = smoothstep(0.40, 0.62, n.y + ragged);
+    var c = ground(anim_layer(kz - K_TERRAIN, i.tex.w), i32(i.tex.y + 0.5), level, w3, i.wpos, dpx, dpy);
+    // fade into the neighbouring kind of ground along a ragged, painted edge
+    let wb = i.color.r;
+    if (wb > 0.002) {
+      let nb = vnoise(i.wpos.xz * 2.1 + i.wpos.y * 1.3) * 0.6 + vnoise(i.wpos.xz * 0.63 + vec2<f32>(3.1, 7.7)) * 0.4;
+      // both sides of the edge must draw the same line: one adds the noise, the other takes it away
+      let s = select(-1.0, 1.0, kz - K_TERRAIN < i.tex.x);
+      let k = smoothstep(0.38, 0.62, wb + s * (nb - 0.5) * 0.5);
+      if (k > 0.001) {
+        c = mix(c, ground(i32(i.tex.x + 0.5), i32(i.color.g + 0.5), level, w3, i.wpos, dpx, dpy), k);
+      }
+    }
+    // broad, slow changes of tone, so the ground is not one repeated tile
+    base = c * ground_tone(i.wpos.xz);
+  } else if (kz < -1.5 && kz > -2.5) {
+    base = base * ground_tone(i.wpos.xz);
+  } else if (kz >= 0.0) {
+    let tx = textureSampleGrad(tex_array, tex_samp, i.tex.xy, anim_layer(kz, i.tex.w), dux, duy);
+    if (tx.a < 0.5) { discard; }
+    base = base * tx.rgb;
+  } else if (kz > -1.5) {
+    // 16 x 16 texel grain on untextured boxes so they read as pixel art
+    let t = floor(i.wpos * 16.0 - i.normal * 0.01);
+    grain = select(1.0, 0.86 + 0.24 * hash3(t), has_n);
+  }
   // sun or moon light (with shadows and the angle of the surface), soft sky
   // light from above, or warm block light, whichever is brighter
   let bl = i.light * i.light;
   let sl = i.sky * i.sky;
-  let has_n = dot(i.normal, i.normal) > 0.5;
-  let n = select(vec3<f32>(0.0, 1.0, 0.0), normalize(i.normal), has_n);
   let ldir = normalize(select(-u.sun.xyz, u.sun.xyz, u.sun.y > 0.0));
-  let ndl = select(0.75, max(dot(n, ldir), 0.0), has_n);
+  let lam = dot(n, ldir);
+  let ndl = select(0.75, max(mix(lam, lam * 0.5 + 0.5, wrap), 0.0), has_n);
   let vis = sun_visible(i.wpos, n);
   let up = select(0.75, 0.6 + 0.4 * n.y, has_n);
   // cool, blue-violet shade; warm direct sun
@@ -189,50 +375,13 @@ fn texel(t: vec4<f32>) -> vec4<f32> {
   let direct = u.light.rgb * vec3<f32>(1.08, 1.0, 0.9) * (0.2 + 1.0 * ndl * vis);
   let daylight = (direct + sky_amb) * (sl * 0.97 + 0.03);
   let lit = max(daylight, vec3<f32>(1.0, 0.78, 0.5) * bl * 1.15);
-  var base = i.color.rgb;
-  if (i.tex.z >= 0.0) { base = base * tx.rgb; }
-  let pt = 0;
-  if (pt > 0) {
-    let h = hash3(t + vec3<f32>(17.0, 3.0, 11.0));
-    let h2 = hash3(floor(t / 2.0) + vec3<f32>(5.0, 9.0, 1.0));
-    if (pt == 1 && h2 > 0.78) { base = vec3<f32>(0.05, 0.05, 0.06); }
-    if (pt == 2 && h2 > 0.80) { base = vec3<f32>(0.80, 0.58, 0.40); }
-    if (pt == 3 && h2 > 0.55) { base = vec3<f32>(1.0, 0.75, 0.35); }
-    if (pt == 4) {
-      // wood: darker line every 4 texels across the grain
-      let g = select(t.y, t.x + t.z, abs(i.normal.y) > 0.5);
-      if (fract(g / 4.0) < 0.2) { base = base * 0.78; }
-    }
-    if (pt == 5) {
-      // stonework: mortar lines
-      let row = floor(t.y / 4.0);
-      let col = select(t.x, t.z, abs(i.normal.x) > 0.5) + select(0.0, 4.0, fract(row / 2.0) > 0.4);
-      if (fract(t.y / 4.0) < 0.2 || fract(col / 8.0) < 0.1) { base = base * 0.72; }
-    }
-    if (pt == 6 && h > 0.92) { base = vec3<f32>(0.86, 0.12, 0.22); }
-  }
-  var c = base * grain * min(i.color.a, 1.0) * lit;
+  var c = base * grain * min(i.color.a, 1.0) * lit * dim;
   if (i.color.a > 1.9) { c = base * grain * 1.1; }
-  let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   // height haze in low valleys, then distance fog
   let haze = clamp((26.0 - i.wpos.y) / 26.0, 0.0, 1.0) * clamp(d / 110.0, 0.0, 1.0) * 0.18;
   c = mix(c, u.fog.rgb, max(f, haze));
   return vec4<f32>(grade(c), 1.0);
-}
-
-fn hash2(p: vec2<f32>) -> f32 {
-  return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453);
-}
-fn vnoise(p: vec2<f32>) -> f32 {
-  let i = floor(p);
-  let f = fract(p);
-  let s = f * f * (3.0 - 2.0 * f);
-  let a = hash2(i);
-  let b = hash2(i + vec2<f32>(1.0, 0.0));
-  let c = hash2(i + vec2<f32>(0.0, 1.0));
-  let d = hash2(i + vec2<f32>(1.0, 1.0));
-  return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
 }
 
 struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> };
@@ -285,31 +434,65 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
 }
 
 @fragment fn fs_translucent(i: VOut) -> @location(0) vec4<f32> {
+  let dpx = dpdx(i.wpos);
+  let dpy = dpdy(i.wpos);
+  let dux = dpdx(i.tex.xy);
+  let duy = dpdy(i.tex.xy);
+  let kz = i.tex.z;
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   let lit = max(u.light.rgb * (i.sky * i.sky * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * i.light * i.light);
-  let tx = texel(i.tex);
   var c = i.color.rgb * lit;
   var a = i.color.a;
-  if (i.tex.z >= 0.0) {
+  if (kz >= K_WATER) {
+    // painted water: deep blue out in the open, clear turquoise in the
+    // shallows, slow swells of light, sky at grazing angles, foam at the shore
+    let t = u.cam.w;
+    let p = i.wpos.xz;
+    let shore = clamp(i.normal.x, 0.0, 1.0);
+    let shallow = smoothstep(0.0, 0.85, shore);
+    var wc = mix(vec3<f32>(0.022, 0.135, 0.34), vec3<f32>(0.06, 0.36, 0.42), shallow);
+    let s1 = vnoise(p * 0.55 + vec2<f32>(t * 0.22, t * 0.13));
+    let s2 = vnoise(p * 1.7 - vec2<f32>(t * 0.25, t * 0.31));
+    // long brush strokes of lighter water, drifting
+    let s3 = vnoise(vec2<f32>(p.x * 0.35 + t * 0.05, p.y * 1.9 - t * 0.12));
+    wc = wc * (0.82 + 0.3 * (s1 * 0.65 + s2 * 0.35) + 0.22 * smoothstep(0.55, 0.9, s3));
+    c = wc * lit;
+    a = mix(0.84, 0.46, shallow);
+    let v = normalize(u.cam.xyz - i.wpos);
+    let fres = pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0);
+    c = mix(c, mix(u.sky_top.rgb, u.fog.rgb, 0.35) * (u.light.rgb * 0.5 + 0.5), fres * 0.5);
+    a = mix(a, 0.88, fres);
+    // the sun glints on the swells
+    let wn = normalize(vec3<f32>((s1 - 0.5) * 0.3, 1.0, (s2 - 0.5) * 0.3));
+    let sd = max(dot(reflect(-v, wn), u.sun.xyz), 0.0);
+    c += vec3<f32>(1.0, 0.85, 0.6) * pow(sd, 90.0) * 0.7 * (1.0 - u.sun.w);
+    // foam where the water laps the shore
+    let fz = vnoise(p * 2.6 + vec2<f32>(t * 0.3, -t * 0.22));
+    let lap = 0.05 * sin(t * 1.4 + p.x * 0.8 + p.y * 0.6);
+    let foam = smoothstep(0.50, 0.72, shore + (fz - 0.5) * 0.4 + lap) * 0.8;
+    c = mix(c, vec3<f32>(0.90, 0.95, 0.97) * (lit * 0.9 + u.light.rgb * 0.1), foam);
+    a = mix(a, 0.92, foam);
+  } else if (kz >= 0.0) {
+    let tx = textureSampleGrad(tex_array, tex_samp, i.tex.xy, anim_layer(kz, i.tex.w), dux, duy);
     c = c * tx.rgb;
     a = tx.a;
     if (a < 0.02) { discard; }
   }
-  // water (alpha 0.62): moving shimmer, and the sky reflects at grazing angles
-  if (abs(i.color.a - 0.62) < 0.02 && i.normal.y > 0.5) {
-    let t = u.cam.w;
-    let w = sin(i.wpos.x * 1.7 + t * 1.6) * cos(i.wpos.z * 1.3 - t * 1.2) + 0.5 * sin((i.wpos.x + i.wpos.z) * 2.9 + t * 2.3);
-    c = c * (1.0 + 0.07 * w);
-    let v = normalize(u.cam.xyz - i.wpos);
-    let fres = pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0);
-    c = mix(c, mix(u.sky_top.rgb, u.fog.rgb, 0.3) * (u.light.rgb * 0.5 + 0.5), fres * 0.45);
-    a = mix(a, 0.85, fres);
-    let sd = max(dot(reflect(-v, vec3<f32>(0.0, 1.0, 0.0)), u.sun.xyz), 0.0);
-    c += vec3<f32>(1.0, 0.85, 0.6) * pow(sd, 120.0) * 0.8 * (1.0 - u.sun.w) * (0.6 + 0.4 * w);
-  }
   c = mix(c, u.fog.rgb, f);
   return vec4<f32>(grade(c), a);
+}
+
+// Halos: added on top of the picture, brightest in the dark.
+@fragment fn fs_glow(i: VOut) -> @location(0) vec4<f32> {
+  let r2 = dot(i.tex.xy, i.tex.xy);
+  let core = max(exp(-r2 * 3.5) - 0.03, 0.0);
+  let d = distance(i.wpos, u.cam.xyz);
+  let fog = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
+  let day = dot(u.light.rgb, vec3<f32>(0.3, 0.6, 0.1));
+  let flicker = 0.92 + 0.08 * sin(u.cam.w * 7.0 + i.wpos.x * 3.1 + i.wpos.z * 1.7);
+  let k = core * i.color.a * flicker * (1.0 - fog) * mix(1.0, 0.3, clamp(day * 1.4, 0.0, 1.0));
+  return vec4<f32>(i.color.rgb * k, 0.0);
 }
 "#;
 
@@ -321,10 +504,6 @@ fn srgb(c: [f32; 3]) -> [f32; 3] {
 pub fn block_color(b: BlockId) -> ([f32; 3], f32) {
     let d = w::block(b);
     (d.color, d.alpha)
-}
-
-fn translucent(b: BlockId) -> bool {
-    w::block(b).alpha < 1.0
 }
 
 type Face = ([i32; 3], [i32; 3], [i32; 3], f32);
@@ -346,145 +525,46 @@ pub fn mesh_section(
     sy: i32,
     sz: i32,
 ) -> (Vec<Vertex>, Vec<Vertex>) {
-    let mut opaque = Vec::new();
-    let mut trans = Vec::new();
-    let solid = |x: i32, y: i32, z: i32| w::is_opaque(world.get(x, y, z)) as i32;
-    for y in sy * SECTION..(sy + 1) * SECTION {
-        for z in sz * SECTION..(sz + 1) * SECTION {
-            for x in sx * SECTION..(sx + 1) * SECTION {
-                let b = world.get(x, y, z);
-                if b == w::AIR {
-                    continue;
-                }
-                if w::shape(b) == w::Shape::Post {
-                    let c = Vec3::new(x as f32 + 0.5, y as f32 + 11.0 / 32.0, z as f32 + 0.5);
-                    let l = light.get(x, y, z) as f32 / 15.0;
-                    push_post(&mut opaque, c, b, l);
-                    continue;
-                }
-                let alpha = w::block(b).alpha;
-                let tr = translucent(b);
-                let emissive = w::emission(b) > 0;
-                for (n, u, v, shade) in FACES {
-                    let nb = world.get(x + n[0], y + n[1], z + n[2]);
-                    if w::is_opaque(nb) || (tr && nb == b) || (w::is_leaves(b) && w::is_leaves(nb))
-                    {
-                        continue;
-                    }
-                    let base = [x + n[0], y + n[1], z + n[2]];
-                    let center = [
-                        x as f32 + 0.5 + n[0] as f32 * 0.5,
-                        y as f32 + 0.5 + n[1] as f32 * 0.5,
-                        z as f32 + 0.5 + n[2] as f32 * 0.5,
-                    ];
-                    let mut corners = [([0f32; 3], 0f32, 0f32, 0f32); 4];
-                    for (i, (su, sv)) in
-                        [(-1, -1), (1, -1), (1, 1), (-1, 1)].into_iter().enumerate()
-                    {
-                        let p = [
-                            center[0] + 0.5 * (su * u[0] + sv * v[0]) as f32,
-                            center[1] + 0.5 * (su * u[1] + sv * v[1]) as f32,
-                            center[2] + 0.5 * (su * u[2] + sv * v[2]) as f32,
-                        ];
-                        let a = [
-                            base[0] + su * u[0],
-                            base[1] + su * u[1],
-                            base[2] + su * u[2],
-                        ];
-                        let bq = [
-                            base[0] + sv * v[0],
-                            base[1] + sv * v[1],
-                            base[2] + sv * v[2],
-                        ];
-                        let cq = [
-                            base[0] + su * u[0] + sv * v[0],
-                            base[1] + su * u[1] + sv * v[1],
-                            base[2] + su * u[2] + sv * v[2],
-                        ];
-                        // smooth block light: average the light of the cells around this corner
-                        let l0 = light.get(base[0], base[1], base[2]) as f32;
-                        let ls = [
-                            l0,
-                            light.get(a[0], a[1], a[2]) as f32,
-                            light.get(bq[0], bq[1], bq[2]) as f32,
-                            light.get(cq[0], cq[1], cq[2]) as f32,
-                        ];
-                        let bl = (ls.iter().sum::<f32>() / 60.0).max(l0 / 15.0 * 0.8);
-                        let k0 = light.sky(base[0], base[1], base[2]) as f32;
-                        let ks = [
-                            k0,
-                            light.sky(a[0], a[1], a[2]) as f32,
-                            light.sky(bq[0], bq[1], bq[2]) as f32,
-                            light.sky(cq[0], cq[1], cq[2]) as f32,
-                        ];
-                        let sl = (ks.iter().sum::<f32>() / 60.0).max(k0 / 15.0 * 0.8);
-                        let shade_ao = if emissive {
-                            2.0
-                        } else if tr {
-                            alpha
-                        } else {
-                            let (s1, s2, c) = (
-                                solid(a[0], a[1], a[2]),
-                                solid(bq[0], bq[1], bq[2]),
-                                solid(cq[0], cq[1], cq[2]),
-                            );
-                            let ao = if s1 == 1 && s2 == 1 {
-                                0
-                            } else {
-                                3 - (s1 + s2 + c)
-                            };
-                            let _ = shade;
-                            [0.5, 0.66, 0.83, 1.0][ao as usize]
-                        };
-                        corners[i] = (p, shade_ao, bl, sl);
-                    }
-                    let nf = [n[0] as f32, n[1] as f32, n[2] as f32];
-                    // textured: the texture carries the colour
-                    let col = if tr {
-                        [shade, shade, shade]
-                    } else {
-                        [1.0, 1.0, 1.0]
-                    };
-                    let face_id = match n[1] {
-                        1 => 0,
-                        -1 => 2,
-                        _ => 1,
-                    };
-                    // flip the diagonal so ambient occlusion interpolates without seams
-                    let order = if corners[0].1 + corners[2].1 > corners[1].1 + corners[3].1 {
-                        [0, 1, 2, 0, 2, 3]
-                    } else {
-                        [1, 2, 3, 1, 3, 0]
-                    };
-                    let out = if tr { &mut trans } else { &mut opaque };
-                    for i in order {
-                        let (p, l, bl, sl) = corners[i];
-                        let (su, sv) =
-                            [(-1.0f32, -1.0f32), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)][i];
-                        // sides: v runs down from the top; mirror u on the far faces
-                        let (tu, tv) = if face_id == 1 {
-                            let uu = (su + 1.0) * 0.5;
-                            (
-                                if n[0] + n[2] < 0 { uu } else { 1.0 - uu },
-                                (1.0 - sv) * 0.5,
-                            )
-                        } else {
-                            ((su + 1.0) * 0.5, (sv + 1.0) * 0.5)
-                        };
-                        out.push(Vertex {
-                            pos: p,
-                            normal: nf,
-                            color: [col[0], col[1], col[2], l],
-                            light: bl,
-                            sky: sl,
-                            tex: face_tex(b, face_id, tu, tv),
-                        });
-                    }
-                }
-            }
-        }
+    let geo = terrain_mesh::mesh(world, light, sx, sy, sz);
+    (geo.opaque, geo.trans)
+}
+
+/// Mesh many sections at once, on every core.
+fn mesh_many(world: &World, light: &Light, list: &[[i32; 3]]) -> Vec<SectionGeo> {
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .min(list.len().div_ceil(2))
+        .min(16);
+    let one = |s: &[i32; 3]| terrain_mesh::mesh(world, light, s[0], s[1], s[2]);
+    if threads <= 1 {
+        return list.iter().map(one).collect();
     }
-    (opaque, trans)
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let parts: Vec<Vec<(usize, SectionGeo)>> = std::thread::scope(|scope| {
+        let workers: Vec<_> = (0..threads)
+            .map(|_| {
+                scope.spawn(|| {
+                    let mut done = Vec::new();
+                    loop {
+                        let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let Some(s) = list.get(i) else { break };
+                        done.push((i, one(s)));
+                    }
+                    done
+                })
+            })
+            .collect();
+        workers
+            .into_iter()
+            .map(|h| h.join().expect("a meshing thread panicked"))
+            .collect()
+    });
+    let mut out: Vec<SectionGeo> = list.iter().map(|_| SectionGeo::default()).collect();
+    for (i, geo) in parts.into_iter().flatten() {
+        out[i] = geo;
+    }
+    out
 }
 
 /// Add a coloured box to a vertex list (used for players and particles).
@@ -548,7 +628,7 @@ pub fn push_oriented_box(
 }
 
 /// A torch-like post: a narrow textured stick, 3/16 wide and 11/16 tall, glowing.
-fn push_post(out: &mut Vec<Vertex>, center: Vec3, b: BlockId, light: f32) {
+pub(crate) fn push_post(out: &mut Vec<Vertex>, center: Vec3, b: BlockId, light: f32) {
     push_post_oriented(out, center, [Vec3::X, Vec3::Y, Vec3::Z], 1.0, b, light);
 }
 
@@ -665,6 +745,7 @@ fn upload_textures(
     });
     for (li, layer) in t.layers.iter().enumerate() {
         let mut img: Vec<u8> = layer.to_vec();
+        bleed(&mut img, TILE);
         let mut size = TILE;
         for mip in 0..mips {
             queue.write_texture(
@@ -710,7 +791,19 @@ fn upload_textures(
                     }
                     let o = (y * half + x) * 4;
                     for k in 0..3 {
-                        let v = if acc[3] > 0.0 { acc[k] / acc[3] } else { 0.0 };
+                        // nothing solid here: keep the colour underneath, so
+                        // smooth filtering has no dark fringe to pull in
+                        let v = if acc[3] > 0.0 {
+                            acc[k] / acc[3]
+                        } else {
+                            [(0, 0), (1, 0), (0, 1), (1, 1)]
+                                .iter()
+                                .map(
+                                    |(dx, dy)| lin(img[((y * 2 + dy) * size + x * 2 + dx) * 4 + k]),
+                                )
+                                .sum::<f32>()
+                                / 4.0
+                        };
                         next[o + k] = (v.powf(1.0 / 2.2) * 255.0).round() as u8;
                     }
                     next[o + 3] = (acc[3] / 4.0 * 255.0).round() as u8;
@@ -724,21 +817,245 @@ fn upload_textures(
         dimension: Some(wgpu::TextureViewDimension::D2Array),
         ..Default::default()
     });
+    // smooth filtering, so the small painted tiles read as paint, not pixels;
+    // anisotropy keeps the ground crisp towards the horizon
     let samp = device.create_sampler(&wgpu::SamplerDescriptor {
-        label: Some("pixels"),
+        label: Some("painted"),
         address_mode_u: wgpu::AddressMode::Repeat,
         address_mode_v: wgpu::AddressMode::Repeat,
-        mag_filter: wgpu::FilterMode::Nearest,
-        min_filter: wgpu::FilterMode::Nearest,
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
         mipmap_filter: wgpu::FilterMode::Linear,
+        anisotropy_clamp: 8,
         ..Default::default()
     });
     (view, samp)
 }
 
+/// Spread colour into fully transparent texels from their solid neighbours
+/// (the tile wraps), so smooth filtering does not darken cut-out edges.
+fn bleed(img: &mut [u8], size: usize) {
+    if img.chunks_exact(4).all(|p| p[3] > 0) || img.chunks_exact(4).all(|p| p[3] == 0) {
+        return;
+    }
+    let mut known: Vec<bool> = img.chunks_exact(4).map(|p| p[3] > 0).collect();
+    for _ in 0..size {
+        let mut next = known.clone();
+        let mut changed = false;
+        for y in 0..size {
+            for x in 0..size {
+                let i = y * size + x;
+                if known[i] {
+                    continue;
+                }
+                let (mut acc, mut n) = ([0u32; 3], 0u32);
+                for (dx, dy) in [(1, 0), (size - 1, 0), (0, 1), (0, size - 1)] {
+                    let j = ((y + dy) % size) * size + (x + dx) % size;
+                    if known[j] {
+                        for (a, c) in acc.iter_mut().zip(&img[j * 4..j * 4 + 3]) {
+                            *a += *c as u32;
+                        }
+                        n += 1;
+                    }
+                }
+                if n > 0 {
+                    for (k, a) in acc.iter().enumerate() {
+                        img[i * 4 + k] = (a / n) as u8;
+                    }
+                    next[i] = true;
+                    changed = true;
+                }
+            }
+        }
+        known = next;
+        if !changed {
+            break;
+        }
+    }
+}
+
+/// Mean colour of a texture layer, in linear light.
+fn layer_mean(layer: u16) -> [f32; 3] {
+    let t = textures();
+    let Some(img) = t.layers.get(layer as usize) else {
+        return [0.5; 3];
+    };
+    let (mut acc, mut n) = ([0f32; 3], 0f32);
+    for p in img.chunks_exact(4).filter(|p| p[3] > 0) {
+        for (a, c) in acc.iter_mut().zip(p) {
+            *a += (*c as f32 / 255.0).powf(2.2);
+        }
+        n += 1.0;
+    }
+    acc.map(|a| a / n.max(1.0))
+}
+
+/// Draw grass tufts and flowers this far from the camera, in sections.
+const CLUTTER_SECTIONS: i32 = 3;
+
+/// Turn one tuft into blades of grass, or a small flower.
+fn push_tuft(out: &mut Vec<Vertex>, t: &Tuft, grass: [f32; 3]) {
+    let mut h = t.seed;
+    let mut rnd = move || {
+        h ^= h << 13;
+        h ^= h >> 17;
+        h ^= h << 5;
+        (h >> 8) as f32 / 16_777_216.0
+    };
+    let root = Vec3::from(t.pos);
+    let tone = 0.85 + 0.3 * rnd();
+    let warm = rnd();
+    // the blades match the painted grass under them, darker at the foot
+    let tint = [
+        grass[0] * tone * (1.0 + 0.25 * warm),
+        grass[1] * tone,
+        grass[2] * tone * (1.0 - 0.3 * warm),
+    ];
+    let mut vert = |pos: Vec3, off: Vec3, rgb: [f32; 3], sway: f32, phase: f32| {
+        out.push(Vertex {
+            pos: (pos + off).into(),
+            normal: off.into(),
+            color: [rgb[0], rgb[1], rgb[2], 1.0],
+            light: t.light,
+            sky: t.sky,
+            tex: [sway, phase, KIND_CLUTTER, 0.0],
+        });
+    };
+    let phase = rnd() * 6.28;
+    let flower = t.seed % 13 == 0;
+    let blades = if flower {
+        3
+    } else {
+        5 + (t.seed >> 28) as usize % 4
+    };
+    let height = 0.7 + 0.6 * rnd();
+    for _ in 0..blades {
+        let a = rnd() * 6.28;
+        let r = rnd() * 0.3;
+        let base = root + Vec3::new(a.cos() * r, -0.04, a.sin() * r);
+        let facing = rnd() * 6.28;
+        let side = Vec3::new(facing.cos(), 0.0, facing.sin()) * (0.03 + 0.03 * rnd());
+        let lean = Vec3::new(a.cos(), 0.0, a.sin()) * (0.04 + 0.14 * rnd());
+        let tall = (0.2 + 0.25 * rnd()) * height;
+        let foot = tint.map(|c| c * 0.7);
+        let tip = [tint[0] * 1.18, tint[1] * 1.12, tint[2] * 0.95];
+        vert(base, -side, foot, 0.0, phase);
+        vert(base, side, foot, 0.0, phase);
+        vert(base, lean + Vec3::Y * tall, tip, 1.0, phase);
+    }
+    if flower {
+        // a stem and a small four-petalled head
+        let petals = [
+            [0.95, 0.90, 0.80],
+            [0.95, 0.72, 0.12],
+            [0.80, 0.15, 0.20],
+            [0.55, 0.35, 0.85],
+            [0.95, 0.55, 0.70],
+        ][(t.seed >> 20) as usize % 5]
+            .map(|c: f32| c.powf(2.2));
+        let stem = tint.map(|c| c * 0.7);
+        let tall = 0.3 + 0.14 * rnd();
+        let top = Vec3::Y * tall;
+        let base = root - Vec3::Y * 0.03;
+        vert(base, Vec3::new(-0.018, 0.0, 0.0), stem, 0.0, phase);
+        vert(base, Vec3::new(0.018, 0.0, 0.0), stem, 0.0, phase);
+        vert(base, top, stem, 1.0, phase);
+        let s = 0.075 + 0.03 * rnd();
+        let turn = rnd() * 6.28;
+        let (ax, az) = (
+            Vec3::new(turn.cos(), 0.25, turn.sin()) * s,
+            Vec3::new(-turn.sin(), 0.25, turn.cos()) * s,
+        );
+        let heart = [1.0, 0.85, 0.25f32].map(|c| c.powf(2.2));
+        for (p, q) in [(ax, az), (az, -ax), (-ax, -az), (-az, ax)] {
+            vert(base, top, heart, 1.0, phase);
+            vert(base, top + p, petals, 1.0, phase);
+            vert(base, top + q, petals, 1.0, phase);
+        }
+    }
+}
+
+/// The six vertices of a halo. The vertex shader turns them to the camera.
+fn push_glow(out: &mut Vec<Vertex>, g: &Glow) {
+    let c = srgb(g.color);
+    for (x, y) in [
+        (-1.0, -1.0),
+        (1.0, -1.0),
+        (1.0, 1.0),
+        (-1.0, -1.0),
+        (1.0, 1.0),
+        (-1.0, 1.0),
+    ] {
+        out.push(Vertex {
+            pos: g.pos,
+            normal: [x, y, g.size],
+            color: [c[0], c[1], c[2], 0.5],
+            light: 1.0,
+            sky: 1.0,
+            tex: [0.0, 0.0, KIND_GLOW, 0.0],
+        });
+    }
+}
+
+/// A flat, glowing ring on the ground around a selected target: red for a
+/// hostile one, yellow for neutral, green for friendly. `center` is the
+/// target's feet. The ring is level; it is drawn a little in front of the
+/// ground it lies on, so gentle slopes do not swallow it.
+pub fn push_ground_ring(out: &mut Vec<Vertex>, center: Vec3, radius: f32, color: [f32; 3]) {
+    const SEGMENTS: usize = 40;
+    let c = srgb(color);
+    let lift = |k: f32| {
+        [
+            c[0] + (1.0 - c[0]) * k,
+            c[1] + (1.0 - c[1]) * k,
+            c[2] + (1.0 - c[2]) * k,
+        ]
+    };
+    // three bands: a soft outer edge, a bright core, a soft inner edge
+    let width = (radius * 0.16).clamp(0.05, 0.14);
+    let (edge, core) = (c.map(|v| v * 0.5), lift(0.45));
+    let bands = [
+        (radius + width * 0.5, radius + width * 0.15, edge, core),
+        (radius + width * 0.15, radius - width * 0.15, core, core),
+        (radius - width * 0.15, radius - width * 0.5, core, edge),
+    ];
+    let y = center.y + 0.06;
+    let at = |i: usize, r: f32| {
+        let a = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
+        [center.x + a.cos() * r, y, center.z + a.sin() * r]
+    };
+    for i in 0..SEGMENTS {
+        for (r0, r1, c0, c1) in bands {
+            let quad = [
+                (at(i, r0), c0),
+                (at(i + 1, r0), c0),
+                (at(i + 1, r1), c1),
+                (at(i, r1), c1),
+            ];
+            for k in [0, 1, 2, 0, 2, 3] {
+                let (pos, rgb) = quad[k];
+                out.push(Vertex {
+                    pos,
+                    normal: [0.0; 3],
+                    // 2.0: glows, whatever the light
+                    color: [rgb[0], rgb[1], rgb[2], 2.0],
+                    light: 1.0,
+                    sky: 1.0,
+                    tex: [0.0, 0.0, KIND_DECAL, 0.0],
+                });
+            }
+        }
+    }
+}
+
+#[derive(Default)]
 struct SectionMesh {
     opaque: Option<(wgpu::Buffer, u32)>,
     trans: Option<(wgpu::Buffer, u32)>,
+    /// halos round the section's lamps
+    glow: Option<(wgpu::Buffer, u32)>,
+    /// where grass grows; turned into blades when the camera is near
+    tufts: Vec<Tuft>,
 }
 
 pub struct Gfx {
@@ -754,6 +1071,7 @@ pub struct Gfx {
     opaque_pipe: wgpu::RenderPipeline,
     trans_pipe: wgpu::RenderPipeline,
     line_pipe: wgpu::RenderPipeline,
+    glow_pipe: wgpu::RenderPipeline,
     sky_pipe: wgpu::RenderPipeline,
     shadow_pipe: wgpu::RenderPipeline,
     shadow_bind: wgpu::BindGroup,
@@ -762,6 +1080,10 @@ pub struct Gfx {
     bind: wgpu::BindGroup,
     sections: Vec<SectionMesh>,
     dims: [i32; 3],
+    /// grass and flowers around the camera, and the section column they were built for
+    clutter: Option<(wgpu::Buffer, u32)>,
+    clutter_at: Option<[i32; 2]>,
+    grass_tint: [f32; 3],
     pub adapter_info: String,
     /// When set, the next frame is saved to this path as a PPM image.
     pub screenshot: Option<std::path::PathBuf>,
@@ -1119,6 +1441,24 @@ impl Gfx {
             Some(wgpu::BlendState::ALPHA_BLENDING),
             false,
         );
+        // halos add their light to the picture
+        let glow_pipe = make(
+            "fs_glow",
+            wgpu::PrimitiveTopology::TriangleList,
+            Some(wgpu::BlendState {
+                color: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha: wgpu::BlendComponent {
+                    src_factor: wgpu::BlendFactor::Zero,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
+            }),
+            false,
+        );
         let shadow_pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("shadow"),
             layout: Some(&shadow_layout),
@@ -1166,6 +1506,7 @@ impl Gfx {
             opaque_pipe,
             trans_pipe,
             line_pipe,
+            glow_pipe,
             sky_pipe,
             shadow_pipe,
             shadow_bind,
@@ -1174,6 +1515,9 @@ impl Gfx {
             bind,
             sections: Vec::new(),
             dims: [0; 3],
+            clutter: None,
+            clutter_at: None,
+            grass_tint: layer_mean(textures().face(w::GRASS, 0)),
             adapter_info,
             screenshot: None,
             started: std::time::Instant::now(),
@@ -1206,6 +1550,33 @@ impl Gfx {
         Some((buf, v.len() as u32))
     }
 
+    /// Upload one section's mesh.
+    fn store(&mut self, i: usize, geo: SectionGeo) {
+        let mut halo = Vec::with_capacity(geo.glows.len() * 6);
+        for g in &geo.glows {
+            push_glow(&mut halo, g);
+        }
+        self.sections[i] = SectionMesh {
+            opaque: self.upload(&geo.opaque),
+            trans: self.upload(&geo.trans),
+            glow: self.upload(&halo),
+            tufts: geo.tufts,
+        };
+    }
+
+    /// Mesh a list of sections and upload them.
+    fn remesh(&mut self, world: &World, light: &Light, list: &[[i32; 3]]) {
+        // in batches, so a whole world's vertices are never all in memory at once
+        for batch in list.chunks(256) {
+            for (s, geo) in batch.iter().zip(mesh_many(world, light, batch)) {
+                let i = ((s[1] * self.dims[2] + s[2]) * self.dims[0] + s[0]) as usize;
+                self.store(i, geo);
+            }
+        }
+        // grass near the camera may have changed
+        self.clutter_at = None;
+    }
+
     /// Mesh the whole world.
     pub fn load_world(&mut self, world: &World, light: &Light) {
         let d = [
@@ -1215,17 +1586,17 @@ impl Gfx {
         ];
         self.dims = d;
         self.sections.clear();
+        self.sections
+            .resize_with((d[0] * d[1] * d[2]) as usize, SectionMesh::default);
+        let mut list = Vec::with_capacity(self.sections.len());
         for sy in 0..d[1] {
             for sz in 0..d[2] {
                 for sx in 0..d[0] {
-                    let (o, t) = mesh_section(world, light, sx, sy, sz);
-                    self.sections.push(SectionMesh {
-                        opaque: self.upload(&o),
-                        trans: self.upload(&t),
-                    });
+                    list.push([sx, sy, sz]);
                 }
             }
         }
+        self.remesh(world, light, &list);
     }
 
     /// Re-mesh every section that touches the box [lo - margin, hi + margin].
@@ -1237,48 +1608,53 @@ impl Gfx {
         hi: [i32; 3],
         margin: i32,
     ) {
+        if self.sections.is_empty() {
+            return;
+        }
+        // a section's smooth mesh reads a few blocks past its own edge
+        let margin = margin.max(terrain_mesh::REACH);
         let s0 = |v: i32, i: usize| ((v - margin).div_euclid(SECTION)).clamp(0, self.dims[i] - 1);
         let s1 = |v: i32, i: usize| ((v + margin).div_euclid(SECTION)).clamp(0, self.dims[i] - 1);
+        let mut list = Vec::new();
         for sy in s0(lo[1], 1)..=s1(hi[1], 1) {
             for sz in s0(lo[2], 2)..=s1(hi[2], 2) {
                 for sx in s0(lo[0], 0)..=s1(hi[0], 0) {
-                    let (o, t) = mesh_section(world, light, sx, sy, sz);
-                    let i = ((sy * self.dims[2] + sz) * self.dims[0] + sx) as usize;
-                    self.sections[i] = SectionMesh {
-                        opaque: self.upload(&o),
-                        trans: self.upload(&t),
-                    };
+                    list.push([sx, sy, sz]);
                 }
             }
         }
+        self.remesh(world, light, &list);
     }
 
     /// Re-mesh the section that holds a cell, and its neighbours when the cell is on an edge.
     pub fn block_changed(&mut self, world: &World, light: &Light, p: [i32; 3], radius: i32) {
-        let mut todo = Vec::new();
-        for dx in [-radius, 0, radius] {
-            for dy in [-radius, 0, radius] {
-                for dz in [-radius, 0, radius] {
-                    let q = [p[0] + dx, p[1] + dy, p[2] + dz];
-                    let s = [
-                        q[0].div_euclid(SECTION),
-                        q[1].div_euclid(SECTION),
-                        q[2].div_euclid(SECTION),
-                    ];
-                    if (0..3).all(|i| s[i] >= 0 && s[i] < self.dims[i]) && !todo.contains(&s) {
-                        todo.push(s);
+        self.region_changed(world, light, p, p, radius);
+    }
+
+    /// Rebuild the grass and flowers when the camera enters a new section
+    /// column, or the ground near it changed.
+    fn update_clutter(&mut self, cam: Vec3) {
+        let at = [
+            (cam.x.floor() as i32).div_euclid(SECTION),
+            (cam.z.floor() as i32).div_euclid(SECTION),
+        ];
+        if self.clutter_at == Some(at) {
+            return;
+        }
+        self.clutter_at = Some(at);
+        let d = self.dims;
+        let mut verts = Vec::new();
+        for sz in (at[1] - CLUTTER_SECTIONS).max(0)..=(at[1] + CLUTTER_SECTIONS).min(d[2] - 1) {
+            for sx in (at[0] - CLUTTER_SECTIONS).max(0)..=(at[0] + CLUTTER_SECTIONS).min(d[0] - 1) {
+                for sy in 0..d[1] {
+                    let i = ((sy * d[2] + sz) * d[0] + sx) as usize;
+                    for t in &self.sections[i].tufts {
+                        push_tuft(&mut verts, t, self.grass_tint);
                     }
                 }
             }
         }
-        for s in todo {
-            let (o, t) = mesh_section(world, light, s[0], s[1], s[2]);
-            let i = ((s[1] * self.dims[2] + s[2]) * self.dims[0] + s[0]) as usize;
-            self.sections[i] = SectionMesh {
-                opaque: self.upload(&o),
-                trans: self.upload(&t),
-            };
-        }
+        self.clutter = self.upload(&verts);
     }
 
     /// Draw one frame: the world (if any), extra boxes, lines, then egui.
@@ -1292,6 +1668,9 @@ impl Gfx {
         egui_ctx: &egui::Context,
         egui_out: egui::FullOutput,
     ) {
+        if let Some((_, cam, _)) = view_proj {
+            self.update_clutter(cam);
+        }
         let surface_tex = match &self.surface {
             Some(surface) => match surface.get_current_texture() {
                 Ok(f) => Some(f),
@@ -1414,6 +1793,10 @@ impl Gfx {
                         rp.draw(0..*n, 0..1);
                     }
                 }
+                if let Some((b, n)) = &self.clutter {
+                    rp.set_vertex_buffer(0, b.slice(..));
+                    rp.draw(0..*n, 0..1);
+                }
                 if let Some((b, n)) = &box_buf {
                     rp.set_vertex_buffer(0, b.slice(..));
                     rp.draw(0..*n, 0..1);
@@ -1421,6 +1804,15 @@ impl Gfx {
                 rp.set_pipeline(&self.trans_pipe);
                 for (i, s) in self.sections.iter().enumerate() {
                     if let Some((b, n)) = &s.trans
+                        && visible(i)
+                    {
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw(0..*n, 0..1);
+                    }
+                }
+                rp.set_pipeline(&self.glow_pipe);
+                for (i, s) in self.sections.iter().enumerate() {
+                    if let Some((b, n)) = &s.glow
                         && visible(i)
                     {
                         rp.set_vertex_buffer(0, b.slice(..));

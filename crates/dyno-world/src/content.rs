@@ -294,6 +294,23 @@ pub struct Creature {
     /// seconds between attacks
     #[serde(default = "attack_speed")]
     pub attack_speed: f32,
+    /// a special move
+    #[serde(default)]
+    pub ability: Option<CreatureAbility>,
+    /// sight range for hostile creatures (0: the default)
+    #[serde(default)]
+    pub aggro: f32,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CreatureAbility {
+    /// rushes at a target this far away, at three times speed
+    Charge { range: f32 },
+    /// attacks from range with a bolt
+    Bolt { range: f32 },
+    /// runs away at low health
+    Flee { below: f32 },
 }
 
 fn one_f() -> f32 {
@@ -564,6 +581,9 @@ pub struct Camp {
     /// a rare named elite: chance it appears instead, its name, and its strength
     #[serde(default)]
     pub rare: Option<Rare>,
+    /// underground: spawn near this height relative to the hearth, not on the surface
+    #[serde(default)]
+    pub y: Option<i32>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -638,6 +658,8 @@ struct ACamp {
     respawn: u16,
     #[serde(default)]
     rare: Option<Rare>,
+    #[serde(default)]
+    y: Option<i32>,
 }
 
 fn five_min() -> u16 {
@@ -870,6 +892,10 @@ struct ACreature {
     variant: u8,
     #[serde(default = "attack_speed")]
     attack_speed: f32,
+    #[serde(default)]
+    ability: Option<CreatureAbility>,
+    #[serde(default)]
+    aggro: f32,
 }
 
 fn level_one() -> [u8; 2] {
@@ -1038,6 +1064,8 @@ impl Content {
                 scale: c.scale,
                 variant: c.variant,
                 attack_speed: c.attack_speed,
+                ability: c.ability,
+                aggro: c.aggro,
             });
         }
         let npcs: Vec<Npc> = f
@@ -1221,6 +1249,7 @@ impl Content {
                     spread: c.spread,
                     respawn: c.respawn,
                     rare: c.rare.clone(),
+                    y: c.y,
                 });
             }
             areas.push(Area {

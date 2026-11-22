@@ -96,7 +96,7 @@ fn night_brings_shades() {
     let cfg = dyno_server::Config {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
-        world_size: [96, 48, 96],
+        world_size: [192, 48, 192],
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
@@ -111,10 +111,18 @@ fn night_brings_shades() {
         .id;
     let hearth = j
         .world
-        .find_near(dyno_world::HEARTH, 48, 48, 24)
+        .find_near(dyno_world::HEARTH, 96, 96, 24)
         .expect("a spawn hearth");
     let mut pack = vec![None; 36];
-    let here = j.spawn;
+    // out in the meadow, beyond the town (where Shades never rise)
+    let here = {
+        let (x, z) = (hearth[0] + 52, hearth[2]);
+        [
+            x as f32 + 0.5,
+            j.world.surface(x, z) as f32 + 1.0,
+            z as f32 + 0.5,
+        ]
+    };
     pose(&j, here);
     // the first player owns a new world, so may set the time
     send(
@@ -676,6 +684,45 @@ fn quests_give_xp_and_rewards() {
     assert_eq!(worn.len(), 17);
     assert_eq!(count(&pack, boots), 0);
     let _ = cloak;
+    // gathering is a cast: stand by the nearest tree, gather, logs go to the bags
+    let log = c.item_by_key("log").unwrap();
+    let mut node = None;
+    let (cx, cz) = (j.spawn[0] as i32, j.spawn[2] as i32);
+    'find: for r in 0..48i32 {
+        for dz in -r..=r {
+            for dx in -r..=r {
+                if dx.abs() != r && dz.abs() != r {
+                    continue;
+                }
+                for y in 1..47 {
+                    if j.world.get(cx + dx, y, cz + dz) == dyno_world::LOG {
+                        node = Some([cx + dx, y, cz + dz]);
+                        break 'find;
+                    }
+                }
+            }
+        }
+    }
+    assert!(node.is_some(), "a tree near the spawn");
+    if let Some(n) = node {
+        let before = count(&pack, log);
+        pose(&j, [n[0] as f32 + 1.5, n[1] as f32, n[2] as f32 + 0.5]);
+        std::thread::sleep(Duration::from_millis(100));
+        send(&j, ClientMsg::Gather { pos: n });
+        wait(&j, &mut pack, 3.0, |m, _| {
+            matches!(m, ServerMsg::Casting { ability: Some(a), .. } if *a == dyno_protocol::GATHER)
+                .then_some(())
+        });
+        wait(&j, &mut pack, 4.0, |_, p| {
+            (count(p, log) > before).then_some(())
+        });
+        // the tree is still standing, but resting
+        send(&j, ClientMsg::Gather { pos: n });
+        wait(&j, &mut pack, 3.0, |m, _| {
+            matches!(m, ServerMsg::System { text } if text.contains("gathered recently"))
+                .then_some(())
+        });
+    }
     // the world is protected: digging the ground is refused
     let below = [
         j.spawn[0].floor() as i32 + 3,
@@ -686,6 +733,127 @@ fn quests_give_xp_and_rewards() {
     wait(&j, &mut pack, 3.0, |m, _| {
         matches!(m, ServerMsg::Block { pos, .. } if *pos == below).then_some(())
     });
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A world event: an operator starts the Nightfall Incursion; it is announced,
+/// Shades pour out at a gate, and the tracker counts them.
+#[test]
+fn nightfall_incursion() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-event-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [128, 48, 128],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let j = net::connect(&addr, "warden", 99, false, Duration::from_secs(5)).expect("join");
+    let shade = j
+        .content
+        .creatures
+        .iter()
+        .find(|c| c.key == "shade")
+        .unwrap()
+        .id;
+    let mut pack = vec![None; 36];
+    pose(&j, j.spawn);
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/event incursion".into(),
+        },
+    );
+    let title = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::WorldEvent { title, .. } if !title.is_empty() => Some(title.clone()),
+        _ => None,
+    });
+    assert_eq!(title, "Nightfall Incursion");
+    let end = Instant::now() + Duration::from_secs(10);
+    let mut seen = 0;
+    while seen < 3 && Instant::now() < end {
+        pose(&j, j.spawn);
+        if wait_opt(&j, &mut pack, 0.5, |m| {
+            matches!(m, ServerMsg::EntitySpawn { kind: EntityKind::Creature(c), .. } if *c == shade)
+                .then_some(())
+        })
+        .is_some()
+        {
+            seen += 1;
+        }
+    }
+    assert!(seen >= 3, "a wave of Shades arrives ({seen})");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Character select: a realm lists my characters; creating one with a class
+/// and looks makes it appear; deleting it removes it.
+#[test]
+fn characters_are_created_listed_and_deleted() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-chars-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let token = 4711;
+    let (realm, list, _) =
+        net::realm(&addr, token, None, Duration::from_secs(5)).expect("realm answers");
+    assert!(list.is_empty());
+    assert_eq!(realm.classes.len(), 6, "six classes offered");
+    let look = dyno_protocol::Appearance {
+        skin: 3,
+        hair_style: 4,
+        hair_color: 5,
+        beard: false,
+        ..Default::default()
+    };
+    let create = dyno_protocol::NewCharacter {
+        class: "mage".into(),
+        look,
+    };
+    let j = net::connect_as(
+        &addr,
+        "Mirelle",
+        token,
+        false,
+        Some(create),
+        Duration::from_secs(5),
+    )
+    .expect("join");
+    let mut pack = vec![None; 36];
+    let class = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Character {
+            class: Some(c),
+            look: l,
+            ..
+        } => Some((*c, *l)),
+        _ => None,
+    });
+    assert_eq!(j.content.class(class.0).unwrap().key, "mage");
+    assert_eq!(class.1, look);
+    drop(j);
+    std::thread::sleep(Duration::from_millis(300));
+    server.server.save();
+    let (_, list, _) = net::realm(&addr, token, None, Duration::from_secs(5)).unwrap();
+    assert_eq!(list.len(), 1);
+    assert_eq!(
+        (list[0].name.as_str(), list[0].class.as_str(), list[0].look),
+        ("Mirelle", "Mage", look)
+    );
+    // another install sees none of mine
+    let (_, theirs, _) = net::realm(&addr, 1234, None, Duration::from_secs(5)).unwrap();
+    assert!(theirs.is_empty());
+    let (_, list, _) = net::realm(&addr, token, Some("Mirelle"), Duration::from_secs(5)).unwrap();
+    assert!(list.is_empty(), "deleted");
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

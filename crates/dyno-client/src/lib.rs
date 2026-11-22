@@ -12,6 +12,7 @@ pub mod screens;
 pub mod settings;
 pub mod shot;
 pub mod survival;
+pub mod terrain_mesh;
 pub mod textures;
 pub mod theme;
 pub mod voxmodel;

@@ -57,6 +57,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         update_note,
         fatal: None,
         autojoined: false,
+        cursor: (0.0, 0.0),
         last_shot: Instant::now(),
     };
     app.audio.volume = app.settings.volume;
@@ -147,6 +148,7 @@ struct Play {
     /// where we lay down in a bed at night
     sleeping_at: Option<Vec3>,
     my_name: String,
+    my_look: dyno_protocol::Appearance,
     hearth: Option<[i32; 3]>,
     class: Option<u16>,
     power: f32,
@@ -177,6 +179,20 @@ struct Play {
     bar: Vec<Option<u16>>,
     /// floating combat text: when, creature (None: me), text, colour
     combat_text: Vec<(Instant, Option<u32>, String, Color32)>,
+    /// WoW-style mouse: buttons held for mouselook, how far the mouse moved while held
+    lmb: bool,
+    rmb: bool,
+    drag: f32,
+    /// camera yaw around the character (left-button orbit), radians
+    cam_orbit: f32,
+    autorun: bool,
+    /// last frame's inverse view-projection and screen size, for cursor picking
+    inv_vp: Option<glam::Mat4>,
+    screen_px: (f32, f32),
+    /// the creature or person under the cursor
+    hover: Option<u32>,
+    /// a world event near you: title, task, progress
+    world_event: Option<(String, String, f32)>,
     level: u8,
     xp: u32,
     xp_next: u32,
@@ -237,6 +253,27 @@ impl Play {
     }
     fn creative(&self) -> bool {
         self.mode == Mode::Creative
+    }
+    /// WoW-style controls: free cursor, hold a button to steer (RPG worlds, not creative).
+    fn wow(&self) -> bool {
+        self.content.world.protected && !self.creative()
+    }
+    /// Where the camera looks: the character's facing plus any orbit.
+    fn cam_dir(&self) -> Vec3 {
+        let (sy, cy) = (self.player.yaw + self.cam_orbit).sin_cos();
+        let (sp, cp) = self.player.pitch.sin_cos();
+        Vec3::new(-sy * cp, sp, -cy * cp)
+    }
+    /// The world ray under the mouse cursor.
+    fn cursor_ray(&self, cursor: (f64, f64)) -> Option<(Vec3, Vec3)> {
+        let inv = self.inv_vp?;
+        let (w, h) = self.screen_px;
+        let x = (cursor.0 as f32 / w) * 2.0 - 1.0;
+        let y = 1.0 - (cursor.1 as f32 / h) * 2.0;
+        let near = inv * glam::Vec4::new(x, y, 0.0, 1.0);
+        let far = inv * glam::Vec4::new(x, y, 1.0, 1.0);
+        let (a, b) = (near.truncate() / near.w, far.truncate() / far.w);
+        Some((a, (b - a).normalize_or_zero()))
     }
     fn toast(&mut self, t: impl Into<String>) {
         self.toasts.push((Instant::now(), t.into()));
@@ -597,6 +634,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
         models::push_creature(
             boxes,
             c.model,
+            c.variant,
             pos,
             e.yaw,
             c.color,
@@ -615,6 +653,63 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             }
         }
     }
+}
+
+/// The creature or person along a ray (the mouse cursor), nearest first,
+/// unless a block is in the way.
+fn pick_entity_ray(p: &Play, o: Vec3, dir: Vec3, max: f32) -> Option<u32> {
+    let wall = game::raycast(&p.world, o, dir, max).map(|t| {
+        let c = Vec3::new(
+            t.block[0] as f32 + 0.5,
+            t.block[1] as f32 + 0.5,
+            t.block[2] as f32 + 0.5,
+        );
+        (c - o).length() - 0.5
+    });
+    let mut best: Option<(u32, f32)> = None;
+    for (id, e) in &p.entities {
+        let h = match e.kind {
+            EntityKind::Npc(_) => 2.0,
+            EntityKind::Creature(c) => match p.content.creature(c).map(|c| (c.model, c.scale)) {
+                Some((dyno_world::content::Model::Humanoid, s)) => 2.0 * s,
+                Some((_, s)) => 1.3 * s,
+                None => 1.3,
+            },
+            _ => continue,
+        };
+        let pos = e.pos();
+        let (lo, hi) = (
+            pos - Vec3::new(0.55, 0.0, 0.55),
+            pos + Vec3::new(0.55, h, 0.55),
+        );
+        let mut t0 = 0.0f32;
+        let mut t1 = max;
+        let mut hit = true;
+        for a in 0..3 {
+            let (oa, d) = (o[a], dir[a]);
+            if d.abs() < 1e-6 {
+                if oa < lo[a] || oa > hi[a] {
+                    hit = false;
+                    break;
+                }
+                continue;
+            }
+            let (mut ta, mut tb) = ((lo[a] - oa) / d, (hi[a] - oa) / d);
+            if ta > tb {
+                std::mem::swap(&mut ta, &mut tb);
+            }
+            t0 = t0.max(ta);
+            t1 = t1.min(tb);
+            if t0 > t1 {
+                hit = false;
+                break;
+            }
+        }
+        if hit && wall.is_none_or(|w| t0 < w) && best.is_none_or(|(_, bt)| t0 < bt) {
+            best = Some((*id, t0));
+        }
+    }
+    best.map(|(id, _)| id)
 }
 
 /// The creature under the crosshair, if it is nearer than the targeted block.
@@ -779,6 +874,8 @@ struct App {
     fatal: Option<String>,
     autojoined: bool,
     last_shot: Instant,
+    /// cursor position in physical pixels
+    cursor: (f64, f64),
 }
 
 fn lan_ip() -> Option<String> {
@@ -854,7 +951,12 @@ fn new_play(j: Joined) -> Play {
             .players
             .iter()
             .filter(|i| i.id != j.your_id)
-            .map(|i| (i.id, Remote::new(i.name.clone(), i.pose)))
+            .map(|i| {
+                let mut r = Remote::new(i.name.clone(), i.pose);
+                r.look = i.look;
+                r.color = i.color;
+                (i.id, r)
+            })
             .collect(),
         chat: vec![Chat {
             at: Instant::now(),
@@ -909,6 +1011,7 @@ fn new_play(j: Joined) -> Play {
         heart_clock: 0.0,
         sleeping_at: None,
         my_name: j.name.clone(),
+        my_look: Default::default(),
         class: None,
         power: 0.0,
         power_max: 0.0,
@@ -929,6 +1032,15 @@ fn new_play(j: Joined) -> Play {
         screen_tab: None,
         bar: Vec::new(),
         combat_text: Vec::new(),
+        lmb: false,
+        rmb: false,
+        drag: 0.0,
+        cam_orbit: 0.0,
+        autorun: false,
+        inv_vp: None,
+        screen_px: (1.0, 1.0),
+        hover: None,
+        world_event: None,
         hearth,
         level: 1,
         xp: 0,
@@ -959,6 +1071,17 @@ impl App {
             return;
         };
         if let Screen::Playing(p) = &mut self.screen {
+            // WoW mode: the cursor stays free; mouselook is held with a button
+            if p.wow() && on && !(p.lmb || p.rmb) {
+                p.captured = false;
+                return;
+            }
+            if p.wow() && !on {
+                let _ = win.set_cursor_grab(CursorGrabMode::None);
+                win.set_cursor_visible(true);
+                p.captured = false;
+                return;
+            }
             if on {
                 let ok = win
                     .set_cursor_grab(CursorGrabMode::Locked)
@@ -971,6 +1094,62 @@ impl App {
                 p.captured = false;
                 p.keys.clear();
             }
+        }
+    }
+
+    /// Hold a mouse button to steer: hide and lock the cursor while it is held.
+    fn set_mouselook(&mut self, on: bool) {
+        let Some(win) = self.window().cloned() else {
+            return;
+        };
+        if let Screen::Playing(p) = &mut self.screen {
+            if on {
+                let _ = win
+                    .set_cursor_grab(CursorGrabMode::Locked)
+                    .or_else(|_| win.set_cursor_grab(CursorGrabMode::Confined));
+                win.set_cursor_visible(false);
+                p.captured = true;
+            } else {
+                let _ = win.set_cursor_grab(CursorGrabMode::None);
+                win.set_cursor_visible(true);
+                p.captured = false;
+            }
+        }
+    }
+
+    /// A WoW-style click on the world: left selects, right acts.
+    fn world_click(&mut self, button: MouseButton) {
+        let Screen::Playing(p) = &mut self.screen else {
+            return;
+        };
+        let hover = p
+            .hover
+            .and_then(|id| p.entities.get(&id).map(|e| (id, e.kind)));
+        match (button, hover) {
+            (MouseButton::Left, Some((id, _))) => p.focus = Some(id),
+            (MouseButton::Right, Some((id, EntityKind::Npc(_)))) => {
+                p.focus = Some(id);
+                let _ = p.conn.tx.send(ClientMsg::Talk { entity: id });
+            }
+            (MouseButton::Right, Some((id, EntityKind::Creature(_)))) => {
+                p.focus = Some(id);
+                let _ = p.conn.tx.send(ClientMsg::AutoAttack { target: Some(id) });
+                p.swing = 1.0;
+            }
+            (MouseButton::Right, _) => {
+                let Some(t) = p.target.as_ref() else { return };
+                let pos = t.block;
+                let b = p.world.get(pos[0], pos[1], pos[2]);
+                if p.content.rule(b).respawn > 0 {
+                    let _ = p.conn.tx.send(ClientMsg::Gather { pos });
+                } else if matches!(b, w::CHEST | w::BED) {
+                    let _ = p.conn.tx.send(ClientMsg::Interact { pos });
+                } else if matches!(b, w::CRAFTING_TABLE | w::FURNACE | w::ANVIL) {
+                    p.picker_open = true;
+                    p.selected = None;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1079,7 +1258,10 @@ impl App {
                         ServerMsg::PlayerJoined(info) => {
                             self.audio.play(Sfx::Join, 0.4);
                             if info.id != p.my_id {
-                                p.remotes.insert(info.id, Remote::new(info.name, info.pose));
+                                let mut r = Remote::new(info.name, info.pose);
+                                r.look = info.look;
+                                r.color = info.color;
+                                p.remotes.insert(info.id, r);
                             }
                         }
                         ServerMsg::PlayerLeft { id } => {
@@ -1296,6 +1478,20 @@ impl App {
                                 e.name = Some(name);
                             }
                         }
+                        ServerMsg::WorldEvent {
+                            title,
+                            text,
+                            progress,
+                        } => {
+                            if title.is_empty() {
+                                p.world_event = None;
+                            } else {
+                                if p.world_event.is_none() {
+                                    self.audio.play(Sfx::Horn, 0.9);
+                                }
+                                p.world_event = Some((title, text, progress));
+                            }
+                        }
                         ServerMsg::Weather { kind, strength } => {
                             if kind != p.weather.0 {
                                 p.weather_mix = 0.0;
@@ -1345,6 +1541,7 @@ impl App {
                             release = true;
                         }
                         ServerMsg::Character {
+                            look,
                             class,
                             level,
                             xp,
@@ -1353,6 +1550,7 @@ impl App {
                             max_health,
                         } => {
                             p.class = class;
+                            p.my_look = look;
                             if class.is_some() {
                                 p.class_pick = false;
                             }
@@ -1491,7 +1689,10 @@ impl App {
         self.poll();
         let Some(gfx) = self.gfx.as_mut() else { return };
         let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
-        let fov = self.settings.fov_degrees;
+        let fov = match &self.screen {
+            Screen::Playing(p) if p.wow() => self.settings.fov_degrees.min(62.0),
+            _ => self.settings.fov_degrees,
+        };
         let far = match &self.screen {
             // fog pulls the world in
             Screen::Playing(p) if p.weather.0 == 3 => {
@@ -1527,18 +1728,44 @@ impl App {
         let mut lines: Vec<Vertex> = Vec::new();
         if let Screen::Playing(p) = &mut self.screen {
             let k = |c: KeyCode| p.keys.contains(&c);
-            let active = p.captured
-                && !p.chat_open
-                && !p.menu_open
-                && !p.picker_open
-                && p.panel.is_none()
-                && !p.class_pick
-                && p.screen_tab.is_none()
-                && p.dead.is_none();
+            let wow = p.wow();
+            let active = if wow {
+                !p.chat_open && !p.menu_open && !p.class_pick && p.dead.is_none()
+            } else {
+                p.captured
+                    && !p.chat_open
+                    && !p.menu_open
+                    && !p.picker_open
+                    && p.panel.is_none()
+                    && !p.class_pick
+                    && p.screen_tab.is_none()
+                    && p.dead.is_none()
+            };
+            if wow {
+                p.player.auto_step = true;
+                p.player.run_speed = 6.2;
+                // A and D turn unless steering with the right button; Q and E always strafe
+                if active && !p.rmb {
+                    let turn = (k(KeyCode::KeyA) as i32 - k(KeyCode::KeyD) as i32) as f32;
+                    p.player.yaw += turn * 2.6 * dt;
+                }
+            }
             let input = if active {
                 Input {
-                    forward: (k(KeyCode::KeyW) as i32 - k(KeyCode::KeyS) as i32) as f32,
-                    right: (k(KeyCode::KeyD) as i32 - k(KeyCode::KeyA) as i32) as f32,
+                    forward: if wow && ((p.lmb && p.rmb) || p.autorun) && !k(KeyCode::KeyS) {
+                        1.0
+                    } else {
+                        (k(KeyCode::KeyW) as i32 - k(KeyCode::KeyS) as i32) as f32
+                    },
+                    right: if wow && !p.rmb {
+                        (k(KeyCode::KeyE) as i32 - k(KeyCode::KeyQ) as i32) as f32
+                    } else if wow {
+                        ((k(KeyCode::KeyD) || k(KeyCode::KeyE)) as i32
+                            - (k(KeyCode::KeyA) || k(KeyCode::KeyQ)) as i32)
+                            as f32
+                    } else {
+                        (k(KeyCode::KeyD) as i32 - k(KeyCode::KeyA) as i32) as f32
+                    },
                     jump: k(KeyCode::Space),
                     down: k(KeyCode::ShiftLeft) || k(KeyCode::ShiftRight),
                     sprint: (k(KeyCode::ControlLeft) || k(KeyCode::KeyR))
@@ -1621,7 +1848,7 @@ impl App {
                 }
             }
             // mining: hold the left button on a block
-            let can_mine = active && p.mouse_left && !p.creative();
+            let can_mine = active && p.mouse_left && !p.creative() && !p.wow();
             let target_block = p
                 .target
                 .as_ref()
@@ -1717,8 +1944,34 @@ impl App {
                 p.last_pose = Instant::now();
                 let _ = p.conn.tx.send(ClientMsg::Pose(p.player.pose()));
             }
-            p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
-            p.target_entity = pick_entity(p);
+            if p.wow() {
+                // what is under the mouse cursor (blocks only within reach of you)
+                if let Some((o, d)) = p.cursor_ray(self.cursor) {
+                    let reach = p.zoom + 8.0;
+                    p.target = game::raycast(&p.world, o, d, reach).filter(|t| {
+                        let c = Vec3::new(
+                            t.block[0] as f32 + 0.5,
+                            t.block[1] as f32 + 0.5,
+                            t.block[2] as f32 + 0.5,
+                        );
+                        c.distance(p.player.eye()) <= 6.5
+                    });
+                    p.hover = pick_entity_ray(p, o, d, reach + 30.0);
+                } else {
+                    p.target = None;
+                    p.hover = None;
+                }
+                p.target_entity = p.hover;
+                // walking swings the camera back behind you
+                let moving = input.forward != 0.0 || input.right != 0.0;
+                if moving && !p.lmb {
+                    p.cam_orbit *= 1.0 - (dt * 3.0).min(1.0);
+                }
+            } else {
+                p.target =
+                    game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+                p.target_entity = pick_entity(p);
+            }
             let light_at = |l: &Light, v: Vec3| {
                 l.get(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32) as f32 / 15.0
             };
@@ -1728,7 +1981,8 @@ impl App {
                 let base = Vec3::from(pose.pos);
                 let bl = light_at(&p.light, base + Vec3::Y);
                 let walk = (r.speed() / 4.0).min(1.0);
-                let look = models::Look::player(name_seed(&r.name), game::player_color(*id));
+                let _ = id;
+                let look = models::Look::from_appearance(&r.look, r.color);
                 models::push_person(
                     &mut boxes,
                     base,
@@ -1874,7 +2128,14 @@ impl App {
                 );
             }
             p.particles.retain(|pt| pt.life > 0.0);
-            if let Some(t) = &p.target {
+            let outline = p.target.as_ref().filter(|t| {
+                !p.wow()
+                    || p.content
+                        .rule(p.world.get(t.block[0], t.block[1], t.block[2]))
+                        .respawn
+                        > 0
+            });
+            if let Some(t) = outline {
                 let b = Vec3::new(t.block[0] as f32, t.block[1] as f32, t.block[2] as f32);
                 let (lo, hi) = (b - Vec3::splat(0.002), b + Vec3::splat(1.002));
                 let cs = [
@@ -1968,7 +2229,7 @@ impl App {
                 }
             }
             // camera with view bob
-            let dir = p.player.look_dir();
+            let dir = p.cam_dir();
             let right = dir.cross(Vec3::Y).normalize_or_zero();
             let up = right.cross(dir);
             let bob_amt = if p.player.on_ground && !p.player.flying {
@@ -2005,8 +2266,8 @@ impl App {
                 p.held()
             };
             if !first_person {
-                let mut look = models::Look::player(
-                    name_seed(&p.my_name),
+                let mut look = models::Look::from_appearance(
+                    &p.my_look,
                     p.class
                         .and_then(|c| p.content.class(c))
                         .map(|c| c.color)
@@ -2103,6 +2364,8 @@ impl App {
                 }
             }
             view = Some((vp, eye, far));
+            p.inv_vp = Some(vp.inverse());
+            p.screen_px = (wdt, hgt);
             p.fps.1 += 1;
             if p.fps.0.elapsed() >= Duration::from_secs(1) {
                 p.fps = (Instant::now(), 0, p.fps.1);
@@ -2308,14 +2571,18 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
-        if p.chat_open
-            || p.menu_open
-            || p.picker_open
-            || p.panel.is_some()
-            || p.class_pick
-            || p.screen_tab.is_some()
-            || p.dead.is_some()
-        {
+        let blocked = if p.wow() {
+            p.chat_open || p.menu_open || p.class_pick || p.dead.is_some()
+        } else {
+            p.chat_open
+                || p.menu_open
+                || p.picker_open
+                || p.panel.is_some()
+                || p.class_pick
+                || p.screen_tab.is_some()
+                || p.dead.is_some()
+        };
+        if blocked {
             return;
         }
         if pressed {
@@ -2326,11 +2593,26 @@ impl App {
         if !pressed || repeat {
             return;
         }
+        if p.wow() && matches!(code, KeyCode::KeyW | KeyCode::KeyS) {
+            p.autorun = false;
+        }
         match code {
+            KeyCode::Escape
+                if p.wow() && (p.panel.is_some() || p.screen_tab.is_some() || p.picker_open) =>
+            {
+                p.panel = None;
+                p.screen_tab = None;
+                p.picker_open = false;
+            }
+            KeyCode::Escape if p.wow() && p.focus.is_some() => {
+                p.focus = None;
+                let _ = p.conn.tx.send(ClientMsg::AutoAttack { target: None });
+            }
             KeyCode::Escape => {
                 p.menu_open = true;
                 self.set_capture(false);
             }
+            KeyCode::KeyR if p.wow() => p.autorun = !p.autorun,
             KeyCode::KeyT | KeyCode::Enter | KeyCode::Slash => {
                 p.chat_open = true;
                 p.focus_chat = true;
@@ -2357,12 +2639,18 @@ impl App {
             KeyCode::KeyC | KeyCode::KeyB | KeyCode::KeyP | KeyCode::KeyK
                 if p.content.world.protected =>
             {
-                p.screen_tab = Some(match code {
+                let tab = match code {
                     KeyCode::KeyC => screens::Tab::Character,
                     KeyCode::KeyB => screens::Tab::Bags,
                     KeyCode::KeyP => screens::Tab::Spellbook,
                     _ => screens::Tab::Skills,
-                });
+                };
+                // the same key closes it again
+                p.screen_tab = if p.screen_tab == Some(tab) {
+                    None
+                } else {
+                    Some(tab)
+                };
                 self.set_capture(false);
             }
             KeyCode::KeyE if p.content.world.protected && !p.creative() => {
@@ -2370,13 +2658,17 @@ impl App {
                 self.set_capture(false);
             }
             KeyCode::KeyL => {
-                p.panel = Some(rpg_ui::Panel::Log { quest: None });
+                p.panel = if matches!(p.panel, Some(rpg_ui::Panel::Log { .. })) {
+                    None
+                } else {
+                    Some(rpg_ui::Panel::Log { quest: None })
+                };
                 self.set_capture(false);
             }
             KeyCode::Tab => {
                 // the nearest creature in front of us
                 let eye = p.player.eye();
-                let dir = p.player.look_dir();
+                let dir = p.cam_dir();
                 p.focus = p
                     .entities
                     .iter()
@@ -2778,8 +3070,20 @@ fn hud(
         egui::Id::new("hud"),
     ));
     let c = screen.center();
+    // the cursor shows what a click will do
+    if p.wow() && !p.captured {
+        let icon = match p.hover.and_then(|id| p.entities.get(&id)).map(|e| e.kind) {
+            Some(EntityKind::Creature(_)) => egui::CursorIcon::Crosshair,
+            Some(EntityKind::Npc(_)) => egui::CursorIcon::Help,
+            _ if p.target.is_some() => egui::CursorIcon::Grab,
+            _ => egui::CursorIcon::Default,
+        };
+        if !ctx.is_pointer_over_area() {
+            ctx.set_cursor_icon(icon);
+        }
+    }
     // crosshair
-    if p.captured {
+    if p.captured && !p.wow() {
         let s = Stroke::new(2.0_f32, Color32::from_white_alpha(220));
         painter.line_segment([c - Vec2::new(9.0, 0.0), c + Vec2::new(9.0, 0.0)], s);
         painter.line_segment([c - Vec2::new(0.0, 9.0), c + Vec2::new(0.0, 9.0)], s);
@@ -2984,6 +3288,44 @@ fn hud(
             }
         }
         rpg_ui::tracker(&painter, screen, &me);
+    }
+    // a world event in progress: an orange tracker box at the right
+    if let Some((title, text, prog)) = &p.world_event {
+        let r = Rect::from_min_size(
+            Pos2::new(screen.right() - 300.0, screen.top() + 120.0),
+            Vec2::new(284.0, 58.0),
+        );
+        painter.rect_filled(r, 6.0, Color32::from_black_alpha(170));
+        painter.rect_stroke(
+            r,
+            6.0,
+            Stroke::new(1.5_f32, Color32::from_rgb(230, 140, 40)),
+            egui::StrokeKind::Inside,
+        );
+        painter.text(
+            r.min + Vec2::new(10.0, 6.0),
+            Align2::LEFT_TOP,
+            title,
+            FontId::proportional(15.0),
+            Color32::from_rgb(255, 180, 70),
+        );
+        painter.text(
+            r.min + Vec2::new(10.0, 25.0),
+            Align2::LEFT_TOP,
+            text,
+            FontId::proportional(12.0),
+            Color32::from_gray(225),
+        );
+        let bar = Rect::from_min_size(r.min + Vec2::new(10.0, 44.0), Vec2::new(264.0, 6.0));
+        painter.rect_filled(bar, 2.0, Color32::from_black_alpha(200));
+        painter.rect_filled(
+            Rect::from_min_size(
+                bar.min,
+                Vec2::new(bar.width() * prog.clamp(0.0, 1.0), bar.height()),
+            ),
+            2.0,
+            Color32::from_rgb(230, 140, 40),
+        );
     }
     // floating XP and money
     p.floaters
@@ -3488,6 +3830,8 @@ fn hud(
     if let Some((a, start, secs)) = p.my_cast {
         let name = if a == dyno_protocol::RECALL {
             "Recall".to_string()
+        } else if a == dyno_protocol::GATHER {
+            "Gathering".to_string()
         } else {
             p.content
                 .ability(a)
@@ -3657,12 +4001,22 @@ fn hud(
             host_panel(ui, host, actions);
             ui.add_space(6.0);
             ui.label(RichText::new(format!("Connected to {}", p.url)).small().weak());
-            ui.label(RichText::new("Controls: WASD move · Space jump · Shift down when flying · Ctrl or R sprint · F fly · left click break · right click place · middle click pick · 1-9 or wheel blocks · E all blocks · G corner, V fill, X clear · Ctrl+Z undo · T chat · Tab players").small().weak());
+            let controls = if p.wow() {
+                "Controls: hold right mouse to steer · hold left mouse to look around · both to run · W S move · A D turn · Q E strafe · R autorun · wheel zoom · left click select · right click attack, talk or gather · Tab target · 1-0 - = abilities · C B P K L windows · T chat"
+            } else {
+                "Controls: WASD move · Space jump · Shift down when flying · Ctrl or R sprint · F fly · left click break · right click place · middle click pick · 1-9 or wheel blocks · E all blocks · G corner, V fill, X clear · Ctrl+Z undo · T chat · Tab players"
+            };
+            ui.label(RichText::new(controls).small().weak());
             if ui.button("Leave server").clicked() {
                 actions.push(Action::Disconnect);
             }
         });
-    } else if !p.captured && !p.chat_open && !p.picker_open && p.panel.is_none() && p.dead.is_none()
+    } else if !p.wow()
+        && !p.captured
+        && !p.chat_open
+        && !p.picker_open
+        && p.panel.is_none()
+        && p.dead.is_none()
     {
         egui::Area::new(egui::Id::new("click"))
             .anchor(Align2::CENTER_CENTER, Vec2::new(0.0, 40.0))
@@ -3740,6 +4094,9 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::RedrawRequested => self.frame(),
+            WindowEvent::CursorMoved { position, .. } => {
+                self.cursor = (position.x, position.y);
+            }
             WindowEvent::Focused(false) => self.set_capture(false),
             WindowEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(code) = event.physical_key {
@@ -3753,8 +4110,58 @@ impl ApplicationHandler for App {
                             p.keys.remove(&code);
                         }
                     }
-                    if captured {
+                    let wow_free = matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.chat_open && !p.menu_open)
+                        && !self.egui_ctx.wants_keyboard_input();
+                    if captured || wow_free {
                         self.key(code, pressed, event.repeat);
+                    }
+                }
+            }
+            WindowEvent::MouseInput {
+                state,
+                button: button @ (MouseButton::Left | MouseButton::Right),
+                ..
+            } if matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.menu_open && !p.chat_open && !p.class_pick && p.dead.is_none()) =>
+            {
+                let over_ui =
+                    self.egui_ctx.is_pointer_over_area() || self.egui_ctx.wants_pointer_input();
+                let Screen::Playing(p) = &mut self.screen else {
+                    return;
+                };
+                let held = p.lmb || p.rmb;
+                if state == ElementState::Pressed {
+                    if over_ui && !held {
+                        return; // the interface has it
+                    }
+                    if !held {
+                        p.drag = 0.0;
+                    }
+                    if button == MouseButton::Right {
+                        p.rmb = true;
+                        // the character turns to where the camera looks
+                        p.player.yaw += p.cam_orbit;
+                        p.cam_orbit = 0.0;
+                    } else {
+                        p.lmb = true;
+                    }
+                    if !held {
+                        self.set_mouselook(true);
+                    }
+                } else {
+                    if !held {
+                        return;
+                    }
+                    if button == MouseButton::Right {
+                        p.rmb = false;
+                    } else {
+                        p.lmb = false;
+                    }
+                    let click = p.drag < 6.0;
+                    if !(p.lmb || p.rmb) {
+                        self.set_mouselook(false);
+                        if click {
+                            self.world_click(button);
+                        }
                     }
                 }
             }
@@ -3796,7 +4203,11 @@ impl ApplicationHandler for App {
                     self.click(button);
                 }
             }
-            WindowEvent::MouseWheel { delta, .. } if captured => {
+            WindowEvent::MouseWheel { delta, .. }
+                if captured
+                    || (matches!(&self.screen, Screen::Playing(p) if p.wow())
+                        && !self.egui_ctx.is_pointer_over_area()) =>
+            {
                 if let Screen::Playing(p) = &mut self.screen {
                     let d = match delta {
                         MouseScrollDelta::LineDelta(_, y) => y,
@@ -3826,6 +4237,16 @@ impl ApplicationHandler for App {
             && !p.chat_open
         {
             let s = 0.0025 * self.settings.mouse_sensitivity;
+            if p.wow() {
+                p.drag += (delta.0.abs() + delta.1.abs()) as f32;
+                if p.rmb {
+                    p.player.yaw -= delta.0 as f32 * s;
+                } else {
+                    p.cam_orbit -= delta.0 as f32 * s;
+                }
+                p.player.pitch = (p.player.pitch - delta.1 as f32 * s).clamp(-1.4, 1.4);
+                return;
+            }
             p.player.yaw -= delta.0 as f32 * s;
             p.player.pitch = (p.player.pitch - delta.1 as f32 * s).clamp(-1.55, 1.55);
         }
@@ -3894,6 +4315,7 @@ pub fn shot_with_ui(
                     );
                 }
                 ServerMsg::Character {
+                    look,
                     class,
                     level,
                     xp,
@@ -3902,6 +4324,7 @@ pub fn shot_with_ui(
                     max_health,
                 } => {
                     p.class = class;
+                    p.my_look = look;
                     if class.is_some() {
                         p.class_pick = false;
                     }
@@ -4040,8 +4463,8 @@ pub fn shot_with_ui(
         }
     }
     if p.zoom > 0.5 {
-        let mut look = models::Look::player(
-            name_seed(&p.my_name),
+        let mut look = models::Look::from_appearance(
+            &p.my_look,
             p.class
                 .and_then(|c| p.content.class(c))
                 .map(|c| c.color)

@@ -30,6 +30,12 @@ pub struct Player {
     pub pitch: f32,
     pub on_ground: bool,
     pub flying: bool,
+    /// walk up one-block steps without jumping (RPG worlds)
+    pub auto_step: bool,
+    /// visual lag after stepping up, eased back to 0 so the camera glides
+    pub step_offset: f32,
+    /// base running speed (no sprint in RPG worlds)
+    pub run_speed: f32,
 }
 
 impl Player {
@@ -41,6 +47,9 @@ impl Player {
             pitch: 0.0,
             on_ground: false,
             flying: false,
+            auto_step: false,
+            step_offset: 0.0,
+            run_speed: 4.4,
         }
     }
 
@@ -88,7 +97,7 @@ impl Player {
         } else if input.sprint {
             6.4
         } else {
-            4.4
+            self.run_speed
         } * if in_water && !self.flying { 0.55 } else { 1.0 }
             * if sneaking { 0.35 } else { 1.0 };
         let target = wish * speed;
@@ -116,6 +125,8 @@ impl Player {
             }
             self.vel.y = self.vel.y.max(-60.0);
         }
+        let was_on_ground = self.on_ground;
+        self.step_offset = (self.step_offset - dt * 6.0).max(0.0);
         self.on_ground = false;
         for axis in [1usize, 0, 2] {
             let mut d = self.vel[axis] * dt;
@@ -135,6 +146,17 @@ impl Player {
                     break;
                 }
                 if self.collides(world, next) {
+                    // step up onto a one-block ledge instead of stopping
+                    if axis != 1 && self.auto_step && was_on_ground && !self.flying {
+                        let up = Vec3::new(next.x, self.pos.y.floor() + 1.0 + 1e-3, next.z);
+                        let rise = up.y - self.pos.y;
+                        if rise > 0.0 && rise <= 1.05 && !self.collides(world, up) {
+                            self.pos = up;
+                            self.step_offset = (self.step_offset + rise).min(1.0);
+                            self.on_ground = true;
+                            continue;
+                        }
+                    }
                     if axis == 1 && step < 0.0 {
                         self.on_ground = true;
                         // snap to the top of the block
@@ -283,6 +305,9 @@ pub fn raycast(world: &World, origin: Vec3, dir: Vec3, max: f32) -> Option<Targe
 /// Another player, drawn between the last two poses received.
 pub struct Remote {
     pub name: String,
+    /// how they chose to look, and their class colour
+    pub look: dyno_protocol::Appearance,
+    pub color: [f32; 3],
     from: Pose,
     to: Pose,
     at: Instant,
@@ -292,6 +317,8 @@ impl Remote {
     pub fn new(name: String, pose: Pose) -> Self {
         Remote {
             name,
+            look: Default::default(),
+            color: [0.5, 0.5, 0.6],
             from: pose,
             to: pose,
             at: Instant::now(),

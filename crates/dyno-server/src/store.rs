@@ -50,6 +50,14 @@ pub struct PlayerData {
     #[serde(default)]
     pub skills: Vec<(String, u16)>,
     #[serde(default)]
+    pub look: dyno_protocol::Appearance,
+    /// the name as the player wrote it
+    #[serde(default)]
+    pub name: String,
+    /// the named place they were last in
+    #[serde(default)]
+    pub zone: String,
+    #[serde(default)]
     pub power: f32,
 }
 
@@ -117,6 +125,9 @@ impl PlayerData {
             power: 0.0,
             equip: Vec::new(),
             skills: Vec::new(),
+            look: Default::default(),
+            name: String::new(),
+            zone: String::new(),
         }
     }
 }
