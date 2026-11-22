@@ -350,3 +350,64 @@ pub fn player_color(id: PlayerId) -> [f32; 3] {
 }
 
 pub type Remotes = HashMap<PlayerId, Remote>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn platform() -> World {
+        let mut w = World::empty([16, 16, 16]);
+        for x in 4..8 {
+            for z in 4..8 {
+                w.set(x, 5, z, w::STONE);
+            }
+        }
+        w
+    }
+
+    #[test]
+    fn sneaking_stops_at_the_edge() {
+        let w = platform();
+        let mut p = Player::new([6.0, 6.0, 6.0]);
+        p.yaw = std::f32::consts::FRAC_PI_2; // facing -x
+        for _ in 0..120 {
+            p.update(
+                &w,
+                Input {
+                    forward: 1.0,
+                    down: true,
+                    ..Default::default()
+                },
+                1.0 / 60.0,
+            );
+        }
+        assert!(p.pos.y > 5.9, "fell off: {:?}", p.pos);
+        assert!(p.pos.x > 3.5, "walked off the edge: {:?}", p.pos);
+    }
+
+    #[test]
+    fn walking_falls_off_the_edge() {
+        let w = platform();
+        let mut p = Player::new([6.0, 6.0, 6.0]);
+        p.yaw = std::f32::consts::FRAC_PI_2;
+        for _ in 0..120 {
+            p.update(
+                &w,
+                Input {
+                    forward: 1.0,
+                    ..Default::default()
+                },
+                1.0 / 60.0,
+            );
+        }
+        assert!(p.pos.y < 5.9, "should have fallen: {:?}", p.pos);
+    }
+
+    #[test]
+    fn raycast_hits_the_block_in_front() {
+        let w = platform();
+        let t = raycast(&w, Vec3::new(6.5, 8.0, 6.5), Vec3::new(0.0, -1.0, 0.0), 6.0).expect("hit");
+        assert_eq!(t.block, [6, 5, 6]);
+        assert_eq!(t.place, [6, 6, 6]);
+    }
+}
