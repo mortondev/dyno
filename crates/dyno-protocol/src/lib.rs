@@ -42,7 +42,7 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 5;
+pub const PROTOCOL_VERSION: u32 = 6;
 
 /// Default TCP port of the game server.
 pub const DEFAULT_PORT: u16 = 7400;
@@ -257,6 +257,11 @@ pub enum ServerMsg {
     },
     /// New content (after /reload).
     Content(Box<Content>),
+    /// Dusk is coming (`dusk`), or a new day started (`day` is its number).
+    DayEvent {
+        dusk: bool,
+        day: u32,
+    },
     /// The block a player is breaking, for the crack effect (None when they stop).
     Digging {
         player: PlayerId,

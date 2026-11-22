@@ -11,9 +11,10 @@ USAGE:
   dyno connect <address>       Open the game with the server address filled in
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
                                [--creative] [--content FILE.json] [--op NAME]...
+                               [--webhook DISCORD_URL] (or DYNO_WEBHOOK)
                                Run a dedicated game server
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
-  dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out f.ppm]
+  dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
                                [--ui hud|pack|dig|dead] [--as NAME]
                                Join, render one frame off-screen to an image, leave
   dyno bot <address> [name] [seconds]
@@ -135,8 +136,14 @@ fn main() {
                     "--pos" => o.pos = nums(&v).try_into().ok(),
                     "--look" => {
                         let n = nums(&v);
-                        o.yaw = n.first().copied().unwrap_or(0.0);
-                        o.pitch = n.get(1).copied().unwrap_or(0.0);
+                        // degrees: yaw 0 faces north (-z), 90 west; pitch up is positive
+                        o.yaw = n.first().copied().unwrap_or(0.0).to_radians();
+                        o.pitch = n
+                            .get(1)
+                            .copied()
+                            .unwrap_or(0.0)
+                            .to_radians()
+                            .clamp(-1.55, 1.55);
                     }
                     "--time" => o.time = v.parse().ok(),
                     "--size" => {
@@ -369,9 +376,16 @@ fn run_server(args: &[String]) {
                 cfg.ops.push(val());
                 i += 1;
             }
+            "--webhook" => {
+                cfg.webhook = Some(val());
+                i += 1;
+            }
             other => fail(&format!("unknown server option {other}")),
         }
         i += 1;
+    }
+    if cfg.webhook.is_none() {
+        cfg.webhook = std::env::var("DYNO_WEBHOOK").ok().filter(|u| !u.is_empty());
     }
     cfg.bind = format!("{bind}:{port}")
         .parse()

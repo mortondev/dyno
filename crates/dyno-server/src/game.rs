@@ -20,7 +20,8 @@ use std::time::{Duration, Instant};
 
 pub const CHEST_SLOTS: usize = 27;
 const REACH: f32 = 7.5;
-const ITEM_LIFE: Duration = Duration::from_secs(300);
+/// Items on the ground, including death piles, last this long.
+const ITEM_LIFE: Duration = Duration::from_secs(30 * 60);
 
 pub fn log(msg: impl AsRef<str>) {
     let t = std::time::SystemTime::now()
@@ -51,6 +52,12 @@ pub struct Player {
     pub hunger_clock: f32,
     pub regen_clock: f32,
     pub saw_night: bool,
+    pub last_attack: Instant,
+    pub shade_timer: f32,
+    pub grazer_timer: f32,
+    pub last_seen: u64,
+    /// Shades ignore this player until then (after joining or respawning)
+    pub safe_until: Instant,
 }
 
 impl Player {
@@ -60,7 +67,7 @@ impl Player {
     fn eye(&self) -> [f32; 3] {
         [self.pose.pos[0], self.pose.pos[1] + 1.62, self.pose.pos[2]]
     }
-    fn send(&self, msg: &ServerMsg) {
+    pub(crate) fn send(&self, msg: &ServerMsg) {
         let _ = self.tx.send(Arc::new(proto::encode(msg)));
     }
     fn status(&self) -> ServerMsg {
@@ -71,7 +78,7 @@ impl Player {
             fuel: self.fuel,
         }
     }
-    fn held_tool<'a>(&self, c: &'a Content) -> Option<&'a dyno_world::content::Tool> {
+    pub(crate) fn held_tool<'a>(&self, c: &'a Content) -> Option<&'a dyno_world::content::Tool> {
         self.pack
             .slots
             .get(self.held as usize)
@@ -89,6 +96,8 @@ pub struct Entity {
     pub born: Instant,
     pub pickup_after: Instant,
     pub moved: bool,
+    /// set for creatures
+    pub mob: Option<crate::creatures::Mob>,
 }
 
 pub struct State {
@@ -104,10 +113,35 @@ pub struct State {
     pub entities: HashMap<u32, Entity>,
     pub next_entity: u32,
     pub rng: Rng,
-    pub time_at_base: f32,
-    pub time_base: Instant,
+    /// time of day: 0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight
+    pub clock: f32,
+    /// day number, starting at 1
+    pub day: u32,
     pub default_mode: Mode,
     pub ops: Vec<String>,
+    /// the first player on a new world; may use operator commands
+    pub owner: Option<String>,
+    pub light: dyno_world::light::Light,
+    pub hearths: Vec<[i32; 3]>,
+    /// recent notable events, for players who were away: (unix seconds, text)
+    pub events: std::collections::VecDeque<(u64, String)>,
+    pub webhook: Option<Sender<String>>,
+    pub meta_dirty: bool,
+}
+
+pub fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
+/// Day takes 10.8 minutes and night 5: the clock runs faster at night.
+const DAY_RATE: f32 = 0.54 / (10.8 * 60.0);
+const NIGHT_RATE: f32 = 0.46 / (5.0 * 60.0);
+
+pub fn is_night_at(t: f32) -> bool {
+    t > 0.52 && t < 0.98
 }
 
 /// Length of one in-game day.
@@ -123,16 +157,81 @@ fn center(p: [i32; 3]) -> [f32; 3] {
 
 impl State {
     pub fn time(&self) -> f32 {
-        (self.time_at_base + self.time_base.elapsed().as_secs_f32() / DAY_SECONDS).rem_euclid(1.0)
+        self.clock
     }
     pub fn is_night(&self) -> bool {
-        let t = self.time();
-        t > 0.52 && t < 0.98
+        is_night_at(self.clock)
     }
+    fn rate(&self) -> f32 {
+        if self.is_night() {
+            NIGHT_RATE
+        } else {
+            DAY_RATE
+        }
+    }
+    /// The time and how fast it moves now (as a day length), for clients.
     pub fn time_msg(&self) -> ServerMsg {
         ServerMsg::Time {
-            time: self.time(),
-            day_seconds: DAY_SECONDS,
+            time: self.clock,
+            day_seconds: 1.0 / self.rate(),
+        }
+    }
+    pub fn set_time(&mut self, t: f32) {
+        self.clock = t.rem_euclid(1.0);
+        let m = self.time_msg();
+        self.broadcast(&m, None);
+    }
+
+    /// Advance the clock. It stops while nobody is playing.
+    fn tick_clock(&mut self, dt: f32) {
+        if !self.players.values().any(|p| !p.away()) {
+            return;
+        }
+        let before = self.clock;
+        let was_night = self.is_night();
+        self.clock = (self.clock + dt * self.rate()).rem_euclid(1.0);
+        if was_night != self.is_night() {
+            let m = self.time_msg();
+            self.broadcast(&m, None);
+        }
+        if before < 0.47 && self.clock >= 0.47 {
+            self.broadcast(
+                &ServerMsg::DayEvent {
+                    dusk: true,
+                    day: self.day,
+                },
+                None,
+            );
+            self.broadcast(
+                &ServerMsg::System {
+                    text: "Dusk is coming. Find light.".into(),
+                },
+                None,
+            );
+        }
+        if self.clock < before {
+            self.day += 1;
+            self.meta_dirty = true;
+            self.broadcast(
+                &ServerMsg::DayEvent {
+                    dusk: false,
+                    day: self.day,
+                },
+                None,
+            );
+            self.event(format!("Day {} dawns in the valley.", self.day));
+        }
+    }
+
+    /// Record a notable event: chat line, Discord, and the away replay.
+    pub fn event(&mut self, text: String) {
+        self.broadcast(&ServerMsg::System { text: text.clone() }, None);
+        if let Some(w) = &self.webhook {
+            let _ = w.send(text.clone());
+        }
+        self.events.push_back((now_secs(), text));
+        while self.events.len() > 40 {
+            self.events.pop_front();
         }
     }
 
@@ -158,7 +257,12 @@ impl State {
     }
 
     pub fn may_op(&self, name: &str) -> bool {
-        self.ops.is_empty() || self.ops.iter().any(|o| o.eq_ignore_ascii_case(name))
+        self.ops.iter().any(|o| o.eq_ignore_ascii_case(name))
+            || self
+                .owner
+                .as_deref()
+                .is_some_and(|o| o.eq_ignore_ascii_case(name))
+            || (self.ops.is_empty() && self.owner.is_none())
     }
 
     // ---------------- joining and leaving ----------------
@@ -215,6 +319,11 @@ impl State {
             hunger_clock: 0.0,
             regen_clock: 0.0,
             saw_night: false,
+            last_attack: Instant::now(),
+            shade_timer: 10.0,
+            grazer_timer: 0.0,
+            last_seen: data.last_seen,
+            safe_until: Instant::now() + Duration::from_secs(10),
         };
         let others: Vec<PlayerInfo> = self
             .players
@@ -257,13 +366,35 @@ impl State {
             }),
             None,
         );
-        self.broadcast(
-            &ServerMsg::System {
-                text: format!("{name} joined"),
-            },
-            None,
-        );
+        let empty = self.players.is_empty();
+        let last = p.last_seen;
+        let missed: Vec<String> = self
+            .events
+            .iter()
+            .filter(|(t, _)| last > 0 && *t > last)
+            .map(|(_, e)| e.clone())
+            .collect();
+        self.event(format!("{name} joined"));
         self.players.insert(id, p);
+        if empty && self.is_night() {
+            // every session starts at dawn
+            self.set_time(0.0);
+        }
+        if self.owner.is_none() && self.ops.is_empty() {
+            self.owner = Some(name.to_string());
+            self.meta_dirty = true;
+            after.push(ServerMsg::System { text: "You are the first player here, so you own this world: you can use /gamemode, /time, /give and /reload.".into() });
+        }
+        if !missed.is_empty() {
+            after.push(ServerMsg::System {
+                text: "While you were away:".into(),
+            });
+            for e in missed.iter().rev().take(10).rev() {
+                after.push(ServerMsg::System {
+                    text: format!("  {e}"),
+                });
+            }
+        }
         Ok((id, [vec![welcome], after].concat()))
     }
 
@@ -283,6 +414,7 @@ impl State {
 
     pub fn remember(&mut self, p: &Player) {
         let data = PlayerData {
+            last_seen: now_secs(),
             token: p.token,
             mode: p.mode,
             health: p.health,
@@ -368,7 +500,7 @@ impl State {
             ClientMsg::Throw { from, count } => self.throw(id, from, count),
             ClientMsg::Craft { recipe, times } => self.craft(id, recipe, times.clamp(1, 64)),
             ClientMsg::UseHeld => self.use_held(id),
-            ClientMsg::Attack { entity: _ } => {}
+            ClientMsg::Attack { entity } => self.attack(id, entity),
             ClientMsg::Interact { pos } => self.interact(id, pos),
             ClientMsg::CloseContainer => {
                 self.players.get_mut(&id).unwrap().container = None;
@@ -402,7 +534,17 @@ impl State {
     }
 
     pub fn set_block(&mut self, pos: [i32; 3], block: u8) {
-        self.world.set(pos[0], pos[1], pos[2], block);
+        let old = self.world.get(pos[0], pos[1], pos[2]);
+        if old == w::HEARTH {
+            self.hearths.retain(|h| *h != pos);
+        }
+        if block == w::HEARTH {
+            self.hearths.push(pos);
+        }
+        if old != block {
+            self.world.set(pos[0], pos[1], pos[2], block);
+            self.light.changed(&self.world, pos);
+        }
         self.dirty = true;
         self.broadcast(&ServerMsg::Block { pos, block }, None);
     }
@@ -517,6 +659,18 @@ impl State {
     }
 
     fn fill(&mut self, id: PlayerId, a: [i32; 3], b: [i32; 3], block: u8) -> Result<(), String> {
+        let r = self.fill_inner(id, a, b, block);
+        self.hearths = crate::creatures::find_hearths(&self.world);
+        r
+    }
+
+    fn fill_inner(
+        &mut self,
+        id: PlayerId,
+        a: [i32; 3],
+        b: [i32; 3],
+        block: u8,
+    ) -> Result<(), String> {
         if block >= w::BLOCK_COUNT {
             return Err(format!("unknown block {block}"));
         }
@@ -563,6 +717,7 @@ impl State {
             }
         }
         self.dirty = true;
+        self.light.changed_box(&self.world, lo, hi);
         log(format!(
             "{} filled {vol} cells with {}",
             self.players[&id].name,
@@ -821,7 +976,11 @@ impl State {
         if p.health <= 0.0 {
             p.dead = true;
             p.container = None;
-            let items = p.pack.drain();
+            // keep the hotbar; the rest stays where you fell
+            let items: Vec<Stack> = p.pack.slots[9..]
+                .iter_mut()
+                .filter_map(|s| s.take())
+                .collect();
             let pos = p.pose.pos;
             let name = p.name.clone();
             p.send(&ServerMsg::Pack(p.pack.slots.clone()));
@@ -831,12 +990,7 @@ impl State {
             for s in items {
                 self.spawn_item([pos[0], pos[1] + 0.5, pos[2]], s, 0.35);
             }
-            self.broadcast(
-                &ServerMsg::System {
-                    text: format!("{name} {cause}."),
-                },
-                None,
-            );
+            self.event(format!("{name} {cause}."));
         }
     }
 
@@ -848,7 +1002,8 @@ impl State {
         }
         p.dead = false;
         p.health = 20.0;
-        p.food = 20.0;
+        p.food = p.food.max(10.0);
+        p.safe_until = Instant::now() + Duration::from_secs(10);
         let to = p.spawn.unwrap_or(spawn);
         p.pose.pos = to;
         p.send(&ServerMsg::Teleport { pos: to });
@@ -875,12 +1030,7 @@ impl State {
             title: m.title.clone(),
         });
         let name = p.name.clone();
-        self.broadcast(
-            &ServerMsg::System {
-                text: format!("{name} reached {}", m.title),
-            },
-            None,
-        );
+        self.event(format!("{name} reached {}", m.title));
     }
 
     // ---------------- items in the world ----------------
@@ -903,6 +1053,7 @@ impl State {
             born: Instant::now(),
             pickup_after: Instant::now() + Duration::from_millis(500),
             moved: true,
+            mob: None,
         };
         self.broadcast(
             &ServerMsg::EntitySpawn {
@@ -925,7 +1076,10 @@ impl State {
 
     /// Advance the world by `dt` seconds.
     pub fn tick(&mut self, dt: f32) {
+        self.tick_clock(dt);
         self.tick_items(dt);
+        self.tick_creatures(dt);
+        self.spawn_creatures(dt);
         self.tick_players(dt);
     }
 
@@ -1046,7 +1200,6 @@ impl State {
 
     fn tick_players(&mut self, dt: f32) {
         let night = self.is_night();
-        let mut starving = Vec::new();
         let mut milestones = Vec::new();
         for (id, p) in self.players.iter_mut() {
             if p.mode == Mode::Creative || p.dead {
@@ -1065,7 +1218,7 @@ impl State {
             let mut changed = false;
             // hunger drains slowly
             p.hunger_clock += dt;
-            if p.hunger_clock >= 45.0 {
+            if p.hunger_clock >= 60.0 {
                 p.hunger_clock = 0.0;
                 p.food = (p.food - 1.0).max(0.0);
                 changed = true;
@@ -1073,20 +1226,15 @@ impl State {
             p.regen_clock += dt;
             if p.regen_clock >= 4.0 {
                 p.regen_clock = 0.0;
-                if p.food >= 18.0 && p.health < 20.0 {
+                if p.food >= 10.0 && p.health < 20.0 {
                     p.health = (p.health + 1.0).min(20.0);
                     p.food = (p.food - 0.25).max(0.0);
                     changed = true;
-                } else if p.food <= 0.0 && p.health > 1.0 {
-                    starving.push(*id);
                 }
             }
             if changed {
                 p.send(&p.status());
             }
-        }
-        for id in starving {
-            self.damage(id, 1.0, [0.0; 3], "starved");
         }
         for id in milestones {
             self.milestone(id, "night");
@@ -1095,6 +1243,7 @@ impl State {
 
     /// Swap content (after /reload). Items keep their keys; IDs may change.
     pub fn replace_content(&mut self, new: Content) {
+        self.clear_creatures();
         let old = std::mem::replace(&mut self.content, new);
         let remap = |s: &mut Option<Stack>, old: &Content, new: &Content| {
             if let Some(st) = s {

@@ -153,8 +153,14 @@ fn mining_needs_the_right_tool() {
     // the wrong tier is slow and says what is needed
     let slow = mining::break_time(&c, dyno_world::IRON_ORE, Some(&wood)).unwrap();
     assert!(slow > 10.0, "wood on iron ore takes {slow}");
-    assert_eq!(mining::missing_tool(&c, dyno_world::IRON_ORE, Some(&wood)).as_deref(), Some("Needs a stone pickaxe"));
-    assert_eq!(mining::missing_tool(&c, dyno_world::IRON_ORE, Some(&stone_pick)), None);
+    assert_eq!(
+        mining::missing_tool(&c, dyno_world::IRON_ORE, Some(&wood)).as_deref(),
+        Some("Needs a stone pickaxe")
+    );
+    assert_eq!(
+        mining::missing_tool(&c, dyno_world::IRON_ORE, Some(&stone_pick)),
+        None
+    );
     assert_eq!(
         mining::drops(&c, dyno_world::LOG, None, &mut rng)[0].item,
         dyno_world::LOG as ItemId

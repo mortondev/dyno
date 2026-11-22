@@ -15,6 +15,20 @@ pub enum Sfx {
     Join,
     Click,
     Cricket,
+    /// a weapon connects
+    Hit,
+    /// dusk is coming: a low two-note horn
+    Horn,
+    /// a new day: bright rising notes
+    Chime,
+    /// low health
+    Heartbeat,
+    /// a Shade comes apart
+    Dissolve,
+    /// an item picked up
+    Pop,
+    /// a pick bites while digging
+    Tick,
 }
 
 pub struct Audio {
@@ -118,6 +132,59 @@ fn synth(sfx: Sfx, rng: &mut Rng, variant: usize) -> Vec<f32> {
             v
         }),
         Sfx::Click => tone(30.0, 1200.0, 900.0, 12.0, 0.08),
+        Sfx::Hit => mix(
+            noise_burst(rng, 70.0, 1800.0 * pitch, 9.0, 0.6),
+            tone(90.0, 180.0 * pitch, 70.0, 7.0, 0.45),
+        ),
+        Sfx::Horn => {
+            // two long, soft, low notes with a breathy edge
+            let note = |rng: &mut Rng, f: f32, ms: f32| {
+                let n = (RATE as f32 * ms / 1000.0) as usize;
+                let breath = noise_burst(rng, ms, 500.0, 1.0, 0.05);
+                let mut ph = 0.0f32;
+                (0..n)
+                    .map(|i| {
+                        let t = i as f32 / n as f32;
+                        ph += f / RATE as f32;
+                        let env = (t * 8.0).min(1.0) * (1.0 - t).powf(0.6);
+                        let x = (ph * std::f32::consts::TAU).sin()
+                            + 0.35 * (ph * 2.0 * std::f32::consts::TAU).sin()
+                            + 0.15 * (ph * 3.0 * std::f32::consts::TAU).sin();
+                        x * env * 0.12 + breath.get(i).copied().unwrap_or(0.0)
+                    })
+                    .collect::<Vec<f32>>()
+            };
+            let mut v = note(rng, 147.0, 900.0);
+            v.extend(note(rng, 110.0, 1500.0));
+            v
+        }
+        Sfx::Chime => {
+            let mut v = Vec::new();
+            for (i, f) in [523.0f32, 659.0, 784.0, 1047.0].iter().enumerate() {
+                let mut t = vec![0.0; (RATE as f32 * 0.11 * i as f32) as usize];
+                t.extend(mix(
+                    tone(700.0, *f, *f, 4.0, 0.09),
+                    tone(700.0, f * 2.0, f * 2.0, 6.0, 0.03),
+                ));
+                v = mix(v, t);
+            }
+            v
+        }
+        Sfx::Heartbeat => {
+            let mut v = tone(90.0, 70.0, 50.0, 6.0, 0.5);
+            v.extend(vec![0.0; (RATE as f32 * 0.12) as usize]);
+            v.extend(tone(110.0, 62.0, 45.0, 6.0, 0.4));
+            v
+        }
+        Sfx::Dissolve => mix(
+            noise_burst(rng, 600.0, 2500.0 * pitch, 3.0, 0.25),
+            tone(600.0, 700.0 * pitch, 180.0, 3.0, 0.08),
+        ),
+        Sfx::Pop => tone(50.0, 600.0 * pitch, 1300.0 * pitch, 6.0, 0.12),
+        Sfx::Tick => mix(
+            noise_burst(rng, 35.0, 3000.0 * pitch, 12.0, 0.25),
+            tone(30.0, 900.0 * pitch, 700.0, 12.0, 0.06),
+        ),
         Sfx::Cricket => {
             // three quick chirps
             let mut v = Vec::new();
@@ -158,7 +225,19 @@ impl Audio {
         for m in mats {
             kinds.extend([Sfx::Break(m), Sfx::Place(m), Sfx::Step(m)]);
         }
-        kinds.extend([Sfx::Chat, Sfx::Join, Sfx::Click, Sfx::Cricket]);
+        kinds.extend([
+            Sfx::Chat,
+            Sfx::Join,
+            Sfx::Click,
+            Sfx::Cricket,
+            Sfx::Hit,
+            Sfx::Horn,
+            Sfx::Chime,
+            Sfx::Heartbeat,
+            Sfx::Dissolve,
+            Sfx::Pop,
+            Sfx::Tick,
+        ]);
         for k in kinds {
             let variants = (0..4).map(|v| synth(k, &mut rng, v)).collect();
             bank.push((k, variants));

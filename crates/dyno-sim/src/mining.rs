@@ -12,7 +12,8 @@ pub fn break_time(c: &Content, b: BlockId, tool: Option<&Tool>) -> Option<f32> {
         return None;
     }
     // the right kind of tool, and a high enough tier when the block needs one
-    let right_tool = matches!((r.tool, tool), (Some(k), Some(t)) if k == t.kind && t.tier >= r.tier);
+    let right_tool =
+        matches!((r.tool, tool), (Some(k), Some(t)) if k == t.kind && t.tier >= r.tier);
     let t = if right_tool {
         r.hardness * 1.5 / tool.map(|t| t.speed).unwrap_or(1.0)
     } else if r.tier > 0 {
@@ -55,7 +56,10 @@ pub fn missing_tool(c: &Content, b: BlockId, tool: Option<&Tool>) -> Option<Stri
         return None;
     }
     let r = c.rule(b);
-    let tier = ["", "wooden", "stone", "iron", "ember"].get(r.tier as usize).copied().unwrap_or("better");
+    let tier = ["", "wooden", "stone", "iron", "ember"]
+        .get(r.tier as usize)
+        .copied()
+        .unwrap_or("better");
     let kind = match r.tool {
         Some(dyno_world::content::ToolKind::Pickaxe) => "pickaxe",
         Some(dyno_world::content::ToolKind::Axe) => "axe",

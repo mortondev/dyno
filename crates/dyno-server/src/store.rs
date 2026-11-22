@@ -28,6 +28,37 @@ pub struct PlayerData {
     pub fuel: u16,
     #[serde(default)]
     pub milestones: Vec<String>,
+    /// unix seconds when last online
+    #[serde(default)]
+    pub last_seen: u64,
+}
+
+/// Server-wide saved state.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Meta {
+    #[serde(default)]
+    pub owner: Option<String>,
+    #[serde(default)]
+    pub day: u32,
+    #[serde(default)]
+    pub clock: f32,
+    #[serde(default)]
+    pub events: Vec<(u64, String)>,
+}
+
+pub fn meta_path(world: &Path) -> PathBuf {
+    world.with_file_name("server.json")
+}
+
+pub fn load_meta(path: &Path) -> Meta {
+    std::fs::read(path)
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok())
+        .unwrap_or_default()
+}
+
+pub fn save_meta(path: &Path, m: &Meta) -> std::io::Result<()> {
+    write_atomic(path, &serde_json::to_vec_pretty(m).unwrap_or_default())
 }
 
 fn survival() -> Mode {
@@ -46,6 +77,7 @@ impl PlayerData {
             pack: Vec::new(),
             fuel: 0,
             milestones: Vec::new(),
+            last_seen: 0,
         }
     }
 }

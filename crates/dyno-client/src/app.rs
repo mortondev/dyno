@@ -136,6 +136,13 @@ struct Play {
     dead: Option<String>,
     hurt_flash: f32,
     toasts: Vec<(Instant, String)>,
+    /// big centred title, like "Day 3"
+    title: Option<(Instant, String)>,
+    /// the creature under the crosshair, nearer than any block
+    target_entity: Option<u32>,
+    heart_clock: f32,
+    /// the block we last explained "Needs a stone pickaxe" for
+    tier_hint: Option<[i32; 3]>,
     fall_from: Option<f32>,
     air: f32,
     drown_clock: f32,
@@ -156,6 +163,7 @@ struct ClientEntity {
     at: Instant,
     yaw: f32,
     born: Instant,
+    hurt_at: Option<Instant>,
 }
 
 impl ClientEntity {
@@ -189,6 +197,31 @@ struct Particle {
     color: [f32; 3],
     life: f32,
     size: f32,
+    gravity: f32,
+}
+
+/// Motes that drift upward, for a Shade coming apart.
+fn spawn_motes(out: &mut Vec<Particle>, at: Vec3, color: [f32; 3], n: usize, seed: u32) {
+    let mut r = seed.wrapping_mul(2_654_435_761) | 1;
+    let mut rnd = || {
+        r ^= r << 13;
+        r ^= r >> 17;
+        r ^= r << 5;
+        r as f32 / u32::MAX as f32
+    };
+    for _ in 0..n {
+        let pos = at + Vec3::new(rnd() - 0.5, rnd() * 1.8, rnd() - 0.5) * Vec3::new(0.7, 1.0, 0.7);
+        let vel = Vec3::new(rnd() - 0.5, rnd() * 0.8 + 0.6, rnd() - 0.5) * 1.6;
+        let shade = 0.7 + rnd() * 0.6;
+        out.push(Particle {
+            pos,
+            vel,
+            color: [color[0] * shade, color[1] * shade, color[2] * shade],
+            life: 0.8 + rnd() * 0.9,
+            size: 0.04 + rnd() * 0.05,
+            gravity: -1.2,
+        });
+    }
 }
 
 fn spawn_particles(out: &mut Vec<Particle>, at: [i32; 3], block: w::BlockId, n: usize, seed: u32) {
@@ -214,8 +247,111 @@ fn spawn_particles(out: &mut Vec<Particle>, at: [i32; 3], block: w::BlockId, n: 
             color: [color[0] * shade, color[1] * shade, color[2] * shade],
             life: 0.5 + rnd() * 0.6,
             size: 0.07 + rnd() * 0.06,
+            gravity: 18.0,
         });
     }
+}
+
+/// Draw every creature, lit by the block light where it stands.
+fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
+    for (id, e) in &p.entities {
+        let EntityKind::Creature(cid) = e.kind else {
+            continue;
+        };
+        let Some(c) = p.content.creature(cid) else {
+            continue;
+        };
+        let pos = e.pos();
+        let step = Vec3::from(e.to) - Vec3::from(e.from);
+        let moving = e.at.elapsed().as_secs_f32() < 0.25;
+        let walk = if moving {
+            (Vec3::new(step.x, 0.0, step.z).length() / 0.1 / c.speed.max(0.5)).min(1.0)
+        } else {
+            0.0
+        };
+        let flash = e
+            .hurt_at
+            .map(|t| (1.0 - t.elapsed().as_secs_f32() / 0.12).max(0.0))
+            .unwrap_or(0.0);
+        let at = pos + Vec3::Y;
+        let light = p.light.get(
+            at.x.floor() as i32,
+            at.y.floor() as i32,
+            at.z.floor() as i32,
+        ) as f32
+            / 15.0;
+        render::push_creature(
+            boxes,
+            c.model,
+            pos,
+            e.yaw,
+            c.color,
+            light,
+            clock * 9.0 + *id as f32,
+            walk,
+            flash,
+            clock + *id as f32 * 0.37,
+        );
+    }
+}
+
+/// The creature under the crosshair, if it is nearer than the targeted block.
+fn pick_entity(p: &Play) -> Option<u32> {
+    let eye = p.player.eye();
+    let dir = p.player.look_dir();
+    let block_t = p
+        .target
+        .as_ref()
+        .map(|t| {
+            let c = Vec3::new(
+                t.block[0] as f32 + 0.5,
+                t.block[1] as f32 + 0.5,
+                t.block[2] as f32 + 0.5,
+            );
+            (c - eye).length() - 0.5
+        })
+        .unwrap_or(f32::MAX);
+    let mut best: Option<(u32, f32)> = None;
+    for (id, e) in &p.entities {
+        let EntityKind::Creature(cid) = e.kind else {
+            continue;
+        };
+        let h = match p.content.creature(cid).map(|c| c.model) {
+            Some(dyno_world::content::Model::Humanoid) => 2.0,
+            _ => 1.25,
+        };
+        let pos = e.pos();
+        let lo = pos - Vec3::new(0.45, 0.0, 0.45);
+        let hi = pos + Vec3::new(0.45, h, 0.45);
+        // slab test
+        let mut t0 = 0.0f32;
+        let mut t1 = 4.5f32;
+        let mut hit = true;
+        for a in 0..3 {
+            let (o, d) = (eye[a], dir[a]);
+            if d.abs() < 1e-6 {
+                if o < lo[a] || o > hi[a] {
+                    hit = false;
+                    break;
+                }
+                continue;
+            }
+            let (mut ta, mut tb) = ((lo[a] - o) / d, (hi[a] - o) / d);
+            if ta > tb {
+                std::mem::swap(&mut ta, &mut tb);
+            }
+            t0 = t0.max(ta);
+            t1 = t1.min(tb);
+            if t0 > t1 {
+                hit = false;
+                break;
+            }
+        }
+        if hit && t0 < block_t && best.is_none_or(|(_, bt)| t0 < bt) {
+            best = Some((*id, t0));
+        }
+    }
+    best.map(|(id, _)| id)
 }
 
 /// Sky, sun and light for a time of day: 0.0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight.
@@ -413,6 +549,10 @@ fn new_play(j: Joined) -> Play {
         mouse_left: false,
         dead: None,
         hurt_flash: 0.0,
+        title: None,
+        target_entity: None,
+        heart_clock: 0.0,
+        tier_hint: None,
         toasts: Vec::new(),
         fall_from: None,
         air: 10.0,
@@ -681,6 +821,7 @@ impl App {
                                     at: Instant::now(),
                                     yaw,
                                     born: Instant::now(),
+                                    hurt_at: None,
                                 },
                             );
                         }
@@ -695,12 +836,43 @@ impl App {
                             }
                         }
                         ServerMsg::EntityGone { id, picked_by } => {
-                            p.entities.remove(&id);
+                            if let Some(e) = p.entities.remove(&id)
+                                && let EntityKind::Creature(cid) = e.kind
+                                && let Some(c) = p.content.creature(cid)
+                            {
+                                let at = e.pos();
+                                let gain = (1.0 - at.distance(p.player.pos) / 32.0).clamp(0.0, 1.0);
+                                if c.hostile {
+                                    spawn_motes(&mut p.particles, at, [0.62, 0.42, 0.95], 26, id);
+                                    self.audio.play(Sfx::Dissolve, 0.8 * gain);
+                                } else if gain > 0.0
+                                    && e.hurt_at
+                                        .is_some_and(|t| t.elapsed() < Duration::from_secs(2))
+                                {
+                                    spawn_motes(&mut p.particles, at, c.color, 10, id);
+                                }
+                            }
                             if picked_by == Some(p.my_id) {
-                                self.audio.play(Sfx::Click, 0.7);
+                                self.audio.play(Sfx::Pop, 0.7);
                             }
                         }
-                        ServerMsg::EntityHurt { .. } => {}
+                        ServerMsg::EntityHurt { id } => {
+                            if let Some(e) = p.entities.get_mut(&id) {
+                                e.hurt_at = Some(Instant::now());
+                                let at = e.pos();
+                                let gain = (1.0 - at.distance(p.player.pos) / 32.0).clamp(0.0, 1.0);
+                                self.audio.play(Sfx::Hit, 0.8 * gain);
+                            }
+                        }
+                        ServerMsg::DayEvent { dusk, day } => {
+                            if dusk {
+                                self.audio.play(Sfx::Horn, 0.9);
+                                p.title = Some((Instant::now(), "Dusk is coming".into()));
+                            } else {
+                                self.audio.play(Sfx::Chime, 0.8);
+                                p.title = Some((Instant::now(), format!("Day {day}")));
+                            }
+                        }
                         ServerMsg::Hurt { amount, push } => {
                             p.hurt_flash = (0.4 + amount * 0.08).min(1.0);
                             p.player.vel += Vec3::from(push);
@@ -789,7 +961,8 @@ impl App {
                     right: (k(KeyCode::KeyD) as i32 - k(KeyCode::KeyA) as i32) as f32,
                     jump: k(KeyCode::Space),
                     down: k(KeyCode::ShiftLeft) || k(KeyCode::ShiftRight),
-                    sprint: k(KeyCode::ControlLeft) || k(KeyCode::KeyR),
+                    sprint: (k(KeyCode::ControlLeft) || k(KeyCode::KeyR))
+                        && (p.food > 0.0 || p.creative()),
                 }
             } else {
                 Input::default()
@@ -800,6 +973,19 @@ impl App {
             }
             p.player.update(&p.world, input, dt);
             p.hurt_flash = (p.hurt_flash - dt * 1.5).max(0.0);
+            if p.title
+                .as_ref()
+                .is_some_and(|(t, _)| t.elapsed() > Duration::from_secs(5))
+            {
+                p.title = None;
+            }
+            if !p.creative() && p.dead.is_none() && p.health <= 6.0 {
+                p.heart_clock -= dt;
+                if p.heart_clock <= 0.0 {
+                    p.heart_clock = 0.6 + p.health * 0.1;
+                    self.audio.play(Sfx::Heartbeat, 0.9);
+                }
+            }
             p.toasts
                 .retain(|(t, _)| t.elapsed() < Duration::from_secs(5));
             if p.slot != p.sent_held {
@@ -850,7 +1036,11 @@ impl App {
             }
             // mining: hold the left button on a block
             let can_mine = active && p.mouse_left && !p.creative();
-            let target_block = p.target.as_ref().map(|t| t.block);
+            let target_block = p
+                .target
+                .as_ref()
+                .map(|t| t.block)
+                .filter(|_| p.target_entity.is_none());
             match (can_mine, target_block) {
                 (true, Some(pos)) => {
                     let b = p.world.get(pos[0], pos[1], pos[2]);
@@ -881,6 +1071,13 @@ impl App {
                         (_, Some(total)) => {
                             p.dig = Some((pos, 0.0, total));
                             let _ = p.conn.tx.send(ClientMsg::DigStart { pos });
+                            if p.tier_hint != Some(pos)
+                                && let Some(why) =
+                                    dyno_sim::mining::missing_tool(&p.content, b, p.held_tool())
+                            {
+                                p.tier_hint = Some(pos);
+                                p.toast(why);
+                            }
                         }
                         (_, None) => p.dig = None,
                     }
@@ -920,6 +1117,7 @@ impl App {
                 let _ = p.conn.tx.send(ClientMsg::Pose(p.player.pose()));
             }
             p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+            p.target_entity = pick_entity(p);
             let light_at = |l: &Light, v: Vec3| {
                 l.get(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32) as f32 / 15.0
             };
@@ -990,7 +1188,7 @@ impl App {
             }
             // particles
             for pt in &mut p.particles {
-                pt.vel.y -= 18.0 * dt;
+                pt.vel.y -= pt.gravity * dt;
                 let next = pt.pos + pt.vel * dt;
                 if w::is_solid(p.world.get(
                     next.x.floor() as i32,
@@ -1139,6 +1337,9 @@ impl App {
                 ax,
                 light_at(&p.light, eye),
             );
+            // creatures
+            let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
+            push_creatures(&mut boxes, p, clock);
             // items lying in the world: small spinning cubes
             for e in p.entities.values() {
                 if let EntityKind::Item(s) = e.kind {
@@ -1404,6 +1605,12 @@ impl App {
             return;
         }
         p.swing = 1.0;
+        if button == MouseButton::Left
+            && let Some(id) = p.target_entity
+        {
+            let _ = p.conn.tx.send(ClientMsg::Attack { entity: id });
+            return;
+        }
         let Some(t) = &p.target else { return };
         let (tb, tp) = (t.block, t.place);
         match button {
@@ -1844,6 +2051,28 @@ fn hud(
             painter.rect_filled(r, 0.0, Color32::from_rgba_unmultiplied(200, 20, 20, a));
         }
     }
+    // big title: "Day 3", "Dusk is coming"
+    if let Some((at, text)) = &p.title {
+        let t = at.elapsed().as_secs_f32();
+        let fade = (t / 0.6).min(1.0) * (1.0 - (t - 3.2).max(0.0) / 1.3).clamp(0.0, 1.0);
+        let pos = Pos2::new(c.x, screen.top() + screen.height() * 0.28);
+        let galley = painter.layout_no_wrap(
+            text.clone(),
+            FontId::proportional(46.0),
+            Color32::from_rgb(255, 236, 200).gamma_multiply(fade),
+        );
+        let r = Rect::from_center_size(pos, galley.size());
+        painter.galley(
+            r.min + Vec2::new(2.0, 3.0),
+            painter.layout_no_wrap(
+                text.clone(),
+                FontId::proportional(46.0),
+                Color32::from_black_alpha((160.0 * fade) as u8),
+            ),
+            Color32::BLACK,
+        );
+        painter.galley(r.min, galley, Color32::WHITE);
+    }
     // milestone and mode toasts
     for (k, (at, text)) in p.toasts.iter().enumerate() {
         let fade = (1.0 - (at.elapsed().as_secs_f32() - 3.5).max(0.0) / 1.5).clamp(0.0, 1.0);
@@ -2236,6 +2465,7 @@ pub fn shot_with_ui(
                             at: Instant::now(),
                             yaw,
                             born: Instant::now(),
+                            hurt_at: None,
                         },
                     );
                 }
@@ -2303,6 +2533,21 @@ pub fn shot_with_ui(
                 light_at(&p.light, e.pos()),
             );
         }
+    }
+    push_creatures(&mut boxes, &p, 1.3);
+    for (id, r) in &p.remotes {
+        let pose = r.current();
+        let base = Vec3::from(pose.pos);
+        render::push_avatar(
+            &mut boxes,
+            base,
+            pose.yaw,
+            pose.pitch,
+            game::player_color(*id),
+            light_at(&p.light, base + Vec3::Y),
+            0.0,
+            0.0,
+        );
     }
     {
         let hand = eye + dir * 0.62 + right * 0.36 - up * 0.34;
@@ -2378,11 +2623,26 @@ pub fn shot_with_ui(
     });
     gfx.screenshot = Some(out.clone());
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, second);
+    let mut creatures: Vec<String> = p
+        .entities
+        .values()
+        .filter_map(|e| match e.kind {
+            EntityKind::Creature(c) => p.content.creature(c).map(|c| {
+                let v = e.pos() - p.player.pos;
+                let d = v.length();
+                let bearing = (-v.x).atan2(-v.z).to_degrees().rem_euclid(360.0);
+                format!("{} {d:.0}m at {bearing:.0}°", c.name)
+            }),
+            _ => None,
+        })
+        .collect();
+    creatures.sort();
     Ok(format!(
-        "rendered {ui} at {:?}, {} items in pack, health {}, to {}",
+        "rendered {ui} at {:?}, {} items in pack, health {}, creatures [{}], to {}",
         p.player.pos,
         p.pack.iter().flatten().count(),
         p.health,
+        creatures.join(", "),
         out.display()
     ))
 }

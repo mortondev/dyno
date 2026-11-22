@@ -52,6 +52,135 @@ fn send(j: &Joined, m: ClientMsg) {
     j.conn.tx.send(m).unwrap();
 }
 
+/// A standing place on grass, a few blocks from the spawn.
+fn grass_near(j: &Joined) -> [f32; 3] {
+    let (sx, sz) = (j.spawn[0].floor() as i32, j.spawn[2].floor() as i32);
+    for r in 6..20 {
+        for (dx, dz) in [(r, 0), (-r, 0), (0, r), (0, -r)] {
+            let (x, z) = (sx + dx, sz + dz);
+            let y = j.world.surface(x, z);
+            if y > 0 && j.world.get(x, y, z) == dyno_world::GRASS {
+                return [x as f32 + 0.5, y as f32 + 1.0, z as f32 + 0.5];
+            }
+        }
+    }
+    panic!("no grass near spawn");
+}
+
+fn pose(j: &Joined, pos: [f32; 3]) {
+    send(
+        j,
+        ClientMsg::Pose(Pose {
+            pos,
+            yaw: 0.0,
+            pitch: 0.0,
+        }),
+    );
+}
+
+/// Shades rise in the dark at night, never inside a hearth's reach, and
+/// daylight unmakes them.
+#[test]
+fn night_brings_shades() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-night-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let j = net::connect(&addr, "nightwatch", 777, false, Duration::from_secs(5)).expect("join");
+    let shade = j
+        .content
+        .creatures
+        .iter()
+        .find(|c| c.key == "shade")
+        .unwrap()
+        .id;
+    let hearth = j
+        .world
+        .find_near(dyno_world::HEARTH, 48, 48, 24)
+        .expect("a spawn hearth");
+    let mut pack = vec![None; 36];
+    let here = j.spawn;
+    pose(&j, here);
+    // the first player owns a new world, so may set the time
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/time night".into(),
+        },
+    );
+    let end = Instant::now() + Duration::from_secs(90);
+    let mut found = None;
+    while found.is_none() && Instant::now() < end {
+        pose(&j, here);
+        found = wait_opt(&j, &mut pack, 1.0, |m| match m {
+            ServerMsg::EntitySpawn {
+                id,
+                kind: EntityKind::Creature(c),
+                pos,
+                ..
+            } if *c == shade => Some((*id, *pos)),
+            _ => None,
+        });
+    }
+    let (sid, spos) = found.expect("a Shade rises at night");
+    let d = ((spos[0] - hearth[0] as f32 - 0.5).powi(2)
+        + (spos[2] - hearth[2] as f32 - 0.5).powi(2))
+    .sqrt();
+    assert!(
+        d >= dyno_world::HEARTH_RADIUS,
+        "Shade spawned {d} blocks from the hearth"
+    );
+    // dawn: it burns away
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/time day".into(),
+        },
+    );
+    let end = Instant::now() + Duration::from_secs(15);
+    let mut gone = false;
+    while !gone && Instant::now() < end {
+        pose(&j, here);
+        gone = wait_opt(&j, &mut pack, 1.0, |m| {
+            matches!(m, ServerMsg::EntityGone { id, .. } if *id == sid).then_some(())
+        })
+        .is_some();
+    }
+    assert!(gone, "daylight unmakes the Shade");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+fn wait_opt<T>(
+    j: &Joined,
+    pack: &mut Vec<Option<Stack>>,
+    secs: f32,
+    mut f: impl FnMut(&ServerMsg) -> Option<T>,
+) -> Option<T> {
+    let end = Instant::now() + Duration::from_secs_f32(secs);
+    while Instant::now() < end {
+        match j.conn.rx.recv_timeout(Duration::from_millis(50)) {
+            Ok(NetEvent::Msg(m)) => {
+                if let ServerMsg::Pack(p) = &m {
+                    *pack = p.clone();
+                }
+                if let Some(t) = f(&m) {
+                    return Some(t);
+                }
+            }
+            Ok(NetEvent::Closed(r)) => panic!("closed: {r}"),
+            Err(_) => {}
+        }
+    }
+    None
+}
+
 #[test]
 fn survival_loop() {
     let dir = std::env::temp_dir().join(format!("dyno-test-{}", std::process::id()));
@@ -64,8 +193,8 @@ fn survival_loop() {
     let mut pack = vec![None; 36];
     let id = |k: &str| c.item_by_key(k).unwrap();
 
-    // stand at spawn
-    let spawn = j.spawn;
+    // stand on grass near the spawn hearth (the hearth itself sits on a stone floor)
+    let spawn = grass_near(&j);
     send(
         &j,
         ClientMsg::Pose(Pose {
@@ -250,7 +379,7 @@ fn survival_loop() {
         (count(pack, id("stick")) == 1).then_some(())
     });
 
-    // 4. health: a fall hurts, /kill drops everything, respawn restores
+    // 4. health: a fall hurts, /kill drops all but the hotbar, respawn restores
     send(
         &j,
         ClientMsg::Hurt {
@@ -272,7 +401,11 @@ fn survival_loop() {
     wait(&j, &mut pack, 3.0, |m, _pack| {
         matches!(m, ServerMsg::Died { .. }).then_some(())
     });
-    assert!(pack.iter().all(|s| s.is_none()), "death empties the pack");
+    assert!(
+        pack[9..].iter().all(|s| s.is_none()),
+        "death drops everything but the hotbar"
+    );
+    assert!(pack[..9].iter().any(|s| s.is_some()), "the hotbar is kept");
     send(&j, ClientMsg::Respawn);
     let hp = wait(&j, &mut pack, 3.0, |m, _pack| match m {
         ServerMsg::Status { health, .. } => Some(*health),

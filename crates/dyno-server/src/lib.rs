@@ -5,6 +5,7 @@
 //! advances the world 20 times per second, sends player poses and saves.
 //! Bad input closes that connection only.
 
+pub mod creatures;
 pub mod game;
 pub mod store;
 
@@ -26,6 +27,25 @@ use tungstenite::{Message, WebSocket};
 
 pub use game::DAY_SECONDS;
 
+/// Post events to a Discord webhook from a background thread, at most one a second.
+fn start_webhook(url: String) -> std::sync::mpsc::Sender<String> {
+    let (tx, rx) = channel::<String>();
+    std::thread::spawn(move || {
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(10)))
+            .build()
+            .into();
+        for text in rx {
+            let body = serde_json::json!({ "content": text, "allowed_mentions": { "parse": [] } });
+            if let Err(e) = agent.post(&url).send_json(&body) {
+                log(format!("Webhook failed: {e}"));
+            }
+            std::thread::sleep(Duration::from_millis(1100));
+        }
+    });
+    tx
+}
+
 #[derive(Debug, Clone)]
 pub struct Config {
     pub bind: SocketAddr,
@@ -38,8 +58,11 @@ pub struct Config {
     pub default_mode: Mode,
     /// content JSON; None uses the built-in Hearthblock pack
     pub content_path: Option<PathBuf>,
-    /// names allowed to use /gamemode, /reload and /give. Empty: everyone.
+    /// names allowed to use /gamemode, /time, /reload and /give. Empty: the
+    /// world's owner (its first player) only.
     pub ops: Vec<String>,
+    /// Discord webhook URL for milestones, deaths and days (optional)
+    pub webhook: Option<String>,
 }
 
 impl Default for Config {
@@ -54,6 +77,7 @@ impl Default for Config {
             default_mode: Mode::Survival,
             content_path: None,
             ops: Vec::new(),
+            webhook: None,
         }
     }
 }
@@ -92,7 +116,7 @@ fn load_content(path: &Option<PathBuf>) -> Result<Content, String> {
 /// Start the server in background threads and return at once.
 pub fn start(cfg: Config) -> std::io::Result<Handle> {
     let content = load_content(&cfg.content_path).map_err(std::io::Error::other)?;
-    let world = match World::load(&cfg.world_path) {
+    let mut world = match World::load(&cfg.world_path) {
         Ok(w) => {
             log(format!(
                 "Loaded world {} ({:?})",
@@ -116,6 +140,22 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
             w
         }
     };
+    let had_hearth = !creatures::find_hearths(&world).is_empty();
+    let hearth = world.ensure_spawn_hearth();
+    if !had_hearth {
+        log(format!("Built the spawn hearth at {hearth:?}"));
+        if let Err(e) = world.save(&cfg.world_path) {
+            log(format!("Warning: cannot save world: {e}"));
+        }
+    }
+    let hearths = creatures::find_hearths(&world);
+    let light = dyno_world::light::Light::new(&world);
+    let meta = store::load_meta(&store::meta_path(&cfg.world_path));
+    let webhook = cfg
+        .webhook
+        .clone()
+        .filter(|u| !u.is_empty())
+        .map(start_webhook);
     let listener = TcpListener::bind(cfg.bind)?;
     let local_addr = listener.local_addr()?;
     let saved = store::load_players(&store::players_path(&cfg.world_path));
@@ -140,10 +180,16 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         entities: HashMap::new(),
         next_entity: 1,
         rng: Rng::new(cfg.seed as u64 ^ 0x5eed_1234),
-        time_at_base: 0.05,
-        time_base: Instant::now(),
+        clock: if meta.day == 0 { 0.02 } else { meta.clock },
+        day: meta.day.max(1),
         default_mode: cfg.default_mode,
         ops: cfg.ops.clone(),
+        owner: meta.owner,
+        light,
+        hearths,
+        events: meta.events.into_iter().collect(),
+        webhook,
+        meta_dirty: false,
     };
     let server = Arc::new(Server {
         cfg,
@@ -213,7 +259,7 @@ impl Server {
     }
 
     pub fn save(&self) {
-        let (world, players, chests, content) = {
+        let (world, players, chests, content, meta) = {
             let mut st = self.state.lock().unwrap();
             let ids: Vec<PlayerId> = st.players.keys().copied().collect();
             for id in ids {
@@ -227,14 +273,25 @@ impl Server {
             } else {
                 None
             };
+            st.meta_dirty = false;
+            let meta = store::Meta {
+                owner: st.owner.clone(),
+                day: st.day,
+                clock: st.clock,
+                events: st.events.iter().cloned().collect(),
+            };
             (
                 world,
                 st.saved.clone(),
                 st.containers.clone(),
                 st.content.clone(),
+                meta,
             )
         };
         let path = &self.cfg.world_path;
+        if let Err(e) = store::save_meta(&store::meta_path(path), &meta) {
+            log(format!("Warning: cannot save server state: {e}"));
+        }
         if let Err(e) = store::save_players(&store::players_path(path), &players) {
             log(format!("Warning: cannot save players: {e}"));
         }
@@ -532,7 +589,7 @@ impl Server {
         log(format!("{me} ran {line}"));
         let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(id, "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /reload"),
+            "/help" => st.tell(id, "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /reload"),
             "/who" => {
                 let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
@@ -565,6 +622,23 @@ impl Server {
                     None => st.tell(id, format!("No player called '{arg}'. Try /who")),
                 }
             }
+            "/summon" => {
+                let key = arg.trim().to_lowercase();
+                let found = st.content.creatures.iter().find(|c| c.key == key || c.name.eq_ignore_ascii_case(&key)).map(|c| c.id);
+                match found {
+                    _ if !op => st.tell(id, "Only the world's owner can summon creatures."),
+                    Some(cid) => {
+                        let pose = st.players[&id].pose;
+                        let (s, c) = pose.yaw.sin_cos();
+                        let at = [pose.pos[0] - s * 4.0, pose.pos[1] + 0.5, pose.pos[2] - c * 4.0];
+                        st.spawn_creature(cid, at);
+                    }
+                    None => {
+                        let keys: Vec<String> = st.content.creatures.iter().map(|c| c.key.clone()).collect();
+                        st.tell(id, format!("Usage: /summon <{}>", keys.join("|")));
+                    }
+                }
+            }
             "/time" => {
                 let t = match arg.as_str() {
                     "day" | "morning" => Some(0.05),
@@ -576,11 +650,9 @@ impl Server {
                     other => other.parse::<f32>().ok().filter(|v| (0.0..=1.0).contains(v)),
                 };
                 match t {
+                    _ if !op => st.tell(id, "Only the world's owner can change the time."),
                     Some(t) => {
-                        st.time_at_base = t;
-                        st.time_base = Instant::now();
-                        let msg = st.time_msg();
-                        st.broadcast(&msg, None);
+                        st.set_time(t);
                         st.broadcast(&ServerMsg::System { text: format!("{me} set the time to {arg}") }, None);
                     }
                     None => st.tell(id, "Usage: /time day|noon|sunset|night|midnight|sunrise, or a number from 0 to 1"),

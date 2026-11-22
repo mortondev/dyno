@@ -633,6 +633,11 @@
   },
   "pink": {
    "hardness": 0.8
+  },
+  "hearth": {
+   "hardness": 3.0,
+   "tool": "pickaxe",
+   "tier": 1
   }
  },
  "recipes": [
@@ -693,6 +698,25 @@
     ]
    ],
    "group": "Basics"
+  },
+  {
+   "out": "hearth",
+   "in": [
+    [
+     "cobble",
+     8
+    ],
+    [
+     "log|birch_log",
+     4
+    ],
+    [
+     "coal",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Stations"
   },
   {
    "out": "wooden_pickaxe",
@@ -1444,6 +1468,12 @@
    "title": "Deep digger",
    "hint": "Make an iron pickaxe to mine emberstone.",
    "trigger": "craft:iron_pickaxe"
+  },
+  {
+   "key": "hearth",
+   "title": "Safe ground",
+   "hint": "Craft and place a hearth: no Shade can come within 16 blocks of it.",
+   "trigger": "place:hearth"
   }
  ]
 }

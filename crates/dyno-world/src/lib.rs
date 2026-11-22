@@ -39,6 +39,10 @@ pub const CHEST: BlockId = 42;
 pub const BED: BlockId = 43;
 pub const BERRY_BUSH: BlockId = 44;
 pub const TORCH: BlockId = 45;
+pub const HEARTH: BlockId = 46;
+
+/// No Shade spawns or enters within this many blocks of a hearth.
+pub const HEARTH_RADIUS: f32 = 16.0;
 
 /// How a block is drawn and collides.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -207,6 +211,13 @@ pub const BLOCKS: &[BlockDef] = &[
         emission: 13,
         material: Wood,
     },
+    BlockDef {
+        name: "Hearth",
+        color: [0.66, 0.50, 0.40],
+        alpha: 1.0,
+        emission: 15,
+        material: Stone,
+    },
 ];
 
 /// Number of block IDs in use. IDs at or above this are rejected.
@@ -346,9 +357,6 @@ impl World {
                     && hash(x, z, seed ^ 0x9105).is_multiple_of(420)
                 {
                     w.set(x, h + 1, z, GLOWSHROOM);
-                }
-                if h > water_level + 2 && hash(x, z, seed ^ 0x5eed).is_multiple_of(181) {
-                    w.set(x, h - 2, z, EMBERSTONE);
                 }
             }
         }
@@ -555,8 +563,100 @@ impl World {
         -1
     }
 
-    /// A spawn point at the centre of the world, on top of the surface.
+    /// Find a block within `r` columns of (x, z), at any height.
+    pub fn find_near(&self, b: BlockId, x: i32, z: i32, r: i32) -> Option<[i32; 3]> {
+        for dz in -r..=r {
+            for dx in -r..=r {
+                for y in 0..self.size[1] as i32 {
+                    if self.get(x + dx, y, z + dz) == b {
+                        return Some([x + dx, y, z + dz]);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Build a ruined hearth at the spawn if there is none: a safe, lit
+    /// meeting point. Returns the hearth position.
+    pub fn ensure_spawn_hearth(&mut self) -> [i32; 3] {
+        let (cx, cz) = (self.size[0] as i32 / 2, self.size[2] as i32 / 2);
+        if let Some(p) = self.find_near(HEARTH, cx, cz, 24) {
+            return p;
+        }
+        let s = self.open_spawn();
+        let (x, z) = (s[0].floor() as i32, s[2].floor() as i32);
+        let y = s[1].floor() as i32 - 1;
+        // clear a glade (nature only, never a player's building) and lay an old stone floor
+        let natural = |b: BlockId| {
+            matches!(
+                b,
+                GRASS | DIRT | SAND | SNOW | STONE | LEAVES | LOG | 33 | 34 | 35 | 36 | 44
+            )
+        };
+        for dz in -8i32..=8 {
+            for dx in -8i32..=8 {
+                let r2 = dx * dx + dz * dz;
+                if r2 > 64 {
+                    continue;
+                }
+                for yy in y + 1..y + 18 {
+                    let b = self.get(x + dx, yy, z + dz);
+                    // whole trees go; the ground is levelled close in
+                    let tree = matches!(b, LEAVES | LOG | 34 | 35 | 36);
+                    if natural(b) && (tree || r2 <= 30) {
+                        self.set(x + dx, yy, z + dz, AIR);
+                    }
+                }
+                if r2 <= 30 && natural(self.get(x + dx, y, z + dz)) {
+                    self.set(x + dx, y, z + dz, GRASS);
+                }
+                if r2 <= 20 {
+                    let b = if hash(x + dx, z + dz, 7).is_multiple_of(3) {
+                        19
+                    } else {
+                        COBBLE
+                    };
+                    self.set(x + dx, y, z + dz, b);
+                    for yy in (y - 3)..y {
+                        if self.get(x + dx, yy, z + dz) == AIR {
+                            self.set(x + dx, yy, z + dz, DIRT);
+                        }
+                    }
+                }
+            }
+        }
+        // broken pillars around the hearth
+        for (i, (dx, dz)) in [(-3, -3), (3, -3), (-3, 3), (3, 3)].into_iter().enumerate() {
+            let h = [3, 1, 2, 4][i];
+            for yy in 1..=h {
+                self.set(
+                    x + dx,
+                    y + yy,
+                    z + dz,
+                    if yy == h && i % 2 == 0 { 19 } else { COBBLE },
+                );
+            }
+        }
+        // the hearth sits on the floor, ringed by low stones
+        for (dx, dz) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+            self.set(x + dx, y + 1, z + dz, AIR);
+        }
+        self.set(x, y + 1, z, HEARTH);
+        [x, y + 1, z]
+    }
+
+    /// Where new players appear: beside the spawn hearth if there is one.
     pub fn spawn(&self) -> [f32; 3] {
+        let (cx, cz) = (self.size[0] as i32 / 2, self.size[2] as i32 / 2);
+        if let Some(h) = self.find_near(HEARTH, cx, cz, 24) {
+            return [h[0] as f32 + 2.5, h[1] as f32 + 0.01, h[2] as f32 + 0.5];
+        }
+        self.open_spawn()
+    }
+
+    /// Open grass near the centre of the world.
+    fn open_spawn(&self) -> [f32; 3] {
         let (cx, cz) = (self.size[0] as i32 / 2, self.size[2] as i32 / 2);
         // look for open grass near the centre: no leaves overhead, no water
         for r in 0..40i32 {
