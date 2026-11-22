@@ -579,11 +579,30 @@ impl World {
 
     /// Build a ruined hearth at the spawn if there is none: a safe, lit
     /// meeting point. Returns the hearth position.
-    pub fn ensure_spawn_hearth(&mut self) -> [i32; 3] {
-        let (cx, cz) = (self.size[0] as i32 / 2, self.size[2] as i32 / 2);
-        if let Some(p) = self.find_near(HEARTH, cx, cz, 24) {
-            return p;
+    ///
+    /// `known` is the spawn hearth the server remembers. It is restored if it
+    /// went missing. With none remembered, a hearth near the centre is adopted
+    /// (worlds from before the server remembered it), or a new ruin is built.
+    pub fn ensure_spawn_hearth(&mut self, known: Option<[i32; 3]>) -> [i32; 3] {
+        if let Some(p) = known {
+            let here = self.get(p[0], p[1], p[2]);
+            if here == HEARTH {
+                return p;
+            }
+            if here == AIR {
+                self.set(p[0], p[1], p[2], HEARTH);
+                return p;
+            }
+        } else {
+            let (cx, cz) = (self.size[0] as i32 / 2, self.size[2] as i32 / 2);
+            if let Some(p) = self.find_near(HEARTH, cx, cz, 24) {
+                return p;
+            }
         }
+        self.build_spawn_hearth()
+    }
+
+    fn build_spawn_hearth(&mut self) -> [i32; 3] {
         let s = self.open_spawn();
         let (x, z) = (s[0].floor() as i32, s[2].floor() as i32);
         let y = s[1].floor() as i32 - 1;
@@ -655,6 +674,35 @@ impl World {
         let (cx, cz) = (self.size[0] as i32 / 2, self.size[2] as i32 / 2);
         if let Some(h) = self.find_near(HEARTH, cx, cz, 24) {
             return [h[0] as f32 + 2.5, h[1] as f32 + 0.01, h[2] as f32 + 0.5];
+        }
+        self.open_spawn()
+    }
+
+    /// A free standing place beside a hearth.
+    pub fn spawn_near(&self, h: [i32; 3]) -> [f32; 3] {
+        let free = |x: i32, y: i32, z: i32| {
+            is_solid(self.get(x, y - 1, z))
+                && !is_solid(self.get(x, y, z))
+                && !is_solid(self.get(x, y + 1, z))
+        };
+        for r in 2..6i32 {
+            for (dx, dz) in [
+                (r, 0),
+                (0, r),
+                (-r, 0),
+                (0, -r),
+                (r, r),
+                (-r, r),
+                (r, -r),
+                (-r, -r),
+            ] {
+                for dy in [0, 1, -1, 2, -2, 3] {
+                    let (x, y, z) = (h[0] + dx, h[1] + dy, h[2] + dz);
+                    if free(x, y, z) {
+                        return [x as f32 + 0.5, y as f32 + 0.01, z as f32 + 0.5];
+                    }
+                }
+            }
         }
         self.open_spawn()
     }

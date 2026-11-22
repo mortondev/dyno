@@ -388,7 +388,7 @@ impl State {
             mob.think -= dt;
             mob.burn_flash += dt;
             if c.burns_in_daylight {
-                if !night && sky >= 12 {
+                if !night && sky >= 8 {
                     // daylight unmakes it
                     mob.health -= 8.0 * dt;
                     if mob.burn_flash > 0.5 {

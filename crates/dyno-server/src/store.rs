@@ -44,6 +44,9 @@ pub struct Meta {
     pub clock: f32,
     #[serde(default)]
     pub events: Vec<(u64, String)>,
+    /// the ruined hearth new players start beside
+    #[serde(default)]
+    pub spawn_hearth: Option<[i32; 3]>,
 }
 
 pub fn meta_path(world: &Path) -> PathBuf {

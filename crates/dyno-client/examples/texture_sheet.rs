@@ -7,14 +7,11 @@
 //! item sprite over a dark and a light background. It also prints the checks
 //! that the eye does not catch: alpha rules, determinism and build time.
 
-#[path = "../src/textures.rs"]
-mod textures;
-
+use dyno_client::textures::{Rgba, TILE, Textures, item_sprite};
 use dyno_world::BLOCKS;
 use dyno_world::content::{Content, FIRST_ITEM, ItemView};
 use std::io::Write;
 use std::time::Instant;
-use textures::{Rgba, TILE, Textures, item_sprite};
 
 /// 3×5 glyphs for A-Z then 0-9, one octal digit per row.
 const FONT: [[u8; 5]; 36] = [
@@ -71,8 +68,8 @@ struct Sheet {
 impl Sheet {
     fn new(w: usize, h: usize) -> Sheet {
         let mut px = vec![0u8; w * h * 3];
-        for p in px.chunks_exact_mut(3) {
-            p.copy_from_slice(&[34, 32, 40]);
+        for p in px.as_chunks_mut::<3>().0 {
+            *p = [34, 32, 40];
         }
         Sheet { w, h, px }
     }
@@ -92,7 +89,7 @@ impl Sheet {
                 let back = match bg {
                     Bg::Solid(c) => c,
                     Bg::Checker => {
-                        if ((x0 + x) / 8 + (y0 + y) / 8) % 2 == 0 {
+                        if ((x0 + x) / 8 + (y0 + y) / 8).is_multiple_of(2) {
                             [150, 150, 158]
                         } else {
                             [105, 105, 112]
@@ -133,10 +130,15 @@ impl Sheet {
     }
 }
 
+/// The pixels of a tile, as RGBA.
+fn pixels(t: &Rgba) -> &[[u8; 4]] {
+    t.as_chunks::<4>().0
+}
+
 fn mean_rgb(t: &Rgba) -> [f32; 3] {
     let mut sum = [0f32; 3];
     let mut n = 0f32;
-    for p in t.chunks_exact(4).filter(|p| p[3] > 0) {
+    for p in pixels(t).iter().filter(|p| p[3] > 0) {
         for k in 0..3 {
             sum[k] += p[k] as f32 / 255.0;
         }
@@ -150,7 +152,7 @@ fn mean_rgb(t: &Rgba) -> [f32; 3] {
 }
 
 fn colors(t: &Rgba) -> usize {
-    let mut seen: Vec<&[u8]> = t.chunks_exact(4).collect();
+    let mut seen = pixels(t).to_vec();
     seen.sort();
     seen.dedup();
     seen.len()
@@ -173,18 +175,18 @@ fn checks(tex: &Textures, content: &Content) {
         let clear = matches!(id, 0 | 8 | 13 | 22);
         for (f, layer) in faces.iter().enumerate() {
             let t = &tex.layers[*layer as usize];
-            let holes = t.chunks_exact(4).filter(|p| p[3] == 0).count();
-            let solid = t.chunks_exact(4).all(|p| p[3] == 255);
+            let holes = pixels(t).iter().filter(|p| p[3] == 0).count();
+            let solid = pixels(t).iter().all(|p| p[3] == 255);
             if leafy && holes > 25 {
                 fail(format!("{name} face {f}: {holes} holes"));
             }
-            if leafy && t.chunks_exact(4).any(|p| p[3] != 0 && p[3] != 255) {
+            if leafy && pixels(t).iter().any(|p| p[3] != 0 && p[3] != 255) {
                 fail(format!("{name} face {f}: partial alpha in leaves"));
             }
             if !leafy && !clear && !solid {
                 fail(format!("{name} face {f}: not opaque"));
             }
-            if id == 13 && t.chunks_exact(4).any(|p| !(160..=215).contains(&p[3])) {
+            if id == 13 && pixels(t).iter().any(|p| !(160..=215).contains(&p[3])) {
                 fail(format!("water face {f}: alpha out of range"));
             }
             if colors(t) > 20 {
@@ -209,7 +211,7 @@ fn checks(tex: &Textures, content: &Content) {
         if corner(0, 0) != 0 || corner(15, 0) != 0 || corner(0, 15) != 0 || corner(15, 15) != 0 {
             fail(format!("{}: sprite corner is not transparent", view.name));
         }
-        if s.chunks_exact(4).filter(|p| p[3] > 0).count() < 20 {
+        if pixels(&s).iter().filter(|p| p[3] > 0).count() < 20 {
             fail(format!("{}: sprite is nearly empty", view.name));
         }
     }

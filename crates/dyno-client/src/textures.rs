@@ -98,8 +98,8 @@ impl Img {
 
     fn rgba(&self) -> Rgba {
         let mut out = [0u8; TILE * TILE * 4];
-        for (o, p) in out.chunks_exact_mut(4).zip(self.0.iter()) {
-            o.copy_from_slice(p);
+        for (o, p) in out.as_chunks_mut::<4>().0.iter_mut().zip(self.0.iter()) {
+            *o = *p;
         }
         out
     }
@@ -130,11 +130,6 @@ impl Map {
 
     fn set(&mut self, x: i32, y: i32, v: i32) {
         self.0[at(x, y)] = v.clamp(-8, 8) as i8;
-    }
-
-    fn add(&mut self, x: i32, y: i32, d: i32) {
-        let v = self.get(x, y) + d;
-        self.set(x, y, v);
     }
 
     /// Replace lone pixels by a neighbour, so shades form clusters and not
@@ -477,22 +472,20 @@ fn crack(m: &mut Map, points: &[(i32, i32)]) {
     }
 }
 
-/// Stone: wide flat plates, like layered rock, and a few cracks.
+/// Stone: flat plates, wider than tall like layered rock, and a few
+/// hairline cracks.
 fn stone_map() -> Map {
-    let flat = patch_map(&sites(3, 5, 0.9, 11), 2.0, 12, &[3, 3, 3, 2, 3, 4, 2, 4]);
+    let flat = patch_map(&sites(4, 6, 0.9, 27), 1.8, 28, &[3, 3, 2, 3, 4, 3, 4, 3]);
     // A lighter plate stands a little proud: it throws a thin shadow on
     // the plate below it.
     let mut m = Map::from_fn(|x, y| {
         let v = flat.get(x, y);
-        if flat.get(x, y - 1) > v && flat.get(x - 1, y - 1) > v {
-            v - 1
-        } else {
-            v
-        }
+        let under = flat.get(x, y - 1) > v && flat.get(x - 1, y - 1) > v;
+        (v - under as i32).max(2)
     });
-    crack(&mut m, &[(2, 2), (3, 3), (4, 3), (5, 4)]);
-    crack(&mut m, &[(10, 9), (11, 9), (12, 10), (13, 10), (14, 11)]);
-    crack(&mut m, &[(6, 13), (7, 13), (8, 14)]);
+    crack(&mut m, &[(1, 4), (2, 5), (3, 5), (4, 6)]);
+    crack(&mut m, &[(9, 1), (10, 2), (11, 2), (12, 3), (13, 3)]);
+    crack(&mut m, &[(7, 11), (8, 11), (9, 12), (10, 13)]);
     m
 }
 
@@ -749,7 +742,7 @@ fn brick_img(base: Rgb, seed: u32) -> Img {
         // one worn spot per brick
         let spot = 1 + (h >> 8) as i32 % 5;
         if ry == 1 && (rx == spot || rx == spot + 1) {
-            step = if (h >> 12) % 2 == 0 { 2 } else { 4 };
+            step = if (h >> 12).is_multiple_of(2) { 2 } else { 4 };
         }
         r.px(step)
     })
@@ -976,7 +969,7 @@ fn planks_img(base: Rgb, seed: u32) -> Img {
         let joint = JOINTS[board as usize];
         // the boards on each side of a joint get their own tone
         let piece = board * 2 + (x > joint) as i32;
-        let r = if hash(piece, 0, seed) % 3 == 0 { &b } else { &a };
+        let r = if hash(piece, 0, seed).is_multiple_of(3) { &b } else { &a };
         if row == 3 {
             return r.px(if x == joint { 0 } else { 1 });
         }
@@ -1091,7 +1084,7 @@ fn birch_bark_img(base: Rgb) -> Img {
         }
     }
     // a knot: a dark eye with a lid over it
-    art(&mut img, 6, 8, &[".3223.", "321123", ".3443."], &[&dark]);
+    art(&mut img, 6, 8, &[".22.", "2112", ".33."], &[&dark]);
     img
 }
 
@@ -1145,7 +1138,7 @@ fn leaves_img(base: Rgb, seed: u32, shapes: &[[&str; 3]; 4], skip: u32, holes: u
         for cy in 0..4 {
             for cx in 0..4 {
                 let h = hash(cx, cy, seed + layer);
-                if layer == 1 && h % skip == 0 {
+                if layer == 1 && h.is_multiple_of(skip) {
                     continue;
                 }
                 let shift = if layer == 0 { 2 } else { 0 };
@@ -1520,29 +1513,32 @@ fn shroom_img(base: Rgb, spots: &[(f32, f32, f32)], seed: u32) -> Img {
     })
 }
 
-/// The side of a torch post. The pattern fills the whole tile, so it works
-/// whether the post shows a narrow strip of it or the whole tile squeezed:
-/// flame in the top 7 rows, a charred band, then wood.
+/// The side of a torch post. The renderer shows the strip from column 6.5
+/// to 9.5 over the full height, so the stick is drawn four pixels wide in
+/// columns 6 to 9 and repeated across the tile: flame in the top six rows,
+/// a charred band, then wood.
 fn torch_side_img(frame: i32) -> Img {
     let fire = Ramp::fire();
     let wood = Ramp::new([0.52, 0.38, 0.22]);
+    /// heat of each flame row, in the middle of the stick and at its edges
+    const MIDDLE: [i32; 7] = [5, 5, 5, 4, 4, 3, 2];
+    const EDGE: [i32; 7] = [4, 4, 4, 3, 3, 2, 1];
     Img::from_fn(|x, y| {
-        if y >= 9 {
-            return wood.px([2, 3, 4, 3][(x % 4) as usize] - (y == 9) as i32);
-        }
+        // 0 and 3 are the edges of the stick, 1 and 2 its middle
+        let across = (x + 2) % 4;
         if y >= 7 {
-            return wood.px(if y == 7 && (x + frame) % 3 == 0 { 1 } else { 0 });
+            let step = [4, 3, 2, 1][across as usize];
+            return wood.px(if y == 7 { step - 2 } else { step });
         }
-        // tongues of flame: each pair of columns flickers to its own height
-        let top = (hash(x / 2, frame, 241) % 3) as i32;
-        let heat = [1, 2, 3, 4, 5, 4, 3][y as usize];
-        if y < top {
-            fire.px(1)
-        } else if y == top {
-            fire.px(2)
-        } else {
-            fire.px(heat - (x % 2 == 1 && y < 4) as i32)
+        if y == 6 {
+            // the charred tip, with an ember that wanders
+            return if across == 1 + frame % 2 { fire.px(1) } else { wood.px(0) };
         }
+        // the flame flickers: each side rises and falls by a row
+        let side = x.rem_euclid(S) / 2;
+        let flicker = (hash(side, frame, 241) % 2) as i32;
+        let table = if across == 1 || across == 2 { &MIDDLE } else { &EDGE };
+        fire.px(table[(y + flicker) as usize])
     })
 }
 
@@ -2227,6 +2223,9 @@ fn outline(img: &mut Img) {
 pub fn item_sprite(item: &ItemView) -> Rgba {
     let main = if item.light > 0 {
         Ramp::glow(item.color)
+    } else if luma(item.color) > 0.75 {
+        // pale metal needs room above its base colour for a highlight
+        Ramp::with(scale(item.color, 0.9), 1.25)
     } else {
         Ramp::with(item.color, 1.1)
     };

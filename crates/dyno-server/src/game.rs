@@ -129,6 +129,8 @@ pub struct State {
     pub events: std::collections::VecDeque<(u64, String)>,
     pub webhook: Option<Sender<String>>,
     pub meta_dirty: bool,
+    /// the ruined hearth at the world spawn; players cannot mine it
+    pub spawn_hearth: [i32; 3],
 }
 
 pub fn now_secs() -> u64 {
@@ -160,6 +162,10 @@ fn center(p: [i32; 3]) -> [f32; 3] {
 impl State {
     pub fn time(&self) -> f32 {
         self.clock
+    }
+    /// Where new and bedless players appear: beside the spawn hearth.
+    pub fn spawn_point(&self) -> [f32; 3] {
+        self.world.spawn_near(self.spawn_hearth)
     }
     pub fn is_night(&self) -> bool {
         is_night_at(self.clock)
@@ -320,7 +326,7 @@ impl State {
                 ));
             }
             Some(d) => d.clone(),
-            None => PlayerData::new(self.default_mode, self.world.spawn()),
+            None => PlayerData::new(self.default_mode, self.spawn_point()),
         };
         let id = self.next_id;
         self.next_id += 1;
@@ -598,6 +604,13 @@ impl State {
             return self.resync(id, pos);
         }
         let creative = p.mode == Mode::Creative;
+        if pos == self.spawn_hearth && !creative {
+            self.tell(
+                id,
+                "The old hearth is part of the land. It cannot be moved.",
+            );
+            return self.resync(id, pos);
+        }
         let tool = p.held_tool(&self.content).cloned();
         if !creative {
             let Some(need) = mining::break_time(&self.content, b, tool.as_ref()) else {
@@ -1054,7 +1067,7 @@ impl State {
     }
 
     fn respawn(&mut self, id: PlayerId) {
-        let spawn = self.world.spawn();
+        let spawn = self.spawn_point();
         let p = self.players.get_mut(&id).unwrap();
         if !p.dead {
             return;
@@ -1143,26 +1156,32 @@ impl State {
     }
 
     fn tick_items(&mut self, dt: f32) {
-        // a gentle magnet: items drift to a living player within 2.5 blocks
+        // a gentle magnet: items drift to a living player within 2 blocks
+        // whose pack has room for them
         let now = Instant::now();
-        let bodies: Vec<[f32; 3]> = self
+        let c = &self.content;
+        let bodies: Vec<([f32; 3], &Inventory)> = self
             .players
             .values()
             .filter(|p| !p.dead)
-            .map(|p| [p.pose.pos[0], p.pose.pos[1] + 0.7, p.pose.pos[2]])
+            .map(|p| ([p.pose.pos[0], p.pose.pos[1] + 0.7, p.pose.pos[2]], &p.pack))
             .collect();
         for e in self.entities.values_mut() {
-            if !matches!(e.kind, EntityKind::Item(_)) || e.pickup_after > now {
+            let EntityKind::Item(st) = e.kind else {
+                continue;
+            };
+            if e.pickup_after > now {
                 continue;
             }
-            if let Some(b) = bodies
+            let one = Stack { count: 1, ..st };
+            if let Some((b, _)) = bodies
                 .iter()
-                .filter(|b| dist(**b, e.pos) < 2.5)
-                .min_by(|a, b| dist(**a, e.pos).total_cmp(&dist(**b, e.pos)))
+                .filter(|(b, pack)| dist(*b, e.pos) < 2.0 && (*pack).clone().add(c, one).is_none())
+                .min_by(|a, b| dist(a.0, e.pos).total_cmp(&dist(b.0, e.pos)))
             {
                 let d = dist(*b, e.pos).max(0.1);
-                for k in 0..3 {
-                    e.vel[k] += (b[k] - e.pos[k]) / d * 30.0 * dt;
+                for (v, (bk, pk)) in e.vel.iter_mut().zip(b.iter().zip(e.pos)) {
+                    *v += (bk - pk) / d * 30.0 * dt;
                 }
                 e.vel[1] += 12.0 * dt; // partly cancel gravity so items rise to the player
             }

@@ -140,17 +140,20 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
             w
         }
     };
-    let had_hearth = !creatures::find_hearths(&world).is_empty();
-    let hearth = world.ensure_spawn_hearth();
-    if !had_hearth {
-        log(format!("Built the spawn hearth at {hearth:?}"));
+    let meta = store::load_meta(&store::meta_path(&cfg.world_path));
+    let before = world.clone();
+    let spawn_hearth = world.ensure_spawn_hearth(meta.spawn_hearth);
+    if world.get(spawn_hearth[0], spawn_hearth[1], spawn_hearth[2])
+        != before.get(spawn_hearth[0], spawn_hearth[1], spawn_hearth[2])
+    {
+        log(format!("Built the spawn hearth at {spawn_hearth:?}"));
         if let Err(e) = world.save(&cfg.world_path) {
             log(format!("Warning: cannot save world: {e}"));
         }
     }
+    drop(before);
     let hearths = creatures::find_hearths(&world);
     let light = dyno_world::light::Light::new(&world);
-    let meta = store::load_meta(&store::meta_path(&cfg.world_path));
     let webhook = cfg
         .webhook
         .clone()
@@ -189,7 +192,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         hearths,
         events: meta.events.into_iter().collect(),
         webhook,
-        meta_dirty: false,
+        meta_dirty: true,
+        spawn_hearth,
     };
     let server = Arc::new(Server {
         cfg,
@@ -279,6 +283,7 @@ impl Server {
                 day: st.day,
                 clock: st.clock,
                 events: st.events.iter().cloned().collect(),
+                spawn_hearth: Some(st.spawn_hearth),
             };
             (
                 world,
@@ -413,7 +418,7 @@ impl Server {
                     server_version: env!("CARGO_PKG_VERSION").into(),
                     motd: self.cfg.motd.clone(),
                     size: st.world.size,
-                    spawn: st.world.spawn(),
+                    spawn: st.spawn_point(),
                     players: st
                         .players
                         .iter()
@@ -595,7 +600,7 @@ impl Server {
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
             }
             "/spawn" => {
-                let pos = st.players[&id].spawn.unwrap_or_else(|| st.world.spawn());
+                let pos = st.players[&id].spawn.unwrap_or_else(|| st.spawn_point());
                 if let Some(p) = st.players.get_mut(&id) {
                     p.pose.pos = pos;
                     let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
