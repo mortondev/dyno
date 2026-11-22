@@ -1,0 +1,12 @@
+[package]
+name = "dyno-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+dyno-protocol = { version = "0.0.1", path = "../dyno-protocol" }
+dyno-world = { version = "0.0.1", path = "../dyno-world" }
+tungstenite = "0.30.0"

@@ -33,6 +33,33 @@ fn main() {
                 std::process::exit(1);
             }
         },
+        "server" => run_server(&args[1..]),
+        "ping" => {
+            let Some(addr) = args.get(1) else {
+                eprintln!("usage: dyno ping <address> [name]");
+                std::process::exit(2);
+            };
+            let name = args.get(2).map(String::as_str).unwrap_or("ping");
+            let t = std::time::Instant::now();
+            match dyno_client::net::connect(addr, name, Duration::from_secs(10)) {
+                Ok(j) => {
+                    println!(
+                        "OK {} in {} ms: server dyno {}, you are #{}, world {:?}, {} other players. MOTD: {}",
+                        j.url,
+                        t.elapsed().as_millis(),
+                        j.server_version,
+                        j.your_id,
+                        j.world.size,
+                        j.players.len(),
+                        j.motd
+                    );
+                }
+                Err(e) => {
+                    eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
         "verify-manifest" => {
             let (Some(m), Some(s)) = (args.get(1), args.get(2)) else {
                 eprintln!("usage: dyno verify-manifest <manifest.json> <manifest.json.sig>");
@@ -75,4 +102,79 @@ fn auto_update() {
             dyno_update::VERSION
         ),
     }
+}
+
+fn run_server(args: &[String]) {
+    let mut cfg = dyno_server::Config::default();
+    let mut port = dyno_protocol::DEFAULT_PORT;
+    let mut bind = "0.0.0.0".to_string();
+    let mut auto_update = false;
+    let mut i = 0;
+    while i < args.len() {
+        let val = || args.get(i + 1).cloned().unwrap_or_default();
+        match args[i].as_str() {
+            "--port" => {
+                port = val()
+                    .parse()
+                    .unwrap_or_else(|_| fail("--port needs a number"));
+                i += 1;
+            }
+            "--bind" => {
+                bind = val();
+                i += 1;
+            }
+            "--world" => {
+                cfg.world_path = val().into();
+                i += 1;
+            }
+            "--motd" => {
+                cfg.motd = val();
+                i += 1;
+            }
+            "--auto-update" => auto_update = true,
+            other => fail(&format!("unknown server option {other}")),
+        }
+        i += 1;
+    }
+    cfg.bind = format!("{bind}:{port}")
+        .parse()
+        .or_else(|_| format!("[{bind}]:{port}").parse())
+        .unwrap_or_else(|_| fail("bad --bind address"));
+    if auto_update {
+        auto_update_now();
+    }
+    let handle =
+        dyno_server::start(cfg).unwrap_or_else(|e| fail(&format!("cannot start server: {e}")));
+    println!("Players can join with the address <this machine's IP>:{port}. Press Ctrl+C to stop.");
+    let mut last_check = std::time::Instant::now();
+    loop {
+        std::thread::sleep(Duration::from_secs(5));
+        if auto_update && last_check.elapsed() > Duration::from_secs(6 * 3600) {
+            last_check = std::time::Instant::now();
+            if let Ok(dyno_update::Outcome::Updated { from, to }) =
+                dyno_update::check_and_update(false, Duration::from_secs(30))
+            {
+                handle.server.announce(&format!(
+                    "Server updated {from} -> {to}. Restarting in 10 seconds."
+                ));
+                std::thread::sleep(Duration::from_secs(10));
+                handle.stop();
+                dyno_update::restart();
+            }
+        }
+    }
+}
+
+fn auto_update_now() {
+    if let Ok(dyno_update::Outcome::Updated { from, to }) =
+        dyno_update::check_and_update(false, Duration::from_secs(15))
+    {
+        println!("Updated {from} -> {to}. Restarting...");
+        dyno_update::restart();
+    }
+}
+
+fn fail(msg: &str) -> ! {
+    eprintln!("{msg}");
+    std::process::exit(2)
 }
