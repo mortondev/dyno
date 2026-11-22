@@ -82,13 +82,15 @@ impl Player {
             (self.pos.y + 0.4).floor() as i32,
             self.pos.z.floor() as i32,
         ) == w::WATER;
+        let sneaking = input.down && !self.flying && self.on_ground;
         let speed = if self.flying {
             if input.sprint { 18.0 } else { 9.0 }
         } else if input.sprint {
             6.4
         } else {
             4.4
-        } * if in_water && !self.flying { 0.55 } else { 1.0 };
+        } * if in_water && !self.flying { 0.55 } else { 1.0 }
+            * if sneaking { 0.35 } else { 1.0 };
         let target = wish * speed;
         let accel = if self.on_ground || self.flying {
             14.0
@@ -123,6 +125,15 @@ impl Player {
                 d -= step;
                 let mut next = self.pos;
                 next[axis] += step;
+                // sneaking: do not step off an edge
+                if sneaking
+                    && axis != 1
+                    && !self.supported(world, next)
+                    && self.supported(world, self.pos)
+                {
+                    self.vel[axis] = 0.0;
+                    break;
+                }
                 if self.collides(world, next) {
                     if axis == 1 && step < 0.0 {
                         self.on_ground = true;
@@ -146,6 +157,26 @@ impl Player {
             self.pos = world.spawn().into();
             self.vel = Vec3::ZERO;
         }
+    }
+
+    /// True if any solid block is just below the player's feet at `p`.
+    fn supported(&self, world: &World, p: Vec3) -> bool {
+        let y = (p.y - 0.05).floor() as i32;
+        for (dx, dz) in [
+            (-HALF_W, -HALF_W),
+            (HALF_W, -HALF_W),
+            (-HALF_W, HALF_W),
+            (HALF_W, HALF_W),
+        ] {
+            if w::is_solid(world.get(
+                (p.x + dx * 0.98).floor() as i32,
+                y,
+                (p.z + dz * 0.98).floor() as i32,
+            )) {
+                return true;
+            }
+        }
+        false
     }
 
     fn collides(&self, world: &World, p: Vec3) -> bool {

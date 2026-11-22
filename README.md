@@ -30,7 +30,7 @@ The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host nam
 | Mouse | Look |
 | W A S D | Move |
 | Space | Jump (up when flying) |
-| Shift | Down when flying |
+| Shift | Sneak (slow, and you do not fall off edges); down when flying |
 | Ctrl or R | Sprint |
 | F | Fly on or off |
 | Left click | Break block |
