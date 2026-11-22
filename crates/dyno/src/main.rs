@@ -7,6 +7,8 @@ dyno - live multiplayer block world (bootstrap build)
 
 USAGE:
   dyno                         Open the game (connect screen)
+  dyno connect <address>       Open the game with the server address filled in
+  dyno connect <address>       Open the game with the server address filled in
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
                                Run a dedicated game server
   dyno update                  Check for a new release and install it
@@ -79,28 +81,45 @@ fn main() {
                 }
             }
         }
-        _ => {
-            auto_update();
-            println!(
-                "dyno {} - the game client is not built yet.",
-                dyno_update::VERSION
-            );
+        "" | "connect" | "play" => {
+            let note = auto_update();
+            let prefill = if cmd == "connect" {
+                args.get(1).cloned()
+            } else {
+                None
+            };
+            if let Err(e) = dyno_client::run(prefill, note) {
+                eprintln!("dyno could not start the game: {e}");
+                std::process::exit(1);
+            }
+        }
+        other => {
+            eprintln!("unknown command '{other}'\n");
+            print!("{HELP}");
+            std::process::exit(2);
         }
     }
 }
 
-/// Check for updates at start. Every failure is soft.
-fn auto_update() {
+/// Check for updates at start. Every failure is soft. Returns a short status for the UI.
+fn auto_update() -> String {
+    if std::env::var_os(dyno_update::JUST_UPDATED_ENV).is_some() {
+        return "just updated".into();
+    }
     match dyno_update::check_and_update(false, Duration::from_secs(8)) {
         Ok(dyno_update::Outcome::Updated { from, to }) => {
             println!("Updated {from} -> {to}. Restarting...");
             dyno_update::restart();
         }
-        Ok(_) => {}
-        Err(e) => eprintln!(
-            "update check failed, continuing with {}: {e}",
-            dyno_update::VERSION
-        ),
+        Ok(dyno_update::Outcome::UpToDate(_)) => "up to date".into(),
+        Ok(dyno_update::Outcome::Skipped(why)) => format!("updates off: {why}"),
+        Err(e) => {
+            eprintln!(
+                "update check failed, continuing with {}: {e}",
+                dyno_update::VERSION
+            );
+            "update check failed".into()
+        }
     }
 }
 
@@ -143,6 +162,7 @@ fn run_server(args: &[String]) {
     if auto_update {
         auto_update_now();
     }
+    let _ = dyno_update::JUST_UPDATED_ENV;
     let handle =
         dyno_server::start(cfg).unwrap_or_else(|e| fail(&format!("cannot start server: {e}")));
     println!("Players can join with the address <this machine's IP>:{port}. Press Ctrl+C to stop.");

@@ -615,7 +615,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
 name = "dyno"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "dyno-client",
  "dyno-protocol",
@@ -625,11 +625,12 @@ dependencies = [
 
 [[package]]
 name = "dyno-client"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "bytemuck",
  "directories",
  "dyno-protocol",
+ "dyno-server",
  "dyno-world",
  "egui",
  "egui-wgpu",
@@ -644,7 +645,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-protocol"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "postcard",
  "serde",
@@ -652,7 +653,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-server"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "dyno-protocol",
  "dyno-world",
@@ -661,7 +662,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-update"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "ed25519-dalek",
  "self-replace",
@@ -674,7 +675,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-world"
-version = "0.0.2"
+version = "0.0.3"
 
 [[package]]
 name = "ecolor"
@@ -1006,9 +1007,12 @@ dependencies = [
 
 [[package]]
 name = "glam"
-version = "0.34.3"
+version = "0.30.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "627003914c6057c9c8f0832ee4f870b5a4f599d0cfa83f4072675114860cd0ff"
+checksum = "19fc433e8437a212d1b6f1e68c7824af3aed907da60afa994e7f542d18d12aa9"
+dependencies = [
+ "bytemuck",
+]
 
 [[package]]
 name = "glow"

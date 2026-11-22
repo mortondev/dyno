@@ -100,7 +100,8 @@ fn translucent(b: BlockId) -> bool {
     matches!(b, w::WATER | w::GLASS)
 }
 
-const FACES: [([i32; 3], [i32; 3], [i32; 3], f32); 6] = [
+type Face = ([i32; 3], [i32; 3], [i32; 3], f32);
+const FACES: [Face; 6] = [
     // normal, u axis, v axis, face shade
     ([1, 0, 0], [0, 0, 1], [0, 1, 0], 0.80),
     ([-1, 0, 0], [0, 0, 1], [0, 1, 0], 0.80),
@@ -140,7 +141,9 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
                         z as f32 + 0.5 + n[2] as f32 * 0.5,
                     ];
                     let mut corners = [([0f32; 3], 0f32); 4];
-                    for (i, (su, sv)) in [(-1, -1), (1, -1), (1, 1), (-1, 1)].into_iter().enumerate() {
+                    for (i, (su, sv)) in
+                        [(-1, -1), (1, -1), (1, 1), (-1, 1)].into_iter().enumerate()
+                    {
                         let p = [
                             center[0] + 0.5 * (su * u[0] + sv * v[0]) as f32,
                             center[1] + 0.5 * (su * u[1] + sv * v[1]) as f32,
@@ -151,20 +154,36 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
                         } else if tr {
                             alpha
                         } else {
-                            let s1 = solid(base[0] + su * u[0], base[1] + su * u[1], base[2] + su * u[2]);
-                            let s2 = solid(base[0] + sv * v[0], base[1] + sv * v[1], base[2] + sv * v[2]);
+                            let s1 = solid(
+                                base[0] + su * u[0],
+                                base[1] + su * u[1],
+                                base[2] + su * u[2],
+                            );
+                            let s2 = solid(
+                                base[0] + sv * v[0],
+                                base[1] + sv * v[1],
+                                base[2] + sv * v[2],
+                            );
                             let c = solid(
                                 base[0] + su * u[0] + sv * v[0],
                                 base[1] + su * u[1] + sv * v[1],
                                 base[2] + su * u[2] + sv * v[2],
                             );
-                            let ao = if s1 == 1 && s2 == 1 { 0 } else { 3 - (s1 + s2 + c) };
+                            let ao = if s1 == 1 && s2 == 1 {
+                                0
+                            } else {
+                                3 - (s1 + s2 + c)
+                            };
                             [0.5, 0.66, 0.83, 1.0][ao as usize] * shade
                         };
                         corners[i] = (p, light);
                     }
                     let nf = [n[0] as f32, n[1] as f32, n[2] as f32];
-                    let col = if tr { [lin[0] * shade, lin[1] * shade, lin[2] * shade] } else { lin };
+                    let col = if tr {
+                        [lin[0] * shade, lin[1] * shade, lin[2] * shade]
+                    } else {
+                        lin
+                    };
                     // flip the diagonal so ambient occlusion interpolates without seams
                     let order = if corners[0].1 + corners[2].1 > corners[1].1 + corners[3].1 {
                         [0, 1, 2, 0, 2, 3]
@@ -174,7 +193,11 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
                     let out = if tr { &mut trans } else { &mut opaque };
                     for i in order {
                         let (p, l) = corners[i];
-                        out.push(Vertex { pos: p, normal: nf, color: [col[0], col[1], col[2], l] });
+                        out.push(Vertex {
+                            pos: p,
+                            normal: nf,
+                            color: [col[0], col[1], col[2], l],
+                        });
                     }
                 }
             }
@@ -197,7 +220,11 @@ pub fn push_box(out: &mut Vec<Vertex>, min: Vec3, max: Vec3, rgb: [f32; 3]) {
         let hv = vf * half;
         let p = [fc - hu - hv, fc + hu - hv, fc + hu + hv, fc - hu + hv];
         for i in [0, 1, 2, 0, 2, 3] {
-            out.push(Vertex { pos: p[i].into(), normal: [0.0; 3], color: [c[0], c[1], c[2], shade] });
+            out.push(Vertex {
+                pos: p[i].into(),
+                normal: [0.0; 3],
+                color: [c[0], c[1], c[2], shade],
+            });
         }
     }
 }
@@ -233,7 +260,11 @@ fn depth_view(device: &wgpu::Device, w: u32, h: u32) -> wgpu::TextureView {
     device
         .create_texture(&wgpu::TextureDescriptor {
             label: Some("depth"),
-            size: wgpu::Extent3d { width: w.max(1), height: h.max(1), depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: w.max(1),
+                height: h.max(1),
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -247,10 +278,13 @@ fn depth_view(device: &wgpu::Device, w: u32, h: u32) -> wgpu::TextureView {
 impl Gfx {
     pub fn new(window: Arc<winit::window::Window>) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::from_env().unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
+            backends: wgpu::Backends::from_env()
+                .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
             ..Default::default()
         });
-        let surface = instance.create_surface(window.clone()).map_err(|e| format!("surface: {e}"))?;
+        let surface = instance
+            .create_surface(window.clone())
+            .map_err(|e| format!("surface: {e}"))?;
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: Some(&surface),
@@ -266,7 +300,10 @@ impl Gfx {
         };
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: Some("dyno"),
-            required_limits: wgpu::Limits { max_texture_dimension_2d: 8192, ..limits },
+            required_limits: wgpu::Limits {
+                max_texture_dimension_2d: 8192,
+                ..limits
+            },
             ..Default::default()
         }))
         .map_err(|e| format!("device: {e}"))?;
@@ -307,7 +344,10 @@ impl Gfx {
         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
             layout: &bgl,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: ubuf.as_entire_binding(),
+            }],
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
@@ -319,7 +359,10 @@ impl Gfx {
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4],
         };
-        let make = |fs: &str, topo: wgpu::PrimitiveTopology, blend: Option<wgpu::BlendState>, depth_write: bool| {
+        let make = |fs: &str,
+                    topo: wgpu::PrimitiveTopology,
+                    blend: Option<wgpu::BlendState>,
+                    depth_write: bool| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(fs),
                 layout: Some(&layout),
@@ -329,7 +372,11 @@ impl Gfx {
                     compilation_options: Default::default(),
                     buffers: std::slice::from_ref(&vlayout),
                 },
-                primitive: wgpu::PrimitiveState { topology: topo, cull_mode: None, ..Default::default() },
+                primitive: wgpu::PrimitiveState {
+                    topology: topo,
+                    cull_mode: None,
+                    ..Default::default()
+                },
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: DEPTH,
                     depth_write_enabled: depth_write,
@@ -359,8 +406,17 @@ impl Gfx {
             Some(wgpu::BlendState::ALPHA_BLENDING),
             false,
         );
-        let line_pipe = make("fs_translucent", wgpu::PrimitiveTopology::LineList, Some(wgpu::BlendState::ALPHA_BLENDING), false);
-        let egui = egui_wgpu::Renderer::new(&device, config.format, egui_wgpu::RendererOptions::default());
+        let line_pipe = make(
+            "fs_translucent",
+            wgpu::PrimitiveTopology::LineList,
+            Some(wgpu::BlendState::ALPHA_BLENDING),
+            false,
+        );
+        let egui = egui_wgpu::Renderer::new(
+            &device,
+            config.format,
+            egui_wgpu::RendererOptions::default(),
+        );
         let depth = depth_view(&device, config.width, config.height);
         Ok(Gfx {
             window,
@@ -395,11 +451,13 @@ impl Gfx {
         if v.is_empty() {
             return None;
         }
-        let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(v),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        let buf = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(v),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
         Some((buf, v.len() as u32))
     }
 
@@ -416,7 +474,10 @@ impl Gfx {
             for sz in 0..d[2] {
                 for sx in 0..d[0] {
                     let (o, t) = mesh_section(world, sx, sy, sz);
-                    self.sections.push(SectionMesh { opaque: self.upload(&o), trans: self.upload(&t) });
+                    self.sections.push(SectionMesh {
+                        opaque: self.upload(&o),
+                        trans: self.upload(&t),
+                    });
                 }
             }
         }
@@ -429,7 +490,11 @@ impl Gfx {
             for dy in -1..=1 {
                 for dz in -1..=1 {
                     let q = [p[0] + dx, p[1] + dy, p[2] + dz];
-                    let s = [q[0].div_euclid(SECTION), q[1].div_euclid(SECTION), q[2].div_euclid(SECTION)];
+                    let s = [
+                        q[0].div_euclid(SECTION),
+                        q[1].div_euclid(SECTION),
+                        q[2].div_euclid(SECTION),
+                    ];
                     if (0..3).all(|i| s[i] >= 0 && s[i] < self.dims[i]) && !todo.contains(&s) {
                         todo.push(s);
                     }
@@ -439,7 +504,10 @@ impl Gfx {
         for s in todo {
             let (o, t) = mesh_section(world, s[0], s[1], s[2]);
             let i = ((s[1] * self.dims[2] + s[2]) * self.dims[0] + s[0]) as usize;
-            self.sections[i] = SectionMesh { opaque: self.upload(&o), trans: self.upload(&t) };
+            self.sections[i] = SectionMesh {
+                opaque: self.upload(&o),
+                trans: self.upload(&t),
+            };
         }
     }
 
@@ -461,7 +529,9 @@ impl Gfx {
             }
             Err(_) => return,
         };
-        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let view = frame
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
         let sky = srgb(SKY);
         if let Some((vp, cam, dist)) = view_proj {
             let u = Uniforms {
@@ -469,12 +539,15 @@ impl Gfx {
                 cam: [cam.x, cam.y, cam.z, 0.0],
                 fog: [sky[0], sky[1], sky[2], dist],
             };
-            self.queue.write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
+            self.queue
+                .write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
         }
         let box_buf = self.upload(boxes);
         let line_buf = self.upload(lines);
 
-        let mut enc = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut enc = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         {
             let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("world"),
@@ -494,7 +567,10 @@ impl Gfx {
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.depth,
-                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
                     stencil_ops: None,
                 }),
                 timestamp_writes: None,
@@ -505,11 +581,11 @@ impl Gfx {
                 rp.set_pipeline(&self.opaque_pipe);
                 let visible = |i: usize| self.section_visible(i, vp, dist);
                 for (i, s) in self.sections.iter().enumerate() {
-                    if let Some((b, n)) = &s.opaque {
-                        if visible(i) {
-                            rp.set_vertex_buffer(0, b.slice(..));
-                            rp.draw(0..*n, 0..1);
-                        }
+                    if let Some((b, n)) = &s.opaque
+                        && visible(i)
+                    {
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw(0..*n, 0..1);
                     }
                 }
                 if let Some((b, n)) = &box_buf {
@@ -518,11 +594,11 @@ impl Gfx {
                 }
                 rp.set_pipeline(&self.trans_pipe);
                 for (i, s) in self.sections.iter().enumerate() {
-                    if let Some((b, n)) = &s.trans {
-                        if visible(i) {
-                            rp.set_vertex_buffer(0, b.slice(..));
-                            rp.draw(0..*n, 0..1);
-                        }
+                    if let Some((b, n)) = &s.trans
+                        && visible(i)
+                    {
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw(0..*n, 0..1);
                     }
                 }
                 if let Some((b, n)) = &line_buf {
@@ -536,11 +612,17 @@ impl Gfx {
         // egui
         let ppp = egui_ctx.pixels_per_point();
         let jobs = egui_ctx.tessellate(egui_out.shapes, ppp);
-        let screen = egui_wgpu::ScreenDescriptor { size_in_pixels: [self.config.width, self.config.height], pixels_per_point: ppp };
+        let screen = egui_wgpu::ScreenDescriptor {
+            size_in_pixels: [self.config.width, self.config.height],
+            pixels_per_point: ppp,
+        };
         for (id, delta) in &egui_out.textures_delta.set {
-            self.egui.update_texture(&self.device, &self.queue, *id, delta);
+            self.egui
+                .update_texture(&self.device, &self.queue, *id, delta);
         }
-        let extra = self.egui.update_buffers(&self.device, &self.queue, &mut enc, &jobs, &screen);
+        let extra = self
+            .egui
+            .update_buffers(&self.device, &self.queue, &mut enc, &jobs, &screen);
         {
             let rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("egui"),
@@ -548,7 +630,10 @@ impl Gfx {
                     view: &view,
                     depth_slice: None,
                     resolve_target: None,
-                    ops: wgpu::Operations { load: wgpu::LoadOp::Load, store: wgpu::StoreOp::Store },
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
                 })],
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
@@ -560,7 +645,8 @@ impl Gfx {
         for id in &egui_out.textures_delta.free {
             self.egui.free_texture(id);
         }
-        self.queue.submit(extra.into_iter().chain(std::iter::once(enc.finish())));
+        self.queue
+            .submit(extra.into_iter().chain(std::iter::once(enc.finish())));
         self.window.pre_present_notify();
         frame.present();
     }

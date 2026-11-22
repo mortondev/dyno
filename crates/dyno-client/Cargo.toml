@@ -10,11 +10,12 @@ rust-version.workspace = true
 bytemuck = { version = "1.25.2", features = ["derive"] }
 directories = "6.0.0"
 dyno-protocol = { path = "../dyno-protocol" }
+dyno-server = { path = "../dyno-server" }
 dyno-world = { path = "../dyno-world" }
 egui = "0.33.3"
 egui-wgpu = "0.33.3"
 egui-winit = "0.33.3"
-glam = "0.34.3"
+glam = { version = "0.30", features = ["bytemuck"] }
 pollster = "1.0.3"
 rustls = { version = "0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
 serde = { version = "1.0.229", features = ["derive"] }

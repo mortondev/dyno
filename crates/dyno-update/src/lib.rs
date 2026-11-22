@@ -200,9 +200,25 @@ pub fn sha256_file(path: &Path) -> std::io::Result<String> {
     Ok(hex(&Sha256::digest(std::fs::read(path)?)))
 }
 
+static EXE_PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
+/// Path of this executable. On Linux, once the file is replaced, `current_exe`
+/// reports "<path> (deleted)", so the path is remembered before replacing.
+fn exe_path() -> Option<std::path::PathBuf> {
+    if let Some(p) = EXE_PATH.get() {
+        return Some(p.clone());
+    }
+    let p = std::env::current_exe().ok()?;
+    let s = p.to_string_lossy();
+    Some(match s.strip_suffix(" (deleted)") {
+        Some(t) => std::path::PathBuf::from(t),
+        None => p,
+    })
+}
+
 fn install(bytes: &[u8]) -> Result<(), Error> {
-    let exe =
-        std::env::current_exe().map_err(|e| err(format!("cannot find own executable: {e}")))?;
+    let exe = exe_path().ok_or_else(|| err("cannot find own executable"))?;
+    let _ = EXE_PATH.set(exe.clone());
     let dir = exe
         .parent()
         .ok_or_else(|| err("executable has no parent folder"))?;
@@ -229,7 +245,7 @@ fn install(bytes: &[u8]) -> Result<(), Error> {
 
 /// Start the new executable with the same arguments, then exit this process.
 pub fn restart() -> ! {
-    let exe = std::env::current_exe().expect("current executable");
+    let exe = exe_path().expect("current executable");
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     let mut cmd = std::process::Command::new(exe);
     cmd.args(args).env(JUST_UPDATED_ENV, "1");
