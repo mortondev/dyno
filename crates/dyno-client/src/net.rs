@@ -145,7 +145,15 @@ pub fn connect(input: &str, name: &str, timeout: Duration) -> Result<Joined, Str
 }
 
 fn pump(ws: &mut Ws, out_rx: Receiver<ClientMsg>, in_tx: &Sender<NetEvent>) -> String {
+    // Keepalive: a minimised window stops drawing and sends nothing, so ping the server.
+    let mut last_ping = Instant::now();
     loop {
+        if last_ping.elapsed() >= Duration::from_secs(5) {
+            last_ping = Instant::now();
+            if let Err(e) = ws.write(Message::Ping(Vec::new().into())) {
+                return format!("send failed: {e}");
+            }
+        }
         loop {
             match out_rx.try_recv() {
                 Ok(m) => {

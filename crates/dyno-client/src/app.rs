@@ -1508,7 +1508,9 @@ impl ApplicationHandler for App {
                 ..
             } => {
                 let (playing_free, menu_or_chat) = match &self.screen {
-                    Screen::Playing(p) => (!p.captured, p.menu_open || p.chat_open),
+                    Screen::Playing(p) => {
+                        (!p.captured, p.menu_open || p.chat_open || p.picker_open)
+                    }
                     _ => (false, true),
                 };
                 if playing_free && !menu_or_chat && button == MouseButton::Left {

@@ -493,7 +493,7 @@ impl Server {
                     }
                 }
                 Ok(Message::Close(_)) => return Ok(()),
-                Ok(_) => {}
+                Ok(_) => last_msg = Instant::now(),
                 Err(tungstenite::Error::Io(e))
                     if matches!(e.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
                 Err(tungstenite::Error::ConnectionClosed)

@@ -24,6 +24,15 @@ jobs:
           fi
           git fetch origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::tag is not on main"; exit 1; }
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Linux audio headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+      - name: Tests must pass before anything ships to auto-updating players
+        run: |
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo test --workspace --locked
 
   build:
     needs: check
