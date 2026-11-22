@@ -1,6 +1,7 @@
 //! Window, input, screens (connect, joining, playing) and the HUD.
 
 use crate::audio::{Audio, Sfx};
+use crate::front::{self, Front, FrontCmd};
 use crate::game::{self, Input, Player, Remote, Remotes, Target};
 use crate::light::Light;
 use crate::models;
@@ -40,7 +41,26 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
     if let Some(a) = prefill {
         settings.last_server = a;
     }
+    // the 3D stage behind the title and character screens: Hearthstead at dusk
+    let (stage_tx, stage_rx) = channel();
+    std::thread::spawn(move || {
+        let mut world = dyno_world::World::generate([128, 64, 128], 20261122);
+        let hearth = world.ensure_spawn_hearth(None);
+        dyno_world::village::build_hearthstead(&mut world, hearth);
+        let light = Light::new(&world);
+        let _ = stage_tx.send(Stage {
+            world,
+            light,
+            hearth,
+        });
+    });
+    let front = Front::new(&settings.recent, &settings.name);
     let mut app = App {
+        front,
+        stage: None,
+        stage_rx: Some(stage_rx),
+        stage_loaded: false,
+        joining_new: false,
         menu: Menu {
             addr: settings.last_server.clone(),
             name: settings.name.clone(),
@@ -60,6 +80,11 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         cursor: (0.0, 0.0),
         last_shot: Instant::now(),
     };
+    for i in 0..app.front.realms.len() {
+        let token = app.settings.token;
+        app.front.query(i, token, None);
+    }
+
     app.audio.volume = app.settings.volume;
     event_loop.run_app(&mut app).map_err(|e| e.to_string())?;
     if let Some(h) = app.host.take() {
@@ -193,6 +218,8 @@ struct Play {
     hover: Option<u32>,
     /// a world event near you: title, task, progress
     world_event: Option<(String, String, f32)>,
+    /// the first-login intro, when it started
+    intro: Option<Instant>,
     level: u8,
     xp: u32,
     xp_next: u32,
@@ -562,13 +589,6 @@ fn buff_stats(p: &Play) -> dyno_world::content::Stats {
     s
 }
 
-/// A stable seed from a player name, so a character looks the same every login.
-fn name_seed(name: &str) -> u32 {
-    name.to_lowercase().bytes().fold(2_166_136_261u32, |h, b| {
-        (h ^ b as u32).wrapping_mul(16_777_619)
-    })
-}
-
 fn quest_finished(c: &dyno_world::content::Content, q: &dyno_protocol::QuestProgress) -> bool {
     c.quest(q.quest).is_some_and(|x| {
         x.objectives
@@ -876,6 +896,20 @@ struct App {
     last_shot: Instant,
     /// cursor position in physical pixels
     cursor: (f64, f64),
+    /// title, realms, character select and creation
+    front: Front,
+    stage: Option<Stage>,
+    stage_rx: Option<Receiver<Stage>>,
+    stage_loaded: bool,
+    /// the character being joined is brand new (play the intro)
+    joining_new: bool,
+}
+
+/// The small world behind the front-end screens.
+struct Stage {
+    world: dyno_world::World,
+    light: Light,
+    hearth: [i32; 3],
 }
 
 fn lan_ip() -> Option<String> {
@@ -1041,6 +1075,7 @@ fn new_play(j: Joined) -> Play {
         screen_px: (1.0, 1.0),
         hover: None,
         world_event: None,
+        intro: None,
         hearth,
         level: 1,
         xp: 0,
@@ -1153,6 +1188,34 @@ impl App {
         }
     }
 
+    /// Enter a realm as a character (new if `create` is set).
+    fn start_join_as(&mut self, addr: String, name: String, create: Option<proto::NewCharacter>) {
+        let name = proto::clean_name(&name);
+        self.settings.name = name.clone();
+        self.settings.remember_server(&addr);
+        let _ = self.settings.save();
+        self.joining_new = create.is_some();
+        self.front.error = None;
+        let (tx, rx) = channel();
+        let a = addr.clone();
+        let token = self.settings.token;
+        std::thread::spawn(move || {
+            let _ = tx.send(net::connect_as(
+                &a,
+                &name,
+                token,
+                false,
+                create,
+                Duration::from_secs(15),
+            ));
+        });
+        self.screen = Screen::Joining {
+            rx,
+            label: addr,
+            since: Instant::now(),
+        };
+    }
+
     fn start_join(&mut self, addr: String, remember: bool) {
         let name = proto::clean_name(&self.menu.name);
         self.menu.name = name.clone();
@@ -1215,11 +1278,22 @@ impl App {
     }
 
     fn poll(&mut self) {
+        if let Some(rx) = &self.stage_rx
+            && let Ok(st) = rx.try_recv()
+        {
+            self.stage = Some(st);
+            self.stage_rx = None;
+            self.stage_loaded = false;
+        }
         // joining
         if let Screen::Joining { rx, .. } = &self.screen {
             match rx.try_recv() {
                 Ok(Ok(j)) => {
                     let mut p = new_play(j);
+                    if self.joining_new {
+                        p.intro = Some(Instant::now());
+                    }
+                    self.stage_loaded = false;
                     p.chat.push(Chat { at: Instant::now(), from: None, text: if p.creative() { "Creative mode. Click to play. WASD move, F fly, left click break, right click place, E all items, G G then V to fill, Ctrl+Z undo, T chat, /help.".into() } else { "Survival mode. Hold left click to break blocks, E opens your pack and recipes, right click places or eats, Q throws, T chat, /help. Punch a tree to start, and make light before night falls.".into() } });
                     if let Some(g) = self.gfx.as_mut() {
                         g.load_world(&p.world, &p.light);
@@ -1229,7 +1303,11 @@ impl App {
                     self.set_capture(true);
                 }
                 Ok(Err(e)) => {
-                    self.menu.error = Some(e);
+                    self.menu.error = Some(e.clone());
+                    self.front.error = Some(e);
+                    if self.front.page == front::Page::Title {
+                        self.front.page = front::Page::Select;
+                    }
                     self.screen = Screen::Menu;
                 }
                 Err(std::sync::mpsc::TryRecvError::Empty) => {}
@@ -1719,13 +1797,73 @@ impl App {
                 p.weather.0,
                 p.weather_mix,
             ),
-            _ => sky(0.12),
+            _ => sky(0.47),
         };
 
         // simulate
         let mut view = None;
         let mut boxes: Vec<Vertex> = Vec::new();
         let mut lines: Vec<Vertex> = Vec::new();
+        // the front end: Hearthstead at dusk, the character on the dais
+        if !matches!(self.screen, Screen::Playing(_))
+            && let Some(st) = &self.stage
+        {
+            if !self.stage_loaded {
+                gfx.load_world(&st.world, &st.light);
+                self.stage_loaded = true;
+            }
+            let h = Vec3::new(
+                st.hearth[0] as f32 + 0.5,
+                st.hearth[1] as f32,
+                st.hearth[2] as f32 + 0.5,
+            );
+            let t = self.front.turn;
+            let clock = now.duration_since(self.last_shot).as_secs_f32();
+            let preview = if matches!(self.screen, Screen::Menu) {
+                self.front.preview()
+            } else {
+                None
+            };
+            let (eye, look_at) = match &preview {
+                Some(look) => {
+                    // the character stands in the plaza; the camera looks at them
+                    let feet = h + Vec3::new(0.0, 1.0, 3.0);
+                    let feet = Vec3::new(
+                        feet.x,
+                        st.world.surface(feet.x as i32, feet.z as i32) as f32 + 1.0,
+                        feet.z,
+                    );
+                    let creating = !matches!(self.front.page, front::Page::Select);
+                    let x_off = if creating { -1.1 } else { 0.0 };
+                    models::push_person(
+                        &mut boxes,
+                        feet,
+                        std::f32::consts::PI + t,
+                        0.0,
+                        look,
+                        1.0,
+                        0.0,
+                        0.0,
+                    );
+                    (
+                        feet + Vec3::new(x_off, 1.5, 5.2),
+                        feet + Vec3::new(x_off, 1.05, 0.0),
+                    )
+                }
+                None => {
+                    // a slow flight around the town
+                    let a = clock * 0.035;
+                    (
+                        h + Vec3::new(a.cos() * 44.0, 24.0, a.sin() * 44.0),
+                        h + Vec3::new(0.0, 6.0, 0.0),
+                    )
+                }
+            };
+            let dir = (look_at - eye).normalize_or_zero();
+            let proj =
+                glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt.max(1.0), 0.05, far);
+            view = Some((proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y), eye, far));
+        }
         if let Screen::Playing(p) = &mut self.screen {
             let k = |c: KeyCode| p.keys.contains(&c);
             let wow = p.wow();
@@ -2386,6 +2524,7 @@ impl App {
             ui(
                 ctx,
                 &mut self.screen,
+                &mut self.front,
                 &mut self.menu,
                 &self.settings,
                 &mut self.host,
@@ -2561,9 +2700,27 @@ impl App {
             Action::Disconnect => {
                 self.set_capture(false);
                 self.screen = Screen::Menu;
+                // back to character select, with a fresh list
+                self.front.page = front::Page::Select;
+                let token = self.settings.token;
+                let i = self.front.realm;
+                self.front.query(i, token, None);
             }
             Action::Capture => self.set_capture(true),
-            Action::Quit => self.fatal = None,
+            Action::Quit => std::process::exit(0),
+            Action::Front(cmd) => {
+                let token = self.settings.token;
+                match cmd {
+                    FrontCmd::Query(i) => self.front.query(i, token, None),
+                    FrontCmd::Delete(i, name) => self.front.query(i, token, Some(name)),
+                    FrontCmd::Enter { addr, name, create } => {
+                        self.start_join_as(addr, name, create)
+                    }
+                    FrontCmd::Host => self.act(Action::Host),
+                    FrontCmd::StopHost => self.act(Action::StopHost),
+                    FrontCmd::Quit => std::process::exit(0),
+                }
+            }
         }
     }
 
@@ -2595,6 +2752,10 @@ impl App {
         }
         if p.wow() && matches!(code, KeyCode::KeyW | KeyCode::KeyS) {
             p.autorun = false;
+        }
+        if code == KeyCode::Escape && p.intro.is_some() {
+            p.intro = Some(Instant::now() - Duration::from_secs(600));
+            return;
         }
         match code {
             KeyCode::Escape
@@ -2896,6 +3057,7 @@ enum Action {
     Resume,
     Disconnect,
     Capture,
+    Front(FrontCmd),
     #[allow(dead_code)]
     Quit,
 }
@@ -2967,6 +3129,7 @@ fn host_panel(ui: &mut egui::Ui, host: &mut Option<Host>, actions: &mut Vec<Acti
 fn ui(
     ctx: &egui::Context,
     screen: &mut Screen,
+    front_state: &mut Front,
     menu: &mut Menu,
     settings: &Settings,
     host: &mut Option<Host>,
@@ -2977,80 +3140,89 @@ fn ui(
     let version = env!("CARGO_PKG_VERSION");
     match screen {
         Screen::Menu => {
-            egui::CentralPanel::default().frame(egui::Frame::NONE).show(ctx, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.add_space((ui.available_height() * 0.12).max(10.0));
-                    egui::Frame::window(ui.style()).inner_margin(24.0).show(ui, |ui| {
-                        ui.set_width(440.0);
-                        ui.vertical(|ui| {
-                            ui.label(RichText::new("Dyno").size(40.0).strong().color(ACCENT));
-                            ui.label(RichText::new(format!("Build together · v{version} · {update_note}")).weak());
-                            ui.add_space(14.0);
-                            ui.label("Your name");
-                            ui.add(egui::TextEdit::singleline(&mut menu.name).hint_text("wren").desired_width(f32::INFINITY).char_limit(proto::MAX_NAME));
-                            ui.add_space(8.0);
-                            ui.label("Server address");
-                            let r = ui.add(
-                                egui::TextEdit::singleline(&mut menu.addr)
-                                    .hint_text("192.168.1.20 or https://name.trycloudflare.com")
-                                    .desired_width(f32::INFINITY),
-                            );
-                            let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-                            ui.add_space(6.0);
-                            if ui.add_sized([ui.available_width(), 34.0], egui::Button::new(RichText::new("Join").strong().size(16.0)).fill(ACCENT.gamma_multiply(0.85))).clicked() || enter {
-                                actions.push(Action::Join(menu.addr.clone()));
-                            }
-                            if let Some(e) = &menu.error {
-                                ui.add_space(6.0);
-                                ui.colored_label(Color32::from_rgb(240, 120, 110), e);
-                            }
-                            if !settings.recent.is_empty() {
-                                ui.add_space(10.0);
-                                ui.label(RichText::new("Recent").weak());
-                                for a in settings.recent.iter().take(5) {
-                                    if ui.link(a).clicked() {
-                                        menu.addr = a.clone();
-                                        actions.push(Action::Join(a.clone()));
-                                    }
-                                }
-                            }
-                            ui.add_space(12.0);
-                            ui.separator();
-                            ui.add_space(6.0);
-                            if host.is_none() {
-                                if ui.button("Host a world on this computer").clicked() {
-                                    actions.push(Action::Host);
-                                }
-                                ui.label(RichText::new("Friends on your network join with your IP address. For the internet, share a Cloudflare tunnel after you start hosting.").small().weak());
-                            } else {
-                                host_panel(ui, host, actions);
-                                ui.horizontal(|ui| {
-                                    if ui.button("Play in my world").clicked() {
-                                        actions.push(Action::Host);
-                                    }
-                                    if ui.button("Stop hosting").clicked() {
-                                        actions.push(Action::StopHost);
-                                    }
-                                });
-                            }
-                        });
-                    });
-                });
-            });
+            let _ = (menu, settings);
+            let mut cmds = Vec::new();
+            front::ui(
+                ctx,
+                front_state,
+                version,
+                update_note,
+                host.is_some(),
+                &mut cmds,
+            );
+            actions.extend(cmds.into_iter().map(Action::Front));
         }
         Screen::Joining { label, since, .. } => {
-            egui::CentralPanel::default()
-                .frame(egui::Frame::NONE)
+            // the loading screen: the zone's name over the town, a tip, a burning fuse
+            let screen = ctx.content_rect();
+            let p = ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Middle,
+                egui::Id::new("loading"),
+            ));
+            p.rect_filled(screen, 0.0, Color32::from_black_alpha(90));
+            crate::theme::title_text(
+                &p,
+                Pos2::new(screen.center().x, screen.top() + screen.height() * 0.3),
+                "Ashfall Vale",
+                54.0,
+                crate::theme::GOLD_BRIGHT,
+            );
+            crate::theme::subtitle_text(
+                &p,
+                Pos2::new(
+                    screen.center().x,
+                    screen.top() + screen.height() * 0.3 + 46.0,
+                ),
+                "Hearthstead · Levels 1 to 10",
+                18.0,
+                crate::theme::TEXT,
+            );
+            const TIPS: [&str; 6] = [
+                "Hold the right mouse button to steer; hold both to run.",
+                "Right-click a creature to attack it, a person to talk.",
+                "Shades cannot cross into a hearth's light.",
+                "Gather from trees, ore and bushes with a right click.",
+                "Press C for your character, B for bags, P for your spellbook.",
+                "Recall (the - key) takes you home to your bed or Hearthstead.",
+            ];
+            let tip = TIPS[(since.elapsed().as_secs() / 5) as usize % TIPS.len()];
+            let bar = Rect::from_center_size(
+                Pos2::new(screen.center().x, screen.bottom() - 70.0),
+                Vec2::new(520.0, 10.0),
+            );
+            p.rect_filled(bar, 4.0, Color32::from_black_alpha(200));
+            let f = 1.0 - (-since.elapsed().as_secs_f32() / 3.0).exp();
+            p.rect_filled(
+                Rect::from_min_size(bar.min, Vec2::new(bar.width() * f, bar.height())),
+                4.0,
+                Color32::from_rgb(240, 150, 50),
+            );
+            p.circle_filled(
+                Pos2::new(bar.left() + bar.width() * f, bar.center().y),
+                6.0,
+                Color32::from_rgb(255, 230, 150),
+            );
+            crate::theme::subtitle_text(
+                &p,
+                Pos2::new(screen.center().x, screen.bottom() - 100.0),
+                tip,
+                17.0,
+                crate::theme::TEXT,
+            );
+            crate::theme::shadow_text(
+                &p,
+                Pos2::new(screen.center().x, screen.bottom() - 40.0),
+                Align2::CENTER_CENTER,
+                &format!("Entering {label}"),
+                crate::theme::body_font(13.0),
+                crate::theme::TEXT_DIM,
+            );
+            egui::Area::new(egui::Id::new("cancel-join"))
+                .anchor(Align2::RIGHT_BOTTOM, Vec2::new(-20.0, -20.0))
                 .show(ctx, |ui| {
-                    ui.vertical_centered(|ui| {
-                        ui.add_space(ui.available_height() * 0.4);
-                        ui.spinner();
-                        ui.label(RichText::new(format!("Joining {label} ...")).size(18.0));
-                        ui.label(RichText::new(format!("{} s", since.elapsed().as_secs())).weak());
-                        if ui.button("Cancel").clicked() {
-                            actions.push(Action::CancelJoin);
-                        }
-                    });
+                    if ui.button("Cancel").clicked() {
+                        actions.push(Action::CancelJoin);
+                    }
                 });
         }
         Screen::Playing(p) => hud(ctx, p, host, vp, actions),
@@ -3515,6 +3687,59 @@ fn hud(
             FontId::proportional(18.0),
             Color32::from_gray(220),
         );
+    }
+    // the first-login intro: letterbox and a few lines of story
+    if let Some(t0) = p.intro {
+        let t = t0.elapsed().as_secs_f32();
+        const LINES: [&str; 5] = [
+            "For three hundred years the Great Hearth kept Ashfall Vale safe.",
+            "Then, one winter night, it went out.",
+            "Now Shades rise with the dark, and the people of Hearthstead huddle by its cold stones.",
+            "Old Brannoc, the Hearthkeeper, believes the fire can be woken.",
+            "He is waiting for you.",
+        ];
+        let total = LINES.len() as f32 * 3.4 + 1.5;
+        if t > total {
+            p.intro = None;
+            p.toast("Right-click Old Brannoc (the gold !) to begin");
+        } else {
+            let bar = 90.0 * (t / 0.8).min(1.0).min(((total - t) / 0.8).max(0.0));
+            painter.rect_filled(
+                Rect::from_min_size(screen.min, Vec2::new(screen.width(), bar)),
+                0.0,
+                Color32::BLACK,
+            );
+            painter.rect_filled(
+                Rect::from_min_size(
+                    Pos2::new(screen.left(), screen.bottom() - bar),
+                    Vec2::new(screen.width(), bar),
+                ),
+                0.0,
+                Color32::BLACK,
+            );
+            let k = ((t - 0.6) / 3.4).floor().max(0.0) as usize;
+            if let Some(line) = LINES.get(k) {
+                let local = (t - 0.6) - k as f32 * 3.4;
+                let fade = (local / 0.6)
+                    .min(1.0)
+                    .min(((3.4 - local) / 0.6).max(0.0))
+                    .clamp(0.0, 1.0);
+                crate::theme::subtitle_text(
+                    &painter,
+                    Pos2::new(c.x, screen.bottom() - 45.0),
+                    line,
+                    20.0,
+                    Color32::from_rgb(240, 225, 195).gamma_multiply(fade),
+                );
+            }
+            painter.text(
+                Pos2::new(screen.right() - 20.0, screen.top() + 20.0),
+                Align2::RIGHT_TOP,
+                "Esc to skip",
+                FontId::proportional(12.0),
+                Color32::from_gray(150),
+            );
+        }
     }
     // big title: "Day 3", "Dusk is coming"
     if let Some((at, text)) = &p.title {
@@ -4257,6 +4482,152 @@ impl ApplicationHandler for App {
             w.request_redraw();
         }
     }
+}
+
+/// Render a front-end page (title, realms, select, class, look, name,
+/// loading) for `dyno shot --front` (agents and design review). `addr` is a
+/// realm to list; `as_name` picks the install whose characters are shown.
+pub fn shot_front(
+    gfx: &mut Gfx,
+    page: &str,
+    addr: &str,
+    as_name: Option<&str>,
+    out: &std::path::Path,
+) -> Result<String, String> {
+    let mut world = dyno_world::World::generate([128, 64, 128], 20261122);
+    let hearth = world.ensure_spawn_hearth(None);
+    dyno_world::village::build_hearthstead(&mut world, hearth);
+    let light = Light::new(&world);
+    gfx.load_world(&world, &light);
+    let recent = if addr.is_empty() {
+        Vec::new()
+    } else {
+        vec![addr.to_string()]
+    };
+    let mut f = Front::new(&recent, "");
+    let token = as_name.map(crate::settings::tool_token).unwrap_or(0);
+    if !addr.is_empty() {
+        match net::realm(addr, token, None, Duration::from_secs(6)) {
+            Ok((info, chars, ping)) => {
+                let r = &mut f.realms[0];
+                r.info = Some(info);
+                r.chars = chars;
+                r.ping = Some(ping);
+            }
+            Err(e) => f.realms[0].error = Some(e),
+        }
+    }
+    f.page = match page {
+        "realms" => front::Page::Realms,
+        "select" => front::Page::Select,
+        "class" => front::Page::Class,
+        "look" => front::Page::Appearance,
+        "name" => front::Page::Name,
+        _ => front::Page::Title,
+    };
+    f.class = 1;
+    f.randomise(42);
+    if page == "name" {
+        f.name = front::random_name(7);
+    }
+    let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
+    let far = 160.0;
+    let h = Vec3::new(
+        hearth[0] as f32 + 0.5,
+        hearth[1] as f32,
+        hearth[2] as f32 + 0.5,
+    );
+    let mut boxes = Vec::new();
+    let (eye, at) = match f.preview() {
+        Some(look) => {
+            let feet = h + Vec3::new(0.0, 1.0, 3.0);
+            let feet = Vec3::new(
+                feet.x,
+                world.surface(feet.x as i32, feet.z as i32) as f32 + 1.0,
+                feet.z,
+            );
+            let creating = !matches!(f.page, front::Page::Select);
+            let x_off = if creating { -1.1 } else { 0.0 };
+            models::push_person(
+                &mut boxes,
+                feet,
+                std::f32::consts::PI + 0.35,
+                0.0,
+                &look,
+                1.0,
+                0.0,
+                0.0,
+            );
+            (
+                feet + Vec3::new(x_off, 1.5, 5.2),
+                feet + Vec3::new(x_off, 1.05, 0.0),
+            )
+        }
+        None => (
+            h + Vec3::new(30.0, 22.0, 32.0),
+            h + Vec3::new(0.0, 6.0, 0.0),
+        ),
+    };
+    let dir = (at - eye).normalize_or_zero();
+    let vp = glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt, 0.05, far)
+        * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+    let ctx = egui::Context::default();
+    crate::theme::apply(&ctx);
+    ctx.style_mut(|s| s.animation_time = 0.0);
+    let raw = || egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(wdt, hgt),
+        )),
+        ..Default::default()
+    };
+    let sky_now = sky(0.47);
+    let mut cmds = Vec::new();
+    let loading = page == "loading";
+    let mut draw = |ctx: &egui::Context, cmds: &mut Vec<FrontCmd>| {
+        if loading {
+            let (_tx, rx) = channel();
+            let mut screen = Screen::Joining {
+                rx,
+                label: addr.to_string(),
+                since: Instant::now() - Duration::from_secs(2),
+            };
+            let mut menu = Menu {
+                addr: String::new(),
+                name: String::new(),
+                error: None,
+            };
+            let settings = Settings::default();
+            let mut host = None;
+            let mut acts = Vec::new();
+            ui(
+                ctx,
+                &mut screen,
+                &mut f,
+                &mut menu,
+                &settings,
+                &mut host,
+                "Up to date",
+                None,
+                &mut acts,
+            );
+        } else {
+            front::ui(
+                ctx,
+                &mut f,
+                env!("CARGO_PKG_VERSION"),
+                "Up to date",
+                false,
+                cmds,
+            );
+        }
+    };
+    let first = ctx.run(raw(), |ctx| draw(ctx, &mut cmds));
+    gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &[], &ctx, first);
+    let second = ctx.run(raw(), |ctx| draw(ctx, &mut cmds));
+    gfx.screenshot = Some(out.to_path_buf());
+    gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &[], &ctx, second);
+    Ok(format!("rendered front page {page} to {}", out.display()))
 }
 
 /// Render one frame with the real HUD, for `dyno shot --ui` (tests and agents).

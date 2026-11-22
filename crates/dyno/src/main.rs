@@ -126,6 +126,7 @@ fn main() {
                 ui: "none".into(),
                 player: None,
                 zoom: None,
+                front: None,
             };
             let nums = |v: &str| -> Vec<f32> {
                 v.split(',').filter_map(|x| x.trim().parse().ok()).collect()
@@ -135,6 +136,7 @@ fn main() {
                 let v = args.get(i + 1).cloned().unwrap_or_default();
                 match args[i].as_str() {
                     "--pos" => o.pos = nums(&v).try_into().ok(),
+                    "--front" => o.front = Some(v.clone()),
                     "--look" => {
                         let n = nums(&v);
                         // degrees: yaw 0 faces north (-z), 90 west; pitch up is positive

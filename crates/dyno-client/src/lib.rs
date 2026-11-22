@@ -2,6 +2,7 @@
 
 pub mod app;
 pub mod audio;
+pub mod front;
 pub mod game;
 pub use dyno_world::light;
 pub mod models;

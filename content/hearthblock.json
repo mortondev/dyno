@@ -3188,8 +3188,8 @@
    ],
    "at": [
     2,
-    0,
-    -53
+    -7,
+    -49
    ],
    "greeting": "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
   },
@@ -3203,9 +3203,9 @@
     0.25
    ],
    "at": [
-    -44,
-    0,
-    -86
+    -43,
+    -3,
+    -84
    ],
    "greeting": "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold."
   },
@@ -3219,9 +3219,9 @@
     0.3
    ],
    "at": [
-    13,
-    0,
-    93
+    12,
+    -10,
+    97
    ],
    "greeting": "Bandits in my fields, crabs in my ditches. Good thing the mill still turns."
   },
@@ -3235,9 +3235,9 @@
     0.55
    ],
    "at": [
-    -24,
-    0,
-    133
+    -26,
+    -11,
+    138
    ],
    "greeting": "The lake gives and the lake takes. Lately it only takes."
   },
@@ -3252,8 +3252,8 @@
    ],
    "at": [
     128,
-    0,
-    9
+    -4,
+    12
    ],
    "greeting": "Supplies are short, the road's cut, and nobody will go back down that mine."
   },
@@ -3267,9 +3267,9 @@
     0.35
    ],
    "at": [
-    133,
-    0,
-    6
+    131,
+    -4,
+    8
    ],
    "greeting": "Something lit candles down in the Hollow. Something that isn't us."
   }
@@ -3704,7 +3704,7 @@
     {
      "explore": "the Old Barrow",
      "at": [
-      -130,
+      -116,
       0,
       10
      ],
@@ -3872,9 +3872,9 @@
     {
      "explore": "the Sunken Shrine",
      "at": [
-      20,
+      8,
       0,
-      155
+      159
      ],
      "radius": 9
     }
@@ -3950,7 +3950,7 @@
      "at": [
       62,
       0,
-      60
+      72
      ],
      "radius": 9
     }
@@ -5183,7 +5183,7 @@
    "name": "The North Watch",
    "at": [
     0,
-    -56
+    -51
    ],
    "radius": 10,
    "levels": [
@@ -5258,7 +5258,7 @@
    "name": "Garrick's Logging Camp",
    "at": [
     -45,
-    -88
+    -86
    ],
    "radius": 10,
    "levels": [
@@ -5271,8 +5271,8 @@
    "key": "hollow_oak",
    "name": "The Hollow Oak",
    "at": [
-    -100,
-    -55
+    -87,
+    -53
    ],
    "radius": 22,
    "levels": [
@@ -5284,8 +5284,8 @@
      "creature": "websnare",
      "count": 5,
      "at": [
-      -100,
-      -55
+      -87,
+      -53
      ],
      "spread": 12,
      "respawn": 120,
@@ -5300,8 +5300,8 @@
      "creature": "websnare",
      "count": 3,
      "at": [
-      -118,
-      -40
+      -102,
+      -37
      ],
      "spread": 8,
      "respawn": 120
@@ -5312,8 +5312,8 @@
    "key": "barrowwood",
    "name": "Barrowwood",
    "at": [
-    -125,
-    0
+    -110,
+    -5
    ],
    "radius": 52,
    "levels": [
@@ -5325,8 +5325,8 @@
      "creature": "websnare",
      "count": 3,
      "at": [
-      -140,
-      -25
+      -110,
+      -26
      ],
      "spread": 8,
      "respawn": 120
@@ -5345,11 +5345,12 @@
      "creature": "barrow_warden",
      "count": 1,
      "at": [
-      -130,
+      -133,
       10
      ],
      "spread": 2,
-     "respawn": 600
+     "respawn": 600,
+     "y": -11
     }
    ]
   },
@@ -5400,8 +5401,8 @@
      "creature": "ashcloak",
      "count": 3,
      "at": [
-      22,
-      100
+      20,
+      101
      ],
      "spread": 8,
      "respawn": 120
@@ -5422,7 +5423,7 @@
    "key": "windmill",
    "name": "Ostrin's Farm",
    "at": [
-    15,
+    10,
     95
    ],
    "radius": 9,
@@ -5436,8 +5437,8 @@
    "key": "fishers_landing",
    "name": "Fisher's Landing",
    "at": [
-    -25,
-    135
+    -28,
+    136
    ],
    "radius": 10,
    "levels": [
@@ -5450,8 +5451,8 @@
    "key": "sunken_shrine",
    "name": "The Sunken Shrine",
    "at": [
-    20,
-    155
+    8,
+    159
    ],
    "radius": 14,
    "levels": [
@@ -5463,8 +5464,8 @@
      "creature": "gloomwisp",
      "count": 3,
      "at": [
-      20,
-      155
+      8,
+      159
      ],
      "spread": 8,
      "respawn": 150,
@@ -5481,8 +5482,8 @@
    "key": "east_road",
    "name": "The East Road",
    "at": [
-    85,
-    0
+    86,
+    5
    ],
    "radius": 52,
    "levels": [
@@ -5495,7 +5496,7 @@
      "count": 2,
      "at": [
       50,
-      -12
+      -9
      ],
      "spread": 5,
      "respawn": 120
@@ -5505,7 +5506,7 @@
      "count": 6,
      "at": [
       62,
-      60
+      67
      ],
      "spread": 9,
      "respawn": 120
@@ -5515,7 +5516,7 @@
      "count": 2,
      "at": [
       64,
-      62
+      63
      ],
      "spread": 4,
      "respawn": 240
@@ -5525,7 +5526,7 @@
      "count": 1,
      "at": [
       62,
-      58
+      61
      ],
      "spread": 1,
      "respawn": 600
@@ -5556,8 +5557,8 @@
    "key": "miners_rest",
    "name": "Miner's Rest",
    "at": [
-    130,
-    8
+    128,
+    10
    ],
    "radius": 10,
    "levels": [
@@ -5570,8 +5571,8 @@
    "key": "hollow_mines",
    "name": "The Hollow Mines",
    "at": [
-    165,
-    -20
+    164,
+    -55
    ],
    "radius": 40,
    "levels": [
@@ -5583,30 +5584,30 @@
      "creature": "candlekin",
      "count": 5,
      "at": [
-      165,
-      -20
+      167,
+      -47
      ],
      "spread": 10,
      "respawn": 120,
-     "y": -10
+     "y": -14
     },
     {
      "creature": "candlekin",
      "count": 4,
      "at": [
-      175,
-      -35
+      161,
+      -65
      ],
      "spread": 8,
      "respawn": 120,
-     "y": -16
+     "y": -17
     },
     {
      "creature": "gloomwisp",
      "count": 3,
      "at": [
-      160,
-      -40
+      150,
+      -82
      ],
      "spread": 8,
      "respawn": 150,
@@ -5616,8 +5617,8 @@
      "creature": "hollow_foreman",
      "count": 1,
      "at": [
-      170,
-      -25
+      174,
+      -106
      ],
      "spread": 1,
      "respawn": 1200,

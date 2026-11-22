@@ -313,13 +313,15 @@ impl<'a> Nets<'a> {
         false
     }
 
-    /// Position of a grid corner, in section-local coordinates.
+    /// World position of a grid corner. It is the whole-number corner plus an
+    /// offset that depends only on the blocks around it, so every section
+    /// that shares the corner gets the same bits.
     fn vertex(&mut self, i: i32, j: i32, k: i32) -> [f32; 3] {
         let idx = li(i, j, k);
         if self.state[idx] & 1 != 0 {
             return self.pos[idx];
         }
-        let mut p = [i as f32, j as f32, k as f32];
+        let mut p = [0f32; 3];
         let g = self.g;
         let want = if self.leaves { F_LEAVES } else { F_TERRAIN };
         let base = at(i - 1, j - 1, k - 1);
@@ -384,6 +386,11 @@ impl<'a> Nets<'a> {
                 p[2] += r(16) * 0.22;
             }
         }
+        let p = [
+            (g.o[0] + i) as f32 + p[0],
+            (g.o[1] + j) as f32 + p[1],
+            (g.o[2] + k) as f32 + p[2],
+        ];
         self.pos[idx] = p;
         self.state[idx] |= 1;
         p
@@ -416,7 +423,12 @@ impl<'a> Nets<'a> {
         // occlusion: how closed in the corner is, one step out along the normal
         // (so an even slope shades evenly, and the foot of a wall goes darker)
         let ao = if self.leaves {
-            1.0
+            // canopies: darker in the folds between the puffs, lighter on them
+            let leafy = CELL8
+                .iter()
+                .filter(|o| g.fl[base + **o] & F_LEAVES != 0)
+                .count();
+            (1.12 - 0.075 * leafy as f32).min(1.0)
         } else {
             let q = [
                 i + (n.x * 0.9).round() as i32,
@@ -523,7 +535,6 @@ impl<'a> Nets<'a> {
             }
         }
         let t = render::textures();
-        let org = Vec3::new(g.o[0] as f32, g.o[1] as f32, g.o[2] as f32);
         geo.opaque.reserve(quads.len() * 6);
         for q in &quads {
             let b = q.block;
@@ -557,7 +568,7 @@ impl<'a> Nets<'a> {
                 let tex = [0.0, 0.0, KIND_FOLIAGE + top as f32, render::layer_anim(top)];
                 for i in tris {
                     geo.opaque.push(Vertex {
-                        pos: (org + ps[i]).into(),
+                        pos: ps[i].into(),
                         normal: ns[i].into(),
                         color: [1.0, 1.0, 1.0, ls[i][2]],
                         light: ls[i][0],
@@ -612,7 +623,7 @@ impl<'a> Nets<'a> {
             ];
             let mut put = |p: Vec3, n: Vec3, l: [f32; 3], m: f32| {
                 geo.opaque.push(Vertex {
-                    pos: (org + p).into(),
+                    pos: p.into(),
                     normal: n.into(),
                     color: [m, ob_steep, 0.0, if glow { 2.0 } else { l[2] }],
                     light: l[0],
@@ -649,7 +660,7 @@ impl<'a> Nets<'a> {
                     let fz = 0.15 + 0.7 * ((h >> 16) & 255) as f32 / 255.0;
                     let p = ps[0].lerp(ps[1], fx).lerp(ps[3].lerp(ps[2], fx), fz);
                     geo.tufts.push(Tuft {
-                        pos: (org + p).into(),
+                        pos: p.into(),
                         light: light.get(wx, wy + 1, wz) as f32 / 15.0,
                         sky: light.sky(wx, wy + 1, wz) as f32 / 15.0,
                         seed: h,
@@ -934,4 +945,233 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
         cubes(&g, light, has_water, &mut geo);
     }
     geo
+}
+
+/// A made-up landscape for tests and timing: rolling hills, a lake with
+/// beaches, cliffs, trees and a few built blocks.
+#[cfg(test)]
+pub(crate) fn test_world(size: [u32; 3]) -> World {
+    let mut world = World::empty(size);
+    let [sx, sy, sz] = size.map(|v| v as i32);
+    let water = 26;
+    for z in 0..sz {
+        for x in 0..sx {
+            let (fx, fz) = (x as f32, z as f32);
+            let mut h = 30.0
+                + 9.0 * (fx * 0.031).sin() * (fz * 0.027).cos()
+                + 5.0 * (fx * 0.083 + 1.3).sin()
+                + 4.0 * (fz * 0.071 + 0.4).cos()
+                + 14.0 * ((fx * 0.011).sin() * (fz * 0.013).sin()).powi(3);
+            if (fx * 0.02).sin() + (fz * 0.017).cos() > 1.55 {
+                h += 9.0; // a mesa, for cliffs
+            }
+            let h = (h as i32).clamp(4, sy - 14);
+            for y in 0..=h {
+                let b = if y == h {
+                    if h <= water + 1 {
+                        w::SAND
+                    } else if h > 50 {
+                        w::SNOW
+                    } else {
+                        w::GRASS
+                    }
+                } else if y > h - 4 {
+                    if h <= water + 1 { w::SAND } else { w::DIRT }
+                } else if hash3(x / 2, y / 2, z / 2).is_multiple_of(97) {
+                    w::COAL_ORE
+                } else {
+                    w::STONE
+                };
+                world.set(x, y, z, b);
+            }
+            for y in h + 1..=water {
+                world.set(x, y, z, w::WATER);
+            }
+            let r = hash3(x, 0, z);
+            if h > water + 1
+                && h < 50
+                && r.is_multiple_of(61)
+                && x > 3
+                && z > 3
+                && x < sx - 4
+                && z < sz - 4
+            {
+                for y in h + 1..h + 5 {
+                    world.set(x, y, z, w::LOG);
+                }
+                for (dx, dy, dz) in (-2..=2)
+                    .flat_map(|dx| (3..=6).flat_map(move |dy| (-2..=2).map(move |dz| (dx, dy, dz))))
+                {
+                    let far = dx * dx + dz * dz + (dy - 4) * (dy - 4);
+                    if far <= 6 && world.get(x + dx, h + dy, z + dz) == w::AIR {
+                        world.set(x + dx, h + dy, z + dz, w::LEAVES);
+                    }
+                }
+            } else if h > water + 1 && r.is_multiple_of(211) {
+                world.set(x, h + 1, z, w::COBBLE);
+                world.set(x, h + 2, z, w::TORCH);
+            }
+        }
+    }
+    world
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    /// Ground, built blocks and air in lumps, with caves and overhangs. All
+    /// of it opaque, so the mesh should be a closed skin. The bottom layer
+    /// is air: nothing touches the rock under the world.
+    fn lumpy() -> World {
+        let mut world = World::empty([48, 48, 48]);
+        for z in 0..48 {
+            for x in 0..48 {
+                let hill = 14 + (hash3(x / 5, 0, z / 5) % 14) as i32;
+                for y in 1..46 {
+                    let lump = hash3(x / 3, y / 3, z / 3) % 100;
+                    let fine = hash3(x, y, z) % 100;
+                    let b = if y < hill {
+                        if lump < 12 {
+                            w::AIR
+                        } else if fine < 3 {
+                            w::COBBLE
+                        } else if lump < 40 {
+                            w::STONE
+                        } else if y < hill - 1 {
+                            w::DIRT
+                        } else if lump < 55 {
+                            w::SAND
+                        } else {
+                            w::GRASS
+                        }
+                    } else if lump < 6 {
+                        w::STONE
+                    } else if fine < 1 {
+                        w::PLANKS
+                    } else {
+                        w::AIR
+                    };
+                    world.set(x, y, z, b);
+                }
+            }
+        }
+        world
+    }
+
+    fn all_sections(world: &World) -> Vec<SectionGeo> {
+        let light = Light::new(world);
+        let d = world.size.map(|v| v as i32 / N);
+        let mut out = Vec::new();
+        for sy in 0..d[1] {
+            for sz in 0..d[2] {
+                for sx in 0..d[0] {
+                    out.push(mesh(world, &light, sx, sy, sz));
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn the_skin_has_no_holes() {
+        let geos = all_sections(&lumpy());
+        let mut edges: HashMap<([u32; 3], [u32; 3]), u32> = HashMap::new();
+        let mut triangles = 0;
+        for geo in &geos {
+            assert!(geo.trans.is_empty());
+            for tri in geo.opaque.as_chunks::<3>().0 {
+                triangles += 1;
+                for e in 0..3 {
+                    let a = tri[e].pos.map(f32::to_bits);
+                    let b = tri[(e + 1) % 3].pos.map(f32::to_bits);
+                    assert_ne!(a, b, "a triangle has collapsed");
+                    *edges.entry((a.min(b), a.max(b))).or_default() += 1;
+                }
+            }
+        }
+        assert!(triangles > 10_000);
+        // every edge is shared by an even number of triangles, bit for bit:
+        // no cracks inside a section, between sections, or where ground
+        // meets built blocks
+        let open = edges.values().filter(|n| *n % 2 == 1).count();
+        assert_eq!(open, 0, "{open} open edges of {}", edges.len());
+    }
+
+    #[test]
+    fn sections_agree_at_their_borders() {
+        let geos = all_sections(&lumpy());
+        // same corner, same normal and light, whichever section drew it
+        let mut seen: HashMap<[u32; 3], [u32; 6]> = HashMap::new();
+        let mut shared = 0;
+        for geo in &geos {
+            let mut mine: HashMap<[u32; 3], [u32; 6]> = HashMap::new();
+            for v in geo.opaque.iter().filter(|v| v.tex[2] >= KIND_TERRAIN) {
+                let at = v.pos.map(f32::to_bits);
+                let what = [
+                    v.normal[0],
+                    v.normal[1],
+                    v.normal[2],
+                    v.light,
+                    v.sky,
+                    v.color[3],
+                ]
+                .map(f32::to_bits);
+                assert_eq!(*mine.entry(at).or_insert(what), what);
+            }
+            for (at, what) in mine {
+                if let Some(old) = seen.insert(at, what) {
+                    assert_eq!(old, what, "two sections disagree at a shared corner");
+                    shared += 1;
+                }
+            }
+        }
+        assert!(shared > 500, "only {shared} shared corners");
+    }
+
+    #[test]
+    fn flat_ground_sits_on_the_grid() {
+        let mut world = World::empty([48, 32, 48]);
+        for z in 0..48 {
+            for x in 0..48 {
+                for y in 0..10 {
+                    world.set(x, y, z, if y == 9 { w::GRASS } else { w::DIRT });
+                }
+            }
+        }
+        // a step and a cliff, well away from the part we check
+        for z in 0..48 {
+            world.set(40, 10, z, w::GRASS);
+            for y in 10..14 {
+                for x in 44..48 {
+                    world.set(x, y, z, w::STONE);
+                }
+            }
+        }
+        let geos = all_sections(&world);
+        let mut tops = 0;
+        for v in geos.iter().flat_map(|g| &g.opaque) {
+            if v.pos[0] < 4.0 || v.pos[0] > 36.0 || v.pos[2] < 4.0 || v.pos[2] > 44.0 {
+                continue;
+            }
+            assert_eq!(v.pos[1], 10.0);
+            assert_eq!(v.normal, [0.0, 1.0, 0.0]);
+            assert_eq!(v.color[3], 1.0);
+            tops += 1;
+        }
+        assert!(tops > 1000);
+        // the cliff face stays upright: its middle corners keep their x
+        let wall = geos
+            .iter()
+            .flat_map(|g| &g.opaque)
+            .filter(|v| {
+                (11.9..12.1).contains(&v.pos[1])
+                    && (43.5..44.5).contains(&v.pos[0])
+                    && (4.0..44.0).contains(&v.pos[2])
+            })
+            .inspect(|v| assert_eq!(v.pos[0], 44.0))
+            .count();
+        assert!(wall > 20);
+    }
 }

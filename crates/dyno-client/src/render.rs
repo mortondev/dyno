@@ -285,7 +285,14 @@ fn ground(top: i32, steep: i32, level0: f32, w3: vec3<f32>, p: vec3<f32>, dx: ve
   var c = vec3<f32>(0.0);
   if (w3.y > 0.001) {
     var cy = vec3<f32>(0.0);
-    if (level > 0.001) { cy += level * side_y(top, p, dx, dy).rgb; }
+    if (level > 0.001) {
+      // the tile, and a larger, turned copy of it under that: broad strokes
+      // that hide the repeat
+      let q = vec3<f32>(p.x * 0.27 - p.z * 0.09, 0.0, p.x * 0.09 + p.z * 0.27);
+      let qx = vec3<f32>(dx.x * 0.27 - dx.z * 0.09, 0.0, dx.x * 0.09 + dx.z * 0.27);
+      let qy = vec3<f32>(dy.x * 0.27 - dy.z * 0.09, 0.0, dy.x * 0.09 + dy.z * 0.27);
+      cy += level * mix(side_y(top, p, dx, dy).rgb, side_y(top, q, qx, qy).rgb, 0.42);
+    }
     if (level < 0.999) { cy += (1.0 - level) * side_y(steep, p, dx, dy).rgb; }
     c += w3.y * cy;
   }
@@ -835,10 +842,10 @@ fn upload_textures(
 /// Spread colour into fully transparent texels from their solid neighbours
 /// (the tile wraps), so smooth filtering does not darken cut-out edges.
 fn bleed(img: &mut [u8], size: usize) {
-    if img.chunks_exact(4).all(|p| p[3] > 0) || img.chunks_exact(4).all(|p| p[3] == 0) {
+    let mut known: Vec<bool> = img.as_chunks::<4>().0.iter().map(|p| p[3] > 0).collect();
+    if known.iter().all(|k| *k) || !known.iter().any(|k| *k) {
         return;
     }
-    let mut known: Vec<bool> = img.chunks_exact(4).map(|p| p[3] > 0).collect();
     for _ in 0..size {
         let mut next = known.clone();
         let mut changed = false;
@@ -858,12 +865,12 @@ fn bleed(img: &mut [u8], size: usize) {
                         n += 1;
                     }
                 }
-                if n > 0 {
-                    for (k, a) in acc.iter().enumerate() {
-                        img[i * 4 + k] = (a / n) as u8;
+                for (k, a) in acc.iter().enumerate() {
+                    if let Some(mean) = a.checked_div(n) {
+                        img[i * 4 + k] = mean as u8;
+                        next[i] = true;
+                        changed = true;
                     }
-                    next[i] = true;
-                    changed = true;
                 }
             }
         }
@@ -881,7 +888,7 @@ fn layer_mean(layer: u16) -> [f32; 3] {
         return [0.5; 3];
     };
     let (mut acc, mut n) = ([0f32; 3], 0f32);
-    for p in img.chunks_exact(4).filter(|p| p[3] > 0) {
+    for p in img.as_chunks::<4>().0.iter().filter(|p| p[3] > 0) {
         for (a, c) in acc.iter_mut().zip(p) {
             *a += (*c as f32 / 255.0).powf(2.2);
         }
@@ -921,8 +928,8 @@ fn push_tuft(out: &mut Vec<Vertex>, t: &Tuft, grass: [f32; 3]) {
             tex: [sway, phase, KIND_CLUTTER, 0.0],
         });
     };
-    let phase = rnd() * 6.28;
-    let flower = t.seed % 13 == 0;
+    let phase = rnd() * std::f32::consts::TAU;
+    let flower = t.seed.is_multiple_of(13);
     let blades = if flower {
         3
     } else {
@@ -930,10 +937,10 @@ fn push_tuft(out: &mut Vec<Vertex>, t: &Tuft, grass: [f32; 3]) {
     };
     let height = 0.7 + 0.6 * rnd();
     for _ in 0..blades {
-        let a = rnd() * 6.28;
+        let a = rnd() * std::f32::consts::TAU;
         let r = rnd() * 0.3;
         let base = root + Vec3::new(a.cos() * r, -0.04, a.sin() * r);
-        let facing = rnd() * 6.28;
+        let facing = rnd() * std::f32::consts::TAU;
         let side = Vec3::new(facing.cos(), 0.0, facing.sin()) * (0.03 + 0.03 * rnd());
         let lean = Vec3::new(a.cos(), 0.0, a.sin()) * (0.04 + 0.14 * rnd());
         let tall = (0.2 + 0.25 * rnd()) * height;
@@ -961,7 +968,7 @@ fn push_tuft(out: &mut Vec<Vertex>, t: &Tuft, grass: [f32; 3]) {
         vert(base, Vec3::new(0.018, 0.0, 0.0), stem, 0.0, phase);
         vert(base, top, stem, 1.0, phase);
         let s = 0.075 + 0.03 * rnd();
-        let turn = rnd() * 6.28;
+        let turn = rnd() * std::f32::consts::TAU;
         let (ax, az) = (
             Vec3::new(turn.cos(), 0.25, turn.sin()) * s,
             Vec3::new(-turn.sin(), 0.25, turn.cos()) * s,
@@ -1000,8 +1007,62 @@ fn push_glow(out: &mut Vec<Vertex>, g: &Glow) {
 /// A flat, glowing ring on the ground around a selected target: red for a
 /// hostile one, yellow for neutral, green for friendly. `center` is the
 /// target's feet. The ring is level; it is drawn a little in front of the
-/// ground it lies on, so gentle slopes do not swallow it.
+/// ground it lies on, so gentle slopes do not swallow it. On hillsides
+/// `push_ground_ring_on` fits better.
 pub fn push_ground_ring(out: &mut Vec<Vertex>, center: Vec3, radius: f32, color: [f32; 3]) {
+    ring(out, center, radius, color, |_, _| center.y);
+}
+
+/// The same ring, laid over the ground: each point of it takes the height
+/// of the (smoothed) ground under it, looked up in the world.
+pub fn push_ground_ring_on(
+    out: &mut Vec<Vertex>,
+    world: &World,
+    center: Vec3,
+    radius: f32,
+    color: [f32; 3],
+) {
+    // top of the ground in a column, near the height of the target's feet
+    let top = |x: i32, z: i32| {
+        let y0 = center.y.round() as i32 + 2;
+        (y0 - 5..=y0)
+            .rev()
+            .find(|y| w::is_solid(world.get(x, *y, z)) && !w::is_solid(world.get(x, *y + 1, z)))
+            .map_or(center.y, |y| (y + 1) as f32)
+    };
+    // much as the mesh does it: a column's height leans towards its neighbours'
+    let soft = |x: i32, z: i32| {
+        let h = top(x, z);
+        if !terrain_mesh::is_terrain(world.get(x, h as i32 - 1, z)) {
+            return h;
+        }
+        let mut sum = 0.0;
+        for dz in -1..=1 {
+            for dx in -1..=1 {
+                sum += top(x + dx, z + dz).clamp(h - 1.0, h + 1.0);
+            }
+        }
+        h + (sum / 9.0 - h).clamp(-0.4, 0.4)
+    };
+    ring(out, center, radius, color, |x, z| {
+        // between the four nearest column centres
+        let (fx, fz) = (x - 0.5, z - 0.5);
+        let (x0, z0) = (fx.floor(), fz.floor());
+        let (tx, tz) = (fx - x0, fz - z0);
+        let (x0, z0) = (x0 as i32, z0 as i32);
+        let a = soft(x0, z0) + (soft(x0 + 1, z0) - soft(x0, z0)) * tx;
+        let b = soft(x0, z0 + 1) + (soft(x0 + 1, z0 + 1) - soft(x0, z0 + 1)) * tx;
+        a + (b - a) * tz
+    });
+}
+
+fn ring(
+    out: &mut Vec<Vertex>,
+    center: Vec3,
+    radius: f32,
+    color: [f32; 3],
+    ground: impl Fn(f32, f32) -> f32,
+) {
     const SEGMENTS: usize = 40;
     let c = srgb(color);
     let lift = |k: f32| {
@@ -1012,17 +1073,25 @@ pub fn push_ground_ring(out: &mut Vec<Vertex>, center: Vec3, radius: f32, color:
         ]
     };
     // three bands: a soft outer edge, a bright core, a soft inner edge
-    let width = (radius * 0.16).clamp(0.05, 0.14);
-    let (edge, core) = (c.map(|v| v * 0.5), lift(0.45));
+    let width = (radius * 0.2).clamp(0.07, 0.16);
+    let (edge, core) = (c.map(|v| v * 0.75), lift(0.22));
     let bands = [
         (radius + width * 0.5, radius + width * 0.15, edge, core),
         (radius + width * 0.15, radius - width * 0.15, core, core),
         (radius - width * 0.15, radius - width * 0.5, core, edge),
     ];
-    let y = center.y + 0.06;
+    // one height per spoke, so the bands stay joined
+    let spokes: Vec<(f32, f32, f32)> = (0..=SEGMENTS)
+        .map(|i| {
+            let a = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
+            let (dx, dz) = (a.cos(), a.sin());
+            let y = ground(center.x + dx * radius, center.z + dz * radius) + 0.06;
+            (dx, dz, y)
+        })
+        .collect();
     let at = |i: usize, r: f32| {
-        let a = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
-        [center.x + a.cos() * r, y, center.z + a.sin() * r]
+        let (dx, dz, y) = spokes[i];
+        [center.x + dx * r, y, center.z + dz * r]
     };
     for i in 0..SEGMENTS {
         for (r0, r1, c0, c1) in bands {
@@ -1986,4 +2055,50 @@ fn shadow_matrix(cam: Vec3, sun_dir: [f32; 3]) -> Mat4 {
         -c.z + 200.0,
     );
     proj * view
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Timing. Run with:
+    /// `cargo test --release -p dyno-client meshing_speed -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn meshing_speed() {
+        let world = terrain_mesh::test_world([384, 96, 384]);
+        let light = Light::new(&world);
+        let mut list = Vec::new();
+        for sy in 0..6 {
+            for sz in 0..24 {
+                for sx in 0..24 {
+                    list.push([sx, sy, sz]);
+                }
+            }
+        }
+        let (mut worst, mut busy, mut verts) = (0.0f64, 0, 0usize);
+        let start = std::time::Instant::now();
+        for s in &list {
+            let t = std::time::Instant::now();
+            let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
+            let ms = t.elapsed().as_secs_f64() * 1e3;
+            worst = worst.max(ms);
+            if !geo.opaque.is_empty() {
+                busy += 1;
+            }
+            verts += geo.opaque.len() + geo.trans.len();
+        }
+        let one = start.elapsed().as_secs_f64();
+        let start = std::time::Instant::now();
+        let all: usize = list
+            .chunks(256)
+            .map(|b| mesh_many(&world, &light, b).len())
+            .sum();
+        let many = start.elapsed().as_secs_f64();
+        eprintln!(
+            "{all} sections ({busy} with a mesh, {verts} vertices): one thread {one:.2} s \
+             ({:.3} ms each on average, worst {worst:.2} ms); all cores {many:.2} s",
+            one * 1e3 / list.len() as f64
+        );
+    }
 }

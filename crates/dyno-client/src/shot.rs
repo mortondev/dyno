@@ -29,10 +29,16 @@ pub struct ShotOptions {
     pub player: Option<String>,
     /// camera distance behind the player (0: first person). Default: the game's.
     pub zoom: Option<f32>,
+    /// render a front-end page instead: title, realms, select, class, look, name, loading
+    pub front: Option<String>,
 }
 
 /// Returns a one-line description of what was rendered.
 pub fn shot(o: ShotOptions) -> Result<String, String> {
+    if let Some(page) = &o.front {
+        let mut g = Gfx::new_headless(o.width, o.height)?;
+        return crate::app::shot_front(&mut g, page, &o.addr, o.player.as_deref(), &o.out);
+    }
     if o.ui != "none" || o.player.is_some() {
         let name = o.player.clone().unwrap_or_else(|| o.name.clone());
         let observer = o.player.is_none();

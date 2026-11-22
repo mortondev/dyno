@@ -1,0 +1,1076 @@
+//! The front end a player meets before the world: title, realm list,
+//! character select and character creation (class, appearance, name).
+//! The 3D scene behind these screens (Hearthstead at dusk, the character on
+//! the dais) is drawn by the app; this module draws the interface and keeps
+//! the state. Design: the "New-player flow" mockups.
+
+use crate::models::Look;
+use crate::theme;
+use dyno_protocol::{Appearance, CharacterSummary, ClassInfo, NewCharacter, RealmInfo};
+use egui::{Align2, Color32, Pos2, Rect, RichText, Vec2};
+use std::sync::mpsc::Receiver;
+
+type RealmAnswer = Result<(RealmInfo, Vec<CharacterSummary>, u32), String>;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Page {
+    Title,
+    Realms,
+    Select,
+    Class,
+    Appearance,
+    Name,
+}
+
+/// A realm on the list: its address and what it last told us.
+pub struct RealmRow {
+    pub addr: String,
+    pub info: Option<RealmInfo>,
+    pub chars: Vec<CharacterSummary>,
+    pub ping: Option<u32>,
+    pub error: Option<String>,
+    pending: Option<Receiver<RealmAnswer>>,
+}
+
+pub struct Front {
+    pub page: Page,
+    pub realms: Vec<RealmRow>,
+    pub realm: usize,
+    pub add_addr: String,
+    pub chosen: usize,
+    /// creation
+    pub class: usize,
+    pub look: Appearance,
+    pub name: String,
+    /// turntable angle (radians)
+    pub turn: f32,
+    pub delete_confirm: Option<String>,
+    pub error: Option<String>,
+}
+
+/// What the player asked for.
+pub enum FrontCmd {
+    /// Ask a realm (index) for its status and my characters.
+    Query(usize),
+    /// Delete a character on the current realm.
+    Delete(usize, String),
+    /// Join the current realm as this character (creating it with `create`).
+    Enter {
+        addr: String,
+        name: String,
+        create: Option<NewCharacter>,
+    },
+    Host,
+    StopHost,
+    Quit,
+}
+
+impl Front {
+    pub fn new(recent: &[String], last_char: &str) -> Front {
+        let realms = recent
+            .iter()
+            .take(8)
+            .map(|a| RealmRow {
+                addr: a.clone(),
+                info: None,
+                chars: Vec::new(),
+                ping: None,
+                error: None,
+                pending: None,
+            })
+            .collect();
+        let _ = last_char;
+        Front {
+            page: Page::Title,
+            realms,
+            realm: 0,
+            add_addr: String::new(),
+            chosen: 0,
+            class: 0,
+            look: Appearance {
+                hair_style: 1,
+                hair_color: 3,
+                skin: 1,
+                eyes: 0,
+                beard: false,
+                build: 1,
+                mood: 0,
+                ears: 1,
+            },
+            name: String::new(),
+            turn: 0.0,
+            delete_confirm: None,
+            error: None,
+        }
+    }
+
+    pub fn current(&self) -> Option<&RealmRow> {
+        self.realms.get(self.realm)
+    }
+
+    /// Start (or restart) a background query of a realm.
+    pub fn query(&mut self, i: usize, token: u64, delete: Option<String>) {
+        let Some(r) = self.realms.get_mut(i) else {
+            return;
+        };
+        let (tx, rx) = std::sync::mpsc::channel();
+        let addr = r.addr.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(crate::net::realm(
+                &addr,
+                token,
+                delete.as_deref(),
+                std::time::Duration::from_secs(6),
+            ));
+        });
+        r.pending = Some(rx);
+    }
+
+    /// Collect finished queries.
+    pub fn poll(&mut self) {
+        for r in &mut self.realms {
+            let Some(rx) = &r.pending else { continue };
+            if let Ok(ans) = rx.try_recv() {
+                r.pending = None;
+                match ans {
+                    Ok((info, chars, ping)) => {
+                        r.info = Some(info);
+                        r.chars = chars;
+                        r.ping = Some(ping);
+                        r.error = None;
+                    }
+                    Err(e) => r.error = Some(e),
+                }
+            }
+        }
+    }
+
+    pub fn add_realm(&mut self, addr: &str) -> usize {
+        let addr = addr.trim().to_string();
+        if let Some(i) = self.realms.iter().position(|r| r.addr == addr) {
+            return i;
+        }
+        self.realms.insert(
+            0,
+            RealmRow {
+                addr,
+                info: None,
+                chars: Vec::new(),
+                ping: None,
+                error: None,
+                pending: None,
+            },
+        );
+        0
+    }
+
+    /// The class being chosen in creation.
+    pub fn class_info(&self) -> Option<&ClassInfo> {
+        self.current()?.info.as_ref()?.classes.get(self.class)
+    }
+
+    /// The character to show in 3D: in creation, the one being made; in
+    /// character select, the chosen one. Returns its look.
+    pub fn preview(&self) -> Option<Look> {
+        match self.page {
+            Page::Class | Page::Appearance | Page::Name => {
+                let color = self
+                    .class_info()
+                    .map(|c| c.color)
+                    .unwrap_or([0.5, 0.5, 0.6]);
+                Some(Look::from_appearance(&self.look, color))
+            }
+            Page::Select => {
+                let c = self.current()?.chars.get(self.chosen)?;
+                Some(Look::from_appearance(&c.look, c.color))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn randomise(&mut self, seed: u32) {
+        let mut h = seed.wrapping_mul(2_654_435_761) | 1;
+        let mut next = |n: u32| {
+            h ^= h << 13;
+            h ^= h >> 17;
+            h ^= h << 5;
+            (h % n) as u8
+        };
+        self.look = Appearance {
+            skin: next(8),
+            eyes: next(6),
+            hair_style: next(5),
+            hair_color: next(10),
+            beard: next(3) == 0,
+            build: next(3),
+            mood: next(3),
+            ears: next(3),
+        };
+    }
+}
+
+/// A fantasy name from syllables.
+pub fn random_name(seed: u32) -> String {
+    const A: [&str; 16] = [
+        "Ael", "Bran", "Cor", "Dra", "El", "Fen", "Gar", "Hal", "Isa", "Jor", "Kel", "Lyr", "Mor",
+        "Ny", "Ro", "Sel",
+    ];
+    const B: [&str; 12] = [
+        "wen", "dric", "ion", "ra", "eth", "mir", "nor", "is", "ald", "ena", "ric", "wyn",
+    ];
+    let h = seed.wrapping_mul(0x9E37_79B9);
+    format!("{}{}", A[(h % 16) as usize], B[((h >> 8) % 12) as usize])
+}
+
+/// Why a name cannot be used, if it cannot.
+pub fn name_problem(n: &str) -> Option<&'static str> {
+    let n = n.trim();
+    if n.chars().count() < 3 {
+        Some("At least 3 letters")
+    } else if n.chars().count() > 16 {
+        Some("At most 16 letters")
+    } else if !n.chars().all(|c| c.is_alphabetic()) {
+        Some("Letters only")
+    } else {
+        None
+    }
+}
+
+fn gold_button(ui: &mut egui::Ui, text: &str, w: f32, h: f32) -> egui::Response {
+    let b = egui::Button::new(
+        RichText::new(text)
+            .font(theme::title_font(h * 0.42))
+            .color(theme::INK),
+    )
+    .fill(theme::GOLD)
+    .stroke(egui::Stroke::new(2.0_f32, theme::GOLD_BRIGHT))
+    .min_size(Vec2::new(w, h));
+    ui.add(b)
+}
+
+fn dark_button(ui: &mut egui::Ui, text: &str, w: f32) -> egui::Response {
+    let b = egui::Button::new(
+        RichText::new(text)
+            .font(theme::title_font(14.0))
+            .color(theme::GOLD),
+    )
+    .fill(theme::WOOD_DARK)
+    .stroke(egui::Stroke::new(1.0_f32, theme::GOLD_DARK))
+    .min_size(Vec2::new(w, 36.0));
+    ui.add(b)
+}
+
+fn panel<R>(ctx: &egui::Context, id: &str, rect: Rect, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    let painter = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Middle,
+        egui::Id::new((id, "bg")),
+    ));
+    theme::panel_frame(&painter, rect);
+    egui::Area::new(egui::Id::new(id))
+        .fixed_pos(rect.min + Vec2::splat(16.0))
+        .order(egui::Order::Foreground)
+        .show(ctx, |ui| {
+            ui.set_width(rect.width() - 32.0);
+            ui.set_max_height(rect.height() - 32.0);
+            add(ui)
+        })
+        .inner
+}
+
+/// Draw the front end. `last` is the last character played ("name@realm" index 0).
+pub fn ui(
+    ctx: &egui::Context,
+    f: &mut Front,
+    version: &str,
+    update_note: &str,
+    hosting: bool,
+    out: &mut Vec<FrontCmd>,
+) {
+    f.poll();
+    let screen = ctx.content_rect();
+    let painter = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Background,
+        egui::Id::new("front"),
+    ));
+    // a soft vignette so text reads over the 3D scene
+    painter.rect_filled(
+        Rect::from_min_max(
+            screen.min,
+            Pos2::new(screen.left() + 420.0, screen.bottom()),
+        ),
+        0.0,
+        Color32::from_black_alpha(70),
+    );
+    match f.page {
+        Page::Title => title(ctx, f, version, update_note, hosting, out),
+        Page::Realms => realms(ctx, f, out),
+        Page::Select => select(ctx, f, out),
+        Page::Class | Page::Appearance | Page::Name => create(ctx, f, out),
+    }
+}
+
+fn title(
+    ctx: &egui::Context,
+    f: &mut Front,
+    version: &str,
+    update_note: &str,
+    hosting: bool,
+    out: &mut Vec<FrontCmd>,
+) {
+    let screen = ctx.content_rect();
+    let p = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Middle,
+        egui::Id::new("title"),
+    ));
+    let x = screen.left() + 240.0;
+    theme::title_text(
+        &p,
+        Pos2::new(x, screen.top() + 120.0),
+        "HEARTHBLOCK",
+        46.0,
+        theme::GOLD_BRIGHT,
+    );
+    theme::subtitle_text(
+        &p,
+        Pos2::new(x, screen.top() + 168.0),
+        "O N L I N E",
+        18.0,
+        theme::GOLD,
+    );
+    theme::divider(
+        &p,
+        Pos2::new(x, screen.top() + 190.0),
+        260.0,
+        theme::GOLD_DARK,
+    );
+    let last = f.realms.first().and_then(|r| {
+        r.chars
+            .first()
+            .map(|c| (c.name.clone(), r.info.as_ref().map(|i| i.name.clone())))
+    });
+    egui::Area::new(egui::Id::new("title-menu"))
+        .fixed_pos(Pos2::new(x - 130.0, screen.top() + 230.0))
+        .order(egui::Order::Foreground)
+        .show(ctx, |ui| {
+            ui.set_width(260.0);
+            ui.vertical_centered(|ui| {
+                if gold_button(ui, "Play", 260.0, 58.0).clicked() {
+                    // straight to character select on the last realm, or to the realm list
+                    if f.realms.is_empty() {
+                        f.page = Page::Realms;
+                    } else {
+                        f.realm = 0;
+                        out.push(FrontCmd::Query(0));
+                        f.page = Page::Select;
+                    }
+                }
+                let caption = match &last {
+                    Some((n, Some(r))) => format!("Continue as {n} · {r}"),
+                    _ if f.realms.is_empty() => "Choose a realm to begin".to_string(),
+                    _ => format!("Realm: {}", f.realms[0].addr),
+                };
+                ui.label(
+                    RichText::new(caption)
+                        .font(theme::body_font(14.0))
+                        .color(theme::TEXT_DIM),
+                );
+                ui.add_space(18.0);
+                if dark_button(ui, "Realms", 220.0).clicked() {
+                    for i in 0..f.realms.len() {
+                        out.push(FrontCmd::Query(i));
+                    }
+                    f.page = Page::Realms;
+                }
+                ui.add_space(6.0);
+                if dark_button(
+                    ui,
+                    if hosting {
+                        "Play in my realm"
+                    } else {
+                        "Host a realm"
+                    },
+                    220.0,
+                )
+                .clicked()
+                {
+                    out.push(FrontCmd::Host);
+                }
+                if hosting {
+                    ui.add_space(6.0);
+                    if dark_button(ui, "Stop hosting", 220.0).clicked() {
+                        out.push(FrontCmd::StopHost);
+                    }
+                }
+                ui.add_space(6.0);
+                if dark_button(ui, "Quit", 220.0).clicked() {
+                    out.push(FrontCmd::Quit);
+                }
+            });
+        });
+    theme::shadow_text(
+        &p,
+        Pos2::new(screen.left() + 16.0, screen.bottom() - 14.0),
+        Align2::LEFT_BOTTOM,
+        &format!("Version {version} · {update_note}"),
+        theme::body_font(13.0),
+        theme::TEXT_DIM,
+    );
+    // news
+    let r = Rect::from_min_size(
+        Pos2::new(screen.right() - 360.0, screen.bottom() - 200.0),
+        Vec2::new(330.0, 170.0),
+    );
+    panel(ctx, "news", r, |ui| {
+        ui.label(
+            RichText::new("The Living Vale")
+                .font(theme::title_font(18.0))
+                .color(theme::GOLD),
+        );
+        ui.label(
+            RichText::new("What's new")
+                .font(theme::body_font(12.0))
+                .color(theme::TEXT_DIM),
+        );
+        ui.add_space(4.0);
+        for l in [
+            "Six classic classes, gear and character screens",
+            "Hearthstead rebuilt in timber and stone",
+            "Camps, rare elites and the Nightfall Incursion",
+            "Classic controls: hold right mouse to steer",
+        ] {
+            ui.label(
+                RichText::new(format!("• {l}"))
+                    .font(theme::body_font(14.0))
+                    .color(theme::TEXT),
+            );
+        }
+    });
+    let _ = f;
+}
+
+fn realms(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
+    let screen = ctx.content_rect();
+    let r = Rect::from_center_size(screen.center(), Vec2::new(760.0, 520.0));
+    panel(ctx, "realms", r, |ui| {
+        ui.vertical_centered(|ui| {
+            ui.label(
+                RichText::new("Choose a Realm")
+                    .font(theme::title_font(26.0))
+                    .color(theme::GOLD_BRIGHT),
+            );
+            ui.label(
+                RichText::new(
+                    "A realm is a world. Your characters live on the realm where you make them.",
+                )
+                .font(theme::body_font(14.0))
+                .color(theme::TEXT_DIM),
+            );
+        });
+        theme::ui_divider(ui, theme::GOLD_DARK);
+        egui::Grid::new("realm-grid")
+            .num_columns(5)
+            .spacing([22.0, 8.0])
+            .striped(true)
+            .show(ui, |ui| {
+                for h in ["Realm", "Online", "Ping", "Version", "Yours"] {
+                    ui.label(
+                        RichText::new(h)
+                            .font(theme::title_font(12.0))
+                            .color(theme::TEXT_DIM),
+                    );
+                }
+                ui.end_row();
+                for (i, row) in f.realms.iter().enumerate() {
+                    let name = row
+                        .info
+                        .as_ref()
+                        .map(|r| r.name.clone())
+                        .unwrap_or_else(|| row.addr.clone());
+                    let sel = i == f.realm;
+                    let label = RichText::new(name)
+                        .font(theme::body_font(16.0))
+                        .color(if sel { theme::GOLD_BRIGHT } else { theme::TEXT });
+                    let resp = ui.selectable_label(sel, label);
+                    if resp.clicked() {
+                        f.realm = i;
+                    }
+                    if resp.double_clicked() {
+                        f.realm = i;
+                        out.push(FrontCmd::Query(i));
+                        f.page = Page::Select;
+                    }
+                    let dim = |s: String| {
+                        RichText::new(s)
+                            .font(theme::body_font(14.0))
+                            .color(theme::TEXT)
+                    };
+                    match (&row.info, &row.error) {
+                        (Some(info), _) => {
+                            ui.label(dim(info.online.to_string()));
+                            ui.label(dim(row.ping.map(|p| format!("{p} ms")).unwrap_or_default()));
+                            let ok = info.version == env!("CARGO_PKG_VERSION");
+                            ui.label(
+                                RichText::new(&info.version)
+                                    .font(theme::body_font(14.0))
+                                    .color(if ok {
+                                        theme::GOOD
+                                    } else {
+                                        Color32::from_rgb(230, 150, 70)
+                                    }),
+                            );
+                            ui.label(dim(row.chars.len().to_string()));
+                        }
+                        (None, Some(e)) => {
+                            let short: String = e.chars().take(40).collect();
+                            ui.label(
+                                RichText::new("offline").color(Color32::from_rgb(220, 110, 100)),
+                            );
+                            ui.label(RichText::new(short).small().color(theme::TEXT_DIM));
+                            ui.label("");
+                            ui.label("");
+                        }
+                        _ => {
+                            ui.spinner();
+                            ui.label("");
+                            ui.label("");
+                            ui.label("");
+                        }
+                    }
+                    ui.end_row();
+                }
+            });
+        if f.realms.is_empty() {
+            ui.label(
+                RichText::new("No realms yet. Paste an invite or address from a friend below.")
+                    .font(theme::body_font(15.0))
+                    .color(theme::TEXT),
+            );
+        }
+        theme::ui_divider(ui, theme::GOLD_DARK);
+        ui.label(
+            RichText::new("Add realm: paste the address or link a friend sent you")
+                .font(theme::body_font(14.0))
+                .color(theme::TEXT_DIM),
+        );
+        ui.horizontal(|ui| {
+            let resp = ui.add(
+                egui::TextEdit::singleline(&mut f.add_addr)
+                    .hint_text("https://name.trycloudflare.com or 192.168.1.20")
+                    .desired_width(460.0),
+            );
+            let enter = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            if (dark_button(ui, "Add", 90.0).clicked() || enter) && !f.add_addr.trim().is_empty() {
+                let addr = f.add_addr.clone();
+                let i = f.add_realm(&addr);
+                f.realm = i;
+                f.add_addr.clear();
+                out.push(FrontCmd::Query(i));
+            }
+        });
+        ui.add_space(10.0);
+        ui.horizontal(|ui| {
+            if dark_button(ui, "Back", 110.0).clicked() {
+                f.page = Page::Title;
+            }
+            if dark_button(ui, "Refresh", 110.0).clicked() {
+                for i in 0..f.realms.len() {
+                    out.push(FrontCmd::Query(i));
+                }
+            }
+            ui.add_space(ui.available_width() - 220.0);
+            if !f.realms.is_empty() && gold_button(ui, "Enter Realm", 210.0, 42.0).clicked() {
+                out.push(FrontCmd::Query(f.realm));
+                f.page = Page::Select;
+            }
+        });
+    });
+}
+
+fn select(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
+    let screen = ctx.content_rect();
+    let p = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Middle,
+        egui::Id::new("select"),
+    ));
+    let Some(row) = f.realms.get(f.realm) else {
+        f.page = Page::Realms;
+        return;
+    };
+    let realm_name = row
+        .info
+        .as_ref()
+        .map(|i| i.name.clone())
+        .unwrap_or_else(|| row.addr.clone());
+    theme::shadow_text(
+        &p,
+        screen.left_top() + Vec2::new(18.0, 16.0),
+        Align2::LEFT_TOP,
+        &format!(
+            "{realm_name} · {} online{}",
+            row.info.as_ref().map(|i| i.online).unwrap_or(0),
+            row.ping.map(|v| format!(" · {v} ms")).unwrap_or_default()
+        ),
+        theme::body_font(15.0),
+        theme::TEXT,
+    );
+    let chars = row.chars.clone();
+    let loading = row.pending.is_some() && row.info.is_none();
+    let error = row.error.clone();
+    let addr = row.addr.clone();
+    let has_info = row.info.is_some();
+    if f.chosen >= chars.len() {
+        f.chosen = 0;
+    }
+    // the chosen character's name over the dais
+    if let Some(c) = chars.get(f.chosen) {
+        theme::title_text(
+            &p,
+            Pos2::new(screen.center().x, screen.top() + 70.0),
+            &c.name,
+            40.0,
+            theme::GOLD_BRIGHT,
+        );
+        theme::subtitle_text(
+            &p,
+            Pos2::new(screen.center().x, screen.top() + 108.0),
+            &format!("Level {} {} · {}", c.level, c.class, c.zone),
+            17.0,
+            theme::TEXT,
+        );
+    }
+    // character list
+    let r = Rect::from_min_size(
+        Pos2::new(screen.right() - 330.0, screen.top() + 40.0),
+        Vec2::new(310.0, screen.height() - 80.0),
+    );
+    panel(ctx, "chars", r, |ui| {
+        ui.vertical_centered(|ui| {
+            ui.label(
+                RichText::new("Characters")
+                    .font(theme::title_font(20.0))
+                    .color(theme::GOLD),
+            );
+        });
+        theme::ui_divider(ui, theme::GOLD_DARK);
+        if loading {
+            ui.spinner();
+        }
+        if let Some(e) = &error {
+            ui.label(RichText::new(e).color(Color32::from_rgb(230, 120, 110)));
+        }
+        for (i, c) in chars.iter().enumerate() {
+            let col = Color32::from_rgb(
+                (c.color[0] * 255.0) as u8,
+                (c.color[1] * 255.0) as u8,
+                (c.color[2] * 255.0) as u8,
+            );
+            let resp = ui.selectable_label(
+                i == f.chosen,
+                RichText::new(format!(
+                    "{}\nLevel {} {} · {}",
+                    c.name, c.level, c.class, c.zone
+                ))
+                .font(theme::body_font(15.0))
+                .color(col),
+            );
+            if resp.clicked() {
+                f.chosen = i;
+                f.delete_confirm = None;
+            }
+            if resp.double_clicked() {
+                out.push(FrontCmd::Enter {
+                    addr: addr.clone(),
+                    name: c.name.clone(),
+                    create: None,
+                });
+            }
+            ui.add_space(4.0);
+        }
+        for _ in chars.len()..4 {
+            ui.label(
+                RichText::new("+  Empty slot")
+                    .font(theme::body_font(14.0))
+                    .color(theme::TEXT_DIM),
+            );
+            ui.add_space(8.0);
+        }
+        ui.add_space(8.0);
+        if dark_button(ui, "Create New Character", ui.available_width()).clicked() && has_info {
+            f.page = Page::Class;
+            f.name.clear();
+            f.randomise(chars.len() as u32 * 7919 + 17);
+        }
+        if let Some(c) = chars.get(f.chosen) {
+            ui.add_space(6.0);
+            match &mut f.delete_confirm {
+                None => {
+                    if ui
+                        .button(RichText::new("Delete").color(Color32::from_rgb(220, 100, 90)))
+                        .clicked()
+                    {
+                        f.delete_confirm = Some(String::new());
+                    }
+                }
+                Some(typed) => {
+                    ui.label(
+                        RichText::new(format!("Type {} to delete for ever", c.name))
+                            .small()
+                            .color(Color32::from_rgb(220, 100, 90)),
+                    );
+                    ui.text_edit_singleline(typed);
+                    if typed.eq_ignore_ascii_case(&c.name) && ui.button("Delete for ever").clicked()
+                    {
+                        out.push(FrontCmd::Delete(f.realm, c.name.clone()));
+                        f.delete_confirm = None;
+                    }
+                }
+            }
+        }
+    });
+    egui::Area::new(egui::Id::new("select-bottom"))
+        .anchor(Align2::CENTER_BOTTOM, Vec2::new(-170.0, -30.0))
+        .order(egui::Order::Foreground)
+        .show(ctx, |ui| {
+            if let Some(c) = chars.get(f.chosen)
+                && gold_button(ui, "Enter World", 280.0, 56.0).clicked()
+            {
+                out.push(FrontCmd::Enter {
+                    addr: addr.clone(),
+                    name: c.name.clone(),
+                    create: None,
+                });
+            }
+            if chars.is_empty()
+                && !loading
+                && has_info
+                && gold_button(ui, "Create Your First Character", 340.0, 56.0).clicked()
+            {
+                f.page = Page::Class;
+                f.randomise(17);
+            }
+        });
+    egui::Area::new(egui::Id::new("select-back"))
+        .anchor(Align2::LEFT_BOTTOM, Vec2::new(20.0, -24.0))
+        .order(egui::Order::Foreground)
+        .show(ctx, |ui| {
+            if dark_button(ui, "Back to Realms", 170.0).clicked() {
+                f.page = Page::Realms;
+            }
+        });
+    // drag to turn the character
+    let drag = ctx.input(|i| {
+        if i.pointer.primary_down() && !ctx.is_pointer_over_area() {
+            i.pointer.delta().x
+        } else {
+            0.0
+        }
+    });
+    f.turn += drag * 0.01;
+}
+
+fn stepper(ui: &mut egui::Ui, label: &str, value: &mut u8, n: u8, names: Option<&[&str]>) {
+    ui.horizontal(|ui| {
+        ui.label(
+            RichText::new(label)
+                .font(theme::title_font(13.0))
+                .color(theme::GOLD),
+        );
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.button("▶").clicked() {
+                *value = (*value + 1) % n;
+            }
+            let shown = match names {
+                Some(v) => v[*value as usize % v.len()].to_string(),
+                None => format!("{} of {n}", *value + 1),
+            };
+            ui.label(
+                RichText::new(shown)
+                    .font(theme::body_font(15.0))
+                    .color(theme::TEXT),
+            );
+            if ui.button("◀").clicked() {
+                *value = (*value + n - 1) % n;
+            }
+        });
+    });
+}
+
+fn swatches(ui: &mut egui::Ui, label: &str, value: &mut u8, colors: &[[f32; 3]]) {
+    ui.label(
+        RichText::new(label)
+            .font(theme::title_font(13.0))
+            .color(theme::GOLD),
+    );
+    ui.horizontal_wrapped(|ui| {
+        for (i, c) in colors.iter().enumerate() {
+            let (r, resp) = ui.allocate_exact_size(Vec2::splat(26.0), egui::Sense::click());
+            let col = Color32::from_rgb(
+                (c[0] * 255.0) as u8,
+                (c[1] * 255.0) as u8,
+                (c[2] * 255.0) as u8,
+            );
+            ui.painter().rect_filled(r, 4.0, col);
+            let on = *value as usize == i;
+            ui.painter().rect_stroke(
+                r,
+                4.0,
+                egui::Stroke::new(
+                    if on { 2.5_f32 } else { 1.0 },
+                    if on {
+                        theme::GOLD_BRIGHT
+                    } else {
+                        theme::OUTLINE
+                    },
+                ),
+                egui::StrokeKind::Outside,
+            );
+            if resp.clicked() {
+                *value = i as u8;
+            }
+        }
+    });
+    ui.add_space(4.0);
+}
+
+fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
+    let screen = ctx.content_rect();
+    let p = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Middle,
+        egui::Id::new("create"),
+    ));
+    theme::shadow_text(
+        &p,
+        screen.left_top() + Vec2::new(20.0, 16.0),
+        Align2::LEFT_TOP,
+        "Create a Character",
+        theme::title_font(26.0),
+        theme::GOLD_BRIGHT,
+    );
+    // steps
+    let steps = [
+        (Page::Class, "1 · Class"),
+        (Page::Appearance, "2 · Appearance"),
+        (Page::Name, "3 · Name"),
+    ];
+    for (k, (pg, label)) in steps.iter().enumerate() {
+        let col = if *pg == f.page {
+            theme::GOLD_BRIGHT
+        } else {
+            theme::TEXT_DIM
+        };
+        theme::shadow_text(
+            &p,
+            Pos2::new(
+                screen.center().x - 200.0 + k as f32 * 200.0,
+                screen.top() + 24.0,
+            ),
+            Align2::CENTER_TOP,
+            label,
+            theme::title_font(15.0),
+            col,
+        );
+    }
+    let classes: Vec<ClassInfo> = f
+        .current()
+        .and_then(|r| r.info.as_ref())
+        .map(|i| i.classes.clone())
+        .unwrap_or_default();
+    let left = Rect::from_min_size(
+        Pos2::new(screen.left() + 20.0, screen.top() + 70.0),
+        Vec2::new(420.0, screen.height() - 150.0),
+    );
+    match f.page {
+        Page::Class => {
+            panel(ctx, "classes", left, |ui| {
+                ui.label(
+                    RichText::new("Choose your class")
+                        .font(theme::title_font(18.0))
+                        .color(theme::GOLD),
+                );
+                theme::ui_divider(ui, theme::GOLD_DARK);
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    for (i, c) in classes.iter().enumerate() {
+                        let col = Color32::from_rgb(
+                            (c.color[0] * 255.0) as u8,
+                            (c.color[1] * 255.0) as u8,
+                            (c.color[2] * 255.0) as u8,
+                        );
+                        let sel = i == f.class;
+                        let text =
+                            RichText::new(format!("{}   ·   {} · {}", c.name, c.armor, c.resource))
+                                .font(theme::title_font(16.0))
+                                .color(col);
+                        if ui.selectable_label(sel, text).clicked() {
+                            f.class = i;
+                        }
+                        if sel {
+                            ui.label(
+                                RichText::new(&c.blurb)
+                                    .font(theme::body_font(15.0))
+                                    .color(theme::TEXT),
+                            );
+                            ui.label(
+                                RichText::new(format!("Abilities: {}", c.abilities.join(", ")))
+                                    .font(theme::body_font(13.0))
+                                    .color(theme::TEXT_DIM),
+                            );
+                        }
+                        ui.add_space(6.0);
+                    }
+                });
+            });
+        }
+        Page::Appearance => {
+            panel(ctx, "looks", left, |ui| {
+                ui.label(
+                    RichText::new("Appearance")
+                        .font(theme::title_font(18.0))
+                        .color(theme::GOLD),
+                );
+                ui.label(
+                    RichText::new("Drag the character to turn them.")
+                        .font(theme::body_font(13.0))
+                        .color(theme::TEXT_DIM),
+                );
+                theme::ui_divider(ui, theme::GOLD_DARK);
+                swatches(ui, "Skin", &mut f.look.skin, &Look::SKINS);
+                swatches(ui, "Eyes", &mut f.look.eyes, &Look::EYES);
+                stepper(
+                    ui,
+                    "Hair style",
+                    &mut f.look.hair_style,
+                    5,
+                    Some(&["Bald", "Short", "Long", "Hood", "Bun"]),
+                );
+                swatches(ui, "Hair colour", &mut f.look.hair_color, &Look::HAIRS);
+                let mut beard = f.look.beard as u8;
+                stepper(ui, "Beard", &mut beard, 2, Some(&["None", "Beard"]));
+                f.look.beard = beard == 1;
+                stepper(
+                    ui,
+                    "Build",
+                    &mut f.look.build,
+                    3,
+                    Some(&["Slight", "Average", "Burly"]),
+                );
+                stepper(
+                    ui,
+                    "Expression",
+                    &mut f.look.mood,
+                    3,
+                    Some(&["Cheerful", "Stern", "Calm"]),
+                );
+                stepper(
+                    ui,
+                    "Ears",
+                    &mut f.look.ears,
+                    3,
+                    Some(&["Hidden", "Round", "Pointed"]),
+                );
+                ui.add_space(8.0);
+                if dark_button(ui, "Randomise", 160.0).clicked() {
+                    let seed = (ctx.input(|i| i.time) * 1000.0) as u32;
+                    f.randomise(seed);
+                }
+            });
+        }
+        Page::Name => {
+            panel(ctx, "naming", left, |ui| {
+                ui.label(
+                    RichText::new("Name your character")
+                        .font(theme::title_font(18.0))
+                        .color(theme::GOLD),
+                );
+                theme::ui_divider(ui, theme::GOLD_DARK);
+                ui.horizontal(|ui| {
+                    ui.add(
+                        egui::TextEdit::singleline(&mut f.name)
+                            .font(theme::title_font(20.0))
+                            .desired_width(280.0)
+                            .char_limit(16),
+                    );
+                    if ui
+                        .button(RichText::new("🎲").size(20.0))
+                        .on_hover_text("A random name")
+                        .clicked()
+                    {
+                        let seed = (ctx.input(|i| i.time) * 977.0) as u32;
+                        f.name = random_name(seed);
+                    }
+                });
+                match name_problem(&f.name) {
+                    Some(why) => {
+                        ui.label(RichText::new(why).color(Color32::from_rgb(230, 150, 90)))
+                    }
+                    None => ui.label(RichText::new("A fine name").color(theme::GOOD)),
+                };
+                ui.add_space(10.0);
+                if let Some(c) = classes.get(f.class) {
+                    ui.label(
+                        RichText::new(format!("{} · {} armour · {}", c.name, c.armor, c.resource))
+                            .font(theme::body_font(15.0))
+                            .color(theme::TEXT),
+                    );
+                }
+                if let Some(e) = &f.error {
+                    ui.label(RichText::new(e).color(Color32::from_rgb(230, 120, 110)));
+                }
+            });
+        }
+        _ => {}
+    }
+    // back and next
+    egui::Area::new(egui::Id::new("create-nav"))
+        .anchor(Align2::RIGHT_BOTTOM, Vec2::new(-24.0, -24.0))
+        .order(egui::Order::Foreground)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                if dark_button(ui, "Back", 110.0).clicked() {
+                    f.page = match f.page {
+                        Page::Class => Page::Select,
+                        Page::Appearance => Page::Class,
+                        _ => Page::Appearance,
+                    };
+                }
+                ui.add_space(10.0);
+                let (label, ok) = match f.page {
+                    Page::Class => ("Next: Appearance", !classes.is_empty()),
+                    Page::Appearance => ("Next: Name", true),
+                    _ => ("Create Character", name_problem(&f.name).is_none()),
+                };
+                ui.add_enabled_ui(ok, |ui| {
+                    if gold_button(ui, label, 240.0, 50.0).clicked() {
+                        match f.page {
+                            Page::Class => f.page = Page::Appearance,
+                            Page::Appearance => {
+                                if f.name.is_empty() {
+                                    f.name = random_name((ctx.input(|i| i.time) * 313.0) as u32);
+                                }
+                                f.page = Page::Name;
+                            }
+                            _ => {
+                                if let (Some(row), Some(c)) = (f.current(), classes.get(f.class)) {
+                                    out.push(FrontCmd::Enter {
+                                        addr: row.addr.clone(),
+                                        name: f.name.trim().to_string(),
+                                        create: Some(NewCharacter {
+                                            class: c.key.clone(),
+                                            look: f.look,
+                                        }),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        });
+    let drag = ctx.input(|i| {
+        if i.pointer.primary_down() && !ctx.is_pointer_over_area() {
+            i.pointer.delta().x
+        } else {
+            0.0
+        }
+    });
+    f.turn += drag * 0.01;
+}
