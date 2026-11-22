@@ -1,0 +1,1399 @@
+{
+ "name": "Hearthblock",
+ "version": 1,
+ "items": [
+  {
+   "key": "stick",
+   "name": "Stick",
+   "color": [
+    0.55,
+    0.4,
+    0.24
+   ],
+   "icon": "stick",
+   "fuel": 1
+  },
+  {
+   "key": "coal",
+   "name": "Coal",
+   "color": [
+    0.12,
+    0.12,
+    0.13
+   ],
+   "icon": "lump",
+   "fuel": 8
+  },
+  {
+   "key": "raw_iron",
+   "name": "Raw iron",
+   "color": [
+    0.72,
+    0.56,
+    0.44
+   ],
+   "icon": "lump"
+  },
+  {
+   "key": "iron_ingot",
+   "name": "Iron ingot",
+   "color": [
+    0.82,
+    0.82,
+    0.84
+   ],
+   "icon": "ingot"
+  },
+  {
+   "key": "ember_shard",
+   "name": "Ember shard",
+   "color": [
+    1.0,
+    0.55,
+    0.2
+   ],
+   "icon": "gem",
+   "light": 6
+  },
+  {
+   "key": "shade_dust",
+   "name": "Shade dust",
+   "color": [
+    0.3,
+    0.24,
+    0.4
+   ],
+   "icon": "dust"
+  },
+  {
+   "key": "berries",
+   "name": "Berries",
+   "color": [
+    0.8,
+    0.12,
+    0.22
+   ],
+   "icon": "berries",
+   "food": 2
+  },
+  {
+   "key": "raw_meat",
+   "name": "Raw meat",
+   "color": [
+    0.85,
+    0.4,
+    0.42
+   ],
+   "icon": "meat",
+   "food": 3
+  },
+  {
+   "key": "cooked_meat",
+   "name": "Cooked meat",
+   "color": [
+    0.62,
+    0.36,
+    0.2
+   ],
+   "icon": "meat",
+   "food": 8
+  },
+  {
+   "key": "wooden_pickaxe",
+   "name": "Wooden pickaxe",
+   "color": [
+    0.72,
+    0.56,
+    0.35
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "pickaxe",
+    "tier": 1,
+    "speed": 2.0,
+    "damage": 2.0,
+    "durability": 60
+   }
+  },
+  {
+   "key": "wooden_axe",
+   "name": "Wooden axe",
+   "color": [
+    0.72,
+    0.56,
+    0.35
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "axe",
+    "tier": 1,
+    "speed": 2.0,
+    "damage": 3.0,
+    "durability": 60
+   }
+  },
+  {
+   "key": "wooden_shovel",
+   "name": "Wooden shovel",
+   "color": [
+    0.72,
+    0.56,
+    0.35
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "shovel",
+    "tier": 1,
+    "speed": 2.0,
+    "damage": 1.5,
+    "durability": 60
+   }
+  },
+  {
+   "key": "wooden_sword",
+   "name": "Wooden sword",
+   "color": [
+    0.72,
+    0.56,
+    0.35
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "sword",
+    "tier": 1,
+    "speed": 1.5,
+    "damage": 4,
+    "durability": 60
+   }
+  },
+  {
+   "key": "stone_pickaxe",
+   "name": "Stone pickaxe",
+   "color": [
+    0.52,
+    0.53,
+    0.56
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "pickaxe",
+    "tier": 2,
+    "speed": 4.0,
+    "damage": 2.5,
+    "durability": 130
+   }
+  },
+  {
+   "key": "stone_axe",
+   "name": "Stone axe",
+   "color": [
+    0.52,
+    0.53,
+    0.56
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "axe",
+    "tier": 2,
+    "speed": 4.0,
+    "damage": 3.5,
+    "durability": 130
+   }
+  },
+  {
+   "key": "stone_shovel",
+   "name": "Stone shovel",
+   "color": [
+    0.52,
+    0.53,
+    0.56
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "shovel",
+    "tier": 2,
+    "speed": 4.0,
+    "damage": 2.0,
+    "durability": 130
+   }
+  },
+  {
+   "key": "stone_sword",
+   "name": "Stone sword",
+   "color": [
+    0.52,
+    0.53,
+    0.56
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "sword",
+    "tier": 2,
+    "speed": 1.5,
+    "damage": 5,
+    "durability": 130
+   }
+  },
+  {
+   "key": "iron_pickaxe",
+   "name": "Iron pickaxe",
+   "color": [
+    0.85,
+    0.85,
+    0.88
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "pickaxe",
+    "tier": 3,
+    "speed": 6.0,
+    "damage": 3.0,
+    "durability": 250
+   }
+  },
+  {
+   "key": "iron_axe",
+   "name": "Iron axe",
+   "color": [
+    0.85,
+    0.85,
+    0.88
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "axe",
+    "tier": 3,
+    "speed": 6.0,
+    "damage": 4.0,
+    "durability": 250
+   }
+  },
+  {
+   "key": "iron_shovel",
+   "name": "Iron shovel",
+   "color": [
+    0.85,
+    0.85,
+    0.88
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "shovel",
+    "tier": 3,
+    "speed": 6.0,
+    "damage": 2.5,
+    "durability": 250
+   }
+  },
+  {
+   "key": "iron_sword",
+   "name": "Iron sword",
+   "color": [
+    0.85,
+    0.85,
+    0.88
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "sword",
+    "tier": 3,
+    "speed": 1.5,
+    "damage": 6,
+    "durability": 250
+   }
+  },
+  {
+   "key": "ember_pickaxe",
+   "name": "Ember pickaxe",
+   "color": [
+    1.0,
+    0.55,
+    0.22
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "pickaxe",
+    "tier": 4,
+    "speed": 9.0,
+    "damage": 3.5,
+    "durability": 1000
+   },
+   "light": 10
+  },
+  {
+   "key": "ember_axe",
+   "name": "Ember axe",
+   "color": [
+    1.0,
+    0.55,
+    0.22
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "axe",
+    "tier": 4,
+    "speed": 9.0,
+    "damage": 4.5,
+    "durability": 1000
+   },
+   "light": 10
+  },
+  {
+   "key": "ember_shovel",
+   "name": "Ember shovel",
+   "color": [
+    1.0,
+    0.55,
+    0.22
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "shovel",
+    "tier": 4,
+    "speed": 9.0,
+    "damage": 3.0,
+    "durability": 1000
+   },
+   "light": 10
+  },
+  {
+   "key": "ember_sword",
+   "name": "Ember sword",
+   "color": [
+    1.0,
+    0.55,
+    0.22
+   ],
+   "icon": "tool",
+   "tool": {
+    "kind": "sword",
+    "tier": 4,
+    "speed": 1.5,
+    "damage": 8,
+    "durability": 1000
+   },
+   "light": 10
+  }
+ ],
+ "blocks": {
+  "grass": {
+   "hardness": 0.6,
+   "tool": "shovel",
+   "drops": [
+    {
+     "item": "dirt",
+     "min": 1,
+     "max": 1,
+     "chance": 1.0
+    }
+   ]
+  },
+  "dirt": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "sand": {
+   "hardness": 0.5,
+   "tool": "shovel"
+  },
+  "clay": {
+   "hardness": 0.6,
+   "tool": "shovel"
+  },
+  "snow": {
+   "hardness": 0.2,
+   "tool": "shovel"
+  },
+  "stone": {
+   "hardness": 1.5,
+   "tool": "pickaxe",
+   "tier": 1,
+   "drops": [
+    {
+     "item": "cobble",
+     "min": 1,
+     "max": 1,
+     "chance": 1.0
+    }
+   ]
+  },
+  "cobble": {
+   "hardness": 2.0,
+   "tool": "pickaxe",
+   "tier": 1
+  },
+  "mossy_cobble": {
+   "hardness": 2.0,
+   "tool": "pickaxe",
+   "tier": 1
+  },
+  "brick": {
+   "hardness": 2.0,
+   "tool": "pickaxe",
+   "tier": 1
+  },
+  "basalt": {
+   "hardness": 2.0,
+   "tool": "pickaxe",
+   "tier": 1
+  },
+  "marble": {
+   "hardness": 1.5,
+   "tool": "pickaxe",
+   "tier": 1
+  },
+  "terracotta": {
+   "hardness": 1.3,
+   "tool": "pickaxe",
+   "tier": 1
+  },
+  "coal_ore": {
+   "hardness": 3.0,
+   "tool": "pickaxe",
+   "tier": 1,
+   "drops": [
+    {
+     "item": "coal",
+     "min": 1,
+     "max": 1,
+     "chance": 1.0
+    }
+   ]
+  },
+  "iron_ore": {
+   "hardness": 3.0,
+   "tool": "pickaxe",
+   "tier": 2,
+   "drops": [
+    {
+     "item": "raw_iron",
+     "min": 1,
+     "max": 1,
+     "chance": 1.0
+    }
+   ]
+  },
+  "emberstone": {
+   "hardness": 4.0,
+   "tool": "pickaxe",
+   "tier": 3,
+   "drops": [
+    {
+     "item": "ember_shard",
+     "min": 1,
+     "max": 2,
+     "chance": 1.0
+    }
+   ]
+  },
+  "furnace": {
+   "hardness": 3.5,
+   "tool": "pickaxe",
+   "tier": 1
+  },
+  "bedrock": {
+   "hardness": -1
+  },
+  "log": {
+   "hardness": 2.0,
+   "tool": "axe"
+  },
+  "birch_log": {
+   "hardness": 2.0,
+   "tool": "axe"
+  },
+  "planks": {
+   "hardness": 2.0,
+   "tool": "axe"
+  },
+  "birch_planks": {
+   "hardness": 2.0,
+   "tool": "axe"
+  },
+  "dark_planks": {
+   "hardness": 2.0,
+   "tool": "axe"
+  },
+  "crafting_table": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "chest": {
+   "hardness": 2.5,
+   "tool": "axe"
+  },
+  "leaves": {
+   "hardness": 0.2,
+   "drops": [
+    {
+     "item": "stick",
+     "min": 1,
+     "max": 1,
+     "chance": 0.12
+    },
+    {
+     "item": "berries",
+     "min": 1,
+     "max": 1,
+     "chance": 0.04
+    }
+   ]
+  },
+  "birch_leaves": {
+   "hardness": 0.2,
+   "drops": [
+    {
+     "item": "stick",
+     "min": 1,
+     "max": 1,
+     "chance": 0.12
+    }
+   ]
+  },
+  "pine_leaves": {
+   "hardness": 0.2,
+   "drops": [
+    {
+     "item": "stick",
+     "min": 1,
+     "max": 1,
+     "chance": 0.15
+    }
+   ]
+  },
+  "glass": {
+   "hardness": 0.3,
+   "drops": []
+  },
+  "ice": {
+   "hardness": 0.5,
+   "tool": "pickaxe",
+   "drops": []
+  },
+  "glowshroom": {
+   "hardness": 0.1
+  },
+  "lantern": {
+   "hardness": 0.3
+  },
+  "torch": {
+   "hardness": 0.05
+  },
+  "berry_bush": {
+   "hardness": 0.3,
+   "drops": [
+    {
+     "item": "berries",
+     "min": 1,
+     "max": 3,
+     "chance": 1.0
+    },
+    {
+     "item": "berry_bush",
+     "min": 1,
+     "max": 1,
+     "chance": 0.5
+    }
+   ]
+  },
+  "bed": {
+   "hardness": 0.3
+  },
+  "water": {
+   "hardness": -1
+  },
+  "air": {
+   "hardness": -1
+  },
+  "white": {
+   "hardness": 0.8
+  },
+  "black": {
+   "hardness": 0.8
+  },
+  "red": {
+   "hardness": 0.8
+  },
+  "orange": {
+   "hardness": 0.8
+  },
+  "yellow": {
+   "hardness": 0.8
+  },
+  "lime": {
+   "hardness": 0.8
+  },
+  "cyan": {
+   "hardness": 0.8
+  },
+  "blue": {
+   "hardness": 0.8
+  },
+  "purple": {
+   "hardness": 0.8
+  },
+  "pink": {
+   "hardness": 0.8
+  }
+ },
+ "recipes": [
+  {
+   "out": "planks",
+   "count": 4,
+   "in": [
+    [
+     "log",
+     1
+    ]
+   ],
+   "group": "Basics"
+  },
+  {
+   "out": "birch_planks",
+   "count": 4,
+   "in": [
+    [
+     "birch_log",
+     1
+    ]
+   ],
+   "group": "Basics"
+  },
+  {
+   "out": "stick",
+   "count": 4,
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     2
+    ]
+   ],
+   "group": "Basics"
+  },
+  {
+   "out": "crafting_table",
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     4
+    ]
+   ],
+   "group": "Basics"
+  },
+  {
+   "out": "torch",
+   "count": 4,
+   "in": [
+    [
+     "stick",
+     1
+    ],
+    [
+     "coal",
+     1
+    ]
+   ],
+   "group": "Basics"
+  },
+  {
+   "out": "wooden_pickaxe",
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     3
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "wooden_axe",
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     3
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "wooden_shovel",
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     1
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "wooden_sword",
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     2
+    ],
+    [
+     "stick",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "stone_pickaxe",
+   "in": [
+    [
+     "cobble|mossy_cobble",
+     3
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "stone_axe",
+   "in": [
+    [
+     "cobble|mossy_cobble",
+     3
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "stone_shovel",
+   "in": [
+    [
+     "cobble|mossy_cobble",
+     1
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "stone_sword",
+   "in": [
+    [
+     "cobble|mossy_cobble",
+     2
+    ],
+    [
+     "stick",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "iron_pickaxe",
+   "in": [
+    [
+     "iron_ingot",
+     3
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "iron_axe",
+   "in": [
+    [
+     "iron_ingot",
+     3
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "iron_shovel",
+   "in": [
+    [
+     "iron_ingot",
+     1
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "iron_sword",
+   "in": [
+    [
+     "iron_ingot",
+     2
+    ],
+    [
+     "stick",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "ember_pickaxe",
+   "in": [
+    [
+     "ember_shard",
+     3
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "ember_axe",
+   "in": [
+    [
+     "ember_shard",
+     3
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "ember_shovel",
+   "in": [
+    [
+     "ember_shard",
+     1
+    ],
+    [
+     "stick",
+     2
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "ember_sword",
+   "in": [
+    [
+     "ember_shard",
+     2
+    ],
+    [
+     "stick",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Tools"
+  },
+  {
+   "out": "furnace",
+   "in": [
+    [
+     "cobble",
+     8
+    ]
+   ],
+   "station": "table",
+   "group": "Stations"
+  },
+  {
+   "out": "chest",
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     8
+    ]
+   ],
+   "station": "table",
+   "group": "Stations"
+  },
+  {
+   "out": "bed",
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     3
+    ],
+    [
+     "white",
+     3
+    ]
+   ],
+   "station": "table",
+   "group": "Stations"
+  },
+  {
+   "out": "lantern",
+   "in": [
+    [
+     "iron_ingot",
+     1
+    ],
+    [
+     "torch",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Light"
+  },
+  {
+   "out": "glass",
+   "in": [
+    [
+     "sand",
+     1
+    ]
+   ],
+   "station": "furnace",
+   "fuel": 1,
+   "group": "Smelting"
+  },
+  {
+   "out": "iron_ingot",
+   "in": [
+    [
+     "raw_iron",
+     1
+    ]
+   ],
+   "station": "furnace",
+   "fuel": 1,
+   "group": "Smelting"
+  },
+  {
+   "out": "cooked_meat",
+   "in": [
+    [
+     "raw_meat",
+     1
+    ]
+   ],
+   "station": "furnace",
+   "fuel": 1,
+   "group": "Smelting"
+  },
+  {
+   "out": "stone",
+   "in": [
+    [
+     "cobble",
+     1
+    ]
+   ],
+   "station": "furnace",
+   "fuel": 1,
+   "group": "Smelting"
+  },
+  {
+   "out": "brick",
+   "in": [
+    [
+     "clay",
+     1
+    ]
+   ],
+   "station": "furnace",
+   "fuel": 1,
+   "group": "Smelting"
+  },
+  {
+   "out": "coal",
+   "in": [
+    [
+     "log|birch_log",
+     1
+    ]
+   ],
+   "station": "furnace",
+   "fuel": 1,
+   "group": "Smelting"
+  },
+  {
+   "out": "terracotta",
+   "in": [
+    [
+     "dirt",
+     2
+    ],
+    [
+     "clay",
+     1
+    ]
+   ],
+   "station": "furnace",
+   "fuel": 1,
+   "group": "Smelting"
+  },
+  {
+   "out": "mossy_cobble",
+   "in": [
+    [
+     "cobble",
+     1
+    ],
+    [
+     "leaves|pine_leaves|birch_leaves",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Building"
+  },
+  {
+   "out": "dark_planks",
+   "count": 2,
+   "in": [
+    [
+     "planks|birch_planks|dark_planks",
+     2
+    ],
+    [
+     "coal",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Building"
+  },
+  {
+   "out": "marble",
+   "count": 2,
+   "in": [
+    [
+     "stone",
+     2
+    ],
+    [
+     "snow",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Building"
+  },
+  {
+   "out": "basalt",
+   "count": 2,
+   "in": [
+    [
+     "stone",
+     2
+    ],
+    [
+     "coal",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Building"
+  },
+  {
+   "out": "red",
+   "in": [
+    [
+     "white",
+     1
+    ],
+    [
+     "berries",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Colours"
+  },
+  {
+   "out": "black",
+   "in": [
+    [
+     "white",
+     1
+    ],
+    [
+     "coal",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Colours"
+  },
+  {
+   "out": "yellow",
+   "in": [
+    [
+     "white",
+     1
+    ],
+    [
+     "sand",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Colours"
+  },
+  {
+   "out": "lime",
+   "in": [
+    [
+     "white",
+     1
+    ],
+    [
+     "leaves",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Colours"
+  },
+  {
+   "out": "blue",
+   "in": [
+    [
+     "white",
+     1
+    ],
+    [
+     "ember_shard",
+     1
+    ]
+   ],
+   "station": "table",
+   "group": "Colours"
+  },
+  {
+   "out": "orange",
+   "in": [
+    [
+     "red",
+     1
+    ],
+    [
+     "yellow",
+     1
+    ]
+   ],
+   "station": "table",
+   "count": 2,
+   "group": "Colours"
+  },
+  {
+   "out": "pink",
+   "in": [
+    [
+     "red",
+     1
+    ],
+    [
+     "white",
+     1
+    ]
+   ],
+   "station": "table",
+   "count": 2,
+   "group": "Colours"
+  },
+  {
+   "out": "purple",
+   "in": [
+    [
+     "red",
+     1
+    ],
+    [
+     "blue",
+     1
+    ]
+   ],
+   "station": "table",
+   "count": 2,
+   "group": "Colours"
+  },
+  {
+   "out": "cyan",
+   "in": [
+    [
+     "blue",
+     1
+    ],
+    [
+     "lime",
+     1
+    ]
+   ],
+   "station": "table",
+   "count": 2,
+   "group": "Colours"
+  }
+ ],
+ "creatures": [
+  {
+   "key": "grazer",
+   "name": "Grazer",
+   "health": 8,
+   "speed": 1.6,
+   "hostile": false,
+   "drops": [
+    {
+     "item": "raw_meat",
+     "min": 1,
+     "max": 3,
+     "chance": 1.0
+    },
+    {
+     "item": "white",
+     "min": 0,
+     "max": 1,
+     "chance": 1.0
+    }
+   ],
+   "color": [
+    0.86,
+    0.82,
+    0.7
+   ],
+   "model": "quadruped",
+   "spawn": "meadow",
+   "cap": 6
+  },
+  {
+   "key": "shade",
+   "name": "Shade",
+   "health": 20,
+   "speed": 2.7,
+   "hostile": true,
+   "damage": 3,
+   "drops": [
+    {
+     "item": "shade_dust",
+     "min": 0,
+     "max": 2,
+     "chance": 1.0
+    }
+   ],
+   "color": [
+    0.16,
+    0.13,
+    0.22
+   ],
+   "model": "humanoid",
+   "spawn": "dark",
+   "cap": 8,
+   "burns_in_daylight": true
+  }
+ ],
+ "milestones": [
+  {
+   "key": "wood",
+   "title": "Punch a tree",
+   "hint": "Hold left click on a log to break it.",
+   "trigger": "collect:log"
+  },
+  {
+   "key": "table",
+   "title": "Workbench",
+   "hint": "Open your pack (E) and craft a crafting table from planks.",
+   "trigger": "craft:crafting_table"
+  },
+  {
+   "key": "pick",
+   "title": "Getting tools",
+   "hint": "Near a crafting table, make a wooden pickaxe.",
+   "trigger": "craft:wooden_pickaxe"
+  },
+  {
+   "key": "stone",
+   "title": "Stone age",
+   "hint": "Mine stone and make a stone pickaxe.",
+   "trigger": "craft:stone_pickaxe"
+  },
+  {
+   "key": "torch",
+   "title": "Light the dark",
+   "hint": "Find coal and make torches. Shades cannot rise in the light.",
+   "trigger": "craft:torch"
+  },
+  {
+   "key": "night",
+   "title": "First night",
+   "hint": "Survive until morning.",
+   "trigger": "night"
+  },
+  {
+   "key": "iron",
+   "title": "Iron age",
+   "hint": "Smelt raw iron in a furnace.",
+   "trigger": "craft:iron_ingot"
+  },
+  {
+   "key": "shade",
+   "title": "Shade hunter",
+   "hint": "Defeat a Shade.",
+   "trigger": "kill:shade"
+  },
+  {
+   "key": "ember",
+   "title": "Ember",
+   "hint": "Mine emberstone deep underground with an iron pickaxe.",
+   "trigger": "collect:ember_shard"
+  },
+  {
+   "key": "home",
+   "title": "Home",
+   "hint": "Craft a bed and a chest.",
+   "trigger": "craft:bed"
+  }
+ ]
+}

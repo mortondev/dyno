@@ -10,6 +10,7 @@ USAGE:
   dyno connect <address>       Open the game with the server address filled in
   dyno connect <address>       Open the game with the server address filled in
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
+                               [--creative] [--content FILE.json] [--op NAME]...
                                Run a dedicated game server
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out f.ppm]
@@ -50,7 +51,7 @@ fn main() {
             };
             let name = args.get(2).map(String::as_str).unwrap_or("ping");
             let t = std::time::Instant::now();
-            match dyno_client::net::connect(addr, name, Duration::from_secs(10)) {
+            match dyno_client::net::connect(addr, name, 0, true, Duration::from_secs(10)) {
                 Ok(j) => {
                     println!(
                         "OK {} in {} ms: server dyno {}, you are #{}, world {:?}, {} other players. MOTD: {}",
@@ -75,7 +76,13 @@ fn main() {
                 std::process::exit(2);
             };
             let name = args.get(3).map(String::as_str).unwrap_or("console");
-            match dyno_client::net::connect(addr, name, Duration::from_secs(10)) {
+            match dyno_client::net::connect(
+                addr,
+                name,
+                dyno_client::settings::tool_token(name),
+                false,
+                Duration::from_secs(10),
+            ) {
                 Ok(j) => {
                     let _ = j
                         .conn
@@ -156,8 +163,14 @@ fn main() {
             };
             let name = args.get(2).cloned().unwrap_or_else(|| "bot".into());
             let secs: u64 = args.get(3).and_then(|v| v.parse().ok()).unwrap_or(60);
-            let j = dyno_client::net::connect(addr, &name, Duration::from_secs(10))
-                .unwrap_or_else(|e| fail(&e));
+            let j = dyno_client::net::connect(
+                addr,
+                &name,
+                dyno_client::settings::tool_token(&name),
+                false,
+                Duration::from_secs(10),
+            )
+            .unwrap_or_else(|e| fail(&e));
             let _ = j.conn.tx.send(dyno_protocol::ClientMsg::Chat {
                 text: "Hello! I am a test bot.".into(),
             });
@@ -205,8 +218,14 @@ fn main() {
                 fail("unknown block")
             };
             let (a, b) = (p3(a), p3(b));
-            let j = dyno_client::net::connect(addr, "builder", Duration::from_secs(10))
-                .unwrap_or_else(|e| fail(&e));
+            let j = dyno_client::net::connect(
+                addr,
+                "builder",
+                dyno_client::settings::tool_token("builder"),
+                false,
+                Duration::from_secs(10),
+            )
+            .unwrap_or_else(|e| fail(&e));
             // stand next to the box so the server accepts the reach check
             let c = [
                 (a[0] + b[0]) as f32 * 0.5,
@@ -336,6 +355,15 @@ fn run_server(args: &[String]) {
                 i += 1;
             }
             "--auto-update" => auto_update = true,
+            "--creative" => cfg.default_mode = dyno_protocol::Mode::Creative,
+            "--content" => {
+                cfg.content_path = Some(val().into());
+                i += 1;
+            }
+            "--op" => {
+                cfg.ops.push(val());
+                i += 1;
+            }
             other => fail(&format!("unknown server option {other}")),
         }
         i += 1;

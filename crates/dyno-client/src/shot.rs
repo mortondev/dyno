@@ -26,7 +26,7 @@ pub struct ShotOptions {
 
 /// Returns a one-line description of what was rendered.
 pub fn shot(o: ShotOptions) -> Result<String, String> {
-    let j = net::connect(&o.addr, &o.name, Duration::from_secs(10))?;
+    let j = net::connect(&o.addr, &o.name, 0, true, Duration::from_secs(10))?;
     let mut server_time = 0.25;
     let mut poses: Vec<Pose> = j.players.iter().map(|p| p.pose).collect();
     let until = Instant::now() + Duration::from_millis(400);

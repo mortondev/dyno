@@ -6,11 +6,16 @@ use crate::light::Light;
 use crate::net::{self, Joined, NetEvent};
 use crate::render::{self, Gfx, Vertex};
 use crate::settings::Settings;
-use dyno_protocol::{self as proto, ClientMsg, PlayerId, ServerMsg};
+use crate::survival::{self, PackCmd, PackView};
+use dyno_protocol::{
+    self as proto, ClientMsg, Content, EntityKind, EnvDamage, Mode, PlayerId, ServerMsg, SlotRef,
+    Stack,
+};
 use dyno_world::{self as w, World};
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Stroke, Vec2};
 use egui_winit::winit;
 use glam::Vec3;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{Receiver, channel};
@@ -113,8 +118,28 @@ struct Play {
     bob: f32,
     step_acc: f32,
     fov_kick: f32,
+    /// the pack screen (and creative item grid) is open
     picker_open: bool,
-    hotbar: [w::BlockId; 9],
+    content: Content,
+    mode: Mode,
+    pack: Vec<Option<Stack>>,
+    health: f32,
+    food: f32,
+    fuel: u16,
+    chest: Option<([i32; 3], Vec<Option<Stack>>)>,
+    selected: Option<SlotRef>,
+    recipe_filter: String,
+    entities: HashMap<u32, ClientEntity>,
+    /// block being broken: position, seconds so far, seconds needed
+    dig: Option<([i32; 3], f32, f32)>,
+    mouse_left: bool,
+    dead: Option<String>,
+    hurt_flash: f32,
+    toasts: Vec<(Instant, String)>,
+    fall_from: Option<f32>,
+    air: f32,
+    drown_clock: f32,
+    sent_held: usize,
     /// night ambience: firefly positions and phases, and the next cricket
     fireflies: Vec<(Vec3, f32)>,
     next_cricket: f32,
@@ -122,6 +147,40 @@ struct Play {
     undo: Vec<([i32; 3], w::BlockId, w::BlockId)>,
     /// fill selection corners
     sel: (Option<[i32; 3]>, Option<[i32; 3]>),
+}
+
+struct ClientEntity {
+    kind: EntityKind,
+    from: [f32; 3],
+    to: [f32; 3],
+    at: Instant,
+    yaw: f32,
+    born: Instant,
+}
+
+impl ClientEntity {
+    fn pos(&self) -> Vec3 {
+        let t = (self.at.elapsed().as_secs_f32() / 0.1).clamp(0.0, 1.0);
+        Vec3::from(self.from).lerp(Vec3::from(self.to), t)
+    }
+}
+
+impl Play {
+    fn held(&self) -> Option<Stack> {
+        self.pack.get(self.slot).copied().flatten()
+    }
+    fn held_block(&self) -> Option<w::BlockId> {
+        self.held().and_then(|s| self.content.item(s.item).block)
+    }
+    fn held_tool(&self) -> Option<&dyno_world::content::Tool> {
+        self.held().and_then(|s| self.content.item(s.item).tool)
+    }
+    fn creative(&self) -> bool {
+        self.mode == Mode::Creative
+    }
+    fn toast(&mut self, t: impl Into<String>) {
+        self.toasts.push((Instant::now(), t.into()));
+    }
 }
 
 struct Particle {
@@ -330,8 +389,15 @@ impl App {
         let _ = self.settings.save();
         let (tx, rx) = channel();
         let a = addr.clone();
+        let token = self.settings.token;
         std::thread::spawn(move || {
-            let _ = tx.send(net::connect(&a, &name, Duration::from_secs(10)));
+            let _ = tx.send(net::connect(
+                &a,
+                &name,
+                token,
+                false,
+                Duration::from_secs(10),
+            ));
         });
         self.menu.error = None;
         self.screen = Screen::Joining {
@@ -380,15 +446,6 @@ impl App {
             match rx.try_recv() {
                 Ok(Ok(j)) => {
                     let light = Light::new(&j.world);
-                    let hotbar = {
-                        let mut h = w::HOTBAR;
-                        for (i, b) in self.settings.hotbar.iter().take(9).enumerate() {
-                            if *b > 0 && *b < w::BLOCK_COUNT {
-                                h[i] = *b;
-                            }
-                        }
-                        h
-                    };
                     let mut p = Play {
                         player: Player::new(j.spawn),
                         remotes: j
@@ -431,9 +488,27 @@ impl App {
                         next_cricket: 3.0,
                         undo: Vec::new(),
                         sel: (None, None),
-                        hotbar,
+                        content: j.content,
+                        mode: j.mode,
+                        pack: vec![None; dyno_sim::SLOTS],
+                        health: 20.0,
+                        food: 20.0,
+                        fuel: 0,
+                        chest: None,
+                        selected: None,
+                        recipe_filter: String::new(),
+                        entities: HashMap::new(),
+                        dig: None,
+                        mouse_left: false,
+                        dead: None,
+                        hurt_flash: 0.0,
+                        toasts: Vec::new(),
+                        fall_from: None,
+                        air: 10.0,
+                        drown_clock: 0.0,
+                        sent_held: 99,
                     };
-                    p.chat.push(Chat { at: Instant::now(), from: None, text: "Click to play. WASD move, Space jump, F fly, left click break, right click place, 1-9 choose block, E all blocks, G G then V to fill, Ctrl+Z undo, T chat, /help commands, Esc menu.".into() });
+                    p.chat.push(Chat { at: Instant::now(), from: None, text: if p.creative() { "Creative mode. Click to play. WASD move, F fly, left click break, right click place, E all items, G G then V to fill, Ctrl+Z undo, T chat, /help.".into() } else { "Survival mode. Hold left click to break blocks, E opens your pack and recipes, right click places or eats, Q throws, T chat, /help. Punch a tree to start, and make light before night falls.".into() } });
                     if let Some(g) = self.gfx.as_mut() {
                         g.load_world(&p.world, &p.light);
                     }
@@ -451,6 +526,7 @@ impl App {
         }
         // network messages
         let mut closed = None;
+        let mut release = false;
         if let Screen::Playing(p) = &mut self.screen {
             while let Ok(ev) = p.conn.rx.try_recv() {
                 match ev {
@@ -556,7 +632,87 @@ impl App {
                         ServerMsg::Teleport { pos } => {
                             p.player.pos = Vec3::from(pos);
                             p.player.vel = Vec3::ZERO;
+                            p.fall_from = None;
+                            p.dead = None;
                         }
+                        ServerMsg::Pack(slots) => p.pack = slots,
+                        ServerMsg::Status {
+                            health,
+                            food,
+                            mode,
+                            fuel,
+                        } => {
+                            p.health = health;
+                            p.food = food;
+                            p.fuel = fuel;
+                            if mode != p.mode {
+                                p.mode = mode;
+                                if mode == Mode::Survival {
+                                    p.player.flying = false;
+                                }
+                                p.toast(if mode == Mode::Creative {
+                                    "Creative mode"
+                                } else {
+                                    "Survival mode"
+                                });
+                            }
+                        }
+                        ServerMsg::Container(c) => {
+                            p.chest = c;
+                            if p.chest.is_some() && !p.picker_open {
+                                p.picker_open = true;
+                                p.selected = None;
+                                self.audio.play(Sfx::Place(w::Material::Wood), 0.5);
+                                release = true;
+                            }
+                        }
+                        ServerMsg::EntitySpawn { id, kind, pos, yaw } => {
+                            p.entities.insert(
+                                id,
+                                ClientEntity {
+                                    kind,
+                                    from: pos,
+                                    to: pos,
+                                    at: Instant::now(),
+                                    yaw,
+                                    born: Instant::now(),
+                                },
+                            );
+                        }
+                        ServerMsg::EntityMoves(list) => {
+                            for (id, pos, yaw) in list {
+                                if let Some(e) = p.entities.get_mut(&id) {
+                                    e.from = e.pos().into();
+                                    e.to = pos;
+                                    e.yaw = yaw;
+                                    e.at = Instant::now();
+                                }
+                            }
+                        }
+                        ServerMsg::EntityGone { id, picked_by } => {
+                            p.entities.remove(&id);
+                            if picked_by == Some(p.my_id) {
+                                self.audio.play(Sfx::Click, 0.7);
+                            }
+                        }
+                        ServerMsg::EntityHurt { .. } => {}
+                        ServerMsg::Hurt { amount, push } => {
+                            p.hurt_flash = (0.4 + amount * 0.08).min(1.0);
+                            p.player.vel += Vec3::from(push);
+                            self.audio.play(Sfx::Break(w::Material::Cloth), 0.9);
+                        }
+                        ServerMsg::Died { message } => {
+                            p.dead = Some(message);
+                            p.dig = None;
+                            p.picker_open = false;
+                            release = true;
+                        }
+                        ServerMsg::Milestone { title } => {
+                            p.toast(format!("Journal: {title}"));
+                            self.audio.play(Sfx::Join, 0.7);
+                        }
+                        ServerMsg::Content(c) => p.content = *c,
+                        ServerMsg::Digging { .. } => {}
                         ServerMsg::Reject { reason } => closed = Some(reason),
                         _ => {}
                     },
@@ -565,6 +721,9 @@ impl App {
             if p.chat.len() > 200 {
                 p.chat.drain(..100);
             }
+        }
+        if release {
+            self.set_capture(false);
         }
         if let Some(r) = closed {
             self.set_capture(false);
@@ -617,7 +776,8 @@ impl App {
         let mut lines: Vec<Vertex> = Vec::new();
         if let Screen::Playing(p) = &mut self.screen {
             let k = |c: KeyCode| p.keys.contains(&c);
-            let active = p.captured && !p.chat_open && !p.menu_open && !p.picker_open;
+            let active =
+                p.captured && !p.chat_open && !p.menu_open && !p.picker_open && p.dead.is_none();
             let input = if active {
                 Input {
                     forward: (k(KeyCode::KeyW) as i32 - k(KeyCode::KeyS) as i32) as f32,
@@ -630,7 +790,100 @@ impl App {
                 Input::default()
             };
             let before = p.player.pos;
+            if !p.creative() {
+                p.player.flying = false;
+            }
             p.player.update(&p.world, input, dt);
+            p.hurt_flash = (p.hurt_flash - dt * 1.5).max(0.0);
+            p.toasts
+                .retain(|(t, _)| t.elapsed() < Duration::from_secs(5));
+            if p.slot != p.sent_held {
+                p.sent_held = p.slot;
+                let _ = p.conn.tx.send(ClientMsg::Held { slot: p.slot as u8 });
+            }
+            // falls and drowning are measured here and reported
+            if !p.creative() && p.dead.is_none() {
+                let in_water = p.world.get(
+                    p.player.pos.x.floor() as i32,
+                    (p.player.pos.y + 0.3).floor() as i32,
+                    p.player.pos.z.floor() as i32,
+                ) == w::WATER;
+                if p.player.on_ground || in_water {
+                    if let Some(y0) = p.fall_from.take() {
+                        let fell = y0 - p.player.pos.y;
+                        if fell > 3.5 && !in_water {
+                            let _ = p.conn.tx.send(ClientMsg::Hurt {
+                                kind: EnvDamage::Fall,
+                                amount: (fell - 3.0).floor() as u8,
+                            });
+                        }
+                    }
+                } else {
+                    let y = p.player.pos.y;
+                    p.fall_from = Some(p.fall_from.map_or(y, |f| f.max(y)));
+                }
+                let head_wet = p.world.get(
+                    p.player.eye().x.floor() as i32,
+                    p.player.eye().y.floor() as i32,
+                    p.player.eye().z.floor() as i32,
+                ) == w::WATER;
+                if head_wet {
+                    p.air -= dt;
+                    if p.air < 0.0 {
+                        p.drown_clock += dt;
+                        if p.drown_clock >= 1.0 {
+                            p.drown_clock = 0.0;
+                            let _ = p.conn.tx.send(ClientMsg::Hurt {
+                                kind: EnvDamage::Drown,
+                                amount: 2,
+                            });
+                        }
+                    }
+                } else {
+                    p.air = (p.air + dt * 4.0).min(10.0);
+                }
+            }
+            // mining: hold the left button on a block
+            let can_mine = active && p.mouse_left && !p.creative();
+            let target_block = p.target.as_ref().map(|t| t.block);
+            match (can_mine, target_block) {
+                (true, Some(pos)) => {
+                    let b = p.world.get(pos[0], pos[1], pos[2]);
+                    let need = dyno_sim::mining::break_time(&p.content, b, p.held_tool());
+                    match (&mut p.dig, need) {
+                        (Some((dp, done, total)), Some(_)) if *dp == pos => {
+                            *done += dt;
+                            p.swing = p.swing.max(0.6);
+                            if *done >= *total {
+                                let pos = *dp;
+                                p.dig = None;
+                                let _ = p.conn.tx.send(ClientMsg::Dig { pos });
+                                p.world.set(pos[0], pos[1], pos[2], w::AIR);
+                                p.light.changed(&p.world, pos);
+                                gfx.block_changed(&p.world, &p.light, pos, 15);
+                                spawn_particles(
+                                    &mut p.particles,
+                                    pos,
+                                    b,
+                                    14,
+                                    (pos[0] * 31 + pos[1] * 7 + pos[2]) as u32,
+                                );
+                                self.audio.play(Sfx::Break(material_of(b)), 0.9);
+                            } else if (*done / 0.25).floor() != ((*done - dt) / 0.25).floor() {
+                                self.audio.play(Sfx::Step(material_of(b)), 0.45);
+                            }
+                        }
+                        (_, Some(total)) => {
+                            p.dig = Some((pos, 0.0, total));
+                            let _ = p.conn.tx.send(ClientMsg::DigStart { pos });
+                        }
+                        (_, None) => p.dig = None,
+                    }
+                }
+                _ => {
+                    p.dig = None;
+                }
+            }
             // footsteps, view bob and sprint field-of-view kick
             let moved =
                 Vec3::new(p.player.pos.x - before.x, 0.0, p.player.pos.z - before.z).length();
@@ -868,7 +1121,7 @@ impl App {
             let vp = proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
             // block in hand, with a swing when breaking or placing
             let sw = (p.swing * std::f32::consts::PI).sin();
-            let held = p.hotbar[p.slot];
+            let held_item = p.held();
             let hand = eye + dir * (0.62 - sw * 0.12) + right * (0.36 - sw * 0.08)
                 - up * (0.34 + sw * 0.1 - (p.bob * 0.5).cos().abs() * 0.015 * bob_amt);
             let (s1, c1) = (0.6f32 - sw * 0.8).sin_cos();
@@ -878,10 +1131,49 @@ impl App {
                 hand,
                 ax,
                 Vec3::splat(0.11),
-                w::block(held).color,
-                w::emission(held) > 0,
+                held_item
+                    .map(|s| p.content.item(s.item).color)
+                    .unwrap_or([0.91, 0.76, 0.62]),
+                held_item
+                    .and_then(|s| p.content.item(s.item).block)
+                    .is_some_and(|b| w::emission(b) > 0)
+                    || held_item.is_some_and(|s| p.content.item(s.item).light > 0),
                 light_at(&p.light, eye),
             );
+            // items lying in the world: small spinning cubes
+            for e in p.entities.values() {
+                if let EntityKind::Item(s) = e.kind {
+                    let it = p.content.item(s.item);
+                    let pos = e.pos();
+                    let t = e.born.elapsed().as_secs_f32();
+                    let bob = (t * 2.5).sin() * 0.06 + 0.18;
+                    let (sy, cy) = (e.yaw + t * 1.6).sin_cos();
+                    let ax = [Vec3::new(cy, 0.0, -sy), Vec3::Y, Vec3::new(sy, 0.0, cy)];
+                    let size = if it.block.is_some() { 0.13 } else { 0.1 };
+                    let glow = it.block.is_some_and(|b| w::emission(b) > 0) || it.light > 0;
+                    let n = if s.count > 1 { 2 } else { 1 };
+                    for k in 0..n {
+                        let off = Vec3::new(k as f32 * 0.08, k as f32 * 0.06, k as f32 * 0.05);
+                        render::push_oriented_box(
+                            &mut boxes,
+                            pos + Vec3::Y * bob + off,
+                            ax,
+                            Vec3::new(
+                                size,
+                                size,
+                                if it.block.is_some() {
+                                    size
+                                } else {
+                                    size * 0.35
+                                },
+                            ),
+                            it.color,
+                            glow,
+                            light_at(&p.light, pos),
+                        );
+                    }
+                }
+            }
             view = Some((vp, eye, far));
             p.fps.1 += 1;
             if p.fps.0.elapsed() >= Duration::from_secs(1) {
@@ -920,9 +1212,53 @@ impl App {
 
     fn act(&mut self, a: Action) {
         match a {
-            Action::SaveHotbar(h) => {
-                self.settings.hotbar = h;
-                let _ = self.settings.save();
+            Action::Respawn => {
+                if let Screen::Playing(p) = &mut self.screen {
+                    let _ = p.conn.tx.send(ClientMsg::Respawn);
+                }
+            }
+            Action::Pack(cmds) => {
+                let mut close = false;
+                if let Screen::Playing(p) = &mut self.screen {
+                    for c in cmds {
+                        match c {
+                            PackCmd::Move(a, b, n) => {
+                                let _ = p.conn.tx.send(ClientMsg::Move {
+                                    from: a,
+                                    to: b,
+                                    count: n,
+                                });
+                            }
+                            PackCmd::Throw(a, n) => {
+                                let _ = p.conn.tx.send(ClientMsg::Throw { from: a, count: n });
+                            }
+                            PackCmd::Craft(r, n) => {
+                                let _ = p.conn.tx.send(ClientMsg::Craft {
+                                    recipe: r,
+                                    times: n,
+                                });
+                                self.audio.play(Sfx::Place(w::Material::Wood), 0.6);
+                            }
+                            PackCmd::Creative(item) => {
+                                let _ = p.conn.tx.send(ClientMsg::CreativeSet {
+                                    slot: p.slot as u8,
+                                    item,
+                                });
+                            }
+                            PackCmd::Close => {
+                                p.picker_open = false;
+                                p.selected = None;
+                                if p.chest.take().is_some() {
+                                    let _ = p.conn.tx.send(ClientMsg::CloseContainer);
+                                }
+                                close = true;
+                            }
+                        }
+                    }
+                }
+                if close {
+                    self.set_capture(true);
+                }
             }
             Action::Join(addr) => match proto::server_url(&addr) {
                 Ok(_) => self.start_join(addr, true),
@@ -964,7 +1300,7 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
-        if p.chat_open || p.menu_open || p.picker_open {
+        if p.chat_open || p.menu_open || p.picker_open || p.dead.is_some() {
             return;
         }
         if pressed {
@@ -988,17 +1324,30 @@ impl App {
                 }
                 self.set_capture(false);
             }
-            KeyCode::KeyF => {
+            KeyCode::KeyF if p.creative() => {
                 p.player.flying = !p.player.flying;
                 p.player.vel.y = 0.0;
             }
+            KeyCode::KeyQ => {
+                let all = p.keys.contains(&KeyCode::ControlLeft)
+                    || p.keys.contains(&KeyCode::ControlRight);
+                if p.held().is_some() {
+                    let _ = p.conn.tx.send(ClientMsg::Throw {
+                        from: SlotRef::Pack(p.slot as u8),
+                        count: if all { 0 } else { 1 },
+                    });
+                    p.swing = 1.0;
+                }
+            }
             KeyCode::KeyE => {
                 p.picker_open = true;
+                p.selected = None;
                 self.set_capture(false);
             }
             KeyCode::KeyZ
-                if p.keys.contains(&KeyCode::ControlLeft)
-                    || p.keys.contains(&KeyCode::ControlRight) =>
+                if p.creative()
+                    && (p.keys.contains(&KeyCode::ControlLeft)
+                        || p.keys.contains(&KeyCode::ControlRight)) =>
             {
                 while let Some((pos, old, new)) = p.undo.pop() {
                     if p.world.get(pos[0], pos[1], pos[2]) == new {
@@ -1007,7 +1356,7 @@ impl App {
                     }
                 }
             }
-            KeyCode::KeyG => {
+            KeyCode::KeyG if p.creative() => {
                 if let Some(t) = &p.target {
                     p.sel = match p.sel {
                         (Some(a), None) => (Some(a), Some(t.block)),
@@ -1017,12 +1366,12 @@ impl App {
                     p.sel = (None, None);
                 }
             }
-            KeyCode::KeyV | KeyCode::KeyX => {
+            KeyCode::KeyV | KeyCode::KeyX if p.creative() => {
                 if let (Some(a), Some(b)) = p.sel {
                     let block = if code == KeyCode::KeyX {
                         w::AIR
                     } else {
-                        p.hotbar[p.slot]
+                        p.held_block().unwrap_or(w::STONE)
                     };
                     let _ = p.conn.tx.send(ClientMsg::Fill { a, b, block });
                     p.sel = (None, None);
@@ -1052,23 +1401,19 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
-        if !p.captured || p.menu_open || p.chat_open || p.picker_open {
+        if !p.captured || p.menu_open || p.chat_open || p.picker_open || p.dead.is_some() {
             return;
         }
         p.swing = 1.0;
         let Some(t) = &p.target else { return };
+        let (tb, tp) = (t.block, t.place);
         match button {
-            MouseButton::Left => {
-                let pos = t.block;
+            MouseButton::Left if p.creative() => {
+                let pos = tb;
                 let old = p.world.get(pos[0], pos[1], pos[2]);
                 p.world.set(pos[0], pos[1], pos[2], w::AIR);
                 p.light.changed(&p.world, pos);
-                let r = if w::emission(old) > 0 || p.light.get(pos[0], pos[1], pos[2]) > 0 {
-                    15
-                } else {
-                    1
-                };
-                gfx.block_changed(&p.world, &p.light, pos, r);
+                gfx.block_changed(&p.world, &p.light, pos, 15);
                 spawn_particles(
                     &mut p.particles,
                     pos,
@@ -1078,46 +1423,69 @@ impl App {
                 );
                 self.audio.play(Sfx::Break(material_of(old)), 0.9);
                 p.undo.push((pos, old, w::AIR));
-                let _ = p.conn.tx.send(ClientMsg::SetBlock { pos, block: w::AIR });
+                let _ = p.conn.tx.send(ClientMsg::Dig { pos });
             }
+            MouseButton::Left => {}
             MouseButton::Right => {
-                let pos = t.place;
-                let block = p.hotbar[p.slot];
+                let looked = p.world.get(tb[0], tb[1], tb[2]);
+                let sneaking = p.keys.contains(&KeyCode::ShiftLeft);
+                if !sneaking && matches!(looked, w::CHEST | w::BED) {
+                    let _ = p.conn.tx.send(ClientMsg::Interact { pos: tb });
+                    return;
+                }
+                if !sneaking && matches!(looked, w::CRAFTING_TABLE | w::FURNACE) {
+                    p.picker_open = true;
+                    p.selected = None;
+                    self.set_capture(false);
+                    return;
+                }
+                let held = p.held();
+                if let Some(s) = held
+                    && p.content.item(s.item).food > 0
+                    && !p.creative()
+                    && p.food < 20.0
+                    && p.held_block().is_none()
+                {
+                    let _ = p.conn.tx.send(ClientMsg::UseHeld);
+                    self.audio.play(Sfx::Step(w::Material::Foliage), 0.8);
+                    return;
+                }
+                let Some(block) = p.held_block() else { return };
+                let pos = tp;
                 let here = p.world.get(pos[0], pos[1], pos[2]);
                 if (here == w::AIR || here == w::WATER)
                     && p.world.in_bounds(pos)
-                    && !p.player.overlaps_block(pos)
+                    && (!w::is_solid(block) || !p.player.overlaps_block(pos))
                 {
                     p.world.set(pos[0], pos[1], pos[2], block);
                     p.light.changed(&p.world, pos);
-                    let r = if w::emission(block) > 0
-                        || p.light.get(pos[0] + 1, pos[1], pos[2]).max(p.light.get(
-                            pos[0],
-                            pos[1] + 1,
-                            pos[2],
-                        )) > 0
-                    {
-                        15
-                    } else {
-                        1
-                    };
-                    gfx.block_changed(&p.world, &p.light, pos, r);
+                    gfx.block_changed(&p.world, &p.light, pos, 15);
                     self.audio.play(Sfx::Place(material_of(block)), 0.9);
-                    p.undo.push((pos, here, block));
-                    if p.undo.len() > 64 {
-                        p.undo.remove(0);
+                    if p.creative() {
+                        p.undo.push((pos, here, block));
+                        if p.undo.len() > 64 {
+                            p.undo.remove(0);
+                        }
+                    } else if let Some(Some(s)) = p.pack.get_mut(p.slot) {
+                        // predict the count; the server sends the real pack
+                        s.count = s.count.saturating_sub(1);
+                        if s.count == 0 {
+                            p.pack[p.slot] = None;
+                        }
                     }
-                    let _ = p.conn.tx.send(ClientMsg::SetBlock { pos, block });
+                    let _ = p.conn.tx.send(ClientMsg::Place {
+                        pos,
+                        slot: p.slot as u8,
+                    });
                 }
             }
-            MouseButton::Middle => {
-                let b = p.world.get(t.block[0], t.block[1], t.block[2]);
+            MouseButton::Middle if p.creative() => {
+                let b = p.world.get(tb[0], tb[1], tb[2]);
                 if b != w::AIR && b != w::WATER {
-                    if let Some(i) = p.hotbar.iter().position(|x| *x == b) {
-                        p.slot = i;
-                    } else {
-                        p.hotbar[p.slot] = b;
-                    }
+                    let _ = p.conn.tx.send(ClientMsg::CreativeSet {
+                        slot: p.slot as u8,
+                        item: b as u16,
+                    });
                     self.audio.play(Sfx::Click, 0.6);
                 }
             }
@@ -1127,7 +1495,8 @@ impl App {
 }
 
 enum Action {
-    SaveHotbar(Vec<u8>),
+    Pack(Vec<PackCmd>),
+    Respawn,
     Join(String),
     Host,
     StopHost,
@@ -1138,49 +1507,6 @@ enum Action {
     Capture,
     #[allow(dead_code)]
     Quit,
-}
-
-/// Draw a small isometric cube for a block in the UI.
-fn block_icon(painter: &egui::Painter, r: Rect, b: w::BlockId) {
-    let (rgb, _) = render::block_color(b);
-    let col = |k: f32| {
-        Color32::from_rgb(
-            (rgb[0] * k * 255.0).min(255.0) as u8,
-            (rgb[1] * k * 255.0).min(255.0) as u8,
-            (rgb[2] * k * 255.0).min(255.0) as u8,
-        )
-    };
-    let c = r.center();
-    let s = r.width() * 0.5;
-    let top = Pos2::new(c.x, c.y - s);
-    let left = Pos2::new(c.x - s * 0.87, c.y - s * 0.5);
-    let right = Pos2::new(c.x + s * 0.87, c.y - s * 0.5);
-    let mid = Pos2::new(c.x, c.y);
-    let bl = Pos2::new(c.x - s * 0.87, c.y + s * 0.5);
-    let br = Pos2::new(c.x + s * 0.87, c.y + s * 0.5);
-    let bot = Pos2::new(c.x, c.y + s);
-    painter.add(egui::Shape::convex_polygon(
-        vec![top, right, mid, left],
-        col(1.0),
-        Stroke::NONE,
-    ));
-    painter.add(egui::Shape::convex_polygon(
-        vec![left, mid, bot, bl],
-        col(0.78),
-        Stroke::NONE,
-    ));
-    painter.add(egui::Shape::convex_polygon(
-        vec![mid, right, br, bot],
-        col(0.62),
-        Stroke::NONE,
-    ));
-    if w::emission(b) > 0 {
-        painter.circle_stroke(
-            c,
-            s * 1.05,
-            Stroke::new(1.5_f32, col(1.0).gamma_multiply(0.5)),
-        );
-    }
 }
 
 fn host_panel(ui: &mut egui::Ui, host: &mut Option<Host>, actions: &mut Vec<Action>) {
@@ -1408,10 +1734,9 @@ fn hud(
             Color32::from_rgb(232, 184, 74),
         );
     }
-    // hotbar
-    let n = p.hotbar.len();
+    // hotbar from the pack
     let slot = 46.0;
-    let total = n as f32 * (slot + 4.0);
+    let total = 9.0 * (slot + 4.0);
     let start = Pos2::new(c.x - total / 2.0, screen.bottom() - slot - 14.0);
     painter.rect_filled(
         Rect::from_min_size(
@@ -1421,12 +1746,14 @@ fn hud(
         8.0,
         Color32::from_black_alpha(130),
     );
-    for (i, b) in p.hotbar.iter().enumerate() {
+    for i in 0..9 {
         let r = Rect::from_min_size(
             start + Vec2::new(i as f32 * (slot + 4.0), 0.0),
             Vec2::splat(slot),
         );
-        block_icon(&painter, r.shrink(7.0), *b);
+        if let Some(s) = p.pack.get(i).copied().flatten() {
+            survival::stack_icon(&painter, r, &p.content, &s);
+        }
         let stroke = if i == p.slot {
             Stroke::new(2.5_f32, ACCENT)
         } else {
@@ -1438,90 +1765,107 @@ fn hud(
             Align2::LEFT_TOP,
             format!("{}", i + 1),
             FontId::monospace(10.0),
-            Color32::from_white_alpha(170),
+            Color32::from_white_alpha(140),
         );
     }
+    let held_name = p
+        .held()
+        .map(|s| p.content.item(s.item).name.to_string())
+        .unwrap_or_default();
+    let mut label_y = start.y - 12.0;
+    if !p.creative() {
+        survival::bars(
+            &painter,
+            Pos2::new(start.x, start.y - 18.0),
+            Pos2::new(start.x + total, start.y - 18.0),
+            p.health,
+            p.food,
+        );
+        label_y -= 16.0;
+        if p.air < 10.0 {
+            let k = (p.air / 10.0).clamp(0.0, 1.0);
+            let r = Rect::from_min_size(
+                Pos2::new(start.x + total - 110.0, start.y - 34.0),
+                Vec2::new(110.0 * k, 5.0),
+            );
+            painter.rect_filled(r, 2.0, Color32::from_rgb(110, 170, 230));
+            label_y -= 8.0;
+        }
+    }
     painter.text(
-        Pos2::new(c.x, start.y - 12.0),
+        Pos2::new(c.x, label_y),
         Align2::CENTER_BOTTOM,
-        w::block(p.hotbar[p.slot]).name,
+        held_name,
         FontId::proportional(15.0),
         Color32::WHITE,
     );
-    // fill hint
-    if let Some(a) = p.sel.0 {
-        let b = p.sel.1.or(p.target.as_ref().map(|t| t.block)).unwrap_or(a);
-        let n: i64 = (0..3).map(|i| ((a[i] - b[i]).abs() + 1) as i64).product();
-        let msg = if p.sel.1.is_some() {
-            format!(
-                "{n} cells selected · V fill with {} · X clear · G start again",
-                w::block(p.hotbar[p.slot]).name
-            )
-        } else {
-            format!("{n} cells · look at the other corner and press G")
-        };
-        let col = if n > dyno_protocol::MAX_FILL {
-            Color32::from_rgb(240, 110, 100)
-        } else {
-            ACCENT
-        };
-        painter.text(
-            Pos2::new(c.x, start.y - 36.0),
-            Align2::CENTER_BOTTOM,
-            msg,
-            FontId::proportional(14.0),
-            col,
-        );
+    // mining progress ring around the crosshair
+    if let Some((_, done, total)) = p.dig
+        && total > 0.05
+    {
+        let k = (done / total).clamp(0.0, 1.0);
+        let n = 32;
+        let pts: Vec<Pos2> = (0..=((n as f32 * k) as usize))
+            .map(|i| {
+                let a = -std::f32::consts::FRAC_PI_2 + i as f32 / n as f32 * std::f32::consts::TAU;
+                c + Vec2::new(a.cos(), a.sin()) * 16.0
+            })
+            .collect();
+        if pts.len() > 1 {
+            painter.add(egui::Shape::line(pts, Stroke::new(3.0_f32, ACCENT)));
+        }
     }
-    // block picker
-    if p.picker_open {
-        egui::Window::new("Blocks")
-            .collapsible(false)
-            .resizable(false)
-            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-            .show(ctx, |ui| {
-                ui.label(
-                    RichText::new(format!(
-                        "Choose a block for slot {}. E or Esc to close.",
-                        p.slot + 1
-                    ))
-                    .weak(),
-                );
-                ui.add_space(4.0);
-                egui::Grid::new("pick").spacing([6.0, 6.0]).show(ui, |ui| {
-                    for (i, b) in w::placeable().enumerate() {
-                        let (r, resp) =
-                            ui.allocate_exact_size(Vec2::splat(54.0), egui::Sense::click());
-                        let hl = resp.hovered() || p.hotbar[p.slot] == b;
-                        ui.painter().rect_filled(
-                            r,
-                            6.0,
-                            if hl {
-                                Color32::from_white_alpha(30)
-                            } else {
-                                Color32::from_black_alpha(80)
-                            },
-                        );
-                        block_icon(ui.painter(), r.shrink(9.0), b);
-                        let resp = resp.on_hover_text(w::block(b).name);
-                        if resp.clicked() {
-                            p.hotbar[p.slot] = b;
-                            actions.push(Action::SaveHotbar(p.hotbar.to_vec()));
-                        }
-                        if (i + 1) % 9 == 0 {
-                            ui.end_row();
-                        }
-                    }
-                });
-                if ui.input(|i| i.key_pressed(egui::Key::E) || i.key_pressed(egui::Key::Escape)) {
-                    p.picker_open = false;
-                    actions.push(Action::SaveHotbar(p.hotbar.to_vec()));
-                    actions.push(Action::Capture);
-                }
-            });
+    // being hurt flashes the screen edge red
+    if p.hurt_flash > 0.0 {
+        let a = (p.hurt_flash * 120.0) as u8;
+        for (r, _) in [
+            (
+                Rect::from_min_size(screen.min, Vec2::new(screen.width(), 40.0)),
+                0,
+            ),
+            (
+                Rect::from_min_size(
+                    Pos2::new(screen.left(), screen.bottom() - 40.0),
+                    Vec2::new(screen.width(), 40.0),
+                ),
+                0,
+            ),
+            (
+                Rect::from_min_size(screen.min, Vec2::new(40.0, screen.height())),
+                0,
+            ),
+            (
+                Rect::from_min_size(
+                    Pos2::new(screen.right() - 40.0, screen.top()),
+                    Vec2::new(40.0, screen.height()),
+                ),
+                0,
+            ),
+        ] {
+            painter.rect_filled(r, 0.0, Color32::from_rgba_unmultiplied(200, 20, 20, a));
+        }
+    }
+    // milestone and mode toasts
+    for (k, (at, text)) in p.toasts.iter().enumerate() {
+        let fade = (1.0 - (at.elapsed().as_secs_f32() - 3.5).max(0.0) / 1.5).clamp(0.0, 1.0);
+        let pos = Pos2::new(c.x, screen.top() + 70.0 + k as f32 * 34.0);
+        let galley = painter.layout_no_wrap(
+            text.clone(),
+            FontId::proportional(18.0),
+            Color32::WHITE.gamma_multiply(fade),
+        );
+        let r = Rect::from_center_size(pos, galley.size() + Vec2::new(24.0, 12.0));
+        painter.rect_filled(r, 8.0, Color32::from_black_alpha((170.0 * fade) as u8));
+        painter.rect_stroke(
+            r,
+            8.0,
+            Stroke::new(1.5_f32, ACCENT.gamma_multiply(fade)),
+            egui::StrokeKind::Inside,
+        );
+        painter.galley(r.min + Vec2::new(12.0, 6.0), galley, Color32::WHITE);
     }
     // chat
-    let chat_bottom = start.y - 40.0;
+    let chat_bottom = label_y - 46.0;
     let visible: Vec<&Chat> = p
         .chat
         .iter()
@@ -1572,6 +1916,87 @@ fn hud(
                     p.chat_open = false;
                     actions.push(Action::Capture);
                 }
+            });
+    }
+    // fill hint (creative)
+    if let (true, Some(a)) = (p.creative(), p.sel.0) {
+        let b = p.sel.1.or(p.target.as_ref().map(|t| t.block)).unwrap_or(a);
+        let n: i64 = (0..3).map(|i| ((a[i] - b[i]).abs() + 1) as i64).product();
+        let msg = if p.sel.1.is_some() {
+            format!("{n} cells selected · V fill with held block · X clear · G start again")
+        } else {
+            format!("{n} cells · look at the other corner and press G")
+        };
+        let col = if n > dyno_protocol::MAX_FILL {
+            Color32::from_rgb(240, 110, 100)
+        } else {
+            ACCENT
+        };
+        painter.text(
+            Pos2::new(c.x, label_y - 22.0),
+            Align2::CENTER_BOTTOM,
+            msg,
+            FontId::proportional(14.0),
+            col,
+        );
+    }
+    // pack screen
+    if p.picker_open {
+        let stations = survival::stations_near(&p.world, p.player.pos.into());
+        let view = PackView {
+            content: &p.content,
+            pack: &p.pack,
+            chest: p.chest.as_ref().map(|(_, s)| s.as_slice()),
+            stations,
+            fuel: p.fuel,
+            mode: p.mode,
+            selected: &mut p.selected,
+            hotbar_slot: p.slot,
+        };
+        let cmds = survival::pack_window(ctx, view, &mut p.recipe_filter);
+        if !cmds.is_empty() {
+            actions.push(Action::Pack(cmds));
+        }
+    }
+    // death screen
+    if let Some(msg) = &p.dead {
+        painter.rect_filled(
+            screen,
+            0.0,
+            Color32::from_rgba_unmultiplied(90, 10, 10, 110),
+        );
+        egui::Area::new(egui::Id::new("dead"))
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .show(ctx, |ui| {
+                egui::Frame::window(ui.style())
+                    .inner_margin(20.0)
+                    .show(ui, |ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.label(
+                                RichText::new("You died")
+                                    .size(30.0)
+                                    .strong()
+                                    .color(Color32::from_rgb(240, 110, 100)),
+                            );
+                            ui.label(msg);
+                            ui.label(
+                                RichText::new(
+                                    "Your items are where you fell. Friends can pick them up too.",
+                                )
+                                .weak(),
+                            );
+                            ui.add_space(8.0);
+                            if ui
+                                .add_sized(
+                                    [200.0, 34.0],
+                                    egui::Button::new(RichText::new("Respawn").strong()),
+                                )
+                                .clicked()
+                            {
+                                actions.push(Action::Respawn);
+                            }
+                        });
+                    });
             });
     }
     // player list on Tab
@@ -1700,10 +2125,25 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::MouseInput {
+                state: ElementState::Released,
+                button: MouseButton::Left,
+                ..
+            } => {
+                if let Screen::Playing(p) = &mut self.screen {
+                    p.mouse_left = false;
+                }
+            }
+            WindowEvent::MouseInput {
                 state: ElementState::Pressed,
                 button,
                 ..
             } => {
+                if button == MouseButton::Left
+                    && captured
+                    && let Screen::Playing(p) = &mut self.screen
+                {
+                    p.mouse_left = true;
+                }
                 let (playing_free, menu_or_chat) = match &self.screen {
                     Screen::Playing(p) => {
                         (!p.captured, p.menu_open || p.chat_open || p.picker_open)

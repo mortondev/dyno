@@ -3,6 +3,9 @@
 //! The bootstrap world is one fixed-size grid of cells. Each cell holds one
 //! block ID. The world is sent to clients and saved to disk run-length encoded.
 
+pub mod content;
+pub mod light;
+
 use std::io::Write;
 use std::path::Path;
 
@@ -35,6 +38,33 @@ pub const FURNACE: BlockId = 41;
 pub const CHEST: BlockId = 42;
 pub const BED: BlockId = 43;
 pub const BERRY_BUSH: BlockId = 44;
+pub const TORCH: BlockId = 45;
+
+/// How a block is drawn and collides.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Shape {
+    /// a full cube
+    Full,
+    /// a thin post in the middle of the cell (torch); not solid
+    Post,
+}
+
+pub fn shape(b: BlockId) -> Shape {
+    match b {
+        TORCH => Shape::Post,
+        _ => Shape::Full,
+    }
+}
+
+/// Stable text key of a block, for content files: "Coal ore" is "coal_ore".
+pub fn block_key(b: BlockId) -> String {
+    block(b).name.to_lowercase().replace(' ', "_")
+}
+
+/// Block ID for a key, if any.
+pub fn block_by_key(key: &str) -> Option<BlockId> {
+    (0..BLOCK_COUNT).find(|b| block_key(*b) == key)
+}
 pub const CLAY: BlockId = 17;
 
 /// Surface pattern drawn on a block, for blocks that need more than a colour.
@@ -170,6 +200,13 @@ pub const BLOCKS: &[BlockDef] = &[
     def("Chest", [0.66, 0.47, 0.25], Wood),
     def("Bed", [0.78, 0.22, 0.24], Cloth),
     def("Berry bush", [0.22, 0.44, 0.20], Foliage),
+    BlockDef {
+        name: "Torch",
+        color: [1.0, 0.80, 0.38],
+        alpha: 1.0,
+        emission: 13,
+        material: Wood,
+    },
 ];
 
 /// Number of block IDs in use. IDs at or above this are rejected.
@@ -191,12 +228,12 @@ pub const HOTBAR: [BlockId; 9] = [
 
 /// True for blocks that the player cannot walk through.
 pub fn is_solid(b: BlockId) -> bool {
-    b != AIR && b != WATER
+    b != AIR && b != WATER && shape(b) == Shape::Full
 }
 
 /// True for blocks that hide the faces of their neighbours and block light.
 pub fn is_opaque(b: BlockId) -> bool {
-    b != AIR && !is_leaves(b) && block(b).alpha >= 1.0
+    b != AIR && !is_leaves(b) && block(b).alpha >= 1.0 && shape(b) == Shape::Full
 }
 
 /// Leaf blocks: drawn with their neighbours' faces showing through.

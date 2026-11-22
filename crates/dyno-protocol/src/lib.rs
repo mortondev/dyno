@@ -6,9 +6,43 @@
 
 use serde::{Deserialize, Serialize};
 
+pub use dyno_sim::Stack;
+pub use dyno_world::content::{Content, ItemId};
+
+/// Survival or creative.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum Mode {
+    #[default]
+    Survival,
+    Creative,
+}
+
+/// A slot in the player's pack or in an open container.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SlotRef {
+    Pack(u8),
+    Chest(u8),
+}
+
+/// What an entity is.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum EntityKind {
+    /// a creature from the content, by creature ID
+    Creature(u16),
+    /// an item lying in the world
+    Item(Stack),
+}
+
+/// Kinds of damage the client reports (the server owns everything else).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum EnvDamage {
+    Fall,
+    Drown,
+}
+
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 4;
+pub const PROTOCOL_VERSION: u32 = 5;
 
 /// Default TCP port of the game server.
 pub const DEFAULT_PORT: u16 = 7400;
@@ -37,11 +71,81 @@ pub enum ClientMsg {
     /// The player's position and view direction.
     Pose(Pose),
     /// Request to change one cell.
-    SetBlock { pos: [i32; 3], block: u8 },
+    SetBlock {
+        pos: [i32; 3],
+        block: u8,
+    },
     /// Chat text.
-    Chat { text: String },
-    /// Fill the box between two corners (inclusive) with one block. Air clears it.
-    Fill { a: [i32; 3], b: [i32; 3], block: u8 },
+    Chat {
+        text: String,
+    },
+    /// Fill the box between two corners (inclusive) with one block. Air clears it. Creative only.
+    Fill {
+        a: [i32; 3],
+        b: [i32; 3],
+        block: u8,
+    },
+    /// Second message. `token` identifies this install so names cannot be taken over.
+    /// Observers (tools such as `dyno shot`) are invisible and cannot act.
+    Session {
+        token: u64,
+        observer: bool,
+    },
+    /// The hotbar slot in hand.
+    Held {
+        slot: u8,
+    },
+    /// Started breaking a block.
+    DigStart {
+        pos: [i32; 3],
+    },
+    /// Finished breaking a block.
+    Dig {
+        pos: [i32; 3],
+    },
+    /// Place the block item from a pack slot.
+    Place {
+        pos: [i32; 3],
+        slot: u8,
+    },
+    /// Creative: put any item in a pack slot.
+    CreativeSet {
+        slot: u8,
+        item: ItemId,
+    },
+    /// Move items between slots. `count` 0 moves the whole stack (and swaps if needed).
+    Move {
+        from: SlotRef,
+        to: SlotRef,
+        count: u8,
+    },
+    /// Throw items out of a slot. `count` 0 throws the whole stack.
+    Throw {
+        from: SlotRef,
+        count: u8,
+    },
+    /// Craft a recipe `times` times.
+    Craft {
+        recipe: u16,
+        times: u8,
+    },
+    /// Eat or use the item in hand.
+    UseHeld,
+    /// Hit an entity.
+    Attack {
+        entity: u32,
+    },
+    /// Right click on a block (chest, bed, table).
+    Interact {
+        pos: [i32; 3],
+    },
+    CloseContainer,
+    /// Damage the client measured (falls, drowning).
+    Hurt {
+        kind: EnvDamage,
+        amount: u8,
+    },
+    Respawn,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -67,6 +171,8 @@ pub enum ServerMsg {
         size: [u32; 3],
         spawn: [f32; 3],
         players: Vec<PlayerInfo>,
+        mode: Mode,
+        content: Box<Content>,
     },
     /// The connection is refused. The server closes it after this message.
     Reject {
@@ -109,6 +215,52 @@ pub enum ServerMsg {
         a: [i32; 3],
         b: [i32; 3],
         block: u8,
+    },
+    /// The player's whole pack (36 slots).
+    Pack(Vec<Option<Stack>>),
+    /// Health, hunger, mode and furnace fuel units.
+    Status {
+        health: f32,
+        food: f32,
+        mode: Mode,
+        fuel: u16,
+    },
+    /// An open container's slots (`None` closes it).
+    Container(Option<([i32; 3], Vec<Option<Stack>>)>),
+    EntitySpawn {
+        id: u32,
+        kind: EntityKind,
+        pos: [f32; 3],
+        yaw: f32,
+    },
+    /// Positions and yaw of moving entities.
+    EntityMoves(Vec<(u32, [f32; 3], f32)>),
+    /// An entity left. `picked_by` is set when a player picked up an item.
+    EntityGone {
+        id: u32,
+        picked_by: Option<PlayerId>,
+    },
+    EntityHurt {
+        id: u32,
+    },
+    /// This player was hurt; `push` is a knockback velocity.
+    Hurt {
+        amount: f32,
+        push: [f32; 3],
+    },
+    Died {
+        message: String,
+    },
+    /// A milestone in the journal was reached.
+    Milestone {
+        title: String,
+    },
+    /// New content (after /reload).
+    Content(Box<Content>),
+    /// The block a player is breaking, for the crack effect (None when they stop).
+    Digging {
+        player: PlayerId,
+        pos: Option<[i32; 3]>,
     },
 }
 

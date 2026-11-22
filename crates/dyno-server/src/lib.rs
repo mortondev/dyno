@@ -1,21 +1,30 @@
-//! Dyno game server (bootstrap).
+//! Dyno game server.
 //!
 //! One thread accepts TCP connections. Each connection gets its own thread that
-//! speaks WebSocket. A tick thread sends player poses 20 times per second and
-//! saves the world when it changed. Bad input closes that connection only.
+//! speaks WebSocket and passes messages to the shared game state. A tick thread
+//! advances the world 20 times per second, sends player poses and saves.
+//! Bad input closes that connection only.
 
-use dyno_protocol::{self as proto, ClientMsg, PlayerId, PlayerInfo, Pose, ServerMsg};
-use dyno_world::{BLOCK_COUNT, World};
+pub mod game;
+pub mod store;
+
+use dyno_protocol::{self as proto, ClientMsg, Mode, PlayerId, Pose, ServerMsg};
+use dyno_sim::rng::Rng;
+use dyno_world::World;
+use dyno_world::content::Content;
+use game::{State, log};
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tungstenite::protocol::WebSocketConfig;
 use tungstenite::{Message, WebSocket};
+
+pub use game::DAY_SECONDS;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -25,6 +34,12 @@ pub struct Config {
     pub seed: u32,
     pub motd: String,
     pub max_players: usize,
+    /// mode for players who join for the first time
+    pub default_mode: Mode,
+    /// content JSON; None uses the built-in Hearthblock pack
+    pub content_path: Option<PathBuf>,
+    /// names allowed to use /gamemode, /reload and /give. Empty: everyone.
+    pub ops: Vec<String>,
 }
 
 impl Default for Config {
@@ -36,46 +51,9 @@ impl Default for Config {
             seed: 20261122,
             motd: "Welcome to Dyno! Build together.".into(),
             max_players: 32,
-        }
-    }
-}
-
-struct Player {
-    name: String,
-    pose: Pose,
-    tx: Sender<Arc<Vec<u8>>>,
-}
-
-struct State {
-    world: World,
-    players: HashMap<PlayerId, Player>,
-    next_id: PlayerId,
-    dirty: bool,
-    /// Last position of each player, by lower-case name. Saved next to the world.
-    homes: HashMap<String, [f32; 3]>,
-    /// Time of day at `time_base`.
-    time_at_base: f32,
-    time_base: Instant,
-}
-
-/// Length of one in-game day.
-pub const DAY_SECONDS: f32 = 20.0 * 60.0;
-
-impl State {
-    fn time(&self) -> f32 {
-        (self.time_at_base + self.time_base.elapsed().as_secs_f32() / DAY_SECONDS).rem_euclid(1.0)
-    }
-    fn time_msg(&self) -> ServerMsg {
-        ServerMsg::Time {
-            time: self.time(),
-            day_seconds: DAY_SECONDS,
-        }
-    }
-    fn tell(&self, id: PlayerId, text: impl Into<String>) {
-        if let Some(p) = self.players.get(&id) {
-            let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::System {
-                text: text.into(),
-            })));
+            default_mode: Mode::Survival,
+            content_path: None,
+            ops: Vec::new(),
         }
     }
 }
@@ -96,23 +74,24 @@ impl Handle {
     /// Stop accepting players, save the world and return.
     pub fn stop(&self) {
         self.server.stop.store(true, Ordering::SeqCst);
-        // wake the accept loop
         let _ = TcpStream::connect_timeout(&self.local_addr, Duration::from_millis(200));
         self.server.save();
     }
 }
 
-fn log(msg: impl AsRef<str>) {
-    let t = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let (h, m, s) = ((t / 3600) % 24, (t / 60) % 60, t % 60);
-    println!("[{h:02}:{m:02}:{s:02} UTC] {}", msg.as_ref());
+fn load_content(path: &Option<PathBuf>) -> Result<Content, String> {
+    match path {
+        Some(p) => {
+            let text = std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))?;
+            Content::from_json(&text)
+        }
+        None => Ok(Content::default_pack()),
+    }
 }
 
 /// Start the server in background threads and return at once.
 pub fn start(cfg: Config) -> std::io::Result<Handle> {
+    let content = load_content(&cfg.content_path).map_err(std::io::Error::other)?;
     let world = match World::load(&cfg.world_path) {
         Ok(w) => {
             log(format!(
@@ -139,18 +118,36 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     };
     let listener = TcpListener::bind(cfg.bind)?;
     let local_addr = listener.local_addr()?;
-    let cfg_world_path = cfg.world_path.clone();
+    let saved = store::load_players(&store::players_path(&cfg.world_path));
+    let containers = store::load_chests(&content, &store::chests_path(&cfg.world_path));
+    log(format!(
+        "Content: {} v{} ({} items, {} recipes, {} creatures)",
+        content.name,
+        content.version,
+        content.items.len(),
+        content.recipes.len(),
+        content.creatures.len()
+    ));
+    let state = State {
+        world,
+        content,
+        players: HashMap::new(),
+        observers: HashMap::new(),
+        next_id: 1,
+        dirty: false,
+        saved,
+        containers,
+        entities: HashMap::new(),
+        next_entity: 1,
+        rng: Rng::new(cfg.seed as u64 ^ 0x5eed_1234),
+        time_at_base: 0.05,
+        time_base: Instant::now(),
+        default_mode: cfg.default_mode,
+        ops: cfg.ops.clone(),
+    };
     let server = Arc::new(Server {
         cfg,
-        state: Mutex::new(State {
-            world,
-            players: HashMap::new(),
-            next_id: 1,
-            dirty: false,
-            time_at_base: 0.05,
-            time_base: Instant::now(),
-            homes: load_homes(&homes_path(&cfg_world_path)),
-        }),
+        state: Mutex::new(state),
         stop: AtomicBool::new(false),
     });
     log(format!(
@@ -173,13 +170,12 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
                     .name("conn".into())
                     .spawn(move || {
                         let peer = stream.peer_addr().ok();
-                        if let Err(e) = s2.handle(stream) {
+                        if let Err(e) = s2.connection(stream) {
                             log(format!("Connection {peer:?} closed: {e}"));
                         }
                     });
             }
         })?;
-
     let s = server.clone();
     std::thread::Builder::new()
         .name("tick".into())
@@ -187,25 +183,28 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     Ok(Handle { server, local_addr })
 }
 
+fn read_msg(ws: &mut WebSocket<TcpStream>) -> Result<ClientMsg, String> {
+    match ws.read().map_err(|e| format!("read: {e}"))? {
+        Message::Binary(b) => {
+            proto::decode::<ClientMsg>(&b).map_err(|e| format!("bad message: {e}"))
+        }
+        _ => Err("expected a binary message".into()),
+    }
+}
+
+fn send(ws: &mut WebSocket<TcpStream>, msg: &ServerMsg) -> Result<(), String> {
+    ws.send(Message::Binary(proto::encode(msg).into()))
+        .map_err(|e| format!("send: {e}"))
+}
+
 impl Server {
     pub fn player_count(&self) -> usize {
         self.state.lock().unwrap().players.len()
     }
 
-    fn broadcast(&self, st: &State, msg: &ServerMsg, except: Option<PlayerId>) {
-        let bytes = Arc::new(proto::encode(msg));
-        for (id, p) in &st.players {
-            if Some(*id) != except {
-                let _ = p.tx.send(bytes.clone());
-            }
-        }
-    }
-
-    /// Send a system message to every player.
+    /// Send a system message to everyone.
     pub fn announce(&self, text: &str) {
-        let st = self.state.lock().unwrap();
-        self.broadcast(
-            &st,
+        self.state.lock().unwrap().broadcast(
             &ServerMsg::System {
                 text: text.to_string(),
             },
@@ -214,30 +213,36 @@ impl Server {
     }
 
     pub fn save(&self) {
-        let (data, path, homes) = {
+        let (world, players, chests, content) = {
             let mut st = self.state.lock().unwrap();
-            // remember where everyone is, in case the server stops
-            let now: Vec<(String, [f32; 3])> = st
-                .players
-                .values()
-                .map(|p| (p.name.to_lowercase(), p.pose.pos))
-                .collect();
-            for (n, p) in now {
-                if p.iter().all(|v| v.is_finite()) {
-                    st.homes.insert(n, p);
-                }
+            let ids: Vec<PlayerId> = st.players.keys().copied().collect();
+            for id in ids {
+                let p = st.players.remove(&id).unwrap();
+                st.remember(&p);
+                st.players.insert(id, p);
             }
-            let homes = st.homes.clone();
-            if !st.dirty {
-                (None, self.cfg.world_path.clone(), homes)
-            } else {
+            let world = if st.dirty {
                 st.dirty = false;
-                (Some(st.world.clone()), self.cfg.world_path.clone(), homes)
-            }
+                Some(st.world.clone())
+            } else {
+                None
+            };
+            (
+                world,
+                st.saved.clone(),
+                st.containers.clone(),
+                st.content.clone(),
+            )
         };
-        save_homes(&homes_path(&path), &homes);
-        if let Some(data) = data {
-            match data.save(&path) {
+        let path = &self.cfg.world_path;
+        if let Err(e) = store::save_players(&store::players_path(path), &players) {
+            log(format!("Warning: cannot save players: {e}"));
+        }
+        if let Err(e) = store::save_chests(&content, &store::chests_path(path), &chests) {
+            log(format!("Warning: cannot save chests: {e}"));
+        }
+        if let Some(w) = world {
+            match w.save(path) {
                 Ok(()) => log(format!("Saved world to {}", path.display())),
                 Err(e) => log(format!("Warning: save failed: {e}")),
             }
@@ -247,26 +252,46 @@ impl Server {
     fn tick_loop(&self) {
         let mut last_save = Instant::now();
         let mut last_time = Instant::now();
+        let mut last_tick = Instant::now();
+        let mut n: u64 = 0;
         while !self.stop.load(Ordering::SeqCst) {
             std::thread::sleep(Duration::from_millis(50));
+            n += 1;
+            let dt = last_tick.elapsed().as_secs_f32().min(0.25);
+            last_tick = Instant::now();
             {
-                let st = self.state.lock().unwrap();
-                if st.players.len() > 1 {
+                let mut st = self.state.lock().unwrap();
+                st.tick(dt);
+                // poses of everyone else, to each player; everyone to observers
+                if !st.players.is_empty() {
+                    let all: Vec<(PlayerId, Pose)> = st
+                        .players
+                        .iter()
+                        .filter(|(_, p)| !p.dead)
+                        .map(|(i, p)| (*i, p.pose))
+                        .collect();
                     for (id, p) in &st.players {
-                        let list: Vec<(PlayerId, Pose)> = st
-                            .players
-                            .iter()
-                            .filter(|(o, _)| *o != id)
-                            .map(|(o, q)| (*o, q.pose))
-                            .collect();
-                        let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Poses(list))));
+                        let list: Vec<(PlayerId, Pose)> =
+                            all.iter().filter(|(o, _)| o != id).copied().collect();
+                        if !list.is_empty() {
+                            let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Poses(list))));
+                        }
                     }
+                    let bytes = Arc::new(proto::encode(&ServerMsg::Poses(all)));
+                    for tx in st.observers.values() {
+                        let _ = tx.send(bytes.clone());
+                    }
+                }
+                if n.is_multiple_of(2)
+                    && let Some(m) = st.entity_moves()
+                {
+                    st.broadcast(&m, None);
                 }
             }
             if last_time.elapsed() > Duration::from_secs(10) {
                 last_time = Instant::now();
                 let st = self.state.lock().unwrap();
-                self.broadcast(&st, &st.time_msg(), None);
+                st.broadcast(&st.time_msg(), None);
             }
             if last_save.elapsed() > Duration::from_secs(10) {
                 last_save = Instant::now();
@@ -275,7 +300,7 @@ impl Server {
         }
     }
 
-    fn handle(&self, stream: TcpStream) -> Result<(), String> {
+    fn connection(&self, stream: TcpStream) -> Result<(), String> {
         let peer = stream
             .peer_addr()
             .map(|a| a.to_string())
@@ -289,18 +314,11 @@ impl Server {
         let mut ws = tungstenite::accept_with_config(stream, Some(cfg))
             .map_err(|e| format!("handshake: {e}"))?;
 
-        // Hello
-        let hello = match ws.read().map_err(|e| format!("no hello: {e}"))? {
-            Message::Binary(b) => {
-                proto::decode::<ClientMsg>(&b).map_err(|e| format!("bad hello: {e}"))?
-            }
-            _ => return Err("expected a binary hello".into()),
-        };
         let ClientMsg::Hello {
             protocol,
             version,
             name,
-        } = hello
+        } = read_msg(&mut ws)?
         else {
             return Err("first message was not hello".into());
         };
@@ -321,119 +339,87 @@ impl Server {
             let _ = ws.close(None);
             return Err(format!("rejected {peer}: {reason}"));
         }
-        let name = proto::clean_name(&name);
-
-        let (tx, rx) = channel::<Arc<Vec<u8>>>();
-        let (id, welcome, world_data) = {
-            let mut st = self.state.lock().unwrap();
-            if st.players.len() >= self.cfg.max_players {
-                drop(st);
-                send(
-                    &mut ws,
-                    &ServerMsg::Reject {
-                        reason: format!("The server is full ({} players).", self.cfg.max_players),
-                    },
-                )?;
-                return Err("server full".into());
-            }
-            let mut name = name;
-            if st
-                .players
-                .values()
-                .any(|p| p.name.eq_ignore_ascii_case(&name))
-            {
-                name = format!(
-                    "{}{}",
-                    name.chars().take(proto::MAX_NAME - 3).collect::<String>(),
-                    st.next_id % 1000
-                );
-            }
-            let id = st.next_id;
-            st.next_id += 1;
-            let spawn = st
-                .homes
-                .get(&name.to_lowercase())
-                .copied()
-                .filter(|p| {
-                    st.world
-                        .in_bounds([p[0] as i32, p[1].max(0.0) as i32, p[2] as i32])
-                        || p[1] >= st.world.size[1] as f32
-                })
-                .unwrap_or_else(|| st.world.spawn());
-            let players: Vec<PlayerInfo> = st
-                .players
-                .iter()
-                .map(|(i, p)| PlayerInfo {
-                    id: *i,
-                    name: p.name.clone(),
-                    pose: p.pose,
-                })
-                .collect();
-            let welcome = ServerMsg::Welcome {
-                your_id: id,
-                server_version: env!("CARGO_PKG_VERSION").into(),
-                motd: self.cfg.motd.clone(),
-                size: st.world.size,
-                spawn,
-                players,
-            };
-            let pose = Pose {
-                pos: spawn,
-                yaw: 0.0,
-                pitch: 0.0,
-            };
-            let info = PlayerInfo {
-                id,
-                name: name.clone(),
-                pose,
-            };
-            self.broadcast(&st, &ServerMsg::PlayerJoined(info), None);
-            self.broadcast(
-                &st,
-                &ServerMsg::System {
-                    text: format!("{name} joined"),
-                },
-                None,
-            );
-            st.players.insert(
-                id,
-                Player {
-                    name: name.clone(),
-                    pose,
-                    tx,
-                },
-            );
-            (id, welcome, st.world.encode())
+        let ClientMsg::Session { token, observer } = read_msg(&mut ws)? else {
+            return Err("second message was not session".into());
         };
-        let name = self.state.lock().unwrap().players[&id].name.clone();
-        log(format!(
-            "{name} joined from {peer} (dyno {version}), {} online",
-            self.player_count()
-        ));
+        let name = proto::clean_name(&name);
+        let (tx, rx) = channel::<Arc<Vec<u8>>>();
 
-        let result = self.session(&mut ws, id, welcome, world_data, rx);
-
-        {
+        let (id, first, world_data) = {
             let mut st = self.state.lock().unwrap();
-            if let Some(p) = st.players.remove(&id)
-                && p.pose.pos.iter().all(|v| v.is_finite())
-            {
-                st.homes.insert(p.name.to_lowercase(), p.pose.pos);
+            if observer {
+                let id = st.next_id;
+                st.next_id += 1;
+                st.observers.insert(id, tx);
+                let welcome = ServerMsg::Welcome {
+                    your_id: id,
+                    server_version: env!("CARGO_PKG_VERSION").into(),
+                    motd: self.cfg.motd.clone(),
+                    size: st.world.size,
+                    spawn: st.world.spawn(),
+                    players: st
+                        .players
+                        .iter()
+                        .map(|(i, p)| proto::PlayerInfo {
+                            id: *i,
+                            name: p.name.clone(),
+                            pose: p.pose,
+                        })
+                        .collect(),
+                    mode: Mode::Creative,
+                    content: Box::new(st.content.clone()),
+                };
+                (id, vec![welcome], st.world.encode())
+            } else {
+                if st.players.len() >= self.cfg.max_players {
+                    drop(st);
+                    send(
+                        &mut ws,
+                        &ServerMsg::Reject {
+                            reason: format!(
+                                "The server is full ({} players).",
+                                self.cfg.max_players
+                            ),
+                        },
+                    )?;
+                    return Err("server full".into());
+                }
+                match st.join(&name, token, tx) {
+                    Ok((id, mut msgs)) => {
+                        if let Some(ServerMsg::Welcome { motd, .. }) = msgs.first_mut() {
+                            *motd = self.cfg.motd.clone();
+                        }
+                        (id, msgs, st.world.encode())
+                    }
+                    Err(reason) => {
+                        drop(st);
+                        send(
+                            &mut ws,
+                            &ServerMsg::Reject {
+                                reason: reason.clone(),
+                            },
+                        )?;
+                        let _ = ws.close(None);
+                        return Err(format!("refused {name}: {reason}"));
+                    }
+                }
             }
-            self.broadcast(&st, &ServerMsg::PlayerLeft { id }, None);
-            self.broadcast(
-                &st,
-                &ServerMsg::System {
-                    text: format!("{name} left"),
-                },
-                None,
-            );
+        };
+        if !observer {
+            log(format!(
+                "{name} joined from {peer} (dyno {version}), {} online",
+                self.player_count()
+            ));
         }
-        log(format!(
-            "{name} left ({}), {} online",
-            result.as_ref().err().map(String::as_str).unwrap_or("quit"),
-            self.player_count()
-        ));
+        let result = self.session(&mut ws, id, first, world_data, rx);
+        self.state.lock().unwrap().leave(id);
+        if !observer {
+            log(format!(
+                "{name} left ({}), {} online",
+                result.as_ref().err().map(String::as_str).unwrap_or("quit"),
+                self.player_count()
+            ));
+        }
         let _ = ws.close(None);
         let _ = ws.flush();
         Ok(())
@@ -443,19 +429,23 @@ impl Server {
         &self,
         ws: &mut WebSocket<TcpStream>,
         id: PlayerId,
-        welcome: ServerMsg,
+        first: Vec<ServerMsg>,
         world_data: Vec<u8>,
         rx: Receiver<Arc<Vec<u8>>>,
     ) -> Result<(), String> {
-        send(ws, &welcome)?;
+        let mut first = first.into_iter();
+        if let Some(welcome) = first.next() {
+            send(ws, &welcome)?;
+        }
         send(ws, &ServerMsg::World { data: world_data })?;
         let time = self.state.lock().unwrap().time_msg();
         send(ws, &time)?;
+        for m in first {
+            send(ws, &m)?;
+        }
         ws.get_mut()
             .set_read_timeout(Some(Duration::from_millis(15)))
             .ok();
-
-        let mut last_fill = Instant::now() - Duration::from_secs(5);
         let mut last_msg = Instant::now();
         let mut window = Instant::now();
         let (mut msgs, mut chats) = (0u32, 0u32);
@@ -470,39 +460,6 @@ impl Server {
                     let msg =
                         proto::decode::<ClientMsg>(&b).map_err(|e| format!("bad message: {e}"))?;
                     match msg {
-                        ClientMsg::Pose(p) => {
-                            if p.pos
-                                .iter()
-                                .chain([p.yaw, p.pitch].iter())
-                                .all(|v| v.is_finite())
-                                && let Some(pl) = self.state.lock().unwrap().players.get_mut(&id)
-                            {
-                                pl.pose = p;
-                            }
-                        }
-                        ClientMsg::SetBlock { pos, block } => {
-                            if block >= BLOCK_COUNT {
-                                return Err(format!("unknown block {block}"));
-                            }
-                            let mut st = self.state.lock().unwrap();
-                            let me = st.players.get(&id).map(|p| p.pose.pos).unwrap_or_default();
-                            let d2: f32 =
-                                (0..3).map(|i| (pos[i] as f32 + 0.5 - me[i]).powi(2)).sum();
-                            if st.world.in_bounds(pos) && d2 <= 12.0 * 12.0 {
-                                st.world.set(pos[0], pos[1], pos[2], block);
-                                st.dirty = true;
-                                self.broadcast(&st, &ServerMsg::Block { pos, block }, None);
-                            } else {
-                                // tell the client the real value so it can undo its prediction
-                                let real = st.world.get(pos[0], pos[1], pos[2]);
-                                if let Some(p) = st.players.get(&id) {
-                                    let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Block {
-                                        pos,
-                                        block: real,
-                                    })));
-                                }
-                            }
-                        }
                         ClientMsg::Chat { text } => {
                             chats += 1;
                             let text: String = text
@@ -514,78 +471,17 @@ impl Server {
                                 self.command(id, text.trim());
                             } else if chats <= 5 && !text.trim().is_empty() {
                                 let st = self.state.lock().unwrap();
-                                let from = st
-                                    .players
-                                    .get(&id)
-                                    .map(|p| p.name.clone())
-                                    .unwrap_or_default();
-                                log(format!("<{from}> {text}"));
-                                self.broadcast(&st, &ServerMsg::Chat { from, text }, None);
-                            }
-                        }
-                        ClientMsg::Fill { a, b, block } => {
-                            if block >= BLOCK_COUNT {
-                                return Err(format!("unknown block {block}"));
-                            }
-                            if last_fill.elapsed() < Duration::from_millis(400) {
-                                continue;
-                            }
-                            last_fill = Instant::now();
-                            let mut st = self.state.lock().unwrap();
-                            let [sx, sy, sz] = st.world.size;
-                            let lo = [
-                                a[0].min(b[0]).max(0),
-                                a[1].min(b[1]).max(0),
-                                a[2].min(b[2]).max(0),
-                            ];
-                            let hi = [
-                                a[0].max(b[0]).min(sx as i32 - 1),
-                                a[1].max(b[1]).min(sy as i32 - 1),
-                                a[2].max(b[2]).min(sz as i32 - 1),
-                            ];
-                            if (0..3).any(|i| lo[i] > hi[i]) {
-                                continue;
-                            }
-                            let vol = (0..3).map(|i| (hi[i] - lo[i] + 1) as i64).product::<i64>();
-                            let me = st.players.get(&id).map(|p| p.pose.pos).unwrap_or_default();
-                            let c: Vec<f32> =
-                                (0..3).map(|i| (lo[i] + hi[i]) as f32 * 0.5).collect();
-                            let d2: f32 = (0..3).map(|i| (c[i] - me[i]).powi(2)).sum();
-                            if vol > proto::MAX_FILL || d2 > 96.0 * 96.0 {
-                                st.tell(
-                                    id,
-                                    format!(
-                                        "Fill refused: at most {} cells, within 96 blocks of you.",
-                                        proto::MAX_FILL
-                                    ),
-                                );
-                                continue;
-                            }
-                            for y in lo[1]..=hi[1] {
-                                for z in lo[2]..=hi[2] {
-                                    for x in lo[0]..=hi[0] {
-                                        st.world.set(x, y, z, block);
-                                    }
+                                if let Some(p) = st.players.get(&id) {
+                                    let from = p.name.clone();
+                                    log(format!("<{from}> {text}"));
+                                    st.broadcast(&ServerMsg::Chat { from, text }, None);
                                 }
                             }
-                            st.dirty = true;
-                            let who = st
-                                .players
-                                .get(&id)
-                                .map(|p| p.name.clone())
-                                .unwrap_or_default();
-                            log(format!("{who} filled {vol} cells with block {block}"));
-                            self.broadcast(
-                                &st,
-                                &ServerMsg::Fill {
-                                    a: lo,
-                                    b: hi,
-                                    block,
-                                },
-                                None,
-                            );
                         }
-                        ClientMsg::Hello { .. } => return Err("second hello".into()),
+                        ClientMsg::Hello { .. } | ClientMsg::Session { .. } => {
+                            return Err("second hello".into());
+                        }
+                        other => self.state.lock().unwrap().handle(id, other)?,
                     }
                 }
                 Ok(Message::Close(_)) => return Ok(()),
@@ -597,7 +493,7 @@ impl Server {
                 Err(e) => return Err(format!("read: {e}")),
             }
             if window.elapsed() >= Duration::from_secs(1) {
-                if msgs > 200 {
+                if msgs > 300 {
                     return Err(format!("too many messages ({msgs}/s)"));
                 }
                 window = Instant::now();
@@ -623,41 +519,32 @@ impl Server {
             }
         }
     }
-}
 
-fn send(ws: &mut WebSocket<TcpStream>, msg: &ServerMsg) -> Result<(), String> {
-    ws.send(Message::Binary(proto::encode(msg).into()))
-        .map_err(|e| format!("send: {e}"))
-}
-
-impl Server {
     fn command(&self, id: PlayerId, line: &str) {
         let mut st = self.state.lock().unwrap();
-        let me = st
-            .players
-            .get(&id)
-            .map(|p| p.name.clone())
-            .unwrap_or_default();
+        let Some(me) = st.players.get(&id).map(|p| p.name.clone()) else {
+            return;
+        };
         let mut parts = line.split_whitespace();
         let cmd = parts.next().unwrap_or("").to_ascii_lowercase();
-        let arg = parts.collect::<Vec<_>>().join(" ");
+        let args: Vec<&str> = parts.collect();
+        let arg = args.join(" ");
         log(format!("{me} ran {line}"));
+        let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(
-                id,
-                "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who",
-            ),
+            "/help" => st.tell(id, "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /reload"),
             "/who" => {
-                let names: Vec<String> = st.players.values().map(|p| p.name.clone()).collect();
+                let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
             }
             "/spawn" => {
-                let pos = st.world.spawn();
-                if let Some(p) = st.players.get(&id) {
-                    let _ =
-                        p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
+                let pos = st.players[&id].spawn.unwrap_or_else(|| st.world.spawn());
+                if let Some(p) = st.players.get_mut(&id) {
+                    p.pose.pos = pos;
+                    let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
                 }
             }
+            "/kill" => st.damage(id, 1000.0, [0.0; 3], "gave up"),
             "/tp" => {
                 let lower = arg.to_lowercase();
                 let target = st
@@ -665,18 +552,13 @@ impl Server {
                     .iter()
                     .filter(|(pid, _)| **pid != id)
                     .map(|(_, p)| p)
-                    .find(|p| p.name.to_lowercase() == lower)
-                    .or_else(|| {
-                        st.players.values().find(|p| {
-                            !lower.is_empty() && p.name.to_lowercase().starts_with(&lower)
-                        })
-                    })
+                    .find(|p| p.name.to_lowercase() == lower || (!lower.is_empty() && p.name.to_lowercase().starts_with(&lower)))
                     .map(|p| (p.name.clone(), p.pose.pos));
                 match target {
                     Some((name, pos)) => {
-                        if let Some(p) = st.players.get(&id) {
-                            let _ =
-                                p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
+                        if let Some(p) = st.players.get_mut(&id) {
+                            p.pose.pos = pos;
+                            let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
                         }
                         st.tell(id, format!("Teleported to {name}"));
                     }
@@ -691,56 +573,64 @@ impl Server {
                     "night" => Some(0.58),
                     "midnight" => Some(0.75),
                     "sunrise" | "dawn" => Some(0.97),
-                    other => other
-                        .parse::<f32>()
-                        .ok()
-                        .filter(|v| (0.0..=1.0).contains(v)),
+                    other => other.parse::<f32>().ok().filter(|v| (0.0..=1.0).contains(v)),
                 };
                 match t {
                     Some(t) => {
                         st.time_at_base = t;
                         st.time_base = Instant::now();
                         let msg = st.time_msg();
-                        self.broadcast(&st, &msg, None);
-                        self.broadcast(&st, &ServerMsg::System { text: format!("{me} set the time to {arg}") }, None);
+                        st.broadcast(&msg, None);
+                        st.broadcast(&ServerMsg::System { text: format!("{me} set the time to {arg}") }, None);
                     }
                     None => st.tell(id, "Usage: /time day|noon|sunset|night|midnight|sunrise, or a number from 0 to 1"),
                 }
             }
+            "/gamemode" | "/gm" => {
+                if !op {
+                    return st.tell(id, "Only server operators can change game mode.");
+                }
+                let mode = match args.first().copied() {
+                    Some("creative") | Some("c") | Some("1") => Mode::Creative,
+                    Some("survival") | Some("s") | Some("0") => Mode::Survival,
+                    _ => return st.tell(id, "Usage: /gamemode survival|creative"),
+                };
+                let p = st.players.get_mut(&id).unwrap();
+                p.mode = mode;
+                let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Status { health: p.health, food: p.food, mode, fuel: p.fuel })));
+                st.broadcast(&ServerMsg::System { text: format!("{me} is now in {} mode", if mode == Mode::Creative { "creative" } else { "survival" }) }, None);
+            }
+            "/give" => {
+                if !op {
+                    return st.tell(id, "Only server operators can use /give.");
+                }
+                let Some(key) = args.first() else { return st.tell(id, "Usage: /give <item> [count]") };
+                let n: u8 = args.get(1).and_then(|v| v.parse().ok()).unwrap_or(1);
+                match st.item_id(key) {
+                    Some(item) => {
+                        let c = st.content.clone();
+                        let p = st.players.get_mut(&id).unwrap();
+                        p.pack.add(&c, dyno_sim::Stack::new(item, n));
+                        let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Pack(p.pack.slots.clone()))));
+                        st.broadcast(&ServerMsg::System { text: format!("{me} gave themselves {n} {}", c.item(item).name) }, None);
+                    }
+                    None => st.tell(id, format!("No item '{key}'.")),
+                }
+            }
+            "/reload" => {
+                if !op {
+                    return st.tell(id, "Only server operators can reload content.");
+                }
+                match load_content(&self.cfg.content_path) {
+                    Ok(c) => {
+                        let summary = format!("{} v{}: {} items, {} recipes", c.name, c.version, c.items.len(), c.recipes.len());
+                        st.replace_content(c);
+                        st.broadcast(&ServerMsg::System { text: format!("{me} reloaded content ({summary})") }, None);
+                    }
+                    Err(e) => st.tell(id, format!("Reload failed: {e}")),
+                }
+            }
             _ => st.tell(id, "Unknown command. Try /help"),
         }
-    }
-}
-
-fn homes_path(world: &std::path::Path) -> PathBuf {
-    world.with_file_name("players.txt")
-}
-
-/// Player positions: one line per player, "name<TAB>x<TAB>y<TAB>z".
-fn load_homes(path: &std::path::Path) -> HashMap<String, [f32; 3]> {
-    let mut out = HashMap::new();
-    if let Ok(text) = std::fs::read_to_string(path) {
-        for line in text.lines() {
-            let f: Vec<&str> = line.split('\t').collect();
-            if f.len() == 4
-                && let (Ok(x), Ok(y), Ok(z)) = (f[1].parse(), f[2].parse(), f[3].parse())
-            {
-                out.insert(f[0].to_string(), [x, y, z]);
-            }
-        }
-    }
-    out
-}
-
-fn save_homes(path: &std::path::Path, homes: &HashMap<String, [f32; 3]>) {
-    let mut text = String::new();
-    for (n, p) in homes {
-        if !n.contains('\t') && !n.contains('\n') {
-            text.push_str(&format!("{n}\t{}\t{}\t{}\n", p[0], p[1], p[2]));
-        }
-    }
-    let tmp = path.with_extension("tmp");
-    if std::fs::write(&tmp, text).is_ok() {
-        let _ = std::fs::rename(&tmp, path);
     }
 }

@@ -713,6 +713,7 @@ dependencies = [
  "directories",
  "dyno-protocol",
  "dyno-server",
+ "dyno-sim",
  "dyno-world",
  "egui",
  "egui-wgpu",
@@ -730,6 +731,8 @@ dependencies = [
 name = "dyno-protocol"
 version = "0.0.8"
 dependencies = [
+ "dyno-sim",
+ "dyno-world",
  "postcard",
  "serde",
 ]
@@ -739,8 +742,19 @@ name = "dyno-server"
 version = "0.0.8"
 dependencies = [
  "dyno-protocol",
+ "dyno-sim",
  "dyno-world",
+ "serde",
+ "serde_json",
  "tungstenite",
+]
+
+[[package]]
+name = "dyno-sim"
+version = "0.0.8"
+dependencies = [
+ "dyno-world",
+ "serde",
 ]
 
 [[package]]
@@ -759,6 +773,10 @@ dependencies = [
 [[package]]
 name = "dyno-world"
 version = "0.0.8"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "ecolor"

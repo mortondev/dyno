@@ -2,7 +2,7 @@
 //! Both fade by one level per cell through air and are recomputed locally
 //! around each change.
 
-use dyno_world::{self as w, World};
+use crate::{self as w, World};
 use std::collections::VecDeque;
 
 pub struct Light {

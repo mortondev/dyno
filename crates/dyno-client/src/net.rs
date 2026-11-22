@@ -1,6 +1,6 @@
 //! Client connection to a game server over WebSocket (ws:// or wss://).
 
-use dyno_protocol::{self as proto, ClientMsg, PlayerId, PlayerInfo, ServerMsg};
+use dyno_protocol::{self as proto, ClientMsg, Content, Mode, PlayerId, PlayerInfo, ServerMsg};
 use dyno_world::World;
 use std::io::ErrorKind;
 use std::net::TcpStream;
@@ -32,6 +32,8 @@ pub struct Joined {
     pub spawn: [f32; 3],
     pub players: Vec<PlayerInfo>,
     pub world: World,
+    pub mode: Mode,
+    pub content: Content,
 }
 
 fn set_timeout(ws: &mut Ws, t: Duration) {
@@ -47,7 +49,14 @@ fn set_timeout(ws: &mut Ws, t: Duration) {
 }
 
 /// Connect, say hello and download the world. Blocks for up to `timeout`.
-pub fn connect(input: &str, name: &str, timeout: Duration) -> Result<Joined, String> {
+/// `token` identifies this install; observers are invisible tools.
+pub fn connect(
+    input: &str,
+    name: &str,
+    token: u64,
+    observer: bool,
+    timeout: Duration,
+) -> Result<Joined, String> {
     let _ = rustls::crypto::ring::default_provider().install_default();
     let url = proto::server_url(input)?;
     let deadline = Instant::now() + timeout;
@@ -83,6 +92,10 @@ pub fn connect(input: &str, name: &str, timeout: Duration) -> Result<Joined, Str
     };
     ws.send(Message::Binary(proto::encode(&hello).into()))
         .map_err(|e| format!("send: {e}"))?;
+    ws.send(Message::Binary(
+        proto::encode(&ClientMsg::Session { token, observer }).into(),
+    ))
+    .map_err(|e| format!("send: {e}"))?;
 
     let mut welcome = None;
     let world;
@@ -115,6 +128,8 @@ pub fn connect(input: &str, name: &str, timeout: Duration) -> Result<Joined, Str
         motd,
         spawn,
         players,
+        mode,
+        content,
         ..
     }) = welcome
     else {
@@ -141,6 +156,8 @@ pub fn connect(input: &str, name: &str, timeout: Duration) -> Result<Joined, Str
         spawn,
         players,
         world,
+        mode,
+        content: *content,
     })
 }
 

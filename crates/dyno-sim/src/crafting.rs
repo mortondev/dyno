@@ -1,0 +1,119 @@
+//! Crafting from a recipe list. Stations must be near; furnace recipes use fuel.
+
+use crate::inventory::{Inventory, Stack};
+use dyno_world::content::{Content, Recipe, Station};
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Stations {
+    pub table: bool,
+    pub furnace: bool,
+}
+
+impl Stations {
+    pub fn has(&self, s: Station) -> bool {
+        match s {
+            Station::None => true,
+            Station::Table => self.table,
+            Station::Furnace => self.furnace,
+        }
+    }
+}
+
+/// Why a recipe cannot be made now, or Ok.
+pub fn check(
+    c: &Content,
+    r: &Recipe,
+    inv: &Inventory,
+    st: Stations,
+    fuel_bank: u16,
+) -> Result<(), String> {
+    if !st.has(r.station) {
+        return Err(match r.station {
+            Station::Table => "Needs a crafting table nearby".into(),
+            Station::Furnace => "Needs a furnace nearby".into(),
+            Station::None => unreachable!(),
+        });
+    }
+    let mut scratch = inv.clone();
+    for ing in &r.inputs {
+        if !take_any(&mut scratch, &ing.any, ing.count as u32) {
+            let names: Vec<&str> = ing.any.iter().map(|i| c.item(*i).name).collect();
+            return Err(format!("Needs {} {}", ing.count, names.join(" or ")));
+        }
+    }
+    if r.fuel > 0 {
+        let mut bank = fuel_bank;
+        if !burn_fuel(c, &mut scratch, &mut bank, r.fuel as u16) {
+            return Err("Needs fuel: coal, logs, planks or sticks".into());
+        }
+    }
+    Ok(())
+}
+
+/// Make a recipe once. Consumes inputs and fuel. Returns output that did not fit.
+pub fn craft(
+    c: &Content,
+    r: &Recipe,
+    inv: &mut Inventory,
+    st: Stations,
+    fuel_bank: &mut u16,
+) -> Result<Option<Stack>, String> {
+    check(c, r, inv, st, *fuel_bank)?;
+    for ing in &r.inputs {
+        take_any(inv, &ing.any, ing.count as u32);
+    }
+    if r.fuel > 0 {
+        burn_fuel(c, inv, fuel_bank, r.fuel as u16);
+    }
+    Ok(inv.add(c, Stack::new(r.output, r.count)))
+}
+
+fn take_any(inv: &mut Inventory, any: &[u16], mut n: u32) -> bool {
+    let have: u32 = any.iter().map(|i| inv.count(*i)).sum();
+    if have < n {
+        return false;
+    }
+    for i in any {
+        let k = inv.count(*i).min(n);
+        if k > 0 {
+            inv.remove(*i, k);
+            n -= k;
+        }
+    }
+    true
+}
+
+/// Take `need` fuel units from the bank, burning items into it as needed.
+fn burn_fuel(c: &Content, inv: &mut Inventory, bank: &mut u16, need: u16) -> bool {
+    while *bank < need {
+        // burn the least valuable fuel first
+        let mut fuels: Vec<(u8, u16)> = inv
+            .slots
+            .iter()
+            .flatten()
+            .map(|s| (c.item(s.item).fuel, s.item))
+            .filter(|(f, _)| *f > 0)
+            .collect();
+        fuels.sort();
+        let Some((units, item)) = fuels.first().copied() else {
+            return false;
+        };
+        inv.remove(item, 1);
+        *bank += units as u16;
+    }
+    *bank -= need;
+    true
+}
+
+/// Recipes in display order, with whether each can be made now.
+pub fn list<'a>(
+    c: &'a Content,
+    inv: &Inventory,
+    st: Stations,
+    fuel_bank: u16,
+) -> Vec<(&'a Recipe, Result<(), String>)> {
+    c.recipes
+        .iter()
+        .map(|r| (r, check(c, r, inv, st, fuel_bank)))
+        .collect()
+}

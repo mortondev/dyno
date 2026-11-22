@@ -17,6 +17,8 @@ pub struct Settings {
     /// Block IDs in the 9 hotbar slots.
     pub hotbar: Vec<u8>,
     pub volume: f32,
+    /// random ID of this install; servers bind your name to it
+    pub token: u64,
 }
 
 impl Default for Settings {
@@ -30,6 +32,7 @@ impl Default for Settings {
             view_distance: 160.0,
             hotbar: dyno_world::HOTBAR.to_vec(),
             volume: 0.8,
+            token: 0,
         }
     }
 }
@@ -45,10 +48,15 @@ pub fn path() -> Option<PathBuf> {
 
 impl Settings {
     pub fn load() -> Self {
-        path()
+        let mut s: Settings = path()
             .and_then(|p| std::fs::read(p).ok())
             .and_then(|b| serde_json::from_slice(&b).ok())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        if s.token == 0 {
+            s.token = random_token();
+            let _ = s.save();
+        }
+        s
     }
 
     pub fn save(&self) -> Result<(), String> {
@@ -70,4 +78,27 @@ impl Settings {
         self.recent.insert(0, addr);
         self.recent.truncate(8);
     }
+}
+
+/// A random 64-bit number from the OS-seeded hasher.
+pub fn random_token() -> u64 {
+    use std::hash::{BuildHasher, Hasher};
+    let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+    h.write_u128(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0),
+    );
+    h.write_u32(std::process::id());
+    h.finish() | 1
+}
+
+/// A stable token for command-line tools, derived from their name.
+pub fn tool_token(name: &str) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in format!("dyno-tool:{name}").bytes() {
+        h = (h ^ b as u64).wrapping_mul(0x100_0000_01b3);
+    }
+    h | 1
 }
