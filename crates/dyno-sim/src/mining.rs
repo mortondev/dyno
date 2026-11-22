@@ -11,7 +11,8 @@ pub fn break_time(c: &Content, b: BlockId, tool: Option<&Tool>) -> Option<f32> {
     if r.hardness < 0.0 {
         return None;
     }
-    let right_tool = matches!((r.tool, tool), (Some(k), Some(t)) if k == t.kind);
+    // the right kind of tool, and a high enough tier when the block needs one
+    let right_tool = matches!((r.tool, tool), (Some(k), Some(t)) if k == t.kind && t.tier >= r.tier);
     let t = if right_tool {
         r.hardness * 1.5 / tool.map(|t| t.speed).unwrap_or(1.0)
     } else if r.tier > 0 {
@@ -46,4 +47,20 @@ pub fn drops(c: &Content, b: BlockId, tool: Option<&Tool>, rng: &mut Rng) -> Vec
         }
     }
     out
+}
+
+/// Why a block gives nothing with this tool, for the HUD ("Needs a stone pickaxe").
+pub fn missing_tool(c: &Content, b: BlockId, tool: Option<&Tool>) -> Option<String> {
+    if harvests(c, b, tool) {
+        return None;
+    }
+    let r = c.rule(b);
+    let tier = ["", "wooden", "stone", "iron", "ember"].get(r.tier as usize).copied().unwrap_or("better");
+    let kind = match r.tool {
+        Some(dyno_world::content::ToolKind::Pickaxe) => "pickaxe",
+        Some(dyno_world::content::ToolKind::Axe) => "axe",
+        Some(dyno_world::content::ToolKind::Shovel) => "shovel",
+        _ => "tool",
+    };
+    Some(format!("Needs a {tier} {kind}"))
 }
