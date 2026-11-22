@@ -16,6 +16,7 @@
 //!
 //! Light comes from the top-left in every texture.
 
+use dyno_world as w;
 use dyno_world::BLOCKS;
 use dyno_world::content::{Icon, ItemView, ToolKind};
 use std::f32::consts::TAU;
@@ -25,8 +26,18 @@ pub type Rgba = [u8; TILE * TILE * 4];
 
 /// Tile size as a signed number, for wrap-around arithmetic.
 const S: i32 = TILE as i32;
-/// Block ID of the hearth. It has no constant in `dyno_world` yet.
-const HEARTH: u8 = 46;
+
+// Block IDs that `dyno_world` has no constants for.
+const BASALT: u8 = 15;
+const MARBLE: u8 = 16;
+const TERRACOTTA: u8 = 18;
+const MOSSY_COBBLE: u8 = 19;
+const DARK_PLANKS: u8 = 20;
+const BIRCH_PLANKS: u8 = 21;
+const ICE: u8 = 22;
+/// The ten wool colours, White to Pink.
+const WOOL_FIRST: u8 = 23;
+const WOOL_LAST: u8 = 32;
 
 type Px = [u8; 4];
 type Rgb = [f32; 3];
@@ -414,7 +425,13 @@ fn patch_map(sites: &[(f32, f32)], stretch: f32, seed: u32, shades: &[i32]) -> M
     let mut m = Map::from_fn(|x, y| {
         let wx = (pnoise(x, y, 4, 4, seed) - 0.5) * 2.2;
         let wy = (pnoise(x, y, 4, 4, seed ^ 0x3C) - 0.5) * 2.2;
-        let hit = nearest(x as f32 + 0.5 + wx, y as f32 + 0.5 + wy, sites, 0.0, stretch);
+        let hit = nearest(
+            x as f32 + 0.5 + wx,
+            y as f32 + 0.5 + wy,
+            sites,
+            0.0,
+            stretch,
+        );
         shades[hash(hit.i as i32, 7, seed) as usize % shades.len()]
     });
     m.despeckle();
@@ -475,7 +492,7 @@ fn crack(m: &mut Map, points: &[(i32, i32)]) {
 /// Stone: flat plates, wider than tall like layered rock, and a few
 /// hairline cracks.
 fn stone_map() -> Map {
-    let flat = patch_map(&sites(4, 6, 0.9, 27), 1.8, 28, &[3, 3, 2, 3, 4, 3, 4, 3]);
+    let flat = patch_map(&sites(4, 6, 0.9, 23), 1.8, 24, &[3, 3, 2, 3, 4, 3, 4, 3]);
     // A lighter plate stands a little proud: it throws a thin shadow on
     // the plate below it.
     let mut m = Map::from_fn(|x, y| {
@@ -493,7 +510,11 @@ fn dirt_img(base: Rgb) -> Img {
     let r = Ramp::new(base);
     let mut m = patch_map(&sites(4, 4, 1.0, 21), 1.3, 22, &[3, 3, 2, 3, 4, 2, 3]);
     // crumbs: dark pixels in twos and threes
-    dots(&mut m, &[(1, 2), (2, 2), (9, 5), (10, 5), (10, 6), (5, 10), (5, 11)], 1);
+    dots(
+        &mut m,
+        &[(1, 2), (2, 2), (9, 5), (10, 5), (10, 6), (5, 10), (5, 11)],
+        1,
+    );
     dots(&mut m, &[(13, 12), (14, 12), (14, 1), (7, 14), (8, 14)], 1);
     let mut img = m.img(&r);
     // Pebbles: a pale stone with a shadow under it.
@@ -577,7 +598,11 @@ fn sand_img(base: Rgb) -> Img {
         }
     }
     // grain
-    dots(&mut m, &[(3, 5), (11, 4), (7, 10), (14, 9), (1, 15), (9, 0)], 2);
+    dots(
+        &mut m,
+        &[(3, 5), (11, 4), (7, 10), (14, 9), (1, 15), (9, 0)],
+        2,
+    );
     dots(&mut m, &[(6, 5), (13, 15), (2, 10), (10, 5)], 5);
     m.img(&r)
 }
@@ -810,7 +835,10 @@ fn basalt_top_img(base: Rgb) -> Img {
         for i in 0..3 {
             let shift = if j % 2 == 0 { 0.0 } else { 16.0 / 6.0 };
             let jx = (rnd(i, j, 143) - 0.5) * 1.2;
-            pillars.push((i as f32 * 16.0 / 3.0 + shift + 2.0 + jx, j as f32 * 4.0 + 2.0));
+            pillars.push((
+                i as f32 * 16.0 / 3.0 + shift + 2.0 + jx,
+                j as f32 * 4.0 + 2.0,
+            ));
         }
     }
     let cells = Map::from_fn(|x, y| {
@@ -878,7 +906,11 @@ fn terracotta_img(base: Rgb) -> Img {
             band
         }
     });
-    dots(&mut m, &[(2, 1), (9, 3), (13, 8), (5, 9), (11, 13), (0, 14)], 2);
+    dots(
+        &mut m,
+        &[(2, 1), (9, 3), (13, 8), (5, 9), (11, 13), (0, 14)],
+        2,
+    );
     dots(&mut m, &[(6, 0), (14, 4), (3, 12)], 4);
     m.img(&r)
 }
@@ -967,9 +999,14 @@ fn planks_img(base: Rgb, seed: u32) -> Img {
     let mut img = Img::from_fn(|x, y| {
         let (board, row) = (y / 4, y % 4);
         let joint = JOINTS[board as usize];
-        // the boards on each side of a joint get their own tone
-        let piece = board * 2 + (x > joint) as i32;
-        let r = if hash(piece, 0, seed).is_multiple_of(3) { &b } else { &a };
+        // One board in four is a darker piece of wood. A row has one joint
+        // per tile, so the board runs on across the tile edge and the whole
+        // row must share a tone.
+        let r = if (board + seed as i32) % 4 == 1 {
+            &b
+        } else {
+            &a
+        };
         if row == 3 {
             return r.px(if x == joint { 0 } else { 1 });
         }
@@ -1006,7 +1043,11 @@ fn bark_map(seed: u32) -> Map {
             // each groove runs in two stretches, staggered from its neighbours
             let along = y + k as i32 * 5;
             let h = hash(k as i32, (along / 8) % 2, seed ^ 0x5A);
-            let lean = if along % 8 >= 4 { (h % 3) as i32 - 1 } else { 0 };
+            let lean = if along % 8 >= 4 {
+                (h % 3) as i32 - 1
+            } else {
+                0
+            };
             let x = base_x + lean;
             if along % 8 == 0 {
                 m.set(x, y, 2);
@@ -1216,7 +1257,15 @@ fn ice_img(base: Rgb) -> Img {
         for (i, &(x, y)) in line.iter().enumerate() {
             // a crack fades out at its ends
             let end = i == 0 || i + 1 == line.len();
-            img.set(x, y, if end { r.pxa(5, 205) } else { [240, 248, 255, 235] });
+            img.set(
+                x,
+                y,
+                if end {
+                    r.pxa(5, 205)
+                } else {
+                    [240, 248, 255, 235]
+                },
+            );
         }
     }
     // frost glints
@@ -1532,12 +1581,20 @@ fn torch_side_img(frame: i32) -> Img {
         }
         if y == 6 {
             // the charred tip, with an ember that wanders
-            return if across == 1 + frame % 2 { fire.px(1) } else { wood.px(0) };
+            return if across == 1 + frame % 2 {
+                fire.px(1)
+            } else {
+                wood.px(0)
+            };
         }
         // the flame flickers: each side rises and falls by a row
         let side = x.rem_euclid(S) / 2;
         let flicker = (hash(side, frame, 241) % 2) as i32;
-        let table = if across == 1 || across == 2 { &MIDDLE } else { &EDGE };
+        let table = if across == 1 || across == 2 {
+            &MIDDLE
+        } else {
+            &EDGE
+        };
         fire.px(table[(y + flicker) as usize])
     })
 }
@@ -1691,13 +1748,9 @@ impl Builder {
     }
 }
 
-/// Base colour of a block, or a neutral colour for an ID that
-/// `dyno_world::BLOCKS` does not have.
+/// Base colour of a block.
 fn color_of(id: u8) -> Rgb {
-    BLOCKS
-        .get(id as usize)
-        .map(|d| d.color)
-        .unwrap_or([0.45, 0.42, 0.48])
+    w::block(id).color
 }
 
 /// A swell that rises and falls over `count` frames: 0, up to 1, back to 0.
@@ -1707,15 +1760,14 @@ fn pulse(frame: usize, count: usize) -> f32 {
 
 fn build_blocks() -> Textures {
     let mut b = Builder::default();
-    let count = BLOCKS.len().max(HEARTH as usize + 1);
-    let mut faces = vec![[0u16; 3]; count];
+    let mut faces = vec![[0u16; 3]; BLOCKS.len()];
 
     // Textures that several blocks share are built once.
     let air = b.add(&Img::new(CLEAR));
-    let dirt_ramp = Ramp::new(color_of(2));
-    let dirt = dirt_img(color_of(2));
+    let dirt_ramp = Ramp::new(color_of(w::DIRT));
+    let dirt = dirt_img(color_of(w::DIRT));
     let dirt_l = b.add(&dirt);
-    let stone_ramp = Ramp::with(color_of(3), 1.1);
+    let stone_ramp = Ramp::with(color_of(w::STONE), 1.1);
     let stone = stone_map().img(&stone_ramp);
     let stone_l = b.add(&stone);
 
@@ -1723,42 +1775,42 @@ fn build_blocks() -> Textures {
         let id = id as u8;
         let base = color_of(id);
         *slot = match id {
-            0 => [air; 3],
-            1 => {
+            w::AIR => [air; 3],
+            w::GRASS => {
                 let grass = Ramp::new(base);
                 let top = b.add(&grass_top_map().img(&grass));
                 let side = b.add(&grass_side_img(&grass, &dirt, &dirt_ramp));
                 [top, side, dirt_l]
             }
-            2 => [dirt_l; 3],
-            3 => [stone_l; 3],
-            4 => b.all(&sand_img(base)),
-            5 | 34 => {
-                let (side, wood) = if id == 5 {
+            w::DIRT => [dirt_l; 3],
+            w::STONE => [stone_l; 3],
+            w::SAND => b.all(&sand_img(base)),
+            w::LOG | w::BIRCH_LOG => {
+                let (side, wood) = if id == w::LOG {
                     let bark = Ramp::new(base);
                     (bark_map(71).img(&bark), mix(base, [0.86, 0.70, 0.46], 0.7))
                 } else {
                     (birch_bark_img(base), [0.87, 0.78, 0.58])
                 };
-                let rim = Ramp::new(if id == 5 { base } else { scale(base, 0.9) });
+                let rim = Ramp::new(if id == w::LOG { base } else { scale(base, 0.9) });
                 let end = b.add(&log_top_img(&rim, &Ramp::new(wood), 72 + id as u32));
                 [end, b.add(&side), end]
             }
-            6 => b.all(&leaves_img(base, 61, &LEAF_SHAPES, 9, 14)),
-            7 | 20 | 21 => b.all(&planks_img(base, 100 + id as u32)),
-            8 => b.all(&glass_img(base)),
-            9 => {
+            w::LEAVES => b.all(&leaves_img(base, 61, &LEAF_SHAPES, 9, 14)),
+            w::PLANKS | DARK_PLANKS | BIRCH_PLANKS => b.all(&planks_img(base, 100 + id as u32)),
+            w::GLASS => b.all(&glass_img(base)),
+            w::EMBERSTONE => {
                 let frames: Vec<Img> = (0..4).map(|f| ember_img(pulse(f, 4))).collect();
                 [b.frames(&frames, 0.35); 3]
             }
-            10 => b.all(&brick_img(base, 131)),
-            11 => b.all(&snow_img(base)),
-            12 => {
+            w::BRICK => b.all(&brick_img(base, 131)),
+            w::SNOW => b.all(&snow_img(base)),
+            w::COBBLE => {
                 let m = cobble_map(&COBBLE_SITES, 1.05, 51);
                 b.all(&cobble_img(&m, &Ramp::with(base, 1.1)))
             }
-            13 => [b.frames(&water_frames(base), 0.2); 3],
-            14 => {
+            w::WATER => [b.frames(&water_frames(base), 0.2); 3],
+            w::LANTERN => {
                 let iron = Ramp::new([0.24, 0.23, 0.29]);
                 let glow = Ramp::glow(base);
                 let mut side = lantern_glow(&glow);
@@ -1768,17 +1820,17 @@ fn build_blocks() -> Textures {
                 let top = b.add(&top);
                 [top, b.add(&side), top]
             }
-            15 => {
+            BASALT => {
                 let top = b.add(&basalt_top_img(base));
                 [top, b.add(&basalt_side_img(base)), top]
             }
-            16 => b.all(&marble_img(base)),
-            17 => b.all(&clay_img(base)),
-            18 => b.all(&terracotta_img(base)),
-            19 => b.all(&mossy_img(color_of(12), [0.30, 0.50, 0.20])),
-            22 => b.all(&ice_img(base)),
-            23..=32 => b.all(&wool_img(base)),
-            33 => {
+            MARBLE => b.all(&marble_img(base)),
+            w::CLAY => b.all(&clay_img(base)),
+            TERRACOTTA => b.all(&terracotta_img(base)),
+            MOSSY_COBBLE => b.all(&mossy_img(color_of(w::COBBLE), [0.30, 0.50, 0.20])),
+            ICE => b.all(&ice_img(base)),
+            WOOL_FIRST..=WOOL_LAST => b.all(&wool_img(base)),
+            w::GLOWSHROOM => {
                 let top = [
                     (4.5, 4.5, 2.8),
                     (12.0, 10.5, 2.4),
@@ -1801,29 +1853,29 @@ fn build_blocks() -> Textures {
                     b.add(&shroom_img(base, &under, 263)),
                 ]
             }
-            35 => b.all(&leaves_img(base, 62, &ROUND_LEAVES, 5, 22)),
-            36 => b.all(&leaves_img(base, 63, &NEEDLES, 9, 10)),
-            37 => b.all(&bedrock_img(base)),
-            38 => {
+            w::BIRCH_LEAVES => b.all(&leaves_img(base, 62, &ROUND_LEAVES, 5, 22)),
+            w::PINE_LEAVES => b.all(&leaves_img(base, 63, &NEEDLES, 9, 10)),
+            w::BEDROCK => b.all(&bedrock_img(base)),
+            w::COAL_ORE => {
                 let coal = Ramp::new([0.13, 0.13, 0.16]);
                 let layout = [(1, 1, 0), (9, 3, 2), (4, 9, 3), (11, 11, 0), (13, 7, 1)];
                 b.all(&ore_img(&stone, &stone_ramp, &coal, &layout))
             }
-            39 => {
+            w::IRON_ORE => {
                 let iron = Ramp::new([0.80, 0.60, 0.48]);
                 let layout = [(2, 2, 2), (10, 1, 1), (6, 7, 0), (12, 10, 3), (1, 11, 1)];
                 b.all(&ore_img(&stone, &stone_ramp, &iron, &layout))
             }
-            40 => [
+            w::CRAFTING_TABLE => [
                 b.add(&table_top_img(base)),
                 b.add(&table_side_img(base)),
                 b.add(&planks_img(base, 213)),
             ],
-            41 => {
+            w::FURNACE => {
                 let slab = b.add(&slab_img(&Ramp::new(base), 222));
                 [slab, b.add(&furnace_side_img(base)), slab]
             }
-            42 => {
+            w::CHEST => {
                 let wood = Ramp::new(base);
                 let iron = Ramp::new([0.62, 0.63, 0.68]);
                 let mut top = Img::new(CLEAR);
@@ -1832,18 +1884,22 @@ fn build_blocks() -> Textures {
                 art(&mut side, 0, 0, &CHEST_SIDE, &[&wood, &iron]);
                 [b.add(&top), b.add(&side), b.add(&planks_img(base, 214))]
             }
-            43 => {
+            w::BED => {
                 let red = Ramp::new(base);
                 let linen = Ramp::with([0.93, 0.92, 0.88], 0.7);
-                let wood = Ramp::new(color_of(7));
+                let wood = Ramp::new(color_of(w::PLANKS));
                 let mut top = Img::new(CLEAR);
                 art(&mut top, 0, 0, &BED_TOP, &[&red, &linen, &wood]);
                 let mut side = Img::new(CLEAR);
                 art(&mut side, 0, 0, &BED_SIDE, &[&red, &linen, &wood]);
-                [b.add(&top), b.add(&side), b.add(&planks_img(color_of(7), 215))]
+                [
+                    b.add(&top),
+                    b.add(&side),
+                    b.add(&planks_img(color_of(w::PLANKS), 215)),
+                ]
             }
-            44 => b.all(&berry_bush_img(base)),
-            45 => {
+            w::BERRY_BUSH => b.all(&berry_bush_img(base)),
+            w::TORCH => {
                 let frames: Vec<Img> = (0..4).map(torch_side_img).collect();
                 let wood = Ramp::new([0.52, 0.38, 0.22]);
                 let end = Map::from_fn(|x, y| {
@@ -1856,12 +1912,10 @@ fn build_blocks() -> Textures {
                     b.add(&end.img(&wood)),
                 ]
             }
-            HEARTH => {
+            w::HEARTH => {
                 // The stone is the block's colour pulled towards grey, so
                 // that the embers stand out against it.
-                let known = (id as usize) < BLOCKS.len();
-                let warm = if known { base } else { [0.66, 0.50, 0.40] };
-                let stone = Ramp::new(mix(warm, [0.50, 0.47, 0.47], 0.45));
+                let stone = Ramp::new(mix(base, [0.50, 0.47, 0.47], 0.45));
                 let frames: Vec<Img> = (0..4)
                     .map(|f| hearth_top_img(&stone, pulse(f, 4)))
                     .collect();
@@ -1871,14 +1925,12 @@ fn build_blocks() -> Textures {
                     b.add(&slab_img(&stone, 254)),
                 ]
             }
-            _ => {
-                let alpha = BLOCKS.get(id as usize).map(|d| d.alpha).unwrap_or(1.0);
-                b.all(&generic_img(base, alpha))
-            }
+            // a block added after this was written: its own colour, no detail
+            _ => b.all(&generic_img(base, w::block(id).alpha)),
         };
     }
     // the last layer stands in for unknown block IDs
-    b.add(&generic_img(color_of(255), 1.0));
+    b.add(&generic_img([0.45, 0.42, 0.48], 1.0));
     Textures {
         layers: b.layers,
         block_faces: faces,
@@ -2142,12 +2194,7 @@ const CUBE: [&str; 16] = [
 /// depends on `seed`, so coal and raw iron do not look alike.
 fn lump(img: &mut Img, r: &Ramp, seed: u32) {
     let facets: Vec<(f32, f32)> = (0..6)
-        .map(|k| {
-            (
-                4.5 + rnd(k, 0, seed) * 7.0,
-                5.0 + rnd(k, 1, seed) * 6.5,
-            )
-        })
+        .map(|k| (4.5 + rnd(k, 0, seed) * 7.0, 5.0 + rnd(k, 1, seed) * 6.5))
         .collect();
     let mut mask = Map::new(0);
     for y in 1..S - 1 {

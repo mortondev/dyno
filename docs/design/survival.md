@@ -91,6 +91,12 @@ Three stages at the spawn ruin, each lit at the next dusk once at least two diff
 | Stoke | 16 iron ingots, 20 shade dust | 32 |
 | Rekindle | 24 ember shards, 40 shade dust | 48 |
 
+## Open questions for the first playtest
+
+- Shades wait at a hearth's edge and strike within 1.7 blocks; players reach 4.5. Fighting from just inside the edge is nearly safe. Is that a fair "dust harvest", or too easy?
+- The live world was generated before v0.1.1, so it still has shallow emberstone. Only new worlds place it deep.
+- The spawn hearth cannot be mined in survival. Crafted hearths can.
+
 ## Co-op
 
 - Shared chests, beds (half of the players asleep speeds the night), `/tp` to friends.
