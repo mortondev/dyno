@@ -74,11 +74,12 @@ Break time: with the right tool, `hardness × 1.5 / speed` seconds. Without it: 
 
 ## Night rules (light is safety)
 
-- **Hearths are sanctuary.** No Shade spawns or enters within a hearth's radius. A ruined hearth burns at the world spawn (radius 12). A crafted hearth (8 cobble, 4 logs, 2 coal) has radius 16.
+- **Hearths are sanctuary.** No Shade spawns or enters within a hearth's radius. A ruined hearth burns at the world spawn (radius 16). A crafted hearth (8 cobble, 4 logs, 2 coal) has radius 16.
 - **Strong light burns.** In block light 10 or more (about 3 blocks from a torch, 5 from a lantern), Shades move at half speed and lose 1 health per second.
 - **Torches are temporary** (v0.1.2). Outside a hearth's reach, a Shade next to a torch snuffs it after 3 seconds; the torch drops.
 - **Held light** (v0.1.2). A torch in hand gives light 10 around you.
 - **Away players** are not targeted and do not count for spawning.
+- **Sleep.** Right click a bed at night to lie down. When half of the active players sleep, the night runs ten times faster.
 
 ## The Great Hearth (v0.1.2)
 
@@ -92,7 +93,7 @@ Three stages at the spawn ruin, each lit at the next dusk once at least two diff
 
 ## Co-op
 
-- Shared chests, beds that skip the night when everyone sleeps, `/tp` to friends.
+- Shared chests, beds (half of the players asleep speeds the night), `/tp` to friends.
 - No player damage between players.
 - An optional Discord webhook posts milestones, deaths and hearth progress.
 - On join you see the last 10 events you missed.
@@ -113,7 +114,7 @@ Items, recipes, block rules (hardness, tool, drops), creatures and milestones li
 |---|---|
 | v0.0.8 | World format: caves, ores, bedrock, sky light, new blocks |
 | v0.1.0 | Mine, collect, craft: inventory, timed mining, drops, recipes, tools, torches, health, death, modes |
-| v0.1.1 | The night: 5-minute nights, Grazers, Shades, combat, hearths, light rules, juice, owner, webhook |
-| v0.1.2 | Together: Great Hearth stages, torch snuffing, held light, sleeping through the night, signs |
+| v0.1.1 | The night: 5-minute nights, Grazers, Shades, combat, hearths, light rules, sleeping, juice, owner, webhook, new textures |
+| v0.1.2 | Together: Great Hearth stages, torch snuffing, held light, signs |
 | v0.1.3 | Direction: journal screen, day counter, farming, breeding |
 | v0.2 | Depth: Crawlers, Wisps, ember tier, armour, Great Hearth, signs |

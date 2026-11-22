@@ -44,7 +44,7 @@ The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host nam
 
 ### Survival in short
 
-Punch a tree for logs. In your pack (E), turn logs into planks, sticks and a crafting table. Place the table, then make a wooden pickaxe, mine stone, and make stone tools. Find coal for torches before night: Shades rise where it is dark. Iron needs a stone pickaxe and a furnace. Emberstone lies deep and needs iron. Berries and meat keep hunger away. When you die, your items stay where you fell. The full design is in [docs/design/survival.md](docs/design/survival.md).
+Punch a tree for logs. In your pack (E), turn logs into planks, sticks and a crafting table. Place the table, then make a wooden pickaxe, mine stone, and make stone tools. Build a furnace and smelt a log into coal: one log makes four torches. Nights last five minutes. Shades rise where it is dark, but never within 16 blocks of a hearth, and strong light burns them. You start at a ruined hearth that keeps them out; craft your own hearth (8 cobble, 4 logs, 2 coal) to claim safe ground. Sleep in a bed and the night passes quickly when half of the players sleep. Iron needs a stone pickaxe and a furnace. Emberstone lies deep and needs iron. Berries and meat keep hunger away. When you die you keep your hotbar; the rest stays where you fell for 30 minutes. The full design is in [docs/design/survival.md](docs/design/survival.md).
 
 ## Host a world
 

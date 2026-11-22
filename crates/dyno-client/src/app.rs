@@ -141,6 +141,8 @@ struct Play {
     /// the creature under the crosshair, nearer than any block
     target_entity: Option<u32>,
     heart_clock: f32,
+    /// where we lay down in a bed at night
+    sleeping_at: Option<Vec3>,
     /// the block we last explained "Needs a stone pickaxe" for
     tier_hint: Option<[i32; 3]>,
     fall_from: Option<f32>,
@@ -552,6 +554,7 @@ fn new_play(j: Joined) -> Play {
         title: None,
         target_entity: None,
         heart_clock: 0.0,
+        sleeping_at: None,
         tier_hint: None,
         toasts: Vec::new(),
         fall_from: None,
@@ -973,6 +976,12 @@ impl App {
             }
             p.player.update(&p.world, input, dt);
             p.hurt_flash = (p.hurt_flash - dt * 1.5).max(0.0);
+            if let Some(at) = p.sleeping_at {
+                let t = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
+                if at.distance(p.player.pos) > 1.5 || !(0.52..0.98).contains(&t) {
+                    p.sleeping_at = None;
+                }
+            }
             if p.title
                 .as_ref()
                 .is_some_and(|(t, _)| t.elapsed() > Duration::from_secs(5))
@@ -1637,6 +1646,10 @@ impl App {
                 let sneaking = p.keys.contains(&KeyCode::ShiftLeft);
                 if !sneaking && matches!(looked, w::CHEST | w::BED) {
                     let _ = p.conn.tx.send(ClientMsg::Interact { pos: tb });
+                    let t = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
+                    if looked == w::BED && t > 0.52 && t < 0.98 {
+                        p.sleeping_at = Some(p.player.pos);
+                    }
                     return;
                 }
                 if !sneaking && matches!(looked, w::CRAFTING_TABLE | w::FURNACE) {
@@ -2050,6 +2063,17 @@ fn hud(
         ] {
             painter.rect_filled(r, 0.0, Color32::from_rgba_unmultiplied(200, 20, 20, a));
         }
+    }
+    // asleep in bed: the world dims
+    if p.sleeping_at.is_some() {
+        painter.rect_filled(screen, 0.0, Color32::from_black_alpha(150));
+        painter.text(
+            Pos2::new(c.x, c.y + 40.0),
+            egui::Align2::CENTER_CENTER,
+            "Sleeping… the night passes quickly when half of the players sleep. Move to get up.",
+            FontId::proportional(18.0),
+            Color32::from_gray(220),
+        );
     }
     // big title: "Day 3", "Dusk is coming"
     if let Some((at, text)) = &p.title {

@@ -58,6 +58,8 @@ pub struct Player {
     pub last_seen: u64,
     /// Shades ignore this player until then (after joining or respawning)
     pub safe_until: Instant,
+    /// where the player lay down to sleep; moving away wakes them
+    pub sleeping: Option<[f32; 3]>,
 }
 
 impl Player {
@@ -163,10 +165,24 @@ impl State {
         is_night_at(self.clock)
     }
     fn rate(&self) -> f32 {
-        if self.is_night() {
-            NIGHT_RATE
+        if !self.is_night() {
+            return DAY_RATE;
+        }
+        // half of the active players asleep: the night runs ten times faster
+        let active = self
+            .players
+            .values()
+            .filter(|p| !p.dead && (!p.away() || p.sleeping.is_some()))
+            .count();
+        let asleep = self
+            .players
+            .values()
+            .filter(|p| p.sleeping.is_some())
+            .count();
+        if asleep > 0 && asleep * 2 >= active {
+            NIGHT_RATE * 10.0
         } else {
-            DAY_RATE
+            NIGHT_RATE
         }
     }
     /// The time and how fast it moves now (as a day length), for clients.
@@ -186,6 +202,21 @@ impl State {
     fn tick_clock(&mut self, dt: f32) {
         if !self.players.values().any(|p| !p.away()) {
             return;
+        }
+        // sleepers wake when they move or the night ends
+        let night_now = self.is_night();
+        let mut woke = false;
+        for p in self.players.values_mut() {
+            if let Some(at) = p.sleeping
+                && (!night_now || p.dead || dist(at, p.pose.pos) > 1.5)
+            {
+                p.sleeping = None;
+                woke = true;
+            }
+        }
+        if woke {
+            let m = self.time_msg();
+            self.broadcast(&m, None);
         }
         let before = self.clock;
         let was_night = self.is_night();
@@ -324,6 +355,7 @@ impl State {
             grazer_timer: 0.0,
             last_seen: data.last_seen,
             safe_until: Instant::now() + Duration::from_secs(10),
+            sleeping: None,
         };
         let others: Vec<PlayerInfo> = self
             .players
@@ -949,15 +981,32 @@ impl State {
                 self.send_container(pos);
             }
             w::BED => {
+                let night = self.is_night();
                 let p = self.players.get_mut(&id).unwrap();
                 p.spawn = Some([
                     pos[0] as f32 + 0.5,
                     pos[1] as f32 + 1.01,
                     pos[2] as f32 + 0.5,
                 ]);
-                p.send(&ServerMsg::System {
-                    text: "Spawn point set at your bed.".into(),
-                });
+                if night {
+                    p.sleeping = Some(p.pose.pos);
+                    let name = p.name.clone();
+                    p.send(&ServerMsg::System {
+                        text: "You lie down. Spawn point set. The night passes quickly when half of the players sleep; move to get up.".into(),
+                    });
+                    self.broadcast(
+                        &ServerMsg::System {
+                            text: format!("{name} is sleeping."),
+                        },
+                        Some(id),
+                    );
+                    let m = self.time_msg();
+                    self.broadcast(&m, None);
+                } else {
+                    p.send(&ServerMsg::System {
+                        text: "Spawn point set at your bed. You can sleep here at night.".into(),
+                    });
+                }
             }
             _ => {}
         }
@@ -1084,6 +1133,30 @@ impl State {
     }
 
     fn tick_items(&mut self, dt: f32) {
+        // a gentle magnet: items drift to a living player within 2.5 blocks
+        let now = Instant::now();
+        let bodies: Vec<[f32; 3]> = self
+            .players
+            .values()
+            .filter(|p| !p.dead)
+            .map(|p| [p.pose.pos[0], p.pose.pos[1] + 0.7, p.pose.pos[2]])
+            .collect();
+        for e in self.entities.values_mut() {
+            if !matches!(e.kind, EntityKind::Item(_)) || e.pickup_after > now {
+                continue;
+            }
+            if let Some(b) = bodies
+                .iter()
+                .filter(|b| dist(**b, e.pos) < 2.5)
+                .min_by(|a, b| dist(**a, e.pos).total_cmp(&dist(**b, e.pos)))
+            {
+                let d = dist(*b, e.pos).max(0.1);
+                for k in 0..3 {
+                    e.vel[k] += (b[k] - e.pos[k]) / d * 30.0 * dt;
+                }
+                e.vel[1] += 12.0 * dt; // partly cancel gravity so items rise to the player
+            }
+        }
         let world = &self.world;
         for e in self.entities.values_mut() {
             if !matches!(e.kind, EntityKind::Item(_)) {
