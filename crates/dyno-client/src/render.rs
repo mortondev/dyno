@@ -940,7 +940,7 @@ fn upload_textures(
     use crate::textures::TILE;
     let t = textures();
     let layers = t.layers.len().max(1) as u32;
-    let mips = 5; // 16, 8, 4, 2, 1
+    let mips = TILE.trailing_zeros() + 1; // 16 px: 16, 8, 4, 2, 1
     let tex = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("blocks"),
         size: wgpu::Extent3d {

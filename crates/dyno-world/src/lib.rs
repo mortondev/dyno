@@ -40,6 +40,25 @@ pub const BED: BlockId = 43;
 pub const BERRY_BUSH: BlockId = 44;
 pub const TORCH: BlockId = 45;
 pub const HEARTH: BlockId = 46;
+// town building blocks
+pub const STONE_BRICKS: BlockId = 47;
+pub const PLASTER: BlockId = 48;
+pub const RED_ROOF_TILES: BlockId = 49;
+pub const SLATE_ROOF: BlockId = 50;
+pub const THATCH: BlockId = 51;
+pub const TIMBER_BEAM: BlockId = 52;
+pub const FLAGSTONES: BlockId = 53;
+pub const LEADED_WINDOW: BlockId = 54;
+pub const WOODEN_DOOR: BlockId = 55;
+pub const RED_BANNER: BlockId = 56;
+pub const BLUE_BANNER: BlockId = 57;
+pub const HAY_BALE: BlockId = 58;
+pub const BARREL: BlockId = 59;
+pub const CRATE: BlockId = 60;
+pub const BOOKSHELF: BlockId = 61;
+pub const ANVIL: BlockId = 62;
+pub const BRAZIER: BlockId = 63;
+pub const FLOWER_BED: BlockId = 64;
 
 /// No Shade spawns or enters within this many blocks of a hearth.
 pub const HEARTH_RADIUS: f32 = 16.0;
@@ -217,6 +236,131 @@ pub const BLOCKS: &[BlockDef] = &[
         alpha: 1.0,
         emission: 15,
         material: Stone,
+    },    BlockDef {
+        name: "Stone bricks",
+        color: [0.55, 0.54, 0.52],
+        alpha: 1.0,
+        emission: 0,
+        material: Stone,
+    },
+    BlockDef {
+        name: "Plaster",
+        color: [0.90, 0.85, 0.74],
+        alpha: 1.0,
+        emission: 0,
+        material: Stone,
+    },
+    BlockDef {
+        name: "Red roof tiles",
+        color: [0.62, 0.24, 0.18],
+        alpha: 1.0,
+        emission: 0,
+        material: Stone,
+    },
+    BlockDef {
+        name: "Slate roof",
+        color: [0.30, 0.36, 0.46],
+        alpha: 1.0,
+        emission: 0,
+        material: Stone,
+    },
+    BlockDef {
+        name: "Thatch",
+        color: [0.78, 0.64, 0.32],
+        alpha: 1.0,
+        emission: 0,
+        material: Foliage,
+    },
+    BlockDef {
+        name: "Timber beam",
+        color: [0.32, 0.22, 0.14],
+        alpha: 1.0,
+        emission: 0,
+        material: Wood,
+    },
+    BlockDef {
+        name: "Flagstones",
+        color: [0.60, 0.57, 0.50],
+        alpha: 1.0,
+        emission: 0,
+        material: Stone,
+    },
+    BlockDef {
+        name: "Leaded window",
+        color: [0.55, 0.70, 0.80],
+        alpha: 0.6,
+        emission: 0,
+        material: Glass,
+    },
+    BlockDef {
+        name: "Wooden door",
+        color: [0.45, 0.30, 0.18],
+        alpha: 1.0,
+        emission: 0,
+        material: Wood,
+    },
+    BlockDef {
+        name: "Red banner",
+        color: [0.65, 0.12, 0.12],
+        alpha: 1.0,
+        emission: 0,
+        material: Cloth,
+    },
+    BlockDef {
+        name: "Blue banner",
+        color: [0.15, 0.25, 0.62],
+        alpha: 1.0,
+        emission: 0,
+        material: Cloth,
+    },
+    BlockDef {
+        name: "Hay bale",
+        color: [0.85, 0.72, 0.30],
+        alpha: 1.0,
+        emission: 0,
+        material: Foliage,
+    },
+    BlockDef {
+        name: "Barrel",
+        color: [0.50, 0.34, 0.20],
+        alpha: 1.0,
+        emission: 0,
+        material: Wood,
+    },
+    BlockDef {
+        name: "Crate",
+        color: [0.62, 0.46, 0.28],
+        alpha: 1.0,
+        emission: 0,
+        material: Wood,
+    },
+    BlockDef {
+        name: "Bookshelf",
+        color: [0.45, 0.32, 0.20],
+        alpha: 1.0,
+        emission: 0,
+        material: Wood,
+    },
+    BlockDef {
+        name: "Anvil",
+        color: [0.25, 0.25, 0.28],
+        alpha: 1.0,
+        emission: 0,
+        material: Stone,
+    },
+    BlockDef {
+        name: "Brazier",
+        color: [0.40, 0.30, 0.25],
+        alpha: 1.0,
+        emission: 15,
+        material: Stone,
+    },
+    BlockDef {
+        name: "Flower bed",
+        color: [0.40, 0.55, 0.25],
+        alpha: 1.0,
+        emission: 0,
+        material: Foliage,
     },
 ];
 
