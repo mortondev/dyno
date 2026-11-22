@@ -112,16 +112,15 @@ pub fn expand(world_path: &Path, old: World, size: [u32; 3], seed: u32) -> World
     let shift = |v: &mut Value| {
         if let Some(a) = v.as_array_mut()
             && a.len() == 3
+            && let (Some(x), Some(z)) = (a[0].as_f64(), a[2].as_f64())
         {
-            if let (Some(x), Some(z)) = (a[0].as_f64(), a[2].as_f64()) {
-                let int = a[0].is_i64() || a[0].is_u64();
-                if int {
-                    a[0] = Value::from(x as i64 + ox as i64);
-                    a[2] = Value::from(z as i64 + oz as i64);
-                } else {
-                    a[0] = Value::from(x + ox as f64);
-                    a[2] = Value::from(z + oz as f64);
-                }
+            let int = a[0].is_i64() || a[0].is_u64();
+            if int {
+                a[0] = Value::from(x as i64 + ox as i64);
+                a[2] = Value::from(z as i64 + oz as i64);
+            } else {
+                a[0] = Value::from(x + ox as f64);
+                a[2] = Value::from(z + oz as f64);
             }
         }
     };

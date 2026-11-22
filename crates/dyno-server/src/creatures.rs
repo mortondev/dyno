@@ -60,6 +60,9 @@ pub struct Mob {
     pub event: bool,
 }
 
+/// A ranged attack in flight: target, damage, from, to, colour, creature.
+type Bolt = (PlayerId, f32, [f32; 3], [f32; 3], [f32; 3], u16);
+
 const HALF_W: f32 = 0.3;
 const GRAVITY: f32 = 25.0;
 const AGGRO: f32 = 24.0;
@@ -432,7 +435,7 @@ impl State {
         let levels: std::collections::HashMap<PlayerId, u8> =
             self.players.iter().map(|(i, p)| (*i, p.level)).collect();
         let mut heal_info: Vec<u32> = Vec::new();
-        let mut bolts: Vec<(PlayerId, f32, [f32; 3], [f32; 3], [f32; 3], u16)> = Vec::new();
+        let mut bolts: Vec<Bolt> = Vec::new();
         let mut gone: Vec<(u32, bool)> = Vec::new();
         let mut hurt: Vec<u32> = Vec::new();
         for id in ids {
