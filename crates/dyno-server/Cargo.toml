@@ -7,6 +7,6 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-dyno-protocol = { version = "0.0.1", path = "../dyno-protocol" }
-dyno-world = { version = "0.0.1", path = "../dyno-world" }
+dyno-protocol = { path = "../dyno-protocol" }
+dyno-world = { path = "../dyno-world" }
 tungstenite = "0.30.0"
