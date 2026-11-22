@@ -142,7 +142,13 @@ pub fn is_newer(candidate: &str, current: &str) -> bool {
 ///
 /// `force` ignores the disable variable and debug builds (used by `dyno update`).
 pub fn check_and_update(force: bool, timeout: Duration) -> Result<Outcome, Error> {
-    if std::env::var_os(JUST_UPDATED_ENV).is_some() {
+    // Right after an update-restart, do not check again (no update loops). The
+    // variable stays set for the life of the process, so this only applies to
+    // checks in the first few minutes; long-running servers check again later.
+    static FIRST_CHECK: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    let first = *FIRST_CHECK.get_or_init(std::time::Instant::now);
+    if std::env::var_os(JUST_UPDATED_ENV).is_some() && first.elapsed() < Duration::from_secs(4 * 60)
+    {
         return Ok(Outcome::Skipped("this process started after an update"));
     }
     if !force {
