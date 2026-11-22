@@ -14,6 +14,9 @@ pub struct Settings {
     pub mouse_sensitivity: f32,
     pub fov_degrees: f32,
     pub view_distance: f32,
+    /// Block IDs in the 9 hotbar slots.
+    pub hotbar: Vec<u8>,
+    pub volume: f32,
 }
 
 impl Default for Settings {
@@ -25,6 +28,8 @@ impl Default for Settings {
             mouse_sensitivity: 1.0,
             fov_degrees: 75.0,
             view_distance: 160.0,
+            hotbar: dyno_world::HOTBAR.to_vec(),
+            volume: 0.8,
         }
     }
 }

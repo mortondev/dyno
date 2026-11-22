@@ -51,6 +51,31 @@ struct State {
     players: HashMap<PlayerId, Player>,
     next_id: PlayerId,
     dirty: bool,
+    /// Time of day at `time_base`.
+    time_at_base: f32,
+    time_base: Instant,
+}
+
+/// Length of one in-game day.
+pub const DAY_SECONDS: f32 = 20.0 * 60.0;
+
+impl State {
+    fn time(&self) -> f32 {
+        (self.time_at_base + self.time_base.elapsed().as_secs_f32() / DAY_SECONDS).rem_euclid(1.0)
+    }
+    fn time_msg(&self) -> ServerMsg {
+        ServerMsg::Time {
+            time: self.time(),
+            day_seconds: DAY_SECONDS,
+        }
+    }
+    fn tell(&self, id: PlayerId, text: impl Into<String>) {
+        if let Some(p) = self.players.get(&id) {
+            let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::System {
+                text: text.into(),
+            })));
+        }
+    }
 }
 
 pub struct Server {
@@ -119,6 +144,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
             players: HashMap::new(),
             next_id: 1,
             dirty: false,
+            time_at_base: 0.05,
+            time_base: Instant::now(),
         }),
         stop: AtomicBool::new(false),
     });
@@ -199,6 +226,7 @@ impl Server {
 
     fn tick_loop(&self) {
         let mut last_save = Instant::now();
+        let mut last_time = Instant::now();
         while !self.stop.load(Ordering::SeqCst) {
             std::thread::sleep(Duration::from_millis(50));
             {
@@ -214,6 +242,11 @@ impl Server {
                         let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Poses(list))));
                     }
                 }
+            }
+            if last_time.elapsed() > Duration::from_secs(10) {
+                last_time = Instant::now();
+                let st = self.state.lock().unwrap();
+                self.broadcast(&st, &st.time_msg(), None);
             }
             if last_save.elapsed() > Duration::from_secs(10) {
                 last_save = Instant::now();
@@ -383,6 +416,8 @@ impl Server {
     ) -> Result<(), String> {
         send(ws, &welcome)?;
         send(ws, &ServerMsg::World { data: world_data })?;
+        let time = self.state.lock().unwrap().time_msg();
+        send(ws, &time)?;
         ws.get_mut()
             .set_read_timeout(Some(Duration::from_millis(15)))
             .ok();
@@ -441,7 +476,9 @@ impl Server {
                                 .filter(|c| !c.is_control())
                                 .take(proto::MAX_CHAT)
                                 .collect();
-                            if chats <= 5 && !text.trim().is_empty() {
+                            if chats <= 5 && text.trim_start().starts_with('/') {
+                                self.command(id, text.trim());
+                            } else if chats <= 5 && !text.trim().is_empty() {
                                 let st = self.state.lock().unwrap();
                                 let from = st
                                     .players
@@ -495,4 +532,86 @@ impl Server {
 fn send(ws: &mut WebSocket<TcpStream>, msg: &ServerMsg) -> Result<(), String> {
     ws.send(Message::Binary(proto::encode(msg).into()))
         .map_err(|e| format!("send: {e}"))
+}
+
+impl Server {
+    fn command(&self, id: PlayerId, line: &str) {
+        let mut st = self.state.lock().unwrap();
+        let me = st
+            .players
+            .get(&id)
+            .map(|p| p.name.clone())
+            .unwrap_or_default();
+        let mut parts = line.split_whitespace();
+        let cmd = parts.next().unwrap_or("").to_ascii_lowercase();
+        let arg = parts.collect::<Vec<_>>().join(" ");
+        log(format!("{me} ran {line}"));
+        match cmd.as_str() {
+            "/help" => st.tell(
+                id,
+                "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who",
+            ),
+            "/who" => {
+                let names: Vec<String> = st.players.values().map(|p| p.name.clone()).collect();
+                st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
+            }
+            "/spawn" => {
+                let pos = st.world.spawn();
+                if let Some(p) = st.players.get(&id) {
+                    let _ =
+                        p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
+                }
+            }
+            "/tp" => {
+                let lower = arg.to_lowercase();
+                let target = st
+                    .players
+                    .iter()
+                    .filter(|(pid, _)| **pid != id)
+                    .map(|(_, p)| p)
+                    .find(|p| p.name.to_lowercase() == lower)
+                    .or_else(|| {
+                        st.players.values().find(|p| {
+                            !lower.is_empty() && p.name.to_lowercase().starts_with(&lower)
+                        })
+                    })
+                    .map(|p| (p.name.clone(), p.pose.pos));
+                match target {
+                    Some((name, pos)) => {
+                        if let Some(p) = st.players.get(&id) {
+                            let _ =
+                                p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
+                        }
+                        st.tell(id, format!("Teleported to {name}"));
+                    }
+                    None => st.tell(id, format!("No player called '{arg}'. Try /who")),
+                }
+            }
+            "/time" => {
+                let t = match arg.as_str() {
+                    "day" | "morning" => Some(0.05),
+                    "noon" => Some(0.25),
+                    "sunset" | "dusk" | "evening" => Some(0.47),
+                    "night" => Some(0.58),
+                    "midnight" => Some(0.75),
+                    "sunrise" | "dawn" => Some(0.97),
+                    other => other
+                        .parse::<f32>()
+                        .ok()
+                        .filter(|v| (0.0..=1.0).contains(v)),
+                };
+                match t {
+                    Some(t) => {
+                        st.time_at_base = t;
+                        st.time_base = Instant::now();
+                        let msg = st.time_msg();
+                        self.broadcast(&st, &msg, None);
+                        self.broadcast(&st, &ServerMsg::System { text: format!("{me} set the time to {arg}") }, None);
+                    }
+                    None => st.tell(id, "Usage: /time day|noon|sunset|night|midnight|sunrise, or a number from 0 to 1"),
+                }
+            }
+            _ => st.tell(id, "Unknown command. Try /help"),
+        }
+    }
 }

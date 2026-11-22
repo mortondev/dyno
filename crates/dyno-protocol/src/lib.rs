@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// Default TCP port of the game server.
 pub const DEFAULT_PORT: u16 = 7400;
@@ -89,6 +89,16 @@ pub enum ServerMsg {
     },
     System {
         text: String,
+    },
+    /// Time of day: 0.0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight.
+    /// `day_seconds` is the length of one full day.
+    Time {
+        time: f32,
+        day_seconds: f32,
+    },
+    /// Move the player (from /tp and /spawn).
+    Teleport {
+        pos: [f32; 3],
     },
 }
 

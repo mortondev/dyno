@@ -22,31 +22,135 @@ pub const BRICK: BlockId = 10;
 pub const SNOW: BlockId = 11;
 pub const COBBLE: BlockId = 12;
 pub const WATER: BlockId = 13;
+pub const LANTERN: BlockId = 14;
+pub const GLOWSHROOM: BlockId = 33;
 
-/// Number of block IDs in use. IDs at or above this are rejected.
-pub const BLOCK_COUNT: BlockId = 14;
+/// How a block sounds when it is broken, placed or walked on.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Material {
+    Stone,
+    Earth,
+    Wood,
+    Foliage,
+    Glass,
+    Cloth,
+    Water,
+}
 
-/// Names of the block IDs, in ID order.
-pub const BLOCK_NAMES: [&str; BLOCK_COUNT as usize] = [
-    "Air",
-    "Grass",
-    "Dirt",
-    "Stone",
-    "Sand",
-    "Log",
-    "Leaves",
-    "Planks",
-    "Glass",
-    "Emberstone",
-    "Brick",
-    "Snow",
-    "Cobble",
-    "Water",
+/// Static data of one block type. The client draws from this; the server checks IDs against it.
+#[derive(Clone, Copy, Debug)]
+pub struct BlockDef {
+    pub name: &'static str,
+    /// sRGB colour
+    pub color: [f32; 3],
+    /// 1.0 for opaque blocks, lower for glass and water
+    pub alpha: f32,
+    /// Light level 0..=15 that the block gives off
+    pub emission: u8,
+    pub material: Material,
+}
+
+const fn def(name: &'static str, color: [f32; 3], material: Material) -> BlockDef {
+    BlockDef {
+        name,
+        color,
+        alpha: 1.0,
+        emission: 0,
+        material,
+    }
+}
+
+use Material::*;
+
+/// All block types, indexed by block ID.
+pub const BLOCKS: &[BlockDef] = &[
+    def("Air", [0.0, 0.0, 0.0], Stone),
+    def("Grass", [0.42, 0.66, 0.29], Earth),
+    def("Dirt", [0.53, 0.38, 0.26], Earth),
+    def("Stone", [0.52, 0.53, 0.56], Stone),
+    def("Sand", [0.86, 0.81, 0.62], Earth),
+    def("Log", [0.42, 0.31, 0.19], Wood),
+    def("Leaves", [0.25, 0.50, 0.21], Foliage),
+    def("Planks", [0.72, 0.56, 0.35], Wood),
+    BlockDef {
+        name: "Glass",
+        color: [0.78, 0.90, 0.96],
+        alpha: 0.35,
+        emission: 0,
+        material: Glass,
+    },
+    BlockDef {
+        name: "Emberstone",
+        color: [1.0, 0.55, 0.22],
+        alpha: 1.0,
+        emission: 11,
+        material: Stone,
+    },
+    def("Brick", [0.66, 0.30, 0.24], Stone),
+    def("Snow", [0.94, 0.96, 0.98], Earth),
+    def("Cobble", [0.44, 0.45, 0.47], Stone),
+    BlockDef {
+        name: "Water",
+        color: [0.20, 0.42, 0.78],
+        alpha: 0.62,
+        emission: 0,
+        material: Water,
+    },
+    BlockDef {
+        name: "Lantern",
+        color: [1.0, 0.86, 0.55],
+        alpha: 1.0,
+        emission: 15,
+        material: Glass,
+    },
+    def("Basalt", [0.20, 0.20, 0.23], Stone),
+    def("Marble", [0.90, 0.89, 0.86], Stone),
+    def("Clay", [0.62, 0.64, 0.70], Earth),
+    def("Terracotta", [0.70, 0.42, 0.30], Stone),
+    def("Mossy cobble", [0.38, 0.47, 0.35], Stone),
+    def("Dark planks", [0.36, 0.25, 0.16], Wood),
+    def("Birch planks", [0.85, 0.76, 0.55], Wood),
+    BlockDef {
+        name: "Ice",
+        color: [0.62, 0.80, 0.96],
+        alpha: 0.7,
+        emission: 0,
+        material: Glass,
+    },
+    def("White", [0.93, 0.93, 0.93], Cloth),
+    def("Black", [0.12, 0.12, 0.14], Cloth),
+    def("Red", [0.78, 0.18, 0.17], Cloth),
+    def("Orange", [0.93, 0.50, 0.12], Cloth),
+    def("Yellow", [0.96, 0.82, 0.20], Cloth),
+    def("Lime", [0.50, 0.80, 0.18], Cloth),
+    def("Cyan", [0.15, 0.62, 0.68], Cloth),
+    def("Blue", [0.20, 0.30, 0.72], Cloth),
+    def("Purple", [0.50, 0.24, 0.68], Cloth),
+    def("Pink", [0.93, 0.56, 0.68], Cloth),
+    BlockDef {
+        name: "Glowshroom",
+        color: [0.45, 0.95, 0.85],
+        alpha: 1.0,
+        emission: 13,
+        material: Foliage,
+    },
 ];
 
-/// Blocks a player can place, in hotbar order.
-pub const PLACEABLE: [BlockId; 12] = [
-    GRASS, DIRT, STONE, COBBLE, PLANKS, LOG, LEAVES, GLASS, BRICK, SAND, SNOW, EMBERSTONE,
+/// Number of block IDs in use. IDs at or above this are rejected.
+pub const BLOCK_COUNT: BlockId = BLOCKS.len() as BlockId;
+
+pub fn block(b: BlockId) -> &'static BlockDef {
+    BLOCKS.get(b as usize).unwrap_or(&BLOCKS[0])
+}
+
+/// Blocks a player can place: every block except air and water.
+pub fn placeable() -> impl Iterator<Item = BlockId> {
+    (1..BLOCK_COUNT).filter(|b| *b != WATER)
+}
+
+/// Default hotbar.
+pub const HOTBAR: [BlockId; 9] = [
+    GRASS, STONE, COBBLE, PLANKS, LOG, GLASS, BRICK, LANTERN, EMBERSTONE,
 ];
 
 /// True for blocks that the player cannot walk through.
@@ -54,9 +158,14 @@ pub fn is_solid(b: BlockId) -> bool {
     b != AIR && b != WATER
 }
 
-/// True for blocks that hide the faces of their neighbours.
+/// True for blocks that hide the faces of their neighbours and block light.
 pub fn is_opaque(b: BlockId) -> bool {
-    !matches!(b, AIR | GLASS | LEAVES | WATER)
+    b != AIR && b != LEAVES && block(b).alpha >= 1.0
+}
+
+/// Light level a block gives off.
+pub fn emission(b: BlockId) -> u8 {
+    block(b).emission
 }
 
 const MAGIC: &[u8; 5] = b"DYNW1";
@@ -141,6 +250,10 @@ impl World {
                 }
                 for y in h + 1..=water_level {
                     w.set(x, y, z, WATER);
+                }
+                // glowing mushrooms here and there on grass
+                if h > water_level + 1 && h <= 38 && hash(x, z, seed ^ 0x9105).is_multiple_of(173) {
+                    w.set(x, h + 1, z, GLOWSHROOM);
                 }
                 // emberstone veins near the surface of stone areas
                 if hash(x, z, seed ^ 0x5eed).is_multiple_of(211) && h > water_level + 2 {

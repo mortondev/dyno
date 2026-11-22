@@ -1,6 +1,8 @@
 //! Window, input, screens (connect, joining, playing) and the HUD.
 
+use crate::audio::{Audio, Sfx};
 use crate::game::{self, Input, Player, Remote, Remotes, Target};
+use crate::light::Light;
 use crate::net::{self, Joined, NetEvent};
 use crate::render::{self, Gfx, Vertex};
 use crate::settings::Settings;
@@ -38,6 +40,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         },
         settings,
         gfx: None,
+        audio: Audio::new(),
         egui_ctx: egui::Context::default(),
         egui_state: None,
         screen: Screen::Menu,
@@ -46,7 +49,9 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         update_note,
         fatal: None,
         autojoined: false,
+        last_shot: Instant::now(),
     };
+    app.audio.volume = app.settings.volume;
     event_loop.run_app(&mut app).map_err(|e| e.to_string())?;
     if let Some(h) = app.host.take() {
         h.stop();
@@ -98,6 +103,94 @@ struct Play {
     last_pose: Instant,
     target: Option<Target>,
     fps: (Instant, u32, u32),
+    light: Light,
+    particles: Vec<Particle>,
+    /// time of day at `time_at`, and day length in seconds
+    time: f32,
+    day_seconds: f32,
+    time_at: Instant,
+    swing: f32,
+    bob: f32,
+    step_acc: f32,
+    fov_kick: f32,
+    picker_open: bool,
+    hotbar: [w::BlockId; 9],
+}
+
+struct Particle {
+    pos: Vec3,
+    vel: Vec3,
+    color: [f32; 3],
+    life: f32,
+    size: f32,
+}
+
+fn spawn_particles(out: &mut Vec<Particle>, at: [i32; 3], block: w::BlockId, n: usize, seed: u32) {
+    let color = w::block(block).color;
+    let mut r = seed.wrapping_mul(2_654_435_761) | 1;
+    let mut rnd = || {
+        r ^= r << 13;
+        r ^= r >> 17;
+        r ^= r << 5;
+        r as f32 / u32::MAX as f32
+    };
+    for _ in 0..n {
+        let pos = Vec3::new(
+            at[0] as f32 + 0.15 + rnd() * 0.7,
+            at[1] as f32 + 0.15 + rnd() * 0.7,
+            at[2] as f32 + 0.15 + rnd() * 0.7,
+        );
+        let vel = Vec3::new(rnd() - 0.5, rnd() * 0.8 + 0.4, rnd() - 0.5) * 4.0;
+        let shade = 0.8 + rnd() * 0.3;
+        out.push(Particle {
+            pos,
+            vel,
+            color: [color[0] * shade, color[1] * shade, color[2] * shade],
+            life: 0.5 + rnd() * 0.6,
+            size: 0.07 + rnd() * 0.06,
+        });
+    }
+}
+
+/// Sky, sun and light for a time of day: 0.0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight.
+pub(crate) fn sky(t: f32) -> render::Sky {
+    let a = t * std::f32::consts::TAU;
+    let e = a.sin();
+    let sun = Vec3::new(a.cos(), e, 0.3).normalize();
+    let k = ((e + 0.1) / 0.42).clamp(0.0, 1.0);
+    let k = k * k * (3.0 - 2.0 * k);
+    let g = (-(e / 0.17).powi(2)).exp();
+    let lerp = |a: [f32; 3], b: [f32; 3], t: f32| {
+        [
+            a[0] + (b[0] - a[0]) * t,
+            a[1] + (b[1] - a[1]) * t,
+            a[2] + (b[2] - a[2]) * t,
+        ]
+    };
+    let add = |a: [f32; 3], b: [f32; 3], t: f32| {
+        [
+            (a[0] + b[0] * t).min(1.0),
+            (a[1] + b[1] * t).min(1.0),
+            (a[2] + b[2] * t).min(1.0),
+        ]
+    };
+    let mut top = lerp([0.02, 0.025, 0.07], [0.30, 0.52, 0.90], k);
+    let mut horizon = lerp([0.05, 0.07, 0.14], [0.68, 0.81, 0.96], k);
+    horizon = lerp(horizon, [0.98, 0.55, 0.30], g * 0.75);
+    top = add(top, [0.22, 0.12, 0.28], g * 0.6);
+    let mut light = lerp([0.30, 0.34, 0.50], [1.0, 0.99, 0.96], k);
+    light = lerp(light, [1.0, 0.74, 0.52], g * 0.55);
+    render::Sky {
+        top,
+        horizon,
+        light,
+        sun_dir: sun.into(),
+        stars: 1.0 - k,
+    }
+}
+
+fn material_of(b: w::BlockId) -> w::Material {
+    w::block(b).material
 }
 
 struct Tunnel {
@@ -123,6 +216,7 @@ impl Host {
 }
 
 struct App {
+    audio: Audio,
     settings: Settings,
     menu: Menu,
     gfx: Option<Gfx>,
@@ -134,6 +228,7 @@ struct App {
     update_note: String,
     fatal: Option<String>,
     autojoined: bool,
+    last_shot: Instant,
 }
 
 fn lan_ip() -> Option<String> {
@@ -195,7 +290,7 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
 
 impl App {
     fn window(&self) -> Option<&Arc<Window>> {
-        self.gfx.as_ref().map(|g| &g.window)
+        self.gfx.as_ref().and_then(|g| g.window.as_ref())
     }
 
     fn set_capture(&mut self, on: bool) {
@@ -277,6 +372,16 @@ impl App {
         if let Screen::Joining { rx, .. } = &self.screen {
             match rx.try_recv() {
                 Ok(Ok(j)) => {
+                    let light = Light::new(&j.world);
+                    let hotbar = {
+                        let mut h = w::HOTBAR;
+                        for (i, b) in self.settings.hotbar.iter().take(9).enumerate() {
+                            if *b > 0 && *b < w::BLOCK_COUNT {
+                                h[i] = *b;
+                            }
+                        }
+                        h
+                    };
                     let mut p = Play {
                         player: Player::new(j.spawn),
                         remotes: j
@@ -305,12 +410,24 @@ impl App {
                         last_pose: Instant::now(),
                         target: None,
                         fps: (Instant::now(), 0, 0),
+                        light,
+                        particles: Vec::new(),
+                        time: 0.05,
+                        day_seconds: 1200.0,
+                        time_at: Instant::now(),
+                        swing: 0.0,
+                        bob: 0.0,
+                        step_acc: 0.0,
+                        fov_kick: 0.0,
+                        picker_open: false,
+                        hotbar,
                     };
-                    p.chat.push(Chat { at: Instant::now(), from: None, text: "Click to play. WASD move, Space jump, F fly, left click break, right click place, 1-9 pick block, T chat, Esc menu.".into() });
+                    p.chat.push(Chat { at: Instant::now(), from: None, text: "Click to play. WASD move, Space jump, F fly, left click break, right click place, 1-9 choose block, E all blocks, T chat, /help commands, Esc menu.".into() });
                     if let Some(g) = self.gfx.as_mut() {
-                        g.load_world(&p.world);
+                        g.load_world(&p.world, &p.light);
                     }
                     self.screen = Screen::Playing(Box::new(p));
+                    self.audio.play(Sfx::Join, 0.5);
                     self.set_capture(true);
                 }
                 Ok(Err(e)) => {
@@ -340,6 +457,7 @@ impl App {
                             }
                         }
                         ServerMsg::PlayerJoined(info) => {
+                            self.audio.play(Sfx::Join, 0.4);
                             if info.id != p.my_id {
                                 p.remotes.insert(info.id, Remote::new(info.name, info.pose));
                             }
@@ -348,23 +466,61 @@ impl App {
                             p.remotes.remove(&id);
                         }
                         ServerMsg::Block { pos, block } => {
-                            if p.world.get(pos[0], pos[1], pos[2]) != block {
+                            let old = p.world.get(pos[0], pos[1], pos[2]);
+                            if old != block {
                                 p.world.set(pos[0], pos[1], pos[2], block);
+                                p.light.changed(&p.world, pos);
+                                let r = if w::emission(old) > 0
+                                    || w::emission(block) > 0
+                                    || p.light.get(pos[0], pos[1], pos[2]) > 0
+                                {
+                                    15
+                                } else {
+                                    1
+                                };
                                 if let Some(g) = self.gfx.as_mut() {
-                                    g.block_changed(&p.world, pos);
+                                    g.block_changed(&p.world, &p.light, pos, r);
+                                }
+                                // another player changed it: show and play it, quieter with distance
+                                let d = Vec3::new(pos[0] as f32, pos[1] as f32, pos[2] as f32)
+                                    .distance(p.player.eye());
+                                let gain = (1.0 - d / 32.0).clamp(0.0, 1.0);
+                                if block == w::AIR {
+                                    spawn_particles(
+                                        &mut p.particles,
+                                        pos,
+                                        old,
+                                        10,
+                                        pos[0] as u32 ^ (pos[2] as u32) << 8,
+                                    );
+                                    self.audio.play(Sfx::Break(material_of(old)), gain);
+                                } else {
+                                    self.audio.play(Sfx::Place(material_of(block)), gain);
                                 }
                             }
                         }
-                        ServerMsg::Chat { from, text } => p.chat.push(Chat {
-                            at: Instant::now(),
-                            from: Some(from),
-                            text,
-                        }),
+                        ServerMsg::Chat { from, text } => {
+                            self.audio.play(Sfx::Chat, 0.6);
+                            p.chat.push(Chat {
+                                at: Instant::now(),
+                                from: Some(from),
+                                text,
+                            })
+                        }
                         ServerMsg::System { text } => p.chat.push(Chat {
                             at: Instant::now(),
                             from: None,
                             text,
                         }),
+                        ServerMsg::Time { time, day_seconds } => {
+                            p.time = time;
+                            p.day_seconds = day_seconds.max(10.0);
+                            p.time_at = Instant::now();
+                        }
+                        ServerMsg::Teleport { pos } => {
+                            p.player.pos = Vec3::from(pos);
+                            p.player.vel = Vec3::ZERO;
+                        }
                         ServerMsg::Reject { reason } => closed = Some(reason),
                         _ => {}
                     },
@@ -405,13 +561,28 @@ impl App {
         let fov = self.settings.fov_degrees;
         let far = self.settings.view_distance;
 
+        // DYNO_SCREENSHOT=path saves the view every 3 seconds while playing (scripted tests, agents)
+        if let (Screen::Playing(_), Some(path)) =
+            (&self.screen, std::env::var_os("DYNO_SCREENSHOT"))
+            && self.last_shot.elapsed() > Duration::from_secs(3)
+        {
+            self.last_shot = Instant::now();
+            gfx.screenshot = Some(path.into());
+        }
+        // time of day (also drawn behind the menu)
+        let sky_now = match &self.screen {
+            Screen::Playing(p) => sky(p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds),
+            _ => sky(0.12),
+        };
+
         // simulate
         let mut view = None;
         let mut boxes: Vec<Vertex> = Vec::new();
         let mut lines: Vec<Vertex> = Vec::new();
         if let Screen::Playing(p) = &mut self.screen {
             let k = |c: KeyCode| p.keys.contains(&c);
-            let input = if p.captured && !p.chat_open && !p.menu_open {
+            let active = p.captured && !p.chat_open && !p.menu_open && !p.picker_open;
+            let input = if active {
                 Input {
                     forward: (k(KeyCode::KeyW) as i32 - k(KeyCode::KeyS) as i32) as f32,
                     right: (k(KeyCode::KeyD) as i32 - k(KeyCode::KeyA) as i32) as f32,
@@ -422,29 +593,86 @@ impl App {
             } else {
                 Input::default()
             };
+            let before = p.player.pos;
             p.player.update(&p.world, input, dt);
+            // footsteps, view bob and sprint field-of-view kick
+            let moved =
+                Vec3::new(p.player.pos.x - before.x, 0.0, p.player.pos.z - before.z).length();
+            if p.player.on_ground && !p.player.flying {
+                p.bob += moved * 2.1;
+                p.step_acc += moved;
+                if p.step_acc > 2.0 {
+                    p.step_acc = 0.0;
+                    let below = p.world.get(
+                        p.player.pos.x.floor() as i32,
+                        (p.player.pos.y - 0.2).floor() as i32,
+                        p.player.pos.z.floor() as i32,
+                    );
+                    if below != w::AIR {
+                        self.audio.play(Sfx::Step(material_of(below)), 0.5);
+                    }
+                }
+            }
+            let speed = moved / dt.max(1e-4);
+            let kick_target = if input.sprint && speed > 4.0 {
+                8.0
+            } else {
+                0.0
+            };
+            p.fov_kick += (kick_target - p.fov_kick) * (dt * 8.0).min(1.0);
+            p.swing = (p.swing - dt * 4.0).max(0.0);
             if p.last_pose.elapsed() >= Duration::from_millis(50) {
                 p.last_pose = Instant::now();
                 let _ = p.conn.tx.send(ClientMsg::Pose(p.player.pose()));
             }
             p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+            let light_at = |l: &Light, v: Vec3| {
+                l.get(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32) as f32 / 15.0
+            };
             for (id, r) in &p.remotes {
                 let pose = r.current();
                 let base = Vec3::from(pose.pos);
                 let c = game::player_color(*id);
+                let bl = light_at(&p.light, base + Vec3::Y);
                 render::push_box(
                     &mut boxes,
                     base + Vec3::new(-0.3, 0.0, -0.3),
                     base + Vec3::new(0.3, 1.35, 0.3),
                     c,
+                    bl,
                 );
                 render::push_box(
                     &mut boxes,
                     base + Vec3::new(-0.25, 1.35, -0.25),
                     base + Vec3::new(0.25, 1.85, 0.25),
                     [0.91, 0.76, 0.62],
+                    bl,
                 );
             }
+            // particles
+            for pt in &mut p.particles {
+                pt.vel.y -= 18.0 * dt;
+                let next = pt.pos + pt.vel * dt;
+                if w::is_solid(p.world.get(
+                    next.x.floor() as i32,
+                    next.y.floor() as i32,
+                    next.z.floor() as i32,
+                )) {
+                    pt.vel *= -0.25;
+                } else {
+                    pt.pos = next;
+                }
+                pt.life -= dt;
+                let s = pt.size * (pt.life * 2.0).clamp(0.0, 1.0);
+                render::push_box(
+                    &mut boxes,
+                    pt.pos - Vec3::splat(s),
+                    pt.pos + Vec3::splat(s),
+                    pt.color,
+                    light_at(&p.light, pt.pos),
+                );
+            }
+            p.particles.retain(|pt| pt.life > 0.0);
             if let Some(t) = &p.target {
                 let b = Vec3::new(t.block[0] as f32, t.block[1] as f32, t.block[2] as f32);
                 let (lo, hi) = (b - Vec3::splat(0.002), b + Vec3::splat(1.002));
@@ -458,6 +686,11 @@ impl App {
                     Vec3::new(hi.x, hi.y, hi.z),
                     Vec3::new(lo.x, hi.y, hi.z),
                 ];
+                let edge = if sky_now.stars > 0.6 {
+                    [0.9, 0.9, 0.9, 0.7]
+                } else {
+                    [0.02, 0.02, 0.02, 0.75]
+                };
                 for (a, b) in [
                     (0, 1),
                     (1, 2),
@@ -476,13 +709,48 @@ impl App {
                         lines.push(Vertex {
                             pos: cs[i].into(),
                             normal: [0.0; 3],
-                            color: [0.02, 0.02, 0.02, 0.75],
+                            color: edge,
+                            light: 1.0,
                         });
                     }
                 }
             }
-            let vp = p.player.view_proj(wdt / hgt, fov, far);
-            view = Some((vp, p.player.eye(), far));
+            // camera with view bob
+            let dir = p.player.look_dir();
+            let right = dir.cross(Vec3::Y).normalize_or_zero();
+            let up = right.cross(dir);
+            let bob_amt = if p.player.on_ground && !p.player.flying {
+                (speed / 6.0).min(1.0)
+            } else {
+                0.0
+            };
+            let eye = p.player.eye()
+                + Vec3::Y * (p.bob.sin().abs() * 0.06 * bob_amt)
+                + right * ((p.bob * 0.5).sin() * 0.03 * bob_amt);
+            let proj = glam::Mat4::perspective_rh(
+                (fov + p.fov_kick).to_radians(),
+                wdt / hgt.max(1.0),
+                0.05,
+                far,
+            );
+            let vp = proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+            // block in hand, with a swing when breaking or placing
+            let sw = (p.swing * std::f32::consts::PI).sin();
+            let held = p.hotbar[p.slot];
+            let hand = eye + dir * (0.62 - sw * 0.12) + right * (0.36 - sw * 0.08)
+                - up * (0.34 + sw * 0.1 - (p.bob * 0.5).cos().abs() * 0.015 * bob_amt);
+            let (s1, c1) = (0.6f32 - sw * 0.8).sin_cos();
+            let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];
+            render::push_oriented_box(
+                &mut boxes,
+                hand,
+                ax,
+                0.11,
+                w::block(held).color,
+                w::emission(held) > 0,
+                light_at(&p.light, eye),
+            );
+            view = Some((vp, eye, far));
             p.fps.1 += 1;
             if p.fps.0.elapsed() >= Duration::from_secs(1) {
                 p.fps = (Instant::now(), 0, p.fps.1);
@@ -493,7 +761,9 @@ impl App {
         let Some(state) = self.egui_state.as_mut() else {
             return;
         };
-        let window = gfx.window.clone();
+        let Some(window) = gfx.window.clone() else {
+            return;
+        };
         let raw = state.take_egui_input(&window);
         let ctx = self.egui_ctx.clone();
         let mut actions = Vec::new();
@@ -510,7 +780,7 @@ impl App {
             );
         });
         state.handle_platform_output(&window, out.platform_output.clone());
-        gfx.frame(view, &boxes, &lines, &ctx, out);
+        gfx.frame(view, &sky_now, &boxes, &lines, &ctx, out);
         for a in actions {
             self.act(a);
         }
@@ -518,6 +788,10 @@ impl App {
 
     fn act(&mut self, a: Action) {
         match a {
+            Action::SaveHotbar(h) => {
+                self.settings.hotbar = h;
+                let _ = self.settings.save();
+            }
             Action::Join(addr) => match proto::server_url(&addr) {
                 Ok(_) => self.start_join(addr, true),
                 Err(e) => self.menu.error = Some(e),
@@ -558,7 +832,7 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
-        if p.chat_open || p.menu_open {
+        if p.chat_open || p.menu_open || p.picker_open {
             return;
         }
         if pressed {
@@ -586,6 +860,10 @@ impl App {
                 p.player.flying = !p.player.flying;
                 p.player.vel.y = 0.0;
             }
+            KeyCode::KeyE => {
+                p.picker_open = true;
+                self.set_capture(false);
+            }
             _ => {
                 let digits = [
                     KeyCode::Digit1,
@@ -597,9 +875,6 @@ impl App {
                     KeyCode::Digit7,
                     KeyCode::Digit8,
                     KeyCode::Digit9,
-                    KeyCode::Digit0,
-                    KeyCode::Minus,
-                    KeyCode::Equal,
                 ];
                 if let Some(i) = digits.iter().position(|d| *d == code) {
                     p.slot = i;
@@ -613,34 +888,68 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
-        if !p.captured || p.menu_open || p.chat_open {
+        if !p.captured || p.menu_open || p.chat_open || p.picker_open {
             return;
         }
+        p.swing = 1.0;
         let Some(t) = &p.target else { return };
         match button {
             MouseButton::Left => {
                 let pos = t.block;
+                let old = p.world.get(pos[0], pos[1], pos[2]);
                 p.world.set(pos[0], pos[1], pos[2], w::AIR);
-                gfx.block_changed(&p.world, pos);
+                p.light.changed(&p.world, pos);
+                let r = if w::emission(old) > 0 || p.light.get(pos[0], pos[1], pos[2]) > 0 {
+                    15
+                } else {
+                    1
+                };
+                gfx.block_changed(&p.world, &p.light, pos, r);
+                spawn_particles(
+                    &mut p.particles,
+                    pos,
+                    old,
+                    14,
+                    (pos[0] * 31 + pos[1] * 7 + pos[2]) as u32,
+                );
+                self.audio.play(Sfx::Break(material_of(old)), 0.9);
                 let _ = p.conn.tx.send(ClientMsg::SetBlock { pos, block: w::AIR });
             }
             MouseButton::Right => {
                 let pos = t.place;
-                let block = w::PLACEABLE[p.slot];
+                let block = p.hotbar[p.slot];
                 let here = p.world.get(pos[0], pos[1], pos[2]);
                 if (here == w::AIR || here == w::WATER)
                     && p.world.in_bounds(pos)
                     && !p.player.overlaps_block(pos)
                 {
                     p.world.set(pos[0], pos[1], pos[2], block);
-                    gfx.block_changed(&p.world, pos);
+                    p.light.changed(&p.world, pos);
+                    let r = if w::emission(block) > 0
+                        || p.light.get(pos[0] + 1, pos[1], pos[2]).max(p.light.get(
+                            pos[0],
+                            pos[1] + 1,
+                            pos[2],
+                        )) > 0
+                    {
+                        15
+                    } else {
+                        1
+                    };
+                    gfx.block_changed(&p.world, &p.light, pos, r);
+                    self.audio.play(Sfx::Place(material_of(block)), 0.9);
                     let _ = p.conn.tx.send(ClientMsg::SetBlock { pos, block });
                 }
             }
             MouseButton::Middle => {
                 let b = p.world.get(t.block[0], t.block[1], t.block[2]);
-                if let Some(i) = w::PLACEABLE.iter().position(|x| *x == b) {
-                    p.slot = i;
+                if b != w::AIR && b != w::WATER {
+                    if let Some(i) = p.hotbar.iter().position(|x| *x == b) {
+                        p.slot = i;
+                    } else {
+                        p.hotbar[p.slot] = b;
+                    }
+                    self.audio.play(Sfx::Click, 0.6);
                 }
             }
             _ => {}
@@ -649,6 +958,7 @@ impl App {
 }
 
 enum Action {
+    SaveHotbar(Vec<u8>),
     Join(String),
     Host,
     StopHost,
@@ -659,6 +969,49 @@ enum Action {
     Capture,
     #[allow(dead_code)]
     Quit,
+}
+
+/// Draw a small isometric cube for a block in the UI.
+fn block_icon(painter: &egui::Painter, r: Rect, b: w::BlockId) {
+    let (rgb, _) = render::block_color(b);
+    let col = |k: f32| {
+        Color32::from_rgb(
+            (rgb[0] * k * 255.0).min(255.0) as u8,
+            (rgb[1] * k * 255.0).min(255.0) as u8,
+            (rgb[2] * k * 255.0).min(255.0) as u8,
+        )
+    };
+    let c = r.center();
+    let s = r.width() * 0.5;
+    let top = Pos2::new(c.x, c.y - s);
+    let left = Pos2::new(c.x - s * 0.87, c.y - s * 0.5);
+    let right = Pos2::new(c.x + s * 0.87, c.y - s * 0.5);
+    let mid = Pos2::new(c.x, c.y);
+    let bl = Pos2::new(c.x - s * 0.87, c.y + s * 0.5);
+    let br = Pos2::new(c.x + s * 0.87, c.y + s * 0.5);
+    let bot = Pos2::new(c.x, c.y + s);
+    painter.add(egui::Shape::convex_polygon(
+        vec![top, right, mid, left],
+        col(1.0),
+        Stroke::NONE,
+    ));
+    painter.add(egui::Shape::convex_polygon(
+        vec![left, mid, bot, bl],
+        col(0.78),
+        Stroke::NONE,
+    ));
+    painter.add(egui::Shape::convex_polygon(
+        vec![mid, right, br, bot],
+        col(0.62),
+        Stroke::NONE,
+    ));
+    if w::emission(b) > 0 {
+        painter.circle_stroke(
+            c,
+            s * 1.05,
+            Stroke::new(1.5_f32, col(1.0).gamma_multiply(0.5)),
+        );
+    }
 }
 
 fn host_panel(ui: &mut egui::Ui, host: &mut Option<Host>, actions: &mut Vec<Action>) {
@@ -887,8 +1240,8 @@ fn hud(
         );
     }
     // hotbar
-    let n = w::PLACEABLE.len();
-    let slot = 44.0;
+    let n = p.hotbar.len();
+    let slot = 46.0;
     let total = n as f32 * (slot + 4.0);
     let start = Pos2::new(c.x - total / 2.0, screen.bottom() - slot - 14.0);
     painter.rect_filled(
@@ -899,29 +1252,22 @@ fn hud(
         8.0,
         Color32::from_black_alpha(130),
     );
-    for (i, b) in w::PLACEABLE.iter().enumerate() {
+    for (i, b) in p.hotbar.iter().enumerate() {
         let r = Rect::from_min_size(
             start + Vec2::new(i as f32 * (slot + 4.0), 0.0),
             Vec2::splat(slot),
         );
-        let (rgb, _) = render::block_color(*b);
-        let col = Color32::from_rgb(
-            (rgb[0] * 255.0) as u8,
-            (rgb[1] * 255.0) as u8,
-            (rgb[2] * 255.0) as u8,
-        );
-        painter.rect_filled(r.shrink(8.0), 3.0, col);
+        block_icon(&painter, r.shrink(7.0), *b);
         let stroke = if i == p.slot {
             Stroke::new(2.5_f32, ACCENT)
         } else {
             Stroke::new(1.0_f32, Color32::from_white_alpha(60))
         };
         painter.rect_stroke(r, 5.0, stroke, egui::StrokeKind::Inside);
-        let key = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="][i];
         painter.text(
             r.left_top() + Vec2::new(4.0, 2.0),
             Align2::LEFT_TOP,
-            key,
+            format!("{}", i + 1),
             FontId::monospace(10.0),
             Color32::from_white_alpha(170),
         );
@@ -929,10 +1275,57 @@ fn hud(
     painter.text(
         Pos2::new(c.x, start.y - 12.0),
         Align2::CENTER_BOTTOM,
-        w::BLOCK_NAMES[w::PLACEABLE[p.slot] as usize],
+        w::block(p.hotbar[p.slot]).name,
         FontId::proportional(15.0),
         Color32::WHITE,
     );
+    // block picker
+    if p.picker_open {
+        egui::Window::new("Blocks")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new(format!(
+                        "Choose a block for slot {}. E or Esc to close.",
+                        p.slot + 1
+                    ))
+                    .weak(),
+                );
+                ui.add_space(4.0);
+                egui::Grid::new("pick").spacing([6.0, 6.0]).show(ui, |ui| {
+                    for (i, b) in w::placeable().enumerate() {
+                        let (r, resp) =
+                            ui.allocate_exact_size(Vec2::splat(54.0), egui::Sense::click());
+                        let hl = resp.hovered() || p.hotbar[p.slot] == b;
+                        ui.painter().rect_filled(
+                            r,
+                            6.0,
+                            if hl {
+                                Color32::from_white_alpha(30)
+                            } else {
+                                Color32::from_black_alpha(80)
+                            },
+                        );
+                        block_icon(ui.painter(), r.shrink(9.0), b);
+                        let resp = resp.on_hover_text(w::block(b).name);
+                        if resp.clicked() {
+                            p.hotbar[p.slot] = b;
+                            actions.push(Action::SaveHotbar(p.hotbar.to_vec()));
+                        }
+                        if (i + 1) % 9 == 0 {
+                            ui.end_row();
+                        }
+                    }
+                });
+                if ui.input(|i| i.key_pressed(egui::Key::E) || i.key_pressed(egui::Key::Escape)) {
+                    p.picker_open = false;
+                    actions.push(Action::SaveHotbar(p.hotbar.to_vec()));
+                    actions.push(Action::Capture);
+                }
+            });
+    }
     // chat
     let chat_bottom = start.y - 40.0;
     let visible: Vec<&Chat> = p
@@ -1012,7 +1405,7 @@ fn hud(
             host_panel(ui, host, actions);
             ui.add_space(6.0);
             ui.label(RichText::new(format!("Connected to {}", p.url)).small().weak());
-            ui.label(RichText::new("Controls: WASD move · Space jump · Shift down when flying · Ctrl or R sprint · F fly · left click break · right click place · middle click pick · 1-9, 0, -, = blocks · T chat · Tab players").small().weak());
+            ui.label(RichText::new("Controls: WASD move · Space jump · Shift down when flying · Ctrl or R sprint · F fly · left click break · right click place · middle click pick · 1-9 or wheel blocks · E all blocks · T chat · Tab players").small().weak());
             if ui.button("Leave server").clicked() {
                 actions.push(Action::Disconnect);
             }
@@ -1082,8 +1475,9 @@ impl ApplicationHandler for App {
                         | WindowEvent::ScaleFactorChanged { .. }
                         | WindowEvent::Focused(_)
                 ))
+            && let Some(win) = &g.window
         {
-            let _ = state.on_window_event(&g.window, &event);
+            let _ = state.on_window_event(win, &event);
         }
         match event {
             WindowEvent::CloseRequested => el.exit(),
@@ -1132,7 +1526,7 @@ impl ApplicationHandler for App {
                         MouseScrollDelta::LineDelta(_, y) => y,
                         MouseScrollDelta::PixelDelta(p) => (p.y / 40.0) as f32,
                     };
-                    let n = w::PLACEABLE.len() as i32;
+                    let n = 9;
                     if d.abs() > 0.1 {
                         p.slot = ((p.slot as i32 - d.signum() as i32).rem_euclid(n)) as usize;
                     }

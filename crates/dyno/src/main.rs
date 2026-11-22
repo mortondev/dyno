@@ -11,6 +11,9 @@ USAGE:
   dyno connect <address>       Open the game with the server address filled in
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
                                Run a dedicated game server
+  dyno say <address> <text>    Join, send chat or a /command, print replies, leave
+  dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out f.ppm]
+                               Join, render one frame off-screen to an image, leave
   dyno update                  Check for a new release and install it
   dyno version                 Print version, target and protocol
   dyno verify-manifest <manifest.json> <manifest.json.sig>
@@ -56,6 +59,85 @@ fn main() {
                         j.motd
                     );
                 }
+                Err(e) => {
+                    eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "say" => {
+            let (Some(addr), Some(text)) = (args.get(1), args.get(2)) else {
+                eprintln!("usage: dyno say <address> <text or /command> [name]");
+                std::process::exit(2);
+            };
+            let name = args.get(3).map(String::as_str).unwrap_or("console");
+            match dyno_client::net::connect(addr, name, Duration::from_secs(10)) {
+                Ok(j) => {
+                    let _ = j
+                        .conn
+                        .tx
+                        .send(dyno_protocol::ClientMsg::Chat { text: text.clone() });
+                    let until = std::time::Instant::now() + Duration::from_millis(800);
+                    while std::time::Instant::now() < until {
+                        if let Ok(dyno_client::net::NetEvent::Msg(
+                            dyno_protocol::ServerMsg::System { text },
+                        )) = j.conn.rx.recv_timeout(Duration::from_millis(100))
+                        {
+                            println!("{text}");
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "shot" => {
+            let Some(addr) = args.get(1) else {
+                eprintln!(
+                    "usage: dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out file.ppm]"
+                );
+                std::process::exit(2);
+            };
+            let mut o = dyno_client::shot::ShotOptions {
+                addr: addr.clone(),
+                name: "camera".into(),
+                pos: None,
+                yaw: 0.0,
+                pitch: -0.15,
+                time: None,
+                width: 1280,
+                height: 720,
+                out: "shot.ppm".into(),
+            };
+            let nums = |v: &str| -> Vec<f32> {
+                v.split(',').filter_map(|x| x.trim().parse().ok()).collect()
+            };
+            let mut i = 2;
+            while i < args.len() {
+                let v = args.get(i + 1).cloned().unwrap_or_default();
+                match args[i].as_str() {
+                    "--pos" => o.pos = nums(&v).try_into().ok(),
+                    "--look" => {
+                        let n = nums(&v);
+                        o.yaw = n.first().copied().unwrap_or(0.0);
+                        o.pitch = n.get(1).copied().unwrap_or(0.0);
+                    }
+                    "--time" => o.time = v.parse().ok(),
+                    "--size" => {
+                        let mut it = v.split('x').filter_map(|x| x.parse().ok());
+                        o.width = it.next().unwrap_or(1280);
+                        o.height = it.next().unwrap_or(720);
+                    }
+                    "--out" => o.out = v.into(),
+                    "--name" => o.name = v,
+                    other => fail(&format!("unknown shot option {other}")),
+                }
+                i += 2;
+            }
+            match dyno_client::shot::shot(o) {
+                Ok(msg) => println!("{msg}"),
                 Err(e) => {
                     eprintln!("FAILED: {e}");
                     std::process::exit(1);

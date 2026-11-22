@@ -36,8 +36,10 @@ The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host nam
 | Left click | Break block |
 | Right click | Place block |
 | Middle click | Pick the block you look at |
-| 1 to 9, 0, -, =, mouse wheel | Choose a block |
+| 1 to 9, mouse wheel | Choose a hotbar slot |
+| E | All blocks: pick one for the current slot |
 | T or Enter | Chat |
+| / | Chat command: `/help`, `/tp <player>`, `/spawn`, `/time night` |
 | Tab | Player list |
 | Esc | Menu |
 
@@ -68,11 +70,20 @@ dyno                     Open the game
 dyno connect <address>   Open the game with the address filled in
 dyno server [options]    Run a dedicated server
 dyno ping <address>      Join, print server information, leave (for tests and agents)
+dyno say <address> <text>  Join, send chat or a /command, print replies, leave
+dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out f.ppm]
+                         Join, render one frame off-screen to an image, leave
 dyno update              Check for a new release and install it
 dyno version             Print the version
 ```
 
-`DYNO_AUTOJOIN=1 dyno connect <address>` joins without a click, and `DYNO_AUTOJOIN=host dyno` hosts and joins. Both are for scripted tests and agents.
+`DYNO_AUTOJOIN=1 dyno connect <address>` joins without a click, and `DYNO_AUTOJOIN=host dyno` hosts and joins. `DYNO_SCREENSHOT=file.ppm` saves the view every 3 seconds while playing. These are for scripted tests and AI agents.
+
+## What is in the world
+
+- A shared day and night cycle (20 minutes). Sunsets, stars, and a dark night where glowing blocks matter.
+- 33 blocks: natural blocks, building blocks, 10 colours, glass, ice, and light sources (Lantern, Emberstone, Glowshroom) that light up their surroundings.
+- Sounds for breaking, placing and footsteps, and particles when blocks break. All sounds are generated in code.
 
 ## Where this build differs from the spec
 

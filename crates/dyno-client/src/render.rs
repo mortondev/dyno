@@ -1,6 +1,7 @@
 //! wgpu renderer: voxel sections with ambient occlusion, fog, a block highlight
 //! and simple boxes for other players.
 
+use crate::light::Light;
 use bytemuck::{Pod, Zeroable};
 use dyno_world::{self as w, BlockId, World};
 use egui_wgpu::wgpu;
@@ -18,26 +19,46 @@ pub struct Vertex {
     pub normal: [f32; 3],
     /// rgb and a brightness multiplier (ambient occlusion and face shade)
     pub color: [f32; 4],
+    /// block light 0..1
+    pub light: f32,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct Uniforms {
     view_proj: [[f32; 4]; 4],
+    inv_view_proj: [[f32; 4]; 4],
     cam: [f32; 4],
     fog: [f32; 4],
+    sky_top: [f32; 4],
+    light: [f32; 4],
+    sun: [f32; 4],
+}
+
+/// Sky and light state for one frame. Colours are sRGB.
+#[derive(Clone, Copy, Debug)]
+pub struct Sky {
+    pub top: [f32; 3],
+    pub horizon: [f32; 3],
+    /// colour and strength of daylight or moonlight on blocks
+    pub light: [f32; 3],
+    /// direction towards the sun
+    pub sun_dir: [f32; 3],
+    /// 0 by day, 1 at night
+    pub stars: f32,
 }
 
 const SHADER: &str = r#"
-struct U { view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32> };
+struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32> };
 @group(0) @binding(0) var<uniform> u: U;
 
-struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32> };
+struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32>, @location(3) light: f32 };
 struct VOut {
   @builtin(position) clip: vec4<f32>,
   @location(0) wpos: vec3<f32>,
   @location(1) normal: vec3<f32>,
   @location(2) color: vec4<f32>,
+  @location(3) light: f32,
 };
 
 @vertex fn vs(v: VIn) -> VOut {
@@ -46,6 +67,7 @@ struct VOut {
   o.wpos = v.pos;
   o.normal = v.normal;
   o.color = v.color;
+  o.light = v.light;
   return o;
 }
 
@@ -57,17 +79,53 @@ fn hash3(p: vec3<f32>) -> f32 {
   // 16 x 16 texel grain so blocks read as pixel-art surfaces
   let t = floor(i.wpos * 16.0 - i.normal * 0.01);
   let grain = select(1.0, 0.86 + 0.24 * hash3(t), dot(i.normal, i.normal) > 0.5);
-  var c = i.color.rgb * grain * i.color.a;
+  // daylight (u.cam.w) or warm block light, whichever is brighter
+  let bl = i.light * i.light;
+  let lit = max(u.light.rgb, vec3<f32>(1.0, 0.80, 0.55) * bl * 1.1);
+  var c = i.color.rgb * grain * min(i.color.a, 1.0) * lit;
+  if (i.color.a > 1.9) { c = i.color.rgb * grain * 1.1; }
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   c = mix(c, u.fog.rgb, f);
-  return vec4<f32>(c, select(1.0, 0.62, i.color.a > 1.9));
+  return vec4<f32>(c, 1.0);
+}
+
+struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> };
+
+@vertex fn vs_sky(@builtin(vertex_index) vi: u32) -> SkyOut {
+  let p = vec2<f32>(f32((vi << 1u) & 2u), f32(vi & 2u)) * 2.0 - 1.0;
+  var o: SkyOut;
+  o.clip = vec4<f32>(p, 1.0, 1.0);
+  o.ndc = p;
+  return o;
+}
+
+@fragment fn fs_sky(i: SkyOut) -> @location(0) vec4<f32> {
+  let far = u.inv_view_proj * vec4<f32>(i.ndc, 1.0, 1.0);
+  let dir = normalize(far.xyz / far.w - u.cam.xyz);
+  let h = clamp(dir.y, -1.0, 1.0);
+  var c = mix(u.fog.rgb, u.sky_top.rgb, smoothstep(-0.02, 0.55, h));
+  c = mix(c, u.fog.rgb * 0.6, smoothstep(0.0, -0.4, h));
+  let sd = dot(dir, u.sun.xyz);
+  // sun glow and disc
+  c += vec3<f32>(1.0, 0.75, 0.45) * pow(max(sd, 0.0), 48.0) * 0.6 * (1.0 - u.sun.w * 0.8);
+  if (sd > 0.9992) { c = mix(c, vec3<f32>(1.0, 0.97, 0.88), 0.95); }
+  // moon opposite the sun
+  if (-sd > 0.9994) { c = mix(c, vec3<f32>(0.85, 0.88, 0.95), u.sun.w); }
+  // stars
+  if (u.sun.w > 0.01 && h > 0.0) {
+    let cell = floor(dir * 220.0);
+    let r = hash3(cell);
+    if (r > 0.9965) { c += vec3<f32>(0.9, 0.92, 1.0) * u.sun.w * (r - 0.9965) * 220.0 * smoothstep(0.0, 0.2, h); }
+  }
+  return vec4<f32>(c, 1.0);
 }
 
 @fragment fn fs_translucent(i: VOut) -> @location(0) vec4<f32> {
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
-  let c = mix(i.color.rgb, u.fog.rgb, f);
+  let lit = max(u.light.rgb, vec3<f32>(1.0, 0.80, 0.55) * i.light * i.light);
+  let c = mix(i.color.rgb * lit, u.fog.rgb, f);
   return vec4<f32>(c, i.color.a);
 }
 "#;
@@ -76,28 +134,14 @@ fn srgb(c: [f32; 3]) -> [f32; 3] {
     [c[0].powf(2.2), c[1].powf(2.2), c[2].powf(2.2)]
 }
 
-/// Display colour of a block (sRGB) and its opacity when translucent.
+/// Display colour of a block (sRGB) and its opacity.
 pub fn block_color(b: BlockId) -> ([f32; 3], f32) {
-    match b {
-        w::GRASS => ([0.42, 0.66, 0.29], 1.0),
-        w::DIRT => ([0.53, 0.38, 0.26], 1.0),
-        w::STONE => ([0.52, 0.53, 0.56], 1.0),
-        w::SAND => ([0.86, 0.81, 0.62], 1.0),
-        w::LOG => ([0.42, 0.31, 0.19], 1.0),
-        w::LEAVES => ([0.25, 0.50, 0.21], 1.0),
-        w::PLANKS => ([0.72, 0.56, 0.35], 1.0),
-        w::GLASS => ([0.78, 0.90, 0.96], 0.35),
-        w::EMBERSTONE => ([1.0, 0.55, 0.22], 1.0),
-        w::BRICK => ([0.66, 0.30, 0.24], 1.0),
-        w::SNOW => ([0.94, 0.96, 0.98], 1.0),
-        w::COBBLE => ([0.44, 0.45, 0.47], 1.0),
-        w::WATER => ([0.20, 0.42, 0.78], 0.62),
-        _ => ([1.0, 0.0, 1.0], 1.0),
-    }
+    let d = w::block(b);
+    (d.color, d.alpha)
 }
 
 fn translucent(b: BlockId) -> bool {
-    matches!(b, w::WATER | w::GLASS)
+    w::block(b).alpha < 1.0
 }
 
 type Face = ([i32; 3], [i32; 3], [i32; 3], f32);
@@ -112,7 +156,13 @@ const FACES: [Face; 6] = [
 ];
 
 /// Build the opaque and translucent meshes of one 16³ section.
-pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, Vec<Vertex>) {
+pub fn mesh_section(
+    world: &World,
+    light: &Light,
+    sx: i32,
+    sy: i32,
+    sz: i32,
+) -> (Vec<Vertex>, Vec<Vertex>) {
     let mut opaque = Vec::new();
     let mut trans = Vec::new();
     let solid = |x: i32, y: i32, z: i32| w::is_opaque(world.get(x, y, z)) as i32;
@@ -126,12 +176,10 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
                 let (rgb, alpha) = block_color(b);
                 let lin = srgb(rgb);
                 let tr = translucent(b);
+                let emissive = w::emission(b) > 0;
                 for (n, u, v, shade) in FACES {
                     let nb = world.get(x + n[0], y + n[1], z + n[2]);
-                    if w::is_opaque(nb) || (tr && nb == b) || (!tr && b != w::LEAVES && nb == b) {
-                        continue;
-                    }
-                    if b == w::LEAVES && nb == w::LEAVES {
+                    if w::is_opaque(nb) || (tr && nb == b) || (b == w::LEAVES && nb == w::LEAVES) {
                         continue;
                     }
                     let base = [x + n[0], y + n[1], z + n[2]];
@@ -140,7 +188,7 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
                         y as f32 + 0.5 + n[1] as f32 * 0.5,
                         z as f32 + 0.5 + n[2] as f32 * 0.5,
                     ];
-                    let mut corners = [([0f32; 3], 0f32); 4];
+                    let mut corners = [([0f32; 3], 0f32, 0f32); 4];
                     for (i, (su, sv)) in
                         [(-1, -1), (1, -1), (1, 1), (-1, 1)].into_iter().enumerate()
                     {
@@ -149,25 +197,39 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
                             center[1] + 0.5 * (su * u[1] + sv * v[1]) as f32,
                             center[2] + 0.5 * (su * u[2] + sv * v[2]) as f32,
                         ];
-                        let light = if b == w::EMBERSTONE {
+                        let a = [
+                            base[0] + su * u[0],
+                            base[1] + su * u[1],
+                            base[2] + su * u[2],
+                        ];
+                        let bq = [
+                            base[0] + sv * v[0],
+                            base[1] + sv * v[1],
+                            base[2] + sv * v[2],
+                        ];
+                        let cq = [
+                            base[0] + su * u[0] + sv * v[0],
+                            base[1] + su * u[1] + sv * v[1],
+                            base[2] + su * u[2] + sv * v[2],
+                        ];
+                        // smooth block light: average the light of the cells around this corner
+                        let l0 = light.get(base[0], base[1], base[2]) as f32;
+                        let ls = [
+                            l0,
+                            light.get(a[0], a[1], a[2]) as f32,
+                            light.get(bq[0], bq[1], bq[2]) as f32,
+                            light.get(cq[0], cq[1], cq[2]) as f32,
+                        ];
+                        let bl = (ls.iter().sum::<f32>() / 60.0).max(l0 / 15.0 * 0.8);
+                        let shade_ao = if emissive {
                             2.0
                         } else if tr {
                             alpha
                         } else {
-                            let s1 = solid(
-                                base[0] + su * u[0],
-                                base[1] + su * u[1],
-                                base[2] + su * u[2],
-                            );
-                            let s2 = solid(
-                                base[0] + sv * v[0],
-                                base[1] + sv * v[1],
-                                base[2] + sv * v[2],
-                            );
-                            let c = solid(
-                                base[0] + su * u[0] + sv * v[0],
-                                base[1] + su * u[1] + sv * v[1],
-                                base[2] + su * u[2] + sv * v[2],
+                            let (s1, s2, c) = (
+                                solid(a[0], a[1], a[2]),
+                                solid(bq[0], bq[1], bq[2]),
+                                solid(cq[0], cq[1], cq[2]),
                             );
                             let ao = if s1 == 1 && s2 == 1 {
                                 0
@@ -176,7 +238,7 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
                             };
                             [0.5, 0.66, 0.83, 1.0][ao as usize] * shade
                         };
-                        corners[i] = (p, light);
+                        corners[i] = (p, shade_ao, bl);
                     }
                     let nf = [n[0] as f32, n[1] as f32, n[2] as f32];
                     let col = if tr {
@@ -192,11 +254,12 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
                     };
                     let out = if tr { &mut trans } else { &mut opaque };
                     for i in order {
-                        let (p, l) = corners[i];
+                        let (p, l, bl) = corners[i];
                         out.push(Vertex {
                             pos: p,
                             normal: nf,
                             color: [col[0], col[1], col[2], l],
+                            light: bl,
                         });
                     }
                 }
@@ -206,8 +269,8 @@ pub fn mesh_section(world: &World, sx: i32, sy: i32, sz: i32) -> (Vec<Vertex>, V
     (opaque, trans)
 }
 
-/// Add a coloured box to a vertex list (used for players).
-pub fn push_box(out: &mut Vec<Vertex>, min: Vec3, max: Vec3, rgb: [f32; 3]) {
+/// Add a coloured box to a vertex list (used for players and particles).
+pub fn push_box(out: &mut Vec<Vertex>, min: Vec3, max: Vec3, rgb: [f32; 3], light: f32) {
     let c = srgb(rgb);
     for (n, u, v, shade) in FACES {
         let nf = Vec3::new(n[0] as f32, n[1] as f32, n[2] as f32);
@@ -224,6 +287,41 @@ pub fn push_box(out: &mut Vec<Vertex>, min: Vec3, max: Vec3, rgb: [f32; 3]) {
                 pos: p[i].into(),
                 normal: [0.0; 3],
                 color: [c[0], c[1], c[2], shade],
+                light,
+            });
+        }
+    }
+}
+
+/// Add a box with its own axes (used for the block in the player's hand).
+pub fn push_oriented_box(
+    out: &mut Vec<Vertex>,
+    center: Vec3,
+    axes: [Vec3; 3],
+    half: f32,
+    rgb: [f32; 3],
+    emissive: bool,
+    light: f32,
+) {
+    let c = srgb(rgb);
+    for (n, u, v, shade) in FACES {
+        let pick =
+            |a: [i32; 3]| axes[0] * a[0] as f32 + axes[1] * a[1] as f32 + axes[2] * a[2] as f32;
+        let (nf, uf, vf) = (pick(n), pick(u), pick(v));
+        let fc = center + nf * half;
+        let p = [
+            fc - (uf + vf) * half,
+            fc + (uf - vf) * half,
+            fc + (uf + vf) * half,
+            fc + (vf - uf) * half,
+        ];
+        let a = if emissive { 2.0 } else { shade };
+        for i in [0, 1, 2, 0, 2, 3] {
+            out.push(Vertex {
+                pos: p[i].into(),
+                normal: [0.0; 3],
+                color: [c[0], c[1], c[2], a],
+                light,
             });
         }
     }
@@ -235,8 +333,10 @@ struct SectionMesh {
 }
 
 pub struct Gfx {
-    pub window: Arc<winit::window::Window>,
-    pub surface: wgpu::Surface<'static>,
+    /// None when rendering headless (dyno shot).
+    pub window: Option<Arc<winit::window::Window>>,
+    surface: Option<wgpu::Surface<'static>>,
+    offscreen: Option<wgpu::Texture>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
@@ -245,11 +345,14 @@ pub struct Gfx {
     opaque_pipe: wgpu::RenderPipeline,
     trans_pipe: wgpu::RenderPipeline,
     line_pipe: wgpu::RenderPipeline,
+    sky_pipe: wgpu::RenderPipeline,
     ubuf: wgpu::Buffer,
     bind: wgpu::BindGroup,
     sections: Vec<SectionMesh>,
     dims: [i32; 3],
     pub adapter_info: String,
+    /// When set, the next frame is saved to this path as a PPM image.
+    pub screenshot: Option<std::path::PathBuf>,
 }
 
 use egui_winit::winit;
@@ -276,18 +379,37 @@ fn depth_view(device: &wgpu::Device, w: u32, h: u32) -> wgpu::TextureView {
 }
 
 impl Gfx {
+    /// Render without a window into an image of the given size.
+    pub fn new_headless(width: u32, height: u32) -> Result<Self, String> {
+        Self::create(None, width, height)
+    }
+
     pub fn new(window: Arc<winit::window::Window>) -> Result<Self, String> {
+        let size = window.inner_size();
+        Self::create(Some(window), size.width, size.height)
+    }
+
+    fn create(
+        window: Option<Arc<winit::window::Window>>,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::from_env()
                 .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),
             ..Default::default()
         });
-        let surface = instance
-            .create_surface(window.clone())
-            .map_err(|e| format!("surface: {e}"))?;
+        let surface = match &window {
+            Some(w) => Some(
+                instance
+                    .create_surface(w.clone())
+                    .map_err(|e| format!("surface: {e}"))?,
+            ),
+            None => None,
+        };
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
-            compatible_surface: Some(&surface),
+            compatible_surface: surface.as_ref(),
             force_fallback_adapter: false,
         }))
         .map_err(|e| format!("No graphics adapter found: {e}"))?;
@@ -307,16 +429,51 @@ impl Gfx {
             ..Default::default()
         }))
         .map_err(|e| format!("device: {e}"))?;
-        let size = window.inner_size();
-        let mut config = surface
-            .get_default_config(&adapter, size.width.max(1), size.height.max(1))
-            .ok_or("surface is not supported by the adapter")?;
-        let caps = surface.get_capabilities(&adapter);
-        if let Some(f) = caps.formats.iter().find(|f| f.is_srgb()) {
-            config.format = *f;
-        }
-        config.present_mode = wgpu::PresentMode::AutoVsync;
-        surface.configure(&device, &config);
+        let (config, offscreen) = match &surface {
+            Some(surface) => {
+                let mut config = surface
+                    .get_default_config(&adapter, width.max(1), height.max(1))
+                    .ok_or("surface is not supported by the adapter")?;
+                let caps = surface.get_capabilities(&adapter);
+                if let Some(f) = caps.formats.iter().find(|f| f.is_srgb()) {
+                    config.format = *f;
+                }
+                config.present_mode = wgpu::PresentMode::AutoVsync;
+                if caps.usages.contains(wgpu::TextureUsages::COPY_SRC) {
+                    config.usage |= wgpu::TextureUsages::COPY_SRC;
+                }
+                surface.configure(&device, &config);
+                (config, None)
+            }
+            None => {
+                let format = wgpu::TextureFormat::Rgba8UnormSrgb;
+                let config = wgpu::SurfaceConfiguration {
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                    format,
+                    width: width.max(1),
+                    height: height.max(1),
+                    present_mode: wgpu::PresentMode::Fifo,
+                    desired_maximum_frame_latency: 2,
+                    alpha_mode: wgpu::CompositeAlphaMode::Opaque,
+                    view_formats: vec![],
+                };
+                let tex = device.create_texture(&wgpu::TextureDescriptor {
+                    label: Some("offscreen"),
+                    size: wgpu::Extent3d {
+                        width: config.width,
+                        height: config.height,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format,
+                    usage: config.usage,
+                    view_formats: &[],
+                });
+                (config, Some(tex))
+            }
+        };
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("voxel"),
@@ -357,7 +514,7 @@ impl Gfx {
         let vlayout = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4],
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4, 3 => Float32],
         };
         let make = |fs: &str,
                     topo: wgpu::PrimitiveTopology,
@@ -406,6 +563,37 @@ impl Gfx {
             Some(wgpu::BlendState::ALPHA_BLENDING),
             false,
         );
+        let sky_pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("sky"),
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_sky"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH,
+                depth_write_enabled: false,
+                depth_compare: wgpu::CompareFunction::Always,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: Default::default(),
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_sky"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: config.format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview: None,
+            cache: None,
+        });
         let line_pipe = make(
             "fs_translucent",
             wgpu::PrimitiveTopology::LineList,
@@ -421,6 +609,7 @@ impl Gfx {
         Ok(Gfx {
             window,
             surface,
+            offscreen,
             device,
             queue,
             config,
@@ -429,11 +618,13 @@ impl Gfx {
             opaque_pipe,
             trans_pipe,
             line_pipe,
+            sky_pipe,
             ubuf,
             bind,
             sections: Vec::new(),
             dims: [0; 3],
             adapter_info,
+            screenshot: None,
         })
     }
 
@@ -443,7 +634,9 @@ impl Gfx {
         }
         self.config.width = w;
         self.config.height = h;
-        self.surface.configure(&self.device, &self.config);
+        if let Some(s) = &self.surface {
+            s.configure(&self.device, &self.config);
+        }
         self.depth = depth_view(&self.device, w, h);
     }
 
@@ -462,7 +655,7 @@ impl Gfx {
     }
 
     /// Mesh the whole world.
-    pub fn load_world(&mut self, world: &World) {
+    pub fn load_world(&mut self, world: &World, light: &Light) {
         let d = [
             (world.size[0] as i32 + SECTION - 1) / SECTION,
             (world.size[1] as i32 + SECTION - 1) / SECTION,
@@ -473,7 +666,7 @@ impl Gfx {
         for sy in 0..d[1] {
             for sz in 0..d[2] {
                 for sx in 0..d[0] {
-                    let (o, t) = mesh_section(world, sx, sy, sz);
+                    let (o, t) = mesh_section(world, light, sx, sy, sz);
                     self.sections.push(SectionMesh {
                         opaque: self.upload(&o),
                         trans: self.upload(&t),
@@ -484,11 +677,11 @@ impl Gfx {
     }
 
     /// Re-mesh the section that holds a cell, and its neighbours when the cell is on an edge.
-    pub fn block_changed(&mut self, world: &World, p: [i32; 3]) {
+    pub fn block_changed(&mut self, world: &World, light: &Light, p: [i32; 3], radius: i32) {
         let mut todo = Vec::new();
-        for dx in -1..=1 {
-            for dy in -1..=1 {
-                for dz in -1..=1 {
+        for dx in [-radius, 0, radius] {
+            for dy in [-radius, 0, radius] {
+                for dz in [-radius, 0, radius] {
                     let q = [p[0] + dx, p[1] + dy, p[2] + dz];
                     let s = [
                         q[0].div_euclid(SECTION),
@@ -502,7 +695,7 @@ impl Gfx {
             }
         }
         for s in todo {
-            let (o, t) = mesh_section(world, s[0], s[1], s[2]);
+            let (o, t) = mesh_section(world, light, s[0], s[1], s[2]);
             let i = ((s[1] * self.dims[2] + s[2]) * self.dims[0] + s[0]) as usize;
             self.sections[i] = SectionMesh {
                 opaque: self.upload(&o),
@@ -516,28 +709,41 @@ impl Gfx {
     pub fn frame(
         &mut self,
         view_proj: Option<(Mat4, Vec3, f32)>,
+        sky: &Sky,
         boxes: &[Vertex],
         lines: &[Vertex],
         egui_ctx: &egui::Context,
         egui_out: egui::FullOutput,
     ) {
-        let frame = match self.surface.get_current_texture() {
-            Ok(f) => f,
-            Err(wgpu::SurfaceError::Outdated | wgpu::SurfaceError::Lost) => {
-                self.surface.configure(&self.device, &self.config);
-                return;
-            }
-            Err(_) => return,
+        let surface_tex = match &self.surface {
+            Some(surface) => match surface.get_current_texture() {
+                Ok(f) => Some(f),
+                Err(wgpu::SurfaceError::Outdated | wgpu::SurfaceError::Lost) => {
+                    surface.configure(&self.device, &self.config);
+                    return;
+                }
+                Err(_) => return,
+            },
+            None => None,
         };
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let sky = srgb(SKY);
+        let target: &wgpu::Texture = match (&surface_tex, &self.offscreen) {
+            (Some(f), _) => &f.texture,
+            (None, Some(t)) => t,
+            (None, None) => return,
+        };
+        let view = target.create_view(&wgpu::TextureViewDescriptor::default());
+        let fog = srgb(sky.horizon);
+        let top = srgb(sky.top);
+        let light = srgb(sky.light);
         if let Some((vp, cam, dist)) = view_proj {
             let u = Uniforms {
                 view_proj: vp.to_cols_array_2d(),
+                inv_view_proj: vp.inverse().to_cols_array_2d(),
                 cam: [cam.x, cam.y, cam.z, 0.0],
-                fog: [sky[0], sky[1], sky[2], dist],
+                fog: [fog[0], fog[1], fog[2], dist],
+                sky_top: [top[0], top[1], top[2], 0.0],
+                light: [light[0], light[1], light[2], 0.0],
+                sun: [sky.sun_dir[0], sky.sun_dir[1], sky.sun_dir[2], sky.stars],
             };
             self.queue
                 .write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
@@ -557,9 +763,9 @@ impl Gfx {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: sky[0] as f64,
-                            g: sky[1] as f64,
-                            b: sky[2] as f64,
+                            r: fog[0] as f64,
+                            g: fog[1] as f64,
+                            b: fog[2] as f64,
                             a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
@@ -578,6 +784,8 @@ impl Gfx {
             });
             if let Some((vp, _, dist)) = view_proj {
                 rp.set_bind_group(0, &self.bind, &[]);
+                rp.set_pipeline(&self.sky_pipe);
+                rp.draw(0..3, 0..1);
                 rp.set_pipeline(&self.opaque_pipe);
                 let visible = |i: usize| self.section_visible(i, vp, dist);
                 for (i, s) in self.sections.iter().enumerate() {
@@ -645,10 +853,76 @@ impl Gfx {
         for id in &egui_out.textures_delta.free {
             self.egui.free_texture(id);
         }
+        // optional screenshot: copy the frame into a buffer before presenting
+        let shot = match self.screenshot.take() {
+            Some(path) if self.config.usage.contains(wgpu::TextureUsages::COPY_SRC) => {
+                let (w, h) = (self.config.width, self.config.height);
+                let padded = (w * 4).div_ceil(256) * 256;
+                let buf = self.device.create_buffer(&wgpu::BufferDescriptor {
+                    label: Some("screenshot"),
+                    size: (padded * h) as u64,
+                    usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+                    mapped_at_creation: false,
+                });
+                enc.copy_texture_to_buffer(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: target,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    wgpu::TexelCopyBufferInfo {
+                        buffer: &buf,
+                        layout: wgpu::TexelCopyBufferLayout {
+                            offset: 0,
+                            bytes_per_row: Some(padded),
+                            rows_per_image: Some(h),
+                        },
+                    },
+                    wgpu::Extent3d {
+                        width: w,
+                        height: h,
+                        depth_or_array_layers: 1,
+                    },
+                );
+                Some((path, buf, padded, w, h))
+            }
+            _ => None,
+        };
         self.queue
             .submit(extra.into_iter().chain(std::iter::once(enc.finish())));
-        self.window.pre_present_notify();
-        frame.present();
+        if let Some((path, buf, padded, w, h)) = shot {
+            buf.slice(..).map_async(wgpu::MapMode::Read, |_| {});
+            let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
+            let data = buf.slice(..).get_mapped_range();
+            let bgra = matches!(
+                self.config.format,
+                wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
+            );
+            let mut out = format!("P6\n{w} {h}\n255\n").into_bytes();
+            for y in 0..h {
+                let row = &data[(y * padded) as usize..(y * padded + w * 4) as usize];
+                for px in row.as_chunks::<4>().0 {
+                    if bgra {
+                        out.extend_from_slice(&[px[2], px[1], px[0]]);
+                    } else {
+                        out.extend_from_slice(&px[..3]);
+                    }
+                }
+            }
+            drop(data);
+            buf.unmap();
+            match std::fs::write(&path, out) {
+                Ok(()) => eprintln!("screenshot saved: {}", path.display()),
+                Err(e) => eprintln!("screenshot failed: {e}"),
+            }
+        }
+        if let Some(f) = surface_tex {
+            if let Some(w) = &self.window {
+                w.pre_present_notify();
+            }
+            f.present();
+        }
     }
 
     fn section_visible(&self, i: usize, vp: Mat4, dist: f32) -> bool {
