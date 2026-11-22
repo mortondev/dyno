@@ -136,7 +136,7 @@ fn survival_loop() {
         },
     );
     wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(&pack, id("log")) == 3).then_some(())
+        (count(pack, id("log")) == 3).then_some(())
     });
     let recipe = |out: &str, st: Station| {
         c.recipes
@@ -153,7 +153,7 @@ fn survival_loop() {
         },
     );
     wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(&pack, id("planks")) == 12).then_some(())
+        (count(pack, id("planks")) == 12).then_some(())
     });
     assert_eq!(count(&pack, id("log")), 0);
     send(
@@ -171,7 +171,7 @@ fn survival_loop() {
         },
     );
     wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(&pack, id("stick")) == 4 && count(&pack, id("crafting_table")) == 1).then_some(())
+        (count(pack, id("stick")) == 4 && count(pack, id("crafting_table")) == 1).then_some(())
     });
     assert_eq!(count(&pack, id("planks")), 12 - 4 - 2);
     // the pickaxe needs a table nearby: refused first
@@ -215,7 +215,7 @@ fn survival_loop() {
         },
     );
     wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(&pack, id("wooden_pickaxe")) == 1).then_some(())
+        (count(pack, id("wooden_pickaxe")) == 1).then_some(())
     });
     assert_eq!(count(&pack, id("crafting_table")), 0);
     assert_eq!(count(&pack, id("planks")), 6 - 3);
@@ -247,7 +247,7 @@ fn survival_loop() {
         },
     );
     wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(&pack, id("stick")) == 1).then_some(())
+        (count(pack, id("stick")) == 1).then_some(())
     });
 
     // 4. health: a fall hurts, /kill drops everything, respawn restores
