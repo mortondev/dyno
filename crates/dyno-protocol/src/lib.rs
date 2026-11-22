@@ -31,6 +31,15 @@ pub enum EntityKind {
     Creature(u16),
     /// an item lying in the world
     Item(Stack),
+    /// a friendly character from the content, by NPC ID
+    Npc(u16),
+}
+
+/// One quest in a player's log: counts per objective.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct QuestProgress {
+    pub quest: u16,
+    pub counts: Vec<u8>,
 }
 
 /// Kinds of damage the client reports (the server owns everything else).
@@ -42,7 +51,7 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 6;
+pub const PROTOCOL_VERSION: u32 = 7;
 
 /// Default TCP port of the game server.
 pub const DEFAULT_PORT: u16 = 7400;
@@ -146,6 +155,21 @@ pub enum ClientMsg {
         amount: u8,
     },
     Respawn,
+    /// Talk to an NPC (right click).
+    Talk {
+        entity: u32,
+    },
+    AcceptQuest {
+        quest: u16,
+    },
+    /// Hand a finished quest in; `choice` picks a reward when there is a choice.
+    CompleteQuest {
+        quest: u16,
+        choice: u8,
+    },
+    AbandonQuest {
+        quest: u16,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -266,6 +290,41 @@ pub enum ServerMsg {
     Digging {
         player: PlayerId,
         pos: Option<[i32; 3]>,
+    },
+    /// Your level, XP, money (copper) and most health.
+    Character {
+        level: u8,
+        xp: u32,
+        xp_next: u32,
+        money: u32,
+        max_health: f32,
+    },
+    /// You earned something: floating text and a sound.
+    Gain {
+        xp: u32,
+        money: u32,
+    },
+    /// A player reached a level (shown to everyone).
+    LevelUp {
+        player: PlayerId,
+        level: u8,
+    },
+    /// Level and health of a creature, for nameplates and the target frame.
+    EntityInfo {
+        id: u32,
+        level: u8,
+        health: f32,
+        max: f32,
+    },
+    /// Your quest log and the quests you have finished.
+    Quests {
+        log: Vec<QuestProgress>,
+        done: Vec<u16>,
+    },
+    /// Open a conversation with an NPC.
+    Dialog {
+        entity: u32,
+        npc: u16,
     },
 }
 

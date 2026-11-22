@@ -36,6 +36,8 @@ pub struct Mob {
     pub burn_flash: f32,
     /// last player who hit it, for drops and milestones
     pub last_hit: Option<(PlayerId, Instant)>,
+    pub level: u8,
+    pub max_health: f32,
 }
 
 const HALF_W: f32 = 0.3;
@@ -162,7 +164,21 @@ impl State {
         let Some(c) = self.content.creature(creature) else {
             return 0;
         };
-        let health = c.health;
+        let levels = c.levels;
+        // deeper into the wild (further from the spawn hearth), stronger mobs
+        let h = self.spawn_hearth;
+        let far = ((pos[0] - h[0] as f32).powi(2) + (pos[2] - h[2] as f32).powi(2)).sqrt();
+        let level = if self.rpg() {
+            (1 + (far / 28.0) as u8 + (self.rng.f32() < 0.3) as u8).clamp(levels[0], levels[1])
+        } else {
+            1
+        };
+        let health = c.health
+            * if self.rpg() {
+                dyno_sim::progression::mob_scale(level).0
+            } else {
+                1.0
+            };
         let id = self.next_entity;
         self.next_entity += 1;
         let yaw = self.rng.f32() * std::f32::consts::TAU;
@@ -190,6 +206,8 @@ impl State {
                     on_ground: false,
                     burn_flash: 0.0,
                     last_hit: None,
+                    level,
+                    max_health: health,
                 }),
             },
         );
@@ -199,6 +217,15 @@ impl State {
                 kind: EntityKind::Creature(creature),
                 pos,
                 yaw,
+            },
+            None,
+        );
+        self.broadcast(
+            &ServerMsg::EntityInfo {
+                id,
+                level,
+                health,
+                max: health,
             },
             None,
         );
@@ -340,6 +367,7 @@ impl State {
     }
 
     pub fn tick_creatures(&mut self, dt: f32) {
+        let rpg = self.rpg();
         let active = self.active_players();
         if active.is_empty() {
             return; // the world rests while nobody plays
@@ -439,7 +467,13 @@ impl State {
                     }
                     if d < 1.7 && (p[1] - e.pos[1]).abs() < 2.0 && mob.attack_cd <= 0.0 {
                         mob.attack_cd = 1.5;
-                        attacks.push((pid, c.damage, [dx / d * 6.0, 4.5, dz / d * 6.0], c.id));
+                        let dmg = c.damage
+                            * if rpg {
+                                dyno_sim::progression::mob_scale(mob.level).1
+                            } else {
+                                1.0
+                            };
+                        attacks.push((pid, dmg, [dx / d * 6.0, 4.5, dz / d * 6.0], c.id));
                     }
                 }
             } else if mob.flee > 0.0 {
@@ -527,6 +561,15 @@ impl State {
         }
         for id in hurt {
             self.broadcast(&ServerMsg::EntityHurt { id }, None);
+            if let Some(m) = self.entities.get(&id).and_then(|e| e.mob.as_ref()) {
+                let info = ServerMsg::EntityInfo {
+                    id,
+                    level: m.level,
+                    health: m.health.max(0.0),
+                    max: m.max_health,
+                };
+                self.broadcast(&info, None);
+            }
         }
         for (id, drops) in gone {
             self.kill_mob(id, drops);
@@ -580,6 +623,7 @@ impl State {
             && at.elapsed() < Duration::from_secs(10)
         {
             self.milestone(pid, &format!("kill:{key}"));
+            self.credit_kill(pid, mob.creature, mob.level);
         }
     }
 
@@ -595,6 +639,11 @@ impl State {
         let tool = p.held_tool(&self.content).cloned();
         let held = p.held as usize;
         let creative = p.mode == Mode::Creative;
+        let power = if self.rpg() {
+            2.0 * dyno_sim::progression::power(p.level)
+        } else {
+            1.0
+        };
         let Some(e) = self.entities.get_mut(&id) else {
             return;
         };
@@ -611,7 +660,7 @@ impl State {
         let damage = if creative {
             1000.0
         } else {
-            tool.as_ref().map(|t| t.damage).unwrap_or(1.0)
+            tool.as_ref().map(|t| t.damage).unwrap_or(1.0) * power
         };
         mob.health -= damage;
         mob.last_hit = Some((pid, Instant::now()));
@@ -625,9 +674,20 @@ impl State {
         mob.stun = 0.35;
         e.moved = true;
         let dead = mob.health <= 0.0;
+        let (level, health, max) = (mob.level, mob.health.max(0.0), mob.max_health);
         self.broadcast(&ServerMsg::EntityHurt { id }, None);
+        self.broadcast(
+            &ServerMsg::EntityInfo {
+                id,
+                level,
+                health,
+                max,
+            },
+            None,
+        );
         let p = self.players.get_mut(&pid).unwrap();
         p.last_attack = Instant::now();
+        p.combat_until = Instant::now() + Duration::from_secs(6);
         if !creative
             && let Some(t) = tool
             && let Some(s) = p.pack.slots[held].as_mut()

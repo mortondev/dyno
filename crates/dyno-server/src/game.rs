@@ -60,6 +60,16 @@ pub struct Player {
     pub safe_until: Instant,
     /// where the player lay down to sleep; moving away wakes them
     pub sleeping: Option<[f32; 3]>,
+    pub level: u8,
+    pub xp: u32,
+    /// copper
+    pub money: u32,
+    pub quests: Vec<proto::QuestProgress>,
+    pub done: HashSet<u16>,
+    /// no health regeneration until then
+    pub combat_until: Instant,
+    pub hint_at: Instant,
+    pub quest_clock: f32,
 }
 
 impl Player {
@@ -72,7 +82,7 @@ impl Player {
     pub(crate) fn send(&self, msg: &ServerMsg) {
         let _ = self.tx.send(Arc::new(proto::encode(msg)));
     }
-    fn status(&self) -> ServerMsg {
+    pub(crate) fn status(&self) -> ServerMsg {
         ServerMsg::Status {
             health: self.health,
             food: self.food,
@@ -131,6 +141,8 @@ pub struct State {
     pub meta_dirty: bool,
     /// the ruined hearth at the world spawn; players cannot mine it
     pub spawn_hearth: [i32; 3],
+    /// harvested resource nodes: where, which block, when it grows back (unix seconds)
+    pub regrow: Vec<([i32; 3], u8, u64)>,
 }
 
 pub fn now_secs() -> u64 {
@@ -151,7 +163,10 @@ pub fn is_night_at(t: f32) -> bool {
 /// Length of one in-game day.
 pub const DAY_SECONDS: f32 = 20.0 * 60.0;
 
-fn dist(a: [f32; 3], b: [f32; 3]) -> f32 {
+/// A player's quest log and finished quests by key, kept across a content reload.
+type SavedQuests = (PlayerId, Vec<(String, Vec<u8>)>, Vec<String>);
+
+pub(crate) fn dist(a: [f32; 3], b: [f32; 3]) -> f32 {
     ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
 }
 
@@ -328,9 +343,19 @@ impl State {
             Some(d) => d.clone(),
             None => PlayerData::new(self.default_mode, self.spawn_point()),
         };
+        let fresh = !self.saved.contains_key(&key);
         let id = self.next_id;
         self.next_id += 1;
-        let pack = store::pack_from_keys(&self.content, &data.pack);
+        let mut pack = store::pack_from_keys(&self.content, &data.pack);
+        let mut data = data;
+        if fresh && self.content.world.protected {
+            data.health = dyno_sim::progression::max_health(1);
+            for (k, n) in &self.content.world.starter {
+                if let Some(item) = self.content.item_by_key(k) {
+                    let _ = pack.add(&self.content, Stack::new(item, *n));
+                }
+            }
+        }
         let pose = Pose {
             pos: data.pos,
             yaw: 0.0,
@@ -362,6 +387,36 @@ impl State {
             last_seen: data.last_seen,
             safe_until: Instant::now() + Duration::from_secs(10),
             sleeping: None,
+            level: data.level.max(1),
+            xp: data.xp,
+            money: data.money,
+            quests: data
+                .quests
+                .iter()
+                .filter_map(|(k, counts)| {
+                    let q = self.content.quests.iter().find(|q| &q.key == k)?;
+                    let mut counts = counts.clone();
+                    counts.resize(q.objectives.len(), 0);
+                    Some(proto::QuestProgress {
+                        quest: q.id,
+                        counts,
+                    })
+                })
+                .collect(),
+            done: data
+                .done
+                .iter()
+                .filter_map(|k| {
+                    self.content
+                        .quests
+                        .iter()
+                        .find(|q| &q.key == k)
+                        .map(|q| q.id)
+                })
+                .collect(),
+            combat_until: Instant::now(),
+            hint_at: Instant::now() - Duration::from_secs(60),
+            quest_clock: 0.0,
         };
         let others: Vec<PlayerInfo> = self
             .players
@@ -389,6 +444,36 @@ impl State {
                 kind: e.kind,
                 pos: e.pos,
                 yaw: e.yaw,
+            });
+        }
+        for (eid, e) in &self.entities {
+            if let Some(m) = &e.mob {
+                after.push(ServerMsg::EntityInfo {
+                    id: *eid,
+                    level: m.level,
+                    health: m.health,
+                    max: m.max_health,
+                });
+            }
+        }
+        {
+            let max = if self.rpg() {
+                dyno_sim::progression::max_health(p.level)
+            } else {
+                20.0
+            };
+            after.push(ServerMsg::Character {
+                level: p.level,
+                xp: p.xp,
+                xp_next: dyno_sim::progression::xp_to_next(p.level),
+                money: p.money,
+                max_health: max,
+            });
+            let mut done: Vec<u16> = p.done.iter().copied().collect();
+            done.sort();
+            after.push(ServerMsg::Quests {
+                log: p.quests.clone(),
+                done,
             });
         }
         if p.dead {
@@ -463,6 +548,23 @@ impl State {
     pub fn remember(&mut self, p: &Player) {
         let data = PlayerData {
             last_seen: now_secs(),
+            level: p.level,
+            xp: p.xp,
+            money: p.money,
+            quests: p
+                .quests
+                .iter()
+                .filter_map(|q| {
+                    self.content
+                        .quest(q.quest)
+                        .map(|x| (x.key.clone(), q.counts.clone()))
+                })
+                .collect(),
+            done: p
+                .done
+                .iter()
+                .filter_map(|q| self.content.quest(*q).map(|x| x.key.clone()))
+                .collect(),
             token: p.token,
             mode: p.mode,
             health: p.health,
@@ -558,9 +660,15 @@ impl State {
                     EnvDamage::Fall => "fell from a high place",
                     EnvDamage::Drown => "drowned",
                 };
-                self.damage(id, amount.min(40) as f32, [0.0; 3], what);
+                // falls and drowning were designed for 20 health; scale them
+                let scale = self.max_health(id) / 20.0;
+                self.damage(id, amount.min(40) as f32 * scale, [0.0; 3], what);
             }
             ClientMsg::Respawn => self.respawn(id),
+            ClientMsg::Talk { entity } => self.talk(id, entity),
+            ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
+            ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
+            ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
             ClientMsg::Chat { .. } | ClientMsg::Hello { .. } | ClientMsg::Session { .. } => {}
         }
         Ok(())
@@ -604,6 +712,10 @@ impl State {
             return self.resync(id, pos);
         }
         let creative = p.mode == Mode::Creative;
+        if !self.may_harvest(id, b) {
+            return self.resync(id, pos);
+        }
+        let p = &self.players[&id];
         if pos == self.spawn_hearth && !creative {
             self.tell(
                 id,
@@ -639,6 +751,10 @@ impl State {
             }
         }
         self.set_block(pos, w::AIR);
+        let respawn = self.content.rule(b).respawn;
+        if self.rpg() && respawn > 0 && !creative {
+            self.regrow.push((pos, b, now_secs() + respawn as u64));
+        }
         for s in drops {
             self.spawn_item(center(pos), s, 0.25);
         }
@@ -669,6 +785,9 @@ impl State {
     }
 
     fn place(&mut self, id: PlayerId, pos: [i32; 3], slot: u8) {
+        if self.rpg() && self.players[&id].mode != Mode::Creative {
+            return self.resync(id, pos);
+        }
         let p = &self.players[&id];
         let Some(stack) = p.pack.slots.get(slot as usize).copied().flatten() else {
             return self.resync(id, pos);
@@ -982,6 +1101,18 @@ impl State {
         let slot = p.held as usize;
         let Some(s) = p.pack.slots[slot] else { return };
         let food = c.item(s.item).food;
+        if c.world.protected {
+            // RPG: food heals, out of combat
+            let max = dyno_sim::progression::max_health(p.level);
+            if food == 0 || p.dead || p.health >= max || p.combat_until > Instant::now() {
+                return;
+            }
+            p.pack.take(slot, 1);
+            p.health = (p.health + max * 0.05 * food as f32).min(max);
+            p.send(&ServerMsg::Pack(p.pack.slots.clone()));
+            p.send(&p.status());
+            return;
+        }
         if food == 0 || p.dead || p.mode == Mode::Creative || p.food >= 20.0 {
             return;
         }
@@ -1043,16 +1174,21 @@ impl State {
             return;
         }
         p.health = (p.health - amount).max(0.0);
+        p.combat_until = Instant::now() + Duration::from_secs(6);
         p.send(&ServerMsg::Hurt { amount, push });
         p.send(&p.status());
         if p.health <= 0.0 {
             p.dead = true;
             p.container = None;
-            // keep the hotbar; the rest stays where you fell
-            let items: Vec<Stack> = p.pack.slots[9..]
-                .iter_mut()
-                .filter_map(|s| s.take())
-                .collect();
+            // RPG: you keep everything. Survival: keep the hotbar; the rest stays where you fell
+            let items: Vec<Stack> = if self.content.world.protected {
+                Vec::new()
+            } else {
+                p.pack.slots[9..]
+                    .iter_mut()
+                    .filter_map(|s| s.take())
+                    .collect()
+            };
             let pos = p.pose.pos;
             let name = p.name.clone();
             p.send(&ServerMsg::Pack(p.pack.slots.clone()));
@@ -1073,7 +1209,11 @@ impl State {
             return;
         }
         p.dead = false;
-        p.health = 20.0;
+        p.health = if self.content.world.protected {
+            (dyno_sim::progression::max_health(p.level) * 0.6).round()
+        } else {
+            20.0
+        };
         p.food = p.food.max(10.0);
         p.safe_until = Instant::now() + Duration::from_secs(10);
         let to = p.spawn.unwrap_or(spawn);
@@ -1083,6 +1223,9 @@ impl State {
     }
 
     pub fn milestone(&mut self, id: PlayerId, trigger: &str) {
+        if self.rpg() {
+            return; // quests replace the survival Journal
+        }
         let Some(m) = self
             .content
             .milestones
@@ -1302,6 +1445,8 @@ impl State {
 
     fn tick_players(&mut self, dt: f32) {
         let night = self.is_night();
+        let rpg = self.rpg();
+        let mut quest_checks = Vec::new();
         let mut milestones = Vec::new();
         for (id, p) in self.players.iter_mut() {
             if p.mode == Mode::Creative || p.dead {
@@ -1318,6 +1463,25 @@ impl State {
                 continue;
             }
             let mut changed = false;
+            if rpg {
+                // no hunger; out of combat, health returns at 2% a second
+                p.quest_clock += dt;
+                if p.quest_clock >= 1.0 {
+                    p.quest_clock = 0.0;
+                    quest_checks.push(*id);
+                }
+                let max = dyno_sim::progression::max_health(p.level);
+                p.food = 20.0;
+                p.regen_clock += dt;
+                if p.regen_clock >= 1.0 {
+                    p.regen_clock = 0.0;
+                    if p.health < max && p.combat_until <= Instant::now() {
+                        p.health = (p.health + (max * 0.02).max(1.0)).min(max);
+                        p.send(&p.status());
+                    }
+                }
+                continue;
+            }
             // hunger drains slowly
             p.hunger_clock += dt;
             if p.hunger_clock >= 60.0 {
@@ -1341,11 +1505,41 @@ impl State {
         for id in milestones {
             self.milestone(id, "night");
         }
+        for id in quest_checks {
+            if self.update_quests(id) {
+                self.send_quests(id);
+            }
+        }
+        if rpg {
+            self.tick_regrow();
+        }
     }
 
     /// Swap content (after /reload). Items keep their keys; IDs may change.
     pub fn replace_content(&mut self, new: Content) {
         self.clear_creatures();
+        // quests are kept by key
+        let saved: Vec<SavedQuests> = self
+            .players
+            .iter()
+            .map(|(id, p)| {
+                let log = p
+                    .quests
+                    .iter()
+                    .filter_map(|q| {
+                        self.content
+                            .quest(q.quest)
+                            .map(|x| (x.key.clone(), q.counts.clone()))
+                    })
+                    .collect();
+                let done = p
+                    .done
+                    .iter()
+                    .filter_map(|q| self.content.quest(*q).map(|x| x.key.clone()))
+                    .collect();
+                (*id, log, done)
+            })
+            .collect();
         let old = std::mem::replace(&mut self.content, new);
         let remap = |s: &mut Option<Stack>, old: &Content, new: &Content| {
             if let Some(st) = s {
@@ -1376,6 +1570,29 @@ impl State {
         for p in self.players.values() {
             p.send(&ServerMsg::Pack(p.pack.slots.clone()));
         }
+        for (id, log, done) in saved {
+            let c = &self.content;
+            if let Some(p) = self.players.get_mut(&id) {
+                p.quests = log
+                    .into_iter()
+                    .filter_map(|(k, mut counts)| {
+                        let q = c.quests.iter().find(|q| q.key == k)?;
+                        counts.resize(q.objectives.len(), 0);
+                        Some(proto::QuestProgress {
+                            quest: q.id,
+                            counts,
+                        })
+                    })
+                    .collect();
+                p.done = done
+                    .iter()
+                    .filter_map(|k| c.quests.iter().find(|q| &q.key == k).map(|q| q.id))
+                    .collect();
+            }
+            self.send_quests(id);
+            self.send_character(id);
+        }
+        self.spawn_npcs();
     }
 
     pub fn item_id(&self, key: &str) -> Option<ItemId> {

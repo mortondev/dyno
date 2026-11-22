@@ -6,6 +6,7 @@ pub mod game;
 pub use dyno_world::light;
 pub mod net;
 pub mod render;
+pub mod rpg_ui;
 pub mod settings;
 pub mod shot;
 pub mod survival;

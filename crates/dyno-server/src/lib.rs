@@ -7,6 +7,7 @@
 
 pub mod creatures;
 pub mod game;
+pub mod rpg;
 pub mod store;
 
 use dyno_protocol::{self as proto, ClientMsg, Mode, PlayerId, Pose, ServerMsg};
@@ -152,6 +153,12 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         }
     }
     drop(before);
+    if rpg::build_landmarks(&mut world, &content, spawn_hearth) {
+        log("Built quest beacons");
+        if let Err(e) = world.save(&cfg.world_path) {
+            log(format!("Warning: cannot save world: {e}"));
+        }
+    }
     let hearths = creatures::find_hearths(&world);
     let light = dyno_world::light::Light::new(&world);
     let webhook = cfg
@@ -171,7 +178,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         content.recipes.len(),
         content.creatures.len()
     ));
-    let state = State {
+    let mut state = State {
         world,
         content,
         players: HashMap::new(),
@@ -194,7 +201,9 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         webhook,
         meta_dirty: true,
         spawn_hearth,
+        regrow: meta.regrow.clone(),
     };
+    state.spawn_npcs();
     let server = Arc::new(Server {
         cfg,
         state: Mutex::new(state),
@@ -284,6 +293,7 @@ impl Server {
                 clock: st.clock,
                 events: st.events.iter().cloned().collect(),
                 spawn_hearth: Some(st.spawn_hearth),
+                regrow: st.regrow.clone(),
             };
             (
                 world,

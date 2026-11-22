@@ -87,6 +87,10 @@ pub struct BlockRule {
     /// minimum tool tier for drops; 0 means no tool is needed
     pub tier: u8,
     pub drops: Vec<Drop>,
+    /// a resource node: in a protected world it can be harvested, and grows
+    /// back after this many seconds (0: not a node)
+    #[serde(default)]
+    pub respawn: u16,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -149,6 +153,92 @@ pub struct Creature {
     /// most of this creature near one player
     pub cap: u8,
     pub burns_in_daylight: bool,
+    /// lowest and highest level; the level rises with distance from the spawn
+    pub levels: [u8; 2],
+}
+
+/// A friendly character who stands in the world, talks and gives quests.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Npc {
+    pub id: u16,
+    pub key: String,
+    pub name: String,
+    /// shown under the name, like "Hearthkeeper"
+    pub title: String,
+    pub color: [f32; 3],
+    /// where they stand, relative to the spawn hearth
+    pub at: [i32; 3],
+    pub greeting: String,
+}
+
+/// One thing a quest asks for.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Objective {
+    Kill {
+        creature: u16,
+        count: u8,
+    },
+    Collect {
+        item: ItemId,
+        count: u8,
+    },
+    Talk {
+        npc: u16,
+    },
+    /// reach a place (relative to the spawn hearth)
+    Explore {
+        name: String,
+        at: [i32; 3],
+        radius: f32,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Quest {
+    pub id: u16,
+    pub key: String,
+    pub title: String,
+    pub level: u8,
+    /// NPC who offers it, and NPC who takes it back
+    pub giver: u16,
+    pub ender: u16,
+    pub text: String,
+    /// what the ender says while it is not done
+    pub progress: String,
+    /// what the ender says on completion
+    pub done: String,
+    /// quests that must be finished first
+    pub requires: Vec<u16>,
+    pub objectives: Vec<Objective>,
+    pub xp: u32,
+    /// in copper: 100 copper is 1 silver, 100 silver is 1 gold
+    pub money: u32,
+    /// items always given
+    pub items: Vec<(ItemId, u8)>,
+    /// pick one of these
+    pub choice: Vec<(ItemId, u8)>,
+}
+
+impl Objective {
+    pub fn need(&self) -> u8 {
+        match self {
+            Objective::Kill { count, .. } | Objective::Collect { count, .. } => *count,
+            _ => 1,
+        }
+    }
+}
+
+/// World rules.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct WorldRules {
+    /// RPG rules: players in survival may only harvest blocks marked as
+    /// resource nodes, cannot place blocks, keep their items on death, and
+    /// do not get hungry
+    #[serde(default)]
+    pub protected: bool,
+    /// item keys and counts a new character starts with
+    #[serde(default)]
+    pub starter: Vec<(String, u8)>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -172,6 +262,12 @@ pub struct Content {
     pub recipes: Vec<Recipe>,
     pub creatures: Vec<Creature>,
     pub milestones: Vec<Milestone>,
+    #[serde(default)]
+    pub npcs: Vec<Npc>,
+    #[serde(default)]
+    pub quests: Vec<Quest>,
+    #[serde(default)]
+    pub world: WorldRules,
 }
 
 // ---------- authored form ----------
@@ -188,6 +284,73 @@ struct AFile {
     creatures: Vec<ACreature>,
     #[serde(default)]
     milestones: Vec<Milestone>,
+    #[serde(default)]
+    npcs: Vec<ANpc>,
+    #[serde(default)]
+    quests: Vec<AQuest>,
+    #[serde(default)]
+    world: WorldRules,
+}
+
+#[derive(Deserialize)]
+struct ANpc {
+    key: String,
+    name: String,
+    #[serde(default)]
+    title: String,
+    color: [f32; 3],
+    at: [i32; 3],
+    #[serde(default)]
+    greeting: String,
+}
+
+#[derive(Deserialize)]
+struct AObjective {
+    #[serde(default)]
+    kill: Option<String>,
+    #[serde(default)]
+    collect: Option<String>,
+    #[serde(default)]
+    talk: Option<String>,
+    #[serde(default)]
+    explore: Option<String>,
+    #[serde(default)]
+    at: [i32; 3],
+    #[serde(default = "eight")]
+    radius: f32,
+    #[serde(default = "one")]
+    count: u8,
+}
+
+fn eight() -> f32 {
+    8.0
+}
+
+#[derive(Deserialize)]
+struct AQuest {
+    key: String,
+    title: String,
+    level: u8,
+    giver: String,
+    #[serde(default)]
+    ender: Option<String>,
+    text: String,
+    #[serde(default)]
+    progress: String,
+    #[serde(default)]
+    done: String,
+    #[serde(default)]
+    requires: Vec<String>,
+    objectives: Vec<AObjective>,
+    /// None: worked out from the level
+    #[serde(default)]
+    xp: Option<u32>,
+    #[serde(default)]
+    money: u32,
+    #[serde(default)]
+    items: Vec<(String, u8)>,
+    #[serde(default)]
+    choice: Vec<(String, u8)>,
 }
 
 #[derive(Deserialize)]
@@ -238,6 +401,8 @@ struct ABlock {
     /// None: the block drops itself
     #[serde(default)]
     drops: Option<Vec<ADrop>>,
+    #[serde(default)]
+    respawn: u16,
 }
 
 #[derive(Deserialize)]
@@ -278,6 +443,12 @@ struct ACreature {
     cap: u8,
     #[serde(default)]
     burns_in_daylight: bool,
+    #[serde(default = "level_one")]
+    levels: [u8; 2],
+}
+
+fn level_one() -> [u8; 2] {
+    [1, 1]
 }
 
 impl Content {
@@ -356,6 +527,7 @@ impl Content {
                     hardness: a.hardness,
                     tool: a.tool,
                     tier: a.tier,
+                    respawn: a.respawn,
                     drops: match &a.drops {
                         Some(d) => drops(d)?,
                         None => vec![Drop {
@@ -374,6 +546,7 @@ impl Content {
                     },
                     tool: None,
                     tier: 0,
+                    respawn: 0,
                     drops: vec![Drop {
                         item: b as ItemId,
                         min: 1,
@@ -429,6 +602,108 @@ impl Content {
                 spawn: c.spawn,
                 cap: c.cap,
                 burns_in_daylight: c.burns_in_daylight,
+                levels: [c.levels[0].max(1), c.levels[1].max(c.levels[0]).max(1)],
+            });
+        }
+        let npcs: Vec<Npc> = f
+            .npcs
+            .iter()
+            .enumerate()
+            .map(|(i, n)| Npc {
+                id: i as u16,
+                key: n.key.clone(),
+                name: n.name.clone(),
+                title: n.title.clone(),
+                color: n.color,
+                at: n.at,
+                greeting: n.greeting.clone(),
+            })
+            .collect();
+        let npc = |k: &str| -> Result<u16, String> {
+            npcs.iter()
+                .find(|n| n.key == k)
+                .map(|n| n.id)
+                .ok_or_else(|| format!("unknown NPC '{k}'"))
+        };
+        let creature = |k: &str| -> Result<u16, String> {
+            creatures
+                .iter()
+                .find(|c: &&Creature| c.key == k)
+                .map(|c| c.id)
+                .ok_or_else(|| format!("unknown creature '{k}'"))
+        };
+        let mut quests: Vec<Quest> = Vec::new();
+        for (i, q) in f.quests.iter().enumerate() {
+            let ctx = |e: String| format!("quest '{}': {e}", q.key);
+            let mut objectives = Vec::new();
+            for o in &q.objectives {
+                let ob = if let Some(k) = &o.kill {
+                    Objective::Kill {
+                        creature: creature(k).map_err(ctx)?,
+                        count: o.count,
+                    }
+                } else if let Some(k) = &o.collect {
+                    Objective::Collect {
+                        item: item(k).map_err(ctx)?,
+                        count: o.count,
+                    }
+                } else if let Some(k) = &o.talk {
+                    Objective::Talk {
+                        npc: npc(k).map_err(ctx)?,
+                    }
+                } else if let Some(name) = &o.explore {
+                    Objective::Explore {
+                        name: name.clone(),
+                        at: o.at,
+                        radius: o.radius,
+                    }
+                } else {
+                    return Err(ctx(
+                        "an objective needs kill, collect, talk or explore".into()
+                    ));
+                };
+                objectives.push(ob);
+            }
+            let mut requires = Vec::new();
+            for r in &q.requires {
+                let id = f
+                    .quests
+                    .iter()
+                    .position(|x| &x.key == r)
+                    .ok_or_else(|| ctx(format!("requires unknown quest '{r}'")))?;
+                requires.push(id as u16);
+            }
+            let list = |v: &[(String, u8)]| -> Result<Vec<(ItemId, u8)>, String> {
+                v.iter().map(|(k, n)| item(k).map(|i| (i, *n))).collect()
+            };
+            let giver = npc(&q.giver).map_err(ctx)?;
+            quests.push(Quest {
+                id: i as u16,
+                key: q.key.clone(),
+                title: q.title.clone(),
+                level: q.level.max(1),
+                giver,
+                ender: match &q.ender {
+                    Some(e) => npc(e).map_err(ctx)?,
+                    None => giver,
+                },
+                text: q.text.clone(),
+                progress: if q.progress.is_empty() {
+                    "How goes it?".into()
+                } else {
+                    q.progress.clone()
+                },
+                done: if q.done.is_empty() {
+                    "Well done.".into()
+                } else {
+                    q.done.clone()
+                },
+                requires,
+                objectives,
+                xp: q.xp.unwrap_or_else(|| default_quest_xp(q.level.max(1))),
+                money: q.money,
+                items: list(&q.items).map_err(ctx)?,
+                choice: list(&q.choice).map_err(ctx)?,
             });
         }
         Ok(Content {
@@ -439,6 +714,9 @@ impl Content {
             recipes,
             creatures,
             milestones: f.milestones,
+            npcs,
+            quests,
+            world: f.world,
         })
     }
 
@@ -516,6 +794,12 @@ impl Content {
         &self.blocks[(b as usize).min(self.blocks.len() - 1)]
     }
 
+    pub fn npc(&self, id: u16) -> Option<&Npc> {
+        self.npcs.get(id as usize)
+    }
+    pub fn quest(&self, id: u16) -> Option<&Quest> {
+        self.quests.get(id as usize)
+    }
     pub fn creature(&self, id: u16) -> Option<&Creature> {
         self.creatures.get(id as usize)
     }
@@ -534,6 +818,13 @@ pub struct ItemView<'a> {
     pub fuel: u8,
     pub block: Option<BlockId>,
     pub light: u8,
+}
+
+/// Quest XP when the content does not say: about five same-level kills,
+/// so that quests give a little over half of all XP.
+pub fn default_quest_xp(level: u8) -> u32 {
+    let kill = 45 + 5 * level as u32;
+    (kill * 5).div_ceil(10) * 10
 }
 
 #[cfg(test)]

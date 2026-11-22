@@ -25,6 +25,7 @@ pub struct Connection {
 
 pub struct Joined {
     pub conn: Connection,
+    pub name: String,
     pub url: String,
     pub your_id: PlayerId,
     pub server_version: String,
@@ -149,6 +150,7 @@ pub fn connect(
         .map_err(|e| e.to_string())?;
     Ok(Joined {
         conn: Connection { tx, rx },
+        name: name.to_string(),
         url,
         your_id,
         server_version,

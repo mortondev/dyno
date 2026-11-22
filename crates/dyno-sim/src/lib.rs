@@ -6,6 +6,7 @@
 pub mod crafting;
 pub mod inventory;
 pub mod mining;
+pub mod progression;
 pub mod rng;
 
 pub use inventory::{Inventory, SLOTS, Stack};

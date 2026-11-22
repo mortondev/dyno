@@ -31,6 +31,22 @@ pub struct PlayerData {
     /// unix seconds when last online
     #[serde(default)]
     pub last_seen: u64,
+    #[serde(default = "level_one")]
+    pub level: u8,
+    #[serde(default)]
+    pub xp: u32,
+    #[serde(default)]
+    pub money: u32,
+    /// quest key and counts per objective
+    #[serde(default)]
+    pub quests: Vec<(String, Vec<u8>)>,
+    /// keys of finished quests
+    #[serde(default)]
+    pub done: Vec<String>,
+}
+
+fn level_one() -> u8 {
+    1
 }
 
 /// Server-wide saved state.
@@ -47,6 +63,9 @@ pub struct Meta {
     /// the ruined hearth new players start beside
     #[serde(default)]
     pub spawn_hearth: Option<[i32; 3]>,
+    /// harvested nodes waiting to grow back
+    #[serde(default)]
+    pub regrow: Vec<([i32; 3], u8, u64)>,
 }
 
 pub fn meta_path(world: &Path) -> PathBuf {
@@ -81,6 +100,11 @@ impl PlayerData {
             fuel: 0,
             milestones: Vec::new(),
             last_seen: 0,
+            level: 1,
+            xp: 0,
+            money: 0,
+            quests: Vec::new(),
+            done: Vec::new(),
         }
     }
 }

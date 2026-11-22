@@ -6,10 +6,19 @@ use dyno_world::content::Station;
 use std::time::{Duration, Instant};
 
 fn start_server(dir: &std::path::Path) -> dyno_server::Handle {
+    // the survival rules: the built-in content with the world unprotected
+    std::fs::create_dir_all(dir).unwrap();
+    let survival = dir.join("survival.json");
+    std::fs::write(
+        &survival,
+        dyno_world::content::DEFAULT_JSON.replace("\"protected\": true", "\"protected\": false"),
+    )
+    .unwrap();
     let cfg = dyno_server::Config {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [48, 48, 48],
+        content_path: Some(survival),
         ..Default::default()
     };
     dyno_server::start(cfg).expect("server starts")
@@ -423,6 +432,158 @@ fn survival_loop() {
     );
 
     drop(j);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The RPG loop: a new character gets a starter kit, takes a quest from an
+/// NPC, finishes it by talking to another, and earns XP and money; a collect
+/// quest takes the items and gives the rewards.
+#[test]
+fn quests_give_xp_and_rewards() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-quests-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let j = net::connect(&addr, "hero", 4242, false, Duration::from_secs(5)).expect("join");
+    let c = j.content.clone();
+    assert!(c.world.protected, "the built-in content uses RPG rules");
+    let mut pack = vec![None; 36];
+    // NPC positions arrive as entity spawns; the starter kit as the pack
+    let mut npcs: std::collections::HashMap<u16, (u32, [f32; 3])> = Default::default();
+    let mut level = 0;
+    let end = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < end
+        && (npcs.len() < c.npcs.len()
+            || level == 0
+            || count(&pack, c.item_by_key("wooden_sword").unwrap()) == 0)
+    {
+        if let Some(m) = wait_opt(&j, &mut pack, 0.2, |m| Some(m.clone())) {
+            match m {
+                ServerMsg::EntitySpawn {
+                    id,
+                    kind: EntityKind::Npc(n),
+                    pos,
+                    ..
+                } => {
+                    npcs.insert(n, (id, pos));
+                }
+                ServerMsg::Character { level: l, .. } => level = l,
+                _ => {}
+            }
+        }
+    }
+    assert_eq!(level, 1);
+    assert_eq!(npcs.len(), c.npcs.len(), "every NPC stands in the world");
+    assert_eq!(
+        count(&pack, c.item_by_key("wooden_sword").unwrap()),
+        1,
+        "starter kit"
+    );
+    let npc = |k: &str| c.npcs.iter().find(|n| n.key == k).unwrap().id;
+    let quest = |k: &str| c.quests.iter().find(|q| q.key == k).unwrap().id;
+    let go = |n: u16| {
+        let (_, at) = npcs[&n];
+        pose(&j, [at[0] + 1.0, at[1], at[2]]);
+        std::thread::sleep(Duration::from_millis(80));
+    };
+    // talk to Brannoc: a dialog opens; take "The Cold Hearth"
+    go(npc("brannoc"));
+    send(
+        &j,
+        ClientMsg::Talk {
+            entity: npcs[&npc("brannoc")].0,
+        },
+    );
+    wait(&j, &mut pack, 3.0, |m, _| {
+        matches!(m, ServerMsg::Dialog { .. }).then_some(())
+    });
+    send(
+        &j,
+        ClientMsg::AcceptQuest {
+            quest: quest("cold_hearth"),
+        },
+    );
+    wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Quests { log, .. } if log.iter().any(|q| q.quest == quest("cold_hearth")) => {
+            Some(())
+        }
+        _ => None,
+    });
+    // talk to Maren: the objective is done; hand it in for XP and money
+    go(npc("maren"));
+    send(
+        &j,
+        ClientMsg::Talk {
+            entity: npcs[&npc("maren")].0,
+        },
+    );
+    send(
+        &j,
+        ClientMsg::CompleteQuest {
+            quest: quest("cold_hearth"),
+            choice: 0,
+        },
+    );
+    let (xp, money) = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Gain { xp, money } => Some((*xp, *money)),
+        _ => None,
+    });
+    assert_eq!((xp, money), (120, 10));
+    let (lvl, have) = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Character { level, xp, .. } => Some((*level, *xp)),
+        _ => None,
+    });
+    assert_eq!((lvl, have), (1, 120));
+    // a collect quest: Tilda wants raw meat; it is taken and cooked meat given
+    go(npc("tilda"));
+    send(
+        &j,
+        ClientMsg::AcceptQuest {
+            quest: quest("meat_for_the_pot"),
+        },
+    );
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/give raw_meat 5".into(),
+        },
+    );
+    let meat = c.item_by_key("raw_meat").unwrap();
+    wait(&j, &mut pack, 3.0, |_, p| {
+        (count(p, meat) == 5).then_some(())
+    });
+    // the server recounts collect objectives every second
+    std::thread::sleep(Duration::from_millis(1200));
+    go(npc("tilda"));
+    send(
+        &j,
+        ClientMsg::CompleteQuest {
+            quest: quest("meat_for_the_pot"),
+            choice: 0,
+        },
+    );
+    let cooked = c.item_by_key("cooked_meat").unwrap();
+    wait(&j, &mut pack, 3.0, |_, p| {
+        (count(p, cooked) == 4).then_some(())
+    });
+    assert_eq!(count(&pack, meat), 1, "four raw meat were handed in");
+    // the world is protected: digging the ground is refused
+    let below = [
+        j.spawn[0].floor() as i32 + 3,
+        j.spawn[1].floor() as i32 - 1,
+        j.spawn[2].floor() as i32,
+    ];
+    send(&j, ClientMsg::Dig { pos: below });
+    wait(&j, &mut pack, 3.0, |m, _| {
+        matches!(m, ServerMsg::Block { pos, .. } if *pos == below).then_some(())
+    });
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

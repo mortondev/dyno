@@ -5,6 +5,7 @@ use crate::game::{self, Input, Player, Remote, Remotes, Target};
 use crate::light::Light;
 use crate::net::{self, Joined, NetEvent};
 use crate::render::{self, Gfx, Vertex};
+use crate::rpg_ui;
 use crate::settings::Settings;
 use crate::survival::{self, PackCmd, PackView};
 use dyno_protocol::{
@@ -143,6 +144,20 @@ struct Play {
     heart_clock: f32,
     /// where we lay down in a bed at night
     sleeping_at: Option<Vec3>,
+    my_name: String,
+    hearth: Option<[i32; 3]>,
+    level: u8,
+    xp: u32,
+    xp_next: u32,
+    money: u32,
+    max_health: f32,
+    quest_log: Vec<dyno_protocol::QuestProgress>,
+    quests_done: HashSet<u16>,
+    panel: Option<rpg_ui::Panel>,
+    /// floating text near the crosshair: when, text, colour
+    floaters: Vec<(Instant, String, Color32)>,
+    /// the creature or NPC we last hit or picked with Tab
+    focus: Option<u32>,
     /// the block we last explained "Needs a stone pickaxe" for
     tier_hint: Option<[i32; 3]>,
     fall_from: Option<f32>,
@@ -166,6 +181,8 @@ struct ClientEntity {
     yaw: f32,
     born: Instant,
     hurt_at: Option<Instant>,
+    /// level, health and most health (creatures)
+    info: Option<(u8, f32, f32)>,
 }
 
 impl ClientEntity {
@@ -254,9 +271,41 @@ fn spawn_particles(out: &mut Vec<Particle>, at: [i32; 3], block: w::BlockId, n: 
     }
 }
 
+fn quest_finished(c: &dyno_world::content::Content, q: &dyno_protocol::QuestProgress) -> bool {
+    c.quest(q.quest).is_some_and(|x| {
+        x.objectives
+            .iter()
+            .zip(&q.counts)
+            .all(|(o, n)| *n >= o.need())
+    })
+}
+
 /// Draw every creature, lit by the block light where it stands.
 fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
     for (id, e) in &p.entities {
+        if let EntityKind::Npc(n) = e.kind
+            && let Some(npc) = p.content.npc(n)
+        {
+            let pos = e.pos();
+            let at = pos + Vec3::Y;
+            let light = p.light.get(
+                at.x.floor() as i32,
+                at.y.floor() as i32,
+                at.z.floor() as i32,
+            ) as f32
+                / 15.0;
+            render::push_avatar(
+                boxes,
+                pos,
+                e.yaw,
+                0.0,
+                npc.color,
+                light.max(0.35),
+                clock * 2.0,
+                0.0,
+            );
+            continue;
+        }
         let EntityKind::Creature(cid) = e.kind else {
             continue;
         };
@@ -315,12 +364,13 @@ fn pick_entity(p: &Play) -> Option<u32> {
         .unwrap_or(f32::MAX);
     let mut best: Option<(u32, f32)> = None;
     for (id, e) in &p.entities {
-        let EntityKind::Creature(cid) = e.kind else {
-            continue;
-        };
-        let h = match p.content.creature(cid).map(|c| c.model) {
-            Some(dyno_world::content::Model::Humanoid) => 2.0,
-            _ => 1.25,
+        let h = match e.kind {
+            EntityKind::Npc(_) => 2.0,
+            EntityKind::Creature(cid) => match p.content.creature(cid).map(|c| c.model) {
+                Some(dyno_world::content::Model::Humanoid) => 2.0,
+                _ => 1.25,
+            },
+            _ => continue,
         };
         let pos = e.pos();
         let lo = pos - Vec3::new(0.45, 0.0, 0.45);
@@ -495,6 +545,12 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
 /// Play state for a freshly joined server.
 fn new_play(j: Joined) -> Play {
     let light = Light::new(&j.world);
+    let hearth = j.world.find_near(
+        w::HEARTH,
+        j.world.size[0] as i32 / 2,
+        j.world.size[2] as i32 / 2,
+        24,
+    );
     Play {
         player: Player::new(j.spawn),
         remotes: j
@@ -555,6 +611,18 @@ fn new_play(j: Joined) -> Play {
         target_entity: None,
         heart_clock: 0.0,
         sleeping_at: None,
+        my_name: j.name.clone(),
+        hearth,
+        level: 1,
+        xp: 0,
+        xp_next: 400,
+        money: 0,
+        max_health: 20.0,
+        quest_log: Vec::new(),
+        quests_done: HashSet::new(),
+        panel: None,
+        floaters: Vec::new(),
+        focus: None,
         tier_hint: None,
         toasts: Vec::new(),
         fall_from: None,
@@ -825,6 +893,7 @@ impl App {
                                     yaw,
                                     born: Instant::now(),
                                     hurt_at: None,
+                                    info: None,
                                 },
                             );
                         }
@@ -866,6 +935,82 @@ impl App {
                                 let gain = (1.0 - at.distance(p.player.pos) / 32.0).clamp(0.0, 1.0);
                                 self.audio.play(Sfx::Hit, 0.8 * gain);
                             }
+                        }
+                        ServerMsg::Character {
+                            level,
+                            xp,
+                            xp_next,
+                            money,
+                            max_health,
+                        } => {
+                            p.level = level;
+                            p.xp = xp;
+                            p.xp_next = xp_next;
+                            p.money = money;
+                            p.max_health = max_health;
+                        }
+                        ServerMsg::Gain { xp, money } => {
+                            if xp > 0 {
+                                p.floaters.push((
+                                    Instant::now(),
+                                    format!("+{xp} XP"),
+                                    Color32::from_rgb(190, 140, 255),
+                                ));
+                            }
+                            if money > 0 {
+                                p.floaters.push((
+                                    Instant::now(),
+                                    format!("+{}", dyno_sim::progression::money_text(money)),
+                                    Color32::from_rgb(255, 210, 80),
+                                ));
+                            }
+                        }
+                        ServerMsg::LevelUp { player, level } => {
+                            if player == p.my_id {
+                                self.audio.play(Sfx::Chime, 1.0);
+                                p.title = Some((Instant::now(), format!("Level {level}!")));
+                            }
+                        }
+                        ServerMsg::EntityInfo {
+                            id,
+                            level,
+                            health,
+                            max,
+                        } => {
+                            if let Some(e) = p.entities.get_mut(&id) {
+                                e.info = Some((level, health, max));
+                            }
+                        }
+                        ServerMsg::Quests { log, done } => {
+                            let before: Vec<bool> =
+                                log.iter().map(|q| quest_finished(&p.content, q)).collect();
+                            let was: HashMap<u16, bool> = p
+                                .quest_log
+                                .iter()
+                                .map(|q| (q.quest, quest_finished(&p.content, q)))
+                                .collect();
+                            for (q, now) in log.iter().zip(before) {
+                                if now && was.get(&q.quest) == Some(&false) {
+                                    let t = p
+                                        .content
+                                        .quest(q.quest)
+                                        .map(|q| q.title.clone())
+                                        .unwrap_or_default();
+                                    p.toast(format!("{t}: complete! Return to hand it in."));
+                                    self.audio.play(Sfx::Join, 0.7);
+                                }
+                            }
+                            p.quest_log = log;
+                            p.quests_done = done.into_iter().collect();
+                        }
+                        ServerMsg::Dialog { entity, npc } => {
+                            p.panel = Some(rpg_ui::Panel::Dialog {
+                                entity,
+                                npc,
+                                quest: None,
+                                choice: 0,
+                            });
+                            release = true;
                         }
                         ServerMsg::DayEvent { dusk, day } => {
                             if dusk {
@@ -956,8 +1101,12 @@ impl App {
         let mut lines: Vec<Vertex> = Vec::new();
         if let Screen::Playing(p) = &mut self.screen {
             let k = |c: KeyCode| p.keys.contains(&c);
-            let active =
-                p.captured && !p.chat_open && !p.menu_open && !p.picker_open && p.dead.is_none();
+            let active = p.captured
+                && !p.chat_open
+                && !p.menu_open
+                && !p.picker_open
+                && p.panel.is_none()
+                && p.dead.is_none();
             let input = if active {
                 Input {
                     forward: (k(KeyCode::KeyW) as i32 - k(KeyCode::KeyS) as i32) as f32,
@@ -1053,7 +1202,8 @@ impl App {
             match (can_mine, target_block) {
                 (true, Some(pos)) => {
                     let b = p.world.get(pos[0], pos[1], pos[2]);
-                    let need = dyno_sim::mining::break_time(&p.content, b, p.held_tool());
+                    let need = dyno_sim::mining::break_time(&p.content, b, p.held_tool())
+                        .filter(|_| !p.content.world.protected || p.content.rule(b).respawn > 0);
                     match (&mut p.dig, need) {
                         (Some((dp, done, total)), Some(_)) if *dp == pos => {
                             *done += dt;
@@ -1445,6 +1595,36 @@ impl App {
 
     fn act(&mut self, a: Action) {
         match a {
+            Action::Rpg(cmds) => {
+                let mut close = false;
+                if let Screen::Playing(p) = &mut self.screen {
+                    for c in cmds {
+                        match c {
+                            rpg_ui::RpgCmd::Accept(q) => {
+                                let _ = p.conn.tx.send(ClientMsg::AcceptQuest { quest: q });
+                                self.audio.play(Sfx::Click, 0.7);
+                            }
+                            rpg_ui::RpgCmd::Complete(q, ch) => {
+                                let _ = p.conn.tx.send(ClientMsg::CompleteQuest {
+                                    quest: q,
+                                    choice: ch,
+                                });
+                            }
+                            rpg_ui::RpgCmd::Abandon(q) => {
+                                let _ = p.conn.tx.send(ClientMsg::AbandonQuest { quest: q });
+                            }
+                            rpg_ui::RpgCmd::Show(panel) => p.panel = Some(panel),
+                            rpg_ui::RpgCmd::Close => {
+                                p.panel = None;
+                                close = true;
+                            }
+                        }
+                    }
+                }
+                if close {
+                    self.set_capture(true);
+                }
+            }
             Action::Respawn => {
                 if let Screen::Playing(p) = &mut self.screen {
                     let _ = p.conn.tx.send(ClientMsg::Respawn);
@@ -1533,7 +1713,7 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
-        if p.chat_open || p.menu_open || p.picker_open || p.dead.is_some() {
+        if p.chat_open || p.menu_open || p.picker_open || p.panel.is_some() || p.dead.is_some() {
             return;
         }
         if pressed {
@@ -1571,6 +1751,29 @@ impl App {
                     });
                     p.swing = 1.0;
                 }
+            }
+            KeyCode::KeyL => {
+                p.panel = Some(rpg_ui::Panel::Log { quest: None });
+                self.set_capture(false);
+            }
+            KeyCode::Tab => {
+                // the nearest creature in front of us
+                let eye = p.player.eye();
+                let dir = p.player.look_dir();
+                p.focus = p
+                    .entities
+                    .iter()
+                    .filter(|(id, e)| {
+                        matches!(e.kind, EntityKind::Creature(_)) && Some(**id) != p.focus
+                    })
+                    .filter_map(|(id, e)| {
+                        let v = e.pos() + Vec3::Y - eye;
+                        let d = v.length();
+                        (d < 35.0 && v.normalize().dot(dir) > 0.6).then_some((*id, d))
+                    })
+                    .min_by(|a, b| a.1.total_cmp(&b.1))
+                    .map(|(id, _)| id)
+                    .or(p.focus);
             }
             KeyCode::KeyE => {
                 p.picker_open = true;
@@ -1634,14 +1837,30 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
-        if !p.captured || p.menu_open || p.chat_open || p.picker_open || p.dead.is_some() {
+        if !p.captured
+            || p.menu_open
+            || p.chat_open
+            || p.picker_open
+            || p.panel.is_some()
+            || p.dead.is_some()
+        {
             return;
         }
         p.swing = 1.0;
+        if let Some(id) = p.target_entity
+            && let Some(EntityKind::Npc(_)) = p.entities.get(&id).map(|e| e.kind)
+        {
+            if button == MouseButton::Right {
+                let _ = p.conn.tx.send(ClientMsg::Talk { entity: id });
+            }
+            p.focus = Some(id);
+            return;
+        }
         if button == MouseButton::Left
             && let Some(id) = p.target_entity
         {
             let _ = p.conn.tx.send(ClientMsg::Attack { entity: id });
+            p.focus = Some(id);
             return;
         }
         let Some(t) = &p.target else { return };
@@ -1694,6 +1913,9 @@ impl App {
                     return;
                 }
                 let Some(block) = p.held_block() else { return };
+                if p.content.world.protected && !p.creative() {
+                    return; // the land is protected; building needs a plot (later)
+                }
                 let pos = tp;
                 let here = p.world.get(pos[0], pos[1], pos[2]);
                 if (here == w::AIR || here == w::WATER)
@@ -1739,6 +1961,7 @@ impl App {
 
 enum Action {
     Pack(Vec<PackCmd>),
+    Rpg(Vec<rpg_ui::RpgCmd>),
     Respawn,
     Join(String),
     Host,
@@ -1948,6 +2171,191 @@ fn hud(
             }
         }
     }
+    // nameplates for creatures and NPCs, with quest markers
+    let me = rpg_ui::Me {
+        content: &p.content,
+        level: p.level,
+        log: &p.quest_log,
+        done: &p.quests_done,
+        pos: p.player.pos.into(),
+        hearth: p.hearth,
+    };
+    if let Some(vp) = vp {
+        let eye = p.player.eye();
+        for (id, e) in &p.entities {
+            let (name, sub, height, colour, marker) = match e.kind {
+                EntityKind::Npc(n) => {
+                    let Some(npc) = p.content.npc(n) else {
+                        continue;
+                    };
+                    let title = (!npc.title.is_empty()).then(|| format!("<{}>", npc.title));
+                    (
+                        npc.name.clone(),
+                        title,
+                        2.25,
+                        Color32::from_rgb(120, 230, 120),
+                        me.marker(n),
+                    )
+                }
+                EntityKind::Creature(c) => {
+                    let Some(cr) = p.content.creature(c) else {
+                        continue;
+                    };
+                    let lvl = e.info.map(|i| i.0).unwrap_or(1);
+                    let col = if cr.hostile {
+                        rpg_ui::level_color(p.level, lvl)
+                    } else {
+                        Color32::from_rgb(230, 230, 230)
+                    };
+                    (
+                        format!("{}  {}", cr.name, lvl),
+                        None,
+                        if cr.hostile { 2.35 } else { 1.6 },
+                        col,
+                        None,
+                    )
+                }
+                _ => continue,
+            };
+            let head = e.pos() + glam::Vec3::Y * height;
+            let dist = head.distance(eye);
+            let picked = p.focus == Some(*id) || p.target_entity == Some(*id);
+            if dist > 28.0 && !picked {
+                continue;
+            }
+            let clip = vp * head.extend(1.0);
+            if clip.w <= 0.1 {
+                continue;
+            }
+            let ndc = clip.truncate() / clip.w;
+            let pos = Pos2::new(
+                screen.left() + (ndc.x * 0.5 + 0.5) * screen.width(),
+                screen.top() + (0.5 - ndc.y * 0.5) * screen.height(),
+            );
+            let fade = (1.0 - (dist - 20.0).max(0.0) / 8.0).clamp(0.3, 1.0);
+            painter.text(
+                pos + Vec2::new(1.0, 1.0),
+                Align2::CENTER_BOTTOM,
+                &name,
+                FontId::proportional(14.0),
+                Color32::from_black_alpha((200.0 * fade) as u8),
+            );
+            painter.text(
+                pos,
+                Align2::CENTER_BOTTOM,
+                &name,
+                FontId::proportional(14.0),
+                colour.gamma_multiply(fade),
+            );
+            if let Some(s) = sub {
+                painter.text(
+                    pos + Vec2::new(0.0, 2.0),
+                    Align2::CENTER_TOP,
+                    s,
+                    FontId::proportional(11.0),
+                    Color32::from_gray(200).gamma_multiply(fade),
+                );
+            }
+            if let Some((_, h, m)) = e.info
+                && (h < m || picked)
+            {
+                let r = Rect::from_center_size(pos + Vec2::new(0.0, 6.0), Vec2::new(60.0, 5.0));
+                painter.rect_filled(r, 1.0, Color32::from_black_alpha(180));
+                painter.rect_filled(
+                    Rect::from_min_size(
+                        r.min,
+                        Vec2::new(r.width() * (h / m).clamp(0.0, 1.0), r.height()),
+                    ),
+                    1.0,
+                    Color32::from_rgb(200, 50, 40),
+                );
+            }
+            if let Some(mk) = marker {
+                let (t, c) = match mk {
+                    rpg_ui::Marker::Available => ("!", Color32::from_rgb(255, 210, 40)),
+                    rpg_ui::Marker::Ready => ("?", Color32::from_rgb(255, 210, 40)),
+                    rpg_ui::Marker::Waiting => ("?", Color32::from_gray(170)),
+                };
+                let at = pos - Vec2::new(0.0, 18.0);
+                painter.text(
+                    at + Vec2::new(2.0, 2.0),
+                    Align2::CENTER_BOTTOM,
+                    t,
+                    FontId::proportional(34.0),
+                    Color32::from_black_alpha(200),
+                );
+                painter.text(at, Align2::CENTER_BOTTOM, t, FontId::proportional(34.0), c);
+            }
+        }
+    }
+    if p.content.world.protected {
+        // player frame, target frame, quest tracker, XP bar
+        rpg_ui::unit_frame(
+            &painter,
+            screen.left_top() + Vec2::new(12.0, 52.0),
+            &p.my_name,
+            p.level,
+            Color32::from_rgb(255, 210, 80),
+            p.health,
+            p.max_health,
+            Some(&dyno_sim::progression::money_text(p.money)),
+        );
+        if let Some(t) = p
+            .focus
+            .or(p.target_entity)
+            .and_then(|id| p.entities.get(&id))
+        {
+            let (name, lvl, h, m) = match t.kind {
+                EntityKind::Creature(c) => {
+                    let (l, h, m) = t.info.unwrap_or((1, 1.0, 1.0));
+                    (
+                        p.content
+                            .creature(c)
+                            .map(|c| c.name.clone())
+                            .unwrap_or_default(),
+                        l,
+                        h,
+                        m,
+                    )
+                }
+                EntityKind::Npc(n) => (
+                    p.content.npc(n).map(|n| n.name.clone()).unwrap_or_default(),
+                    p.level,
+                    1.0,
+                    1.0,
+                ),
+                _ => (String::new(), 0, 0.0, 0.0),
+            };
+            if !name.is_empty() {
+                rpg_ui::unit_frame(
+                    &painter,
+                    Pos2::new(c.x - 115.0, screen.top() + 12.0),
+                    &name,
+                    lvl,
+                    rpg_ui::level_color(p.level, lvl),
+                    h,
+                    m,
+                    None,
+                );
+            }
+        }
+        rpg_ui::tracker(&painter, screen, &me);
+    }
+    // floating XP and money
+    p.floaters
+        .retain(|(t, _, _)| t.elapsed() < Duration::from_millis(1800));
+    for (k, (t, text, colour)) in p.floaters.iter().enumerate() {
+        let a = t.elapsed().as_secs_f32();
+        let at = Pos2::new(c.x + 40.0, c.y - 30.0 - a * 40.0 - k as f32 * 18.0);
+        let fade = (1.0 - a / 1.8).clamp(0.0, 1.0);
+        painter.text(
+            at,
+            Align2::LEFT_CENTER,
+            text,
+            FontId::proportional(18.0),
+            colour.gamma_multiply(fade),
+        );
+    }
     // top-left info
     let pos = p.player.pos;
     let info = format!(
@@ -2016,7 +2424,18 @@ fn hud(
         .map(|s| p.content.item(s.item).name.to_string())
         .unwrap_or_default();
     let mut label_y = start.y - 12.0;
-    if !p.creative() {
+    if p.content.world.protected {
+        rpg_ui::xp_bar(
+            &painter,
+            Pos2::new(c.x, start.y - 10.0),
+            total,
+            p.xp,
+            p.xp_next,
+            p.level,
+        );
+        label_y -= 14.0;
+    }
+    if !p.creative() && !p.content.world.protected {
         survival::bars(
             &painter,
             Pos2::new(start.x, start.y - 18.0),
@@ -2216,6 +2635,25 @@ fn hud(
             col,
         );
     }
+    // RPG windows
+    if let Some(mut panel) = p.panel.clone() {
+        let me = rpg_ui::Me {
+            content: &p.content,
+            level: p.level,
+            log: &p.quest_log,
+            done: &p.quests_done,
+            pos: p.player.pos.into(),
+            hearth: p.hearth,
+        };
+        let cmds = match panel {
+            rpg_ui::Panel::Dialog { .. } => rpg_ui::dialog_window(ctx, &me, &mut panel),
+            rpg_ui::Panel::Log { .. } => rpg_ui::log_window(ctx, &me, &mut panel),
+        };
+        p.panel = Some(panel);
+        if !cmds.is_empty() {
+            actions.push(Action::Rpg(cmds));
+        }
+    }
     // pack screen
     if p.picker_open {
         let stations = survival::stations_near(&p.world, p.player.pos.into());
@@ -2305,7 +2743,8 @@ fn hud(
                 actions.push(Action::Disconnect);
             }
         });
-    } else if !p.captured && !p.chat_open && !p.picker_open && p.dead.is_none() {
+    } else if !p.captured && !p.chat_open && !p.picker_open && p.panel.is_none() && p.dead.is_none()
+    {
         egui::Area::new(egui::Id::new("click"))
             .anchor(Align2::CENTER_CENTER, Vec2::new(0.0, 40.0))
             .show(ctx, |ui| {
@@ -2421,9 +2860,10 @@ impl ApplicationHandler for App {
                     p.mouse_left = true;
                 }
                 let (playing_free, menu_or_chat) = match &self.screen {
-                    Screen::Playing(p) => {
-                        (!p.captured, p.menu_open || p.chat_open || p.picker_open)
-                    }
+                    Screen::Playing(p) => (
+                        !p.captured,
+                        p.menu_open || p.chat_open || p.picker_open || p.panel.is_some(),
+                    ),
                     _ => (false, true),
                 };
                 if playing_free && !menu_or_chat && button == MouseButton::Left {
@@ -2514,8 +2954,36 @@ pub fn shot_with_ui(
                             yaw,
                             born: Instant::now(),
                             hurt_at: None,
+                            info: None,
                         },
                     );
+                }
+                ServerMsg::Character {
+                    level,
+                    xp,
+                    xp_next,
+                    money,
+                    max_health,
+                } => {
+                    p.level = level;
+                    p.xp = xp;
+                    p.xp_next = xp_next;
+                    p.money = money;
+                    p.max_health = max_health;
+                }
+                ServerMsg::Quests { log, done } => {
+                    p.quest_log = log;
+                    p.quests_done = done.into_iter().collect();
+                }
+                ServerMsg::EntityInfo {
+                    id,
+                    level,
+                    health,
+                    max,
+                } => {
+                    if let Some(e) = p.entities.get_mut(&id) {
+                        e.info = Some((level, health, max));
+                    }
                 }
                 ServerMsg::Container(c) => p.chest = c,
                 ServerMsg::Milestone { title } => p.toast(format!("Journal: {title}")),
@@ -2542,6 +3010,33 @@ pub fn shot_with_ui(
     p.player.pitch = pitch;
     p.captured = ui != "pack";
     p.picker_open = ui == "pack";
+    if ui == "log" {
+        p.panel = Some(rpg_ui::Panel::Log {
+            quest: p.quest_log.first().map(|q| q.quest),
+        });
+    }
+    if ui == "talk" {
+        // the nearest NPC, reading their first quest
+        let me = p.player.pos;
+        if let Some((id, n)) = p
+            .entities
+            .iter()
+            .filter_map(|(id, e)| match e.kind {
+                EntityKind::Npc(n) => Some((*id, n, e.pos().distance(me))),
+                _ => None,
+            })
+            .min_by(|a, b| a.2.total_cmp(&b.2))
+            .map(|(id, n, _)| (id, n))
+        {
+            let q = p.content.quests.iter().find(|q| q.giver == n).map(|q| q.id);
+            p.panel = Some(rpg_ui::Panel::Dialog {
+                entity: id,
+                npc: n,
+                quest: q,
+                choice: 0,
+            });
+        }
+    }
     p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
     if ui == "dig"
         && let Some(t) = &p.target

@@ -15,7 +15,7 @@ USAGE:
                                Run a dedicated game server
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
-                               [--ui hud|pack|dig|dead] [--as NAME]
+                               [--ui hud|pack|dig|dead|talk|log] [--as NAME]
                                Join, render one frame off-screen to an image, leave
   dyno bot <address> [name] [seconds]
                                Join as a bot that walks in a circle (demos, tests)
