@@ -666,7 +666,7 @@ impl App {
                     let ground = p.world.surface(x.floor() as i32, z.floor() as i32) as f32;
                     p.fireflies.push((
                         Vec3::new(x, ground + 1.2 + h(k ^ 0xaa) * 2.5, z),
-                        h(k ^ 0x33) * 6.28,
+                        h(k ^ 0x33) * std::f32::consts::TAU,
                     ));
                 }
                 p.fireflies.retain(|(pos, _)| pos.distance(center) < 22.0);
