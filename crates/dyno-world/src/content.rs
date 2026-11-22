@@ -228,6 +228,66 @@ impl Objective {
     }
 }
 
+/// What a class spends to use abilities.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Resource {
+    /// fills by fighting, drains out of combat
+    Rage,
+    /// a pool that refills over time
+    Mana,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Class {
+    pub id: u16,
+    pub key: String,
+    pub name: String,
+    pub resource: Resource,
+    pub color: [f32; 3],
+    /// one line for the class picker
+    pub blurb: String,
+}
+
+/// A class ability. Its effects are the non-zero fields.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Ability {
+    pub id: u16,
+    pub key: String,
+    pub name: String,
+    pub class: u16,
+    /// learned at this level
+    pub level: u8,
+    pub text: String,
+    pub cost: f32,
+    /// seconds
+    pub cooldown: f32,
+    /// cast time in seconds; 0 is instant
+    pub cast: f32,
+    /// how far the target may be; 0 means self only
+    pub range: f32,
+    /// damage to the target: base + per level
+    pub damage: [f32; 2],
+    /// healing to yourself: base + per level
+    pub heal: [f32; 2],
+    /// hits every hostile creature within this radius (of you, or of the target)
+    pub radius: f32,
+    /// holds the target in place for this many seconds
+    pub root: f32,
+    /// stuns the target for this many seconds
+    pub stun: f32,
+    /// damage multiplier against creatures that burn in daylight (Shades)
+    pub shade_bonus: f32,
+    /// jump forward this many blocks
+    pub blink: f32,
+    /// return to your hearth or bed
+    pub recall: bool,
+    /// colour of the effect and icon
+    pub color: [f32; 3],
+    /// item key whose sprite is the icon
+    pub icon: String,
+}
+
 /// World rules.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct WorldRules {
@@ -268,6 +328,10 @@ pub struct Content {
     pub quests: Vec<Quest>,
     #[serde(default)]
     pub world: WorldRules,
+    #[serde(default)]
+    pub classes: Vec<Class>,
+    #[serde(default)]
+    pub abilities: Vec<Ability>,
 }
 
 // ---------- authored form ----------
@@ -290,6 +354,44 @@ struct AFile {
     quests: Vec<AQuest>,
     #[serde(default)]
     world: WorldRules,
+    #[serde(default)]
+    classes: Vec<AClass>,
+    #[serde(default)]
+    abilities: Vec<AAbility>,
+}
+
+#[derive(Deserialize)]
+struct AClass {
+    key: String,
+    name: String,
+    resource: Resource,
+    color: [f32; 3],
+    #[serde(default)]
+    blurb: String,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct AAbility {
+    key: String,
+    name: String,
+    class: String,
+    level: u8,
+    text: String,
+    cost: f32,
+    cooldown: f32,
+    cast: f32,
+    range: f32,
+    damage: [f32; 2],
+    heal: [f32; 2],
+    radius: f32,
+    root: f32,
+    stun: f32,
+    shade_bonus: f32,
+    blink: f32,
+    recall: bool,
+    color: [f32; 3],
+    icon: String,
 }
 
 #[derive(Deserialize)]
@@ -706,7 +808,55 @@ impl Content {
                 choice: list(&q.choice).map_err(ctx)?,
             });
         }
+        let classes: Vec<Class> = f
+            .classes
+            .iter()
+            .enumerate()
+            .map(|(i, c)| Class {
+                id: i as u16,
+                key: c.key.clone(),
+                name: c.name.clone(),
+                resource: c.resource,
+                color: c.color,
+                blurb: c.blurb.clone(),
+            })
+            .collect();
+        let mut abilities = Vec::new();
+        for (i, a) in f.abilities.iter().enumerate() {
+            let class = classes
+                .iter()
+                .find(|c| c.key == a.class)
+                .map(|c| c.id)
+                .ok_or_else(|| format!("ability '{}': unknown class '{}'", a.key, a.class))?;
+            if !a.icon.is_empty() {
+                item(&a.icon).map_err(|e| format!("ability '{}': {e}", a.key))?;
+            }
+            abilities.push(Ability {
+                id: i as u16,
+                key: a.key.clone(),
+                name: a.name.clone(),
+                class,
+                level: a.level.max(1),
+                text: a.text.clone(),
+                cost: a.cost,
+                cooldown: a.cooldown,
+                cast: a.cast,
+                range: a.range,
+                damage: a.damage,
+                heal: a.heal,
+                radius: a.radius,
+                root: a.root,
+                stun: a.stun,
+                shade_bonus: if a.shade_bonus > 0.0 { a.shade_bonus } else { 1.0 },
+                blink: a.blink,
+                recall: a.recall,
+                color: a.color,
+                icon: a.icon.clone(),
+            });
+        }
         Ok(Content {
+            classes,
+            abilities,
             name: f.name,
             version: f.version,
             items,
@@ -794,6 +944,22 @@ impl Content {
         &self.blocks[(b as usize).min(self.blocks.len() - 1)]
     }
 
+    pub fn class(&self, id: u16) -> Option<&Class> {
+        self.classes.get(id as usize)
+    }
+    pub fn ability(&self, id: u16) -> Option<&Ability> {
+        self.abilities.get(id as usize)
+    }
+    /// A class's abilities known at a level, in the order they are learned.
+    pub fn known_abilities(&self, class: u16, level: u8) -> Vec<&Ability> {
+        let mut v: Vec<&Ability> = self
+            .abilities
+            .iter()
+            .filter(|a| a.class == class && a.level <= level)
+            .collect();
+        v.sort_by_key(|a| (a.level, a.id));
+        v
+    }
     pub fn npc(&self, id: u16) -> Option<&Npc> {
         self.npcs.get(id as usize)
     }

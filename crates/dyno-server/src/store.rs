@@ -43,6 +43,10 @@ pub struct PlayerData {
     /// keys of finished quests
     #[serde(default)]
     pub done: Vec<String>,
+    #[serde(default)]
+    pub class: Option<String>,
+    #[serde(default)]
+    pub power: f32,
 }
 
 fn level_one() -> u8 {
@@ -105,6 +109,8 @@ impl PlayerData {
             money: 0,
             quests: Vec::new(),
             done: Vec::new(),
+            class: None,
+            power: 0.0,
         }
     }
 }

@@ -51,7 +51,10 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 7;
+pub const PROTOCOL_VERSION: u32 = 8;
+
+/// The ability ID used for the recall cast (back to your hearth or bed).
+pub const RECALL: u16 = u16::MAX;
 
 /// Default TCP port of the game server.
 pub const DEFAULT_PORT: u16 = 7400;
@@ -170,6 +173,19 @@ pub enum ClientMsg {
     AbandonQuest {
         quest: u16,
     },
+    /// Use a class ability, at a creature or at yourself.
+    Cast {
+        ability: u16,
+        target: Option<u32>,
+    },
+    /// Pick a class (only while you have none).
+    ChooseClass {
+        class: u16,
+    },
+    /// Start the recall cast home.
+    Recall,
+    /// Eat the best food in your bags.
+    EatBest,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -293,6 +309,7 @@ pub enum ServerMsg {
     },
     /// Your level, XP, money (copper) and most health.
     Character {
+        class: Option<u16>,
         level: u8,
         xp: u32,
         xp_next: u32,
@@ -326,6 +343,31 @@ pub enum ServerMsg {
         entity: u32,
         npc: u16,
     },
+    /// Your rage or mana.
+    Power {
+        value: f32,
+        max: f32,
+    },
+    /// A player started casting (`secs` long), or stopped (`ability` None).
+    Casting {
+        player: PlayerId,
+        ability: Option<u16>,
+        secs: f32,
+    },
+    /// Seconds left on your cooldowns, and on the global cooldown.
+    Cooldowns {
+        list: Vec<(u16, f32)>,
+        global: f32,
+    },
+    /// Draw a spell: from a point to a point (a bolt), or a burst of `radius` at `to`.
+    Effect {
+        color: [f32; 3],
+        from: [f32; 3],
+        to: [f32; 3],
+        radius: f32,
+    },
+    /// You have no class yet: choose one.
+    ChooseClass,
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

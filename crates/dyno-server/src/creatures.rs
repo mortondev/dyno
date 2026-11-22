@@ -38,6 +38,8 @@ pub struct Mob {
     pub last_hit: Option<(PlayerId, Instant)>,
     pub level: u8,
     pub max_health: f32,
+    pub stunned_until: Instant,
+    pub rooted_until: Instant,
 }
 
 const HALF_W: f32 = 0.3;
@@ -208,6 +210,8 @@ impl State {
                     last_hit: None,
                     level,
                     max_health: health,
+                    stunned_until: now,
+                    rooted_until: now,
                 }),
             },
         );
@@ -465,7 +469,11 @@ impl State {
                     if d > 1.1 {
                         want = [dx / d, dz / d];
                     }
-                    if d < 1.7 && (p[1] - e.pos[1]).abs() < 2.0 && mob.attack_cd <= 0.0 {
+                    if d < 1.7
+                        && (p[1] - e.pos[1]).abs() < 2.0
+                        && mob.attack_cd <= 0.0
+                        && mob.stunned_until <= now
+                    {
                         mob.attack_cd = 1.5;
                         let dmg = c.damage
                             * if rpg {
@@ -535,6 +543,9 @@ impl State {
                     mob.think = 0.0;
                 }
             }
+            if mob.stunned_until > now || mob.rooted_until > now {
+                want = [0.0, 0.0];
+            }
             if mob.stun <= 0.0 {
                 e.vel[0] = want[0] * speed;
                 e.vel[2] = want[1] * speed;
@@ -582,6 +593,11 @@ impl State {
                 .unwrap_or_default();
             self.damage(pid, dmg, push, &format!("fell to a {name}"));
         }
+    }
+
+    /// A creature killed by a player's ability.
+    pub(crate) fn kill_mob_by(&mut self, id: u32) {
+        self.kill_mob(id, true);
     }
 
     /// Remove a creature; with `drops`, it leaves its drops and counts as a kill.
@@ -636,8 +652,14 @@ impl State {
             return;
         }
         let eye = [p.pose.pos[0], p.pose.pos[1] + 1.62, p.pose.pos[2]];
-        let tool = p.held_tool(&self.content).cloned();
-        let held = p.held as usize;
+        let (tool, held) = if self.rpg() {
+            match dyno_sim::inventory::best_weapon(&p.pack, &self.content) {
+                Some((slot, t)) => (Some(t.clone()), slot),
+                None => (None, p.held as usize),
+            }
+        } else {
+            (p.held_tool(&self.content).cloned(), p.held as usize)
+        };
         let creative = p.mode == Mode::Creative;
         let power = if self.rpg() {
             2.0 * dyno_sim::progression::power(p.level)
@@ -705,6 +727,7 @@ impl State {
             }
             p.send(&ServerMsg::Pack(p.pack.slots.clone()));
         }
+        self.gain_rage(pid, 8.0);
         if dead {
             self.kill_mob(id, true);
         }

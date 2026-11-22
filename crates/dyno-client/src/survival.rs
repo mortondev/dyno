@@ -1,11 +1,12 @@
 //! Survival UI: item icons, health and hunger, the pack screen with the recipe list.
 
+use crate::theme;
 use dyno_protocol::{Mode, SlotRef, Stack};
 use dyno_sim::crafting::{self, Stations};
 use dyno_sim::inventory::Inventory;
 use dyno_world::content::{Content, Icon, ItemId, Station, ToolKind};
 use dyno_world::{self as w, World};
-use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Shape, Stroke, Vec2};
+use egui::{Align2, Color32, Pos2, Rect, RichText, Shape, Stroke, Vec2};
 
 pub const ACCENT: Color32 = Color32::from_rgb(240, 138, 60);
 
@@ -307,15 +308,15 @@ pub fn stack_icon(painter: &egui::Painter, r: Rect, c: &Content, s: &Stack) {
             r.right_bottom() + Vec2::new(-3.0, -1.0),
             Align2::RIGHT_BOTTOM,
             &t,
-            FontId::monospace(12.0),
+            theme::bold_font(13.0),
             Color32::BLACK,
         );
         painter.text(
             r.right_bottom() + Vec2::new(-4.0, -2.0),
             Align2::RIGHT_BOTTOM,
             t,
-            FontId::monospace(12.0),
-            Color32::WHITE,
+            theme::bold_font(13.0),
+            Color32::from_rgb(255, 246, 220),
         );
     }
     if let Some(tool) = c.item(s.item).tool
@@ -441,26 +442,22 @@ fn slot_ui(ui: &mut egui::Ui, v: &mut PackView, s: SlotRef, out: &mut Vec<PackCm
     let sel = *v.selected == Some(s);
     let hot = matches!(s, SlotRef::Pack(i) if i as usize == v.hotbar_slot);
     let p = ui.painter();
-    p.rect_filled(
-        r,
-        5.0,
-        if resp.hovered() {
-            Color32::from_white_alpha(28)
-        } else {
-            Color32::from_black_alpha(110)
-        },
-    );
-    let stroke = if sel {
-        Stroke::new(2.5_f32, ACCENT)
-    } else if hot {
-        Stroke::new(1.5_f32, ACCENT.gamma_multiply(0.5))
-    } else {
-        Stroke::new(1.0_f32, Color32::from_white_alpha(35))
-    };
-    p.rect_stroke(r, 5.0, stroke, egui::StrokeKind::Inside);
+    theme::slot_well(p, r);
+    if resp.hovered() {
+        p.rect_filled(r.shrink(2.0), 3.0, Color32::from_white_alpha(22));
+    }
     let stack = slot_at(v, s);
     if let Some(st) = &stack {
         stack_icon(p, r, v.content, st);
+    }
+    theme::slot_rim(p, r, sel);
+    if hot && !sel {
+        p.rect_stroke(
+            r.shrink(2.0),
+            3.0,
+            Stroke::new(1.0_f32, theme::GOLD.gamma_multiply(0.7)),
+            egui::StrokeKind::Inside,
+        );
     }
     let shift = ui.input(|i| i.modifiers.shift);
     if resp.clicked() {
@@ -509,49 +506,110 @@ fn slot_ui(ui: &mut egui::Ui, v: &mut PackView, s: SlotRef, out: &mut Vec<PackCm
     }
 }
 
-/// The pack screen: pack slots, an open chest, and the recipe list.
+/// A small tag saying whether a crafting station is in reach.
+fn station_tag(ui: &mut egui::Ui, near: bool, name: &str) {
+    let text = if near {
+        format!("{name} nearby")
+    } else {
+        format!("no {name}")
+    };
+    let col = if near { theme::GOOD } else { theme::TEXT_DIM };
+    let galley = ui
+        .painter()
+        .layout_no_wrap(text, theme::body_font(12.5), col);
+    let (r, _) = ui.allocate_exact_size(galley.size() + Vec2::new(22.0, 4.0), egui::Sense::hover());
+    let p = ui.painter();
+    p.rect_filled(r, 9.0, theme::WOOD_DARK);
+    p.rect_stroke(
+        r,
+        9.0,
+        Stroke::new(1.0_f32, col.gamma_multiply(0.45)),
+        egui::StrokeKind::Inside,
+    );
+    let dot = Pos2::new(r.left() + 9.0, r.center().y);
+    if near {
+        p.circle_filled(dot, 5.0, theme::EMBER.gamma_multiply(0.25));
+        p.circle_filled(dot, 3.0, theme::EMBER);
+    } else {
+        p.circle_stroke(dot, 3.0, Stroke::new(1.0_f32, col));
+    }
+    p.galley(
+        Pos2::new(r.left() + 16.0, r.center().y - galley.size().y * 0.5),
+        galley,
+        col,
+    );
+}
+
+const SLOT_GAP: f32 = 4.0;
+const BAG_W: f32 = 9.0 * 48.0 + 8.0 * SLOT_GAP;
+const CRAFT_W: f32 = 380.0;
+
+/// The pack screen: the bags, an open chest, and the recipe list.
 pub fn pack_window(
     ctx: &egui::Context,
     mut v: PackView,
     recipes_filter: &mut String,
 ) -> Vec<PackCmd> {
     let mut out = Vec::new();
-    let title = if v.chest.is_some() { "Chest" } else { "Pack" };
-    egui::Window::new(title)
-        .collapsible(false)
-        .resizable(false)
-        .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-        .show(ctx, |ui| {
+    let (id, title) = if v.chest.is_some() {
+        ("chest-window", "Chest")
+    } else {
+        ("bags-window", "Bags")
+    };
+    let mut open = true;
+    theme::window(
+        ctx,
+        id,
+        title,
+        "",
+        BAG_W + 24.0 + 12.0 + CRAFT_W + 20.0,
+        (Align2::CENTER_CENTER, Vec2::ZERO),
+        &mut open,
+        |ui| {
             ui.horizontal_top(|ui| {
+                ui.spacing_mut().item_spacing.x = 12.0;
                 ui.vertical(|ui| {
                     if let Some(chest) = v.chest {
-                        ui.label(RichText::new("Chest").strong());
-                        egui::Grid::new("chest").spacing([4.0, 4.0]).show(ui, |ui| {
-                            for i in 0..chest.len() {
-                                slot_ui(ui, &mut v, SlotRef::Chest(i as u8), &mut out);
-                                if (i + 1) % 9 == 0 {
-                                    ui.end_row();
-                                }
-                            }
+                        theme::leather(ui, |ui| {
+                            ui.set_width(BAG_W);
+                            theme::heading(ui, "Chest", theme::GOLD);
+                            egui::Grid::new("chest")
+                                .spacing([SLOT_GAP, SLOT_GAP])
+                                .show(ui, |ui| {
+                                    for i in 0..chest.len() {
+                                        slot_ui(ui, &mut v, SlotRef::Chest(i as u8), &mut out);
+                                        if (i + 1) % 9 == 0 {
+                                            ui.end_row();
+                                        }
+                                    }
+                                });
                         });
                         ui.add_space(8.0);
                     }
-                    ui.label(RichText::new("Pack").strong());
-                    egui::Grid::new("pack").spacing([4.0, 4.0]).show(ui, |ui| {
-                        for i in 9..36 {
-                            slot_ui(ui, &mut v, SlotRef::Pack(i as u8), &mut out);
-                            if (i - 8) % 9 == 0 {
-                                ui.end_row();
-                            }
-                        }
+                    theme::leather(ui, |ui| {
+                        ui.set_width(BAG_W);
+                        theme::heading(ui, "Backpack", theme::GOLD);
+                        egui::Grid::new("pack")
+                            .spacing([SLOT_GAP, SLOT_GAP])
+                            .show(ui, |ui| {
+                                for i in 9..36 {
+                                    slot_ui(ui, &mut v, SlotRef::Pack(i as u8), &mut out);
+                                    if (i - 8) % 9 == 0 {
+                                        ui.end_row();
+                                    }
+                                }
+                            });
+                        ui.add_space(6.0);
+                        theme::heading(ui, "Belt", theme::GOLD);
+                        egui::Grid::new("hot")
+                            .spacing([SLOT_GAP, SLOT_GAP])
+                            .show(ui, |ui| {
+                                for i in 0..9 {
+                                    slot_ui(ui, &mut v, SlotRef::Pack(i as u8), &mut out);
+                                }
+                            });
                     });
                     ui.add_space(6.0);
-                    egui::Grid::new("hot").spacing([4.0, 4.0]).show(ui, |ui| {
-                        for i in 0..9 {
-                            slot_ui(ui, &mut v, SlotRef::Pack(i as u8), &mut out);
-                        }
-                    });
-                    ui.add_space(4.0);
                     ui.horizontal(|ui| {
                         if let Some(sel) = *v.selected
                             && ui.button("Throw selected").clicked()
@@ -559,208 +617,237 @@ pub fn pack_window(
                             out.push(PackCmd::Throw(sel, 0));
                             *v.selected = None;
                         }
-                        ui.label(RichText::new("E or Esc closes").weak().small());
                     });
-                });
-                ui.separator();
-                ui.vertical(|ui| {
-                    ui.set_width(380.0);
-                    if v.mode == Mode::Creative {
+                    for hint in [
+                        "Click a slot to pick up, click another to put down.",
+                        "Right-click places one. Shift-click moves between bag and belt.",
+                        "Q throws the selected stack. E or Esc closes.",
+                    ] {
                         ui.label(
-                            RichText::new("Creative: click any item to put it in hotbar slot")
-                                .strong(),
+                            RichText::new(hint)
+                                .italics()
+                                .size(13.0)
+                                .color(theme::TEXT_DIM),
                         );
-                        egui::ScrollArea::vertical()
-                            .max_height(430.0)
-                            .show(ui, |ui| {
-                                egui::Grid::new("creative")
-                                    .spacing([4.0, 4.0])
-                                    .show(ui, |ui| {
-                                        let mut items: Vec<ItemId> =
-                                            w::placeable().map(|b| b as ItemId).collect();
-                                        items.extend(v.content.items.iter().map(|i| i.id));
-                                        for (k, item) in items.into_iter().enumerate() {
-                                            let (r, resp) = ui.allocate_exact_size(
-                                                Vec2::splat(40.0),
-                                                egui::Sense::click(),
-                                            );
-                                            ui.painter().rect_filled(
-                                                r,
-                                                4.0,
-                                                if resp.hovered() {
-                                                    Color32::from_white_alpha(30)
-                                                } else {
-                                                    Color32::from_black_alpha(90)
-                                                },
-                                            );
-                                            item_icon(ui.painter(), r.shrink(5.0), v.content, item);
-                                            if resp
-                                                .on_hover_text(v.content.item(item).name)
-                                                .clicked()
-                                            {
-                                                out.push(PackCmd::Creative(item));
-                                            }
-                                            if (k + 1) % 7 == 0 {
-                                                ui.end_row();
-                                            }
-                                        }
-                                    });
-                            });
-                        return;
                     }
-                    ui.horizontal(|ui| {
-                        ui.label(RichText::new("Craft").strong());
-                        let st = |b: bool, t: &str| {
-                            RichText::new(t).small().color(if b {
-                                Color32::from_rgb(120, 200, 140)
-                            } else {
-                                Color32::GRAY
-                            })
-                        };
-                        ui.label(st(
-                            v.stations.table,
-                            if v.stations.table {
-                                "table nearby"
-                            } else {
-                                "no table"
-                            },
-                        ));
-                        ui.label(st(
-                            v.stations.furnace,
-                            if v.stations.furnace {
-                                "furnace nearby"
-                            } else {
-                                "no furnace"
-                            },
-                        ));
-                        if v.fuel > 0 {
-                            ui.label(RichText::new(format!("fuel {}", v.fuel)).small());
-                        }
-                    });
-                    ui.add(
-                        egui::TextEdit::singleline(recipes_filter)
-                            .hint_text("Search recipes")
-                            .desired_width(f32::INFINITY),
-                    );
-                    let inv = Inventory {
-                        slots: v.pack.to_vec(),
-                    };
-                    let list = crafting::list(v.content, &inv, v.stations, v.fuel);
-                    let filter = recipes_filter.to_lowercase();
-                    egui::ScrollArea::vertical()
-                        .max_height(420.0)
-                        .show(ui, |ui| {
-                            // craftable first, then the rest, grouped
-                            let mut rows: Vec<_> = list
-                                .into_iter()
-                                .filter(|(r, _)| {
-                                    filter.is_empty()
-                                        || v.content
-                                            .item(r.output)
-                                            .name
-                                            .to_lowercase()
-                                            .contains(&filter)
-                                })
-                                .collect();
-                            rows.sort_by_key(|(r, ok)| (ok.is_err(), r.group.clone(), r.id));
-                            for (r, ok) in rows {
-                                let can = ok.is_ok();
-                                let frame = egui::Frame::new()
-                                    .fill(if can {
-                                        Color32::from_white_alpha(14)
-                                    } else {
-                                        Color32::TRANSPARENT
-                                    })
-                                    .corner_radius(5.0)
-                                    .inner_margin(4.0);
-                                frame.show(ui, |ui| {
-                                    ui.horizontal(|ui| {
-                                        let (ir, _) = ui.allocate_exact_size(
-                                            Vec2::splat(34.0),
-                                            egui::Sense::hover(),
-                                        );
-                                        item_icon(ui.painter(), ir, v.content, r.output);
-                                        ui.vertical(|ui| {
-                                            let name = v.content.item(r.output).name;
-                                            let label = if r.count > 1 {
-                                                format!("{name} ×{}", r.count)
-                                            } else {
-                                                name.to_string()
-                                            };
-                                            ui.horizontal(|ui| {
-                                                ui.label(RichText::new(label).strong().color(
-                                                    if can {
-                                                        Color32::WHITE
-                                                    } else {
-                                                        Color32::GRAY
-                                                    },
-                                                ));
-                                                if can {
-                                                    if ui.small_button("Craft").clicked() {
-                                                        out.push(PackCmd::Craft(r.id, 1));
-                                                    }
-                                                    if ui
-                                                        .small_button("×5")
-                                                        .on_hover_text("Craft five times")
-                                                        .clicked()
-                                                    {
-                                                        out.push(PackCmd::Craft(r.id, 5));
-                                                    }
-                                                } else if let Err(why) = &ok {
-                                                    ui.label(RichText::new("?").weak())
-                                                        .on_hover_text(why.as_str());
-                                                }
-                                            });
-                                            ui.horizontal_wrapped(|ui| {
-                                                for ing in &r.inputs {
-                                                    let have: u32 =
-                                                        ing.any.iter().map(|i| inv.count(*i)).sum();
-                                                    let (ir, _) = ui.allocate_exact_size(
-                                                        Vec2::splat(18.0),
-                                                        egui::Sense::hover(),
-                                                    );
-                                                    item_icon(
-                                                        ui.painter(),
-                                                        ir,
-                                                        v.content,
-                                                        ing.any[0],
-                                                    );
-                                                    let c = if have >= ing.count as u32 {
-                                                        Color32::from_rgb(170, 220, 170)
-                                                    } else {
-                                                        Color32::from_rgb(230, 130, 120)
-                                                    };
-                                                    ui.label(
-                                                        RichText::new(format!("{}", ing.count))
-                                                            .small()
-                                                            .color(c),
-                                                    );
-                                                }
-                                                match r.station {
-                                                    Station::Table => ui.label(
-                                                        RichText::new("· table").small().weak(),
-                                                    ),
-                                                    Station::Furnace => ui.label(
-                                                        RichText::new(format!(
-                                                            "· furnace, {} fuel",
-                                                            r.fuel
-                                                        ))
-                                                        .small()
-                                                        .weak(),
-                                                    ),
-                                                    Station::None => ui.label(""),
-                                                };
-                                            });
-                                        });
-                                    });
-                                });
-                            }
-                        });
                 });
+                egui::Frame::new()
+                    .fill(theme::WOOD_DARK)
+                    .stroke(Stroke::new(1.0_f32, theme::BRONZE))
+                    .corner_radius(5.0)
+                    .inner_margin(egui::Margin::same(10))
+                    .show(ui, |ui| {
+                        ui.vertical(|ui| side_panel(ui, &mut v, recipes_filter, &mut out))
+                    });
             });
             if ui.input(|i| i.key_pressed(egui::Key::E) || i.key_pressed(egui::Key::Escape)) {
                 out.push(PackCmd::Close);
             }
-        });
+        },
+    );
+    if !open {
+        out.push(PackCmd::Close);
+    }
     out
+}
+
+/// The right side of the bags: the creative palette, or the recipes.
+fn side_panel(
+    ui: &mut egui::Ui,
+    v: &mut PackView,
+    recipes_filter: &mut String,
+    out: &mut Vec<PackCmd>,
+) {
+    ui.set_width(CRAFT_W);
+    ui.set_min_height(300.0);
+    if v.mode == Mode::Creative {
+        theme::heading(ui, "Creative", theme::GOLD);
+        ui.label(
+            RichText::new("Click any item to put it in the selected belt slot.")
+                .italics()
+                .color(theme::TEXT_DIM),
+        );
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .max_height(if v.chest.is_some() { 470.0 } else { 350.0 })
+            .show(ui, |ui| {
+                egui::Grid::new("creative")
+                    .spacing([4.0, 4.0])
+                    .show(ui, |ui| {
+                        let mut items: Vec<ItemId> = w::placeable().map(|b| b as ItemId).collect();
+                        items.extend(v.content.items.iter().map(|i| i.id));
+                        for (k, item) in items.into_iter().enumerate() {
+                            let (r, resp) =
+                                ui.allocate_exact_size(Vec2::splat(40.0), egui::Sense::click());
+                            theme::slot_well(ui.painter(), r);
+                            if resp.hovered() {
+                                ui.painter().rect_filled(
+                                    r.shrink(2.0),
+                                    3.0,
+                                    Color32::from_white_alpha(26),
+                                );
+                            }
+                            item_icon(ui.painter(), r.shrink(5.0), v.content, item);
+                            theme::slot_rim(ui.painter(), r, resp.hovered());
+                            if resp.on_hover_text(v.content.item(item).name).clicked() {
+                                out.push(PackCmd::Creative(item));
+                            }
+                            if (k + 1) % 8 == 0 {
+                                ui.end_row();
+                            }
+                        }
+                    });
+            });
+        return;
+    }
+    theme::heading(ui, "Crafting", theme::GOLD);
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 6.0;
+        station_tag(ui, v.stations.table, "table");
+        station_tag(ui, v.stations.furnace, "furnace");
+        if v.fuel > 0 {
+            ui.label(
+                RichText::new(format!("fuel {}", v.fuel))
+                    .size(13.0)
+                    .color(theme::EMBER),
+            );
+        }
+    });
+    ui.add_space(2.0);
+    ui.add(
+        egui::TextEdit::singleline(recipes_filter)
+            .hint_text("Search recipes")
+            .desired_width(f32::INFINITY),
+    );
+    ui.add_space(2.0);
+    let inv = Inventory {
+        slots: v.pack.to_vec(),
+    };
+    let list = crafting::list(v.content, &inv, v.stations, v.fuel);
+    let filter = recipes_filter.to_lowercase();
+    let height = if v.chest.is_some() { 420.0 } else { 300.0 };
+    egui::ScrollArea::vertical()
+        .auto_shrink([false, false])
+        .max_height(height)
+        .show(ui, |ui| {
+            ui.spacing_mut().item_spacing.y = 5.0;
+            // craftable first, then the rest, grouped
+            let mut rows: Vec<_> = list
+                .into_iter()
+                .filter(|(r, _)| {
+                    filter.is_empty()
+                        || v.content
+                            .item(r.output)
+                            .name
+                            .to_lowercase()
+                            .contains(&filter)
+                })
+                .collect();
+            rows.sort_by_key(|(r, ok)| (ok.is_err(), r.group.clone(), r.id));
+            for (r, ok) in rows {
+                let can = ok.is_ok();
+                let frame = egui::Frame::new()
+                    .fill(if can {
+                        Color32::from_rgb(54, 38, 25)
+                    } else {
+                        Color32::from_rgb(30, 22, 16)
+                    })
+                    .stroke(Stroke::new(
+                        1.0_f32,
+                        if can {
+                            theme::GOLD_DARK
+                        } else {
+                            Color32::from_rgb(56, 42, 28)
+                        },
+                    ))
+                    .corner_radius(5.0)
+                    .inner_margin(egui::Margin::symmetric(6, 5));
+                frame.show(ui, |ui| {
+                    ui.set_width((ui.available_width() - 10.0).max(40.0));
+                    ui.horizontal(|ui| {
+                        let (ir, _) =
+                            ui.allocate_exact_size(Vec2::splat(38.0), egui::Sense::hover());
+                        theme::slot_well(ui.painter(), ir);
+                        item_icon(ui.painter(), ir.shrink(4.0), v.content, r.output);
+                        if !can {
+                            ui.painter().rect_filled(
+                                ir.shrink(2.0),
+                                2.0,
+                                Color32::from_black_alpha(110),
+                            );
+                        }
+                        theme::slot_rim(ui.painter(), ir, false);
+                        ui.vertical(|ui| {
+                            ui.spacing_mut().item_spacing.y = 2.0;
+                            let name = v.content.item(r.output).name;
+                            let label = if r.count > 1 {
+                                format!("{name} ×{}", r.count)
+                            } else {
+                                name.to_string()
+                            };
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new(label).font(theme::bold_font(15.0)).color(
+                                    if can {
+                                        theme::GOLD_BRIGHT
+                                    } else {
+                                        theme::TEXT_DIM
+                                    },
+                                ));
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        if can {
+                                            if ui
+                                                .small_button("×5")
+                                                .on_hover_text("Craft five times")
+                                                .clicked()
+                                            {
+                                                out.push(PackCmd::Craft(r.id, 5));
+                                            }
+                                            if ui.small_button("Craft").clicked() {
+                                                out.push(PackCmd::Craft(r.id, 1));
+                                            }
+                                        } else if let Err(why) = &ok {
+                                            ui.label(RichText::new("?").color(theme::TEXT_DIM))
+                                                .on_hover_text(why.as_str());
+                                        }
+                                    },
+                                );
+                            });
+                            ui.horizontal_wrapped(|ui| {
+                                ui.spacing_mut().item_spacing.x = 4.0;
+                                for ing in &r.inputs {
+                                    let have: u32 = ing.any.iter().map(|i| inv.count(*i)).sum();
+                                    let (ir, _) = ui.allocate_exact_size(
+                                        Vec2::splat(18.0),
+                                        egui::Sense::hover(),
+                                    );
+                                    item_icon(ui.painter(), ir, v.content, ing.any[0]);
+                                    let c = if have >= ing.count as u32 {
+                                        Color32::from_rgb(170, 220, 170)
+                                    } else {
+                                        Color32::from_rgb(230, 130, 120)
+                                    };
+                                    ui.label(
+                                        RichText::new(format!("{}", ing.count))
+                                            .font(theme::bold_font(13.0))
+                                            .color(c),
+                                    );
+                                    ui.add_space(4.0);
+                                }
+                                let note =
+                                    |t: String| RichText::new(t).size(12.5).color(theme::TEXT_DIM);
+                                match r.station {
+                                    Station::Table => ui.label(note("· table".into())),
+                                    Station::Furnace => {
+                                        ui.label(note(format!("· furnace, {} fuel", r.fuel)))
+                                    }
+                                    Station::None => ui.label(""),
+                                };
+                            });
+                        });
+                    });
+                });
+            }
+        });
 }

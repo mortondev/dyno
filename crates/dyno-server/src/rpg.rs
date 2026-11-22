@@ -34,6 +34,7 @@ impl State {
         let max = self.max_health(id);
         if let Some(p) = self.players.get(&id) {
             p.send(&ServerMsg::Character {
+                class: p.class,
                 level: p.level,
                 xp: p.xp,
                 xp_next: prog::xp_to_next(p.level),

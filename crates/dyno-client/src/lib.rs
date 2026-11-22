@@ -12,6 +12,7 @@ pub mod settings;
 pub mod shot;
 pub mod survival;
 pub mod textures;
+pub mod theme;
 
 /// Open the game window. `prefill` sets the server address field.
 pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {

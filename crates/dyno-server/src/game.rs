@@ -70,6 +70,14 @@ pub struct Player {
     pub combat_until: Instant,
     pub hint_at: Instant,
     pub quest_clock: f32,
+    pub class: Option<u16>,
+    /// rage or mana
+    pub power: f32,
+    pub power_clock: f32,
+    /// when each ability is ready again
+    pub cooldowns: HashMap<u16, Instant>,
+    pub gcd_until: Instant,
+    pub casting: Option<crate::abilities::Casting>,
 }
 
 impl Player {
@@ -417,6 +425,16 @@ impl State {
             combat_until: Instant::now(),
             hint_at: Instant::now() - Duration::from_secs(60),
             quest_clock: 0.0,
+            class: data
+                .class
+                .as_ref()
+                .and_then(|k| self.content.classes.iter().find(|c| &c.key == k))
+                .map(|c| c.id),
+            power: data.power,
+            power_clock: 0.0,
+            cooldowns: HashMap::new(),
+            gcd_until: Instant::now(),
+            casting: None,
         };
         let others: Vec<PlayerInfo> = self
             .players
@@ -463,6 +481,7 @@ impl State {
                 20.0
             };
             after.push(ServerMsg::Character {
+                class: p.class,
                 level: p.level,
                 xp: p.xp,
                 xp_next: dyno_sim::progression::xp_to_next(p.level),
@@ -475,6 +494,15 @@ impl State {
                 log: p.quests.clone(),
                 done,
             });
+            let max_power = match p.class.and_then(|c| self.content.class(c)).map(|c| c.resource) {
+                Some(dyno_world::content::Resource::Rage) => 100.0,
+                Some(dyno_world::content::Resource::Mana) => 100.0 + 15.0 * (p.level as f32 - 1.0),
+                None => 0.0,
+            };
+            after.push(ServerMsg::Power { value: p.power.min(max_power), max: max_power });
+            if self.rpg() && p.class.is_none() && !self.content.classes.is_empty() {
+                after.push(ServerMsg::ChooseClass);
+            }
         }
         if p.dead {
             after.push(ServerMsg::Died {
@@ -551,6 +579,8 @@ impl State {
             level: p.level,
             xp: p.xp,
             money: p.money,
+            class: p.class.and_then(|c| self.content.class(c)).map(|c| c.key.clone()),
+            power: p.power,
             quests: p
                 .quests
                 .iter()
@@ -666,6 +696,10 @@ impl State {
             }
             ClientMsg::Respawn => self.respawn(id),
             ClientMsg::Talk { entity } => self.talk(id, entity),
+            ClientMsg::Cast { ability, target } => self.cast(id, ability, target),
+            ClientMsg::ChooseClass { class } => self.choose_class(id, class),
+            ClientMsg::Recall => self.cast(id, proto::RECALL, None),
+            ClientMsg::EatBest => self.eat_best(id),
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
             ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
@@ -723,7 +757,15 @@ impl State {
             );
             return self.resync(id, pos);
         }
-        let tool = p.held_tool(&self.content).cloned();
+        let tool = if self.rpg() {
+            self.content
+                .rule(b)
+                .tool
+                .and_then(|k| dyno_sim::inventory::best_tool(&p.pack, &self.content, k))
+                .map(|(_, t)| t.clone())
+        } else {
+            p.held_tool(&self.content).cloned()
+        };
         if !creative {
             let Some(need) = mining::break_time(&self.content, b, tool.as_ref()) else {
                 return self.resync(id, pos);
@@ -1095,6 +1137,10 @@ impl State {
         }
     }
 
+    pub(crate) fn use_food(&mut self, id: PlayerId) {
+        self.use_held(id)
+    }
+
     fn use_held(&mut self, id: PlayerId) {
         let c = &self.content;
         let p = self.players.get_mut(&id).unwrap();
@@ -1199,7 +1245,9 @@ impl State {
                 self.spawn_item([pos[0], pos[1] + 0.5, pos[2]], s, 0.35);
             }
             self.event(format!("{name} {cause}."));
+            return;
         }
+        self.gain_rage(id, amount * 0.6);
     }
 
     fn respawn(&mut self, id: PlayerId) {
@@ -1292,6 +1340,8 @@ impl State {
     /// Advance the world by `dt` seconds.
     pub fn tick(&mut self, dt: f32) {
         self.tick_clock(dt);
+        self.tick_casts();
+        self.tick_power(dt);
         self.tick_items(dt);
         self.tick_creatures(dt);
         self.spawn_creatures(dt);

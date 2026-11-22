@@ -60,6 +60,8 @@ struct Uniforms {
     sky_top: [f32; 4],
     light: [f32; 4],
     sun: [f32; 4],
+    /// world to sun-space (shadow map) transform
+    shadow_vp: [[f32; 4]; 4],
 }
 
 /// Sky and light state for one frame. Colours are sRGB.
@@ -75,12 +77,56 @@ pub struct Sky {
     pub stars: f32,
 }
 
+/// Depth-only pass from the sun.
+const SHADOW_SHADER: &str = r#"
+struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32>, shadow_vp: mat4x4<f32> };
+@group(0) @binding(0) var<uniform> u: U;
+@vertex fn vs(@location(0) pos: vec3<f32>) -> @builtin(position) vec4<f32> {
+  return u.shadow_vp * vec4<f32>(pos, 1.0);
+}
+"#;
+
+/// Size of the shadow map, and how far around the camera it reaches.
+const SHADOW_SIZE: u32 = 2048;
+const SHADOW_HALF: f32 = 72.0;
+
 const SHADER: &str = r#"
-struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32> };
+struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32>, shadow_vp: mat4x4<f32> };
 @group(0) @binding(0) var<uniform> u: U;
 
 @group(0) @binding(1) var tex_array: texture_2d_array<f32>;
 @group(0) @binding(2) var tex_samp: sampler;
+@group(0) @binding(3) var shadow_map: texture_depth_2d;
+@group(0) @binding(4) var shadow_samp: sampler_comparison;
+
+// 1 in sunlight, 0 in shadow; soft-edged (3 x 3 filter)
+fn sun_visible(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
+  let p = u.shadow_vp * vec4<f32>(wpos + n * 0.04, 1.0);
+  let ndc = p.xyz / p.w;
+  let uv = vec2<f32>(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || ndc.z > 1.0) { return 1.0; }
+  let texel = 1.0 / 2048.0;
+  var sum = 0.0;
+  for (var dy = -1; dy <= 1; dy++) {
+    for (var dx = -1; dx <= 1; dx++) {
+      sum += textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(f32(dx), f32(dy)) * texel, ndc.z - 0.0015);
+    }
+  }
+  return sum / 9.0;
+}
+
+// A warm, painterly grade: richer colour, warm light, soft highlight roll-off.
+fn grade(c0: vec3<f32>) -> vec3<f32> {
+  var c = c0 * vec3<f32>(1.04, 1.0, 0.94);
+  let l = dot(c, vec3<f32>(0.2126, 0.7152, 0.0722));
+  c = mix(vec3<f32>(l), c, 1.18);
+  // gentle contrast around mid grey
+  c = (c - 0.18) * 1.06 + 0.18;
+  // roll off highlights instead of clipping
+  let k = max(c - vec3<f32>(0.75), vec3<f32>(0.0));
+  c = min(c, vec3<f32>(0.75)) + k / (vec3<f32>(1.0) + k * 1.8);
+  return max(c, vec3<f32>(0.0));
+}
 
 struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32>, @location(3) light: f32, @location(4) sky: f32, @location(5) tex: vec4<f32> };
 struct VOut {
@@ -126,10 +172,21 @@ fn texel(t: vec4<f32>) -> vec4<f32> {
   // 16 x 16 texel grain on untextured boxes so they read as pixel art
   let t = floor(i.wpos * 16.0 - i.normal * 0.01);
   let grain = select(1.0, 0.86 + 0.24 * hash3(t), dot(i.normal, i.normal) > 0.5 && i.tex.z < 0.0);
-  // daylight (u.cam.w) or warm block light, whichever is brighter
+  // sun or moon light (with shadows and the angle of the surface), soft sky
+  // light from above, or warm block light, whichever is brighter
   let bl = i.light * i.light;
   let sl = i.sky * i.sky;
-  let lit = max(u.light.rgb * (sl * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * bl * 1.1);
+  let has_n = dot(i.normal, i.normal) > 0.5;
+  let n = select(vec3<f32>(0.0, 1.0, 0.0), normalize(i.normal), has_n);
+  let ldir = normalize(select(-u.sun.xyz, u.sun.xyz, u.sun.y > 0.0));
+  let ndl = select(0.75, max(dot(n, ldir), 0.0), has_n);
+  let vis = sun_visible(i.wpos, n);
+  let up = select(0.75, 0.6 + 0.4 * n.y, has_n);
+  // cool, blue-violet shade; warm direct sun
+  let sky_amb = mix(u.sky_top.rgb, vec3<f32>(0.45, 0.5, 0.75), 0.5) * 0.42 * up;
+  let direct = u.light.rgb * vec3<f32>(1.08, 1.0, 0.9) * (0.2 + 1.0 * ndl * vis);
+  let daylight = (direct + sky_amb) * (sl * 0.97 + 0.03);
+  let lit = max(daylight, vec3<f32>(1.0, 0.78, 0.5) * bl * 1.15);
   var base = i.color.rgb;
   if (i.tex.z >= 0.0) { base = base * tx.rgb; }
   let pt = 0;
@@ -156,8 +213,10 @@ fn texel(t: vec4<f32>) -> vec4<f32> {
   if (i.color.a > 1.9) { c = base * grain * 1.1; }
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
-  c = mix(c, u.fog.rgb, f);
-  return vec4<f32>(c, 1.0);
+  // height haze in low valleys, then distance fog
+  let haze = clamp((26.0 - i.wpos.y) / 26.0, 0.0, 1.0) * clamp(d / 110.0, 0.0, 1.0) * 0.18;
+  c = mix(c, u.fog.rgb, max(f, haze));
+  return vec4<f32>(grade(c), 1.0);
 }
 
 fn hash2(p: vec2<f32>) -> f32 {
@@ -211,7 +270,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
     let r = hash3(cell);
     if (r > 0.9965) { c += vec3<f32>(0.9, 0.92, 1.0) * u.sun.w * (r - 0.9965) * 220.0 * smoothstep(0.0, 0.2, h); }
   }
-  return vec4<f32>(c, 1.0);
+  return vec4<f32>(grade(c), 1.0);
 }
 
 @fragment fn fs_translucent(i: VOut) -> @location(0) vec4<f32> {
@@ -239,7 +298,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
     c += vec3<f32>(1.0, 0.85, 0.6) * pow(sd, 120.0) * 0.8 * (1.0 - u.sun.w) * (0.6 + 0.4 * w);
   }
   c = mix(c, u.fog.rgb, f);
-  return vec4<f32>(c, a);
+  return vec4<f32>(grade(c), a);
 }
 "#;
 
@@ -363,7 +422,8 @@ pub fn mesh_section(
                             } else {
                                 3 - (s1 + s2 + c)
                             };
-                            [0.5, 0.66, 0.83, 1.0][ao as usize] * shade
+                            let _ = shade;
+                            [0.5, 0.66, 0.83, 1.0][ao as usize]
                         };
                         corners[i] = (p, shade_ao, bl, sl);
                     }
@@ -684,6 +744,9 @@ pub struct Gfx {
     trans_pipe: wgpu::RenderPipeline,
     line_pipe: wgpu::RenderPipeline,
     sky_pipe: wgpu::RenderPipeline,
+    shadow_pipe: wgpu::RenderPipeline,
+    shadow_bind: wgpu::BindGroup,
+    shadow_view: wgpu::TextureView,
     ubuf: wgpu::Buffer,
     bind: wgpu::BindGroup,
     sections: Vec<SectionMesh>,
@@ -825,6 +888,24 @@ impl Gfx {
             mapped_at_creation: false,
         });
         let (tex_view, tex_samp) = upload_textures(&device, &queue);
+        let shadow_tex = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("shadow"),
+            size: wgpu::Extent3d { width: SHADOW_SIZE, height: SHADOW_SIZE, depth_or_array_layers: 1 },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: DEPTH,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
+        });
+        let shadow_view = shadow_tex.create_view(&wgpu::TextureViewDescriptor::default());
+        let shadow_samp = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("shadow"),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            compare: Some(wgpu::CompareFunction::LessEqual),
+            ..Default::default()
+        });
         let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
             entries: &[
@@ -854,6 +935,22 @@ impl Gfx {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Depth,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
+                    count: None,
+                },
             ],
         });
         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -872,7 +969,43 @@ impl Gfx {
                     binding: 2,
                     resource: wgpu::BindingResource::Sampler(&tex_samp),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(&shadow_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::Sampler(&shadow_samp),
+                },
             ],
+        });
+        // the shadow pass only needs the uniforms
+        let shadow_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("shadow"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::VERTEX,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+        let shadow_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("shadow"),
+            layout: &shadow_bgl,
+            entries: &[wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }],
+        });
+        let shadow_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("shadow"),
+            source: wgpu::ShaderSource::Wgsl(SHADOW_SHADER.into()),
+        });
+        let shadow_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("shadow"),
+            bind_group_layouts: &[&shadow_bgl],
+            push_constant_ranges: &[],
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
@@ -968,6 +1101,28 @@ impl Gfx {
             Some(wgpu::BlendState::ALPHA_BLENDING),
             false,
         );
+        let shadow_pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("shadow"),
+            layout: Some(&shadow_layout),
+            vertex: wgpu::VertexState {
+                module: &shadow_module,
+                entry_point: Some("vs"),
+                compilation_options: Default::default(),
+                buffers: std::slice::from_ref(&vlayout),
+            },
+            primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: Default::default(),
+                bias: wgpu::DepthBiasState { constant: 2, slope_scale: 2.0, clamp: 0.0 },
+            }),
+            multisample: Default::default(),
+            fragment: None,
+            multiview: None,
+            cache: None,
+        });
         let egui = egui_wgpu::Renderer::new(
             &device,
             config.format,
@@ -987,6 +1142,9 @@ impl Gfx {
             trans_pipe,
             line_pipe,
             sky_pipe,
+            shadow_pipe,
+            shadow_bind,
+            shadow_view,
             ubuf,
             bind,
             sections: Vec::new(),
@@ -1143,6 +1301,7 @@ impl Gfx {
                 sky_top: [top[0], top[1], top[2], 0.0],
                 light: [light[0], light[1], light[2], 0.0],
                 sun: [sky.sun_dir[0], sky.sun_dir[1], sky.sun_dir[2], sky.stars],
+                shadow_vp: shadow_matrix(cam, sky.sun_dir).to_cols_array_2d(),
             };
             self.queue
                 .write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
@@ -1153,6 +1312,38 @@ impl Gfx {
         let mut enc = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        if let Some((_, cam, _)) = view_proj {
+            let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("shadow"),
+                color_attachments: &[],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.shadow_view,
+                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+            rp.set_pipeline(&self.shadow_pipe);
+            rp.set_bind_group(0, &self.shadow_bind, &[]);
+            let reach = SHADOW_HALF + SECTION as f32 * 2.0;
+            for (i, s) in self.sections.iter().enumerate() {
+                let Some((b, n)) = &s.opaque else { continue };
+                let d = self.dims;
+                let (sx, sz) = ((i as i32) % d[0], (i as i32 / d[0]) % d[2]);
+                let cx = sx as f32 * SECTION as f32 + SECTION as f32 * 0.5;
+                let cz = sz as f32 * SECTION as f32 + SECTION as f32 * 0.5;
+                if (cx - cam.x).abs() > reach || (cz - cam.z).abs() > reach {
+                    continue;
+                }
+                rp.set_vertex_buffer(0, b.slice(..));
+                rp.draw(0..*n, 0..1);
+            }
+            if let Some((b, n)) = &box_buf {
+                rp.set_vertex_buffer(0, b.slice(..));
+                rp.draw(0..*n, 0..1);
+            }
+        }
         {
             let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("world"),
@@ -1346,4 +1537,29 @@ impl Gfx {
         let w = clip.w.abs() + r * 2.0;
         clip.x.abs() <= w * 1.2 && clip.y.abs() <= w * 1.2
     }
+}
+
+/// The sun's view of the area around the camera, snapped to shadow texels so
+/// shadows do not shimmer as you walk.
+fn shadow_matrix(cam: Vec3, sun_dir: [f32; 3]) -> Mat4 {
+    let mut dir = Vec3::from(sun_dir).normalize_or_zero();
+    if dir.y < 0.0 {
+        dir = -dir; // the moon is opposite the sun
+    }
+    let dir = Vec3::new(dir.x, dir.y.max(0.25), dir.z).normalize();
+    let up = if dir.x.abs() < 0.9 { Vec3::X } else { Vec3::Z };
+    let view = Mat4::look_to_rh(Vec3::ZERO, -dir, up);
+    // snap the centre to whole texels in light space
+    let texel = SHADOW_HALF * 2.0 / SHADOW_SIZE as f32;
+    let c = view.transform_point3(cam);
+    let c = Vec3::new((c.x / texel).floor() * texel, (c.y / texel).floor() * texel, c.z);
+    let proj = Mat4::orthographic_rh(
+        c.x - SHADOW_HALF,
+        c.x + SHADOW_HALF,
+        c.y - SHADOW_HALF,
+        c.y + SHADOW_HALF,
+        -c.z - 200.0,
+        -c.z + 200.0,
+    );
+    proj * view
 }

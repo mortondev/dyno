@@ -179,3 +179,40 @@ pub fn transfer_within(
     };
     transfer(c, a, b, count);
 }
+
+/// The best tool of a kind in a pack (highest tier, then speed), and its slot.
+pub fn best_tool<'a>(
+    inv: &Inventory,
+    c: &'a dyno_world::content::Content,
+    kind: dyno_world::content::ToolKind,
+) -> Option<(usize, &'a dyno_world::content::Tool)> {
+    inv.slots
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| s.and_then(|s| c.item(s.item).tool.map(|t| (i, t))))
+        .filter(|(_, t)| t.kind == kind)
+        .max_by(|a, b| (a.1.tier, a.1.speed).partial_cmp(&(b.1.tier, b.1.speed)).unwrap_or(std::cmp::Ordering::Equal))
+}
+
+/// The hardest-hitting item in a pack (your weapon), and its slot.
+pub fn best_weapon<'a>(
+    inv: &Inventory,
+    c: &'a dyno_world::content::Content,
+) -> Option<(usize, &'a dyno_world::content::Tool)> {
+    inv.slots
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| s.and_then(|s| c.item(s.item).tool.map(|t| (i, t))))
+        .max_by(|a, b| a.1.damage.partial_cmp(&b.1.damage).unwrap_or(std::cmp::Ordering::Equal))
+}
+
+/// The food in a pack that restores the most, and its slot.
+pub fn best_food(inv: &Inventory, c: &dyno_world::content::Content) -> Option<usize> {
+    inv.slots
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| s.map(|s| (i, c.item(s.item).food)))
+        .filter(|(_, f)| *f > 0)
+        .max_by_key(|(_, f)| *f)
+        .map(|(i, _)| i)
+}

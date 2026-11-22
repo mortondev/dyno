@@ -5,6 +5,7 @@
 //! advances the world 20 times per second, sends player poses and saves.
 //! Bad input closes that connection only.
 
+pub mod abilities;
 pub mod creatures;
 pub mod game;
 pub mod rpg;

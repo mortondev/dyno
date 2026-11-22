@@ -1,6 +1,6 @@
 {
  "name": "Hearthblock Online",
- "version": 3,
+ "version": 4,
  "items": [
   {
    "key": "stick",
@@ -1841,6 +1841,286 @@
    ],
    "xp": 1200,
    "money": 500
+  }
+ ],
+ "classes": [
+  {
+   "key": "warden",
+   "name": "Warden",
+   "resource": "rage",
+   "color": [
+    0.78,
+    0.3,
+    0.22
+   ],
+   "blurb": "A shield-bearer of the old Watch. Fights up close and grows stronger as the fight goes on (rage)."
+  },
+  {
+   "key": "emberwright",
+   "name": "Emberwright",
+   "resource": "mana",
+   "color": [
+    0.95,
+    0.55,
+    0.18
+   ],
+   "blurb": "A scholar of the hearth-fire who hurls embers from afar and freezes foes in place (mana)."
+  },
+  {
+   "key": "lightbearer",
+   "name": "Lightbearer",
+   "resource": "mana",
+   "color": [
+    0.95,
+    0.85,
+    0.45
+   ],
+   "blurb": "A keeper of the light. Heals wounds and burns Shades twice as hard (mana)."
+  }
+ ],
+ "abilities": [
+  {
+   "key": "strike",
+   "name": "Strike",
+   "level": 1,
+   "text": "A heavy blow with your weapon.",
+   "cost": 15,
+   "range": 4.5,
+   "damage": [
+    10,
+    4
+   ],
+   "color": [
+    0.85,
+    0.85,
+    0.9
+   ],
+   "icon": "iron_sword",
+   "class": "warden"
+  },
+  {
+   "key": "cleave",
+   "name": "Cleave",
+   "level": 2,
+   "text": "Sweep your weapon through every foe around your target.",
+   "cost": 20,
+   "cooldown": 6,
+   "range": 4.5,
+   "radius": 4,
+   "damage": [
+    8,
+    3
+   ],
+   "color": [
+    0.9,
+    0.4,
+    0.3
+   ],
+   "icon": "stone_axe",
+   "class": "warden"
+  },
+  {
+   "key": "shield_bash",
+   "name": "Shield Bash",
+   "level": 4,
+   "text": "Slam your foe, stunning it for 3 seconds.",
+   "cost": 10,
+   "cooldown": 12,
+   "range": 4.5,
+   "damage": [
+    4,
+    1
+   ],
+   "stun": 3,
+   "color": [
+    0.7,
+    0.7,
+    0.8
+   ],
+   "icon": "iron_ingot",
+   "class": "warden"
+  },
+  {
+   "key": "second_wind",
+   "name": "Second Wind",
+   "level": 5,
+   "text": "Catch your breath and recover health.",
+   "cooldown": 60,
+   "heal": [
+    25,
+    8
+   ],
+   "color": [
+    0.5,
+    0.9,
+    0.4
+   ],
+   "icon": "cooked_meat",
+   "class": "warden"
+  },
+  {
+   "key": "ember_bolt",
+   "name": "Ember Bolt",
+   "level": 1,
+   "text": "Hurl a bolt of hearth-fire.",
+   "cost": 12,
+   "cast": 1.6,
+   "range": 30,
+   "damage": [
+    16,
+    5
+   ],
+   "color": [
+    1.0,
+    0.55,
+    0.15
+   ],
+   "icon": "ember_shard",
+   "class": "emberwright"
+  },
+  {
+   "key": "frost_snare",
+   "name": "Frost Snare",
+   "level": 2,
+   "text": "Ice binds your target in place for 5 seconds.",
+   "cost": 10,
+   "cooldown": 10,
+   "range": 25,
+   "damage": [
+    4,
+    1
+   ],
+   "root": 5,
+   "color": [
+    0.6,
+    0.85,
+    1.0
+   ],
+   "icon": "glass",
+   "class": "emberwright"
+  },
+  {
+   "key": "flame_nova",
+   "name": "Flame Nova",
+   "level": 4,
+   "text": "A ring of fire burns every foe within 6 blocks.",
+   "cost": 25,
+   "cooldown": 10,
+   "radius": 6,
+   "damage": [
+    12,
+    4
+   ],
+   "color": [
+    1.0,
+    0.4,
+    0.1
+   ],
+   "icon": "torch",
+   "class": "emberwright"
+  },
+  {
+   "key": "blink",
+   "name": "Blink",
+   "level": 5,
+   "text": "Step through the air, 10 blocks forward.",
+   "cost": 15,
+   "cooldown": 15,
+   "blink": 10,
+   "color": [
+    0.7,
+    0.5,
+    1.0
+   ],
+   "icon": "shade_dust",
+   "class": "emberwright"
+  },
+  {
+   "key": "smite",
+   "name": "Smite",
+   "level": 1,
+   "text": "Holy fire strikes your target. Shades take double damage.",
+   "cost": 10,
+   "cast": 1.4,
+   "range": 25,
+   "damage": [
+    12,
+    4
+   ],
+   "shade_bonus": 2.0,
+   "color": [
+    1.0,
+    0.9,
+    0.5
+   ],
+   "icon": "lantern",
+   "class": "lightbearer"
+  },
+  {
+   "key": "mend",
+   "name": "Mend",
+   "level": 1,
+   "text": "Close your wounds.",
+   "cost": 15,
+   "cast": 1.8,
+   "heal": [
+    25,
+    9
+   ],
+   "color": [
+    0.6,
+    1.0,
+    0.6
+   ],
+   "icon": "berries",
+   "class": "lightbearer"
+  },
+  {
+   "key": "radiance",
+   "name": "Radiance",
+   "level": 4,
+   "text": "Light bursts from you: it burns foes within 8 blocks (Shades greatly) and heals you.",
+   "cost": 25,
+   "cooldown": 12,
+   "radius": 8,
+   "damage": [
+    10,
+    3
+   ],
+   "shade_bonus": 2.5,
+   "heal": [
+    10,
+    3
+   ],
+   "color": [
+    1.0,
+    0.95,
+    0.7
+   ],
+   "icon": "glowshroom",
+   "class": "lightbearer"
+  },
+  {
+   "key": "judgement",
+   "name": "Judgement",
+   "level": 5,
+   "text": "Pass judgement: heavy holy damage that stuns for 2 seconds.",
+   "cost": 15,
+   "cooldown": 8,
+   "range": 25,
+   "damage": [
+    18,
+    6
+   ],
+   "stun": 2,
+   "shade_bonus": 1.5,
+   "color": [
+    1.0,
+    0.8,
+    0.3
+   ],
+   "icon": "iron_sword",
+   "class": "lightbearer"
   }
  ]
 }
