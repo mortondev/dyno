@@ -148,8 +148,22 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   let lit = max(u.light.rgb, vec3<f32>(1.0, 0.80, 0.55) * i.light * i.light);
-  let c = mix(i.color.rgb * lit, u.fog.rgb, f);
-  return vec4<f32>(c, i.color.a);
+  var c = i.color.rgb * lit;
+  var a = i.color.a;
+  // water (alpha 0.62): moving shimmer, and the sky reflects at grazing angles
+  if (abs(i.color.a - 0.62) < 0.02 && i.normal.y > 0.5) {
+    let t = u.cam.w;
+    let w = sin(i.wpos.x * 1.7 + t * 1.6) * cos(i.wpos.z * 1.3 - t * 1.2) + 0.5 * sin((i.wpos.x + i.wpos.z) * 2.9 + t * 2.3);
+    c = c * (1.0 + 0.07 * w);
+    let v = normalize(u.cam.xyz - i.wpos);
+    let fres = pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0);
+    c = mix(c, mix(u.sky_top.rgb, u.fog.rgb, 0.3) * (u.light.rgb * 0.5 + 0.5), fres * 0.45);
+    a = mix(a, 0.85, fres);
+    let sd = max(dot(reflect(-v, vec3<f32>(0.0, 1.0, 0.0)), u.sun.xyz), 0.0);
+    c += vec3<f32>(1.0, 0.85, 0.6) * pow(sd, 120.0) * 0.8 * (1.0 - u.sun.w) * (0.6 + 0.4 * w);
+  }
+  c = mix(c, u.fog.rgb, f);
+  return vec4<f32>(c, a);
 }
 "#;
 
