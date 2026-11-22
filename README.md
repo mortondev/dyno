@@ -38,6 +38,9 @@ The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host nam
 | Middle click | Pick the block you look at |
 | 1 to 9, mouse wheel | Choose a hotbar slot |
 | E | All blocks: pick one for the current slot |
+| G, then G | Mark two corners of a box |
+| V / X | Fill the box with your block / clear it (up to 32,768 blocks) |
+| Ctrl+Z | Undo your last block change |
 | T or Enter | Chat |
 | / | Chat command: `/help`, `/tp <player>`, `/spawn`, `/time night` |
 | Tab | Player list |
@@ -73,6 +76,8 @@ dyno ping <address>      Join, print server information, leave (for tests and ag
 dyno say <address> <text>  Join, send chat or a /command, print replies, leave
 dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out f.ppm]
                          Join, render one frame off-screen to an image, leave
+dyno fill <address> x,y,z x,y,z <block>   Fill a box with a block (Air clears it)
+dyno bot <address> [name] [seconds]      A bot that walks in a circle (demos, tests)
 dyno update              Check for a new release and install it
 dyno version             Print the version
 ```
