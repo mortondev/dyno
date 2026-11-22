@@ -354,7 +354,7 @@ fn run_server(args: &[String]) {
     let mut last_check = std::time::Instant::now();
     loop {
         std::thread::sleep(Duration::from_secs(5));
-        if auto_update && last_check.elapsed() > Duration::from_secs(6 * 3600) {
+        if auto_update && last_check.elapsed() > Duration::from_secs(5 * 60) {
             last_check = std::time::Instant::now();
             if let Ok(dyno_update::Outcome::Updated { from, to }) =
                 dyno_update::check_and_update(false, Duration::from_secs(30))

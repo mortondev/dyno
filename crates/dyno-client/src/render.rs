@@ -21,6 +21,10 @@ pub struct Vertex {
     pub color: [f32; 4],
     /// block light 0..1
     pub light: f32,
+    /// sky light 0..1
+    pub sky: f32,
+    /// surface pattern id (see dyno_world::pattern)
+    pub pattern: f32,
 }
 
 #[repr(C)]
@@ -52,13 +56,15 @@ const SHADER: &str = r#"
 struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32> };
 @group(0) @binding(0) var<uniform> u: U;
 
-struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32>, @location(3) light: f32 };
+struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32>, @location(3) light: f32, @location(4) sky: f32, @location(5) pattern: f32 };
 struct VOut {
   @builtin(position) clip: vec4<f32>,
   @location(0) wpos: vec3<f32>,
   @location(1) normal: vec3<f32>,
   @location(2) color: vec4<f32>,
   @location(3) light: f32,
+  @location(4) sky: f32,
+  @location(5) pattern: f32,
 };
 
 @vertex fn vs(v: VIn) -> VOut {
@@ -68,6 +74,8 @@ struct VOut {
   o.normal = v.normal;
   o.color = v.color;
   o.light = v.light;
+  o.sky = v.sky;
+  o.pattern = v.pattern;
   return o;
 }
 
@@ -81,8 +89,30 @@ fn hash3(p: vec3<f32>) -> f32 {
   let grain = select(1.0, 0.86 + 0.24 * hash3(t), dot(i.normal, i.normal) > 0.5);
   // daylight (u.cam.w) or warm block light, whichever is brighter
   let bl = i.light * i.light;
-  let lit = max(u.light.rgb, vec3<f32>(1.0, 0.80, 0.55) * bl * 1.1);
-  var c = i.color.rgb * grain * min(i.color.a, 1.0) * lit;
+  let sl = i.sky * i.sky;
+  let lit = max(u.light.rgb * (sl * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * bl * 1.1);
+  var base = i.color.rgb;
+  let pt = i32(i.pattern + 0.5);
+  if (pt > 0) {
+    let h = hash3(t + vec3<f32>(17.0, 3.0, 11.0));
+    let h2 = hash3(floor(t / 2.0) + vec3<f32>(5.0, 9.0, 1.0));
+    if (pt == 1 && h2 > 0.78) { base = vec3<f32>(0.05, 0.05, 0.06); }
+    if (pt == 2 && h2 > 0.80) { base = vec3<f32>(0.80, 0.58, 0.40); }
+    if (pt == 3 && h2 > 0.55) { base = vec3<f32>(1.0, 0.75, 0.35); }
+    if (pt == 4) {
+      // wood: darker line every 4 texels across the grain
+      let g = select(t.y, t.x + t.z, abs(i.normal.y) > 0.5);
+      if (fract(g / 4.0) < 0.2) { base = base * 0.78; }
+    }
+    if (pt == 5) {
+      // stonework: mortar lines
+      let row = floor(t.y / 4.0);
+      let col = select(t.x, t.z, abs(i.normal.x) > 0.5) + select(0.0, 4.0, fract(row / 2.0) > 0.4);
+      if (fract(t.y / 4.0) < 0.2 || fract(col / 8.0) < 0.1) { base = base * 0.72; }
+    }
+    if (pt == 6 && h > 0.92) { base = vec3<f32>(0.86, 0.12, 0.22); }
+  }
+  var c = base * grain * min(i.color.a, 1.0) * lit;
   if (i.color.a > 1.9) { c = i.color.rgb * grain * 1.1; }
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
@@ -147,7 +177,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
 @fragment fn fs_translucent(i: VOut) -> @location(0) vec4<f32> {
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
-  let lit = max(u.light.rgb, vec3<f32>(1.0, 0.80, 0.55) * i.light * i.light);
+  let lit = max(u.light.rgb * (i.sky * i.sky * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * i.light * i.light);
   var c = i.color.rgb * lit;
   var a = i.color.a;
   // water (alpha 0.62): moving shimmer, and the sky reflects at grazing angles
@@ -214,6 +244,7 @@ pub fn mesh_section(
                 let lin = srgb(rgb);
                 let tr = translucent(b);
                 let emissive = w::emission(b) > 0;
+                let pat = w::pattern(b) as f32;
                 for (n, u, v, shade) in FACES {
                     let nb = world.get(x + n[0], y + n[1], z + n[2]);
                     if w::is_opaque(nb) || (tr && nb == b) || (w::is_leaves(b) && w::is_leaves(nb))
@@ -226,7 +257,7 @@ pub fn mesh_section(
                         y as f32 + 0.5 + n[1] as f32 * 0.5,
                         z as f32 + 0.5 + n[2] as f32 * 0.5,
                     ];
-                    let mut corners = [([0f32; 3], 0f32, 0f32); 4];
+                    let mut corners = [([0f32; 3], 0f32, 0f32, 0f32); 4];
                     for (i, (su, sv)) in
                         [(-1, -1), (1, -1), (1, 1), (-1, 1)].into_iter().enumerate()
                     {
@@ -259,6 +290,14 @@ pub fn mesh_section(
                             light.get(cq[0], cq[1], cq[2]) as f32,
                         ];
                         let bl = (ls.iter().sum::<f32>() / 60.0).max(l0 / 15.0 * 0.8);
+                        let k0 = light.sky(base[0], base[1], base[2]) as f32;
+                        let ks = [
+                            k0,
+                            light.sky(a[0], a[1], a[2]) as f32,
+                            light.sky(bq[0], bq[1], bq[2]) as f32,
+                            light.sky(cq[0], cq[1], cq[2]) as f32,
+                        ];
+                        let sl = (ks.iter().sum::<f32>() / 60.0).max(k0 / 15.0 * 0.8);
                         let shade_ao = if emissive {
                             2.0
                         } else if tr {
@@ -276,7 +315,7 @@ pub fn mesh_section(
                             };
                             [0.5, 0.66, 0.83, 1.0][ao as usize] * shade
                         };
-                        corners[i] = (p, shade_ao, bl);
+                        corners[i] = (p, shade_ao, bl, sl);
                     }
                     let nf = [n[0] as f32, n[1] as f32, n[2] as f32];
                     let col = if tr {
@@ -292,12 +331,14 @@ pub fn mesh_section(
                     };
                     let out = if tr { &mut trans } else { &mut opaque };
                     for i in order {
-                        let (p, l, bl) = corners[i];
+                        let (p, l, bl, sl) = corners[i];
                         out.push(Vertex {
                             pos: p,
                             normal: nf,
                             color: [col[0], col[1], col[2], l],
                             light: bl,
+                            sky: sl,
+                            pattern: pat,
                         });
                     }
                 }
@@ -326,6 +367,8 @@ pub fn push_box(out: &mut Vec<Vertex>, min: Vec3, max: Vec3, rgb: [f32; 3], ligh
                 normal: [0.0; 3],
                 color: [c[0], c[1], c[2], shade],
                 light,
+                sky: 1.0,
+                pattern: 0.0,
             });
         }
     }
@@ -358,6 +401,8 @@ pub fn push_oriented_box(
                 normal: [0.0; 3],
                 color: [c[0], c[1], c[2], a],
                 light,
+                sky: 1.0,
+                pattern: 0.0,
             });
         }
     }
@@ -640,7 +685,7 @@ impl Gfx {
         let vlayout = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Vertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4, 3 => Float32],
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4, 3 => Float32, 4 => Float32, 5 => Float32],
         };
         let make = |fs: &str,
                     topo: wgpu::PrimitiveTopology,

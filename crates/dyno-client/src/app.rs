@@ -792,6 +792,8 @@ impl App {
                             normal: [0.0; 3],
                             color: edge,
                             light: 1.0,
+                            sky: 1.0,
+                            pattern: 0.0,
                         });
                     }
                 }
@@ -839,6 +841,8 @@ impl App {
                             normal: [0.0; 3],
                             color: [1.0, 0.55, 0.15, 0.95],
                             light: 1.0,
+                            sky: 1.0,
+                            pattern: 0.0,
                         });
                     }
                 }

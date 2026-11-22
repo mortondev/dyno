@@ -27,6 +27,28 @@ pub const GLOWSHROOM: BlockId = 33;
 pub const BIRCH_LOG: BlockId = 34;
 pub const BIRCH_LEAVES: BlockId = 35;
 pub const PINE_LEAVES: BlockId = 36;
+pub const BEDROCK: BlockId = 37;
+pub const COAL_ORE: BlockId = 38;
+pub const IRON_ORE: BlockId = 39;
+pub const CRAFTING_TABLE: BlockId = 40;
+pub const FURNACE: BlockId = 41;
+pub const CHEST: BlockId = 42;
+pub const BED: BlockId = 43;
+pub const BERRY_BUSH: BlockId = 44;
+pub const CLAY: BlockId = 17;
+
+/// Surface pattern drawn on a block, for blocks that need more than a colour.
+pub fn pattern(b: BlockId) -> u8 {
+    match b {
+        COAL_ORE => 1,
+        IRON_ORE => 2,
+        EMBERSTONE => 3,
+        PLANKS | 20 | 21 | CRAFTING_TABLE | CHEST | LOG | BIRCH_LOG => 4,
+        BRICK | FURNACE | COBBLE | 19 => 5,
+        BERRY_BUSH => 6,
+        _ => 0,
+    }
+}
 
 /// How a block sounds when it is broken, placed or walked on.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -140,6 +162,14 @@ pub const BLOCKS: &[BlockDef] = &[
     def("Birch log", [0.88, 0.87, 0.82], Wood),
     def("Birch leaves", [0.45, 0.62, 0.28], Foliage),
     def("Pine leaves", [0.18, 0.36, 0.22], Foliage),
+    def("Bedrock", [0.16, 0.16, 0.17], Stone),
+    def("Coal ore", [0.48, 0.49, 0.51], Stone),
+    def("Iron ore", [0.53, 0.52, 0.51], Stone),
+    def("Crafting table", [0.62, 0.45, 0.27], Wood),
+    def("Furnace", [0.38, 0.38, 0.40], Stone),
+    def("Chest", [0.66, 0.47, 0.25], Wood),
+    def("Bed", [0.78, 0.22, 0.24], Cloth),
+    def("Berry bush", [0.22, 0.44, 0.20], Foliage),
 ];
 
 /// Number of block IDs in use. IDs at or above this are rejected.
@@ -285,6 +315,7 @@ impl World {
                 }
             }
         }
+        w.carve_and_ore(seed, water_level);
         // trees: density follows the forest noise; kind follows height
         for z in 2..sz as i32 - 2 {
             for x in 2..sx as i32 - 2 {
@@ -319,7 +350,109 @@ impl World {
                 }
             }
         }
+        // berry bushes at forest edges
+        for z in 1..sz as i32 - 1 {
+            for x in 1..sx as i32 - 1 {
+                let f = forest(x, z, seed);
+                if f > 0.4 && f < 0.6 && hash(x, z, seed ^ 0xbe77).is_multiple_of(140) {
+                    let h = w.surface(x, z);
+                    if w.get(x, h, z) == GRASS {
+                        w.set(x, h + 1, z, BERRY_BUSH);
+                    }
+                }
+            }
+        }
         w
+    }
+
+    /// Caves, ore veins, clay under lakes and a bedrock floor.
+    fn carve_and_ore(&mut self, seed: u32, water_level: i32) {
+        let [sx, sy, sz] = [
+            self.size[0] as i32,
+            self.size[1] as i32,
+            self.size[2] as i32,
+        ];
+        let surf: Vec<i32> = (0..sz)
+            .flat_map(|z| (0..sx).map(move |x| (x, z)))
+            .map(|(x, z)| self.surface(x, z))
+            .collect();
+        for z in 0..sz {
+            for x in 0..sx {
+                let h = surf[(z * sx + x) as usize];
+                for y in 1..sy.min(h) {
+                    let b = self.get(x, y, z);
+                    if b != STONE && b != DIRT {
+                        continue;
+                    }
+                    let (fx, fy, fz) = (x as f32, y as f32, z as f32);
+                    // spaghetti tunnels where two noise fields cross their middle value
+                    let a = value_noise3(fx / 22.0, fy / 14.0, fz / 22.0, seed + 20) - 0.5;
+                    let c = value_noise3(fx / 22.0, fy / 14.0, fz / 22.0, seed + 21) - 0.5;
+                    let tunnel = a * a + c * c < 0.0028;
+                    // larger caverns deep down
+                    let cavern =
+                        y < 26 && value_noise3(fx / 30.0, fy / 16.0, fz / 30.0, seed + 22) > 0.73;
+                    // keep lake beds and a thin crust closed
+                    let under_water = h <= water_level + 1 && y >= h - 3;
+                    if (tunnel || cavern) && !under_water && y > 2 {
+                        self.set(x, y, z, AIR);
+                        continue;
+                    }
+                    if b == STONE {
+                        let r = hash3(x, y, z, seed ^ 0x0e);
+                        if y < h - 3 && r % 1000 < 6 {
+                            self.set(x, y, z, COAL_ORE);
+                        } else if y < 44 && y < h - 5 && r % 1000 >= 996 {
+                            self.set(x, y, z, IRON_ORE);
+                        } else if y < 18 && r % 4000 == 7 {
+                            self.set(x, y, z, EMBERSTONE);
+                        }
+                    }
+                }
+                // grow ore cells into small veins
+                // clay patches under shallow water
+                if h <= water_level
+                    && hash(x, z, seed ^ 0xc1a7).is_multiple_of(7)
+                    && self.get(x, h, z) == SAND
+                {
+                    self.set(x, h, z, CLAY);
+                }
+                self.set(x, 0, z, BEDROCK);
+                if hash(x, z, seed ^ 0xbed).is_multiple_of(2) {
+                    self.set(x, 1, z, BEDROCK);
+                }
+            }
+        }
+        // grow veins: every ore cell spreads into a few stone neighbours
+        let mut grow = Vec::new();
+        for y in 1..sy {
+            for z in 0..sz {
+                for x in 0..sx {
+                    let b = self.get(x, y, z);
+                    if matches!(b, COAL_ORE | IRON_ORE) {
+                        grow.push((x, y, z, b));
+                    }
+                }
+            }
+        }
+        for (x, y, z, b) in grow {
+            let r = hash3(x, y, z, seed ^ 0x7e1);
+            for (i, (dx, dy, dz)) in [
+                (1, 0, 0),
+                (-1, 0, 0),
+                (0, 1, 0),
+                (0, 0, 1),
+                (0, 0, -1),
+                (0, -1, 0),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                if (r >> i) & 1 == 1 && self.get(x + dx, y + dy, z + dz) == STONE {
+                    self.set(x + dx, y + dy, z + dz, b);
+                }
+            }
+        }
     }
 
     fn put_if_air(&mut self, x: i32, y: i32, z: i32, b: BlockId) {
@@ -521,6 +654,25 @@ fn hash(x: i32, z: i32, seed: u32) -> u32 {
     h ^= h >> 13;
     h = h.wrapping_mul(0xc2b2_ae35);
     h ^ (h >> 16)
+}
+
+fn hash3(x: i32, y: i32, z: i32, seed: u32) -> u32 {
+    hash(x ^ y.wrapping_mul(0x632b_e5ab_u32 as i32), z, seed)
+}
+
+fn value_noise3(x: f32, y: f32, z: f32, seed: u32) -> f32 {
+    let (xi, yi, zi) = (x.floor() as i32, y.floor() as i32, z.floor() as i32);
+    let (fx, fy, fz) = (x - xi as f32, y - yi as f32, z - zi as f32);
+    let s = |t: f32| t * t * (3.0 - 2.0 * t);
+    let (u, v, w) = (s(fx), s(fy), s(fz));
+    let g =
+        |a: i32, b: i32, c: i32| (hash3(xi + a, yi + b, zi + c, seed) & 0xffff) as f32 / 65535.0;
+    let l = |a: f32, b: f32, t: f32| a + (b - a) * t;
+    let x00 = l(g(0, 0, 0), g(1, 0, 0), u);
+    let x10 = l(g(0, 1, 0), g(1, 1, 0), u);
+    let x01 = l(g(0, 0, 1), g(1, 0, 1), u);
+    let x11 = l(g(0, 1, 1), g(1, 1, 1), u);
+    l(l(x00, x10, v), l(x01, x11, v), w)
 }
 
 fn value_noise(x: f32, z: f32, seed: u32) -> f32 {
