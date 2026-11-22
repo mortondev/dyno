@@ -16,6 +16,7 @@
 //! - Brush shapes: tapered strokes, discs, boxes and polygons.
 //!
 //! Light comes from the top-left in every texture.
+#![allow(clippy::needless_range_loop)] // pixel loops read better with indices
 
 use dyno_world as w;
 use dyno_world::BLOCKS;
