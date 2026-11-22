@@ -440,7 +440,7 @@ impl<'a> Nets<'a> {
                 .iter()
                 .filter(|o| g.fl[base + **o] & F_OPAQUE != 0)
                 .count();
-            (1.0 - 0.075 * solid as f32).max(0.5)
+            (1.0 - 0.07 * solid as f32).max(0.58)
         };
         let v = [bl as f32 * k15, sl as f32 * k15, ao];
         self.lit[idx] = v;
@@ -580,14 +580,23 @@ impl<'a> Nets<'a> {
             }
             let glow = w::emission(b) > 0;
             let anim = render::layer_anim(top);
+            // glowing and animated ground keeps a clean edge, both ways
+            let blends =
+                |id: BlockId| w::emission(id) == 0 && render::layer_anim(t.face(id, 0)) == 0.0;
             // a neighbouring kind of ground to fade into, and how much of it
             // there is at each corner
             let mut mix = [0f32; 4];
             let mut other = None;
-            if !glow && anim == 0.0 {
+            // ore keeps its whole face, so a single block of it is easy to
+            // spot; the rock around it still fades towards it
+            if blends(b) && !matches!(b, w::COAL_ORE | w::IRON_ORE) {
                 let cs = q.c.map(|c| self.census(c));
                 let mut best = 0u32;
-                for (id, _) in cs.iter().flatten().filter(|(id, n)| *n > 0 && *id != b) {
+                for (id, _) in cs
+                    .iter()
+                    .flatten()
+                    .filter(|(id, n)| *n > 0 && *id != b && blends(*id))
+                {
                     let total: u32 = cs
                         .iter()
                         .flatten()
@@ -621,11 +630,17 @@ impl<'a> Nets<'a> {
                 KIND_TERRAIN + top as f32,
                 anim,
             ];
+            // ore and glowing rock keep their tile as drawn: no broad strokes
+            let crisp = if glow || matches!(b, w::COAL_ORE | w::IRON_ORE) {
+                1.0
+            } else {
+                0.0
+            };
             let mut put = |p: Vec3, n: Vec3, l: [f32; 3], m: f32| {
                 geo.opaque.push(Vertex {
                     pos: p.into(),
                     normal: n.into(),
-                    color: [m, ob_steep, 0.0, if glow { 2.0 } else { l[2] }],
+                    color: [m, ob_steep, crisp, if glow { 2.0 } else { l[2] }],
                     light: l[0],
                     sky: l[1],
                     tex,
@@ -682,10 +697,7 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
     let lget = |p: [i32; 3]| light.get(g.o[0] + p[0], g.o[1] + p[1], g.o[2] + p[2]) as f32;
     let lsky = |p: [i32; 3]| light.sky(g.o[0] + p[0], g.o[1] + p[1], g.o[2] + p[2]) as f32;
     let solid = |p: [i32; 3]| (g.fl[at(p[0], p[1], p[2])] & F_OPAQUE != 0) as i32;
-    // half a texel in from the tile edge, so smooth filtering does not pull
-    // in the far side of the tile
-    let inset = 0.5 / crate::textures::TILE as f32;
-    let tile = |t: f32| inset + (1.0 - 2.0 * inset) * t;
+    let tile = render::tile_uv;
     let wt = render::textures().face(w::WATER, 0);
     for y in 0..N {
         for z in 0..N {
@@ -699,8 +711,9 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                 let wpos = [g.o[0] + x, g.o[1] + y, g.o[2] + z];
                 if f & F_TERRAIN != 0 {
                     // the shore: carry the water surface on under the ground,
-                    // which now slopes down into it
-                    if has_water && g.fl[c + DY] & (F_WATER | F_OPAQUE) == 0 {
+                    // which now slopes back from it (a beach, or a bank
+                    // that stands above the water)
+                    if has_water && g.fl[c + DY] & F_WATER == 0 {
                         let near = [
                             c - DX,
                             c + DX,
@@ -879,16 +892,34 @@ fn water_top(
     for (i, (du, dv)) in [(0, 0), (1, 0), (1, 1), (0, 1)].into_iter().enumerate() {
         let (cx, cz) = (x + du, z + dv);
         // the four cells around this corner, at the water's level and above it
-        let (mut wet, mut bl, mut sl) = (0u32, 0.0, 0.0);
+        let (mut wet, mut open, mut bl, mut sl) = (0u32, 0u32, 0.0, 0.0);
         for (ox, oz) in [(-1, -1), (0, -1), (-1, 0), (0, 0)] {
             wet += water_surface(g, at(cx + ox, y, cz + oz)) as u32;
-            bl += lget([cx + ox, y + 1, cz + oz]);
-            sl += lsky([cx + ox, y + 1, cz + oz]);
+            if g.fl[at(cx + ox, y + 1, cz + oz)] & F_OPAQUE == 0 {
+                open += 1;
+                bl += lget([cx + ox, y + 1, cz + oz]);
+                sl += lsky([cx + ox, y + 1, cz + oz]);
+            }
         }
         vs[i].pos = [(g.o[0] + cx) as f32, h, (g.o[2] + cz) as f32];
         vs[i].normal[0] = 1.0 - wet as f32 / 4.0;
-        vs[i].light = bl / 60.0;
-        vs[i].sky = sl / 60.0;
+        // light from the open cells above; a corner buried in the bank is
+        // marked and takes its light from the others below
+        let k = 1.0 / (open.max(1) as f32 * 15.0);
+        vs[i].light = if open == 0 { -1.0 } else { bl * k };
+        vs[i].sky = sl * k;
+    }
+    let lit: Vec<(f32, f32)> = vs
+        .iter()
+        .filter(|v| v.light >= 0.0)
+        .map(|v| (v.light, v.sky))
+        .collect();
+    let n = lit.len().max(1) as f32;
+    let mean = lit
+        .iter()
+        .fold((0.0, 0.0), |a, l| (a.0 + l.0 / n, a.1 + l.1 / n));
+    for v in vs.iter_mut().filter(|v| v.light < 0.0) {
+        (v.light, v.sky) = mean;
     }
     // split so the shore factor interpolates evenly
     let order =

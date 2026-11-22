@@ -35,7 +35,9 @@ pub const NO_TEX: [f32; 4] = [0.0, 0.0, -1.0, 0.0];
 
 // What a vertex is, told by `tex[2]`. From 0 up it is a texture layer plus
 // one of these bands; below 0 it is untextured.
-/// Smooth ground: textured by world position. `tex[1]` is the layer for steep faces.
+/// Smooth ground: textured by world position. `tex[1]` is the layer for steep
+/// faces; `tex[0]`, `color[1]` and `color[0]` are a neighbouring ground's
+/// layers and how much of it shows; `color[2]` is 1 to keep the tile crisp.
 pub const KIND_TERRAIN: f32 = 4096.0;
 /// Leaves: textured by world position, alpha-tested, swaying in the wind.
 pub const KIND_FOLIAGE: f32 = 8192.0;
@@ -63,6 +65,14 @@ pub(crate) fn layer_anim(layer: u16) -> f32 {
         .find(|(first, _, _)| *first == layer)
         .map(|(_, n, spf)| *n as f32 + (spf / 100.0).min(0.99))
         .unwrap_or(0.0)
+}
+
+/// A texture coordinate across a whole tile, kept half a texel in from the
+/// edge: with smooth filtering and repeating tiles, the very edge would pull
+/// in colour from the far side.
+pub(crate) fn tile_uv(t: f32) -> f32 {
+    let inset = 0.5 / crate::textures::TILE as f32;
+    inset + (1.0 - 2.0 * inset) * t
 }
 
 /// Texture coordinates for one face corner, plus the layer and animation.
@@ -134,20 +144,20 @@ const K_TERRAIN: f32 = 4096.0;
 const K_FOLIAGE: f32 = 8192.0;
 const K_WATER: f32 = 12288.0;
 
-// 1 in sunlight, 0 in shadow; soft-edged (3 x 3 filter)
+// 1 in sunlight, 0 in shadow; soft-edged. Four taps: the sampler compares
+// and blends 2 x 2 texels at each, so together they cover the same patch a
+// 3 x 3 loop of taps did, for less than half the cost.
 fn sun_visible(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
   let p = u.shadow_vp * vec4<f32>(wpos + n * 0.04, 1.0);
   let ndc = p.xyz / p.w;
   let uv = vec2<f32>(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || ndc.z > 1.0) { return 1.0; }
-  let texel = 1.0 / 2048.0;
-  var sum = 0.0;
-  for (var dy = -1; dy <= 1; dy++) {
-    for (var dx = -1; dx <= 1; dx++) {
-      sum += textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(f32(dx), f32(dy)) * texel, ndc.z - 0.0015);
-    }
-  }
-  return sum / 9.0;
+  let o = 0.9 / 2048.0;
+  let z = ndc.z - 0.0015;
+  return 0.25 * (textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(-o, -o), z)
+    + textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(o, -o), z)
+    + textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(-o, o), z)
+    + textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(o, o), z));
 }
 
 // A warm, painterly grade: richer colour, warm light, soft highlight roll-off.
@@ -180,6 +190,10 @@ fn vnoise(p: vec2<f32>) -> f32 {
   return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
 }
 
+fn world_tone(p: vec2<f32>) -> f32 {
+  return vnoise(p * 0.06) * 0.6 + vnoise(p * 0.23 + vec2<f32>(13.7, 5.1)) * 0.4;
+}
+
 // Height of the water's swell at a place and time.
 fn swell(p: vec2<f32>, t: f32) -> f32 {
   return sin(p.x * 0.9 + t * 1.3) * 0.03 + sin(p.y * 1.3 - t * 1.1) * 0.025 + sin((p.x + p.y) * 0.45 + t * 0.7) * 0.03;
@@ -194,6 +208,8 @@ struct VOut {
   @location(3) light: f32,
   @location(4) sky: f32,
   @location(5) tex: vec4<f32>,
+  // slow noise over the world, worked out per vertex: tone of ground and leaves
+  @location(6) tone: f32,
 };
 
 @vertex fn vs(v: VIn) -> VOut {
@@ -203,11 +219,13 @@ struct VOut {
   var tex = v.tex;
   // how far to pull the depth towards the camera (decals and halos)
   var pull = 0.0;
+  var tone = 0.5;
   let t = u.cam.w;
   let kz = v.tex.z;
   if (kz >= K_WATER) {
     pos.y = pos.y + swell(pos.xz, t);
   } else if (kz >= K_FOLIAGE) {
+    tone = vnoise(pos.xz * 0.35 + pos.y * 0.21);
     // leaves stir in the wind
     let ph = pos.x * 0.37 + pos.z * 0.29 + pos.y * 0.23;
     pos.x = pos.x + sin(t * 1.2 + ph) * 0.045 + sin(t * 2.7 + ph * 2.3) * 0.015;
@@ -221,6 +239,9 @@ struct VOut {
     let s = v.tex.x * (sin(t * 1.7 + v.tex.y + root.x * 0.6) * 0.07 + sin(t * 3.1 + v.tex.y * 1.7 + root.z * 0.8) * 0.03);
     pos = root + (v.normal + vec3<f32>(s, 0.0, s * 0.6)) * fade;
     normal = vec3<f32>(0.0, 1.0, 0.0);
+    tone = world_tone(root.xz);
+  } else if (kz >= K_TERRAIN) {
+    tone = world_tone(pos.xz);
   } else if (kz < -2.5 && kz > -3.5) {
     pull = 0.35;
   } else if (kz < -3.5) {
@@ -244,6 +265,7 @@ struct VOut {
   o.light = v.light;
   o.sky = v.sky;
   o.tex = tex;
+  o.tone = tone;
   return o;
 }
 
@@ -265,53 +287,82 @@ fn tri_weights(n: vec3<f32>) -> vec3<f32> {
   return w / (w.x + w.y + w.z);
 }
 
-// A layer laid over the world from the side (x), from above (y) or from the
-// front (z). Gradients are passed in so this may sit inside branches.
+// A layer laid over the world from the side (x) or from the front (z).
+// Gradients are passed in so this may sit inside branches.
 fn side_x(layer: i32, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec4<f32> {
   return textureSampleGrad(tex_array, tex_samp, vec2<f32>(p.z, -p.y), layer, vec2<f32>(dx.z, -dx.y), vec2<f32>(dy.z, -dy.y));
-}
-fn side_y(layer: i32, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec4<f32> {
-  return textureSampleGrad(tex_array, tex_samp, p.xz, layer, dx.xz, dy.xz);
 }
 fn side_z(layer: i32, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec4<f32> {
   return textureSampleGrad(tex_array, tex_samp, vec2<f32>(p.x, -p.y), layer, vec2<f32>(dx.x, -dx.y), vec2<f32>(dy.x, -dy.y));
 }
 
+// A ground tile, and a larger, turned copy of it under that: broad strokes
+// that hide the repeat.
+fn broad(layer: i32, uv: vec2<f32>, dx: vec2<f32>, dy: vec2<f32>) -> vec3<f32> {
+  let m = mat2x2<f32>(0.27, 0.09, -0.09, 0.27);
+  // soft and magnified, so a plain mip level will do (cheaper than gradients);
+  // 9.1 is 32 texels across a tile, times the copy's scale of 0.285
+  let lod = log2(max(max(length(dx), length(dy)) * 9.1, 1.0));
+  return textureSampleLevel(tex_array, tex_samp, m * uv, layer, lod).rgb;
+}
+fn paint(layer: i32, uv: vec2<f32>, dx: vec2<f32>, dy: vec2<f32>, soft: f32) -> vec3<f32> {
+  var c = textureSampleGrad(tex_array, tex_samp, uv, layer, dx, dy).rgb;
+  if (soft > 0.001) { c = mix(c, broad(layer, uv, dx, dy), soft); }
+  return c;
+}
+
 // One kind of ground: its top layer where it lies level, its steep layer on
-// slopes, walls and ceilings.
-fn ground(top: i32, steep: i32, level0: f32, w3: vec3<f32>, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec3<f32> {
+// slopes, walls and ceilings. `near` is the top layer seen from above, if
+// the caller has sampled it already (`have`). `soft` is how much of the
+// broad copy goes in: none for ore and the like, whose detail matters.
+fn ground(top: i32, steep: i32, level0: f32, w3: vec3<f32>, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>, near: vec3<f32>, have: bool, soft: f32) -> vec3<f32> {
   var level = level0;
   if (top == steep) { level = 1.0; }
   var c = vec3<f32>(0.0);
   if (w3.y > 0.001) {
     var cy = vec3<f32>(0.0);
     if (level > 0.001) {
-      // the tile, and a larger, turned copy of it under that: broad strokes
-      // that hide the repeat
-      let q = vec3<f32>(p.x * 0.27 - p.z * 0.09, 0.0, p.x * 0.09 + p.z * 0.27);
-      let qx = vec3<f32>(dx.x * 0.27 - dx.z * 0.09, 0.0, dx.x * 0.09 + dx.z * 0.27);
-      let qy = vec3<f32>(dy.x * 0.27 - dy.z * 0.09, 0.0, dy.x * 0.09 + dy.z * 0.27);
-      cy += level * mix(side_y(top, p, dx, dy).rgb, side_y(top, q, qx, qy).rgb, 0.42);
+      if (!have) {
+        cy += level * paint(top, p.xz, dx.xz, dy.xz, soft);
+      } else if (soft > 0.001) {
+        cy += level * mix(near, broad(top, p.xz, dx.xz, dy.xz), soft);
+      } else {
+        cy += level * near;
+      }
     }
-    if (level < 0.999) { cy += (1.0 - level) * side_y(steep, p, dx, dy).rgb; }
+    if (level < 0.999) { cy += (1.0 - level) * paint(steep, p.xz, dx.xz, dy.xz, soft); }
     c += w3.y * cy;
   }
-  if (w3.x > 0.001) { c += w3.x * side_x(steep, p, dx, dy).rgb; }
-  if (w3.z > 0.001) { c += w3.z * side_z(steep, p, dx, dy).rgb; }
+  if (w3.x > 0.001) { c += w3.x * paint(steep, vec2<f32>(p.z, -p.y), vec2<f32>(dx.z, -dx.y), vec2<f32>(dy.z, -dy.y), soft); }
+  if (w3.z > 0.001) { c += w3.z * paint(steep, vec2<f32>(p.x, -p.y), vec2<f32>(dx.x, -dx.y), vec2<f32>(dy.x, -dy.y), soft); }
   return c;
 }
 
-fn ground_tone(p: vec2<f32>) -> vec3<f32> {
-  let m = vnoise(p * 0.06) * 0.6 + vnoise(p * 0.23 + vec2<f32>(13.7, 5.1)) * 0.4;
+// Broad, slow changes of tone, so the ground is not one repeated tile.
+// The amount comes from the vertex shader.
+fn ground_tone(m: f32) -> vec3<f32> {
   return mix(vec3<f32>(0.84, 0.87, 0.80), vec3<f32>(1.10, 1.08, 1.02), m);
 }
 
 @fragment fn fs(i: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
   let dpx = dpdx(i.wpos);
   let dpy = dpdy(i.wpos);
-  let dux = dpdx(i.tex.xy);
-  let duy = dpdy(i.tex.xy);
   let kz = i.tex.z;
+  // One plain sample for every pixel, taken before any branch, so the
+  // hardware finds the mip level itself (the cheap path): the face's own
+  // UVs, or for ground and leaves the view from above.
+  var uv0 = i.tex.xy;
+  var l0 = 0;
+  if (kz >= K_FOLIAGE) {
+    uv0 = i.wpos.xz;
+    l0 = anim_layer(kz - K_FOLIAGE, i.tex.w);
+  } else if (kz >= K_TERRAIN) {
+    uv0 = i.wpos.xz;
+    l0 = anim_layer(kz - K_TERRAIN, i.tex.w);
+  } else if (kz >= 0.0) {
+    l0 = anim_layer(kz, i.tex.w);
+  }
+  let tx0 = textureSample(tex_array, tex_samp, uv0, l0);
   let d = distance(i.wpos, u.cam.xyz);
   let has_n = dot(i.normal, i.normal) > 0.25;
   var n = vec3<f32>(0.0, 1.0, 0.0);
@@ -322,28 +373,32 @@ fn ground_tone(p: vec2<f32>) -> vec3<f32> {
   var wrap = 0.0;
   var dim = 1.0;
   if (kz >= K_FOLIAGE) {
-    let layer = anim_layer(kz - K_FOLIAGE, i.tex.w);
     let w3 = tri_weights(n);
-    var tx = vec4<f32>(0.0);
-    if (w3.y > 0.001) { tx += w3.y * side_y(layer, i.wpos, dpx, dpy); }
-    if (w3.x > 0.001) { tx += w3.x * side_x(layer, i.wpos, dpx, dpy); }
-    if (w3.z > 0.001) { tx += w3.z * side_z(layer, i.wpos, dpx, dpy); }
+    var tx = w3.y * tx0;
+    if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos, dpx, dpy); }
+    if (w3.z > 0.001) { tx += w3.z * side_z(l0, i.wpos, dpx, dpy); }
     // gaps between the leaves close up with distance, where they would only flicker
     let cut = mix(0.5, 0.06, smoothstep(18.0, 44.0, d));
     if (tx.a < cut) { discard; }
     // big soft patches of light and dark over the canopy
-    let m = vnoise(i.wpos.xz * 0.35 + i.wpos.y * 0.21);
-    base = base * tx.rgb * (0.86 + 0.28 * m);
+    base = base * tx.rgb * (0.86 + 0.28 * i.tone);
     if (!front) { n = -n; dim = 0.72; }
     // darker underneath and inside
     dim = dim * (0.74 + 0.26 * smoothstep(-0.6, 0.5, n.y));
     wrap = 0.55;
   } else if (kz >= K_TERRAIN) {
     let w3 = tri_weights(n);
-    // the top layer on level ground, giving way to the steep layer on slopes
-    let ragged = (vnoise(i.wpos.xz * 1.3 + i.wpos.y * 0.7) - 0.5) * 0.16;
-    let level = smoothstep(0.40, 0.62, n.y + ragged);
-    var c = ground(anim_layer(kz - K_TERRAIN, i.tex.w), i32(i.tex.y + 0.5), level, w3, i.wpos, dpx, dpy);
+    // the top layer on level ground, giving way to the steep layer on
+    // slopes, along a ragged line
+    var level = smoothstep(0.40, 0.62, n.y);
+    if (n.y > 0.3 && n.y < 0.72) {
+      level = smoothstep(0.40, 0.62, n.y + (vnoise(i.wpos.xz * 1.3 + i.wpos.y * 0.7) - 0.5) * 0.16);
+    }
+    var lc = i32(i.tex.y + 0.5);
+    // a block with one animated texture all round: its steep faces move too
+    if (lc == i32(kz - K_TERRAIN + 0.5)) { lc = l0; }
+    // color.b: 1 on ground whose own detail must stay crisp (ore, emberstone)
+    var c = ground(l0, lc, level, w3, i.wpos, dpx, dpy, tx0.rgb, true, 0.42 * (1.0 - i.color.b));
     // fade into the neighbouring kind of ground along a ragged, painted edge
     let wb = i.color.r;
     if (wb > 0.002) {
@@ -352,17 +407,15 @@ fn ground_tone(p: vec2<f32>) -> vec3<f32> {
       let s = select(-1.0, 1.0, kz - K_TERRAIN < i.tex.x);
       let k = smoothstep(0.38, 0.62, wb + s * (nb - 0.5) * 0.5);
       if (k > 0.001) {
-        c = mix(c, ground(i32(i.tex.x + 0.5), i32(i.color.g + 0.5), level, w3, i.wpos, dpx, dpy), k);
+        c = mix(c, ground(i32(i.tex.x + 0.5), i32(i.color.g + 0.5), level, w3, i.wpos, dpx, dpy, c, false, 0.42), k);
       }
     }
-    // broad, slow changes of tone, so the ground is not one repeated tile
-    base = c * ground_tone(i.wpos.xz);
+    base = c * ground_tone(i.tone);
   } else if (kz < -1.5 && kz > -2.5) {
-    base = base * ground_tone(i.wpos.xz);
+    base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
-    let tx = textureSampleGrad(tex_array, tex_samp, i.tex.xy, anim_layer(kz, i.tex.w), dux, duy);
-    if (tx.a < 0.5) { discard; }
-    base = base * tx.rgb;
+    if (tx0.a < 0.5) { discard; }
+    base = base * tx0.rgb;
   } else if (kz > -1.5) {
     // 16 x 16 texel grain on untextured boxes so they read as pixel art
     let t = floor(i.wpos * 16.0 - i.normal * 0.01);
@@ -441,11 +494,10 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
 }
 
 @fragment fn fs_translucent(i: VOut) -> @location(0) vec4<f32> {
-  let dpx = dpdx(i.wpos);
-  let dpy = dpdy(i.wpos);
-  let dux = dpdx(i.tex.xy);
-  let duy = dpdy(i.tex.xy);
   let kz = i.tex.z;
+  var l0 = 0;
+  if (kz >= 0.0 && kz < K_TERRAIN) { l0 = anim_layer(kz, i.tex.w); }
+  let tx0 = textureSample(tex_array, tex_samp, i.tex.xy, l0);
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   let lit = max(u.light.rgb * (i.sky * i.sky * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * i.light * i.light);
@@ -474,16 +526,19 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
     let wn = normalize(vec3<f32>((s1 - 0.5) * 0.3, 1.0, (s2 - 0.5) * 0.3));
     let sd = max(dot(reflect(-v, wn), u.sun.xyz), 0.0);
     c += vec3<f32>(1.0, 0.85, 0.6) * pow(sd, 90.0) * 0.7 * (1.0 - u.sun.w);
-    // foam where the water laps the shore
-    let fz = vnoise(p * 2.6 + vec2<f32>(t * 0.3, -t * 0.22));
-    let lap = 0.05 * sin(t * 1.4 + p.x * 0.8 + p.y * 0.6);
-    let foam = smoothstep(0.50, 0.72, shore + (fz - 0.5) * 0.4 + lap) * 0.8;
-    c = mix(c, vec3<f32>(0.90, 0.95, 0.97) * (lit * 0.9 + u.light.rgb * 0.1), foam);
-    a = mix(a, 0.92, foam);
+    // foam where the water laps the shore: a ragged, streaky band
+    if (shore > 0.15) {
+      let fz = vnoise(p * 2.6 + vec2<f32>(t * 0.3, -t * 0.22));
+      let lap = 0.05 * sin(t * 1.4 + p.x * 0.8 + p.y * 0.6);
+      let band = smoothstep(0.42, 0.66, shore + (fz - 0.5) * 0.38 + lap);
+      let streak = 0.5 + 0.5 * smoothstep(0.3, 0.7, vnoise(p * 6.0 - vec2<f32>(t * 0.25, t * 0.4)));
+      let foam = band * streak * 0.75;
+      c = mix(c, vec3<f32>(0.90, 0.95, 0.97) * (lit * 0.9 + u.light.rgb * 0.1), foam);
+      a = mix(a, 0.92, foam);
+    }
   } else if (kz >= 0.0) {
-    let tx = textureSampleGrad(tex_array, tex_samp, i.tex.xy, anim_layer(kz, i.tex.w), dux, duy);
-    c = c * tx.rgb;
-    a = tx.a;
+    c = c * tx0.rgb;
+    a = tx0.a;
     if (a < 0.02) { discard; }
   }
   c = mix(c, u.fog.rgb, f);
@@ -667,7 +722,7 @@ pub fn push_post_oriented(
         for i in [0, 1, 2, 0, 2, 3] {
             let (su, sv) = cs[i];
             let (tu, tv) = if face == 1 {
-                (u0 + (u1 - u0) * (su + 1.0) * 0.5, (1.0 - sv) * 0.5)
+                (u0 + (u1 - u0) * (su + 1.0) * 0.5, tile_uv((1.0 - sv) * 0.5))
             } else {
                 (
                     u0 + (u1 - u0) * (su + 1.0) * 0.5,
@@ -711,9 +766,9 @@ pub fn push_block_cube(
         for i in [0, 1, 2, 0, 2, 3] {
             let (su, sv) = cs[i];
             let (tu, tv) = if face == 1 {
-                ((su + 1.0) * 0.5, (1.0 - sv) * 0.5)
+                (tile_uv((su + 1.0) * 0.5), tile_uv((1.0 - sv) * 0.5))
             } else {
-                ((su + 1.0) * 0.5, (sv + 1.0) * 0.5)
+                (tile_uv((su + 1.0) * 0.5), tile_uv((sv + 1.0) * 0.5))
             };
             out.push(Vertex {
                 pos: (fc + uf * su + vf * sv).into(),
@@ -833,7 +888,7 @@ fn upload_textures(
         mag_filter: wgpu::FilterMode::Linear,
         min_filter: wgpu::FilterMode::Linear,
         mipmap_filter: wgpu::FilterMode::Linear,
-        anisotropy_clamp: 8,
+        anisotropy_clamp: 4,
         ..Default::default()
     });
     (view, samp)
@@ -2076,6 +2131,8 @@ mod tests {
                 }
             }
         }
+        // build the textures first: that is a one-off, not part of meshing
+        let _ = textures();
         let (mut worst, mut busy, mut verts) = (0.0f64, 0, 0usize);
         let start = std::time::Instant::now();
         for s in &list {

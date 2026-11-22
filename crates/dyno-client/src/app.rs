@@ -2440,6 +2440,18 @@ impl App {
                     light_at(&p.light, eye),
                 );
             }
+            // a ring on the ground under your target: red hostile, yellow neutral, green friendly
+            if let Some(e) = p.focus.and_then(|id| p.entities.get(&id)) {
+                let (col, r) = match e.kind {
+                    EntityKind::Creature(c) => match p.content.creature(c) {
+                        Some(cr) if cr.hostile => ([0.95, 0.2, 0.15], 0.75 * cr.scale),
+                        Some(cr) => ([0.95, 0.85, 0.2], 0.75 * cr.scale),
+                        None => ([0.95, 0.85, 0.2], 0.75),
+                    },
+                    _ => ([0.3, 0.9, 0.35], 0.7),
+                };
+                render::push_ground_ring_on(&mut boxes, &p.world, e.pos(), r, col);
+            }
             // creatures
             let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
             push_creatures(&mut boxes, p, clock);
