@@ -90,6 +90,20 @@ fn hash3(p: vec3<f32>) -> f32 {
   return vec4<f32>(c, 1.0);
 }
 
+fn hash2(p: vec2<f32>) -> f32 {
+  return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453);
+}
+fn vnoise(p: vec2<f32>) -> f32 {
+  let i = floor(p);
+  let f = fract(p);
+  let s = f * f * (3.0 - 2.0 * f);
+  let a = hash2(i);
+  let b = hash2(i + vec2<f32>(1.0, 0.0));
+  let c = hash2(i + vec2<f32>(0.0, 1.0));
+  let d = hash2(i + vec2<f32>(1.0, 1.0));
+  return mix(mix(a, b, s.x), mix(c, d, s.x), s.y);
+}
+
 struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> };
 
 @vertex fn vs_sky(@builtin(vertex_index) vi: u32) -> SkyOut {
@@ -112,6 +126,15 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
   if (sd > 0.9992) { c = mix(c, vec3<f32>(1.0, 0.97, 0.88), 0.95); }
   // moon opposite the sun
   if (-sd > 0.9994) { c = mix(c, vec3<f32>(0.85, 0.88, 0.95), u.sun.w); }
+  // blocky clouds drifting across the sky
+  if (h > 0.015) {
+    let q = dir.xz / (h + 0.06) * 1.4 + vec2<f32>(u.cam.w * 0.012, u.cam.w * 0.005);
+    let qb = floor(q * 10.0) / 10.0;
+    let n = vnoise(qb * 0.9) * 0.62 + vnoise(qb * 2.1 + 7.3) * 0.38;
+    let cov = smoothstep(0.55, 0.66, n) * smoothstep(0.015, 0.16, h);
+    let cc = mix(u.fog.rgb, vec3<f32>(1.0, 1.0, 1.0), 0.55) * (u.light.rgb * 0.85 + 0.15);
+    c = mix(c, cc, cov * 0.9);
+  }
   // stars
   if (u.sun.w > 0.01 && h > 0.0) {
     let cell = floor(dir * 220.0);
@@ -440,6 +463,7 @@ pub struct Gfx {
     pub adapter_info: String,
     /// When set, the next frame is saved to this path as a PPM image.
     pub screenshot: Option<std::path::PathBuf>,
+    started: std::time::Instant,
 }
 
 use egui_winit::winit;
@@ -712,6 +736,7 @@ impl Gfx {
             dims: [0; 3],
             adapter_info,
             screenshot: None,
+            started: std::time::Instant::now(),
         })
     }
 
@@ -826,7 +851,12 @@ impl Gfx {
             let u = Uniforms {
                 view_proj: vp.to_cols_array_2d(),
                 inv_view_proj: vp.inverse().to_cols_array_2d(),
-                cam: [cam.x, cam.y, cam.z, 0.0],
+                cam: [
+                    cam.x,
+                    cam.y,
+                    cam.z,
+                    self.started.elapsed().as_secs_f32() % 100_000.0,
+                ],
                 fog: [fog[0], fog[1], fog[2], dist],
                 sky_top: [top[0], top[1], top[2], 0.0],
                 light: [light[0], light[1], light[2], 0.0],

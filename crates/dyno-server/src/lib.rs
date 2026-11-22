@@ -51,6 +51,8 @@ struct State {
     players: HashMap<PlayerId, Player>,
     next_id: PlayerId,
     dirty: bool,
+    /// Last position of each player, by lower-case name. Saved next to the world.
+    homes: HashMap<String, [f32; 3]>,
     /// Time of day at `time_base`.
     time_at_base: f32,
     time_base: Instant,
@@ -137,6 +139,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     };
     let listener = TcpListener::bind(cfg.bind)?;
     let local_addr = listener.local_addr()?;
+    let cfg_world_path = cfg.world_path.clone();
     let server = Arc::new(Server {
         cfg,
         state: Mutex::new(State {
@@ -146,6 +149,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
             dirty: false,
             time_at_base: 0.05,
             time_base: Instant::now(),
+            homes: load_homes(&homes_path(&cfg_world_path)),
         }),
         stop: AtomicBool::new(false),
     });
@@ -210,17 +214,33 @@ impl Server {
     }
 
     pub fn save(&self) {
-        let (data, path) = {
+        let (data, path, homes) = {
             let mut st = self.state.lock().unwrap();
-            if !st.dirty {
-                return;
+            // remember where everyone is, in case the server stops
+            let now: Vec<(String, [f32; 3])> = st
+                .players
+                .values()
+                .map(|p| (p.name.to_lowercase(), p.pose.pos))
+                .collect();
+            for (n, p) in now {
+                if p.iter().all(|v| v.is_finite()) {
+                    st.homes.insert(n, p);
+                }
             }
-            st.dirty = false;
-            (st.world.clone(), self.cfg.world_path.clone())
+            let homes = st.homes.clone();
+            if !st.dirty {
+                (None, self.cfg.world_path.clone(), homes)
+            } else {
+                st.dirty = false;
+                (Some(st.world.clone()), self.cfg.world_path.clone(), homes)
+            }
         };
-        match data.save(&path) {
-            Ok(()) => log(format!("Saved world to {}", path.display())),
-            Err(e) => log(format!("Warning: save failed: {e}")),
+        save_homes(&homes_path(&path), &homes);
+        if let Some(data) = data {
+            match data.save(&path) {
+                Ok(()) => log(format!("Saved world to {}", path.display())),
+                Err(e) => log(format!("Warning: save failed: {e}")),
+            }
         }
     }
 
@@ -330,7 +350,16 @@ impl Server {
             }
             let id = st.next_id;
             st.next_id += 1;
-            let spawn = st.world.spawn();
+            let spawn = st
+                .homes
+                .get(&name.to_lowercase())
+                .copied()
+                .filter(|p| {
+                    st.world
+                        .in_bounds([p[0] as i32, p[1].max(0.0) as i32, p[2] as i32])
+                        || p[1] >= st.world.size[1] as f32
+                })
+                .unwrap_or_else(|| st.world.spawn());
             let players: Vec<PlayerInfo> = st
                 .players
                 .iter()
@@ -386,7 +415,11 @@ impl Server {
 
         {
             let mut st = self.state.lock().unwrap();
-            st.players.remove(&id);
+            if let Some(p) = st.players.remove(&id) {
+                if p.pose.pos.iter().all(|v| v.is_finite()) {
+                    st.homes.insert(p.name.to_lowercase(), p.pose.pos);
+                }
+            }
             self.broadcast(&st, &ServerMsg::PlayerLeft { id }, None);
             self.broadcast(
                 &st,
@@ -613,5 +646,38 @@ impl Server {
             }
             _ => st.tell(id, "Unknown command. Try /help"),
         }
+    }
+}
+
+fn homes_path(world: &std::path::Path) -> PathBuf {
+    world.with_file_name("players.txt")
+}
+
+/// Player positions: one line per player, "name<TAB>x<TAB>y<TAB>z".
+fn load_homes(path: &std::path::Path) -> HashMap<String, [f32; 3]> {
+    let mut out = HashMap::new();
+    if let Ok(text) = std::fs::read_to_string(path) {
+        for line in text.lines() {
+            let f: Vec<&str> = line.split('\t').collect();
+            if f.len() == 4 {
+                if let (Ok(x), Ok(y), Ok(z)) = (f[1].parse(), f[2].parse(), f[3].parse()) {
+                    out.insert(f[0].to_string(), [x, y, z]);
+                }
+            }
+        }
+    }
+    out
+}
+
+fn save_homes(path: &std::path::Path, homes: &HashMap<String, [f32; 3]>) {
+    let mut text = String::new();
+    for (n, p) in homes {
+        if !n.contains('\t') && !n.contains('\n') {
+            text.push_str(&format!("{n}\t{}\t{}\t{}\n", p[0], p[1], p[2]));
+        }
+    }
+    let tmp = path.with_extension("tmp");
+    if std::fs::write(&tmp, text).is_ok() {
+        let _ = std::fs::rename(&tmp, path);
     }
 }

@@ -14,6 +14,7 @@ pub enum Sfx {
     Chat,
     Join,
     Click,
+    Cricket,
 }
 
 pub struct Audio {
@@ -117,6 +118,16 @@ fn synth(sfx: Sfx, rng: &mut Rng, variant: usize) -> Vec<f32> {
             v
         }),
         Sfx::Click => tone(30.0, 1200.0, 900.0, 12.0, 0.08),
+        Sfx::Cricket => {
+            // three quick chirps
+            let mut v = Vec::new();
+            let f = 4200.0 * pitch;
+            for _ in 0..3 {
+                v.extend(tone(38.0, f, f * 0.98, 3.0, 0.05));
+                v.extend(vec![0.0; (RATE as f32 * 0.035) as usize]);
+            }
+            v
+        }
     }
 }
 
@@ -147,7 +158,7 @@ impl Audio {
         for m in mats {
             kinds.extend([Sfx::Break(m), Sfx::Place(m), Sfx::Step(m)]);
         }
-        kinds.extend([Sfx::Chat, Sfx::Join, Sfx::Click]);
+        kinds.extend([Sfx::Chat, Sfx::Join, Sfx::Click, Sfx::Cricket]);
         for k in kinds {
             let variants = (0..4).map(|v| synth(k, &mut rng, v)).collect();
             bank.push((k, variants));

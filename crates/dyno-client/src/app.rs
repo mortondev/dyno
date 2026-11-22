@@ -115,6 +115,9 @@ struct Play {
     fov_kick: f32,
     picker_open: bool,
     hotbar: [w::BlockId; 9],
+    /// night ambience: firefly positions and phases, and the next cricket
+    fireflies: Vec<(Vec3, f32)>,
+    next_cricket: f32,
 }
 
 struct Particle {
@@ -420,6 +423,8 @@ impl App {
                         step_acc: 0.0,
                         fov_kick: 0.0,
                         picker_open: false,
+                        fireflies: Vec::new(),
+                        next_cricket: 3.0,
                         hotbar,
                     };
                     p.chat.push(Chat { at: Instant::now(), from: None, text: "Click to play. WASD move, Space jump, F fly, left click break, right click place, 1-9 choose block, E all blocks, T chat, /help commands, Esc menu.".into() });
@@ -645,6 +650,54 @@ impl App {
                     anim_t * 9.0,
                     walk,
                 );
+            }
+            // night ambience: fireflies and crickets
+            let night = sky_now.stars;
+            if night > 0.5 {
+                let t = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
+                let center = p.player.pos;
+                let seed = (t * 1000.0) as u32;
+                while p.fireflies.len() < 28 {
+                    let k = p.fireflies.len() as u32 + seed;
+                    let h =
+                        |n: u32| ((n.wrapping_mul(2_654_435_761) >> 8) & 0xffff) as f32 / 65535.0;
+                    let x = center.x + (h(k) - 0.5) * 28.0;
+                    let z = center.z + (h(k ^ 0x55) - 0.5) * 28.0;
+                    let ground = p.world.surface(x.floor() as i32, z.floor() as i32) as f32;
+                    p.fireflies.push((
+                        Vec3::new(x, ground + 1.2 + h(k ^ 0xaa) * 2.5, z),
+                        h(k ^ 0x33) * 6.28,
+                    ));
+                }
+                p.fireflies.retain(|(pos, _)| pos.distance(center) < 22.0);
+                for (pos, ph) in &mut p.fireflies {
+                    *ph += dt;
+                    *pos += Vec3::new(
+                        (*ph * 0.7).sin(),
+                        (*ph * 1.3).sin() * 0.5,
+                        (*ph * 0.9).cos(),
+                    ) * dt
+                        * 0.6;
+                    let glow = ((*ph * 2.3).sin() * 0.5 + 0.5) * night;
+                    if glow > 0.15 {
+                        render::push_oriented_box(
+                            &mut boxes,
+                            *pos,
+                            [Vec3::X, Vec3::Y, Vec3::Z],
+                            Vec3::splat(0.035),
+                            [0.85 * glow + 0.1, 1.0 * glow + 0.1, 0.35 * glow],
+                            true,
+                            1.0,
+                        );
+                    }
+                }
+                p.next_cricket -= dt;
+                if p.next_cricket <= 0.0 {
+                    p.next_cricket = 2.0 + (t * 7.3).sin().abs() * 5.0;
+                    self.audio.play(Sfx::Cricket, 0.25 * night);
+                }
+            } else {
+                p.fireflies.clear();
             }
             // particles
             for pt in &mut p.particles {
