@@ -29,6 +29,14 @@ pub enum Sfx {
     Pop,
     /// a pick bites while digging
     Tick,
+    /// a second of steady rain
+    Rain,
+    /// a gust of wind
+    Wind,
+    /// a songbird
+    Bird,
+    /// a far-off smith's hammer (town ambience)
+    Hammer,
 }
 
 pub struct Audio {
@@ -185,6 +193,42 @@ fn synth(sfx: Sfx, rng: &mut Rng, variant: usize) -> Vec<f32> {
             noise_burst(rng, 35.0, 3000.0 * pitch, 12.0, 0.25),
             tone(30.0, 900.0 * pitch, 700.0, 12.0, 0.06),
         ),
+        Sfx::Rain => noise_burst(rng, 1000.0, 5500.0, 0.2, 0.2),
+        Sfx::Wind => {
+            // a soft low swell
+            let n = (RATE as f32 * 2.2) as usize;
+            let a = (-2.0 * std::f32::consts::PI * 300.0 / RATE as f32).exp();
+            let mut y = 0.0;
+            (0..n)
+                .map(|i| {
+                    let t = i as f32 / n as f32;
+                    y = a * y + (1.0 - a) * rng.next();
+                    y * 1.6 * (t * std::f32::consts::PI).sin()
+                })
+                .collect()
+        }
+        Sfx::Bird => {
+            let mut v = Vec::new();
+            let base = 2600.0 * pitch;
+            for k in 0..(3 + variant % 3) {
+                let f = base * (1.0 + 0.12 * ((k * 7 + variant) % 4) as f32);
+                v.extend(tone(70.0, f, f * 1.25, 4.0, 0.05));
+                v.extend(vec![0.0; (RATE as f32 * 0.04) as usize]);
+            }
+            v
+        }
+        Sfx::Hammer => {
+            let mut v = mix(
+                tone(60.0, 900.0 * pitch, 700.0, 10.0, 0.2),
+                noise_burst(rng, 40.0, 4000.0, 10.0, 0.2),
+            );
+            v.extend(vec![0.0; (RATE as f32 * 0.35) as usize]);
+            v.extend(mix(
+                tone(60.0, 880.0 * pitch, 680.0, 10.0, 0.18),
+                noise_burst(rng, 40.0, 4000.0, 10.0, 0.18),
+            ));
+            v
+        }
         Sfx::Cricket => {
             // three quick chirps
             let mut v = Vec::new();
@@ -237,6 +281,10 @@ impl Audio {
             Sfx::Dissolve,
             Sfx::Pop,
             Sfx::Tick,
+            Sfx::Rain,
+            Sfx::Wind,
+            Sfx::Bird,
+            Sfx::Hammer,
         ]);
         for k in kinds {
             let variants = (0..4).map(|v| synth(k, &mut rng, v)).collect();

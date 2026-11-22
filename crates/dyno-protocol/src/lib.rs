@@ -395,6 +395,11 @@ pub enum ServerMsg {
         points: u8,
         target: Option<u32>,
     },
+    /// The weather: 0 clear, 1 cloudy, 2 rain, 3 fog; and how strong (0..1).
+    Weather {
+        kind: u8,
+        strength: f32,
+    },
     /// A creature with its own name (a rare elite).
     EntityName {
         id: u32,

@@ -167,6 +167,8 @@ pub struct State {
     /// camp spawn points of every area
     pub spawn_points: Vec<crate::camps::SpawnPoint>,
     pub zone_clock: f32,
+    /// weather kind (0 clear, 1 cloudy, 2 rain, 3 fog), strength, seconds left
+    pub weather: (u8, f32, f32),
 }
 
 pub fn now_secs() -> u64 {
@@ -297,6 +299,30 @@ impl State {
             );
             self.event(format!("Day {} dawns in the valley.", self.day));
         }
+    }
+
+    /// Weather drifts: mostly fair, sometimes cloud, rain, or morning fog.
+    fn tick_weather(&mut self, dt: f32) {
+        self.weather.2 -= dt;
+        if self.weather.2 > 0.0 || self.players.is_empty() {
+            return;
+        }
+        let dawn = self.clock > 0.9 || self.clock < 0.12;
+        let r = self.rng.f32();
+        let kind = if dawn && r < 0.35 {
+            3
+        } else if r < 0.5 {
+            0
+        } else if r < 0.75 {
+            1
+        } else if r < 0.93 {
+            2
+        } else {
+            3
+        };
+        let strength = 0.5 + self.rng.f32() * 0.5;
+        self.weather = (kind, strength, 180.0 + self.rng.f32() * 300.0);
+        self.broadcast(&ServerMsg::Weather { kind, strength }, None);
     }
 
     /// Record a notable event: chat line, Discord, and the away replay.
@@ -561,6 +587,10 @@ impl State {
                 max: max_power,
             });
             after.push(ServerMsg::Equipment(p.equip.clone()));
+            after.push(ServerMsg::Weather {
+                kind: self.weather.0,
+                strength: self.weather.1,
+            });
             let cap = dyno_sim::progression::skill_cap(p.level);
             after.push(ServerMsg::Skills(
                 p.skills.iter().map(|(k, v)| (k.clone(), *v, cap)).collect(),
@@ -1448,6 +1478,7 @@ impl State {
         self.tick_casts();
         self.tick_auto_attacks();
         self.tick_auras();
+        self.tick_weather(dt);
         self.zone_clock += dt;
         if self.zone_clock >= 1.0 {
             self.zone_clock = 0.0;

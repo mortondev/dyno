@@ -75,6 +75,8 @@ pub struct Sky {
     pub sun_dir: [f32; 3],
     /// 0 by day, 1 at night
     pub stars: f32,
+    /// 0 clear sky .. 1 overcast
+    pub cover: f32,
 }
 
 /// Depth-only pass from the sun.
@@ -261,11 +263,12 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
     // keep coordinates small: the hash loses precision far from zero
     q = q - floor(q / 97.0) * 97.0;
     let n = vnoise(q * 0.8) * 0.5 + vnoise(q * 1.9 + 7.3) * 0.3 + vnoise(q * 4.3 + 2.1) * 0.2;
-    let cov = smoothstep(0.46, 0.78, n) * smoothstep(0.01, 0.25, h);
+    let over = u.sky_top.w;
+    let cov = smoothstep(0.46 - over * 0.5, 0.78 - over * 0.45, n) * smoothstep(0.01, 0.25, h);
     // brighter where the cloud thins and faces the sun
     let edge = 1.0 - smoothstep(0.55, 0.8, n);
     let toward = max(dot(normalize(vec3<f32>(dir.x, 0.0, dir.z) + vec3<f32>(0.0, 0.001, 0.0)), normalize(vec3<f32>(u.sun.x, 0.0, u.sun.z) + vec3<f32>(0.0, 0.001, 0.0))), 0.0);
-    let body = mix(u.fog.rgb * 0.9, vec3<f32>(1.0, 0.98, 0.95), 0.6) * (u.light.rgb * 0.8 + 0.2);
+    let body = mix(u.fog.rgb * 0.9, vec3<f32>(1.0, 0.98, 0.95), 0.6 - over * 0.45) * (u.light.rgb * 0.8 + 0.2) * (1.0 - over * 0.35);
     let rim = vec3<f32>(1.0, 0.82, 0.55) * (u.light.rgb * 0.9 + 0.1);
     let shade = mix(u.sky_top.rgb * 0.8, body, 0.65);
     var cc = mix(shade, body, smoothstep(0.5, 0.9, n));
@@ -1320,7 +1323,7 @@ impl Gfx {
                     self.started.elapsed().as_secs_f32() % 100_000.0,
                 ],
                 fog: [fog[0], fog[1], fog[2], dist],
-                sky_top: [top[0], top[1], top[2], 0.0],
+                sky_top: [top[0], top[1], top[2], sky.cover],
                 light: [light[0], light[1], light[2], 0.0],
                 sun: [sky.sun_dir[0], sky.sun_dir[1], sky.sun_dir[2], sky.stars],
                 shadow_vp: shadow_matrix(cam, sky.sun_dir).to_cols_array_2d(),

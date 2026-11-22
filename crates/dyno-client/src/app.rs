@@ -166,6 +166,10 @@ struct Play {
     combo: (u8, Option<u32>),
     /// the named place you are in
     zone: String,
+    /// weather from the server (kind, strength), and how far we have blended into it
+    weather: (u8, f32),
+    weather_mix: f32,
+    ambience_clock: f32,
     attacking: Option<u32>,
     /// open tab of the character / bags / spellbook / skills window
     screen_tab: Option<screens::Tab>,
@@ -521,6 +525,13 @@ fn buff_stats(p: &Play) -> dyno_world::content::Stats {
     s
 }
 
+/// A stable seed from a player name, so a character looks the same every login.
+fn name_seed(name: &str) -> u32 {
+    name.to_lowercase().bytes().fold(2_166_136_261u32, |h, b| {
+        (h ^ b as u32).wrapping_mul(16_777_619)
+    })
+}
+
 fn quest_finished(c: &dyno_world::content::Content, q: &dyno_protocol::QuestProgress) -> bool {
     c.quest(q.quest).is_some_and(|x| {
         x.objectives
@@ -700,7 +711,32 @@ pub(crate) fn sky(t: f32) -> render::Sky {
         light,
         sun_dir: sun.into(),
         stars: 1.0 - k,
+        cover: 0.0,
     }
+}
+
+/// Weather on a sky: clouds close in, colours grey out, light dims.
+fn weathered(mut s: render::Sky, kind: u8, strength: f32) -> render::Sky {
+    let (cover, grey, dim) = match kind {
+        1 => (0.45, 0.25, 0.12),
+        2 => (0.95, 0.55, 0.35),
+        3 => (0.6, 0.6, 0.18),
+        _ => (0.0, 0.0, 0.0),
+    };
+    let k = strength.clamp(0.0, 1.0);
+    let grey_of = |c: [f32; 3], g: f32| {
+        let l = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
+        [
+            c[0] + (l - c[0]) * g,
+            c[1] + (l - c[1]) * g,
+            c[2] + (l - c[2]) * g,
+        ]
+    };
+    s.cover = cover * k;
+    s.top = grey_of(s.top, grey * k);
+    s.horizon = grey_of(s.horizon, grey * k * 1.2);
+    s.light = grey_of(s.light, grey * k * 0.6).map(|v| v * (1.0 - dim * k));
+    s
 }
 
 fn material_of(b: w::BlockId) -> w::Material {
@@ -886,6 +922,9 @@ fn new_play(j: Joined) -> Play {
         auras: Vec::new(),
         combo: (0, None),
         zone: String::new(),
+        weather: (0, 0.0),
+        weather_mix: 0.0,
+        ambience_clock: 0.0,
         attacking: None,
         screen_tab: None,
         bar: Vec::new(),
@@ -1257,6 +1296,12 @@ impl App {
                                 e.name = Some(name);
                             }
                         }
+                        ServerMsg::Weather { kind, strength } => {
+                            if kind != p.weather.0 {
+                                p.weather_mix = 0.0;
+                            }
+                            p.weather = (kind, strength);
+                        }
                         ServerMsg::Zone { name, levels, safe } => {
                             if !name.is_empty() {
                                 p.title = Some((Instant::now(), name.clone()));
@@ -1447,7 +1492,16 @@ impl App {
         let Some(gfx) = self.gfx.as_mut() else { return };
         let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
         let fov = self.settings.fov_degrees;
-        let far = self.settings.view_distance;
+        let far = match &self.screen {
+            // fog pulls the world in
+            Screen::Playing(p) if p.weather.0 == 3 => {
+                self.settings.view_distance * (1.0 - 0.6 * p.weather_mix)
+            }
+            Screen::Playing(p) if p.weather.0 == 2 => {
+                self.settings.view_distance * (1.0 - 0.3 * p.weather_mix)
+            }
+            _ => self.settings.view_distance,
+        };
 
         // DYNO_SCREENSHOT=path saves the view every 3 seconds while playing (scripted tests, agents)
         if let (Screen::Playing(_), Some(path)) =
@@ -1459,7 +1513,11 @@ impl App {
         }
         // time of day (also drawn behind the menu)
         let sky_now = match &self.screen {
-            Screen::Playing(p) => sky(p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds),
+            Screen::Playing(p) => weathered(
+                sky(p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds),
+                p.weather.0,
+                p.weather_mix,
+            ),
             _ => sky(0.12),
         };
 
@@ -1670,12 +1728,13 @@ impl App {
                 let base = Vec3::from(pose.pos);
                 let bl = light_at(&p.light, base + Vec3::Y);
                 let walk = (r.speed() / 4.0).min(1.0);
-                models::push_avatar(
+                let look = models::Look::player(name_seed(&r.name), game::player_color(*id));
+                models::push_person(
                     &mut boxes,
                     base,
                     pose.yaw,
                     pose.pitch,
-                    game::player_color(*id),
+                    &look,
                     bl,
                     anim_t * 9.0,
                     walk,
@@ -1728,6 +1787,68 @@ impl App {
                 }
             } else {
                 p.fireflies.clear();
+            }
+            // weather: blend in, rain falls around you, and the land has its sounds
+            p.weather_mix = (p.weather_mix + dt / 20.0).min(p.weather.1.max(0.01));
+            let raining = p.weather.0 == 2 && p.weather_mix > 0.1;
+            let outside = p.light.sky(
+                p.player.pos.x.floor() as i32,
+                (p.player.pos.y + 1.6).floor() as i32,
+                p.player.pos.z.floor() as i32,
+            ) > 10;
+            if raining {
+                let n = (p.weather_mix * 90.0 * dt * 30.0) as usize;
+                let seed = (p.fps.0.elapsed().as_nanos() as u32) | 1;
+                let mut r = seed;
+                let mut rnd = || {
+                    r ^= r << 13;
+                    r ^= r >> 17;
+                    r ^= r << 5;
+                    r as f32 / u32::MAX as f32
+                };
+                for _ in 0..n.min(60) {
+                    let at = p.player.pos
+                        + Vec3::new(
+                            (rnd() - 0.5) * 30.0,
+                            8.0 + rnd() * 6.0,
+                            (rnd() - 0.5) * 30.0,
+                        );
+                    let col = p.world.surface(at.x.floor() as i32, at.z.floor() as i32);
+                    if (col as f32) < at.y {
+                        p.particles.push(Particle {
+                            pos: at,
+                            vel: Vec3::new(0.6, -16.0, 0.3),
+                            color: [0.65, 0.72, 0.85],
+                            life: 1.0,
+                            size: 0.025,
+                            gravity: 2.0,
+                        });
+                    }
+                }
+            }
+            p.ambience_clock -= dt;
+            if p.ambience_clock <= 0.0 {
+                p.ambience_clock = 0.9;
+                let near_town = p.hearth.is_some_and(|h| {
+                    Vec3::new(h[0] as f32, h[1] as f32, h[2] as f32).distance(p.player.pos) < 30.0
+                });
+                let tod = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
+                let day = tod < 0.5;
+                let roll = (p.fps.0.elapsed().as_millis() % 1000) as f32 / 1000.0;
+                if raining && outside {
+                    self.audio.play(Sfx::Rain, 0.5 * p.weather_mix);
+                } else if outside && day && p.weather.0 != 2 && roll < 0.35 {
+                    self.audio.play(Sfx::Bird, 0.35);
+                }
+                if outside && roll > 0.8 {
+                    self.audio.play(
+                        Sfx::Wind,
+                        0.25 + 0.3 * if p.weather.0 == 2 { p.weather_mix } else { 0.0 },
+                    );
+                }
+                if near_town && day && roll > 0.55 && roll < 0.7 {
+                    self.audio.play(Sfx::Hammer, 0.18);
+                }
             }
             // particles
             for pt in &mut p.particles {
@@ -1885,7 +2006,7 @@ impl App {
             };
             if !first_person {
                 let mut look = models::Look::player(
-                    p.my_id,
+                    name_seed(&p.my_name),
                     p.class
                         .and_then(|c| p.content.class(c))
                         .map(|c| c.color)
@@ -3790,6 +3911,10 @@ pub fn shot_with_ui(
                     p.money = money;
                     p.max_health = max_health;
                 }
+                ServerMsg::Weather { kind, strength } => {
+                    p.weather = (kind, strength);
+                    p.weather_mix = strength;
+                }
                 ServerMsg::Equipment(e) => p.equip = e,
                 ServerMsg::Skills(sk) => p.skills = sk,
                 ServerMsg::Power { value, max } => {
@@ -3879,7 +4004,7 @@ pub fn shot_with_ui(
         p.dead = Some("You fell from a high place.".into());
     }
     let t = time.unwrap_or(p.time);
-    let sky_now = sky(t);
+    let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
     gfx.load_world(&p.world, &p.light);
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
     let far = 160.0;
@@ -3916,7 +4041,7 @@ pub fn shot_with_ui(
     }
     if p.zoom > 0.5 {
         let mut look = models::Look::player(
-            p.my_id,
+            name_seed(&p.my_name),
             p.class
                 .and_then(|c| p.content.class(c))
                 .map(|c| c.color)

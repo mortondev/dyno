@@ -214,6 +214,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         regrow: meta.regrow.clone(),
         spawn_points: Vec::new(),
         zone_clock: 0.0,
+        weather: (0, 0.0, 240.0),
     };
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
     state.spawn_npcs();
@@ -648,6 +649,22 @@ impl Server {
                         st.tell(id, format!("Teleported to {name}"));
                     }
                     None => st.tell(id, format!("No player called '{arg}'. Try /who")),
+                }
+            }
+            "/weather" if op => {
+                let kind = match arg.trim() {
+                    "clear" => Some(0),
+                    "cloudy" | "clouds" => Some(1),
+                    "rain" => Some(2),
+                    "fog" | "mist" => Some(3),
+                    _ => None,
+                };
+                match kind {
+                    Some(k) => {
+                        st.weather = (k, 1.0, 600.0);
+                        st.broadcast(&ServerMsg::Weather { kind: k, strength: 1.0 }, None);
+                    }
+                    None => st.tell(id, "Usage: /weather clear|cloudy|rain|fog"),
                 }
             }
             "/class" => {
