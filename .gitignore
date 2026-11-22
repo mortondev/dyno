@@ -1,0 +1,4 @@
+/target
+/.tracker
+*.pem
+/world*/

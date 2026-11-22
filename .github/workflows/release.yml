@@ -1,0 +1,88 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag must match the workspace version
+        run: |
+          v=$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)
+          if [ "v$v" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match Cargo.toml version v$v"
+            exit 1
+          fi
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::tag is not on main"; exit 1; }
+
+  build:
+    needs: check
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, ext: "" }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, ext: ".exe" }
+          - { os: macos-latest, target: aarch64-apple-darwin, ext: "" }
+          - { os: macos-latest, target: x86_64-apple-darwin, ext: "" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - run: cargo build --release --locked -p dyno --target ${{ matrix.target }}
+      - name: Collect binary
+        shell: bash
+        run: |
+          mkdir dist
+          cp "target/${{ matrix.target }}/release/dyno${{ matrix.ext }}" "dist/dyno-${{ matrix.target }}${{ matrix.ext }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dyno-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Write manifest
+        run: python3 .github/scripts/manifest.py dist "${GITHUB_REF_NAME#v}" > dist/manifest.json && cat dist/manifest.json
+      - name: Sign manifest
+        env:
+          DYNO_SIGNING_KEY: ${{ secrets.DYNO_SIGNING_KEY }}
+        run: |
+          umask 077
+          printf '%s\n' "$DYNO_SIGNING_KEY" > "$RUNNER_TEMP/key.pem"
+          openssl pkeyutl -sign -inkey "$RUNNER_TEMP/key.pem" -rawin -in dist/manifest.json -out dist/manifest.json.sig
+          rm -f "$RUNNER_TEMP/key.pem"
+      - name: Verify signature with the binary that ships
+        run: |
+          chmod +x dist/dyno-x86_64-unknown-linux-gnu
+          dist/dyno-x86_64-unknown-linux-gnu verify-manifest dist/manifest.json dist/manifest.json.sig
+          dist/dyno-x86_64-unknown-linux-gnu version | grep -F "dyno ${GITHUB_REF_NAME#v} "
+      - name: Publish (draft first, then make it latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --title "Dyno $GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/*
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest
