@@ -24,6 +24,9 @@ impl State {
         if !self.rpg() {
             return 20.0;
         }
+        if let Some(s) = self.sheet(id) {
+            return s.max_health;
+        }
         self.players
             .get(&id)
             .map(|p| prog::max_health(p.level))

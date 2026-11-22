@@ -46,6 +46,10 @@ pub struct PlayerData {
     #[serde(default)]
     pub class: Option<String>,
     #[serde(default)]
+    pub equip: Vec<Option<SavedStack>>,
+    #[serde(default)]
+    pub skills: Vec<(String, u16)>,
+    #[serde(default)]
     pub power: f32,
 }
 
@@ -111,6 +115,8 @@ impl PlayerData {
             done: Vec::new(),
             class: None,
             power: 0.0,
+            equip: Vec::new(),
+            skills: Vec::new(),
         }
     }
 }

@@ -8,6 +8,7 @@ pub mod models;
 pub mod net;
 pub mod render;
 pub mod rpg_ui;
+pub mod screens;
 pub mod settings;
 pub mod shot;
 pub mod survival;

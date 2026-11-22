@@ -37,18 +37,31 @@ impl Look {
     /// A traveller's look from a seed and a signature colour.
     pub fn player(seed: u32, color: [f32; 3]) -> Look {
         let h = hash(seed);
-        let skins = [[0.96, 0.80, 0.66], [0.87, 0.68, 0.52], [0.72, 0.52, 0.38], [0.55, 0.38, 0.27], [0.98, 0.86, 0.75]];
-        let hairs = [[0.18, 0.12, 0.08], [0.45, 0.28, 0.12], [0.85, 0.68, 0.35], [0.62, 0.22, 0.10], [0.12, 0.12, 0.14], [0.85, 0.85, 0.82]];
+        let skins = [
+            [0.96, 0.80, 0.66],
+            [0.87, 0.68, 0.52],
+            [0.72, 0.52, 0.38],
+            [0.55, 0.38, 0.27],
+            [0.98, 0.86, 0.75],
+        ];
+        let hairs = [
+            [0.18, 0.12, 0.08],
+            [0.45, 0.28, 0.12],
+            [0.85, 0.68, 0.35],
+            [0.62, 0.22, 0.10],
+            [0.12, 0.12, 0.14],
+            [0.85, 0.85, 0.82],
+        ];
         Look {
             skin: skins[(h % 5) as usize],
             hair: hairs[((h >> 3) % 6) as usize],
             hair_style: 1 + ((h >> 6) % 2) as u8,
-            beard: (h >> 8) % 3 == 0,
+            beard: (h >> 8).is_multiple_of(3),
             tunic: color,
             trim: [0.85, 0.68, 0.25],
             pants: [0.30, 0.24, 0.20],
             boots: [0.22, 0.15, 0.10],
-            pauldrons: (h >> 10) % 2 == 0,
+            pauldrons: (h >> 10).is_multiple_of(2),
             robe: false,
             apron: None,
             cape: Some([color[0] * 0.6, color[1] * 0.6, color[2] * 0.6]),
@@ -115,7 +128,16 @@ pub fn push_avatar(
     walk: f32,
 ) {
     let seed = (color[0] * 997.0 + color[1] * 131.0 + color[2] * 17.0) as u32;
-    push_person(out, feet, yaw, pitch, &Look::player(seed, color), light, phase, walk);
+    push_person(
+        out,
+        feet,
+        yaw,
+        pitch,
+        &Look::player(seed, color),
+        light,
+        phase,
+        walk,
+    );
 }
 
 /// Draw a person in an outfit. Proportions are heroic: big hands, head and shoulders.
@@ -142,41 +164,112 @@ pub fn push_person(
     let dark = |c: [f32; 3], k: f32| [c[0] * k, c[1] * k, c[2] * k];
     let metal = [0.62, 0.64, 0.70];
     // a limb hanging from `pivot`, swung by `angle`
-    let limb = |out: &mut Vec<Vertex>, pivot: Vec3, angle: f32, len: f32, w: f32| {
+    let limb = |_: &mut Vec<Vertex>, pivot: Vec3, angle: f32, len: f32, w: f32| {
         let (s, c) = angle.sin_cos();
         let u2 = up * c + fwd * s;
         let f2 = fwd * c - up * s;
-        (pivot - u2 * (len * 0.5), [right, u2, f2], u2, Vec3::new(w, len * 0.5, w))
+        (
+            pivot - u2 * (len * 0.5),
+            [right, u2, f2],
+            u2,
+            Vec3::new(w, len * 0.5, w),
+        )
     };
     // legs, boots
     let hip = feet + up * 0.78;
     for (side, a) in [(1.0f32, swing), (-1.0, -swing)] {
         let (c, ax, u2, h) = limb(out, hip + right * (0.13 * side), a, 0.78, 0.12);
         if !look.robe {
-            b(out, c + u2 * 0.08, ax, Vec3::new(h.x, h.y - 0.08, h.z), look.pants);
+            b(
+                out,
+                c + u2 * 0.08,
+                ax,
+                Vec3::new(h.x, h.y - 0.08, h.z),
+                look.pants,
+            );
         }
         // boot with a turned-down cuff
         let foot = hip + right * (0.13 * side) - u2 * 0.62;
         b(out, foot, ax, Vec3::new(0.14, 0.17, 0.16), look.boots);
-        b(out, foot + u2 * 0.15, ax, Vec3::new(0.15, 0.04, 0.17), dark(look.boots, 1.3));
-        b(out, foot - u2 * 0.12 + ax[2] * 0.06, ax, Vec3::new(0.13, 0.05, 0.19), dark(look.boots, 0.8));
+        b(
+            out,
+            foot + u2 * 0.15,
+            ax,
+            Vec3::new(0.15, 0.04, 0.17),
+            dark(look.boots, 1.3),
+        );
+        b(
+            out,
+            foot - u2 * 0.12 + ax[2] * 0.06,
+            ax,
+            Vec3::new(0.13, 0.05, 0.19),
+            dark(look.boots, 0.8),
+        );
     }
     // robe skirt, or tabard flaps
     if look.robe {
-        b(out, feet + up * 0.5, axes, Vec3::new(0.3, 0.46, 0.2), look.tunic);
-        b(out, feet + up * 0.08, axes, Vec3::new(0.32, 0.05, 0.22), look.trim);
+        b(
+            out,
+            feet + up * 0.5,
+            axes,
+            Vec3::new(0.3, 0.46, 0.2),
+            look.tunic,
+        );
+        b(
+            out,
+            feet + up * 0.08,
+            axes,
+            Vec3::new(0.32, 0.05, 0.22),
+            look.trim,
+        );
     } else {
-        b(out, feet + up * 0.68 + fwd * 0.14, axes, Vec3::new(0.18, 0.2, 0.02), look.tunic);
-        b(out, feet + up * 0.52 + fwd * 0.155, axes, Vec3::new(0.18, 0.025, 0.02), look.trim);
+        b(
+            out,
+            feet + up * 0.68 + fwd * 0.14,
+            axes,
+            Vec3::new(0.18, 0.2, 0.02),
+            look.tunic,
+        );
+        b(
+            out,
+            feet + up * 0.52 + fwd * 0.155,
+            axes,
+            Vec3::new(0.18, 0.025, 0.02),
+            look.trim,
+        );
     }
     // torso, belt and buckle
     let chest = feet + up * 1.17;
     b(out, chest, axes, Vec3::new(0.28, 0.36, 0.16), look.tunic);
-    b(out, chest + fwd * 0.165 + up * 0.08, axes, Vec3::new(0.06, 0.24, 0.01), look.trim);
-    b(out, feet + up * 0.86, axes, Vec3::new(0.29, 0.05, 0.17), [0.25, 0.16, 0.09]);
-    b(out, feet + up * 0.86 + fwd * 0.175, axes, Vec3::new(0.05, 0.045, 0.01), look.trim);
+    b(
+        out,
+        chest + fwd * 0.165 + up * 0.08,
+        axes,
+        Vec3::new(0.06, 0.24, 0.01),
+        look.trim,
+    );
+    b(
+        out,
+        feet + up * 0.86,
+        axes,
+        Vec3::new(0.29, 0.05, 0.17),
+        [0.25, 0.16, 0.09],
+    );
+    b(
+        out,
+        feet + up * 0.86 + fwd * 0.175,
+        axes,
+        Vec3::new(0.05, 0.045, 0.01),
+        look.trim,
+    );
     if let Some(apron) = look.apron {
-        b(out, feet + up * 0.9 + fwd * 0.17, axes, Vec3::new(0.22, 0.4, 0.015), apron);
+        b(
+            out,
+            feet + up * 0.9 + fwd * 0.17,
+            axes,
+            Vec3::new(0.22, 0.4, 0.015),
+            apron,
+        );
     }
     // cape, swaying
     if let Some(cape) = look.cape {
@@ -185,21 +278,51 @@ pub fn push_person(
         let u2 = up * c - fwd * s;
         let f2 = fwd * c + up * s;
         let top = chest + up * 0.3 - fwd * 0.18;
-        b(out, top - u2 * 0.55, [right, u2, f2], Vec3::new(0.27, 0.55, 0.02), cape);
+        b(
+            out,
+            top - u2 * 0.55,
+            [right, u2, f2],
+            Vec3::new(0.27, 0.55, 0.02),
+            cape,
+        );
     }
     // arms with gloves
     let shoulder = feet + up * 1.45;
     for (side, a) in [(1.0f32, -swing * 0.8), (-1.0, swing * 0.8)] {
         let (c, ax, u2, h) = limb(out, shoulder + right * (0.38 * side), a, 0.68, 0.1);
-        b(out, c + u2 * 0.08, ax, Vec3::new(h.x, h.y - 0.08, h.z), look.tunic);
+        b(
+            out,
+            c + u2 * 0.08,
+            ax,
+            Vec3::new(h.x, h.y - 0.08, h.z),
+            look.tunic,
+        );
         let hand = shoulder + right * (0.38 * side) - u2 * 0.62;
-        b(out, hand, ax, Vec3::new(0.12, 0.1, 0.12), dark(look.boots, 1.2));
+        b(
+            out,
+            hand,
+            ax,
+            Vec3::new(0.12, 0.1, 0.12),
+            dark(look.boots, 1.2),
+        );
         // pauldron
         if look.pauldrons {
             let p = shoulder + right * (0.4 * side) + up * 0.05;
             b(out, p, axes, Vec3::new(0.17, 0.1, 0.19), metal);
-            b(out, p + up * 0.1, axes, Vec3::new(0.12, 0.04, 0.14), dark(metal, 1.2));
-            b(out, p - up * 0.1, axes, Vec3::new(0.18, 0.025, 0.2), look.trim);
+            b(
+                out,
+                p + up * 0.1,
+                axes,
+                Vec3::new(0.12, 0.04, 0.14),
+                dark(metal, 1.2),
+            );
+            b(
+                out,
+                p - up * 0.1,
+                axes,
+                Vec3::new(0.18, 0.025, 0.2),
+                look.trim,
+            );
         }
     }
     // head, tilted by pitch
@@ -212,45 +335,112 @@ pub fn push_person(
     // eyes, brows, nose
     for side in [-1.0f32, 1.0] {
         let e = head + hf * 0.265 + right * (0.1 * side) + hu * 0.03;
-        b(out, e, hax, Vec3::new(0.045, 0.04, 0.01), [0.98, 0.98, 0.98]);
-        b(out, e + right * (0.012 * side), hax, Vec3::new(0.022, 0.035, 0.012), [0.1, 0.12, 0.2]);
-        b(out, e + hu * 0.075, hax, Vec3::new(0.06, 0.018, 0.012), dark(look.hair, 0.8));
+        b(
+            out,
+            e,
+            hax,
+            Vec3::new(0.045, 0.04, 0.01),
+            [0.98, 0.98, 0.98],
+        );
+        b(
+            out,
+            e + right * (0.012 * side),
+            hax,
+            Vec3::new(0.022, 0.035, 0.012),
+            [0.1, 0.12, 0.2],
+        );
+        b(
+            out,
+            e + hu * 0.075,
+            hax,
+            Vec3::new(0.06, 0.018, 0.012),
+            dark(look.hair, 0.8),
+        );
     }
-    b(out, head + hf * 0.275 - hu * 0.04, hax, Vec3::new(0.035, 0.05, 0.03), dark(look.skin, 0.88));
+    b(
+        out,
+        head + hf * 0.275 - hu * 0.04,
+        hax,
+        Vec3::new(0.035, 0.05, 0.03),
+        dark(look.skin, 0.88),
+    );
     // hair
     match look.hair_style {
         1 => {
-            b(out, head + hu * 0.2 - hf * 0.02, hax, Vec3::new(0.28, 0.09, 0.28), look.hair);
-            b(out, head - hf * 0.2 + hu * 0.05, hax, Vec3::new(0.28, 0.2, 0.08), look.hair);
-            b(out, head + hf * 0.22 + hu * 0.19 + right * 0.08, hax, Vec3::new(0.14, 0.05, 0.06), look.hair);
+            b(
+                out,
+                head + hu * 0.2 - hf * 0.02,
+                hax,
+                Vec3::new(0.28, 0.09, 0.28),
+                look.hair,
+            );
+            b(
+                out,
+                head - hf * 0.2 + hu * 0.05,
+                hax,
+                Vec3::new(0.28, 0.2, 0.08),
+                look.hair,
+            );
+            b(
+                out,
+                head + hf * 0.22 + hu * 0.19 + right * 0.08,
+                hax,
+                Vec3::new(0.14, 0.05, 0.06),
+                look.hair,
+            );
         }
         2 => {
-            b(out, head + hu * 0.2, hax, Vec3::new(0.29, 0.1, 0.29), look.hair);
-            b(out, head - hf * 0.22 - hu * 0.12, hax, Vec3::new(0.29, 0.4, 0.08), look.hair);
+            b(
+                out,
+                head + hu * 0.2,
+                hax,
+                Vec3::new(0.29, 0.1, 0.29),
+                look.hair,
+            );
+            b(
+                out,
+                head - hf * 0.22 - hu * 0.12,
+                hax,
+                Vec3::new(0.29, 0.4, 0.08),
+                look.hair,
+            );
             for side in [-1.0f32, 1.0] {
-                b(out, head + right * (0.27 * side) - hu * 0.05, hax, Vec3::new(0.04, 0.25, 0.2), look.hair);
+                b(
+                    out,
+                    head + right * (0.27 * side) - hu * 0.05,
+                    hax,
+                    Vec3::new(0.04, 0.25, 0.2),
+                    look.hair,
+                );
             }
         }
         3 => {
-            b(out, head + hu * 0.12, hax, Vec3::new(0.31, 0.2, 0.31), look.tunic);
+            b(
+                out,
+                head + hu * 0.12,
+                hax,
+                Vec3::new(0.31, 0.2, 0.31),
+                look.tunic,
+            );
         }
         _ => {}
     }
     if look.beard {
-        b(out, head + hf * 0.24 - hu * 0.2, hax, Vec3::new(0.22, 0.14, 0.06), look.hair);
-        b(out, head + hf * 0.26 - hu * 0.36, hax, Vec3::new(0.14, 0.08, 0.05), look.hair);
+        b(
+            out,
+            head + hf * 0.24 - hu * 0.2,
+            hax,
+            Vec3::new(0.22, 0.14, 0.06),
+            look.hair,
+        );
+        b(
+            out,
+            head + hf * 0.26 - hu * 0.36,
+            hax,
+            Vec3::new(0.14, 0.08, 0.05),
+            look.hair,
+        );
     }
-}
-
-fn render_limb(
-    out: &mut Vec<Vertex>,
-    center: Vec3,
-    axes: [Vec3; 3],
-    half: Vec3,
-    rgb: [f32; 3],
-    light: f32,
-) {
-    push_oriented_box(out, center, axes, half, rgb, false, light);
 }
 
 /// Draw a creature. `flash` (0 to 1) whitens it when hit; `t` is a clock in seconds.
@@ -624,7 +814,11 @@ pub fn push_held(
                     // a chunky fantasy sword: pommel, wrapped grip, flared guard,
                     // a bevelled blade with a bright edge and a tip
                     let c = it.color;
-                    let lite = [(c[0] * 1.35).min(1.0), (c[1] * 1.35).min(1.0), (c[2] * 1.35).min(1.0)];
+                    let lite = [
+                        (c[0] * 1.35).min(1.0),
+                        (c[1] * 1.35).min(1.0),
+                        (c[2] * 1.35).min(1.0),
+                    ];
                     let dark = [c[0] * 0.7, c[1] * 0.7, c[2] * 0.7];
                     let gold = [0.85, 0.66, 0.25];
                     let leather = [0.30, 0.18, 0.10];
@@ -633,16 +827,70 @@ pub fn push_held(
                     let bx = |out: &mut Vec<Vertex>, at: Vec3, h: Vec3, rgb: [f32; 3], g: bool| {
                         push_oriented_box(out, hand + (at - hand) * k, axes, h * k, rgb, g, light);
                     };
-                    bx(out, hand - hu * 0.13, Vec3::new(0.03, 0.025, 0.03), gold, false);
-                    bx(out, hand - hu * 0.05, Vec3::new(0.022, 0.07, 0.022), leather, false);
-                    bx(out, hand + hu * 0.03, Vec3::new(0.11, 0.018, 0.028), gold, false);
-                    bx(out, hand + hu * 0.03 + ax[0] * 0.11, Vec3::new(0.02, 0.03, 0.03), gold, false);
-                    bx(out, hand + hu * 0.03 - ax[0] * 0.11, Vec3::new(0.02, 0.03, 0.03), gold, false);
+                    bx(
+                        out,
+                        hand - hu * 0.13,
+                        Vec3::new(0.03, 0.025, 0.03),
+                        gold,
+                        false,
+                    );
+                    bx(
+                        out,
+                        hand - hu * 0.05,
+                        Vec3::new(0.022, 0.07, 0.022),
+                        leather,
+                        false,
+                    );
+                    bx(
+                        out,
+                        hand + hu * 0.03,
+                        Vec3::new(0.11, 0.018, 0.028),
+                        gold,
+                        false,
+                    );
+                    bx(
+                        out,
+                        hand + hu * 0.03 + ax[0] * 0.11,
+                        Vec3::new(0.02, 0.03, 0.03),
+                        gold,
+                        false,
+                    );
+                    bx(
+                        out,
+                        hand + hu * 0.03 - ax[0] * 0.11,
+                        Vec3::new(0.02, 0.03, 0.03),
+                        gold,
+                        false,
+                    );
                     bx(out, hand + hu * 0.3, Vec3::new(0.045, 0.26, 0.012), c, glow);
-                    bx(out, hand + hu * 0.3 + ax[0] * 0.035, Vec3::new(0.012, 0.26, 0.013), lite, glow);
-                    bx(out, hand + hu * 0.3, Vec3::new(0.008, 0.24, 0.016), dark, glow);
-                    bx(out, hand + hu * 0.59, Vec3::new(0.03, 0.03, 0.011), lite, glow);
-                    bx(out, hand + hu * 0.63, Vec3::new(0.015, 0.02, 0.01), lite, glow);
+                    bx(
+                        out,
+                        hand + hu * 0.3 + ax[0] * 0.035,
+                        Vec3::new(0.012, 0.26, 0.013),
+                        lite,
+                        glow,
+                    );
+                    bx(
+                        out,
+                        hand + hu * 0.3,
+                        Vec3::new(0.008, 0.24, 0.016),
+                        dark,
+                        glow,
+                    );
+                    bx(
+                        out,
+                        hand + hu * 0.59,
+                        Vec3::new(0.03, 0.03, 0.011),
+                        lite,
+                        glow,
+                    );
+                    bx(
+                        out,
+                        hand + hu * 0.63,
+                        Vec3::new(0.015, 0.02, 0.01),
+                        lite,
+                        glow,
+                    );
                 }
             }
         }

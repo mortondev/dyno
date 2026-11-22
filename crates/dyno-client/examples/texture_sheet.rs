@@ -2,14 +2,18 @@
 //!
 //! Usage: `cargo run -p dyno-client --example texture_sheet -- out.ppm [scale]`
 //!
-//! The sheet has four parts: every block face, 3×3 tiled patches of the key
-//! materials (to check seams), the frames of the animated textures, and every
-//! item sprite over a dark and a light background. It also prints the checks
-//! that the eye does not catch: alpha rules, determinism and build time.
+//! The sheet has five parts: every block face, 3×3 tiled patches of the key
+//! materials (to check seams), the same materials as 8×8 walls at one screen
+//! pixel per texel (to check that no grid shows from far away), the frames of
+//! the animated textures, and every item sprite over a dark and a light
+//! background. It also prints the checks that the eye does not catch: alpha
+//! rules, determinism and build time.
 
 use dyno_client::textures::{Rgba, TILE, Textures, item_sprite};
 use dyno_world::BLOCKS;
-use dyno_world::content::{Content, FIRST_ITEM, ItemView};
+use dyno_world::content::{
+    ArmorType, Content, FIRST_ITEM, Gear, Icon, ItemView, Slot, Stats, Weapon, WeaponKind,
+};
 use std::io::Write;
 use std::time::Instant;
 
@@ -151,13 +155,6 @@ fn mean_rgb(t: &Rgba) -> [f32; 3] {
     ]
 }
 
-fn colors(t: &Rgba) -> usize {
-    let mut seen = pixels(t).to_vec();
-    seen.sort();
-    seen.dedup();
-    seen.len()
-}
-
 fn checks(tex: &Textures, content: &Content) {
     let mut bad = 0;
     let mut fail = |msg: String| {
@@ -172,12 +169,12 @@ fn checks(tex: &Textures, content: &Content) {
     for (id, faces) in tex.block_faces.iter().enumerate() {
         let name = BLOCKS.get(id).map(|d| d.name).unwrap_or("Hearth");
         let leafy = matches!(id, 6 | 35 | 36);
-        let clear = matches!(id, 0 | 8 | 13 | 22);
+        let clear = matches!(id, 0 | 8 | 13 | 22 | 54);
         for (f, layer) in faces.iter().enumerate() {
             let t = &tex.layers[*layer as usize];
             let holes = pixels(t).iter().filter(|p| p[3] == 0).count();
             let solid = pixels(t).iter().all(|p| p[3] == 255);
-            if leafy && holes > 25 {
+            if leafy && holes > TILE * TILE / 8 {
                 fail(format!("{name} face {f}: {holes} holes"));
             }
             if leafy && pixels(t).iter().any(|p| p[3] != 0 && p[3] != 255) {
@@ -189,8 +186,13 @@ fn checks(tex: &Textures, content: &Content) {
             if id == 13 && pixels(t).iter().any(|p| !(160..=215).contains(&p[3])) {
                 fail(format!("water face {f}: alpha out of range"));
             }
-            if colors(t) > 20 {
-                println!("note {name} face {f}: {} colours", colors(t));
+            // the leaded window: glass at about 0.6, lead lines opaque
+            if id == 54 {
+                let glass = pixels(t).iter().filter(|p| p[3] < 255).count();
+                let lead = TILE * TILE - glass;
+                if pixels(t).iter().any(|p| p[3] < 140) || glass < lead {
+                    fail(format!("window face {f}: {glass} glass, {lead} lead"));
+                }
             }
         }
         if let Some(def) = BLOCKS.get(id).filter(|_| id != 0) {
@@ -208,10 +210,12 @@ fn checks(tex: &Textures, content: &Content) {
         let view = content.item(FIRST_ITEM + i as u16);
         let s = item_sprite(&view);
         let corner = |x: usize, y: usize| s[(y * TILE + x) * 4 + 3];
-        if corner(0, 0) != 0 || corner(15, 0) != 0 || corner(0, 15) != 0 || corner(15, 15) != 0 {
+        let far = TILE - 1;
+        if corner(0, 0) != 0 || corner(far, 0) != 0 || corner(0, far) != 0 || corner(far, far) != 0
+        {
             fail(format!("{}: sprite corner is not transparent", view.name));
         }
-        if pixels(&s).iter().filter(|p| p[3] > 0).count() < 20 {
+        if pixels(&s).iter().filter(|p| p[3] > 0).count() < 80 {
             fail(format!("{}: sprite is nearly empty", view.name));
         }
     }
@@ -236,19 +240,131 @@ fn main() {
         eprintln!("usage: texture_sheet <out.ppm> [scale]");
         std::process::exit(2);
     };
-    let scale: usize = args.next().and_then(|s| s.parse().ok()).unwrap_or(8);
+    let scale: usize = args.next().and_then(|s| s.parse().ok()).unwrap_or(4);
 
     let start = Instant::now();
     let tex = Textures::blocks();
     let build_ms = start.elapsed().as_secs_f64() * 1000.0;
     let content = Content::default_pack();
+    // the torch stick must sit in the strip that the renderer samples
+    let torch = &tex.layers[tex.face(45, 1) as usize];
+    let strip = |x: usize| {
+        (0..TILE)
+            .map(|y| torch[(y * TILE + x) * 4 + 3] as usize)
+            .sum::<usize>()
+    };
+    if (TILE * 13 / 32..TILE * 19 / 32).any(|x| strip(x) != 255 * TILE) {
+        println!("FAIL torch: the centre strip is not opaque");
+    }
     let unknown = content.item(FIRST_ITEM + content.items.len() as u16);
     let mut items: Vec<ItemView> = content.items.iter().map(|i| content.item(i.id)).collect();
     items.push(content.item(3));
     items.push(unknown);
+    // Equipment: every weapon kind, then every armour slot in each armour
+    // type, then jewellery. Quality rises along each row.
+    let mut gear: Vec<(Gear, [f32; 3], u8)> = Vec::new();
+    let metals = [[0.80, 0.81, 0.85], [0.62, 0.45, 0.27], [0.45, 0.60, 0.85]];
+    let kinds = [
+        WeaponKind::Sword,
+        WeaponKind::Axe,
+        WeaponKind::Mace,
+        WeaponKind::Dagger,
+        WeaponKind::Staff,
+        WeaponKind::Polearm,
+        WeaponKind::Bow,
+        WeaponKind::Wand,
+        WeaponKind::Shield,
+        WeaponKind::Offhand,
+    ];
+    for (i, kind) in kinds.into_iter().enumerate() {
+        let weapon = Weapon {
+            kind,
+            min: 1.0,
+            max: 2.0,
+            speed: 2.0,
+        };
+        let g = Gear {
+            slot: Slot::MainHand,
+            armor_type: None,
+            weapon: Some(weapon),
+            armor: 0,
+            stats: Stats::default(),
+        };
+        gear.push((g, metals[i % 3], (i % 5) as u8));
+    }
+    let slots = [
+        Slot::Head,
+        Slot::Shoulders,
+        Slot::Back,
+        Slot::Chest,
+        Slot::Wrist,
+        Slot::Hands,
+        Slot::Waist,
+        Slot::Legs,
+        Slot::Feet,
+    ];
+    let types = [
+        (ArmorType::Cloth, [0.45, 0.30, 0.70]),
+        (ArmorType::Leather, [0.55, 0.38, 0.22]),
+        (ArmorType::Mail, [0.55, 0.62, 0.70]),
+        (ArmorType::Plate, [0.80, 0.70, 0.40]),
+    ];
+    for (t, (armor_type, color)) in types.into_iter().enumerate() {
+        for slot in slots {
+            let g = Gear {
+                slot,
+                armor_type: Some(armor_type),
+                weapon: None,
+                armor: 1,
+                stats: Stats::default(),
+            };
+            gear.push((g, color, t as u8 + 1));
+        }
+    }
+    for (slot, color) in [
+        (Slot::Neck, [0.30, 0.75, 0.45]),
+        (Slot::Ring, [0.85, 0.20, 0.25]),
+        (Slot::Trinket, [0.35, 0.55, 0.95]),
+    ] {
+        let g = Gear {
+            slot,
+            armor_type: None,
+            weapon: None,
+            armor: 0,
+            stats: Stats::default(),
+        };
+        gear.push((g, color, 3));
+    }
+    for (g, color, quality) in &gear {
+        items.push(ItemView {
+            id: 0,
+            name: "gear",
+            color: *color,
+            icon: Icon::Lump,
+            stack: 1,
+            tool: None,
+            food: 0,
+            fuel: 0,
+            block: None,
+            light: 0,
+            quality: *quality,
+            value: 0,
+            level: 1,
+            gear: Some(g),
+        });
+    }
     let start = Instant::now();
     let sprites: Vec<Rgba> = items.iter().map(item_sprite).collect();
     let item_ms = start.elapsed().as_secs_f64() * 1000.0;
+    for (s, view) in sprites.iter().zip(&items) {
+        let far = TILE - 1;
+        let clear = [(0, 0), (far, 0), (0, far), (far, far)]
+            .iter()
+            .all(|(x, y)| s[(y * TILE + x) * 4 + 3] == 0);
+        if !clear || pixels(s).iter().filter(|p| p[3] > 0).count() < 80 {
+            println!("FAIL {} sprite: corners or coverage", view.name);
+        }
+    }
     println!(
         "{} layers, {} blocks, {} animations; blocks {build_ms:.2} ms, items {item_ms:.2} ms",
         tex.layers.len(),
@@ -264,7 +380,7 @@ fn main() {
     let width = pad + 4 * group;
     let block_rows = tex.block_faces.len().div_ceil(4);
     // 3×3 patches: (label, block, face)
-    let patches: [(&str, u8, usize); 24] = [
+    let patches: [(&str, u8, usize); 36] = [
         ("stone", 3, 1),
         ("cobble", 12, 1),
         ("grass top", 1, 0),
@@ -289,15 +405,30 @@ fn main() {
         ("emberstone", 9, 1),
         ("clay", 17, 1),
         ("terracotta", 18, 1),
+        ("stone bricks", 47, 1),
+        ("plaster", 48, 1),
+        ("red roof", 49, 1),
+        ("slate roof", 50, 1),
+        ("thatch", 51, 1),
+        ("timber", 52, 1),
+        ("flagstones", 53, 0),
+        ("window", 54, 1),
+        ("door", 55, 1),
+        ("banner", 56, 1),
+        ("hay", 58, 1),
+        ("flower bed", 64, 0),
     ];
     let patch_rows = patches.len().div_ceil(4);
     let per_row = (width - pad) / (t + pad / 2);
     let item_rows = sprites.len().div_ceil(per_row);
     let blocks_h = block_rows * (t + label + pad);
     let patches_h = patch_rows * (3 * t + label + pad);
+    let far_tiles = 8;
+    let far_cols = (width - pad) / (far_tiles * TILE + pad);
+    let far_h = patches.len().div_ceil(far_cols) * (far_tiles * TILE + label + pad);
     let anim_h = tex.animated.len() * (t + label + pad);
     let items_h = 2 * item_rows * (t + pad / 2) + label + pad;
-    let mut sheet = Sheet::new(width, pad + blocks_h + patches_h + anim_h + items_h);
+    let mut sheet = Sheet::new(width, pad + blocks_h + patches_h + far_h + anim_h + items_h);
 
     let mut y0 = pad;
     println!("section blocks 0 {y0} {width} {blocks_h}");
@@ -331,6 +462,20 @@ fn main() {
         }
     }
     y0 += patches_h;
+
+    println!("section far 0 {y0} {width} {far_h}");
+    for (i, (name, block, face)) in patches.iter().enumerate() {
+        let x = pad + (i % far_cols) * (far_tiles * TILE + pad);
+        let y = y0 + (i / far_cols) * (far_tiles * TILE + label + pad);
+        sheet.text(name, x, y);
+        let layer = &tex.layers[tex.face(*block, *face) as usize];
+        for ty in 0..far_tiles {
+            for tx in 0..far_tiles {
+                sheet.tile(layer, x + tx * TILE, y + label + ty * TILE, 1, Bg::Checker);
+            }
+        }
+    }
+    y0 += far_h;
 
     println!("section animated 0 {y0} {width} {anim_h}");
     for (first, count, secs) in &tex.animated {

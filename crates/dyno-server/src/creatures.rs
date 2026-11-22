@@ -40,11 +40,19 @@ pub struct Mob {
     pub max_health: f32,
     pub stunned_until: Instant,
     pub rooted_until: Instant,
+    pub dots: Vec<crate::abilities::Dot>,
+    /// where it was spawned; pulled too far away it returns here
+    pub home: [f32; 3],
+    pub evading: bool,
+    /// damage taken from each player: the highest is its target
+    pub threat: std::collections::HashMap<PlayerId, f32>,
 }
 
 const HALF_W: f32 = 0.3;
 const GRAVITY: f32 = 25.0;
 const AGGRO: f32 = 24.0;
+/// RPG: a creature pulled this far from where it spawned gives up.
+const LEASH: f32 = 30.0;
 const DESPAWN: f32 = 80.0;
 const SHADE_INTERVAL: f32 = 20.0;
 const GRAZER_INTERVAL: f32 = 12.0;
@@ -212,6 +220,10 @@ impl State {
                     max_health: health,
                     stunned_until: now,
                     rooted_until: now,
+                    dots: Vec::new(),
+                    home: pos,
+                    evading: false,
+                    threat: std::collections::HashMap::new(),
                 }),
             },
         );
@@ -392,6 +404,9 @@ impl State {
             .map(|(i, _)| *i)
             .collect();
         let mut attacks: Vec<(PlayerId, f32, [f32; 3], u16)> = Vec::new();
+        let levels: std::collections::HashMap<PlayerId, u8> =
+            self.players.iter().map(|(i, p)| (*i, p.level)).collect();
+        let mut heal_info: Vec<u32> = Vec::new();
         let mut gone: Vec<(u32, bool)> = Vec::new();
         let mut hurt: Vec<u32> = Vec::new();
         for id in ids {
@@ -444,19 +459,60 @@ impl State {
             }
             // decide where to go
             let mut want = [0.0f32; 2];
-            if c.hostile {
-                // keep a target that went away only if close; never pick a new away player
-                let keep = mob
-                    .target
-                    .and_then(|t| prey.iter().find(|(p, _, _)| *p == t))
-                    .filter(|(_, p, away)| {
-                        let d = hdist(*p, e.pos);
-                        d < AGGRO * 1.5 && (!away || d < 16.0)
-                    });
-                let target = keep.copied().or_else(|| {
-                    prey.iter()
+            // leash: pulled too far from home, it gives up, heals and walks back
+            if rpg && !mob.evading && hdist(e.pos, mob.home) > LEASH {
+                mob.evading = true;
+                mob.threat.clear();
+                mob.target = None;
+                mob.dots.clear();
+            }
+            if mob.evading {
+                let dx = mob.home[0] - e.pos[0];
+                let dz = mob.home[2] - e.pos[2];
+                let d = (dx * dx + dz * dz).sqrt();
+                mob.health = mob.max_health;
+                if d < 2.0 {
+                    mob.evading = false;
+                    heal_info.push(id);
+                } else {
+                    want = [dx / d, dz / d];
+                    speed *= 1.6;
+                }
+            }
+            // hostile creatures attack on sight; others only when attacked
+            let provoked = !mob.threat.is_empty();
+            if !mob.evading && (c.hostile || provoked) {
+                // the player who has done the most damage, if still around
+                let by_threat = mob
+                    .threat
+                    .iter()
+                    .filter_map(|(pid, t)| prey.iter().find(|(p, _, _)| p == pid).map(|x| (*x, *t)))
+                    .filter(|((_, p, _), _)| hdist(*p, e.pos) < LEASH * 1.5)
+                    .max_by(|a, b| a.1.total_cmp(&b.1))
+                    .map(|(x, _)| x);
+                let keep = by_threat.or_else(|| {
+                    mob.target
+                        .and_then(|t| prey.iter().find(|(p, _, _)| *p == t))
                         .filter(|(_, p, away)| {
-                            !away && hdist(*p, e.pos) < AGGRO && (p[1] - e.pos[1]).abs() < 12.0
+                            let d = hdist(*p, e.pos);
+                            d < AGGRO * 1.5 && (!away || d < 16.0)
+                        })
+                        .copied()
+                });
+                // aggro radius: about 10 blocks, larger for higher-level mobs
+                let target = keep.or_else(|| {
+                    if !c.hostile {
+                        return None;
+                    }
+                    prey.iter()
+                        .filter(|(pid, p, away)| {
+                            let lvl = levels.get(pid).copied().unwrap_or(1) as f32;
+                            let r = if rpg {
+                                (10.0 + mob.level as f32 - lvl).clamp(4.0, 20.0)
+                            } else {
+                                AGGRO
+                            };
+                            !away && hdist(*p, e.pos) < r && (p[1] - e.pos[1]).abs() < 12.0
                         })
                         .min_by(|a, b| hdist(a.1, e.pos).total_cmp(&hdist(b.1, e.pos)))
                         .copied()
@@ -481,7 +537,12 @@ impl State {
                             } else {
                                 1.0
                             };
-                        attacks.push((pid, dmg, [dx / d * 6.0, 4.5, dz / d * 6.0], c.id));
+                        let push = if rpg {
+                            [0.0; 3]
+                        } else {
+                            [dx / d * 6.0, 4.5, dz / d * 6.0]
+                        };
+                        attacks.push((pid, dmg, push, c.id));
                     }
                 }
             } else if mob.flee > 0.0 {
@@ -570,6 +631,9 @@ impl State {
                 e.moved = true;
             }
         }
+        for id in heal_info {
+            hurt.push(id);
+        }
         for id in hurt {
             self.broadcast(&ServerMsg::EntityHurt { id }, None);
             if let Some(m) = self.entities.get(&id).and_then(|e| e.mob.as_ref()) {
@@ -591,6 +655,19 @@ impl State {
                 .creature(cid)
                 .map(|c| c.name.clone())
                 .unwrap_or_default();
+            // armour turns some of the blow
+            let (armor, level) = (
+                self.sheet(pid).map(|s| s.armor).unwrap_or(0.0),
+                self.players.get(&pid).map(|p| p.level).unwrap_or(1),
+            );
+            let dmg = dmg * (1.0 - dyno_sim::character::armor_reduction(armor, level));
+            if let Some(p) = self.players.get(&pid) {
+                p.send(&ServerMsg::Damage {
+                    entity: None,
+                    amount: dmg,
+                    crit: false,
+                });
+            }
             self.damage(pid, dmg, push, &format!("fell to a {name}"));
         }
     }
@@ -627,12 +704,43 @@ impl State {
         let Some((key, list)) = list else {
             return;
         };
+        // RPG: loot goes straight into the killer's bags (the ground if they are full)
+        let looter = mob
+            .last_hit
+            .filter(|(_, at)| self.rpg() && at.elapsed() < Duration::from_secs(10))
+            .map(|(p, _)| p);
+        let mut looted = Vec::new();
         for d in list {
             if self.rng.f32() < d.chance {
                 let n = self.rng.range(d.min as u32, d.max as u32) as u8;
-                if n > 0 {
-                    self.spawn_item([pos[0], pos[1] + 0.6, pos[2]], Stack::new(d.item, n), 0.2);
+                if n == 0 {
+                    continue;
                 }
+                let mut st = Stack::new(d.item, n);
+                if let Some(p) = looter.and_then(|l| self.players.get_mut(&l)) {
+                    match p.pack.add(&self.content, st) {
+                        None => {
+                            looted.push(st);
+                            continue;
+                        }
+                        Some(rest) => st = rest,
+                    }
+                }
+                self.spawn_item([pos[0], pos[1] + 0.6, pos[2]], st, 0.2);
+            }
+        }
+        if let Some(l) = looter
+            && let Some(p) = self.players.get(&l)
+        {
+            p.send(&ServerMsg::Pack(p.pack.slots.clone()));
+            for st in looted {
+                let name = self.content.item(st.item).name.to_string();
+                let text = if st.count > 1 {
+                    format!("You receive loot: {name} ×{}", st.count)
+                } else {
+                    format!("You receive loot: {name}")
+                };
+                p.send(&ServerMsg::System { text });
             }
         }
         if let Some((pid, at)) = mob.last_hit
@@ -686,14 +794,15 @@ impl State {
         };
         mob.health -= damage;
         mob.last_hit = Some((pid, Instant::now()));
-        mob.flee = 5.0;
-        mob.flee_from = eye;
         mob.target = Some(pid);
+        *mob.threat.entry(pid).or_default() += damage;
         let dx = e.pos[0] - eye[0];
         let dz = e.pos[2] - eye[2];
         let hd = (dx * dx + dz * dz).sqrt().max(0.001);
-        e.vel = [dx / hd * 7.0, 5.0, dz / hd * 7.0];
-        mob.stun = 0.35;
+        if !self.content.world.protected {
+            e.vel = [dx / hd * 7.0, 5.0, dz / hd * 7.0];
+            mob.stun = 0.35;
+        }
         e.moved = true;
         let dead = mob.health <= 0.0;
         let (level, health, max) = (mob.level, mob.health.max(0.0), mob.max_health);

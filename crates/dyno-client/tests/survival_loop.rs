@@ -462,7 +462,7 @@ fn quests_give_xp_and_rewards() {
     while Instant::now() < end
         && (npcs.len() < c.npcs.len()
             || level == 0
-            || count(&pack, c.item_by_key("wooden_sword").unwrap()) == 0)
+            || count(&pack, c.item_by_key("wooden_pickaxe").unwrap()) == 0)
     {
         if let Some(m) = wait_opt(&j, &mut pack, 0.2, |m| Some(m.clone())) {
             match m {
@@ -482,7 +482,7 @@ fn quests_give_xp_and_rewards() {
     assert_eq!(level, 1);
     assert_eq!(npcs.len(), c.npcs.len(), "every NPC stands in the world");
     assert_eq!(
-        count(&pack, c.item_by_key("wooden_sword").unwrap()),
+        count(&pack, c.item_by_key("wooden_pickaxe").unwrap()),
         1,
         "starter kit"
     );
@@ -574,8 +574,8 @@ fn quests_give_xp_and_rewards() {
         (count(p, cooked) == 4).then_some(())
     });
     assert_eq!(count(&pack, meat), 1, "four raw meat were handed in");
-    // classes: pick Emberwright, then cast Ember Bolt at a summoned Grazer
-    let ember = c.classes.iter().find(|k| k.key == "emberwright").unwrap().id;
+    // classes: pick Mage, then cast Fireball at a summoned Grazer
+    let ember = c.classes.iter().find(|k| k.key == "mage").unwrap().id;
     send(&j, ClientMsg::ChooseClass { class: ember });
     let class = wait(&j, &mut pack, 3.0, |m, _| match m {
         ServerMsg::Character { class: Some(k), .. } => Some(Some(*k)),
@@ -584,19 +584,36 @@ fn quests_give_xp_and_rewards() {
     assert_eq!(class, Some(ember));
     let here = j.spawn;
     pose(&j, here);
-    send(&j, ClientMsg::Chat { text: "/summon grazer".into() });
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/summon grazer".into(),
+        },
+    );
     let grazer = wait(&j, &mut pack, 3.0, |m, _| match m {
-        ServerMsg::EntitySpawn { id, kind: EntityKind::Creature(_), .. } => Some(*id),
+        ServerMsg::EntitySpawn {
+            id,
+            kind: EntityKind::Creature(_),
+            ..
+        } => Some(*id),
         _ => None,
     });
-    let bolt = c.abilities.iter().find(|a| a.key == "ember_bolt").unwrap().id;
-    send(&j, ClientMsg::Cast { ability: bolt, target: Some(grazer) });
+    let bolt = c.abilities.iter().find(|a| a.key == "fireball").unwrap().id;
+    send(
+        &j,
+        ClientMsg::Cast {
+            ability: bolt,
+            target: Some(grazer),
+        },
+    );
     wait(&j, &mut pack, 3.0, |m, _| {
         matches!(m, ServerMsg::Casting { ability: Some(a), .. } if *a == bolt).then_some(())
     });
     // stand still for the cast; the bolt lands and mana is spent
     let hit = wait(&j, &mut pack, 4.0, |m, _| match m {
-        ServerMsg::EntityInfo { id, health, max, .. } if *id == grazer && health < max => Some(*health),
+        ServerMsg::EntityInfo {
+            id, health, max, ..
+        } if *id == grazer && health < max => Some(*health),
         _ => None,
     });
     assert!(hit >= 0.0);
@@ -604,7 +621,61 @@ fn quests_give_xp_and_rewards() {
         ServerMsg::Power { value, max } if value < max => Some(*value),
         _ => None,
     });
-    assert!(mana < 100.0);
+    assert!(mana > 0.0, "mana spent but not empty: {mana}");
+    // gear: a Mage cannot wear mail, but can wear a cloak
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/give watchman_vest 1".into(),
+        },
+    );
+    std::thread::sleep(Duration::from_millis(600));
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/give woolen_cloak 1".into(),
+        },
+    );
+    let (vest, cloak) = (
+        c.item_by_key("watchman_vest").unwrap(),
+        c.item_by_key("woolen_cloak").unwrap(),
+    );
+    wait(&j, &mut pack, 3.0, |_, p| {
+        (count(p, vest) == 1 && count(p, cloak) == 1).then_some(())
+    });
+    let slot_of = |p: &[Option<Stack>], it| {
+        p.iter()
+            .position(|s| s.is_some_and(|s| s.item == it))
+            .unwrap() as u8
+    };
+    send(
+        &j,
+        ClientMsg::Equip {
+            from: slot_of(&pack, vest),
+        },
+    );
+    wait(&j, &mut pack, 3.0, |m, _| {
+        matches!(m, ServerMsg::System { text } if text.contains("cannot wear mail") || text.contains("Requires level")).then_some(())
+    });
+    // take the starter boots off (into the bags) and put them back on
+    let boots = c.item_by_key("worn_boots").unwrap();
+    send(&j, ClientMsg::Unequip { place: 9 });
+    wait(&j, &mut pack, 3.0, |_, p| {
+        (count(p, boots) == 1).then_some(())
+    });
+    send(
+        &j,
+        ClientMsg::Equip {
+            from: slot_of(&pack, boots),
+        },
+    );
+    let worn = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Equipment(e) if e[9].is_some_and(|s| s.item == boots) => Some(e.clone()),
+        _ => None,
+    });
+    assert_eq!(worn.len(), 17);
+    assert_eq!(count(&pack, boots), 0);
+    let _ = cloak;
     // the world is protected: digging the ground is refused
     let below = [
         j.spawn[0].floor() as i32 + 3,

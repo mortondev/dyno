@@ -78,6 +78,17 @@ pub struct Player {
     pub cooldowns: HashMap<u16, Instant>,
     pub gcd_until: Instant,
     pub casting: Option<crate::abilities::Casting>,
+    /// worn gear, by paper-doll place
+    pub equip: Vec<Option<Stack>>,
+    pub auto_target: Option<u32>,
+    pub swing_at: Instant,
+    /// profession skills by key
+    pub skills: HashMap<String, u16>,
+    pub combo: u8,
+    pub combo_on: Option<u32>,
+    /// Rogue-style fast global cooldown
+    pub combo_class: bool,
+    pub auras: Vec<crate::abilities::Aura>,
 }
 
 impl Player {
@@ -435,6 +446,23 @@ impl State {
             cooldowns: HashMap::new(),
             gcd_until: Instant::now(),
             casting: None,
+            equip: {
+                let mut v = store::pack_from_keys(&self.content, &data.equip).slots;
+                v.resize(dyno_world::content::EQUIP_PLACES.len(), None);
+                v.truncate(dyno_world::content::EQUIP_PLACES.len());
+                v
+            },
+            auto_target: None,
+            swing_at: Instant::now(),
+            skills: data.skills.iter().cloned().collect(),
+            combo: 0,
+            combo_on: None,
+            combo_class: data
+                .class
+                .as_ref()
+                .and_then(|k| self.content.classes.iter().find(|c| &c.key == k))
+                .is_some_and(|c| c.resource == dyno_world::content::Resource::Energy),
+            auras: Vec::new(),
         };
         let others: Vec<PlayerInfo> = self
             .players
@@ -475,10 +503,19 @@ impl State {
             }
         }
         {
-            let max = if self.rpg() {
-                dyno_sim::progression::max_health(p.level)
-            } else {
-                20.0
+            let max = match (self.rpg(), p.class.and_then(|c| self.content.class(c))) {
+                (true, Some(class)) => {
+                    dyno_sim::character::sheet(
+                        &self.content,
+                        class,
+                        p.level,
+                        &p.equip,
+                        &Default::default(),
+                    )
+                    .max_health
+                }
+                (true, None) => dyno_sim::progression::max_health(p.level),
+                _ => 20.0,
             };
             after.push(ServerMsg::Character {
                 class: p.class,
@@ -494,12 +531,25 @@ impl State {
                 log: p.quests.clone(),
                 done,
             });
-            let max_power = match p.class.and_then(|c| self.content.class(c)).map(|c| c.resource) {
-                Some(dyno_world::content::Resource::Rage) => 100.0,
+            let max_power = match p
+                .class
+                .and_then(|c| self.content.class(c))
+                .map(|c| c.resource)
+            {
+                Some(dyno_world::content::Resource::Rage)
+                | Some(dyno_world::content::Resource::Energy) => 100.0,
                 Some(dyno_world::content::Resource::Mana) => 100.0 + 15.0 * (p.level as f32 - 1.0),
                 None => 0.0,
             };
-            after.push(ServerMsg::Power { value: p.power.min(max_power), max: max_power });
+            after.push(ServerMsg::Power {
+                value: p.power.min(max_power),
+                max: max_power,
+            });
+            after.push(ServerMsg::Equipment(p.equip.clone()));
+            let cap = dyno_sim::progression::skill_cap(p.level);
+            after.push(ServerMsg::Skills(
+                p.skills.iter().map(|(k, v)| (k.clone(), *v, cap)).collect(),
+            ));
             if self.rpg() && p.class.is_none() && !self.content.classes.is_empty() {
                 after.push(ServerMsg::ChooseClass);
             }
@@ -579,7 +629,17 @@ impl State {
             level: p.level,
             xp: p.xp,
             money: p.money,
-            class: p.class.and_then(|c| self.content.class(c)).map(|c| c.key.clone()),
+            class: p
+                .class
+                .and_then(|c| self.content.class(c))
+                .map(|c| c.key.clone()),
+            skills: p.skills.iter().map(|(k, v)| (k.clone(), *v)).collect(),
+            equip: store::pack_to_keys(
+                &self.content,
+                &dyno_sim::inventory::Inventory {
+                    slots: p.equip.clone(),
+                },
+            ),
             power: p.power,
             quests: p
                 .quests
@@ -680,7 +740,13 @@ impl State {
             ClientMsg::Throw { from, count } => self.throw(id, from, count),
             ClientMsg::Craft { recipe, times } => self.craft(id, recipe, times.clamp(1, 64)),
             ClientMsg::UseHeld => self.use_held(id),
-            ClientMsg::Attack { entity } => self.attack(id, entity),
+            ClientMsg::Attack { entity } => {
+                if self.rpg() {
+                    self.set_auto_attack(id, Some(entity))
+                } else {
+                    self.attack(id, entity)
+                }
+            }
             ClientMsg::Interact { pos } => self.interact(id, pos),
             ClientMsg::CloseContainer => {
                 self.players.get_mut(&id).unwrap().container = None;
@@ -700,6 +766,10 @@ impl State {
             ClientMsg::ChooseClass { class } => self.choose_class(id, class),
             ClientMsg::Recall => self.cast(id, proto::RECALL, None),
             ClientMsg::EatBest => self.eat_best(id),
+            ClientMsg::Equip { from } => self.equip(id, from),
+            ClientMsg::Unequip { place } => self.unequip(id, place),
+            ClientMsg::AutoAttack { target } => self.set_auto_attack(id, target),
+            ClientMsg::Sell { from } => self.sell(id, from),
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
             ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
@@ -749,6 +819,11 @@ impl State {
         if !self.may_harvest(id, b) {
             return self.resync(id, pos);
         }
+        let need = self.content.rule(b).skill.clone();
+        if let Err(e) = self.check_skill(id, &need) {
+            self.tell(id, e);
+            return self.resync(id, pos);
+        }
         let p = &self.players[&id];
         if pos == self.spawn_hearth && !creative {
             self.tell(
@@ -793,6 +868,7 @@ impl State {
             }
         }
         self.set_block(pos, w::AIR);
+        self.skill_up(id, &need);
         let respawn = self.content.rule(b).respawn;
         if self.rpg() && respawn > 0 && !creative {
             self.regrow.push((pos, b, now_secs() + respawn as u64));
@@ -1097,6 +1173,9 @@ impl State {
             return;
         };
         let st = self.stations_near(id);
+        if let Err(e) = self.check_skill(id, &r.skill) {
+            return self.tell(id, e);
+        }
         let mut made = 0;
         let mut spill = Vec::new();
         let mut why = None;
@@ -1132,6 +1211,9 @@ impl State {
                 self.tell(id, e);
             }
         } else {
+            for _ in 0..made {
+                self.skill_up(id, &r.skill);
+            }
             let key = format!("craft:{}", self.content.item_key(r.output));
             self.milestone(id, &key);
         }
@@ -1219,6 +1301,14 @@ impl State {
         if p.mode == Mode::Creative || p.dead || amount <= 0.0 {
             return;
         }
+        let ward: f32 = p
+            .auras
+            .iter()
+            .filter_map(|a| a.buff)
+            .filter(|b| b.kind == dyno_world::content::BuffKind::Ward)
+            .map(|b| b.amount)
+            .sum();
+        let amount = amount * (1.0 - (ward / 100.0).min(0.9));
         p.health = (p.health - amount).max(0.0);
         p.combat_until = Instant::now() + Duration::from_secs(6);
         p.send(&ServerMsg::Hurt { amount, push });
@@ -1341,6 +1431,8 @@ impl State {
     pub fn tick(&mut self, dt: f32) {
         self.tick_clock(dt);
         self.tick_casts();
+        self.tick_auto_attacks();
+        self.tick_auras();
         self.tick_power(dt);
         self.tick_items(dt);
         self.tick_creatures(dt);
@@ -1496,6 +1588,14 @@ impl State {
     fn tick_players(&mut self, dt: f32) {
         let night = self.is_night();
         let rpg = self.rpg();
+        let sheets: HashMap<PlayerId, (f32, f32)> = self
+            .players
+            .keys()
+            .filter_map(|i| {
+                self.sheet(*i)
+                    .map(|s| (*i, (s.max_health, s.stats.spi as f32)))
+            })
+            .collect();
         let mut quest_checks = Vec::new();
         let mut milestones = Vec::new();
         for (id, p) in self.players.iter_mut() {
@@ -1520,13 +1620,16 @@ impl State {
                     p.quest_clock = 0.0;
                     quest_checks.push(*id);
                 }
-                let max = dyno_sim::progression::max_health(p.level);
+                let (max, spirit) = sheets
+                    .get(id)
+                    .copied()
+                    .unwrap_or((dyno_sim::progression::max_health(p.level), 3.0));
                 p.food = 20.0;
                 p.regen_clock += dt;
-                if p.regen_clock >= 1.0 {
+                if p.regen_clock >= 2.0 {
                     p.regen_clock = 0.0;
                     if p.health < max && p.combat_until <= Instant::now() {
-                        p.health = (p.health + (max * 0.02).max(1.0)).min(max);
+                        p.health = (p.health + 1.0 + spirit / 10.0 + max * 0.01).min(max);
                         p.send(&p.status());
                     }
                 }

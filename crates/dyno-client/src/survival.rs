@@ -618,11 +618,16 @@ pub fn pack_window(
                             *v.selected = None;
                         }
                     });
-                    for hint in [
-                        "Click a slot to pick up, click another to put down.",
-                        "Right-click places one. Shift-click moves between bag and belt.",
-                        "Q throws the selected stack. E or Esc closes.",
-                    ] {
+                    let hints: &[&str] = if v.chest.is_some() {
+                        &["Shift-click moves a stack between the chest and your bags."]
+                    } else {
+                        &[
+                            "Click a slot to pick up, click another to put down.",
+                            "Right-click places one. Shift-click moves between bag and belt.",
+                            "Q throws the selected stack. E or Esc closes.",
+                        ]
+                    };
+                    for hint in hints.iter().copied() {
                         ui.label(
                             RichText::new(hint)
                                 .italics()
@@ -659,7 +664,9 @@ fn side_panel(
     out: &mut Vec<PackCmd>,
 ) {
     ui.set_width(CRAFT_W);
-    ui.set_min_height(300.0);
+    // the list has a fixed height, so the window is the right size from its first frame
+    let list_height = if v.chest.is_some() { 420.0 } else { 300.0 };
+    ui.set_min_height(list_height + 92.0);
     if v.mode == Mode::Creative {
         theme::heading(ui, "Creative", theme::GOLD);
         ui.label(
@@ -669,7 +676,7 @@ fn side_panel(
         );
         egui::ScrollArea::vertical()
             .auto_shrink([false, false])
-            .max_height(if v.chest.is_some() { 470.0 } else { 350.0 })
+            .max_height(list_height + 50.0)
             .show(ui, |ui| {
                 egui::Grid::new("creative")
                     .spacing([4.0, 4.0])
@@ -725,10 +732,9 @@ fn side_panel(
     };
     let list = crafting::list(v.content, &inv, v.stations, v.fuel);
     let filter = recipes_filter.to_lowercase();
-    let height = if v.chest.is_some() { 420.0 } else { 300.0 };
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
-        .max_height(height)
+        .max_height(list_height)
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 5.0;
             // craftable first, then the rest, grouped

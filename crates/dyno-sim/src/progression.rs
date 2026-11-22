@@ -102,6 +102,23 @@ pub fn money_text(copper: u32) -> String {
     parts.join(" ")
 }
 
+/// Highest profession skill at a character level.
+pub fn skill_cap(level: u8) -> u16 {
+    (50 + 5 * level as u16).min(150)
+}
+
+/// Chance (0..1) that using something needing `need` raises a skill of `have`:
+/// orange (within 25) always, yellow (within 50) 75%, green (within 75) 25%,
+/// grey never.
+pub fn skill_up_chance(have: u16, need: u16) -> f32 {
+    match have.saturating_sub(need) {
+        0..25 => 1.0,
+        25..50 => 0.75,
+        50..75 => 0.25,
+        _ => 0.0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

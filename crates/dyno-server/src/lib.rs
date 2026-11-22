@@ -8,6 +8,8 @@
 pub mod abilities;
 pub mod creatures;
 pub mod game;
+pub mod gear;
+pub mod professions;
 pub mod rpg;
 pub mod store;
 
@@ -156,6 +158,12 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     drop(before);
     if rpg::build_landmarks(&mut world, &content, spawn_hearth) {
         log("Built quest beacons");
+        if let Err(e) = world.save(&cfg.world_path) {
+            log(format!("Warning: cannot save world: {e}"));
+        }
+    }
+    if content.world.protected && dyno_world::village::build_hearthstead(&mut world, spawn_hearth) {
+        log("Built Hearthstead");
         if let Err(e) = world.save(&cfg.world_path) {
             log(format!("Warning: cannot save world: {e}"));
         }
@@ -540,7 +548,7 @@ impl Server {
                                 .filter(|c| !c.is_control())
                                 .take(proto::MAX_CHAT)
                                 .collect();
-                            if chats <= 5 && text.trim_start().starts_with('/') {
+                            if chats <= 20 && text.trim_start().starts_with('/') {
                                 self.command(id, text.trim());
                             } else if chats <= 5 && !text.trim().is_empty() {
                                 let st = self.state.lock().unwrap();
@@ -636,6 +644,26 @@ impl Server {
                         st.tell(id, format!("Teleported to {name}"));
                     }
                     None => st.tell(id, format!("No player called '{arg}'. Try /who")),
+                }
+            }
+            "/class" => {
+                let key = arg.trim().to_lowercase();
+                if key == "reset" && op {
+                    if let Some(p) = st.players.get_mut(&id) {
+                        p.class = None;
+                        p.power = 0.0;
+                        p.auras.clear();
+                    }
+                    st.send_character(id);
+                    st.tell(id, "Class cleared. Choose again with /class <name>.");
+                } else {
+                    match st.content.classes.iter().find(|c| c.key == key || c.name.eq_ignore_ascii_case(&key)).map(|c| c.id) {
+                        Some(c) => st.choose_class(id, c),
+                        None => {
+                            let names: Vec<String> = st.content.classes.iter().map(|c| c.key.clone()).collect();
+                            st.tell(id, format!("Usage: /class <{}>", names.join("|")));
+                        }
+                    }
                 }
             }
             "/summon" => {

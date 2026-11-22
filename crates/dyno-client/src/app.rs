@@ -7,6 +7,7 @@ use crate::models;
 use crate::net::{self, Joined, NetEvent};
 use crate::render::{self, Gfx, Vertex};
 use crate::rpg_ui;
+use crate::screens;
 use crate::settings::Settings;
 use crate::survival::{self, PackCmd, PackView};
 use dyno_protocol::{
@@ -156,6 +157,20 @@ struct Play {
     /// my cast in progress: ability, start, seconds
     my_cast: Option<(u16, Instant, f32)>,
     class_pick: bool,
+    /// camera distance behind you (0: first person)
+    zoom: f32,
+    equip: Vec<Option<Stack>>,
+    skills: Vec<(String, u16, u16)>,
+    /// buffs: ability and when they end
+    auras: Vec<(u16, Instant)>,
+    combo: (u8, Option<u32>),
+    attacking: Option<u32>,
+    /// open tab of the character / bags / spellbook / skills window
+    screen_tab: Option<screens::Tab>,
+    /// action bar: ability IDs (RECALL, BAR_EAT) on 12 keys
+    bar: Vec<Option<u16>>,
+    /// floating combat text: when, creature (None: me), text, colour
+    combat_text: Vec<(Instant, Option<u32>, String, Color32)>,
     level: u8,
     xp: u32,
     xp_next: u32,
@@ -289,26 +304,56 @@ enum ActionSlot<'a> {
     Empty,
 }
 
+/// Special bar entries besides abilities.
+const BAR_EAT: u16 = u16::MAX - 1;
+/// Keys of the 12 action-bar slots.
+const BAR_KEYS: [&str; 12] = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="];
+
+/// The default bar: abilities in the order learned, then Recall and Eat.
+fn default_bar(p: &Play) -> Vec<Option<u16>> {
+    let mut bar = vec![None; 12];
+    if let Some(c) = p.class {
+        for (i, a) in p
+            .content
+            .known_abilities(c, p.level)
+            .iter()
+            .take(10)
+            .enumerate()
+        {
+            bar[i] = Some(a.id);
+        }
+    }
+    bar[10] = Some(dyno_protocol::RECALL);
+    bar[11] = Some(BAR_EAT);
+    bar
+}
+
 fn action_at(p: &Play, i: usize) -> ActionSlot<'_> {
-    match i {
-        7 => ActionSlot::Recall,
-        8 => ActionSlot::Eat,
-        _ => p
-            .class
-            .map(|c| p.content.known_abilities(c, p.level))
-            .and_then(|v| v.get(i).copied())
+    match p.bar.get(i).copied().flatten() {
+        Some(dyno_protocol::RECALL) => ActionSlot::Recall,
+        Some(BAR_EAT) => ActionSlot::Eat,
+        Some(a) => p
+            .content
+            .ability(a)
+            .filter(|a| Some(a.class) == p.class && a.level <= p.level)
             .map(ActionSlot::Ability)
             .unwrap_or(ActionSlot::Empty),
+        None => ActionSlot::Empty,
     }
 }
 
 /// Press an action-bar key.
 fn use_action(p: &mut Play, i: usize) {
     let target = p.focus.or(p.target_entity).filter(|id| {
-        p.entities.get(id).is_some_and(|e| matches!(e.kind, EntityKind::Creature(_)))
+        p.entities
+            .get(id)
+            .is_some_and(|e| matches!(e.kind, EntityKind::Creature(_)))
     });
     let msg = match action_at(p, i) {
-        ActionSlot::Ability(a) => ClientMsg::Cast { ability: a.id, target },
+        ActionSlot::Ability(a) => ClientMsg::Cast {
+            ability: a.id,
+            target,
+        },
         ActionSlot::Recall => ClientMsg::Recall,
         ActionSlot::Eat => ClientMsg::EatBest,
         ActionSlot::Empty => return,
@@ -323,23 +368,48 @@ fn use_action(p: &mut Play, i: usize) {
 fn draw_action(painter: &egui::Painter, r: Rect, p: &Play, i: usize) {
     let now = Instant::now();
     painter.rect_filled(r, 5.0, Color32::from_black_alpha(150));
-    let (icon, cd, usable): (Option<dyno_world::content::ItemId>, f32, bool) = match action_at(p, i) {
+    let (icon, cd, usable): (Option<dyno_world::content::ItemId>, f32, bool) = match action_at(p, i)
+    {
         ActionSlot::Ability(a) => {
             let item = p.content.item_by_key(&a.icon);
-            let own = p.cooldowns.get(&a.id).map(|(t, total)| t.saturating_duration_since(now).as_secs_f32() / total.max(0.01)).unwrap_or(0.0);
+            let own = p
+                .cooldowns
+                .get(&a.id)
+                .map(|(t, total)| t.saturating_duration_since(now).as_secs_f32() / total.max(0.01))
+                .unwrap_or(0.0);
             let g = p.gcd.0.saturating_duration_since(now).as_secs_f32() / p.gcd.1.max(0.01);
-            let tint = Color32::from_rgb((a.color[0] * 120.0) as u8, (a.color[1] * 120.0) as u8, (a.color[2] * 120.0) as u8);
+            let tint = Color32::from_rgb(
+                (a.color[0] * 120.0) as u8,
+                (a.color[1] * 120.0) as u8,
+                (a.color[2] * 120.0) as u8,
+            );
             painter.rect_filled(r.shrink(2.0), 4.0, tint.gamma_multiply(0.6));
             (item, own.max(g), p.power + 0.01 >= a.cost)
         }
         ActionSlot::Recall => {
-            let own = p.cooldowns.get(&dyno_protocol::RECALL).map(|(t, total)| t.saturating_duration_since(now).as_secs_f32() / total.max(0.01)).unwrap_or(0.0);
-            painter.rect_filled(r.shrink(2.0), 4.0, Color32::from_rgb(90, 50, 20).gamma_multiply(0.7));
-            (Some(dyno_world::HEARTH as dyno_world::content::ItemId), own, true)
+            let own = p
+                .cooldowns
+                .get(&dyno_protocol::RECALL)
+                .map(|(t, total)| t.saturating_duration_since(now).as_secs_f32() / total.max(0.01))
+                .unwrap_or(0.0);
+            painter.rect_filled(
+                r.shrink(2.0),
+                4.0,
+                Color32::from_rgb(90, 50, 20).gamma_multiply(0.7),
+            );
+            (
+                Some(dyno_world::HEARTH as dyno_world::content::ItemId),
+                own,
+                true,
+            )
         }
         ActionSlot::Eat => {
-            let pack = dyno_sim::inventory::Inventory { slots: p.pack.clone() };
-            let food = dyno_sim::inventory::best_food(&pack, &p.content).and_then(|s| p.pack[s]).map(|s| s.item);
+            let pack = dyno_sim::inventory::Inventory {
+                slots: p.pack.clone(),
+            };
+            let food = dyno_sim::inventory::best_food(&pack, &p.content)
+                .and_then(|s| p.pack[s])
+                .map(|s| s.item);
             (food, 0.0, food.is_some())
         }
         ActionSlot::Empty => (None, 0.0, false),
@@ -352,16 +422,33 @@ fn draw_action(painter: &egui::Painter, r: Rect, p: &Play, i: usize) {
     }
     if cd > 0.0 {
         let h = r.height() * cd.clamp(0.0, 1.0);
-        painter.rect_filled(Rect::from_min_max(Pos2::new(r.left(), r.bottom() - h), r.max), 5.0, Color32::from_black_alpha(170));
+        painter.rect_filled(
+            Rect::from_min_max(Pos2::new(r.left(), r.bottom() - h), r.max),
+            5.0,
+            Color32::from_black_alpha(170),
+        );
     }
-    let active = p.my_cast.as_ref().is_some_and(|(a, _, _)| match action_at(p, i) {
-        ActionSlot::Ability(x) => x.id == *a,
-        ActionSlot::Recall => *a == dyno_protocol::RECALL,
-        _ => false,
-    });
-    let stroke = if active { Stroke::new(2.5_f32, Color32::from_rgb(255, 210, 80)) } else { Stroke::new(1.0_f32, Color32::from_rgb(150, 120, 60)) };
+    let active = p
+        .my_cast
+        .as_ref()
+        .is_some_and(|(a, _, _)| match action_at(p, i) {
+            ActionSlot::Ability(x) => x.id == *a,
+            ActionSlot::Recall => *a == dyno_protocol::RECALL,
+            _ => false,
+        });
+    let stroke = if active {
+        Stroke::new(2.5_f32, Color32::from_rgb(255, 210, 80))
+    } else {
+        Stroke::new(1.0_f32, Color32::from_rgb(150, 120, 60))
+    };
     painter.rect_stroke(r, 5.0, stroke, egui::StrokeKind::Inside);
-    painter.text(r.left_top() + Vec2::new(4.0, 2.0), Align2::LEFT_TOP, format!("{}", i + 1), FontId::monospace(11.0), Color32::from_white_alpha(200));
+    painter.text(
+        r.left_top() + Vec2::new(4.0, 2.0),
+        Align2::LEFT_TOP,
+        BAR_KEYS[i],
+        FontId::monospace(11.0),
+        Color32::from_white_alpha(200),
+    );
 }
 
 /// A spell bolt: a short trail of sparks from `a` to `b`.
@@ -397,6 +484,39 @@ fn spawn_burst(out: &mut Vec<Particle>, c: Vec3, color: [f32; 3], radius: f32) {
     }
 }
 
+/// Move a camera back from `eye` along -`dir` by up to `dist`, stopping before walls.
+fn pull_back(world: &dyno_world::World, eye: Vec3, dir: Vec3, dist: f32) -> Vec3 {
+    let mut d = 0.0;
+    let step = 0.1;
+    while d < dist {
+        let p = eye - dir * (d + step + 0.3);
+        if w::is_solid(world.get(p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32)) {
+            break;
+        }
+        d += step;
+    }
+    eye - dir * d + Vec3::Y * (d * 0.08)
+}
+
+/// Stat points from my active buffs.
+fn buff_stats(p: &Play) -> dyno_world::content::Stats {
+    use dyno_world::content::BuffKind as K;
+    let mut s = dyno_world::content::Stats::default();
+    for (a, _) in &p.auras {
+        if let Some(b) = p.content.ability(*a).and_then(|a| a.buff) {
+            let n = b.amount as i16;
+            match b.kind {
+                K::Strength => s.str += n,
+                K::Agility => s.agi += n,
+                K::Intellect => s.int += n,
+                K::Stamina => s.sta += n,
+                _ => {}
+            }
+        }
+    }
+    s
+}
+
 fn quest_finished(c: &dyno_world::content::Content, q: &dyno_protocol::QuestProgress) -> bool {
     c.quest(q.quest).is_some_and(|x| {
         x.objectives
@@ -421,7 +541,16 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             ) as f32
                 / 15.0;
             let look = models::Look::npc(&npc.key, npc.color);
-            models::push_person(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), clock * 2.0, 0.0);
+            models::push_person(
+                boxes,
+                pos,
+                e.yaw,
+                0.0,
+                &look,
+                light.max(0.35),
+                clock * 2.0,
+                0.0,
+            );
             continue;
         }
         let EntityKind::Creature(cid) = e.kind else {
@@ -662,6 +791,7 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
 
 /// Play state for a freshly joined server.
 fn new_play(j: Joined) -> Play {
+    let rpg_world = j.content.world.protected;
     let light = Light::new(&j.world);
     let hearth = j.world.find_near(
         w::HEARTH,
@@ -737,6 +867,15 @@ fn new_play(j: Joined) -> Play {
         gcd: (Instant::now(), 0.0),
         my_cast: None,
         class_pick: false,
+        zoom: if rpg_world { 5.0 } else { 0.0 },
+        equip: vec![None; 17],
+        skills: Vec::new(),
+        auras: Vec::new(),
+        combo: (0, None),
+        attacking: None,
+        screen_tab: None,
+        bar: Vec::new(),
+        combat_text: Vec::new(),
         hearth,
         level: 1,
         xp: 0,
@@ -1065,17 +1204,29 @@ impl App {
                             p.power = value;
                             p.power_max = max;
                         }
-                        ServerMsg::Casting { player, ability, secs } => {
+                        ServerMsg::Casting {
+                            player,
+                            ability,
+                            secs,
+                        } => {
                             if player == p.my_id {
                                 p.my_cast = ability.map(|a| (a, Instant::now(), secs));
                             }
                         }
                         ServerMsg::Cooldowns { list, global } => {
                             let now = Instant::now();
-                            p.cooldowns = list.into_iter().map(|(a, s)| (a, (now + Duration::from_secs_f32(s), s))).collect();
+                            p.cooldowns = list
+                                .into_iter()
+                                .map(|(a, s)| (a, (now + Duration::from_secs_f32(s), s)))
+                                .collect();
                             p.gcd = (now + Duration::from_secs_f32(global), global);
                         }
-                        ServerMsg::Effect { color, from, to, radius } => {
+                        ServerMsg::Effect {
+                            color,
+                            from,
+                            to,
+                            radius,
+                        } => {
                             let (a, b) = (Vec3::from(from), Vec3::from(to));
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
@@ -1084,6 +1235,31 @@ impl App {
                                 spawn_bolt(&mut p.particles, a, b, color);
                                 self.audio.play(Sfx::Hit, 0.4);
                             }
+                        }
+                        ServerMsg::Equipment(e) => p.equip = e,
+                        ServerMsg::Skills(s) => p.skills = s,
+                        ServerMsg::Attacking(t) => p.attacking = t,
+                        ServerMsg::Combo { points, target } => p.combo = (points, target),
+                        ServerMsg::Auras(list) => {
+                            let now = Instant::now();
+                            p.auras = list
+                                .into_iter()
+                                .map(|(a, s)| (a, now + Duration::from_secs_f32(s)))
+                                .collect();
+                        }
+                        ServerMsg::Damage {
+                            entity,
+                            amount,
+                            crit,
+                        } => {
+                            let (text, col) = match entity {
+                                Some(_) if crit => {
+                                    (format!("{:.0}!", amount), Color32::from_rgb(255, 230, 80))
+                                }
+                                Some(_) => (format!("{:.0}", amount), Color32::WHITE),
+                                None => (format!("-{:.0}", amount), Color32::from_rgb(255, 70, 60)),
+                            };
+                            p.combat_text.push((Instant::now(), entity, text, col));
                         }
                         ServerMsg::ChooseClass => {
                             p.class_pick = true;
@@ -1265,6 +1441,7 @@ impl App {
                 && !p.picker_open
                 && p.panel.is_none()
                 && !p.class_pick
+                && p.screen_tab.is_none()
                 && p.dead.is_none();
             let input = if active {
                 Input {
@@ -1361,14 +1538,20 @@ impl App {
             match (can_mine, target_block) {
                 (true, Some(pos)) => {
                     let b = p.world.get(pos[0], pos[1], pos[2]);
-                    let pack = dyno_sim::inventory::Inventory { slots: p.pack.clone() };
+                    let pack = dyno_sim::inventory::Inventory {
+                        slots: p.pack.clone(),
+                    };
                     let best = p
                         .content
                         .rule(b)
                         .tool
                         .and_then(|k| dyno_sim::inventory::best_tool(&pack, &p.content, k))
                         .map(|(_, t)| t);
-                    let tool = if p.content.world.protected { best } else { p.held_tool() };
+                    let tool = if p.content.world.protected {
+                        best
+                    } else {
+                        p.held_tool()
+                    };
                     let need = dyno_sim::mining::break_time(&p.content, b, tool)
                         .filter(|_| !p.content.world.protected || p.content.rule(b).respawn > 0);
                     match (&mut p.dig, need) {
@@ -1641,6 +1824,13 @@ impl App {
             let eye = p.player.eye()
                 + Vec3::Y * (p.bob.sin().abs() * 0.06 * bob_amt)
                 + right * ((p.bob * 0.5).sin() * 0.03 * bob_amt);
+            // third person: the camera pulls back behind you, short of walls
+            let first_person = p.zoom < 0.5;
+            let eye = if first_person {
+                eye
+            } else {
+                pull_back(&p.world, p.player.eye(), dir, p.zoom)
+            };
             let proj = glam::Mat4::perspective_rh(
                 (fov + p.fov_kick).to_radians(),
                 wdt / hgt.max(1.0),
@@ -1648,27 +1838,51 @@ impl App {
                 far,
             );
             let vp = proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+            if !first_person {
+                let look = models::Look::player(
+                    p.my_id,
+                    p.class
+                        .and_then(|c| p.content.class(c))
+                        .map(|c| c.color)
+                        .unwrap_or([0.5, 0.5, 0.6]),
+                );
+                models::push_person(
+                    &mut boxes,
+                    p.player.pos,
+                    p.player.yaw,
+                    p.player.pitch,
+                    &look,
+                    light_at(&p.light, p.player.pos + Vec3::Y),
+                    p.bob * 2.2,
+                    (speed / 4.0).min(1.0),
+                );
+            }
             // block in hand, with a swing when breaking or placing
             let sw = (p.swing * std::f32::consts::PI).sin();
             let held_item = if p.content.world.protected && !p.creative() {
                 // RPG: your best weapon is always in hand
-                let pack = dyno_sim::inventory::Inventory { slots: p.pack.clone() };
+                let pack = dyno_sim::inventory::Inventory {
+                    slots: p.pack.clone(),
+                };
                 dyno_sim::inventory::best_weapon(&pack, &p.content).and_then(|(i, _)| p.pack[i])
             } else {
                 p.held()
             };
+            let held_item = if first_person { held_item } else { None };
             let hand = eye + dir * (0.62 - sw * 0.12) + right * (0.36 - sw * 0.08)
                 - up * (0.34 + sw * 0.1 - (p.bob * 0.5).cos().abs() * 0.015 * bob_amt);
             let (s1, c1) = (0.6f32 - sw * 0.8).sin_cos();
             let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];
-            models::push_held(
-                &mut boxes,
-                &p.content,
-                held_item.map(|s| s.item),
-                hand,
-                ax,
-                light_at(&p.light, eye),
-            );
+            if first_person {
+                models::push_held(
+                    &mut boxes,
+                    &p.content,
+                    held_item.map(|s| s.item),
+                    hand,
+                    ax,
+                    light_at(&p.light, eye),
+                );
+            }
             // creatures
             let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
             push_creatures(&mut boxes, p, clock);
@@ -1768,6 +1982,49 @@ impl App {
 
     fn act(&mut self, a: Action) {
         match a {
+            Action::Screens(cmds) => {
+                let mut close = false;
+                if let Screen::Playing(p) = &mut self.screen {
+                    for c in cmds {
+                        match c {
+                            screens::ScreenCmd::Equip(i) => {
+                                let _ = p.conn.tx.send(ClientMsg::Equip { from: i });
+                                self.audio.play(Sfx::Place(w::Material::Cloth), 0.6);
+                            }
+                            screens::ScreenCmd::Unequip(i) => {
+                                let _ = p.conn.tx.send(ClientMsg::Unequip { place: i });
+                            }
+                            screens::ScreenCmd::Eat(i) => {
+                                let _ = p.conn.tx.send(ClientMsg::Held { slot: i });
+                                let _ = p.conn.tx.send(ClientMsg::UseHeld);
+                                p.sent_held = i as usize;
+                            }
+                            screens::ScreenCmd::Sell(i) => {
+                                let _ = p.conn.tx.send(ClientMsg::Sell { from: i });
+                            }
+                            screens::ScreenCmd::Bind(a, k) => {
+                                if p.bar.is_empty() {
+                                    p.bar = default_bar(p);
+                                }
+                                for b in p.bar.iter_mut() {
+                                    if *b == Some(a) {
+                                        *b = None;
+                                    }
+                                }
+                                p.bar[k as usize] = Some(a);
+                            }
+                            screens::ScreenCmd::Switch(t) => p.screen_tab = Some(t),
+                            screens::ScreenCmd::Close => {
+                                p.screen_tab = None;
+                                close = true;
+                            }
+                        }
+                    }
+                }
+                if close {
+                    self.set_capture(true);
+                }
+            }
             Action::ChooseClass(c) => {
                 if let Screen::Playing(p) = &mut self.screen {
                     let _ = p.conn.tx.send(ClientMsg::ChooseClass { class: c });
@@ -1893,7 +2150,14 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
-        if p.chat_open || p.menu_open || p.picker_open || p.panel.is_some() || p.class_pick || p.dead.is_some() {
+        if p.chat_open
+            || p.menu_open
+            || p.picker_open
+            || p.panel.is_some()
+            || p.class_pick
+            || p.screen_tab.is_some()
+            || p.dead.is_some()
+        {
             return;
         }
         if pressed {
@@ -1931,6 +2195,21 @@ impl App {
                     });
                     p.swing = 1.0;
                 }
+            }
+            KeyCode::KeyC | KeyCode::KeyB | KeyCode::KeyP | KeyCode::KeyK
+                if p.content.world.protected =>
+            {
+                p.screen_tab = Some(match code {
+                    KeyCode::KeyC => screens::Tab::Character,
+                    KeyCode::KeyB => screens::Tab::Bags,
+                    KeyCode::KeyP => screens::Tab::Spellbook,
+                    _ => screens::Tab::Skills,
+                });
+                self.set_capture(false);
+            }
+            KeyCode::KeyE if p.content.world.protected && !p.creative() => {
+                p.screen_tab = Some(screens::Tab::Bags);
+                self.set_capture(false);
             }
             KeyCode::KeyL => {
                 p.panel = Some(rpg_ui::Panel::Log { quest: None });
@@ -2004,12 +2283,18 @@ impl App {
                     KeyCode::Digit7,
                     KeyCode::Digit8,
                     KeyCode::Digit9,
+                    KeyCode::Digit0,
+                    KeyCode::Minus,
+                    KeyCode::Equal,
                 ];
                 if let Some(i) = digits.iter().position(|d| *d == code) {
                     if p.content.world.protected && !p.creative() {
+                        if p.bar.is_empty() {
+                            p.bar = default_bar(p);
+                        }
                         use_action(p, i);
                         p.swing = 1.0;
-                    } else {
+                    } else if i < 9 {
                         p.slot = i;
                     }
                 }
@@ -2041,10 +2326,13 @@ impl App {
             p.focus = Some(id);
             return;
         }
-        if button == MouseButton::Left
-            && let Some(id) = p.target_entity
-        {
-            let _ = p.conn.tx.send(ClientMsg::Attack { entity: id });
+        if let Some(id) = p.target_entity {
+            if p.content.world.protected {
+                // classic: click to target, and start attacking it
+                let _ = p.conn.tx.send(ClientMsg::AutoAttack { target: Some(id) });
+            } else if button == MouseButton::Left {
+                let _ = p.conn.tx.send(ClientMsg::Attack { entity: id });
+            }
             p.focus = Some(id);
             return;
         }
@@ -2148,6 +2436,7 @@ enum Action {
     Pack(Vec<PackCmd>),
     Rpg(Vec<rpg_ui::RpgCmd>),
     ChooseClass(u16),
+    Screens(Vec<screens::ScreenCmd>),
     Respawn,
     Join(String),
     Host,
@@ -2573,9 +2862,14 @@ fn hud(
             Color32::from_rgb(232, 184, 74),
         );
     }
-    // hotbar from the pack
-    let slot = 46.0;
-    let total = 9.0 * (slot + 4.0);
+    // hotbar from the pack, or the 12-slot action bar
+    let rpg_bar = p.content.world.protected && !p.creative();
+    if rpg_bar && p.bar.is_empty() && p.class.is_some() {
+        p.bar = default_bar(p);
+    }
+    let slots = if rpg_bar { 12 } else { 9 };
+    let slot = if rpg_bar { 44.0 } else { 46.0 };
+    let total = slots as f32 * (slot + 4.0);
     let start = Pos2::new(c.x - total / 2.0, screen.bottom() - slot - 14.0);
     painter.rect_filled(
         Rect::from_min_size(
@@ -2585,8 +2879,7 @@ fn hud(
         8.0,
         Color32::from_black_alpha(130),
     );
-    let rpg_bar = p.content.world.protected && !p.creative();
-    for i in 0..9 {
+    for i in 0..slots {
         let r = Rect::from_min_size(
             start + Vec2::new(i as f32 * (slot + 4.0), 0.0),
             Vec2::splat(slot),
@@ -2612,10 +2905,13 @@ fn hud(
             Color32::from_white_alpha(140),
         );
     }
-    let held_name = p
-        .held()
-        .map(|s| p.content.item(s.item).name.to_string())
-        .unwrap_or_default();
+    let held_name = if rpg_bar {
+        String::new()
+    } else {
+        p.held()
+            .map(|s| p.content.item(s.item).name.to_string())
+            .unwrap_or_default()
+    };
     let mut label_y = start.y - 12.0;
     if p.content.world.protected {
         rpg_ui::xp_bar(
@@ -2828,36 +3124,195 @@ fn hud(
             col,
         );
     }
+    // character / bags / spellbook / skills
+    if let Some(tab) = p.screen_tab {
+        let names: Vec<(String, u16, u16)> = p
+            .skills
+            .iter()
+            .map(|(k, v, m)| {
+                let n = p
+                    .content
+                    .professions
+                    .iter()
+                    .find(|x| &x.key == k)
+                    .map(|x| x.name.clone())
+                    .unwrap_or_else(|| k.clone());
+                (n, *v, *m)
+            })
+            .collect();
+        let lines: Vec<screens::SkillLine> = names
+            .iter()
+            .map(|(n, v, m)| screens::SkillLine {
+                name: n,
+                value: *v,
+                max: *m,
+            })
+            .collect();
+        let extra = buff_stats(p);
+        let v = screens::View {
+            content: &p.content,
+            name: &p.my_name,
+            class: p.class.and_then(|c| p.content.class(c)),
+            level: p.level,
+            money: p.money,
+            pack: &p.pack,
+            equip: &p.equip,
+            health: p.health,
+            power: p.power,
+            at_vendor: matches!(p.panel, Some(rpg_ui::Panel::Dialog { .. })),
+            bar: &p.bar,
+            skills: &lines,
+            extra,
+        };
+        let cmds = screens::window(ctx, &v, tab);
+        if !cmds.is_empty() {
+            actions.push(Action::Screens(cmds));
+        }
+    }
+    // buffs, top right
+    {
+        let now = Instant::now();
+        p.auras.retain(|(_, t)| *t > now);
+        for (k, (a, t)) in p.auras.iter().enumerate() {
+            let Some(ab) = p.content.ability(*a) else {
+                continue;
+            };
+            let r = Rect::from_min_size(
+                Pos2::new(
+                    screen.right() - 220.0 - k as f32 * 40.0,
+                    screen.top() + 12.0,
+                ),
+                Vec2::splat(34.0),
+            );
+            painter.rect_filled(r, 4.0, Color32::from_black_alpha(160));
+            if let Some(item) = p.content.item_by_key(&ab.icon) {
+                survival::item_icon(&painter, r.shrink(3.0), &p.content, item);
+            }
+            painter.rect_stroke(
+                r,
+                4.0,
+                Stroke::new(1.0_f32, Color32::from_rgb(200, 170, 90)),
+                egui::StrokeKind::Inside,
+            );
+            let left = t.saturating_duration_since(now).as_secs_f32();
+            let txt = if left >= 60.0 {
+                format!("{:.0}m", left / 60.0)
+            } else {
+                format!("{left:.0}s")
+            };
+            painter.text(
+                r.center_bottom() + Vec2::new(0.0, 2.0),
+                Align2::CENTER_TOP,
+                txt,
+                FontId::proportional(11.0),
+                Color32::WHITE,
+            );
+        }
+    }
+    // combo points under the target frame
+    if p.combo.0 > 0 && p.combo.1.is_some() && p.combo.1 == p.focus.or(p.target_entity) {
+        for k in 0..5u8 {
+            let at = Pos2::new(c.x - 40.0 + k as f32 * 20.0, screen.top() + 80.0);
+            let on = k < p.combo.0;
+            painter.circle_filled(
+                at,
+                7.0,
+                if on {
+                    Color32::from_rgb(230, 60, 40)
+                } else {
+                    Color32::from_black_alpha(150)
+                },
+            );
+            painter.circle_stroke(
+                at,
+                7.0,
+                Stroke::new(1.0_f32, Color32::from_rgb(200, 170, 90)),
+            );
+        }
+    }
+    // floating combat text, rising from the creature (or from you)
+    p.combat_text
+        .retain(|(t, _, _, _)| t.elapsed() < Duration::from_millis(1400));
+    if let Some(vp) = vp {
+        for (k, (t, ent, text, col)) in p.combat_text.iter().enumerate() {
+            let a = t.elapsed().as_secs_f32();
+            let world = match ent {
+                Some(id) => p.entities.get(id).map(|e| e.pos() + glam::Vec3::Y * 2.2),
+                None => Some(p.player.pos + glam::Vec3::Y * 2.0),
+            };
+            let Some(wp) = world else { continue };
+            let clip = vp * (wp + glam::Vec3::Y * a * 0.8).extend(1.0);
+            if clip.w <= 0.1 {
+                continue;
+            }
+            let ndc = clip.truncate() / clip.w;
+            let at = Pos2::new(
+                screen.left() + (ndc.x * 0.5 + 0.5) * screen.width() + (k % 3) as f32 * 10.0,
+                screen.top() + (0.5 - ndc.y * 0.5) * screen.height(),
+            );
+            let fade = (1.0 - a / 1.4).clamp(0.0, 1.0);
+            let size = if text.ends_with('!') { 26.0 } else { 19.0 };
+            painter.text(
+                at + Vec2::new(1.5, 1.5),
+                Align2::CENTER_CENTER,
+                text,
+                FontId::proportional(size),
+                Color32::from_black_alpha((220.0 * fade) as u8),
+            );
+            painter.text(
+                at,
+                Align2::CENTER_CENTER,
+                text,
+                FontId::proportional(size),
+                col.gamma_multiply(fade),
+            );
+        }
+    }
     // class picker
     if p.class_pick {
         let mut chosen = None;
-        egui::Window::new(RichText::new("Choose your path").size(22.0).color(Color32::from_rgb(255, 210, 80)))
-            .id(egui::Id::new("class-pick"))
-            .collapsible(false)
-            .resizable(false)
-            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-            .show(ctx, |ui| {
-                ui.set_width(640.0);
-                ui.label("The Great Hearth has gone out and Shades walk the valley. Who will you be?");
-                ui.add_space(8.0);
-                ui.columns(p.content.classes.len().max(1), |cols| {
-                    for (k, c) in p.content.classes.iter().enumerate() {
-                        let ui = &mut cols[k];
-                        let col = Color32::from_rgb((c.color[0] * 255.0) as u8, (c.color[1] * 255.0) as u8, (c.color[2] * 255.0) as u8);
-                        ui.label(RichText::new(&c.name).size(20.0).strong().color(col));
-                        ui.label(RichText::new(&c.blurb).small());
-                        ui.add_space(4.0);
-                        for a in p.content.abilities.iter().filter(|a| a.class == c.id) {
-                            ui.label(RichText::new(format!("{} (level {})", a.name, a.level)).small().color(Color32::from_gray(210)))
-                                .on_hover_text(&a.text);
-                        }
-                        ui.add_space(6.0);
-                        if ui.button(RichText::new(format!("Become a {}", c.name)).strong()).clicked() {
-                            chosen = Some(c.id);
-                        }
+        egui::Window::new(
+            RichText::new("Choose your path")
+                .size(22.0)
+                .color(Color32::from_rgb(255, 210, 80)),
+        )
+        .id(egui::Id::new("class-pick"))
+        .collapsible(false)
+        .resizable(false)
+        .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+        .show(ctx, |ui| {
+            ui.set_width(640.0);
+            ui.label("The Great Hearth has gone out and Shades walk the valley. Who will you be?");
+            ui.add_space(8.0);
+            ui.columns(p.content.classes.len().max(1), |cols| {
+                for (k, c) in p.content.classes.iter().enumerate() {
+                    let ui = &mut cols[k];
+                    let col = Color32::from_rgb(
+                        (c.color[0] * 255.0) as u8,
+                        (c.color[1] * 255.0) as u8,
+                        (c.color[2] * 255.0) as u8,
+                    );
+                    ui.label(RichText::new(&c.name).size(20.0).strong().color(col));
+                    ui.label(RichText::new(&c.blurb).small());
+                    ui.add_space(4.0);
+                    for a in p.content.abilities.iter().filter(|a| a.class == c.id) {
+                        ui.label(
+                            RichText::new(format!("{} (level {})", a.name, a.level))
+                                .small()
+                                .color(Color32::from_gray(210)),
+                        )
+                        .on_hover_text(&a.text);
                     }
-                });
+                    ui.add_space(6.0);
+                    if ui
+                        .button(RichText::new(format!("Become a {}", c.name)).strong())
+                        .clicked()
+                    {
+                        chosen = Some(c.id);
+                    }
+                }
             });
+        });
         if let Some(c) = chosen {
             actions.push(Action::ChooseClass(c));
         }
@@ -2867,27 +3322,60 @@ fn hud(
         let name = if a == dyno_protocol::RECALL {
             "Recall".to_string()
         } else {
-            p.content.ability(a).map(|a| a.name.clone()).unwrap_or_default()
+            p.content
+                .ability(a)
+                .map(|a| a.name.clone())
+                .unwrap_or_default()
         };
         let f = (start.elapsed().as_secs_f32() / secs.max(0.01)).min(1.0);
-        let r = Rect::from_center_size(Pos2::new(c.x, screen.bottom() - 150.0), Vec2::new(260.0, 18.0));
+        let r = Rect::from_center_size(
+            Pos2::new(c.x, screen.bottom() - 150.0),
+            Vec2::new(260.0, 18.0),
+        );
         painter.rect_filled(r.expand(2.0), 4.0, Color32::from_black_alpha(200));
         painter.rect_filled(
             Rect::from_min_size(r.min, Vec2::new(r.width() * f, r.height())),
             3.0,
             Color32::from_rgb(230, 180, 60),
         );
-        painter.rect_stroke(r.expand(2.0), 4.0, Stroke::new(1.5_f32, Color32::from_rgb(200, 160, 80)), egui::StrokeKind::Outside);
-        painter.text(r.center(), Align2::CENTER_CENTER, name, FontId::proportional(13.0), Color32::WHITE);
+        painter.rect_stroke(
+            r.expand(2.0),
+            4.0,
+            Stroke::new(1.5_f32, Color32::from_rgb(200, 160, 80)),
+            egui::StrokeKind::Outside,
+        );
+        painter.text(
+            r.center(),
+            Align2::CENTER_CENTER,
+            name,
+            FontId::proportional(13.0),
+            Color32::WHITE,
+        );
     }
     // rage or mana under the player frame
     if p.content.world.protected && p.power_max > 0.0 {
-        let rage = p.class.and_then(|c| p.content.class(c)).is_some_and(|c| c.resource == dyno_world::content::Resource::Rage);
-        let r = Rect::from_min_size(screen.left_top() + Vec2::new(22.0, 108.0), Vec2::new(210.0, 10.0));
+        let rage = p
+            .class
+            .and_then(|c| p.content.class(c))
+            .is_some_and(|c| c.resource == dyno_world::content::Resource::Rage);
+        let r = Rect::from_min_size(
+            screen.left_top() + Vec2::new(22.0, 108.0),
+            Vec2::new(210.0, 10.0),
+        );
         painter.rect_filled(r, 3.0, Color32::from_rgb(20, 20, 40));
-        let col = if rage { Color32::from_rgb(200, 40, 40) } else { Color32::from_rgb(50, 110, 230) };
+        let col = if rage {
+            Color32::from_rgb(200, 40, 40)
+        } else {
+            Color32::from_rgb(50, 110, 230)
+        };
         painter.rect_filled(
-            Rect::from_min_size(r.min, Vec2::new(r.width() * (p.power / p.power_max).clamp(0.0, 1.0), r.height())),
+            Rect::from_min_size(
+                r.min,
+                Vec2::new(
+                    r.width() * (p.power / p.power_max).clamp(0.0, 1.0),
+                    r.height(),
+                ),
+            ),
             3.0,
             col,
         );
@@ -3126,7 +3614,12 @@ impl ApplicationHandler for App {
                 let (playing_free, menu_or_chat) = match &self.screen {
                     Screen::Playing(p) => (
                         !p.captured,
-                        p.menu_open || p.chat_open || p.picker_open || p.panel.is_some() || p.class_pick,
+                        p.menu_open
+                            || p.chat_open
+                            || p.picker_open
+                            || p.panel.is_some()
+                            || p.class_pick
+                            || p.screen_tab.is_some(),
                     ),
                     _ => (false, true),
                 };
@@ -3143,7 +3636,13 @@ impl ApplicationHandler for App {
                         MouseScrollDelta::PixelDelta(p) => (p.y / 40.0) as f32,
                     };
                     let n = 9;
-                    if d.abs() > 0.1 {
+                    if p.content.world.protected && !p.creative() {
+                        // RPG: the wheel zooms the camera
+                        p.zoom = (p.zoom - d * 1.2).clamp(0.0, 12.0);
+                        if p.zoom < 1.2 && d > 0.0 {
+                            p.zoom = 0.0;
+                        }
+                    } else if d.abs() > 0.1 {
                         p.slot = ((p.slot as i32 - d.signum() as i32).rem_euclid(n)) as usize;
                     }
                 }
@@ -3231,14 +3730,20 @@ pub fn shot_with_ui(
                     max_health,
                 } => {
                     p.class = class;
-                            if class.is_some() {
-                                p.class_pick = false;
-                            }
-                            p.level = level;
+                    if class.is_some() {
+                        p.class_pick = false;
+                    }
+                    p.level = level;
                     p.xp = xp;
                     p.xp_next = xp_next;
                     p.money = money;
                     p.max_health = max_health;
+                }
+                ServerMsg::Equipment(e) => p.equip = e,
+                ServerMsg::Skills(sk) => p.skills = sk,
+                ServerMsg::Power { value, max } => {
+                    p.power = value;
+                    p.power_max = max;
                 }
                 ServerMsg::Quests { log, done } => {
                     p.quest_log = log;
@@ -3279,6 +3784,13 @@ pub fn shot_with_ui(
     p.player.pitch = pitch;
     p.captured = ui != "pack";
     p.picker_open = ui == "pack";
+    p.screen_tab = match ui {
+        "char" => Some(screens::Tab::Character),
+        "bags" => Some(screens::Tab::Bags),
+        "spells" => Some(screens::Tab::Spellbook),
+        "skills" => Some(screens::Tab::Skills),
+        _ => None,
+    };
     if ui == "log" {
         p.panel = Some(rpg_ui::Panel::Log {
             quest: p.quest_log.first().map(|q| q.quest),
@@ -3320,8 +3832,12 @@ pub fn shot_with_ui(
     gfx.load_world(&p.world, &p.light);
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
     let far = 160.0;
-    let eye = p.player.eye();
     let dir = p.player.look_dir();
+    let eye = if p.zoom > 0.5 {
+        pull_back(&p.world, p.player.eye(), dir, p.zoom)
+    } else {
+        p.player.eye()
+    };
     let right = dir.cross(Vec3::Y).normalize_or_zero();
     let up = right.cross(dir);
     let vp = glam::Mat4::perspective_rh(75f32.to_radians(), wdt / hgt, 0.05, far)
@@ -3346,6 +3862,32 @@ pub fn shot_with_ui(
             );
         }
     }
+    if p.zoom > 0.5 {
+        let look = models::Look::player(
+            p.my_id,
+            p.class
+                .and_then(|c| p.content.class(c))
+                .map(|c| c.color)
+                .unwrap_or([0.5, 0.5, 0.6]),
+        );
+        let at = p.player.pos + Vec3::Y;
+        let l = p.light.get(
+            at.x.floor() as i32,
+            at.y.floor() as i32,
+            at.z.floor() as i32,
+        ) as f32
+            / 15.0;
+        models::push_person(
+            &mut boxes,
+            p.player.pos,
+            p.player.yaw,
+            p.player.pitch,
+            &look,
+            l,
+            0.0,
+            0.0,
+        );
+    }
     push_creatures(&mut boxes, &p, 1.3);
     for (id, r) in &p.remotes {
         let pose = r.current();
@@ -3361,7 +3903,7 @@ pub fn shot_with_ui(
             0.0,
         );
     }
-    {
+    if p.zoom < 0.5 {
         let hand = eye + dir * 0.62 + right * 0.36 - up * 0.34;
         let (s1, c1) = 0.6f32.sin_cos();
         let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];

@@ -51,7 +51,7 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 8;
+pub const PROTOCOL_VERSION: u32 = 9;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -186,6 +186,22 @@ pub enum ClientMsg {
     Recall,
     /// Eat the best food in your bags.
     EatBest,
+    /// Wear the item in a bag slot.
+    Equip {
+        from: u8,
+    },
+    /// Take off what is worn in a paper-doll place (into the bags).
+    Unequip {
+        place: u8,
+    },
+    /// Start auto-attacking a creature, or stop (None).
+    AutoAttack {
+        target: Option<u32>,
+    },
+    /// Sell a bag slot's stack to the NPC you are talking to.
+    Sell {
+        from: u8,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -368,6 +384,25 @@ pub enum ServerMsg {
     },
     /// You have no class yet: choose one.
     ChooseClass,
+    /// What you wear, by paper-doll place.
+    Equipment(Vec<Option<Stack>>),
+    /// Your auto-attack target (None when it stops).
+    Attacking(Option<u32>),
+    /// Your buffs and heals over time: ability, seconds left.
+    Auras(Vec<(u16, f32)>),
+    /// Combo points on a target.
+    Combo {
+        points: u8,
+        target: Option<u32>,
+    },
+    /// Your professions: key, skill, cap.
+    Skills(Vec<(String, u16, u16)>),
+    /// Damage numbers: on a creature (`entity`) or on you (None).
+    Damage {
+        entity: Option<u32>,
+        amount: f32,
+        crit: bool,
+    },
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

@@ -255,14 +255,22 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
   if (sd > 0.9992) { c = mix(c, vec3<f32>(1.0, 0.97, 0.88), 0.95); }
   // moon opposite the sun
   if (-sd > 0.9994) { c = mix(c, vec3<f32>(0.85, 0.88, 0.95), u.sun.w); }
-  // blocky clouds drifting across the sky
-  if (h > 0.015) {
-    let q = dir.xz / (h + 0.06) * 1.4 + vec2<f32>(u.cam.w * 0.012, u.cam.w * 0.005);
-    let qb = floor(q * 10.0) / 10.0;
-    let n = vnoise(qb * 0.9) * 0.62 + vnoise(qb * 2.1 + 7.3) * 0.38;
-    let cov = smoothstep(0.55, 0.66, n) * smoothstep(0.015, 0.16, h);
-    let cc = mix(u.fog.rgb, vec3<f32>(1.0, 1.0, 1.0), 0.55) * (u.light.rgb * 0.85 + 0.15);
-    c = mix(c, cc, cov * 0.9);
+  // painted clouds: soft billows lit from the sun side, with warm rims
+  if (h > 0.01) {
+    var q = dir.xz / (h + 0.08) * 1.1 + vec2<f32>(u.cam.w * 0.010, u.cam.w * 0.004);
+    // keep coordinates small: the hash loses precision far from zero
+    q = q - floor(q / 97.0) * 97.0;
+    let n = vnoise(q * 0.8) * 0.5 + vnoise(q * 1.9 + 7.3) * 0.3 + vnoise(q * 4.3 + 2.1) * 0.2;
+    let cov = smoothstep(0.46, 0.78, n) * smoothstep(0.01, 0.25, h);
+    // brighter where the cloud thins and faces the sun
+    let edge = 1.0 - smoothstep(0.55, 0.8, n);
+    let toward = max(dot(normalize(vec3<f32>(dir.x, 0.0, dir.z) + vec3<f32>(0.0, 0.001, 0.0)), normalize(vec3<f32>(u.sun.x, 0.0, u.sun.z) + vec3<f32>(0.0, 0.001, 0.0))), 0.0);
+    let body = mix(u.fog.rgb * 0.9, vec3<f32>(1.0, 0.98, 0.95), 0.6) * (u.light.rgb * 0.8 + 0.2);
+    let rim = vec3<f32>(1.0, 0.82, 0.55) * (u.light.rgb * 0.9 + 0.1);
+    let shade = mix(u.sky_top.rgb * 0.8, body, 0.65);
+    var cc = mix(shade, body, smoothstep(0.5, 0.9, n));
+    cc = mix(cc, rim, edge * toward * 0.5);
+    c = mix(c, cc, cov * 0.92);
   }
   // stars
   if (u.sun.w > 0.01 && h > 0.0) {
@@ -890,7 +898,11 @@ impl Gfx {
         let (tex_view, tex_samp) = upload_textures(&device, &queue);
         let shadow_tex = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("shadow"),
-            size: wgpu::Extent3d { width: SHADOW_SIZE, height: SHADOW_SIZE, depth_or_array_layers: 1 },
+            size: wgpu::Extent3d {
+                width: SHADOW_SIZE,
+                height: SHADOW_SIZE,
+                depth_or_array_layers: 1,
+            },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
@@ -996,7 +1008,10 @@ impl Gfx {
         let shadow_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("shadow"),
             layout: &shadow_bgl,
-            entries: &[wgpu::BindGroupEntry { binding: 0, resource: ubuf.as_entire_binding() }],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: ubuf.as_entire_binding(),
+            }],
         });
         let shadow_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shadow"),
@@ -1110,13 +1125,20 @@ impl Gfx {
                 compilation_options: Default::default(),
                 buffers: std::slice::from_ref(&vlayout),
             },
-            primitive: wgpu::PrimitiveState { cull_mode: None, ..Default::default() },
+            primitive: wgpu::PrimitiveState {
+                cull_mode: None,
+                ..Default::default()
+            },
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: DEPTH,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: Default::default(),
-                bias: wgpu::DepthBiasState { constant: 2, slope_scale: 2.0, clamp: 0.0 },
+                bias: wgpu::DepthBiasState {
+                    constant: 2,
+                    slope_scale: 2.0,
+                    clamp: 0.0,
+                },
             }),
             multisample: Default::default(),
             fragment: None,
@@ -1318,7 +1340,10 @@ impl Gfx {
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.shadow_view,
-                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Store }),
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
                     stencil_ops: None,
                 }),
                 timestamp_writes: None,
@@ -1552,7 +1577,11 @@ fn shadow_matrix(cam: Vec3, sun_dir: [f32; 3]) -> Mat4 {
     // snap the centre to whole texels in light space
     let texel = SHADOW_HALF * 2.0 / SHADOW_SIZE as f32;
     let c = view.transform_point3(cam);
-    let c = Vec3::new((c.x / texel).floor() * texel, (c.y / texel).floor() * texel, c.z);
+    let c = Vec3::new(
+        (c.x / texel).floor() * texel,
+        (c.y / texel).floor() * texel,
+        c.z,
+    );
     let proj = Mat4::orthographic_rh(
         c.x - SHADOW_HALF,
         c.x + SHADOW_HALF,

@@ -1021,17 +1021,7 @@ pub fn window<R>(
     open: &mut bool,
     add: impl FnOnce(&mut egui::Ui) -> R,
 ) -> Option<R> {
-    let frame = egui::Frame::new()
-        .fill(Color32::from_rgb(34, 25, 18))
-        .stroke(Stroke::new(2.0_f32, OUTLINE))
-        .corner_radius(8.0)
-        .inner_margin(egui::Margin::same(14))
-        .shadow(Shadow {
-            offset: [0, 8],
-            blur: 26,
-            spread: 3,
-            color: Color32::from_black_alpha(170),
-        });
+    let frame = window_frame();
     let resp = egui::Window::new(title)
         .id(egui::Id::new(id))
         .title_bar(false)
@@ -1044,36 +1034,10 @@ pub fn window<R>(
             header(ui, title, subtitle, open);
             add(ui)
         })?;
-    let r = resp.response.rect;
-    let p = ctx.layer_painter(resp.response.layer_id);
-    p.rect_stroke(
-        r.shrink(3.0),
-        6.0,
-        Stroke::new(1.5_f32, GOLD_DARK),
-        StrokeKind::Inside,
+    window_trim(
+        &ctx.layer_painter(resp.response.layer_id),
+        resp.response.rect,
     );
-    p.rect_stroke(
-        r.shrink(6.0),
-        4.0,
-        Stroke::new(1.0_f32, alpha(GOLD_DARK, 0.4)),
-        StrokeKind::Inside,
-    );
-    corner_pieces(&p, r.shrink(1.0), 16.0, GOLD);
-    // a crest at the top centre
-    let crest = Pos2::new(r.center().x, r.top() + 3.5);
-    for s in [-1.0, 1.0] {
-        p.add(Shape::convex_polygon(
-            vec![
-                crest + Vec2::new(s * 6.0, -3.0),
-                crest + Vec2::new(s * 40.0, 0.0),
-                crest + Vec2::new(s * 6.0, 3.0),
-            ],
-            GOLD,
-            Stroke::new(1.0_f32, OUTLINE),
-        ));
-    }
-    diamond(&p, crest, 7.0, GOLD_BRIGHT, Stroke::new(1.0_f32, OUTLINE));
-    diamond(&p, crest, 3.0, EMBER, Stroke::NONE);
     resp.inner
 }
 
@@ -1331,8 +1295,261 @@ pub fn heading(ui: &mut egui::Ui, text: &str, color: Color32) {
     });
 }
 
-/// A gallery of the HUD pieces, for looking at them in a screenshot
-/// (`DYNO_UI_GALLERY=1`).
+/// The frame of a carved window, for `egui::Window::frame` (use it with
+/// `.title_bar(false)`, then draw [`window_trim`] over the window's rect after
+/// `show`). [`window`] does all of this and adds a header.
+pub fn window_frame() -> egui::Frame {
+    egui::Frame::new()
+        .fill(Color32::from_rgb(34, 25, 18))
+        .stroke(Stroke::new(2.0_f32, OUTLINE))
+        .corner_radius(8.0)
+        .inner_margin(egui::Margin::same(14))
+        .shadow(Shadow {
+            offset: [0, 8],
+            blur: 26,
+            spread: 3,
+            color: Color32::from_black_alpha(170),
+        })
+}
+
+/// The gold trim, corner pieces and top crest of a window, drawn over `r`
+/// (the rect of the response `egui::Window::show` returns) after its content:
+/// `theme::window_trim(&ctx.layer_painter(resp.response.layer_id), resp.response.rect)`.
+pub fn window_trim(p: &egui::Painter, r: Rect) {
+    p.rect_stroke(
+        r.shrink(3.0),
+        6.0,
+        Stroke::new(1.5_f32, GOLD_DARK),
+        StrokeKind::Inside,
+    );
+    p.rect_stroke(
+        r.shrink(6.0),
+        4.0,
+        Stroke::new(1.0_f32, alpha(GOLD_DARK, 0.4)),
+        StrokeKind::Inside,
+    );
+    corner_pieces(p, r.shrink(1.0), 16.0, GOLD);
+    // a crest at the top centre
+    let crest = Pos2::new(r.center().x, r.top() + 3.5);
+    for s in [-1.0, 1.0] {
+        p.add(Shape::convex_polygon(
+            vec![
+                crest + Vec2::new(s * 6.0, -3.0),
+                crest + Vec2::new(s * 40.0, 0.0),
+                crest + Vec2::new(s * 6.0, 3.0),
+            ],
+            GOLD,
+            Stroke::new(1.0_f32, OUTLINE),
+        ));
+    }
+    diamond(p, crest, 7.0, GOLD_BRIGHT, Stroke::new(1.0_f32, OUTLINE));
+    diamond(p, crest, 3.0, EMBER, Stroke::NONE);
+}
+
+/// A tab button for tabbed windows ("Character | Skills | Spellbook"). Put the
+/// tabs in a `ui.horizontal` and follow them with [`tab_rule`].
+pub fn tab(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
+    let galley = ui
+        .painter()
+        .layout_no_wrap(label.to_owned(), title_font(14.0), GOLD);
+    let size = Vec2::new(galley.size().x + 28.0, 30.0);
+    let (r, resp) = ui.allocate_exact_size(size, Sense::click());
+    let p = ui.painter();
+    let hot = resp.hovered();
+    // selected tabs stand taller and join the page below
+    let body = if selected {
+        r
+    } else {
+        Rect::from_min_max(r.min + Vec2::new(0.0, 4.0), r.max)
+    };
+    let round = CornerRadius {
+        nw: 6,
+        ne: 6,
+        sw: 0,
+        se: 0,
+    };
+    p.rect_filled(body, round, OUTLINE);
+    let (top, bottom) = if selected {
+        (Color32::from_rgb(96, 68, 38), Color32::from_rgb(52, 37, 24))
+    } else if hot {
+        (Color32::from_rgb(66, 47, 30), Color32::from_rgb(36, 26, 18))
+    } else {
+        (Color32::from_rgb(46, 33, 23), Color32::from_rgb(26, 19, 14))
+    };
+    gradient_rect(
+        p,
+        Rect::from_min_max(
+            body.min + Vec2::new(2.0, 3.0),
+            body.max - Vec2::new(2.0, 0.0),
+        ),
+        top,
+        bottom,
+    );
+    let trim = if selected {
+        GOLD
+    } else if hot {
+        GOLD_DARK
+    } else {
+        BRONZE
+    };
+    p.add(Shape::line(
+        vec![
+            body.left_bottom() + Vec2::new(1.0, 0.0),
+            body.left_top() + Vec2::new(1.0, 5.0),
+            body.left_top() + Vec2::new(5.0, 1.0),
+            body.right_top() + Vec2::new(-5.0, 1.0),
+            body.right_top() + Vec2::new(-1.0, 5.0),
+            body.right_bottom() + Vec2::new(-1.0, 0.0),
+        ],
+        Stroke::new(1.5_f32, trim),
+    ));
+    if selected {
+        diamond(
+            p,
+            Pos2::new(body.center().x, body.top() + 1.0),
+            3.5,
+            GOLD_BRIGHT,
+            Stroke::new(1.0_f32, OUTLINE),
+        );
+    }
+    let col = if selected {
+        GOLD_BRIGHT
+    } else if hot {
+        GOLD
+    } else {
+        TEXT_DIM
+    };
+    p.galley_with_override_text_color(
+        Pos2::new(
+            body.center().x - galley.size().x * 0.5,
+            body.center().y - galley.size().y * 0.5 + 1.0,
+        ),
+        galley,
+        col,
+    );
+    resp
+}
+
+/// The gold rule under a row of [`tab`]s, across the available width.
+pub fn tab_rule(ui: &mut egui::Ui) {
+    let gap = ui.spacing().item_spacing.y;
+    let (r, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 3.0), Sense::hover());
+    let y = r.top() - gap;
+    ui.painter().line_segment(
+        [Pos2::new(r.left(), y), Pos2::new(r.right(), y)],
+        Stroke::new(1.5_f32, GOLD_DARK),
+    );
+}
+
+/// The colour of an item quality: 0 poor (grey), 1 common (white),
+/// 2 uncommon (green), 3 rare (blue), 4 epic (purple).
+pub fn quality_color(q: u8) -> Color32 {
+    match q {
+        0 => Color32::from_rgb(157, 157, 157),
+        1 => Color32::from_rgb(240, 236, 224),
+        2 => Color32::from_rgb(64, 220, 60),
+        3 => Color32::from_rgb(64, 140, 255),
+        _ => Color32::from_rgb(176, 84, 240),
+    }
+}
+
+/// An equipment or bag slot with a quality-coloured border (see
+/// [`quality_color`]; poor and common keep the plain bronze rim). The well and
+/// rim are drawn here; the caller draws the icon inside `rect.shrink(4.0)`
+/// AFTERWARDS. `empty_hint` is a ghost label for an empty slot ("Head").
+pub fn item_slot(painter: &egui::Painter, rect: Rect, quality: u8, empty_hint: Option<&str>) {
+    slot_well(painter, rect);
+    slot_rim(painter, rect, false);
+    if quality >= 2 {
+        let c = quality_color(quality);
+        painter.rect_stroke(rect, 4.0, Stroke::new(2.0_f32, c), StrokeKind::Inside);
+        painter.rect_stroke(
+            rect.shrink(2.0),
+            2.0,
+            Stroke::new(1.0_f32, Color32::from_black_alpha(150)),
+            StrokeKind::Inside,
+        );
+        painter.rect_stroke(
+            rect.expand(1.0),
+            5.0,
+            Stroke::new(2.0_f32, alpha(c, 0.25)),
+            StrokeKind::Outside,
+        );
+    }
+    if let Some(hint) = empty_hint {
+        painter.with_clip_rect(rect.shrink(3.0)).text(
+            rect.center(),
+            Align2::CENTER_CENTER,
+            hint,
+            body_font((rect.height() * 0.24).clamp(9.0, 13.0)),
+            Color32::from_rgb(110, 92, 70),
+        );
+    }
+}
+
+/// The frame of a tooltip: a dark panel with a thin gold border.
+pub fn tooltip_frame() -> egui::Frame {
+    egui::Frame::new()
+        .fill(Color32::from_rgba_unmultiplied(16, 11, 8, 244))
+        .stroke(Stroke::new(1.0_f32, GOLD_DARK))
+        .corner_radius(5.0)
+        .inner_margin(egui::Margin::symmetric(10, 8))
+        .shadow(Shadow {
+            offset: [0, 3],
+            blur: 10,
+            spread: 0,
+            color: Color32::from_black_alpha(150),
+        })
+}
+
+/// An item or ability tooltip panel, for panels you place yourself (in an
+/// `egui::Area` at the pointer, or inline); lines wrap at 260 px. Inside
+/// `response.on_hover_ui(..)` egui already draws its own popup frame, which
+/// [`apply`] themes the same way, so there just add the lines without this.
+pub fn tooltip<R>(ui: &mut egui::Ui, add_contents: impl FnOnce(&mut egui::Ui) -> R) -> R {
+    tooltip_frame()
+        .show(ui, |ui| {
+            ui.set_max_width(260.0);
+            ui.spacing_mut().item_spacing.y = 2.0;
+            ui.vertical(add_contents).inner
+        })
+        .inner
+}
+
+/// The first line of a tooltip: a name in its quality colour.
+pub fn tooltip_title(ui: &mut egui::Ui, name: &str, color: Color32) {
+    ui.label(egui::RichText::new(name).font(bold_font(16.0)).color(color));
+}
+
+/// One character stat: the name at the left, the value at the right in `color`.
+pub fn stat_row(ui: &mut egui::Ui, name: &str, value: &str, color: Color32) {
+    let (r, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 20.0), Sense::hover());
+    let p = ui.painter();
+    let left = p.text(
+        Pos2::new(r.left() + 2.0, r.center().y),
+        Align2::LEFT_CENTER,
+        name,
+        body_font(14.5),
+        TEXT_DIM,
+    );
+    let right = p.text(
+        Pos2::new(r.right() - 2.0, r.center().y),
+        Align2::RIGHT_CENTER,
+        value,
+        bold_font(14.5),
+        color,
+    );
+    // a dotted leader between them
+    let y = r.center().y + 4.0;
+    let mut x = left.right() + 6.0;
+    while x < right.left() - 6.0 {
+        p.circle_filled(Pos2::new(x, y), 0.7, alpha(BRONZE, 0.9));
+        x += 5.0;
+    }
+}
+
+/// A gallery of the HUD pieces: a usage example, and a way to look at them all
+/// in one screenshot (call it from the HUD painter while working on the theme).
 pub fn gallery(painter: &egui::Painter, screen: Rect) {
     let c = screen.center();
     let slot = 46.0;
@@ -1404,6 +1621,23 @@ pub fn gallery(painter: &egui::Painter, screen: Rect) {
         title_font(16.0),
         GOLD,
     );
+    let names = ["Head", "Chest", "Legs", "", ""];
+    for (q, name) in names.iter().enumerate() {
+        let r = Rect::from_min_size(
+            Pos2::new(c.x + 60.0 + q as f32 * 52.0, 270.0),
+            Vec2::splat(46.0),
+        );
+        item_slot(painter, r, q as u8, (q < 3).then_some(*name));
+        if q >= 3 {
+            diamond(
+                painter,
+                r.center(),
+                12.0,
+                quality_color(q as u8),
+                Stroke::NONE,
+            );
+        }
+    }
     title_text(
         painter,
         Pos2::new(c.x, 330.0),

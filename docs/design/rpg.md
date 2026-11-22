@@ -57,6 +57,32 @@ The pace follows classic WoW, scaled for a small world of 20 levels.
 
 New abilities arrive at levels 2, 4, 6, 8, 10, 14 and 20. Talents come later.
 
+## The spell bar
+
+The bar at the bottom of the screen holds abilities, not items:
+
+- Keys 1 to 7: your class abilities, in the order you learn them.
+- Key 8: Recall. An 8-second cast that returns you to your bed, or to Hearthstead. It is ready again after 5 minutes. You cannot use it in combat.
+- Key 9: eat the most filling food in your bags (out of combat).
+
+Your weapon and gathering tools are chosen from your bags automatically: the hardest-hitting weapon, and the best tool for each node. Items live in your bags (E).
+
+Casting: abilities with a cast time are cancelled by moving. Every ability triggers a 1.2-second global cooldown. Click a creature or press Tab to target it; abilities use that target.
+
+Rage (Warden) builds by hitting (8 a blow) and by being hit, and fades out of combat. Mana refills at 3% a second out of combat and 0.6% in combat.
+
+## Look and feel
+
+The goal is a warm, hand-painted fantasy look:
+
+- 32 × 32 painted textures.
+- Sun shadows, cool blue shade and warm light.
+- A colour grade with soft highlight roll-off.
+- Painted clouds.
+- Chunky heroic characters with outfits.
+- A gilded interface: portrait frames, parchment quest windows and a carved action bar.
+- Hearthstead is a timber-framed village with an inn, a smithy, a watch tower and the Hearthkeeper's library.
+
 ## Stats and gear
 
 - **Stats**: Strength, Agility, Intellect, Stamina, Spirit. Health = base for class and level + 10 × Stamina.

@@ -328,20 +328,6 @@ pub fn dialog_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<Rpg
     else {
         return out;
     };
-    // DEMO-BEGIN
-    match std::env::var("DYNO_UI_DEMO").as_deref() {
-        Ok("greet") => *quest = None,
-        Ok("choice") => {
-            *quest = me
-                .content
-                .quests
-                .iter()
-                .find(|q| !q.choice.is_empty())
-                .map(|q| q.id)
-        }
-        _ => {}
-    }
-    // DEMO-END
     let c = me.content;
     let Some(n) = c.npc(*npc) else {
         out.push(RpgCmd::Close);
@@ -485,20 +471,6 @@ pub fn log_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<RpgCmd
     let Panel::Log { quest } = panel else {
         return out;
     };
-    // DEMO-BEGIN
-    let demo = demo_log(me);
-    let me = &Me {
-        content: me.content,
-        level: me.level,
-        log: demo.as_deref().unwrap_or(me.log),
-        done: me.done,
-        pos: me.pos,
-        hearth: me.hearth,
-    };
-    if demo.is_some() && quest.is_none() {
-        *quest = me.log.get(2).map(|p| p.quest);
-    }
-    // DEMO-END
     let c = me.content;
     let mut open = true;
     let count = match me.log.len() {
@@ -627,71 +599,8 @@ pub fn log_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<RpgCmd
     out
 }
 
-// DEMO-BEGIN
-fn demo_log(me: &Me) -> Option<Vec<QuestProgress>> {
-    std::env::var_os("DYNO_UI_DEMO")?;
-    Some(
-        me.content
-            .quests
-            .iter()
-            .take(4)
-            .enumerate()
-            .map(|(k, q)| QuestProgress {
-                quest: q.id,
-                counts: q
-                    .objectives
-                    .iter()
-                    .enumerate()
-                    .map(|(i, o)| match k {
-                        1 => o.need(),
-                        2 if i == 0 => o.need(),
-                        _ => o.need() / 3,
-                    })
-                    .collect(),
-            })
-            .collect(),
-    )
-}
-// DEMO-END
-
 /// Objectives of the quests in the log, at the right of the screen.
 pub fn tracker(painter: &egui::Painter, screen: Rect, me: &Me) {
-    // DEMO-BEGIN
-    if std::env::var_os("DYNO_UI_GALLERY").is_some() {
-        theme::gallery(painter, screen);
-        unit_frame(
-            painter,
-            Pos2::new(screen.center().x - 115.0, screen.top() + 12.0),
-            "Ashen Shade",
-            7,
-            level_color(me.level, 7),
-            31.0,
-            80.0,
-            None,
-            Some((45.0, 60.0, theme::MANA)),
-        );
-        unit_frame(
-            painter,
-            Pos2::new(screen.center().x + 140.0, screen.top() + 12.0),
-            "Grazer",
-            2,
-            level_color(me.level, 2),
-            12.0,
-            30.0,
-            None,
-            Some((70.0, 100.0, theme::RAGE)),
-        );
-    }
-    let demo = demo_log(me);
-    let me = &Me {
-        content: me.content,
-        level: me.level,
-        log: demo.as_deref().unwrap_or(me.log),
-        done: me.done,
-        pos: me.pos,
-        hearth: me.hearth,
-    };
-    // DEMO-END
     let shown = || {
         me.log
             .iter()

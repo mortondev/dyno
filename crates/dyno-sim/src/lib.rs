@@ -3,6 +3,7 @@
 //! This crate has no sockets and no wall clock. Randomness comes from a seeded
 //! generator, so every rule can be unit-tested and replayed.
 
+pub mod character;
 pub mod crafting;
 pub mod inventory;
 pub mod mining;

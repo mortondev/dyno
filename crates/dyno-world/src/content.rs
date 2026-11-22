@@ -68,6 +68,130 @@ pub struct Item {
     pub block: Option<BlockId>,
     /// light level when held (ember tools glow)
     pub light: u8,
+    /// 0 poor, 1 common, 2 uncommon, 3 rare, 4 epic
+    #[serde(default)]
+    pub quality: u8,
+    /// vendor price in copper
+    #[serde(default)]
+    pub value: u32,
+    /// level needed to equip
+    #[serde(default)]
+    pub level: u8,
+    #[serde(default)]
+    pub gear: Option<Gear>,
+}
+
+/// Where a piece of gear is worn. The paper doll has one place per slot,
+/// except rings and trinkets, which have two.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum Slot {
+    Head,
+    Neck,
+    Shoulders,
+    Back,
+    Chest,
+    Wrist,
+    Hands,
+    Waist,
+    Legs,
+    Feet,
+    Ring,
+    Trinket,
+    MainHand,
+    OffHand,
+    TwoHand,
+    Ranged,
+}
+
+/// Paper doll places, in display order.
+pub const EQUIP_PLACES: [(Slot, &str); 17] = [
+    (Slot::Head, "Head"),
+    (Slot::Neck, "Neck"),
+    (Slot::Shoulders, "Shoulders"),
+    (Slot::Back, "Back"),
+    (Slot::Chest, "Chest"),
+    (Slot::Wrist, "Wrist"),
+    (Slot::Hands, "Hands"),
+    (Slot::Waist, "Waist"),
+    (Slot::Legs, "Legs"),
+    (Slot::Feet, "Feet"),
+    (Slot::Ring, "Finger"),
+    (Slot::Ring, "Finger"),
+    (Slot::Trinket, "Trinket"),
+    (Slot::Trinket, "Trinket"),
+    (Slot::MainHand, "Main hand"),
+    (Slot::OffHand, "Off hand"),
+    (Slot::Ranged, "Ranged"),
+];
+pub const MAIN_HAND: usize = 14;
+pub const OFF_HAND: usize = 15;
+pub const RANGED: usize = 16;
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "snake_case")]
+pub enum ArmorType {
+    Cloth,
+    Leather,
+    Mail,
+    Plate,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WeaponKind {
+    Sword,
+    Axe,
+    Mace,
+    Dagger,
+    Staff,
+    Polearm,
+    Bow,
+    Wand,
+    Shield,
+    Offhand,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct Stats {
+    pub str: i16,
+    pub agi: i16,
+    pub int: i16,
+    pub sta: i16,
+    pub spi: i16,
+}
+
+impl Stats {
+    pub fn add(&mut self, o: &Stats) {
+        self.str += o.str;
+        self.agi += o.agi;
+        self.int += o.int;
+        self.sta += o.sta;
+        self.spi += o.spi;
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Weapon {
+    pub kind: WeaponKind,
+    pub min: f32,
+    pub max: f32,
+    /// seconds between swings
+    pub speed: f32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Gear {
+    pub slot: Slot,
+    #[serde(default)]
+    pub armor_type: Option<ArmorType>,
+    #[serde(default)]
+    pub weapon: Option<Weapon>,
+    #[serde(default)]
+    pub armor: u16,
+    #[serde(default)]
+    pub stats: Stats,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -91,6 +215,9 @@ pub struct BlockRule {
     /// back after this many seconds (0: not a node)
     #[serde(default)]
     pub respawn: u16,
+    /// profession and skill needed to gather it
+    #[serde(default)]
+    pub skill: Option<(String, u16)>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -118,6 +245,9 @@ pub struct Recipe {
     /// furnace fuel units used
     pub fuel: u8,
     pub group: String,
+    /// profession and skill needed to make it
+    #[serde(default)]
+    pub skill: Option<(String, u16)>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -236,6 +366,8 @@ pub enum Resource {
     Rage,
     /// a pool that refills over time
     Mana,
+    /// refills quickly (10 a second) and steadily
+    Energy,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -247,6 +379,14 @@ pub struct Class {
     pub color: [f32; 3],
     /// one line for the class picker
     pub blurb: String,
+    /// heaviest armour the class can wear
+    pub armor: ArmorType,
+    pub weapons: Vec<WeaponKind>,
+    /// base stats at level 1, and gained per level
+    pub base: Stats,
+    pub growth: Stats,
+    /// item keys a new character of this class starts with (worn when possible)
+    pub starter: Vec<(String, u8)>,
 }
 
 /// A class ability. Its effects are the non-zero fields.
@@ -286,6 +426,45 @@ pub struct Ability {
     pub color: [f32; 3],
     /// item key whose sprite is the icon
     pub icon: String,
+    /// adds a weapon swing times this (0: none)
+    pub weapon: f32,
+    /// damage over time: base, per level, seconds (ticks every 3 s)
+    pub dot: [f32; 3],
+    /// healing over time on yourself: base, per level, seconds
+    pub hot: [f32; 3],
+    /// a timed effect on yourself
+    pub buff: Option<Buff>,
+    /// combo points: positive builds them, negative spends all (damage times points)
+    pub combo: i8,
+    /// rush to the target first
+    pub charge: bool,
+    /// rage or energy given (Onrush)
+    pub gives: f32,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BuffKind {
+    /// +percent damage dealt
+    Damage,
+    /// -percent damage taken
+    Ward,
+    /// +percent attack speed
+    Haste,
+    Strength,
+    Agility,
+    Intellect,
+    Stamina,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Buff {
+    pub kind: BuffKind,
+    pub amount: f32,
+    pub secs: f32,
+    /// extra seconds per combo point spent
+    #[serde(default)]
+    pub per_combo: f32,
 }
 
 /// World rules.
@@ -332,6 +511,16 @@ pub struct Content {
     pub classes: Vec<Class>,
     #[serde(default)]
     pub abilities: Vec<Ability>,
+    #[serde(default)]
+    pub professions: Vec<Profession>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Profession {
+    pub key: String,
+    pub name: String,
+    /// gathering or crafting
+    pub gathering: bool,
 }
 
 // ---------- authored form ----------
@@ -358,6 +547,8 @@ struct AFile {
     classes: Vec<AClass>,
     #[serde(default)]
     abilities: Vec<AAbility>,
+    #[serde(default)]
+    professions: Vec<Profession>,
 }
 
 #[derive(Deserialize)]
@@ -368,6 +559,20 @@ struct AClass {
     color: [f32; 3],
     #[serde(default)]
     blurb: String,
+    #[serde(default = "cloth")]
+    armor: ArmorType,
+    #[serde(default)]
+    weapons: Vec<WeaponKind>,
+    #[serde(default)]
+    base: Stats,
+    #[serde(default)]
+    growth: Stats,
+    #[serde(default)]
+    starter: Vec<(String, u8)>,
+}
+
+fn cloth() -> ArmorType {
+    ArmorType::Cloth
 }
 
 #[derive(Deserialize, Default)]
@@ -392,6 +597,13 @@ struct AAbility {
     recall: bool,
     color: [f32; 3],
     icon: String,
+    weapon: f32,
+    dot: [f32; 3],
+    hot: [f32; 3],
+    buff: Option<Buff>,
+    combo: i8,
+    charge: bool,
+    gives: f32,
 }
 
 #[derive(Deserialize)]
@@ -473,6 +685,14 @@ struct AItem {
     block: Option<String>,
     #[serde(default)]
     light: u8,
+    #[serde(default)]
+    quality: Option<u8>,
+    #[serde(default)]
+    value: u32,
+    #[serde(default)]
+    level: u8,
+    #[serde(default)]
+    gear: Option<Gear>,
 }
 
 #[derive(Deserialize)]
@@ -505,6 +725,8 @@ struct ABlock {
     drops: Option<Vec<ADrop>>,
     #[serde(default)]
     respawn: u16,
+    #[serde(default)]
+    skill: Option<(String, u16)>,
 }
 
 #[derive(Deserialize)]
@@ -521,6 +743,8 @@ struct ARecipe {
     fuel: u8,
     #[serde(default)]
     group: String,
+    #[serde(default)]
+    skill: Option<(String, u16)>,
 }
 
 fn no_station() -> Station {
@@ -619,6 +843,10 @@ impl Content {
                 fuel: a.fuel,
                 block,
                 light: a.light,
+                quality: a.quality.unwrap_or(1),
+                value: a.value,
+                level: a.level,
+                gear: a.gear.clone(),
             });
         }
         let mut blocks = Vec::new();
@@ -630,6 +858,7 @@ impl Content {
                     tool: a.tool,
                     tier: a.tier,
                     respawn: a.respawn,
+                    skill: a.skill.clone(),
                     drops: match &a.drops {
                         Some(d) => drops(d)?,
                         None => vec![Drop {
@@ -649,6 +878,7 @@ impl Content {
                     tool: None,
                     tier: 0,
                     respawn: 0,
+                    skill: None,
                     drops: vec![Drop {
                         item: b as ItemId,
                         min: 1,
@@ -686,6 +916,7 @@ impl Content {
                 } else {
                     r.group.clone()
                 },
+                skill: r.skill.clone(),
             });
         }
         let mut creatures = Vec::new();
@@ -819,6 +1050,11 @@ impl Content {
                 resource: c.resource,
                 color: c.color,
                 blurb: c.blurb.clone(),
+                armor: c.armor,
+                weapons: c.weapons.clone(),
+                base: c.base,
+                growth: c.growth,
+                starter: c.starter.clone(),
             })
             .collect();
         let mut abilities = Vec::new();
@@ -847,14 +1083,26 @@ impl Content {
                 radius: a.radius,
                 root: a.root,
                 stun: a.stun,
-                shade_bonus: if a.shade_bonus > 0.0 { a.shade_bonus } else { 1.0 },
+                shade_bonus: if a.shade_bonus > 0.0 {
+                    a.shade_bonus
+                } else {
+                    1.0
+                },
                 blink: a.blink,
                 recall: a.recall,
                 color: a.color,
                 icon: a.icon.clone(),
+                weapon: a.weapon,
+                dot: a.dot,
+                hot: a.hot,
+                buff: a.buff,
+                combo: a.combo,
+                charge: a.charge,
+                gives: a.gives,
             });
         }
         Ok(Content {
+            professions: f.professions,
             classes,
             abilities,
             name: f.name,
@@ -890,6 +1138,10 @@ impl Content {
                 },
                 block: Some(b),
                 light: 0,
+                quality: 1,
+                value: 0,
+                level: 0,
+                gear: None,
             }
         } else if let Some(it) = self.items.get((id - FIRST_ITEM) as usize) {
             ItemView {
@@ -903,6 +1155,10 @@ impl Content {
                 fuel: it.fuel,
                 block: it.block,
                 light: it.light,
+                quality: it.quality,
+                value: it.value,
+                level: it.level,
+                gear: it.gear.as_ref(),
             }
         } else {
             ItemView {
@@ -916,6 +1172,10 @@ impl Content {
                 fuel: 0,
                 block: None,
                 light: 0,
+                quality: 0,
+                value: 0,
+                level: 0,
+                gear: None,
             }
         }
     }
@@ -984,6 +1244,10 @@ pub struct ItemView<'a> {
     pub fuel: u8,
     pub block: Option<BlockId>,
     pub light: u8,
+    pub quality: u8,
+    pub value: u32,
+    pub level: u8,
+    pub gear: Option<&'a Gear>,
 }
 
 /// Quest XP when the content does not say: about five same-level kills,
