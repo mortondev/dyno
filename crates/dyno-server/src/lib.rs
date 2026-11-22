@@ -415,10 +415,10 @@ impl Server {
 
         {
             let mut st = self.state.lock().unwrap();
-            if let Some(p) = st.players.remove(&id) {
-                if p.pose.pos.iter().all(|v| v.is_finite()) {
-                    st.homes.insert(p.name.to_lowercase(), p.pose.pos);
-                }
+            if let Some(p) = st.players.remove(&id)
+                && p.pose.pos.iter().all(|v| v.is_finite())
+            {
+                st.homes.insert(p.name.to_lowercase(), p.pose.pos);
             }
             self.broadcast(&st, &ServerMsg::PlayerLeft { id }, None);
             self.broadcast(
@@ -659,10 +659,10 @@ fn load_homes(path: &std::path::Path) -> HashMap<String, [f32; 3]> {
     if let Ok(text) = std::fs::read_to_string(path) {
         for line in text.lines() {
             let f: Vec<&str> = line.split('\t').collect();
-            if f.len() == 4 {
-                if let (Ok(x), Ok(y), Ok(z)) = (f[1].parse(), f[2].parse(), f[3].parse()) {
-                    out.insert(f[0].to_string(), [x, y, z]);
-                }
+            if f.len() == 4
+                && let (Ok(x), Ok(y), Ok(z)) = (f[1].parse(), f[2].parse(), f[3].parse())
+            {
+                out.insert(f[0].to_string(), [x, y, z]);
             }
         }
     }
