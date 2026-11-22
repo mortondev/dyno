@@ -27,6 +27,8 @@ pub struct ShotOptions {
     pub ui: String,
     /// join as this player instead of as an invisible observer
     pub player: Option<String>,
+    /// camera distance behind the player (0: first person). Default: the game's.
+    pub zoom: Option<f32>,
 }
 
 /// Returns a one-line description of what was rendered.
@@ -43,7 +45,9 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
         )?;
         let mut g = Gfx::new_headless(o.width, o.height)?;
         let ui = if o.ui == "none" { "hud" } else { &o.ui };
-        return crate::app::shot_with_ui(j, &mut g, o.pos, o.yaw, o.pitch, o.time, ui, o.out);
+        return crate::app::shot_with_ui(
+            j, &mut g, o.pos, o.yaw, o.pitch, o.time, ui, o.out, o.zoom,
+        );
     }
     let j = net::connect(&o.addr, &o.name, 0, true, Duration::from_secs(10))?;
     let mut server_time = 0.25;

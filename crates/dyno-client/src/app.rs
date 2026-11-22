@@ -1838,14 +1838,26 @@ impl App {
                 far,
             );
             let vp = proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+            // models skip faces the camera and sun cannot see, and coarsen far away
+            models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
+            let held_item = if p.content.world.protected && !p.creative() {
+                // RPG: your best weapon is always in hand
+                let pack = dyno_sim::inventory::Inventory {
+                    slots: p.pack.clone(),
+                };
+                dyno_sim::inventory::best_weapon(&pack, &p.content).and_then(|(i, _)| p.pack[i])
+            } else {
+                p.held()
+            };
             if !first_person {
-                let look = models::Look::player(
+                let mut look = models::Look::player(
                     p.my_id,
                     p.class
                         .and_then(|c| p.content.class(c))
                         .map(|c| c.color)
                         .unwrap_or([0.5, 0.5, 0.6]),
                 );
+                look.weapon = models::weapon_look(&p.content, held_item.map(|s| s.item));
                 models::push_person(
                     &mut boxes,
                     p.player.pos,
@@ -1859,15 +1871,6 @@ impl App {
             }
             // block in hand, with a swing when breaking or placing
             let sw = (p.swing * std::f32::consts::PI).sin();
-            let held_item = if p.content.world.protected && !p.creative() {
-                // RPG: your best weapon is always in hand
-                let pack = dyno_sim::inventory::Inventory {
-                    slots: p.pack.clone(),
-                };
-                dyno_sim::inventory::best_weapon(&pack, &p.content).and_then(|(i, _)| p.pack[i])
-            } else {
-                p.held()
-            };
             let held_item = if first_person { held_item } else { None };
             let hand = eye + dir * (0.62 - sw * 0.12) + right * (0.36 - sw * 0.08)
                 - up * (0.34 + sw * 0.1 - (p.bob * 0.5).cos().abs() * 0.015 * bob_amt);
@@ -3683,8 +3686,12 @@ pub fn shot_with_ui(
     time: Option<f32>,
     ui: &str,
     out: std::path::PathBuf,
+    zoom: Option<f32>,
 ) -> Result<String, String> {
     let mut p = new_play(j);
+    if let Some(z) = zoom {
+        p.zoom = z;
+    }
     let until = Instant::now() + Duration::from_millis(700);
     while Instant::now() < until {
         match p.conn.rx.recv_timeout(Duration::from_millis(30)) {
@@ -3842,6 +3849,7 @@ pub fn shot_with_ui(
     let up = right.cross(dir);
     let vp = glam::Mat4::perspective_rh(75f32.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+    models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
     let mut boxes = Vec::new();
     let mut lines = Vec::new();
     let light_at = |l: &Light, v: Vec3| {
@@ -3863,13 +3871,14 @@ pub fn shot_with_ui(
         }
     }
     if p.zoom > 0.5 {
-        let look = models::Look::player(
+        let mut look = models::Look::player(
             p.my_id,
             p.class
                 .and_then(|c| p.content.class(c))
                 .map(|c| c.color)
                 .unwrap_or([0.5, 0.5, 0.6]),
         );
+        look.weapon = models::weapon_look(&p.content, p.held().map(|s| s.item));
         let at = p.player.pos + Vec3::Y;
         let l = p.light.get(
             at.x.floor() as i32,

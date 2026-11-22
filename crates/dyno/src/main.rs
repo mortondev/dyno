@@ -125,6 +125,7 @@ fn main() {
                 out: "shot.ppm".into(),
                 ui: "none".into(),
                 player: None,
+                zoom: None,
             };
             let nums = |v: &str| -> Vec<f32> {
                 v.split(',').filter_map(|x| x.trim().parse().ok()).collect()
@@ -155,6 +156,8 @@ fn main() {
                     "--name" => o.name = v,
                     "--ui" => o.ui = v,
                     "--as" => o.player = Some(v),
+                    // camera distance behind the player; 0 is first person
+                    "--zoom" => o.zoom = v.parse().ok(),
                     other => fail(&format!("unknown shot option {other}")),
                 }
                 i += 2;
