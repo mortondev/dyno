@@ -25,26 +25,25 @@ The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host nam
 
 ### Controls
 
-| Key | Survival | Creative |
-|---|---|---|
-| Mouse | Look | Look |
-| W A S D, Space | Move, jump | Move, jump (Space up when flying) |
-| Shift | Sneak (do not fall off edges) | Down when flying |
-| Ctrl or R | Sprint | Sprint |
-| Left mouse | Hold to break a block | Break at once |
-| Right mouse | Place a block, eat food, open a chest, set your bed | Place a block |
-| E | Pack and recipes (open a table or furnace with right click) | All items |
-| 1 to 9, wheel | Choose a hotbar slot | Choose a hotbar slot |
-| Q / Ctrl+Q | Throw one / the stack | Throw |
-| F | | Fly |
-| G, G then V / X | | Fill / clear a box |
-| Ctrl+Z | | Undo |
-| T or Enter, / | Chat, commands (`/help`) | Chat, commands |
-| Tab, Esc | Players, menu | Players, menu |
+| Key | Action |
+|---|---|
+| Mouse, W A S D, Space | Look, move, jump |
+| Ctrl or R | Sprint |
+| Left mouse | Attack the creature you look at; hold to gather from trees, ore and bushes |
+| Right mouse | Talk to people (a yellow **!** means they have a quest for you, **?** means you can hand one in); eat; open chests |
+| Tab | Target the nearest creature in front of you |
+| L | Quest log |
+| E | Pack and recipes |
+| 1 to 9, wheel | Hotbar |
+| Q / Ctrl+Q | Drop one / the stack |
+| T or Enter, / | Chat, commands (`/help`) |
+| Esc | Menu, or close a window |
 
-### Survival in short
+Operators building the world use `/gamemode creative` for flight, free blocks and the fill tool (G, V, X, Ctrl+Z).
 
-Punch a tree for logs. In your pack (E), turn logs into planks, sticks and a crafting table. Place the table, then make a wooden pickaxe, mine stone, and make stone tools. Build a furnace and smelt a log into coal: one log makes four torches. Nights last five minutes. Shades rise where it is dark, but never within 16 blocks of a hearth, and strong light burns them. You start at a ruined hearth that keeps them out; craft your own hearth (8 cobble, 4 logs, 2 coal) to claim safe ground. Sleep in a bed and the night passes quickly when half of the players sleep. Iron needs a stone pickaxe and a furnace. Emberstone lies deep and needs iron. Berries and meat keep hunger away. When you die you keep your hotbar; the rest stays where you fell for 30 minutes. The full design is in [docs/design/survival.md](docs/design/survival.md).
+### Hearthblock Online in short
+
+You wake by the cold ruins of the Great Hearth in Hearthstead. Talk to Old Brannoc, Captain Maren, Tilda and Hollis to pick up quests: hunt Grazers, gather wood, coal and iron, find the old North Watch beacon, and fight the Shades that rise at night. Quests and kills give experience; you level up from 1 to 5 in the first chain, with gold and gear as rewards. The land is protected, but trees, ore and bushes grow back after you gather them. You never lose items when you die. The plan for classes, gear, zones and a dungeon is in [docs/design/rpg.md](docs/design/rpg.md).
 
 ## Host a world
 
