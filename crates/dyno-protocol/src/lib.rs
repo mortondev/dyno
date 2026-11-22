@@ -51,7 +51,7 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 9;
+pub const PROTOCOL_VERSION: u32 = 10;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -394,6 +394,18 @@ pub enum ServerMsg {
     Combo {
         points: u8,
         target: Option<u32>,
+    },
+    /// A creature with its own name (a rare elite).
+    EntityName {
+        id: u32,
+        name: String,
+        elite: bool,
+    },
+    /// You entered a named place (`name` empty: the wilds).
+    Zone {
+        name: String,
+        levels: [u8; 2],
+        safe: bool,
     },
     /// Your professions: key, skill, cap.
     Skills(Vec<(String, u16, u16)>),

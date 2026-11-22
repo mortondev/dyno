@@ -164,6 +164,8 @@ struct Play {
     /// buffs: ability and when they end
     auras: Vec<(u16, Instant)>,
     combo: (u8, Option<u32>),
+    /// the named place you are in
+    zone: String,
     attacking: Option<u32>,
     /// open tab of the character / bags / spellbook / skills window
     screen_tab: Option<screens::Tab>,
@@ -208,6 +210,8 @@ struct ClientEntity {
     hurt_at: Option<Instant>,
     /// level, health and most health (creatures)
     info: Option<(u8, f32, f32)>,
+    /// a rare elite's own name
+    name: Option<String>,
 }
 
 impl ClientEntity {
@@ -578,6 +582,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             at.z.floor() as i32,
         ) as f32
             / 15.0;
+        let start = boxes.len();
         models::push_creature(
             boxes,
             c.model,
@@ -590,6 +595,14 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             flash,
             clock + *id as f32 * 0.37,
         );
+        // size: the creature's own scale, and rare elites are a quarter larger
+        let scale = c.scale * if e.name.is_some() { 1.25 } else { 1.0 };
+        if (scale - 1.0).abs() > 0.01 {
+            for v in &mut boxes[start..] {
+                let q = (Vec3::from(v.pos) - pos) * scale + pos;
+                v.pos = q.into();
+            }
+        }
     }
 }
 
@@ -872,6 +885,7 @@ fn new_play(j: Joined) -> Play {
         skills: Vec::new(),
         auras: Vec::new(),
         combo: (0, None),
+        zone: String::new(),
         attacking: None,
         screen_tab: None,
         bar: Vec::new(),
@@ -1158,6 +1172,7 @@ impl App {
                                     born: Instant::now(),
                                     hurt_at: None,
                                     info: None,
+                                    name: None,
                                 },
                             );
                         }
@@ -1237,6 +1252,25 @@ impl App {
                             }
                         }
                         ServerMsg::Equipment(e) => p.equip = e,
+                        ServerMsg::EntityName { id, name, .. } => {
+                            if let Some(e) = p.entities.get_mut(&id) {
+                                e.name = Some(name);
+                            }
+                        }
+                        ServerMsg::Zone { name, levels, safe } => {
+                            if !name.is_empty() {
+                                p.title = Some((Instant::now(), name.clone()));
+                                let sub = if safe {
+                                    "A place of safety".to_string()
+                                } else if levels[0] == levels[1] {
+                                    format!("Level {}", levels[0])
+                                } else {
+                                    format!("Levels {} to {}", levels[0], levels[1])
+                                };
+                                p.toast(sub);
+                            }
+                            p.zone = name;
+                        }
                         ServerMsg::Skills(s) => p.skills = s,
                         ServerMsg::Attacking(t) => p.attacking = t,
                         ServerMsg::Combo { points, target } => p.combo = (points, target),
@@ -2685,13 +2719,22 @@ fn hud(
                     } else {
                         Color32::from_rgb(230, 230, 230)
                     };
-                    (
-                        format!("{}  {}", cr.name, lvl),
-                        None,
-                        if cr.hostile { 2.35 } else { 1.6 },
-                        col,
-                        None,
-                    )
+                    match &e.name {
+                        Some(n) => (
+                            format!("{n}  {lvl}  Elite"),
+                            Some(format!("<{}>", cr.name)),
+                            2.8,
+                            Color32::from_rgb(255, 200, 60),
+                            None,
+                        ),
+                        None => (
+                            format!("{}  {}", cr.name, lvl),
+                            None,
+                            if cr.hostile { 2.35 } else { 1.6 },
+                            col,
+                            None,
+                        ),
+                    }
                 }
                 _ => continue,
             };
@@ -3725,6 +3768,7 @@ pub fn shot_with_ui(
                             born: Instant::now(),
                             hurt_at: None,
                             info: None,
+                            name: None,
                         },
                     );
                 }

@@ -285,6 +285,22 @@ pub struct Creature {
     pub burns_in_daylight: bool,
     /// lowest and highest level; the level rises with distance from the spawn
     pub levels: [u8; 2],
+    /// size of the model (1 is normal)
+    #[serde(default = "one_f")]
+    pub scale: f32,
+    /// which look of the model (horns, tusks, armour...)
+    #[serde(default)]
+    pub variant: u8,
+    /// seconds between attacks
+    #[serde(default = "attack_speed")]
+    pub attack_speed: f32,
+}
+
+fn one_f() -> f32 {
+    1.0
+}
+fn attack_speed() -> f32 {
+    1.5
 }
 
 /// A friendly character who stands in the world, talks and gives quests.
@@ -513,6 +529,51 @@ pub struct Content {
     pub abilities: Vec<Ability>,
     #[serde(default)]
     pub professions: Vec<Profession>,
+    #[serde(default)]
+    pub areas: Vec<Area>,
+}
+
+/// A named place on the map: its name shows when you enter, and it holds
+/// creature camps with fixed spawn points and respawn timers.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Area {
+    pub key: String,
+    pub name: String,
+    /// centre (x, z) relative to the spawn hearth, and radius
+    pub at: [i32; 2],
+    pub radius: f32,
+    /// level band of creatures here
+    pub levels: [u8; 2],
+    /// a hearth's peace: no hostile creatures spawn
+    #[serde(default)]
+    pub safe: bool,
+    #[serde(default)]
+    pub camps: Vec<Camp>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Camp {
+    pub creature: u16,
+    /// spawn points in the camp (around its centre)
+    pub count: u8,
+    /// centre (x, z) relative to the spawn hearth; spawn points scatter within `spread`
+    pub at: [i32; 2],
+    pub spread: f32,
+    /// seconds before a killed creature returns
+    pub respawn: u16,
+    /// a rare named elite: chance it appears instead, its name, and its strength
+    #[serde(default)]
+    pub rare: Option<Rare>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Rare {
+    pub name: String,
+    pub chance: f32,
+    /// health and damage multiplier
+    pub power: f32,
+    /// extra levels
+    pub levels: u8,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -549,6 +610,38 @@ struct AFile {
     abilities: Vec<AAbility>,
     #[serde(default)]
     professions: Vec<Profession>,
+    #[serde(default)]
+    areas: Vec<AArea>,
+}
+
+#[derive(Deserialize)]
+struct AArea {
+    key: String,
+    name: String,
+    at: [i32; 2],
+    radius: f32,
+    levels: [u8; 2],
+    #[serde(default)]
+    safe: bool,
+    #[serde(default)]
+    camps: Vec<ACamp>,
+}
+
+#[derive(Deserialize)]
+struct ACamp {
+    creature: String,
+    count: u8,
+    at: [i32; 2],
+    #[serde(default = "eight")]
+    spread: f32,
+    #[serde(default = "five_min")]
+    respawn: u16,
+    #[serde(default)]
+    rare: Option<Rare>,
+}
+
+fn five_min() -> u16 {
+    300
 }
 
 #[derive(Deserialize)]
@@ -771,6 +864,12 @@ struct ACreature {
     burns_in_daylight: bool,
     #[serde(default = "level_one")]
     levels: [u8; 2],
+    #[serde(default = "one_f")]
+    scale: f32,
+    #[serde(default)]
+    variant: u8,
+    #[serde(default = "attack_speed")]
+    attack_speed: f32,
 }
 
 fn level_one() -> [u8; 2] {
@@ -936,6 +1035,9 @@ impl Content {
                 cap: c.cap,
                 burns_in_daylight: c.burns_in_daylight,
                 levels: [c.levels[0].max(1), c.levels[1].max(c.levels[0]).max(1)],
+                scale: c.scale,
+                variant: c.variant,
+                attack_speed: c.attack_speed,
             });
         }
         let npcs: Vec<Npc> = f
@@ -1101,7 +1203,38 @@ impl Content {
                 gives: a.gives,
             });
         }
+        let mut areas = Vec::new();
+        for a in &f.areas {
+            let mut camps = Vec::new();
+            for c in &a.camps {
+                let id = creatures
+                    .iter()
+                    .find(|x: &&Creature| x.key == c.creature)
+                    .map(|x| x.id)
+                    .ok_or_else(|| {
+                        format!("area '{}': unknown creature '{}'", a.key, c.creature)
+                    })?;
+                camps.push(Camp {
+                    creature: id,
+                    count: c.count,
+                    at: c.at,
+                    spread: c.spread,
+                    respawn: c.respawn,
+                    rare: c.rare.clone(),
+                });
+            }
+            areas.push(Area {
+                key: a.key.clone(),
+                name: a.name.clone(),
+                at: a.at,
+                radius: a.radius,
+                levels: a.levels,
+                safe: a.safe,
+                camps,
+            });
+        }
         Ok(Content {
+            areas,
             professions: f.professions,
             classes,
             abilities,

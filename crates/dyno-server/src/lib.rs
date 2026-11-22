@@ -6,6 +6,7 @@
 //! Bad input closes that connection only.
 
 pub mod abilities;
+pub mod camps;
 pub mod creatures;
 pub mod game;
 pub mod gear;
@@ -211,7 +212,10 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         meta_dirty: true,
         spawn_hearth,
         regrow: meta.regrow.clone(),
+        spawn_points: Vec::new(),
+        zone_clock: 0.0,
     };
+    state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
     state.spawn_npcs();
     let server = Arc::new(Server {
         cfg,

@@ -89,6 +89,8 @@ pub struct Player {
     /// Rogue-style fast global cooldown
     pub combo_class: bool,
     pub auras: Vec<crate::abilities::Aura>,
+    /// the named area you stand in
+    pub area: Option<usize>,
 }
 
 impl Player {
@@ -162,6 +164,9 @@ pub struct State {
     pub spawn_hearth: [i32; 3],
     /// harvested resource nodes: where, which block, when it grows back (unix seconds)
     pub regrow: Vec<([i32; 3], u8, u64)>,
+    /// camp spawn points of every area
+    pub spawn_points: Vec<crate::camps::SpawnPoint>,
+    pub zone_clock: f32,
 }
 
 pub fn now_secs() -> u64 {
@@ -463,6 +468,7 @@ impl State {
                 .and_then(|k| self.content.classes.iter().find(|c| &c.key == k))
                 .is_some_and(|c| c.resource == dyno_world::content::Resource::Energy),
             auras: Vec::new(),
+            area: None,
         };
         let others: Vec<PlayerInfo> = self
             .players
@@ -493,6 +499,15 @@ impl State {
             });
         }
         for (eid, e) in &self.entities {
+            if let Some(m) = &e.mob
+                && let Some(n) = &m.name
+            {
+                after.push(ServerMsg::EntityName {
+                    id: *eid,
+                    name: n.clone(),
+                    elite: true,
+                });
+            }
             if let Some(m) = &e.mob {
                 after.push(ServerMsg::EntityInfo {
                     id: *eid,
@@ -1433,6 +1448,12 @@ impl State {
         self.tick_casts();
         self.tick_auto_attacks();
         self.tick_auras();
+        self.zone_clock += dt;
+        if self.zone_clock >= 1.0 {
+            self.zone_clock = 0.0;
+            self.tick_camps();
+            self.tick_zones();
+        }
         self.tick_power(dt);
         self.tick_items(dt);
         self.tick_creatures(dt);
@@ -1746,6 +1767,8 @@ impl State {
             self.send_character(id);
         }
         self.spawn_npcs();
+        self.spawn_points =
+            crate::camps::plan_spawn_points(&self.world, &self.content, self.spawn_hearth);
     }
 
     pub fn item_id(&self, key: &str) -> Option<ItemId> {

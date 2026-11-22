@@ -46,6 +46,12 @@ pub struct Mob {
     pub evading: bool,
     /// damage taken from each player: the highest is its target
     pub threat: std::collections::HashMap<PlayerId, f32>,
+    /// health and damage multiplier (rare elites)
+    pub power: f32,
+    /// a rare elite's own name
+    pub name: Option<String>,
+    /// belongs to a camp: never despawns, the camp respawns it
+    pub camp: bool,
 }
 
 const HALF_W: f32 = 0.3;
@@ -224,6 +230,9 @@ impl State {
                     home: pos,
                     evading: false,
                     threat: std::collections::HashMap::new(),
+                    power: 1.0,
+                    name: None,
+                    camp: false,
                 }),
             },
         );
@@ -301,6 +310,7 @@ impl State {
             return;
         }
         let night = self.is_night();
+        let has_areas = !self.content.areas.is_empty();
         let creatures: Vec<(u16, Spawn, u8)> = self
             .content
             .creatures
@@ -347,13 +357,18 @@ impl State {
                             let daylit = !night && self.light.sky(s[0], s[1], s[2]) >= 4;
                             let crowded =
                                 self.players.values().any(|p| hdist(p.pose.pos, f) < 12.0);
-                            if dark && !daylit && !crowded && !in_sanctuary(&self.hearths, f) {
+                            if dark
+                                && !daylit
+                                && !crowded
+                                && !in_sanctuary(&self.hearths, f)
+                                && !self.in_safe_area(f)
+                            {
                                 self.spawn_creature(cid, f);
                                 break;
                             }
                         }
                     }
-                    Spawn::Meadow if grazer_due && !night => {
+                    Spawn::Meadow if grazer_due && !night && !has_areas => {
                         if self.count_near(cid, at, 64.0) >= cap as usize {
                             continue;
                         }
@@ -417,7 +432,7 @@ impl State {
                 continue;
             };
             // far from everyone: despawn
-            if active.iter().all(|(_, p)| hdist(*p, e.pos) > DESPAWN) {
+            if !mob.camp && active.iter().all(|(_, p)| hdist(*p, e.pos) > DESPAWN) {
                 gone.push((id, false));
                 continue;
             }
@@ -531,7 +546,8 @@ impl State {
                         && mob.stunned_until <= now
                     {
                         mob.attack_cd = 1.5;
-                        let dmg = c.damage
+                        let dmg = mob.power
+                            * c.damage
                             * if rpg {
                                 dyno_sim::progression::mob_scale(mob.level).1
                             } else {
