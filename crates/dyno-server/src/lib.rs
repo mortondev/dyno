@@ -455,6 +455,7 @@ impl Server {
             .set_read_timeout(Some(Duration::from_millis(15)))
             .ok();
 
+        let mut last_fill = Instant::now() - Duration::from_secs(5);
         let mut last_msg = Instant::now();
         let mut window = Instant::now();
         let (mut msgs, mut chats) = (0u32, 0u32);
@@ -521,6 +522,68 @@ impl Server {
                                 log(format!("<{from}> {text}"));
                                 self.broadcast(&st, &ServerMsg::Chat { from, text }, None);
                             }
+                        }
+                        ClientMsg::Fill { a, b, block } => {
+                            if block >= BLOCK_COUNT {
+                                return Err(format!("unknown block {block}"));
+                            }
+                            if last_fill.elapsed() < Duration::from_millis(400) {
+                                continue;
+                            }
+                            last_fill = Instant::now();
+                            let mut st = self.state.lock().unwrap();
+                            let [sx, sy, sz] = st.world.size;
+                            let lo = [
+                                a[0].min(b[0]).max(0),
+                                a[1].min(b[1]).max(0),
+                                a[2].min(b[2]).max(0),
+                            ];
+                            let hi = [
+                                a[0].max(b[0]).min(sx as i32 - 1),
+                                a[1].max(b[1]).min(sy as i32 - 1),
+                                a[2].max(b[2]).min(sz as i32 - 1),
+                            ];
+                            if (0..3).any(|i| lo[i] > hi[i]) {
+                                continue;
+                            }
+                            let vol = (0..3).map(|i| (hi[i] - lo[i] + 1) as i64).product::<i64>();
+                            let me = st.players.get(&id).map(|p| p.pose.pos).unwrap_or_default();
+                            let c: Vec<f32> =
+                                (0..3).map(|i| (lo[i] + hi[i]) as f32 * 0.5).collect();
+                            let d2: f32 = (0..3).map(|i| (c[i] - me[i]).powi(2)).sum();
+                            if vol > proto::MAX_FILL || d2 > 96.0 * 96.0 {
+                                st.tell(
+                                    id,
+                                    format!(
+                                        "Fill refused: at most {} cells, within 96 blocks of you.",
+                                        proto::MAX_FILL
+                                    ),
+                                );
+                                continue;
+                            }
+                            for y in lo[1]..=hi[1] {
+                                for z in lo[2]..=hi[2] {
+                                    for x in lo[0]..=hi[0] {
+                                        st.world.set(x, y, z, block);
+                                    }
+                                }
+                            }
+                            st.dirty = true;
+                            let who = st
+                                .players
+                                .get(&id)
+                                .map(|p| p.name.clone())
+                                .unwrap_or_default();
+                            log(format!("{who} filled {vol} cells with block {block}"));
+                            self.broadcast(
+                                &st,
+                                &ServerMsg::Fill {
+                                    a: lo,
+                                    b: hi,
+                                    block,
+                                },
+                                None,
+                            );
                         }
                         ClientMsg::Hello { .. } => return Err("second hello".into()),
                     }

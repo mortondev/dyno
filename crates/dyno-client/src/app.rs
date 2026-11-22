@@ -118,6 +118,10 @@ struct Play {
     /// night ambience: firefly positions and phases, and the next cricket
     fireflies: Vec<(Vec3, f32)>,
     next_cricket: f32,
+    /// my recent single-block edits: (position, block before, block after)
+    undo: Vec<([i32; 3], w::BlockId, w::BlockId)>,
+    /// fill selection corners
+    sel: (Option<[i32; 3]>, Option<[i32; 3]>),
 }
 
 struct Particle {
@@ -425,9 +429,11 @@ impl App {
                         picker_open: false,
                         fireflies: Vec::new(),
                         next_cricket: 3.0,
+                        undo: Vec::new(),
+                        sel: (None, None),
                         hotbar,
                     };
-                    p.chat.push(Chat { at: Instant::now(), from: None, text: "Click to play. WASD move, Space jump, F fly, left click break, right click place, 1-9 choose block, E all blocks, T chat, /help commands, Esc menu.".into() });
+                    p.chat.push(Chat { at: Instant::now(), from: None, text: "Click to play. WASD move, Space jump, F fly, left click break, right click place, 1-9 choose block, E all blocks, G G then V to fill, Ctrl+Z undo, T chat, /help commands, Esc menu.".into() });
                     if let Some(g) = self.gfx.as_mut() {
                         g.load_world(&p.world, &p.light);
                     }
@@ -521,6 +527,31 @@ impl App {
                             p.time = time;
                             p.day_seconds = day_seconds.max(10.0);
                             p.time_at = Instant::now();
+                        }
+                        ServerMsg::Fill { a, b, block } => {
+                            for y in a[1]..=b[1] {
+                                for z in a[2]..=b[2] {
+                                    for x in a[0]..=b[0] {
+                                        p.world.set(x, y, z, block);
+                                    }
+                                }
+                            }
+                            p.light.changed_box(&p.world, a, b);
+                            if let Some(g) = self.gfx.as_mut() {
+                                g.region_changed(&p.world, &p.light, a, b, 15);
+                            }
+                            let c = Vec3::new(
+                                (a[0] + b[0]) as f32 * 0.5,
+                                (a[1] + b[1]) as f32 * 0.5,
+                                (a[2] + b[2]) as f32 * 0.5,
+                            );
+                            let gain = (1.0 - c.distance(p.player.eye()) / 48.0).clamp(0.2, 1.0);
+                            let m = if block == w::AIR {
+                                Sfx::Break(w::Material::Stone)
+                            } else {
+                                Sfx::Place(material_of(block))
+                            };
+                            self.audio.play(m, gain);
                         }
                         ServerMsg::Teleport { pos } => {
                             p.player.pos = Vec3::from(pos);
@@ -765,6 +796,53 @@ impl App {
                     }
                 }
             }
+            // fill selection box
+            if let Some(a) = p.sel.0 {
+                let b = p.sel.1.or(p.target.as_ref().map(|t| t.block)).unwrap_or(a);
+                let lo = Vec3::new(
+                    a[0].min(b[0]) as f32,
+                    a[1].min(b[1]) as f32,
+                    a[2].min(b[2]) as f32,
+                ) - Vec3::splat(0.01);
+                let hi = Vec3::new(
+                    a[0].max(b[0]) as f32,
+                    a[1].max(b[1]) as f32,
+                    a[2].max(b[2]) as f32,
+                ) + Vec3::splat(1.01);
+                let cs = [
+                    Vec3::new(lo.x, lo.y, lo.z),
+                    Vec3::new(hi.x, lo.y, lo.z),
+                    Vec3::new(hi.x, lo.y, hi.z),
+                    Vec3::new(lo.x, lo.y, hi.z),
+                    Vec3::new(lo.x, hi.y, lo.z),
+                    Vec3::new(hi.x, hi.y, lo.z),
+                    Vec3::new(hi.x, hi.y, hi.z),
+                    Vec3::new(lo.x, hi.y, hi.z),
+                ];
+                for (i, j) in [
+                    (0, 1),
+                    (1, 2),
+                    (2, 3),
+                    (3, 0),
+                    (4, 5),
+                    (5, 6),
+                    (6, 7),
+                    (7, 4),
+                    (0, 4),
+                    (1, 5),
+                    (2, 6),
+                    (3, 7),
+                ] {
+                    for k in [i, j] {
+                        lines.push(Vertex {
+                            pos: cs[k].into(),
+                            normal: [0.0; 3],
+                            color: [1.0, 0.55, 0.15, 0.95],
+                            light: 1.0,
+                        });
+                    }
+                }
+            }
             // camera with view bob
             let dir = p.player.look_dir();
             let right = dir.cross(Vec3::Y).normalize_or_zero();
@@ -914,6 +992,38 @@ impl App {
                 p.picker_open = true;
                 self.set_capture(false);
             }
+            KeyCode::KeyZ
+                if p.keys.contains(&KeyCode::ControlLeft)
+                    || p.keys.contains(&KeyCode::ControlRight) =>
+            {
+                while let Some((pos, old, new)) = p.undo.pop() {
+                    if p.world.get(pos[0], pos[1], pos[2]) == new {
+                        let _ = p.conn.tx.send(ClientMsg::SetBlock { pos, block: old });
+                        break;
+                    }
+                }
+            }
+            KeyCode::KeyG => {
+                if let Some(t) = &p.target {
+                    p.sel = match p.sel {
+                        (Some(a), None) => (Some(a), Some(t.block)),
+                        _ => (Some(t.block), None),
+                    };
+                } else {
+                    p.sel = (None, None);
+                }
+            }
+            KeyCode::KeyV | KeyCode::KeyX => {
+                if let (Some(a), Some(b)) = p.sel {
+                    let block = if code == KeyCode::KeyX {
+                        w::AIR
+                    } else {
+                        p.hotbar[p.slot]
+                    };
+                    let _ = p.conn.tx.send(ClientMsg::Fill { a, b, block });
+                    p.sel = (None, None);
+                }
+            }
             _ => {
                 let digits = [
                     KeyCode::Digit1,
@@ -963,6 +1073,7 @@ impl App {
                     (pos[0] * 31 + pos[1] * 7 + pos[2]) as u32,
                 );
                 self.audio.play(Sfx::Break(material_of(old)), 0.9);
+                p.undo.push((pos, old, w::AIR));
                 let _ = p.conn.tx.send(ClientMsg::SetBlock { pos, block: w::AIR });
             }
             MouseButton::Right => {
@@ -988,6 +1099,10 @@ impl App {
                     };
                     gfx.block_changed(&p.world, &p.light, pos, r);
                     self.audio.play(Sfx::Place(material_of(block)), 0.9);
+                    p.undo.push((pos, here, block));
+                    if p.undo.len() > 64 {
+                        p.undo.remove(0);
+                    }
                     let _ = p.conn.tx.send(ClientMsg::SetBlock { pos, block });
                 }
             }
@@ -1329,6 +1444,31 @@ fn hud(
         FontId::proportional(15.0),
         Color32::WHITE,
     );
+    // fill hint
+    if let Some(a) = p.sel.0 {
+        let b = p.sel.1.or(p.target.as_ref().map(|t| t.block)).unwrap_or(a);
+        let n: i64 = (0..3).map(|i| ((a[i] - b[i]).abs() + 1) as i64).product();
+        let msg = if p.sel.1.is_some() {
+            format!(
+                "{n} cells selected · V fill with {} · X clear · G start again",
+                w::block(p.hotbar[p.slot]).name
+            )
+        } else {
+            format!("{n} cells · look at the other corner and press G")
+        };
+        let col = if n > dyno_protocol::MAX_FILL {
+            Color32::from_rgb(240, 110, 100)
+        } else {
+            ACCENT
+        };
+        painter.text(
+            Pos2::new(c.x, start.y - 36.0),
+            Align2::CENTER_BOTTOM,
+            msg,
+            FontId::proportional(14.0),
+            col,
+        );
+    }
     // block picker
     if p.picker_open {
         egui::Window::new("Blocks")
@@ -1455,7 +1595,7 @@ fn hud(
             host_panel(ui, host, actions);
             ui.add_space(6.0);
             ui.label(RichText::new(format!("Connected to {}", p.url)).small().weak());
-            ui.label(RichText::new("Controls: WASD move · Space jump · Shift down when flying · Ctrl or R sprint · F fly · left click break · right click place · middle click pick · 1-9 or wheel blocks · E all blocks · T chat · Tab players").small().weak());
+            ui.label(RichText::new("Controls: WASD move · Space jump · Shift down when flying · Ctrl or R sprint · F fly · left click break · right click place · middle click pick · 1-9 or wheel blocks · E all blocks · G corner, V fill, X clear · Ctrl+Z undo · T chat · Tab players").small().weak());
             if ui.button("Leave server").clicked() {
                 actions.push(Action::Disconnect);
             }

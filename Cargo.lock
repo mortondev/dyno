@@ -702,6 +702,7 @@ dependencies = [
  "dyno-protocol",
  "dyno-server",
  "dyno-update",
+ "dyno-world",
 ]
 
 [[package]]

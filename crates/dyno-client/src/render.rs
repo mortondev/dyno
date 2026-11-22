@@ -789,6 +789,31 @@ impl Gfx {
         }
     }
 
+    /// Re-mesh every section that touches the box [lo - margin, hi + margin].
+    pub fn region_changed(
+        &mut self,
+        world: &World,
+        light: &Light,
+        lo: [i32; 3],
+        hi: [i32; 3],
+        margin: i32,
+    ) {
+        let s0 = |v: i32, i: usize| ((v - margin).div_euclid(SECTION)).clamp(0, self.dims[i] - 1);
+        let s1 = |v: i32, i: usize| ((v + margin).div_euclid(SECTION)).clamp(0, self.dims[i] - 1);
+        for sy in s0(lo[1], 1)..=s1(hi[1], 1) {
+            for sz in s0(lo[2], 2)..=s1(hi[2], 2) {
+                for sx in s0(lo[0], 0)..=s1(hi[0], 0) {
+                    let (o, t) = mesh_section(world, light, sx, sy, sz);
+                    let i = ((sy * self.dims[2] + sz) * self.dims[0] + sx) as usize;
+                    self.sections[i] = SectionMesh {
+                        opaque: self.upload(&o),
+                        trans: self.upload(&t),
+                    };
+                }
+            }
+        }
+    }
+
     /// Re-mesh the section that holds a cell, and its neighbours when the cell is on an edge.
     pub fn block_changed(&mut self, world: &World, light: &Light, p: [i32; 3], radius: i32) {
         let mut todo = Vec::new();

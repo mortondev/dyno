@@ -12,3 +12,4 @@ dyno-client = { path = "../dyno-client" }
 dyno-protocol = { path = "../dyno-protocol" }
 dyno-server = { path = "../dyno-server" }
 dyno-update = { path = "../dyno-update" }
+dyno-world = { path = "../dyno-world" }

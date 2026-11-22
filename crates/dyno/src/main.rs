@@ -16,6 +16,8 @@ USAGE:
                                Join, render one frame off-screen to an image, leave
   dyno bot <address> [name] [seconds]
                                Join as a bot that walks in a circle (demos, tests)
+  dyno fill <address> x,y,z x,y,z <block>
+                               Fill a box with a block (Air clears it)
   dyno update                  Check for a new release and install it
   dyno version                 Print version, target and protocol
   dyno verify-manifest <manifest.json> <manifest.json.sig>
@@ -179,6 +181,70 @@ fn main() {
                 }
                 while j.conn.rx.try_recv().is_ok() {}
                 std::thread::sleep(Duration::from_millis(50));
+            }
+        }
+        "fill" => {
+            // dyno fill <address> x,y,z x,y,z <block name or id>
+            let (Some(addr), Some(a), Some(b), Some(blk)) =
+                (args.get(1), args.get(2), args.get(3), args.get(4))
+            else {
+                eprintln!("usage: dyno fill <address> x,y,z x,y,z <block name or id>");
+                std::process::exit(2);
+            };
+            let p3 = |v: &str| -> [i32; 3] {
+                let n: Vec<i32> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+                n.try_into().unwrap_or_else(|_| fail("corners are x,y,z"))
+            };
+            let block = blk.parse::<u8>().ok().or_else(|| {
+                dyno_world::BLOCKS
+                    .iter()
+                    .position(|d| d.name.eq_ignore_ascii_case(blk))
+                    .map(|i| i as u8)
+            });
+            let Some(block) = block else {
+                fail("unknown block")
+            };
+            let (a, b) = (p3(a), p3(b));
+            let j = dyno_client::net::connect(addr, "builder", Duration::from_secs(10))
+                .unwrap_or_else(|e| fail(&e));
+            // stand next to the box so the server accepts the reach check
+            let c = [
+                (a[0] + b[0]) as f32 * 0.5,
+                (a[1].max(b[1]) + 2) as f32,
+                (a[2] + b[2]) as f32 * 0.5,
+            ];
+            let _ = j
+                .conn
+                .tx
+                .send(dyno_protocol::ClientMsg::Pose(dyno_protocol::Pose {
+                    pos: c,
+                    yaw: 0.0,
+                    pitch: 0.0,
+                }));
+            std::thread::sleep(Duration::from_millis(150));
+            let _ = j
+                .conn
+                .tx
+                .send(dyno_protocol::ClientMsg::Fill { a, b, block });
+            let until = std::time::Instant::now() + Duration::from_millis(1500);
+            while std::time::Instant::now() < until {
+                match j.conn.rx.recv_timeout(Duration::from_millis(100)) {
+                    Ok(dyno_client::net::NetEvent::Msg(dyno_protocol::ServerMsg::Fill {
+                        a,
+                        b,
+                        block,
+                    })) => {
+                        println!(
+                            "filled {a:?} to {b:?} with {}",
+                            dyno_world::block(block).name
+                        );
+                        break;
+                    }
+                    Ok(dyno_client::net::NetEvent::Msg(dyno_protocol::ServerMsg::System {
+                        text,
+                    })) => println!("{text}"),
+                    _ => {}
+                }
             }
         }
         "verify-manifest" => {

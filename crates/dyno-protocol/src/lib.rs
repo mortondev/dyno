@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 3;
+pub const PROTOCOL_VERSION: u32 = 4;
 
 /// Default TCP port of the game server.
 pub const DEFAULT_PORT: u16 = 7400;
@@ -21,6 +21,8 @@ pub const MAX_SERVER_MESSAGE: usize = 32 * 1024 * 1024;
 pub const MAX_NAME: usize = 24;
 /// Longest chat message, in characters.
 pub const MAX_CHAT: usize = 256;
+/// Largest fill, in cells.
+pub const MAX_FILL: i64 = 32 * 32 * 32;
 
 pub type PlayerId = u32;
 
@@ -38,6 +40,8 @@ pub enum ClientMsg {
     SetBlock { pos: [i32; 3], block: u8 },
     /// Chat text.
     Chat { text: String },
+    /// Fill the box between two corners (inclusive) with one block. Air clears it.
+    Fill { a: [i32; 3], b: [i32; 3], block: u8 },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -99,6 +103,12 @@ pub enum ServerMsg {
     /// Move the player (from /tp and /spawn).
     Teleport {
         pos: [f32; 3],
+    },
+    /// A box of cells was filled with one block. `a` is the low corner, `b` the high corner.
+    Fill {
+        a: [i32; 3],
+        b: [i32; 3],
+        block: u8,
     },
 }
 

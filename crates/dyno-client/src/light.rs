@@ -41,6 +41,15 @@ impl Light {
         self.idx(x, y, z).map(|i| self.data[i]).unwrap_or(0)
     }
 
+    /// Recompute light after a box of cells changed.
+    pub fn changed_box(&mut self, world: &World, lo: [i32; 3], hi: [i32; 3]) {
+        self.recompute(
+            world,
+            [lo[0] - R, lo[1] - R, lo[2] - R],
+            [hi[0] + R, hi[1] + R, hi[2] + R],
+        );
+    }
+
     /// Recompute light after a change at `p`.
     pub fn changed(&mut self, world: &World, p: [i32; 3]) {
         self.recompute(
