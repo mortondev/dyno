@@ -3,8 +3,9 @@
 
 use crate::game::{self, Player};
 use crate::light::Light;
+use crate::models;
 use crate::net::{self, NetEvent};
-use crate::render::{self, Gfx};
+use crate::render::Gfx;
 use dyno_protocol::{Pose, ServerMsg};
 use glam::Vec3;
 use std::path::PathBuf;
@@ -77,7 +78,7 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
             base.z.floor() as i32,
         ) as f32
             / 15.0;
-        render::push_avatar(
+        models::push_avatar(
             &mut boxes,
             base,
             pose.yaw,

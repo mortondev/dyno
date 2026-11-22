@@ -236,7 +236,8 @@ pub const BLOCKS: &[BlockDef] = &[
         alpha: 1.0,
         emission: 15,
         material: Stone,
-    },    BlockDef {
+    },
+    BlockDef {
         name: "Stone bricks",
         color: [0.55, 0.54, 0.52],
         alpha: 1.0,

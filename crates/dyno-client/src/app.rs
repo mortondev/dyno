@@ -3,6 +3,7 @@
 use crate::audio::{Audio, Sfx};
 use crate::game::{self, Input, Player, Remote, Remotes, Target};
 use crate::light::Light;
+use crate::models;
 use crate::net::{self, Joined, NetEvent};
 use crate::render::{self, Gfx, Vertex};
 use crate::rpg_ui;
@@ -294,7 +295,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
                 at.z.floor() as i32,
             ) as f32
                 / 15.0;
-            render::push_avatar(
+            models::push_avatar(
                 boxes,
                 pos,
                 e.yaw,
@@ -331,7 +332,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             at.z.floor() as i32,
         ) as f32
             / 15.0;
-        render::push_creature(
+        models::push_creature(
             boxes,
             c.model,
             pos,
@@ -1286,7 +1287,7 @@ impl App {
                 let base = Vec3::from(pose.pos);
                 let bl = light_at(&p.light, base + Vec3::Y);
                 let walk = (r.speed() / 4.0).min(1.0);
-                render::push_avatar(
+                models::push_avatar(
                     &mut boxes,
                     base,
                     pose.yaw,
@@ -1488,7 +1489,7 @@ impl App {
                 - up * (0.34 + sw * 0.1 - (p.bob * 0.5).cos().abs() * 0.015 * bob_amt);
             let (s1, c1) = (0.6f32 - sw * 0.8).sin_cos();
             let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];
-            render::push_held(
+            models::push_held(
                 &mut boxes,
                 &p.content,
                 held_item.map(|s| s.item),
@@ -3081,7 +3082,7 @@ pub fn shot_with_ui(
     for (id, r) in &p.remotes {
         let pose = r.current();
         let base = Vec3::from(pose.pos);
-        render::push_avatar(
+        models::push_avatar(
             &mut boxes,
             base,
             pose.yaw,
@@ -3096,7 +3097,7 @@ pub fn shot_with_ui(
         let hand = eye + dir * 0.62 + right * 0.36 - up * 0.34;
         let (s1, c1) = 0.6f32.sin_cos();
         let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];
-        render::push_held(
+        models::push_held(
             &mut boxes,
             &p.content,
             p.held().map(|s| s.item),
