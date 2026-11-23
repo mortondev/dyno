@@ -282,10 +282,11 @@ fn mb(bytes: u64) -> f64 {
 
 fn line(r: &SceneResult) -> String {
     format!(
-        "{:>7} {:<20} GPU {} ms (95% {}), CPU {:.2} ms ({:.2} on the wall), {} draws, {:.2} M triangles, vertices {:.0} MB, mesh {:.2} ms a section",
+        "{:>7} {:<20} GPU {} ms (best {}, 95% {}), CPU {:.2} ms ({:.2} on the wall), {} draws, {:.2} M triangles, vertices {:.0} MB, mesh {:.2} ms a section",
         r.tier,
         r.name,
         r.gpu_ms.map_or("-".into(), |d| format!("{:.2}", d.median)),
+        r.gpu_ms.map_or("-".into(), |d| format!("{:.2}", d.min)),
         r.gpu_ms.map_or("-".into(), |d| format!("{:.2}", d.p95)),
         r.cpu_ms.median,
         r.wall_ms.median,
@@ -408,18 +409,31 @@ pub fn markdown(r: &Report) -> String {
                 mesh
             );
         }
-        let _ = writeln!(s, "\nBy pass (median GPU ms / draw calls / triangles):\n");
-        let _ = write!(s, "| scene |");
+        let _ = writeln!(
+            s,
+            "\nBy pass (median GPU ms / main-thread CPU ms / draw calls / triangles); best: the least GPU ms of any frame; setup and submit: the renderer's CPU ms before the first pass and handing the frame over; moving: vertices made anew each frame (figures, effects) and the CPU ms of setup spent uploading them; life: the ambient life's CPU ms:\n"
+        );
+        let _ = write!(s, "| scene | best GPU | setup | submit | moving | life |");
         for p in bench::PASSES {
             let _ = write!(s, " {p} |");
         }
-        let _ = write!(s, "\n|---|");
+        let _ = write!(s, "\n|---|---|---|---|---|---|");
         for _ in bench::PASSES {
             let _ = write!(s, "---|");
         }
         let _ = writeln!(s);
         for x in &scenes {
-            let _ = write!(s, "| {} |", x.name);
+            let _ = write!(
+                s,
+                "| {} | {} | {:.2} | {:.2} | {} k / {:.2} | {:.2} |",
+                x.name,
+                x.gpu_ms.map_or("-".into(), |d| format!("{:.2}", d.min)),
+                x.cpu_setup_ms,
+                x.cpu_submit_ms,
+                x.moving_vertices / 1000,
+                x.cpu_upload_ms,
+                x.life_ms
+            );
             for p in &x.passes {
                 let ms = p.gpu_ms.map_or("-".into(), |m| format!("{m:.2}"));
                 let tris = if p.triangles >= 100_000 {
@@ -427,12 +441,126 @@ pub fn markdown(r: &Report) -> String {
                 } else {
                     p.triangles.to_string()
                 };
-                let _ = write!(s, " {ms} / {} / {tris} |", p.draws);
+                let _ = write!(s, " {ms} / {:.2} / {} / {tris} |", p.cpu_ms, p.draws);
             }
             let _ = writeln!(s);
         }
     }
     s
+}
+
+/// How one picture differs from another.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PictureDiff {
+    pub name: String,
+    /// the largest difference of any channel of any pixel, of 255
+    pub max: u8,
+    /// the mean difference of a channel, of 255
+    pub mean: f64,
+    /// the share of pixels with a channel more than 2 apart, and more than 8
+    pub over2: f64,
+    pub over8: f64,
+}
+
+fn compare(name: &str, a: &[u8], b: &[u8]) -> (PictureDiff, Vec<u8>) {
+    let (mut max, mut sum, mut over2, mut over8) = (0u8, 0u64, 0u64, 0u64);
+    let mut heat = Vec::with_capacity(a.len() / 4 * 3);
+    for (p, q) in a.as_chunks::<4>().0.iter().zip(b.as_chunks::<4>().0) {
+        let d = [0, 1, 2].map(|i| p[i].abs_diff(q[i]));
+        let m = d[0].max(d[1]).max(d[2]);
+        max = max.max(m);
+        sum += d.iter().map(|x| *x as u64).sum::<u64>();
+        over2 += (m > 2) as u64;
+        over8 += (m > 8) as u64;
+        // the difference, twenty times as bright
+        heat.extend(d.map(|x| (x as u32 * 20).min(255) as u8));
+    }
+    let n = (a.len() / 4).max(1) as f64;
+    let d = PictureDiff {
+        name: name.into(),
+        max,
+        mean: sum as f64 / (n * 3.0),
+        over2: over2 as f64 / n,
+        over8: over8 as f64 / n,
+    };
+    (d, heat)
+}
+
+fn pictures(dir: &Path, under: &str, out: &mut Vec<String>) {
+    let Ok(list) = std::fs::read_dir(dir.join(under)) else {
+        return;
+    };
+    for e in list.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        let rel = if under.is_empty() {
+            name.clone()
+        } else {
+            format!("{under}/{name}")
+        };
+        if e.path().is_dir() {
+            pictures(dir, &rel, out);
+        } else if name.ends_with(".png") {
+            out.push(rel);
+        }
+    }
+}
+
+/// `dyno bench --diff A B [--out DIR]`: compare the still pictures of two
+/// runs, pixel by pixel. Returns a Markdown table; with `out`, also writes
+/// it there as `diff.md` beside a picture of each difference (twenty times
+/// as bright).
+pub fn diff(a: &Path, b: &Path, out: Option<&Path>) -> Result<String, String> {
+    use std::fmt::Write;
+    let mut names = Vec::new();
+    pictures(a, "", &mut names);
+    names.sort();
+    let mut s = format!(
+        "Pictures of {} against {}: differences of a channel, of 255.\n\n| picture | largest | mean | pixels over 2 | pixels over 8 |\n|---|---|---|---|---|\n",
+        a.display(),
+        b.display()
+    );
+    let mut n = 0;
+    for name in &names {
+        let load = |dir: &Path| {
+            std::fs::read(dir.join(name))
+                .ok()
+                .and_then(|bytes| dyno_client::textures::decode_png(&bytes))
+        };
+        let (Some(pa), Some(pb)) = (load(a), load(b)) else {
+            continue;
+        };
+        if (pa.0, pa.1) != (pb.0, pb.1) {
+            return Err(format!("{name}: the pictures differ in size"));
+        }
+        let (d, heat) = compare(name, &pa.2, &pb.2);
+        let _ = writeln!(
+            s,
+            "| {} | {} | {:.3} | {:.3}% | {:.3}% |",
+            d.name.trim_end_matches(".png"),
+            d.max,
+            d.mean,
+            d.over2 * 100.0,
+            d.over8 * 100.0
+        );
+        if let Some(out) = out {
+            let file = out.join(name.replace('/', "-").replace(".png", "-diff.png"));
+            std::fs::create_dir_all(out).map_err(|e| e.to_string())?;
+            let png = dyno_client::textures::encode_png(pa.0 as u32, pa.1 as u32, &heat)?;
+            std::fs::write(file, png).map_err(|e| e.to_string())?;
+        }
+        n += 1;
+    }
+    if n == 0 {
+        return Err(format!(
+            "no pictures in {} with a match in {}",
+            a.display(),
+            b.display()
+        ));
+    }
+    if let Some(out) = out {
+        std::fs::write(out.join("diff.md"), &s).map_err(|e| e.to_string())?;
+    }
+    Ok(s)
 }
 
 #[cfg(test)]
@@ -462,6 +590,16 @@ mod tests {
                 ..Default::default()
             }],
         }
+    }
+
+    #[test]
+    fn pictures_compare_pixel_by_pixel() {
+        let a = [10, 20, 30, 255, 0, 0, 0, 255];
+        let b = [10, 23, 30, 255, 0, 0, 9, 255];
+        let (d, heat) = compare("x", &a, &b);
+        assert_eq!((d.max, d.over2, d.over8), (9, 1.0, 0.5));
+        assert_eq!(d.mean, 12.0 / 6.0);
+        assert_eq!(heat, [0, 60, 0, 0, 0, 180]);
     }
 
     #[test]

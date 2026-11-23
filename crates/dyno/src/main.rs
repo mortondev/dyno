@@ -35,6 +35,8 @@ USAGE:
                                Choose where the stand shot of each landmark stands; write the camera data
   dyno shot --anim-sheet <out.ppm|out.png>
                                Render animation contact sheets (no server needed)
+  dyno bench --diff DIR_A DIR_B [--out DIR]
+                               Compare the still pictures of two bench runs, pixel by pixel
   dyno bench <address>|--local [--tier low|medium|high|ultra|all] [--out DIR] [--check REPORT.json]
                                Measure the fixed scenes of the performance budget (tools/bench/scenes.json)
                                at each graphics tier; write report.json, report.md and the pictures.
@@ -163,6 +165,23 @@ fn main() {
             }
         }
         "bench" => {
+            // dyno bench --diff A B [--out DIR]: compare two runs' pictures
+            if args.get(1).is_some_and(|a| a == "--diff") {
+                let (Some(a), Some(b)) = (args.get(2), args.get(3)) else {
+                    fail("usage: dyno bench --diff DIR_A DIR_B [--out DIR]");
+                };
+                let out = (args.get(4).is_some_and(|a| a == "--out"))
+                    .then(|| args.get(5).map(std::path::PathBuf::from))
+                    .flatten();
+                match bench::diff(a.as_ref(), b.as_ref(), out.as_deref()) {
+                    Ok(table) => print!("{table}"),
+                    Err(e) => {
+                        eprintln!("FAILED: {e}");
+                        std::process::exit(1);
+                    }
+                }
+                return;
+            }
             let mut o = bench::Options::default();
             let mut i = 1;
             while i < args.len() {

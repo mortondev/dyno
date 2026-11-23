@@ -18,10 +18,14 @@ pub const DEPTH_RANGE: f32 = 260.0;
 
 const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-/// Depth only, from the light.
+/// Depth only, from the light. `vs_packed`: the world's packed meshes (pack.rs).
 const SHADER: &str = r#"
 struct C { vp: mat4x4<f32> };
 @group(0) @binding(0) var<uniform> c: C;
+@vertex fn vs_packed(v: PIn) -> @builtin(position) vec4<f32> {
+  if (v.pos.w < -2) { return vec4<f32>(2.0, 2.0, 2.0, 1.0); }
+  return c.vp * vec4<f32>(unpack_pos(v), 1.0);
+}
 @vertex fn vs(@location(0) pos: vec3<f32>, @location(5) tex: vec4<f32>) -> @builtin(position) vec4<f32> {
   // decals and halos cast no shadow
   if (tex.z < -2.5) { return vec4<f32>(2.0, 2.0, 2.0, 1.0); }
@@ -92,7 +96,10 @@ pub struct Shadows {
     layers: [wgpu::TextureView; CASCADES],
     bufs: [wgpu::Buffer; CASCADES],
     binds: [wgpu::BindGroup; CASCADES],
-    pipe: wgpu::RenderPipeline,
+    /// casters in the plain vertex format (set when a cascade's pass begins)
+    pub pipe: wgpu::RenderPipeline,
+    /// casters in the packed format, with the section corners in buffer 1
+    pub packed_pipe: wgpu::RenderPipeline,
 }
 
 impl Shadows {
@@ -157,45 +164,53 @@ impl Shadows {
         });
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("shadow"),
-            source: wgpu::ShaderSource::Wgsl(SHADER.into()),
+            source: wgpu::ShaderSource::Wgsl([crate::pack::WGSL, SHADER].concat().into()),
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("shadow"),
             bind_group_layouts: &[&bgl],
             push_constant_ranges: &[],
         });
-        let pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("shadow"),
-            layout: Some(&layout),
-            vertex: wgpu::VertexState {
-                module: &module,
-                entry_point: Some("vs"),
-                compilation_options: Default::default(),
-                buffers: std::slice::from_ref(vlayout),
-            },
-            primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DEPTH,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: Default::default(),
-                // only for slopes; the world shader lifts the point it
-                // looks up off its surface instead (atmos.rs)
-                bias: wgpu::DepthBiasState {
-                    constant: 1,
-                    slope_scale: 1.5,
-                    clamp: 0.0,
+        let make = |entry: &str, buffers: &[wgpu::VertexBufferLayout]| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("shadow"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &module,
+                    entry_point: Some(entry),
+                    compilation_options: Default::default(),
+                    buffers,
                 },
-            }),
-            multisample: Default::default(),
-            fragment: None,
-            multiview: None,
-            cache: None,
-        });
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DEPTH,
+                    depth_write_enabled: true,
+                    depth_compare: wgpu::CompareFunction::LessEqual,
+                    stencil: Default::default(),
+                    // only for slopes; the world shader lifts the point it
+                    // looks up off its surface instead (atmos.rs)
+                    bias: wgpu::DepthBiasState {
+                        constant: 1,
+                        slope_scale: 1.5,
+                        clamp: 0.0,
+                    },
+                }),
+                multisample: Default::default(),
+                fragment: None,
+                multiview: None,
+                cache: None,
+            })
+        };
+        let pipe = make("vs", std::slice::from_ref(vlayout));
+        let packed_pipe = make(
+            "vs_packed",
+            &[crate::pack::layout(), crate::pack::origin_layout()],
+        );
         Shadows {
+            packed_pipe,
             size,
             view,
             layers,

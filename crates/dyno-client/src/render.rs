@@ -200,6 +200,15 @@ struct VOut {
 };
 
 @vertex fn vs(v: VIn) -> VOut {
+  return world_vertex(Plain(v.pos, v.normal, v.color, v.light, v.sky, v.tex));
+}
+
+// the world's packed meshes (pack.rs)
+@vertex fn vs_packed(v: PIn) -> VOut {
+  return world_vertex(unpack(v));
+}
+
+fn world_vertex(v: Plain) -> VOut {
   var o: VOut;
   var pos = v.pos;
   var normal = v.normal;
@@ -523,20 +532,32 @@ pub fn mesh_cost() -> (u64, f64) {
 }
 
 /// Mesh many sections at once, on every core, each with its ground at its
-/// level of detail.
+/// level of detail: the meshers' own vertices (tests).
+#[cfg(test)]
 pub(crate) fn mesh_many(world: &World, light: &Light, list: &[([i32; 3], Lod)]) -> Vec<SectionGeo> {
     let plain: Vec<_> = list.iter().map(|(s, l)| (*s, None, *l)).collect();
-    mesh_many_at(world, light, &plain, None)
+    mesh_many_as(world, light, &plain, None, false)
 }
 
 /// Mesh many sections at once as seen from a camera at `focus`; each comes
 /// with how its leaves are drawn now and its ground's level of detail (see
-/// `terrain_mesh::mesh_at`).
-pub(crate) fn mesh_many_at(
+/// `terrain_mesh::mesh_at`). Each mesh is packed for the card
+/// (`SectionGeo::packed`) on the thread that made it.
+pub(crate) fn mesh_many_packed(
     world: &World,
     light: &Light,
     list: &[([i32; 3], Option<bool>, Lod)],
     focus: Option<[f32; 3]>,
+) -> Vec<SectionGeo> {
+    mesh_many_as(world, light, list, focus, true)
+}
+
+fn mesh_many_as(
+    world: &World,
+    light: &Light,
+    list: &[([i32; 3], Option<bool>, Lod)],
+    focus: Option<[f32; 3]>,
+    packed: bool,
 ) -> Vec<SectionGeo> {
     let threads = std::thread::available_parallelism()
         .map(|n| n.get())
@@ -546,7 +567,12 @@ pub(crate) fn mesh_many_at(
     let one = |s: &([i32; 3], Option<bool>, Lod)| {
         let t = std::time::Instant::now();
         let cpu = crate::bench::thread_cpu_nanos();
-        let geo = terrain_mesh::mesh_at(world, light, s.0, focus, s.1, s.2);
+        let mut geo = terrain_mesh::mesh_at(world, light, s.0, focus, s.1, s.2);
+        if packed {
+            geo.packed = Some(crate::pack::Geo::pack(s.0, &geo.ground, &geo.opaque));
+            geo.ground = Vec::new();
+            geo.opaque = Vec::new();
+        }
         let wall = t.elapsed().as_nanos() as u64;
         let cpu = cpu
             .zip(crate::bench::thread_cpu_nanos())
@@ -1053,22 +1079,51 @@ fn ring(
 
 #[derive(Default)]
 struct SectionMesh {
-    /// one buffer (one allocation: streaming uploads many sections a
-    /// second): the opaque vertices, then the translucent, then the halos
-    /// round the section's lamps
+    /// the solid mesh, packed (pack.rs), in one buffer: quads (four
+    /// vertices each, drawn with the shared quad index), the ground's
+    /// first, then loose triangles
+    solid: Option<wgpu::Buffer>,
+    quads: u32,
+    loose: u32,
+    /// its entry in the buffer of section corners
+    slot: u32,
+    /// vertices as the meshers made them: the ground's, the other solid ones
+    meshed: [u32; 2],
+    /// the few plain vertices, in one buffer: the translucent, then the
+    /// halos round the section's lamps
     buf: Option<wgpu::Buffer>,
-    opaque: u32,
     trans: u32,
     glow: u32,
-    /// fine voxel ground: four vertices a quad (the shared quad index), and
-    /// how many quads
-    ground: Option<(wgpu::Buffer, u32)>,
     /// the level of detail its ground was meshed at
     lod: Lod,
     /// the plants and stones standing here; instanced when the camera is near
     cover: Vec<crate::cover::Spot>,
     /// meshed (possibly to nothing) since the section last arrived
     built: bool,
+}
+
+impl SectionMesh {
+    /// Draw the solid mesh with a packed pipeline (the shared quad index
+    /// and the section corners are bound).
+    fn draw_solid(
+        &self,
+        rp: &mut wgpu::RenderPass,
+        st: &mut crate::bench::FrameStats,
+        pass: usize,
+    ) {
+        let Some(b) = &self.solid else { return };
+        let me = self.slot..self.slot + 1;
+        rp.set_vertex_buffer(0, b.slice(..));
+        if self.quads > 0 {
+            rp.draw_indexed(0..self.quads * 6, 0, me.clone());
+            st.draw(pass, self.quads as u64 * 2);
+        }
+        if self.loose > 0 {
+            let first = self.quads * 4;
+            rp.draw(first..first + self.loose, me);
+            st.draw(pass, self.loose as u64 / 3);
+        }
+    }
 }
 
 pub struct Gfx {
@@ -1082,6 +1137,13 @@ pub struct Gfx {
     pub egui: egui_wgpu::Renderer,
     depth: wgpu::TextureView,
     opaque_pipe: wgpu::RenderPipeline,
+    /// the same for the world's packed meshes (pack.rs)
+    packed_pipe: wgpu::RenderPipeline,
+    /// the corner of every section drawn, read by instance; its entries on
+    /// this side, and those free again
+    origin_buf: wgpu::Buffer,
+    origins: Vec<[f32; 4]>,
+    origin_free: Vec<u32>,
     trans_pipe: wgpu::RenderPipeline,
     line_pipe: wgpu::RenderPipeline,
     glow_pipe: wgpu::RenderPipeline,
@@ -1132,6 +1194,8 @@ pub struct Gfx {
     /// that casts no shadow, and halos added over the picture
     pub fx: Vec<Vertex>,
     pub fx_glow: Vec<Vertex>,
+    /// buffers for what is made anew every frame: figures, lines, effects, halos
+    moving: [Option<wgpu::Buffer>; 4],
     /// what the last frame drew and cost (bench.rs)
     pub last: crate::bench::FrameStats,
     timer: Option<crate::bench::GpuTimer>,
@@ -1143,6 +1207,42 @@ pub struct Gfx {
 use egui_winit::winit;
 
 const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
+/// Upload what is made anew every frame (figures, effects, lines) into a
+/// buffer kept from frame to frame (`kept`), made again only to grow: a
+/// new buffer of some megabytes a frame costs more than filling it.
+fn upload_moving(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    kept: &mut Option<wgpu::Buffer>,
+    v: &[Vertex],
+) -> Option<(wgpu::Buffer, u32)> {
+    if v.is_empty() {
+        return None;
+    }
+    let bytes: &[u8] = bytemuck::cast_slice(v);
+    if kept.as_ref().is_none_or(|b| b.size() < bytes.len() as u64) {
+        *kept = Some(device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("moving"),
+            size: (bytes.len() as u64).next_power_of_two().max(1 << 16),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        }));
+    }
+    let buf = kept.clone()?;
+    queue.write_buffer(&buf, 0, bytes);
+    Some((buf, v.len() as u32))
+}
+
+/// A buffer of section corners (pack.rs) with room for `slots`.
+fn origin_buffer(device: &wgpu::Device, slots: u64) -> wgpu::Buffer {
+    device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("section corners"),
+        size: slots * 16,
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    })
+}
 
 fn depth_view(device: &wgpu::Device, w: u32, h: u32) -> wgpu::TextureView {
     device
@@ -1276,7 +1376,8 @@ impl Gfx {
             label: Some("voxel"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
-                    "{SHADER_HEAD}{SHADER}{}{}{}",
+                    "{SHADER_HEAD}{}{SHADER}{}{}{}",
+                    crate::pack::WGSL,
                     crate::cover::VERTEX_SHADER,
                     crate::atmos::ENV_WGSL,
                     crate::atmos::LIGHT_WGSL
@@ -1416,18 +1517,21 @@ impl Gfx {
             bind_group_layouts: &[&bgl],
             push_constant_ranges: &[],
         });
-        let make = |fs: &str,
-                    topo: wgpu::PrimitiveTopology,
-                    blend: Option<wgpu::BlendState>,
-                    depth_write: bool| {
+        let packed_layout = [crate::pack::layout(), crate::pack::origin_layout()];
+        let make_with = |vs: &str,
+                         buffers: &[wgpu::VertexBufferLayout],
+                         fs: &str,
+                         topo: wgpu::PrimitiveTopology,
+                         blend: Option<wgpu::BlendState>,
+                         depth_write: bool| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(fs),
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: Some("vs"),
+                    entry_point: Some(vs),
                     compilation_options: Default::default(),
-                    buffers: std::slice::from_ref(&vlayout),
+                    buffers,
                 },
                 primitive: wgpu::PrimitiveState {
                     topology: topo,
@@ -1456,7 +1560,29 @@ impl Gfx {
                 cache: None,
             })
         };
+        let make = |fs: &str,
+                    topo: wgpu::PrimitiveTopology,
+                    blend: Option<wgpu::BlendState>,
+                    depth_write: bool| {
+            make_with(
+                "vs",
+                std::slice::from_ref(&vlayout),
+                fs,
+                topo,
+                blend,
+                depth_write,
+            )
+        };
         let opaque_pipe = make("fs", wgpu::PrimitiveTopology::TriangleList, None, true);
+        let packed_pipe = make_with(
+            "vs_packed",
+            &packed_layout,
+            "fs",
+            wgpu::PrimitiveTopology::TriangleList,
+            None,
+            true,
+        );
+        let origin_buf = origin_buffer(&device, 1024);
         let mut cover = crate::cover::Gpu::new(&device, &shader, &layout, post.format, DEPTH);
         cover.set_quality(1.0);
         let trans_pipe = make(
@@ -1553,6 +1679,7 @@ impl Gfx {
         let timer = crate::bench::GpuTimer::new(&device, &queue);
         Ok(Gfx {
             timer,
+            moving: Default::default(),
             last: Default::default(),
             clock: None,
             water,
@@ -1565,6 +1692,10 @@ impl Gfx {
             egui,
             depth,
             opaque_pipe,
+            packed_pipe,
+            origin_buf,
+            origins: Vec::new(),
+            origin_free: Vec::new(),
             trans_pipe,
             line_pipe,
             glow_pipe,
@@ -1643,13 +1774,17 @@ impl Gfx {
     }
 
     fn upload(&self, v: &[Vertex]) -> Option<(wgpu::Buffer, u32)> {
-        if v.is_empty() {
+        self.upload_bytes(bytemuck::cast_slice(v))
+            .map(|b| (b, v.len() as u32))
+    }
+
+    fn upload_bytes(&self, bytes: &[u8]) -> Option<wgpu::Buffer> {
+        if bytes.is_empty() {
             return None;
         }
         // a plain buffer filled through the queue's pooled staging memory
         // (create_buffer_init makes a staging buffer of its own each time,
         // and streaming uploads many sections a second)
-        let bytes: &[u8] = bytemuck::cast_slice(v);
         let buf = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: bytes.len() as u64,
@@ -1657,7 +1792,7 @@ impl Gfx {
             mapped_at_creation: false,
         });
         self.queue.write_buffer(&buf, 0, bytes);
-        Some((buf, v.len() as u32))
+        Some(buf)
     }
 
     /// Make the shared quad index cover at least `quads` quads.
@@ -1683,36 +1818,95 @@ impl Gfx {
     /// Upload one section's mesh.
     fn store(&mut self, at: [i32; 3], geo: SectionGeo) {
         let SectionGeo {
-            mut opaque,
+            packed,
+            opaque,
             ground,
-            trans,
+            mut trans,
             glows,
             cover,
             lod,
             ..
         } = geo;
-        let (o, t) = (opaque.len() as u32, trans.len() as u32);
-        opaque.extend(trans);
+        // packed where it was meshed, as a rule
+        let solid = packed.unwrap_or_else(|| crate::pack::Geo::pack(at, &ground, &opaque));
+        let t = trans.len() as u32;
         for g in &glows {
-            push_glow(&mut opaque, g);
+            push_glow(&mut trans, g);
         }
-        let glow = opaque.len() as u32 - o - t;
-        let quads = (ground.len() / 4) as u32;
-        self.ensure_quad_index(quads);
-        let buf = self.upload(&opaque).map(|(b, _)| b);
+        let glow = trans.len() as u32 - t;
+        self.ensure_quad_index(solid.quads);
+        // its corner keeps its place while the section is drawn
+        let was = self
+            .sections
+            .get(&at)
+            .filter(|m| m.solid.is_some())
+            .map(|m| m.slot);
+        let slot = match (was, solid.verts.is_empty()) {
+            (Some(slot), false) => slot,
+            (Some(slot), true) => {
+                self.origin_free.push(slot);
+                0
+            }
+            (None, false) => self.origin_slot(at),
+            (None, true) => 0,
+        };
+        let buf = self.upload(&trans).map(|(b, _)| b);
         self.sections.insert(
             at,
             SectionMesh {
+                solid: self.upload_bytes(bytemuck::cast_slice(&solid.verts)),
+                quads: solid.quads,
+                loose: solid.loose,
+                slot,
+                meshed: solid.meshed,
                 buf,
-                opaque: o,
                 trans: t,
                 glow,
-                ground: self.upload(&ground).map(|(b, _)| (b, quads)),
                 lod,
                 cover,
                 built: true,
             },
         );
+    }
+
+    /// A place in the buffer of section corners for the section at `at`.
+    fn origin_slot(&mut self, at: [i32; 3]) -> u32 {
+        let o = [
+            (at[0] * SECTION) as f32,
+            (at[1] * SECTION) as f32,
+            (at[2] * SECTION) as f32,
+            0.0,
+        ];
+        let slot = match self.origin_free.pop() {
+            Some(slot) => {
+                self.origins[slot as usize] = o;
+                slot
+            }
+            None => {
+                self.origins.push(o);
+                self.origins.len() as u32 - 1
+            }
+        };
+        if (slot as u64 + 1) * 16 > self.origin_buf.size() {
+            // out of room: a larger buffer, every corner again
+            self.origin_buf = origin_buffer(
+                &self.device,
+                self.origins.len().next_power_of_two() as u64 * 2,
+            );
+            self.queue
+                .write_buffer(&self.origin_buf, 0, bytemuck::cast_slice(&self.origins));
+        } else {
+            self.queue
+                .write_buffer(&self.origin_buf, slot as u64 * 16, bytemuck::bytes_of(&o));
+        }
+        slot
+    }
+
+    /// Forget every section's mesh.
+    fn clear_sections(&mut self) {
+        self.sections.clear();
+        self.origins.clear();
+        self.origin_free.clear();
     }
 
     /// Mesh a list of sections at their levels of detail and upload them.
@@ -1727,7 +1921,9 @@ impl Gfx {
             .collect();
         // in batches, so a whole world's vertices are never all in memory at once
         for batch in list.chunks(256) {
-            for ((s, _), geo) in batch.iter().zip(mesh_many(world, light, batch)) {
+            let plain: Vec<_> = batch.iter().map(|(s, l)| (*s, None, *l)).collect();
+            let geos = mesh_many_packed(world, light, &plain, None);
+            for ((s, _), geo) in batch.iter().zip(geos) {
                 self.store(*s, geo);
             }
         }
@@ -1790,7 +1986,7 @@ impl Gfx {
             (world.size[2] as i32 + SECTION - 1) / SECTION,
         ];
         self.dims = d;
-        self.sections.clear();
+        self.clear_sections();
         // levels of detail from where the camera will be (the middle of
         // the world when nobody said)
         let cam = self.focus.take().unwrap_or(Vec3::new(
@@ -1816,7 +2012,7 @@ impl Gfx {
     /// world worker meshes sections as they arrive: `put_mesh`).
     pub fn begin_world(&mut self, world: &World) {
         self.dims = world.section_dims();
-        self.sections.clear();
+        self.clear_sections();
         self.far.clear();
         self.cover.changed();
     }
@@ -1864,7 +2060,10 @@ impl Gfx {
 
     /// A section left a streamed world: stop drawing it.
     pub fn section_gone(&mut self, s: [i32; 3]) {
-        if self.sections.remove(&s).is_some() {
+        if let Some(m) = self.sections.remove(&s) {
+            if m.solid.is_some() {
+                self.origin_free.push(m.slot);
+            }
             self.cover.changed_in(s);
         }
     }
@@ -1884,8 +2083,9 @@ impl Gfx {
             world_vertices: self
                 .sections
                 .values()
-                .map(|s| size(&s.buf) + s.ground.as_ref().map_or(0, |g| g.0.size()))
-                .sum(),
+                .map(|s| size(&s.buf) + size(&s.solid))
+                .sum::<u64>()
+                + self.origin_buf.size(),
             far_vertices: self.far.values().map(|(b, _)| b.size()).sum(),
             cover: self.cover.memory(),
             index: self.quad_index.size(),
@@ -1917,7 +2117,7 @@ impl Gfx {
     pub fn world_vertices(&self) -> (u64, u64) {
         self.sections.values().fold((0, 0), |a, s| {
             (
-                a.0 + s.opaque as u64 + s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4),
+                a.0 + s.meshed[0] as u64 + s.meshed[1] as u64,
                 a.1 + s.trans as u64,
             )
         })
@@ -1926,15 +2126,13 @@ impl Gfx {
     /// Vertices of the fine voxel ground (part of the opaque count), and
     /// per level of detail (finest first) its sections and vertices (for stats).
     pub fn ground_stats(&self) -> (u64, Vec<(u8, u32, u64)>) {
-        let v = self
-            .sections
-            .values()
-            .map(|s| s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4))
-            .sum();
+        let v = self.sections.values().map(|s| s.meshed[0] as u64).sum();
         let mut levels: Vec<(u8, u32, u64)> = Vec::new();
         for s in self.sections.values() {
-            let Some((_, q)) = &s.ground else { continue };
-            let n = *q as u64 * 4;
+            if s.meshed[0] == 0 {
+                continue;
+            }
+            let n = s.meshed[0] as u64;
             match levels.iter_mut().find(|e| e.0 == s.lod.per_metre) {
                 Some(e) => {
                     e.1 += 1;
@@ -2013,7 +2211,8 @@ impl Gfx {
         egui_out: egui::FullOutput,
     ) {
         use crate::bench as bn;
-        let frame_start = bn::Stopwatch::start();
+        let mut frame_start = bn::Stopwatch::start();
+        let mut lap = 0.0;
         let mut st = bn::FrameStats::default();
         self.refresh_textures();
         let settings = crate::look::settings();
@@ -2081,10 +2280,22 @@ impl Gfx {
             &sky.env,
             view_proj.map(|(vp, cam, _)| (vp, cam)),
         );
-        let box_buf = self.upload(boxes);
-        let line_buf = self.upload(lines);
-        let fx_buf = self.upload(&self.fx);
-        let fx_glow_buf = self.upload(&self.fx_glow);
+        let before_uploads = frame_start.ms().1;
+        let (fx, fx_glow) = (
+            std::mem::take(&mut self.fx),
+            std::mem::take(&mut self.fx_glow),
+        );
+        let [m0, m1, m2, m3] = &mut self.moving;
+        let (device, queue) = (&self.device, &self.queue);
+        let box_buf = upload_moving(device, queue, m0, boxes);
+        let line_buf = upload_moving(device, queue, m1, lines);
+        let fx_buf = upload_moving(device, queue, m2, &fx);
+        let fx_glow_buf = upload_moving(device, queue, m3, &fx_glow);
+        // (their room is kept for the next frame's)
+        (self.fx, self.fx_glow) = (fx, fx_glow);
+        st.cpu_upload_ms = frame_start.ms().1 - before_uploads;
+        st.moving_vertices =
+            (boxes.len() + lines.len() + self.fx.len() + self.fx_glow.len()) as u64;
         // made anew for every frame
         self.fx.clear();
         self.fx_glow.clear();
@@ -2096,6 +2307,8 @@ impl Gfx {
         if let Some(t) = &mut timer {
             t.begin(&mut enc);
         }
+        st.cpu_setup_ms = frame_start.lap(&mut lap);
+        let mut shadow_cpu = [0.0; crate::shadows::CASCADES];
         if let Some(cascades) = &cascades
             && sky.env.shadow > 0.0
         {
@@ -2107,29 +2320,21 @@ impl Gfx {
                 &mut enc,
                 cascades,
                 |rp, cascade| {
+                    rp.set_pipeline(&self.shadows.packed_pipe);
                     rp.set_index_buffer(self.quad_index.slice(..), wgpu::IndexFormat::Uint32);
+                    rp.set_vertex_buffer(1, self.origin_buf.slice(..));
                     for (at, s) in &self.sections {
                         let c = Vec3::new(
                             (at[0] * SECTION + SECTION / 2) as f32,
                             (at[1] * SECTION + SECTION / 2) as f32,
                             (at[2] * SECTION + SECTION / 2) as f32,
                         );
-                        if !cascade.reaches(c, r) {
+                        if s.solid.is_none() || !cascade.reaches(c, r) {
                             continue;
                         }
-                        if let Some(b) = &s.buf
-                            && s.opaque > 0
-                        {
-                            rp.set_vertex_buffer(0, b.slice(..));
-                            rp.draw(0..s.opaque, 0..1);
-                            st.draw(pass, s.opaque as u64 / 3);
-                        }
-                        if let Some((b, q)) = &s.ground {
-                            rp.set_vertex_buffer(0, b.slice(..));
-                            rp.draw_indexed(0..*q * 6, 0, 0..1);
-                            st.draw(pass, *q as u64 * 2);
-                        }
+                        s.draw_solid(rp, st, pass);
                     }
+                    rp.set_pipeline(&self.shadows.pipe);
                     if let Some((b, n)) = &box_buf {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(0..*n, 0..1);
@@ -2141,9 +2346,11 @@ impl Gfx {
                     if let Some(t) = timer.as_mut() {
                         t.end(enc, bn::SHADOW + i);
                     }
+                    shadow_cpu[i] = frame_start.lap(&mut lap);
                 },
             );
         }
+        st.cpu_pass_ms[bn::SHADOW..bn::SHADOW + shadow_cpu.len()].copy_from_slice(&shadow_cpu);
         // The world is drawn into the post chain's picture (brighter than
         // white allowed), in two passes: the solid world, whose creases the
         // occlusion pass then darkens; then the sky behind it, water, halos.
@@ -2153,7 +2360,7 @@ impl Gfx {
                 .sections
                 .iter()
                 .filter(|(at, m)| {
-                    (m.buf.is_some() || m.ground.is_some()) && self.section_visible(**at, vp, dist)
+                    (m.buf.is_some() || m.solid.is_some()) && self.section_visible(**at, vp, dist)
                 })
                 .map(|(_, m)| m)
                 .collect();
@@ -2194,23 +2401,14 @@ impl Gfx {
                     occlusion_query_set: None,
                 });
                 rp.set_bind_group(0, &self.bind, &[]);
-                rp.set_pipeline(&self.opaque_pipe);
+                rp.set_pipeline(&self.packed_pipe);
                 rp.set_index_buffer(self.quad_index.slice(..), wgpu::IndexFormat::Uint32);
+                rp.set_vertex_buffer(1, self.origin_buf.slice(..));
                 for s in &shown {
-                    if let Some(b) = &s.buf
-                        && s.opaque > 0
-                    {
-                        rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(0..s.opaque, 0..1);
-                        st.draw(bn::WORLD, s.opaque as u64 / 3);
-                    }
-                    if let Some((b, q)) = &s.ground {
-                        rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw_indexed(0..*q * 6, 0, 0..1);
-                        st.draw(bn::WORLD, *q as u64 * 2);
-                    }
+                    s.draw_solid(&mut rp, &mut st, bn::WORLD);
                 }
                 // the far view, round and beyond the near
+                rp.set_pipeline(&self.opaque_pipe);
                 for (at, (b, n)) in &self.far {
                     if self.far_visible(*at, vp, dist) {
                         rp.set_vertex_buffer(0, b.slice(..));
@@ -2235,10 +2433,12 @@ impl Gfx {
                     st.draw(bn::WORLD, *n as u64 / 3);
                 }
             }
+            let mut cpu = [0.0; bn::PASSES.len()];
             let mut stamp = |enc: &mut wgpu::CommandEncoder, pass: usize| {
                 if let Some(t) = &mut timer {
                     t.end(enc, pass);
                 }
+                cpu[pass] = frame_start.lap(&mut lap);
             };
             stamp(&mut enc, bn::WORLD);
             let passes = self.post.occlude(&mut enc);
@@ -2278,7 +2478,7 @@ impl Gfx {
                         && s.trans > 0
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(s.opaque..s.opaque + s.trans, 0..1);
+                        rp.draw(0..s.trans, 0..1);
                         st.draw(bn::WATER, s.trans as u64 / 3);
                     }
                 }
@@ -2301,7 +2501,7 @@ impl Gfx {
                         && s.trans > 0
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(s.opaque..s.opaque + s.trans, 0..1);
+                        rp.draw(0..s.trans, 0..1);
                         st.draw(bn::TRANSLUCENT, s.trans as u64 / 3);
                     }
                 }
@@ -2310,7 +2510,7 @@ impl Gfx {
                     if let Some(b) = &s.buf
                         && s.glow > 0
                     {
-                        let start = s.opaque + s.trans;
+                        let start = s.trans;
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(start..start + s.glow, 0..1);
                         st.draw(bn::TRANSLUCENT, s.glow as u64 / 3);
@@ -2334,6 +2534,9 @@ impl Gfx {
             st.draws[bn::POST] += passes;
             st.triangles[bn::POST] += passes as u64;
             stamp(&mut enc, bn::POST);
+            for (to, from) in st.cpu_pass_ms.iter_mut().zip(cpu) {
+                *to += from;
+            }
         } else {
             // no world: a plain backdrop for the interface
             enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -2396,6 +2599,7 @@ impl Gfx {
         if let Some(t) = &mut timer {
             t.end(&mut enc, bn::INTERFACE);
         }
+        st.cpu_pass_ms[bn::INTERFACE] = frame_start.lap(&mut lap);
         // optional screenshot: copy the frame into a buffer before presenting
         let shot = match self.screenshot.take() {
             Some(path) if self.config.usage.contains(wgpu::TextureUsages::COPY_SRC) => {
@@ -2437,6 +2641,7 @@ impl Gfx {
         }
         self.queue
             .submit(extra.into_iter().chain(std::iter::once(enc.finish())));
+        st.cpu_submit_ms = frame_start.lap(&mut lap);
         (st.cpu_ms, st.cpu_own_ms) = frame_start.ms();
         if let Some(t) = &mut timer {
             t.read(&self.device, &mut st);
@@ -2471,17 +2676,10 @@ impl Gfx {
             drop(data);
             buf.unmap();
             if png {
-                let mut file = Vec::new();
-                let mut e = png::Encoder::new(&mut file, w, h);
-                e.set_color(png::ColorType::Rgb);
-                e.set_depth(png::BitDepth::Eight);
-                let done = e
-                    .write_header()
-                    .and_then(|mut w| w.write_image_data(&out).and_then(|_| w.finish()));
-                if let Err(e) = done {
-                    eprintln!("screenshot failed: {e}");
+                match crate::textures::encode_png(w, h, &out) {
+                    Ok(file) => out = file,
+                    Err(e) => eprintln!("screenshot failed: {e}"),
                 }
-                out = file;
             }
             match std::fs::write(&path, out) {
                 Ok(()) => eprintln!("screenshot saved: {}", path.display()),

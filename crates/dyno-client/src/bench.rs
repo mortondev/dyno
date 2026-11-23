@@ -54,6 +54,16 @@ pub struct FrameStats {
     /// (which a busy machine does not stretch)
     pub cpu_ms: f64,
     pub cpu_own_ms: f64,
+    /// of that own time: before the first pass (settings, uniforms, the
+    /// cover's instances, uploads of what moves), each pass's commands,
+    /// and handing the frame to the card
+    pub cpu_setup_ms: f64,
+    pub cpu_pass_ms: [f64; PASSES.len()],
+    pub cpu_submit_ms: f64,
+    /// vertices made anew and uploaded this frame (figures, effects,
+    /// lines), and the part of the setup that uploading them took
+    pub moving_vertices: u64,
+    pub cpu_upload_ms: f64,
 }
 
 /// Times a stretch of work on this thread both ways.
@@ -68,6 +78,14 @@ impl Stopwatch {
             wall: std::time::Instant::now(),
             own: thread_cpu_nanos(),
         }
+    }
+
+    /// This thread's own milliseconds since the start or the last lap.
+    pub fn lap(&mut self, last: &mut f64) -> f64 {
+        let now = self.ms().1;
+        let d = now - *last;
+        *last = now;
+        d
     }
 
     /// Milliseconds since the start: on the wall, and of this thread's own
@@ -306,9 +324,12 @@ pub struct Request {
     pub flight: Option<Flight>,
 }
 
-/// Median, 95th percentile and the worst.
+/// The best, the median, the 95th percentile and the worst.
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Dist {
+    /// the least: on a shared machine, the measure others disturb least
+    #[serde(default)]
+    pub min: f64,
     pub median: f64,
     pub p95: f64,
     pub max: f64,
@@ -323,6 +344,7 @@ impl Dist {
         v.sort_by(|a, b| a.total_cmp(b));
         let q = |q: f64| v[((v.len() - 1) as f64 * q).round() as usize];
         Dist {
+            min: q(0.0),
             median: q(0.5),
             p95: q(0.95),
             max: q(1.0),
@@ -338,6 +360,9 @@ pub struct PassResult {
     pub triangles: u64,
     /// median milliseconds on the graphics card (None: not timed)
     pub gpu_ms: Option<f64>,
+    /// median milliseconds of the main thread's own time on its commands
+    #[serde(default)]
+    pub cpu_ms: f64,
 }
 
 /// Meshing sections on the world thread's cores.
@@ -370,6 +395,18 @@ pub struct SceneResult {
     pub wall_ms: Dist,
     /// of that, the ambient life (median)
     pub life_ms: f64,
+    /// and (medians) what the renderer does before the first pass, and
+    /// handing the frame to the card; the passes have theirs
+    #[serde(default)]
+    pub cpu_setup_ms: f64,
+    #[serde(default)]
+    pub cpu_submit_ms: f64,
+    /// vertices made anew and uploaded each frame (figures, effects), and
+    /// the part of the setup that uploading them took (medians)
+    #[serde(default)]
+    pub moving_vertices: u64,
+    #[serde(default)]
+    pub cpu_upload_ms: f64,
     pub passes: Vec<PassResult>,
     pub draws: u32,
     pub triangles: u64,
@@ -495,6 +532,7 @@ impl Collector {
                 draws: median(&|f| f.draws[i] as f64) as u32,
                 triangles: median(&|f| f.triangles[i] as f64) as u64,
                 gpu_ms: timed.then(|| median(&|f| f.gpu_ms[i])),
+                cpu_ms: median(&|f| f.cpu_pass_ms[i]),
             })
             .collect();
         SceneResult {
@@ -506,6 +544,10 @@ impl Collector {
             cpu_ms: Dist::of(&self.cpu),
             wall_ms: Dist::of(&self.wall),
             life_ms: Dist::of(&self.life).median,
+            cpu_setup_ms: median(&|f| f.cpu_setup_ms),
+            cpu_submit_ms: median(&|f| f.cpu_submit_ms),
+            moving_vertices: median(&|f| f.moving_vertices as f64) as u64,
+            cpu_upload_ms: median(&|f| f.cpu_upload_ms),
             draws: passes.iter().map(|p| p.draws).sum(),
             triangles: passes.iter().map(|p| p.triangles).sum(),
             passes,
