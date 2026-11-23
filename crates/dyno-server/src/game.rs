@@ -66,6 +66,8 @@ pub struct Player {
     pub money: u32,
     /// banked rested XP
     pub rested: u32,
+    /// my party, by name (kept up to date by the server)
+    pub party: Vec<String>,
     /// keeps movement honest
     pub moves: crate::movement::MoveCheck,
     /// the phases this player is in, one bit each
@@ -734,6 +736,7 @@ impl State {
             money: data.money,
             rested: rested_now,
             moves: crate::movement::MoveCheck::new(data.pos),
+            party: Vec::new(),
             phases: 0,
             rested_carry: 0.0,
             quests: data

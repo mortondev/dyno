@@ -15,7 +15,8 @@ const REACH: f32 = 6.0;
 #[derive(Clone, Debug)]
 pub struct Corpse {
     pub creature: u16,
-    pub owner: Option<PlayerId>,
+    /// who may loot it (the killer and their party); anyone after a minute
+    pub owners: Vec<PlayerId>,
     pub money: u32,
     pub items: Vec<Stack>,
     pub born: Instant,
@@ -46,7 +47,7 @@ impl State {
         pos: [f32; 3],
         yaw: f32,
         creature: u16,
-        owner: Option<PlayerId>,
+        owners: Vec<PlayerId>,
         money: u32,
         items: Vec<Stack>,
         phase: Option<(u8, bool)>,
@@ -56,7 +57,7 @@ impl State {
         let now = Instant::now();
         let c = Corpse {
             creature,
-            owner,
+            owners,
             money,
             items,
             born: now,
@@ -159,7 +160,7 @@ impl State {
         if dist(p.pose.pos, e.pos) > REACH || !self.sees(p.phases, id) {
             return Err("You are too far away.");
         }
-        if c.owner.is_some_and(|o| o != pid) && c.born.elapsed() < OWNER_LOCK {
+        if !c.owners.is_empty() && !c.owners.contains(&pid) && c.born.elapsed() < OWNER_LOCK {
             return Err("That is not yours to loot.");
         }
         if c.empty() {

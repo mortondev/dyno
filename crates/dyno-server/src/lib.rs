@@ -659,8 +659,17 @@ impl Server {
         }
     }
 
-    /// Party frames, once a second.
+    /// Party frames, once a second; shards learn who is grouped with whom.
     fn send_parties(&self) {
+        {
+            let parties = self.parties.lock().unwrap();
+            for sh in self.shard_list() {
+                let mut st = sh.state.lock().unwrap();
+                for p in st.players.values_mut() {
+                    p.party = parties.members(&p.name);
+                }
+            }
+        }
         let snaps = self.snaps.lock().unwrap().clone();
         let routes = self.routes.lock().unwrap().clone();
         let parties: Vec<Vec<String>> = self
@@ -1435,6 +1444,7 @@ impl Server {
                     Some((eid, _)) => {
                         if let Some(m) = st.entities.get_mut(&eid).and_then(|e| e.mob.as_mut()) {
                             m.last_hit = Some((id, std::time::Instant::now()));
+                            m.tag = Some(id);
                         }
                         st.kill_mob_by(eid);
                     }

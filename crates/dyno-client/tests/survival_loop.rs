@@ -1242,3 +1242,95 @@ fn cheating_movement_is_put_back() {
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Fighting together pays: a party member nearby shares the kill (XP with a
+/// group bonus, quest credit) and may loot the body.
+#[test]
+fn parties_share_kills_and_loot() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-share-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "ada", 4001, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "bo", 4002, false, Duration::from_secs(5)).expect("join");
+    let (mut pa, mut pb) = (vec![None; 36], vec![None; 36]);
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/invite bo".into(),
+        },
+    );
+    wait(&b, &mut pb, 3.0, |m, _| {
+        matches!(m, ServerMsg::Invite { .. }).then_some(())
+    });
+    send(
+        &b,
+        ClientMsg::Chat {
+            text: "/accept".into(),
+        },
+    );
+    wait(&a, &mut pa, 3.0, |m, _| match m {
+        ServerMsg::Party { members } if members.len() == 2 => Some(()),
+        _ => None,
+    });
+    // the shards learn the party within a second
+    std::thread::sleep(Duration::from_millis(1300));
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/summon thornboar".into(),
+        },
+    );
+    wait(&a, &mut pa, 3.0, |m, _| {
+        matches!(
+            m,
+            ServerMsg::EntitySpawn {
+                kind: EntityKind::Creature(_),
+                ..
+            }
+        )
+        .then_some(())
+    });
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/slay".into(),
+        },
+    );
+    let mut corpse = None;
+    let xp_b = wait(&b, &mut pb, 3.0, |m, _| match m {
+        ServerMsg::EntitySpawn {
+            id,
+            kind: EntityKind::Corpse { .. },
+            ..
+        } => {
+            corpse = Some(*id);
+            None
+        }
+        ServerMsg::Gain { xp, .. } if *xp > 0 => Some(*xp),
+        _ => None,
+    });
+    assert!(xp_b > 0, "the party member shares the kill");
+    // and may open the body (it is the party's, not just the killer's)
+    let corpse = corpse.expect("the body lies there");
+    send(
+        &b,
+        ClientMsg::Loot {
+            id: corpse,
+            all: false,
+        },
+    );
+    let refused = wait_opt(&b, &mut pb, 1.5, |m| match m {
+        ServerMsg::System { text } if text.contains("not yours") => Some(()),
+        _ => None,
+    });
+    assert_eq!(refused, None);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
