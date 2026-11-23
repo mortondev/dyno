@@ -87,6 +87,9 @@ pub const BOOKSHELF: BlockId = 61;
 pub const ANVIL: BlockId = 62;
 pub const BRAZIER: BlockId = 63;
 pub const FLOWER_BED: BlockId = 64;
+/// Mine track: iron rails on sleepers, lying on the ground (walked over,
+/// not into).
+pub const RAIL: BlockId = 65;
 
 /// No Shade spawns or enters within this many blocks of a hearth.
 pub const HEARTH_RADIUS: f32 = 16.0;
@@ -102,7 +105,7 @@ pub enum Shape {
 
 pub fn shape(b: BlockId) -> Shape {
     match b {
-        TORCH => Shape::Post,
+        TORCH | RAIL => Shape::Post,
         _ => Shape::Full,
     }
 }
@@ -391,6 +394,13 @@ pub const BLOCKS: &[BlockDef] = &[
         alpha: 1.0,
         emission: 0,
         material: Foliage,
+    },
+    BlockDef {
+        name: "Rail",
+        color: [0.36, 0.33, 0.32],
+        alpha: 1.0,
+        emission: 0,
+        material: Stone,
     },
 ];
 

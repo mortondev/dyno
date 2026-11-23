@@ -797,8 +797,8 @@ def mine_portal():
     v.set(-2, 6, -4, "lantern")
     v.set(-2, 6, 4, "lantern")
     v.set(-1, 4, 0, "lantern")
-    for x in range(-9, 0):
-        v.set(x, -1, 0, "timber_beam" if x % 2 else "dark_planks")
+    for x in range(-9, 8):
+        v.set(x, 0, 0, "rail")
     v.set(-2, 0, 3, "crate")
     v.set(-2, 0, -3, "barrel")
     v.doors.append({"at": [0, 0, 0], "height": 3})
@@ -1344,16 +1344,50 @@ def falls():
 
 @recipe
 def rail_track():
-    """A length of mine track on sleepers, with a loaded cart."""
+    """A length of mine track with a loaded cart standing on it."""
     v = Vol("prop")
     for x in range(-8, 9):
-        v.set(x, -1, 0, "dark_planks" if x % 2 == 0 else "cobble")
-        v.set(x, -1, -1, "timber_beam")
-        v.set(x, -1, 1, "timber_beam")
+        v.set(x, 0, 0, "rail")
+        v.set(x, -1, 0, "cobble" if x % 3 else "dirt")
     for x in (2, 3):
         v.set(x, 0, 0, "dark_planks")
         v.set(x, 1, 0, "coal_ore" if x == 2 else "iron_ore")
-    v.set(-8, 0, 0, "timber_beam")
+    v.set(-9, 0, 0, "timber_beam")
+    return v
+
+
+@recipe
+def rail_run():
+    """Bare track, 12 m."""
+    v = Vol("prop")
+    for x in range(-6, 6):
+        v.set(x, 0, 0, "rail")
+    return v
+
+
+@recipe
+def ore_pile():
+    """Heaps of ore waiting for the carts."""
+    v = Vol("prop")
+    blob(v, 0, 0, 0, 2.6, 1.9, "coal_ore", 31)
+    blob(v, 3, 0, 2, 1.8, 1.4, "iron_ore", 32)
+    blob(v, -3, 0, -2, 1.6, 1.2, "stone", 33)
+    v.c = {k: b for k, b in v.c.items() if k[1] >= 0}
+    v.set(4, 0, -2, "barrel")
+    v.set(-2, 0, 3, "crate")
+    return v
+
+
+@recipe
+def miners_hut():
+    """A miner's hut of stone under slate, a lamp by the door."""
+    v = house(-3, -3, 3, 3, 1, "slate", ridge_x=True, door=("s", -1), windows=True, chimney=(-3, 0))
+    v.set(-2, 0, -2, "bed")
+    v.set(2, 0, -2, "chest")
+    v.set(0, 2, -2, "lantern")
+    v.col(3, 5, 0, 2, "timber_beam")
+    v.set(3, 3, 5, "lantern")
+    v.set(-3, 0, 5, "crate")
     return v
 
 
