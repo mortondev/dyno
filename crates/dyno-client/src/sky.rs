@@ -236,6 +236,15 @@ pub fn sky_at(t: f32, at: Option<Vec3>) -> Sky {
     frame_sky(&s, &m, t + m.time_shift)
 }
 
+/// A sky for model sheets: the light of the hour with nothing behind the
+/// figures but the gradient (no clouds, no ridges).
+pub fn studio(t: f32) -> Sky {
+    let mut s = sky_at(t, None);
+    s.env.dome.ridge_height = 0.0;
+    s.env.dome.cloud_cover = 0.0;
+    s
+}
+
 fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
     let a = t * std::f32::consts::TAU;
     let e = a.sin();

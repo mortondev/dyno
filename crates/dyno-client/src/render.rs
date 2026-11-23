@@ -438,7 +438,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
   var c = base * grain * min(i.color.a, 1.0) * lit * dim;
   // glowing blocks: brighter than white, so they bloom
   if (i.color.a > 1.9) { c = base * grain * env.sun_tint.w; }
-  return vec4<f32>(grade(atmosphere(c, i.wpos)), 1.0);
+  return vec4<f32>(grade(atmosphere_under(c, i.wpos, sl)), 1.0);
 }
 
 // The sky dome: sky.rs.

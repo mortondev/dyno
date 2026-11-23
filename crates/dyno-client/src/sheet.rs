@@ -147,7 +147,7 @@ fn grid(
     let cols = rows.iter().map(|r| r.1.len()).max().unwrap_or(0) as u32;
     let (w, h) = (cw * cols, ch * rows.len() as u32);
     let mut img = vec![0u8; (w * h * 3) as usize];
-    let sky = crate::app::sky(0.32);
+    let sky = crate::sky::studio(0.32);
     // a third-person camera: above, and a quarter round from the front
     let az = 35f32.to_radians();
     let el = 22f32.to_radians();
@@ -423,7 +423,7 @@ fn shoot(
     label: &str,
     tmp: &Path,
 ) -> Result<Vec<u8>, String> {
-    let sky = crate::app::sky(0.32);
+    let sky = crate::sky::studio(0.32);
     let vp = glam::Mat4::perspective_rh(cam.fov, cw as f32 / ch as f32, 0.02, 200.0)
         * glam::Mat4::look_at_rh(cam.eye, cam.target, Vec3::Y);
     let mut boxes = Vec::with_capacity(verts.len() + 64);

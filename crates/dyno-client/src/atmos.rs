@@ -436,11 +436,19 @@ fn world_light(wpos: vec3<f32>, n: vec3<f32>, lam: f32, wrap: f32, has_n: bool, 
 // distance, fog lying in low ground, and at the edge of the drawn world a
 // fade into the sky that stands behind it.
 fn atmosphere(c: vec3<f32>, wpos: vec3<f32>) -> vec3<f32> {
+  return atmosphere_under(c, wpos, 1.0);
+}
+
+// The same for a surface that sees `sl` of the sky (0 underground .. 1 in
+// the open): haze and fog are lit by the sky, so caves and tunnels keep
+// their darkness instead of filling with bright air.
+fn atmosphere_under(c: vec3<f32>, wpos: vec3<f32>, sl: f32) -> vec3<f32> {
+  let open = 0.12 + 0.88 * clamp(sl, 0.0, 1.0);
   let v = wpos - u.cam.xyz;
   let d = length(v);
   let dir = v / max(d, 0.001);
   let hz = env.haze2.y * (1.0 - exp(-max(d - env.haze2.x, 0.0) * env.haze.w));
-  var o = mix(c, env.haze.rgb, hz);
+  var o = mix(c, env.haze.rgb, hz * open);
   if (env.fog.w > 0.0) {
     // fog thinning upwards from fog2.x: its amount along the ray
     let k = env.fog2.y;
@@ -449,7 +457,7 @@ fn atmosphere(c: vec3<f32>, wpos: vec3<f32>) -> vec3<f32> {
     var t = d;
     if (abs(dy) > 0.0001) { t = (1.0 - exp(-clamp(dy * d, -20.0, 20.0))) / dy; }
     let fg = 1.0 - exp(-env.fog.w * exp(-y0) * max(t, 0.0));
-    o = mix(o, env.fog.rgb, min(fg, env.fog2.z));
+    o = mix(o, env.fog.rgb, min(fg, env.fog2.z) * open);
   }
   let far = u.fog.w;
   let e = smoothstep(env.haze2.z * far, far, d);
