@@ -364,7 +364,7 @@ impl Scripted {
             .npcs
             .iter()
             .filter(|n| self.bad_npc.get(&n.id).copied().unwrap_or(0) < 3)
-            .filter(|n| !self.deals_at(a, n.id).is_empty())
+            .filter(|n| !self.deals_at(a, n.id).is_empty() || talk_pending(a, n.id))
             .filter_map(|n| a.body.npc_pos(n.id).map(|p| (n.id, p.distance(me))))
             .min_by(|x, y| x.1.partial_cmp(&y.1).unwrap())
             .map(|x| x.0)
@@ -1314,6 +1314,19 @@ impl Scripted {
             why: format!("explore {name}"),
         })
     }
+}
+
+/// Does an open quest ask us to talk to this NPC?
+fn talk_pending(a: &Agent, npc: u16) -> bool {
+    a.body.quests.iter().any(|q| {
+        a.body.content.quest(q.quest).is_some_and(|quest| {
+            quest
+                .objectives
+                .iter()
+                .zip(&q.counts)
+                .any(|(o, n)| matches!(o, Objective::Talk { npc: x } if *x == npc) && *n == 0)
+        })
+    })
 }
 
 fn hash_str(s: &str) -> usize {
