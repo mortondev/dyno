@@ -9,6 +9,9 @@ use std::time::{Duration, Instant};
 /// The global cooldown after any ability (Rogues: 1 second).
 const GCD: f32 = 1.5;
 const GCD_FAST: f32 = 1.0;
+/// An ability pressed this long before the global cooldown (or a cast) ends
+/// is not lost: it goes off the moment it can.
+const QUEUE: Duration = Duration::from_millis(400);
 /// Ticks of damage and healing over time come every this many seconds.
 pub const TICK: f32 = 3.0;
 
@@ -135,7 +138,24 @@ impl State {
         let Some(p) = self.players.get(&id) else {
             return;
         };
-        if p.dead || p.casting.is_some() || p.gcd_until > now {
+        if p.dead {
+            return;
+        }
+        // pressed a moment early: remember it, and use it when the global
+        // cooldown (or the cast in progress) is over
+        let busy_until = p
+            .casting
+            .as_ref()
+            .map(|c| c.end)
+            .into_iter()
+            .chain([p.gcd_until])
+            .max()
+            .unwrap_or(now);
+        if busy_until > now {
+            let queue = busy_until - now <= QUEUE;
+            if let Some(p) = self.players.get_mut(&id) {
+                p.queued = queue.then_some((ability, target));
+            }
             return;
         }
         if ability == RECALL {
@@ -235,6 +255,16 @@ impl State {
     /// Advance casts: cancel them if the caster moved, finish them when due.
     pub fn tick_casts(&mut self) {
         let now = Instant::now();
+        // abilities pressed a moment early go off now
+        let ready: Vec<(PlayerId, u16, Option<u32>)> = self
+            .players
+            .iter_mut()
+            .filter(|(_, p)| p.casting.is_none() && p.gcd_until <= now)
+            .filter_map(|(id, p)| p.queued.take().map(|(a, t)| (*id, a, t)))
+            .collect();
+        for (id, ability, target) in ready {
+            self.cast(id, ability, target);
+        }
         let mut done = Vec::new();
         let mut cancelled = Vec::new();
         for (id, p) in self.players.iter_mut() {

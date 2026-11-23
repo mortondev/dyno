@@ -538,7 +538,12 @@ impl State {
         let hidden: std::collections::HashMap<PlayerId, f32> = self
             .players
             .keys()
-            .map(|i| (*i, self.buff_amount(*i, dyno_world::content::BuffKind::Stealth)))
+            .map(|i| {
+                (
+                    *i,
+                    self.buff_amount(*i, dyno_world::content::BuffKind::Stealth),
+                )
+            })
             .filter(|(_, s)| *s > 0.0)
             .collect();
         // phasing: a creature only hunts the players who can see it
@@ -1179,7 +1184,10 @@ mod tests {
         assert!(!m.engaged);
         let before = Instant::now();
         m.take_hit(1, 5.0);
-        assert!(m.engaged && m.surprised_until > before, "off guard at first");
+        assert!(
+            m.engaged && m.surprised_until > before,
+            "off guard at first"
+        );
         let until = m.surprised_until;
         m.take_hit(1, 5.0);
         assert_eq!(m.surprised_until, until, "a second blow does not renew it");

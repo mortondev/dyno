@@ -417,8 +417,8 @@
     "slot": "main_hand",
     "weapon": {
      "kind": "sword",
-     "min": 3,
-     "max": 5,
+     "min": 4,
+     "max": 6,
      "speed": 2.0
     },
     "stats": {}
@@ -8048,7 +8048,7 @@
    "growth": {
     "str": 15,
     "agi": 7,
-    "sta": 14,
+    "sta": 16,
     "int": 1,
     "spi": 3
    }
@@ -8340,8 +8340,8 @@
    "range": 4.5,
    "weapon": 1.0,
    "damage": [
-    7,
-    2.5
+    8,
+    3
    ],
    "sound": "slash",
    "image": "icons/abilities/heroic_blow.png"
@@ -8468,13 +8468,13 @@
     0.62,
     0.25
    ],
-   "cost": 8,
-   "cooldown": 6,
+   "cost": 7,
+   "cooldown": 4,
    "range": 4.5,
-   "weapon": 0.7,
+   "weapon": 0.6,
    "damage": [
-    3,
-    1.5
+    2,
+    1
    ],
    "shade_bonus": 1.5,
    "sound": "holy_strike",
@@ -8505,7 +8505,7 @@
    "key": "valour",
    "name": "Valour",
    "class": "paladin",
-   "level": 6,
+   "level": 2,
    "text": "Fight with valour: 10% more damage for 5 minutes.",
    "icon": "watch_longsword",
    "color": [
@@ -8549,7 +8549,7 @@
    "key": "devout_ward",
    "name": "Devout Ward",
    "class": "paladin",
-   "level": 4,
+   "level": 5,
    "text": "Take 30% less damage for 10 seconds.",
    "icon": "battered_buckler",
    "color": [
@@ -8624,7 +8624,7 @@
     0.2,
     0.2
    ],
-   "cost": 10,
+   "cost": 8,
    "range": 30,
    "dot": [
     16,
@@ -8718,8 +8718,8 @@
    "range": 4.5,
    "weapon": 1.0,
    "damage": [
-    2,
-    0.8
+    1,
+    0.6
    ],
    "combo": 1,
    "sound": "stab",
@@ -8740,8 +8740,8 @@
    "cost": 25,
    "range": 4.5,
    "damage": [
-    3,
-    1.0
+    2,
+    0.8
    ],
    "combo": -1,
    "sound": "slash",
@@ -9126,7 +9126,7 @@
    "key": "seal_of_dawn",
    "name": "Seal of Dawn",
    "class": "paladin",
-   "level": 2,
+   "level": 1,
    "icon": "lantern",
    "color": [
     1.0,
@@ -9136,9 +9136,9 @@
    "cost": 10,
    "buff": {
     "kind": "strike",
-    "amount": 4,
+    "amount": 3,
     "secs": 60,
-    "per_level": 1.2
+    "per_level": 1.0
    },
    "sound": "seal",
    "text": "Seal your weapon with dawnlight for 60 seconds: every swing burns for extra holy damage.",
@@ -9155,7 +9155,7 @@
     0.9,
     0.55
    ],
-   "cost": 12,
+   "cost": 10,
    "cooldown": 10,
    "cast": 1.5,
    "range": 30,
@@ -9187,10 +9187,10 @@
     3,
     1.5
    ],
-   "opener": 1.6,
+   "opener": 1.4,
    "combo": 2,
    "sound": "stab_heavy",
-   "text": "A strike from the blind side: 60% more damage against a foe that is not yet fighting you. Adds 2 combo points.",
+   "text": "A strike from the blind side: 40% more damage against a foe that is not yet fighting you. Adds 2 combo points.",
    "image": "icons/abilities/ambush.png"
   },
   {
@@ -9227,12 +9227,12 @@
     1.0
    ],
    "cost": 14,
-   "cooldown": 12,
+   "cooldown": 15,
    "buff": {
     "kind": "absorb",
-    "amount": 14,
+    "amount": 12,
     "secs": 15,
-    "per_level": 5
+    "per_level": 4
    },
    "sound": "shield",
    "text": "A shield of light soaks up damage for 15 seconds, then breaks.",

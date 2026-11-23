@@ -87,6 +87,9 @@ pub struct Player {
     /// when each ability is ready again
     pub cooldowns: HashMap<u16, Instant>,
     pub gcd_until: Instant,
+    /// an ability pressed just before the global cooldown or a cast ended:
+    /// it goes off as soon as it can
+    pub queued: Option<(u16, Option<u32>)>,
     pub casting: Option<crate::abilities::Casting>,
     /// worn gear, by paper-doll place
     pub equip: Vec<Option<Stack>>,
@@ -867,6 +870,7 @@ impl State {
             power_clock: 0.0,
             cooldowns: HashMap::new(),
             gcd_until: Instant::now(),
+            queued: None,
             casting: None,
             equip: {
                 let mut v = store::pack_from_keys(&self.content, &data.equip).slots;

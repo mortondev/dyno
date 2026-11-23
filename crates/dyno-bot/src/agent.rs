@@ -862,7 +862,10 @@ impl Agent {
                         && a.combo >= 0
                         && a.damage[0] == 0.0
                         && a.buff.is_some_and(|x| {
-                            !matches!(x.kind, BuffKind::Ward | BuffKind::Absorb | BuffKind::Stealth)
+                            !matches!(
+                                x.kind,
+                                BuffKind::Ward | BuffKind::Absorb | BuffKind::Stealth
+                            )
                         })
                         && !aura(a)
                 })

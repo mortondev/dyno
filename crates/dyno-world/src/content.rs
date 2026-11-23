@@ -1674,7 +1674,8 @@ mod tests {
             assert!(icons.insert(image), "{}: shares its icon", a.key);
             assert!(!a.sound.is_empty(), "{}: no sound", a.key);
             assert!(
-                pack.join(format!("sounds/abilities/{}_0.wav", a.sound)).is_file(),
+                pack.join(format!("sounds/abilities/{}_0.wav", a.sound))
+                    .is_file(),
                 "{}: sound '{}' is not in the pack",
                 a.key,
                 a.sound
