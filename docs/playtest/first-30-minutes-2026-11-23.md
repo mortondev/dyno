@@ -45,7 +45,20 @@ rewarding every 60 to 90 s, no stretch over 2:00.
 
 | Line | Before | After | |
 |---|---|---|---|
-QB_ROWS
+| **3. First quest accepted within 30 s, starts within sight** | The first quest is handed in within 10 s of joining (the bots' median; Brannoc stands 10 m from where you wake, Maren 15 m). The first quest with anything to do sent you 260 m | The same 10 s; the first flock is 113 m from the hearth, just outside the wall | Met for the quest; "within sight" is the world and client lanes' (a "!" in view, the gate framed) |
+| **3. Spawn facing the hearth and a quest giver, tips, music** | not this lane | not this lane | |
+| **4. A clear next step** | Coal for the Watch pointed at Candlekin 763 m away in a level 5 to 10 mine; Bread for the Mill led to a farmer with nothing for you | Every Hearthstead quest names its place and that place is under a minute away; breadcrumbs are offered a level later, when their hub has work | Met in `dyno play`'s tracker. Kill quests still count any creature of the kind, so the tracker can point at the wrong camp |
+| **4. Variety: four kinds of objective, kill-10 never twice running** | talk, kill, collect, explore exist; the first six quests were talk, collect, kill 10, collect, collect, collect | The first ten are talk, collect, kill 8, explore, collect, collect, explore x3, explore, collect, kill 5 | Four kinds, met. No use, interact, escort or defend objective exists in the engine |
+| **4. Breadcrumb chain, first trip out under 60 s, each place introduced by a quest** | First trip 46 s of empty meadow, to a flock in another zone's circle | First trip 12 to 25 s; the Broken Tower, the Quarry, the Trapper's Camp, the caravan, the North Watch, the lookout and Garrick's camp each have a quest that sends you there | Met |
+| **4. Short quest text** | 2 to 4 sentences mostly | The three longest of mine cut to 3 sentences | Met for the quests of the first 30 minutes |
+| **5. Something rewarding every 60 to 90 s, never over 2 minutes** | Median gap 19 s; median longest stretch 3:27, worst 4:01 | Median gap 12 s; median longest stretch 2:54, worst 6:12 | **Not met.** The long stretches are the hub-to-hub runs (Hearthstead to Garrick's camp is 480 m) and bots waiting for night for Eyes in the Dark |
+| **5. Level 2 at about 5, level 3 at about 12, level 4 to 5 at 30** | 5:32, 15:52, 29:26 (half the bots never reached 3 in some classes) | 2:25, 8:28, 16:51; median level at 30 minutes is 4, the best bots 5 | Level 4 by 30 is met with room; **levels 2 and 3 come early** (the bar says 5 and 12). By hand: 3 to 4 minutes and 9 to 12 |
+| **5. First upgrade by about 10 minutes** | First gear reward at 15:34 | First gear reward at 3:53, on the character at 3:38 (a drop came first) | Met |
+| **5. A visible armour change by about 30** | Chest reward only from a night-only quest | Chest reward from Boar Trouble by day (5 boars 80 m from Holt) | Reward is there by about minute 15 to 20; whether it shows is the character lane's |
+| **5. Money for one meaningful purchase by 30** | 6 s 60 c, and nothing to buy but bread and picks | 10 s 90 c; a cart ride is 15 to 40 c, a stone pick or axe 20 c | Met |
+| **5. Discovery gives XP and a banner; a treasure or a view off the road** | A banner only | 15 XP + 10 a level for each of 37 named places; three viewpoints are quest objectives | XP met. No treasure: there is no lootable world object |
+| **12. A reason to group in the first 30 minutes** | None before level 6 | Old Tusk (Group), from Holt at level 3 to 4, 140 m from the North Watch | Present. Not yet fought by a party: my three characters reached him ungrouped and at different times |
+| **12. Shared tags, XP and quest credit, group bonus** | Work in a party (85% of kill XP each for two) | The same | Outside a party the first to hit takes everything: 21 to 31% of kills in a crowd |
 
 ## What was changed for the first 30 minutes
 
@@ -53,11 +66,11 @@ All data, in `content/rules/hearthblock.json` (scripts
 `tools/playtest/fun_review_rules*.py` are the record) and three additive
 places in `content/world/layout.json`, except where marked engine.
 
-- **Something to hit within 100 m of the plaza:** four flocks of six Grazers
-  at the town's edge and eight more out to 200 m; boar packs at 150 m; the
+- **Something to hit just outside the wall:** four flocks of six Grazers
+  113 m from the hearth and eight more out to 200 m; boar packs at 150 m; the
   first quests ask for 8, not 10.
 - **Everything a Hearthstead quest needs is within a minute's run:** coal at
-  the West Gate Rocks (95 m) and the Old Quarry (210 m, with the iron), coal
+  the North Gate Rocks (120 m) and the Old Quarry (210 m, with the iron), coal
   again at the Beacon Rocks beside the North Watch.
 - **Each hub is one trip:** The North Watch is handed in where it is found;
   Holt then has five things within 150 m of his fire.
@@ -82,7 +95,40 @@ places in `content/world/layout.json`, except where marked engine.
 
 ## What I saw by hand (three at once, 20 minutes each)
 
-HAND_NOTES
+A paladin, a hunter and a priest, started together, each at a different
+gate flock, same quests in the same order, resting to full between pulls.
+
+| | Paladin | Hunter | Priest |
+|---|---|---|---|
+| Played | 20 min | 19 min | 20 min |
+| Level at the end | 3 (920/1400) | 3 (332/1400) | 3 (541/1400) |
+| Quests done | 11 | 5 | 9 |
+| Named places found | 9 | 9 | 10 |
+| Deaths | 0 | 1 (a Shade) | 0 |
+| Money | 7 s 19 c | 3 s 48 c | 7 s 80 c |
+
+- The opening is right now. Each of us was fighting within a minute and
+  never stood in an empty field; phase one (seven quests' worth of Grazers,
+  logs and coal) took seven minutes with honest rests.
+- **The paladin did the whole Hearthstead chain** for the first time in any
+  run: Kindling, Coal for the Watch, the three places of The Lay of the Land,
+  Mining to 5 on quarry coal, six iron, Iron for Hollis handed in at minute
+  20.
+- **Three people doing the same quests starve each other.** The hunter and
+  the priest were told "This has been gathered recently" twelve times at
+  trees the paladin had just cut, with nothing on the tree to say so. The
+  hunter never finished Kindling and so never got the coal quest. That is
+  why nodes now rest per player (the change was made after this run and is
+  in the swarm numbers, not in these three).
+- The same at Holt's boars: packs of three, three players, two boars each of
+  the six we needed. The pack by the watch is now four and returns in 75 s,
+  and the quest asks for five.
+- **Old Tusk did not appear** for us: his camp's four-metre scatter found no
+  open ground in the wood. With a 14 m scatter he stands there (checked on
+  the next server: level 4, 276 health, hostile). My party invite also went
+  out before the others arrived, so the three reached his hollow alone and
+  found it empty. The group fight itself is untested by hand.
+- Nobody was confused about where to go except the hunter at the trees.
 
 ## For the class-combat lane
 
@@ -104,8 +150,9 @@ abilities are as on main).
   worth pressing; bots never choose it and neither did I.
 - **Warrior:** before level 3 there is one button and a two-minute buff.
 - **Deaths by class, final 20-bot swarms:** mages and paladins die most
-  (mage 12 to 25 an hour in the grinder brain, which pulls again at 60%
-  health), priests almost never. A Grazer costs a mage a third of her health
+  (mages 12 and 25 an hour in two of the swarms, paladins 23 in the last
+  one, nearly all of it bots of the grinder type, which pull again at 60%
+  health); priests almost never. A Grazer costs a mage a third of her health
   if it reaches her; she has no way to stop it reaching her before level 4.
 - **Fights are short:** median 5 s. That is why the second ability is 25% of
   casts and no more.

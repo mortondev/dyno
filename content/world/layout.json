@@ -1,5 +1,5 @@
 {
- "version": 2,
+ "version": 3,
  "size": [2048, 256, 2048],
  "design": [2048, 256, 2048],
  "seed": 20261123,
@@ -1505,8 +1505,8 @@
   {
    "key": "gate_rocks",
    "kind": "wayside",
-   "at": [-96, 26],
-   "name": "West Gate Rocks",
+   "at": [-36, -114],
+   "name": "North Gate Rocks",
    "radius": 10,
    "stamps": [
     {"stamp": "coal_seam", "at": [0, 0], "rot": 3, "fit": "ground"},

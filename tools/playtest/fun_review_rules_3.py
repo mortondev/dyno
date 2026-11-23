@@ -47,12 +47,12 @@ for a in r["areas"]:
 # "gather log" matched the ride to the Logging Camp
 items["ride_logging_camp"]["name"] = "Cart ride to Garrick's Camp"
 
-# coal at the west gate for the first coal quest; the quarry has the iron
-r["areas"].append({"key": "gate_rocks", "name": "West Gate Rocks", "place": "gate_rocks",
+# coal at the north gate for the first coal quest; the quarry has the iron
+r["areas"].append({"key": "gate_rocks", "name": "North Gate Rocks", "place": "gate_rocks",
                    "radius": 20, "levels": [1, 2]})
 quests["coal_for_the_watch"]["text"] = (
     "Light keeps the Shades back, and torches need coal. There is a seam in the rocks outside "
-    "the west gate, and more at the Old Quarry north-west of the town: look for black-flecked "
+    "the north gate, on the left, and more at the Old Quarry north-west of the town: look for black-flecked "
     "stone and bring me 6 coal. Your wooden pick will do for coal.")
 
 # rares roll at every spawn point on every respawn, so a farmed flock shows

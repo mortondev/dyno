@@ -27,9 +27,9 @@ for k, xp in (("cold_hearth", 40), ("meat_for_the_pot", 150), ("thin_the_herd", 
     quests[k]["xp"] = xp
 creatures["grazer"]["health"] = 36
 
-# the first flocks graze at the town's edge (100 m from the hearth), six to a flock
+# the first flocks graze at the town's edge (113 m from the hearth, outside the wall), six to a flock
 meadow = areas["hearthmeadow"]["camps"]
-ring = {(108, -72): [72, -72], (98, 98): [72, 72], (-102, 88): [-72, 72], (-98, -92): [-72, -72]}
+ring = {(108, -72): [80, -80], (98, 98): [80, 80], (-102, 88): [-80, 80], (-98, -92): [-80, -80]}
 for c in meadow:
     at = tuple(c.get("at", ()))
     if c.get("place") == "hearthstead" and at in ring:

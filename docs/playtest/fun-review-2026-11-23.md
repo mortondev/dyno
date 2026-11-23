@@ -12,7 +12,19 @@ All runs shared a machine with other builds (load average about 70 on 16
 cores), so read differences of 10% as noise. The swarm's own spread between
 two identical runs is in the table. The "after" runs were made on the
 branch before its last merge of main (which added starter clothes, four
-townsfolk and streaming changes); POSTMERGE
+townsfolk and streaming changes); one more swarm on the merged tree
+(`runs/fun-after-merged-swarm-20x12.md`: first kill 50 s, level 2 at 176 s,
+1.37× the pace, 54% travel, 3.6 deaths an hour, tick 1.35 ms mean) agrees
+with them.
+
+> **Later the same day.** The work then narrowed to the first 30 minutes:
+> [first-30-minutes-2026-11-23.md](first-30-minutes-2026-11-23.md) has the
+> per-class and per-player-type numbers and the last changes. Three things
+> below changed after this page was written: the class and ability changes
+> (plate and mail, the hunter's mana costs) were taken back out, because the
+> class-combat lane owns those sections; the seam "outside the west gate"
+> moved to the north gate when the town got its wall (there is no west
+> gate); and gathered trees and bushes now rest per player.
 
 ## The short version
 
