@@ -335,3 +335,30 @@ fn an_observer_streams_the_world_around_its_camera() {
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// `dyno shot --as NAME --pos`: a player looking from somewhere else gets
+/// the world round that point.
+#[test]
+fn a_player_can_look_from_elsewhere() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-wlook-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let (server, addr) = start(&dir);
+    let at = [20.0, 30.0, 170.0];
+    let j = net::connect_with(
+        &addr,
+        "looker",
+        net::JoinOptions {
+            token: 77,
+            view_at: Some(at),
+            ..Default::default()
+        },
+        Duration::from_secs(20),
+    )
+    .expect("joins");
+    for s in net::sections_around(&j.world, at, net::LOAD_RADIUS) {
+        assert!(j.world.has_section(s), "{s:?} round where the player looks");
+    }
+    drop(j);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
