@@ -179,7 +179,7 @@ fn grid(
                 0.0,
             );
             boxes.extend_from_slice(verts);
-            let ctx = egui::Context::default();
+            let ctx = crate::theme::new_context();
             let raw = egui::RawInput {
                 screen_rect: Some(egui::Rect::from_min_size(
                     egui::Pos2::ZERO,
@@ -435,7 +435,7 @@ fn shoot(
         0.0,
     );
     boxes.extend_from_slice(verts);
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     let raw = egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,

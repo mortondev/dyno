@@ -198,6 +198,10 @@ struct Worker {
     urgent: HashSet<SectionPos>,
     cam: [f32; 3],
     dir: [f32; 3],
+    /// levels of detail of the ground, from the camera
+    lods: crate::fine::Lods,
+    /// the level each built section was meshed at
+    built_lod: std::collections::HashMap<SectionPos, crate::fine::Lod>,
     /// the camera has been told (until then leaves are meshed in full)
     focused: bool,
     /// sections with leaves drawn as cubes: whether in clumps (near the
@@ -209,6 +213,7 @@ struct Worker {
 
 impl Worker {
     fn new(world: World) -> Worker {
+        let dims = world.section_dims();
         let held = world.held_list();
         let at = Instant::now() - WHOLE_WAIT;
         Worker {
@@ -220,6 +225,8 @@ impl Worker {
             urgent: HashSet::new(),
             cam: [0.0; 3],
             dir: [0.0, 0.0, -1.0],
+            lods: crate::fine::Lods::new(dims),
+            built_lod: std::collections::HashMap::new(),
             focused: false,
             leafy: std::collections::HashMap::new(),
             leafy_at: [f32::MAX; 3],
@@ -243,6 +250,7 @@ impl Worker {
                     self.world.drop_section(s);
                     self.light.forget(s);
                     self.built.remove(&s);
+                    self.built_lod.remove(&s);
                     self.leafy.remove(&s);
                     self.todo.remove(&s);
                     self.urgent.remove(&s);
@@ -271,6 +279,14 @@ impl Worker {
                 self.dir = dir;
                 self.focused = true;
                 self.leaves_again();
+                // ground whose level of detail changed is meshed again
+                if self.lods.update(cam) {
+                    for (s, l) in &self.built_lod {
+                        if *l != self.lods.lod(*s) {
+                            self.todo.insert(*s);
+                        }
+                    }
+                }
             }
         }
     }
@@ -462,10 +478,15 @@ impl Worker {
         // the open sky, and rock all round, draw nothing: no need to mesh
         let (empty, solid): (Vec<SectionPos>, Vec<SectionPos>) =
             list.into_iter().partition(|s| self.nothing_to_draw(*s));
+        // each with how its leaves are drawn now, and its ground at the
+        // level of detail the camera calls for
         let with: Vec<_> = solid
             .iter()
-            .map(|s| (*s, self.leafy.get(s).copied()))
+            .map(|s| (*s, self.leafy.get(s).copied(), self.lods.lod(*s)))
             .collect();
+        for (s, _, l) in &with {
+            self.built_lod.insert(*s, *l);
+        }
         let focus = self.focused.then_some(self.cam);
         let geos = render::mesh_many_at(&self.world, &self.light, &with, focus);
         for s in &empty {
@@ -614,7 +635,24 @@ mod tests {
         }
         let all = game.held_list();
         assert_eq!(meshes.len(), all.len(), "every section meshed");
-        let once = render::mesh_many(&game, &whole, &all);
+        // each at the level of detail the worker chose for it
+        let at: Vec<_> = all.iter().map(|s| (*s, meshes[s].lod)).collect();
+        let once = render::mesh_many(&game, &whole, &at);
+        // the ground's faces merge by light, and a section may be meshed
+        // before the light next door has settled: compare the area it
+        // covers, which is its shape
+        let area = |g: &SectionGeo| -> f64 {
+            g.ground
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|q| {
+                    let a = glam::Vec3::from(q[1].pos) - glam::Vec3::from(q[0].pos);
+                    let b = glam::Vec3::from(q[3].pos) - glam::Vec3::from(q[0].pos);
+                    a.cross(b).length() as f64
+                })
+                .sum()
+        };
         for (s, g) in all.iter().zip(once) {
             let m = &meshes[s];
             assert_eq!(
@@ -622,6 +660,7 @@ mod tests {
                 (g.opaque.len(), g.trans.len()),
                 "section {s:?}"
             );
+            assert!((area(m) - area(&g)).abs() < 1e-3, "section {s:?}: ground");
         }
     }
 }

@@ -2,6 +2,7 @@
 //! for built blocks, water, ground clutter, sun shadows and fog, plus a block
 //! highlight and boxes for everything that moves.
 
+use crate::fine::Lod;
 use crate::light::Light;
 use crate::terrain_mesh::{self, Glow, SectionGeo};
 use bytemuck::{Pod, Zeroable};
@@ -34,14 +35,14 @@ pub const NO_TEX: [f32; 4] = [0.0, 0.0, -1.0, 0.0];
 
 // What a vertex is, told by `tex[2]`. From 0 up it is a texture layer plus
 // one of these bands; below 0 it is untextured.
-/// Smooth ground: textured by world position. `tex[1]` is the layer for steep
-/// faces; `tex[0]`, `color[1]` and `color[0]` are a neighbouring ground's
-/// layers and how much of it shows; `color[2]` is 1 to keep the tile crisp.
-pub const KIND_TERRAIN: f32 = 4096.0;
 /// Leaves: textured by world position, alpha-tested, swaying in the wind.
 pub const KIND_FOLIAGE: f32 = 8192.0;
 /// The water surface: waves, shore foam (`normal[0]` is how near the shore is).
 pub const KIND_WATER: f32 = 12288.0;
+/// Fine voxel ground: one colour per voxel, from the layer at the voxel's
+/// centre. `tex[0]` is voxels a metre; `tex[1]` the saturation in
+/// hundredths plus the brightness jitter (below 1); `color.rgb` a tint.
+pub const KIND_VOXEL: f32 = 16384.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
 const KIND_DECAL: f32 = -3.0;
 /// A halo: a camera-facing square, added to the picture.
@@ -138,12 +139,12 @@ struct Look { leaf_under: vec4<f32>, leaf_over: vec4<f32>, tone_low: vec4<f32>, 
 // What a vertex is, from tex.z (see the KIND constants in render.rs):
 //   below 0: untextured (-1 plain, -2 ground cover (cover.rs), -3 ground decal, -4 halo)
 //   0..: textured with its own UVs
-//   4096..: smooth ground, textured by world position
 //   8192..: foliage, textured by world position, swaying
 //   12288..: water surface
-const K_TERRAIN: f32 = 4096.0;
+//   16384..: fine voxel ground, a colour a voxel
 const K_FOLIAGE: f32 = 8192.0;
 const K_WATER: f32 = 12288.0;
+const K_VOXEL: f32 = 16384.0;
 
 // 1 in sunlight, 0 in shadow; soft-edged. Four taps: the sampler compares
 // and blends 2 x 2 texels at each, so together they cover the same patch a
@@ -236,7 +237,9 @@ struct VOut {
   var tone = 0.5;
   let t = u.cam.w;
   let kz = v.tex.z;
-  if (kz >= K_WATER) {
+  if (kz >= K_VOXEL) {
+    tone = world_tone(pos.xz);
+  } else if (kz >= K_WATER) {
     pos.y = pos.y + swell(pos.xz, t);
   } else if (kz >= K_FOLIAGE) {
     tone = vnoise(pos.xz * 0.35 + pos.y * 0.21);
@@ -245,8 +248,6 @@ struct VOut {
     pos.x = pos.x + sin(t * 1.2 + ph) * 0.045 + sin(t * 2.7 + ph * 2.3) * 0.015;
     pos.z = pos.z + cos(t * 1.0 + ph * 1.3) * 0.045;
     pos.y = pos.y + sin(t * 1.6 + ph * 1.7) * 0.02;
-  } else if (kz >= K_TERRAIN) {
-    tone = world_tone(pos.xz);
   } else if (kz >= 0.0) {
     // built blocks: the same slow drift of tone, so a wall is not one tile
     // stamped over and over
@@ -305,48 +306,6 @@ fn side_z(layer: i32, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec4<f32> {
   return textureSampleGrad(tex_array, tex_samp, vec2<f32>(p.x, -p.y), layer, vec2<f32>(dx.x, -dx.y), vec2<f32>(dy.x, -dy.y));
 }
 
-// A ground tile, and a larger, turned copy of it under that: broad strokes
-// that hide the repeat.
-fn broad(layer: i32, uv: vec2<f32>, dx: vec2<f32>, dy: vec2<f32>) -> vec3<f32> {
-  let m = mat2x2<f32>(0.27, 0.09, -0.09, 0.27);
-  // soft and magnified, so a plain mip level will do (cheaper than gradients);
-  // 9.1 is 32 texels across a tile, times the copy's scale of 0.285
-  let lod = log2(max(max(length(dx), length(dy)) * 9.1, 1.0));
-  return textureSampleLevel(tex_array, tex_samp, m * uv, layer, lod).rgb;
-}
-fn paint(layer: i32, uv: vec2<f32>, dx: vec2<f32>, dy: vec2<f32>, soft: f32) -> vec3<f32> {
-  var c = textureSampleGrad(tex_array, tex_samp, uv, layer, dx, dy).rgb;
-  if (soft > 0.001) { c = mix(c, broad(layer, uv, dx, dy), soft); }
-  return c;
-}
-
-// One kind of ground: its top layer where it lies level, its steep layer on
-// slopes, walls and ceilings. `near` is the top layer seen from above, if
-// the caller has sampled it already (`have`). `soft` is how much of the
-// broad copy goes in: none for ore and the like, whose detail matters.
-fn ground(top: i32, steep: i32, level0: f32, w3: vec3<f32>, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>, near: vec3<f32>, have: bool, soft: f32) -> vec3<f32> {
-  var level = level0;
-  if (top == steep) { level = 1.0; }
-  var c = vec3<f32>(0.0);
-  if (w3.y > 0.001) {
-    var cy = vec3<f32>(0.0);
-    if (level > 0.001) {
-      if (!have) {
-        cy += level * paint(top, p.xz, dx.xz, dy.xz, soft);
-      } else if (soft > 0.001) {
-        cy += level * mix(near, broad(top, p.xz, dx.xz, dy.xz), soft);
-      } else {
-        cy += level * near;
-      }
-    }
-    if (level < 0.999) { cy += (1.0 - level) * paint(steep, p.xz, dx.xz, dy.xz, soft); }
-    c += w3.y * cy;
-  }
-  if (w3.x > 0.001) { c += w3.x * paint(steep, vec2<f32>(p.z, -p.y), vec2<f32>(dx.z, -dx.y), vec2<f32>(dy.z, -dy.y), soft); }
-  if (w3.z > 0.001) { c += w3.z * paint(steep, vec2<f32>(p.x, -p.y), vec2<f32>(dx.x, -dx.y), vec2<f32>(dy.x, -dy.y), soft); }
-  return c;
-}
-
 // Broad, slow changes of tone, so the ground is not one repeated tile.
 // The amount comes from the vertex shader.
 fn ground_tone(m: f32) -> vec3<f32> {
@@ -364,13 +323,13 @@ fn ground_tone(m: f32) -> vec3<f32> {
   // UVs, or for ground and leaves the view from above.
   var uv0 = i.tex.xy;
   var l0 = 0;
-  if (kz >= K_FOLIAGE) {
+  if (kz >= K_VOXEL) {
+    uv0 = i.wpos.xz;
+    l0 = anim_layer(kz - K_VOXEL, i.tex.w);
+  } else if (kz >= K_FOLIAGE) {
     // leaves: larger painted clumps than one tile a block
     uv0 = i.wpos.xz * leaf_scale;
     l0 = anim_layer(kz - K_FOLIAGE, select(i.tex.w, 0.0, i.tex.x >= 0.5));
-  } else if (kz >= K_TERRAIN) {
-    uv0 = i.wpos.xz;
-    l0 = anim_layer(kz - K_TERRAIN, i.tex.w);
   } else if (kz >= 0.0) {
     l0 = anim_layer(kz, i.tex.w);
   }
@@ -391,8 +350,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
     let r2 = cross(n, dpx);
     let det = dot(dpx, r1);
     let g = sign(det) * (dhx * r1 + dhy * r2);
-    // smooth ground: only on its level tops, which show the texture seen from above
-    let k = look.grade.w * (1.0 - smoothstep(18.0, 40.0, d)) * select(1.0, smoothstep(0.6, 0.9, n.y), kz >= K_TERRAIN);
+    let k = look.grade.w * (1.0 - smoothstep(18.0, 40.0, d));
     bent = normalize(abs(det) * n - g * k);
   }
   var base = i.color.rgb;
@@ -400,7 +358,32 @@ fn ground_tone(m: f32) -> vec3<f32> {
   // 0: hard sunlight; towards 1: light wraps round the form (foliage)
   var wrap = 0.0;
   var dim = 1.0;
-  if (kz >= K_FOLIAGE) {
+  if (kz >= K_VOXEL) {
+    // fine voxel ground: one colour a voxel, the layer's texel at the
+    // voxel's centre on the mip level with a texel a voxel, jittered
+    let r = i.tex.x;
+    let an = abs(n);
+    var ax = vec3<f32>(0.0, sign(n.y), 0.0);
+    if (an.x > an.y && an.x > an.z) {
+      ax = vec3<f32>(sign(n.x), 0.0, 0.0);
+    } else if (an.z > an.y) {
+      ax = vec3<f32>(0.0, 0.0, sign(n.z));
+    }
+    let vox = floor(i.wpos * r - ax * 0.5);
+    let ctr = (vox + 0.5) / r;
+    var uv = ctr.xz;
+    if (abs(ax.x) > 0.5) { uv = vec2<f32>(ctr.z, -ctr.y); } else if (abs(ax.z) > 0.5) { uv = vec2<f32>(ctr.x, -ctr.y); }
+    let size = f32(textureDimensions(tex_array, 0).x);
+    var col = textureSampleLevel(tex_array, tex_samp, uv, l0, log2(max(size / r, 1.0))).rgb;
+    let h1 = hash3(vox);
+    let h2 = hash3(vox + vec3<f32>(17.0, 31.0, 47.0));
+    let jit = fract(i.tex.y);
+    let sat = floor(i.tex.y) / 100.0;
+    col = col * (1.0 + jit * (h1 - 0.5) * 2.0) * (vec3<f32>(1.0) + vec3<f32>(0.5, -0.1, -0.45) * jit * (h2 - 0.5));
+    let grey = dot(col, vec3<f32>(0.2126, 0.7152, 0.0722));
+    col = mix(vec3<f32>(grey), col, sat) * i.color.rgb;
+    base = max(col, vec3<f32>(0.0)) * ground_tone(i.tone);
+  } else if (kz >= K_FOLIAGE) {
     // tex.x from 1: leaves as cubes in their own colours (foliage.rs), no
     // texture; seen close, each face breaks into squares (tex.w: how many a
     // side, and by how much they differ), told apart by the face's own
@@ -431,31 +414,6 @@ fn ground_tone(m: f32) -> vec3<f32> {
     // darker underneath and inside
     dim = dim * (0.74 + 0.26 * smoothstep(-0.6, 0.5, n.y));
     wrap = 0.55;
-  } else if (kz >= K_TERRAIN) {
-    let w3 = tri_weights(n);
-    // the top layer on level ground, giving way to the steep layer on
-    // slopes, along a ragged line
-    var level = smoothstep(0.40, 0.62, n.y);
-    if (n.y > 0.3 && n.y < 0.72) {
-      level = smoothstep(0.40, 0.62, n.y + (vnoise(i.wpos.xz * 1.3 + i.wpos.y * 0.7) - 0.5) * 0.16);
-    }
-    var lc = i32(i.tex.y + 0.5);
-    // a block with one animated texture all round: its steep faces move too
-    if (lc == i32(kz - K_TERRAIN + 0.5)) { lc = l0; }
-    // color.b: 1 on ground whose own detail must stay crisp (ore, emberstone)
-    var c = ground(l0, lc, level, w3, i.wpos, dpx, dpy, tx0.rgb, true, 0.42 * (1.0 - i.color.b));
-    // fade into the neighbouring kind of ground along a ragged, painted edge
-    let wb = i.color.r;
-    if (wb > 0.002) {
-      let nb = vnoise(i.wpos.xz * 2.1 + i.wpos.y * 1.3) * 0.6 + vnoise(i.wpos.xz * 0.63 + vec2<f32>(3.1, 7.7)) * 0.4;
-      // both sides of the edge must draw the same line: one adds the noise, the other takes it away
-      let s = select(-1.0, 1.0, kz - K_TERRAIN < i.tex.x);
-      let k = smoothstep(0.38, 0.62, wb + s * (nb - 0.5) * 0.5);
-      if (k > 0.001) {
-        c = mix(c, ground(i32(i.tex.x + 0.5), i32(i.color.g + 0.5), level, w3, i.wpos, dpx, dpy, c, false, 0.42), k);
-      }
-    }
-    base = c * ground_tone(i.tone);
   } else if (kz < -1.5 && kz > -2.5) {
     base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
@@ -539,7 +497,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
 @fragment fn fs_translucent(i: VOut) -> @location(0) vec4<f32> {
   let kz = i.tex.z;
   var l0 = 0;
-  if (kz >= 0.0 && kz < K_TERRAIN) { l0 = anim_layer(kz, i.tex.w); }
+  if (kz >= 0.0 && kz < K_FOLIAGE) { l0 = anim_layer(kz, i.tex.w); }
   let tx0 = textureSample(tex_array, tex_samp, i.tex.xy, l0);
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
@@ -592,6 +550,10 @@ const FACES: [Face; 6] = [
     ([0, 0, -1], [1, 0, 0], [0, 1, 0], 0.68),
 ];
 
+/// How many sections a frame are meshed again for a new level of detail
+/// (a whole world; a streamed world's worker does its own).
+const LOD_REMESH_PER_FRAME: usize = 12;
+
 /// Build the opaque and translucent meshes of one 16³ section.
 pub fn mesh_section(
     world: &World,
@@ -600,7 +562,11 @@ pub fn mesh_section(
     sy: i32,
     sz: i32,
 ) -> (Vec<Vertex>, Vec<Vertex>) {
-    let geo = terrain_mesh::mesh(world, light, sx, sy, sz);
+    let mut geo = terrain_mesh::mesh(world, light, sx, sy, sz);
+    // the ground's quads as plain triangles
+    for q in geo.ground.as_chunks::<4>().0 {
+        geo.opaque.extend([0, 1, 2, 0, 2, 3].map(|k| q[k]));
+    }
     (geo.opaque, geo.trans)
 }
 
@@ -637,18 +603,20 @@ pub fn mesh_cost() -> (u64, f64) {
     )
 }
 
-/// Mesh many sections at once, on every core.
-pub(crate) fn mesh_many(world: &World, light: &Light, list: &[[i32; 3]]) -> Vec<SectionGeo> {
-    let plain: Vec<_> = list.iter().map(|s| (*s, None)).collect();
+/// Mesh many sections at once, on every core, each with its ground at its
+/// level of detail.
+pub(crate) fn mesh_many(world: &World, light: &Light, list: &[([i32; 3], Lod)]) -> Vec<SectionGeo> {
+    let plain: Vec<_> = list.iter().map(|(s, l)| (*s, None, *l)).collect();
     mesh_many_at(world, light, &plain, None)
 }
 
 /// Mesh many sections at once as seen from a camera at `focus`; each comes
-/// with how its leaves are drawn now (see `terrain_mesh::mesh_at`).
+/// with how its leaves are drawn now and its ground's level of detail (see
+/// `terrain_mesh::mesh_at`).
 pub(crate) fn mesh_many_at(
     world: &World,
     light: &Light,
-    list: &[([i32; 3], Option<bool>)],
+    list: &[([i32; 3], Option<bool>, Lod)],
     focus: Option<[f32; 3]>,
 ) -> Vec<SectionGeo> {
     let threads = std::thread::available_parallelism()
@@ -656,9 +624,9 @@ pub(crate) fn mesh_many_at(
         .unwrap_or(1)
         .min(list.len().div_ceil(2))
         .min(16);
-    let one = |s: &([i32; 3], Option<bool>)| {
+    let one = |s: &([i32; 3], Option<bool>, Lod)| {
         let t = std::time::Instant::now();
-        let geo = terrain_mesh::mesh_at(world, light, s.0, focus, s.1);
+        let geo = terrain_mesh::mesh_at(world, light, s.0, focus, s.1, s.2);
         MESH_NANOS.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
         MESH_COUNT.fetch_add(1, Ordering::Relaxed);
         geo
@@ -1078,45 +1046,17 @@ pub fn push_ground_ring(out: &mut Vec<Vertex>, center: Vec3, radius: f32, color:
 }
 
 /// The same ring, laid over the ground: each point of it takes the height
-/// of the (smoothed) ground under it, looked up in the world.
+/// of the drawn ground under it (the top of its fine voxel column).
 pub fn push_ground_ring_on(
     out: &mut Vec<Vertex>,
     world: &World,
+    ground: &terrain_mesh::Ground,
     center: Vec3,
     radius: f32,
     color: [f32; 3],
 ) {
-    // top of the ground in a column, near the height of the target's feet
-    let top = |x: i32, z: i32| {
-        let y0 = center.y.round() as i32 + 2;
-        (y0 - 5..=y0)
-            .rev()
-            .find(|y| w::is_solid(world.get(x, *y, z)) && !w::is_solid(world.get(x, *y + 1, z)))
-            .map_or(center.y, |y| (y + 1) as f32)
-    };
-    // much as the mesh does it: a column's height leans towards its neighbours'
-    let soft = |x: i32, z: i32| {
-        let h = top(x, z);
-        if !terrain_mesh::is_terrain(world.get(x, h as i32 - 1, z)) {
-            return h;
-        }
-        let mut sum = 0.0;
-        for dz in -1..=1 {
-            for dx in -1..=1 {
-                sum += top(x + dx, z + dz).clamp(h - 1.0, h + 1.0);
-            }
-        }
-        h + (sum / 9.0 - h).clamp(-0.4, 0.4)
-    };
     ring(out, center, radius, color, |x, z| {
-        // between the four nearest column centres
-        let (fx, fz) = (x - 0.5, z - 0.5);
-        let (x0, z0) = (fx.floor(), fz.floor());
-        let (tx, tz) = (fx - x0, fz - z0);
-        let (x0, z0) = (x0 as i32, z0 as i32);
-        let a = soft(x0, z0) + (soft(x0 + 1, z0) - soft(x0, z0)) * tx;
-        let b = soft(x0, z0 + 1) + (soft(x0 + 1, z0 + 1) - soft(x0, z0 + 1)) * tx;
-        a + (b - a) * tz
+        ground.height(world, x, z, center.y)
     });
 }
 
@@ -1190,6 +1130,11 @@ struct SectionMesh {
     opaque: u32,
     trans: u32,
     glow: u32,
+    /// fine voxel ground: four vertices a quad (the shared quad index), and
+    /// how many quads
+    ground: Option<(wgpu::Buffer, u32)>,
+    /// the level of detail its ground was meshed at
+    lod: Lod,
     /// the plants and stones standing here; instanced when the camera is near
     cover: Vec<crate::cover::Spot>,
     /// meshed (possibly to nothing) since the section last arrived
@@ -1231,6 +1176,16 @@ pub struct Gfx {
     /// has some 262,000 places for a section; only those near are here)
     sections: std::collections::HashMap<[i32; 3], SectionMesh>,
     dims: [i32; 3],
+    /// triangles (0 1 2) (0 2 3) for every four vertices, for the ground
+    quad_index: wgpu::Buffer,
+    quad_cap: u32,
+    /// levels of detail of the ground in a whole world (a streamed world's
+    /// worker keeps its own)
+    lods: crate::fine::Lods,
+    /// where the camera will be when the world is next loaded
+    focus: Option<Vec3>,
+    /// sections waiting to be meshed at a new level of detail
+    lod_queue: Vec<[i32; 3]>,
     /// the far view's tiles (farview.rs), by tile position
     far: std::collections::HashMap<[i32; 2], (wgpu::Buffer, u32)>,
     /// grass and flowers around the camera, and the section column they were built for
@@ -1657,6 +1612,12 @@ impl Gfx {
             egui_wgpu::RendererOptions::default(),
         );
         let depth = depth_view(&device, config.width, config.height);
+        let quad_index = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("quads"),
+            size: 4,
+            usage: wgpu::BufferUsages::INDEX,
+            mapped_at_creation: false,
+        });
         let water = crate::water::WaterGfx::new(&device, SHADER_HEAD, &bgl, &config, &depth);
         Ok(Gfx {
             water,
@@ -1686,6 +1647,11 @@ impl Gfx {
             assets_gen: crate::assets::generation(),
             sections: Default::default(),
             dims: [0; 3],
+            quad_index,
+            quad_cap: 0,
+            lods: crate::fine::Lods::default(),
+            focus: None,
+            lod_queue: Vec::new(),
             far: Default::default(),
             cover,
             adapter_info,
@@ -1755,13 +1721,35 @@ impl Gfx {
         Some((buf, v.len() as u32))
     }
 
+    /// Make the shared quad index cover at least `quads` quads.
+    fn ensure_quad_index(&mut self, quads: u32) {
+        if quads <= self.quad_cap {
+            return;
+        }
+        let cap = quads.next_power_of_two().max(4096);
+        let idx: Vec<u32> = (0..cap)
+            .flat_map(|q| [0, 1, 2, 0, 2, 3].map(|k| q * 4 + k))
+            .collect();
+        let bytes: &[u8] = bytemuck::cast_slice(&idx);
+        self.quad_index = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("quads"),
+            size: bytes.len() as u64,
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(&self.quad_index, 0, bytes);
+        self.quad_cap = cap;
+    }
+
     /// Upload one section's mesh.
     fn store(&mut self, at: [i32; 3], geo: SectionGeo) {
         let SectionGeo {
             mut opaque,
+            ground,
             trans,
             glows,
             cover,
+            lod,
             ..
         } = geo;
         let (o, t) = (opaque.len() as u32, trans.len() as u32);
@@ -1770,6 +1758,8 @@ impl Gfx {
             push_glow(&mut opaque, g);
         }
         let glow = opaque.len() as u32 - o - t;
+        let quads = (ground.len() / 4) as u32;
+        self.ensure_quad_index(quads);
         let buf = self.upload(&opaque).map(|(b, _)| b);
         self.sections.insert(
             at,
@@ -1778,35 +1768,79 @@ impl Gfx {
                 opaque: o,
                 trans: t,
                 glow,
+                ground: self.upload(&ground).map(|(b, _)| (b, quads)),
+                lod,
                 cover,
                 built: true,
             },
         );
     }
 
-    /// Mesh a list of sections and upload them. In a streamed world, only
-    /// sections whose neighbours have all arrived are meshed (the mesh and
-    /// the light read past a section's edge); the others wait for them.
+    /// Mesh a list of sections at their levels of detail and upload them.
+    /// In a streamed world, only sections whose neighbours have all arrived
+    /// are meshed (the mesh and the light read past a section's edge); the
+    /// others wait for them.
     fn remesh(&mut self, world: &World, light: &Light, list: &[[i32; 3]]) {
-        let ready: Vec<[i32; 3]>;
-        let list = if world.is_sparse() {
-            ready = list
-                .iter()
-                .filter(|s| section_ready(world, **s))
-                .copied()
-                .collect();
-            &ready[..]
-        } else {
-            list
-        };
+        let list: Vec<([i32; 3], Lod)> = list
+            .iter()
+            .filter(|s| !world.is_sparse() || section_ready(world, **s))
+            .map(|s| (*s, self.lods.lod(*s)))
+            .collect();
         // in batches, so a whole world's vertices are never all in memory at once
         for batch in list.chunks(256) {
-            for (s, geo) in batch.iter().zip(mesh_many(world, light, batch)) {
+            for ((s, _), geo) in batch.iter().zip(mesh_many(world, light, batch)) {
                 self.store(*s, geo);
             }
         }
         // grass near the camera may have changed
         self.cover.changed();
+    }
+
+    /// Where the camera will be when the world is next loaded: the ground
+    /// near it is meshed finest.
+    pub fn set_focus(&mut self, at: Vec3) {
+        self.focus = Some(at);
+    }
+
+    /// In a whole (not streamed) world, mesh the ground again at the level
+    /// of detail the camera now calls for, a few sections a frame, nearest
+    /// first. (A streamed world's worker does this itself.)
+    pub fn update_lod(&mut self, world: &World, light: &Light, cam: Vec3) {
+        if self.sections.is_empty() || world.is_sparse() {
+            return;
+        }
+        if self.lods.update(cam.into()) {
+            let d = self.dims;
+            for sy in 0..d[1] {
+                for sz in 0..d[2] {
+                    for sx in 0..d[0] {
+                        let s = [sx, sy, sz];
+                        let Some(m) = self.sections.get(&s) else {
+                            continue;
+                        };
+                        if m.built && m.lod != self.lods.lod(s) && !self.lod_queue.contains(&s) {
+                            self.lod_queue.push(s);
+                        }
+                    }
+                }
+            }
+            // nearest last, so they come off the end first
+            let far = |s: &[i32; 3]| {
+                let c = Vec3::new(
+                    (s[0] * SECTION + SECTION / 2) as f32,
+                    cam.y,
+                    (s[2] * SECTION + SECTION / 2) as f32,
+                );
+                c.distance_squared(cam)
+            };
+            self.lod_queue.sort_by(|a, b| far(b).total_cmp(&far(a)));
+        }
+        if self.lod_queue.is_empty() {
+            return;
+        }
+        let n = self.lod_queue.len().min(LOD_REMESH_PER_FRAME);
+        let take = self.lod_queue.split_off(self.lod_queue.len() - n);
+        self.remesh(world, light, &take);
     }
 
     /// Mesh the whole world.
@@ -1818,6 +1852,16 @@ impl Gfx {
         ];
         self.dims = d;
         self.sections.clear();
+        // levels of detail from where the camera will be (the middle of
+        // the world when nobody said)
+        let cam = self.focus.take().unwrap_or(Vec3::new(
+            world.size[0] as f32 * 0.5,
+            0.0,
+            world.size[2] as f32 * 0.5,
+        ));
+        self.lods = crate::fine::Lods::new(d);
+        self.lods.update(cam.into());
+        self.lod_queue.clear();
         let mut list = Vec::with_capacity((d[0] * d[1] * d[2]) as usize);
         for sy in 0..d[1] {
             for sz in 0..d[2] {
@@ -1893,9 +1937,36 @@ impl Gfx {
 
     /// Opaque and translucent vertices held by the world meshes (for stats).
     pub fn world_vertices(&self) -> (u64, u64) {
-        self.sections
+        self.sections.values().fold((0, 0), |a, s| {
+            (
+                a.0 + s.opaque as u64 + s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4),
+                a.1 + s.trans as u64,
+            )
+        })
+    }
+
+    /// Vertices of the fine voxel ground (part of the opaque count), and
+    /// per level of detail (finest first) its sections and vertices (for stats).
+    pub fn ground_stats(&self) -> (u64, Vec<(u8, u32, u64)>) {
+        let v = self
+            .sections
             .values()
-            .fold((0, 0), |a, s| (a.0 + s.opaque as u64, a.1 + s.trans as u64))
+            .map(|s| s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4))
+            .sum();
+        let mut levels: Vec<(u8, u32, u64)> = Vec::new();
+        for s in self.sections.values() {
+            let Some((_, q)) = &s.ground else { continue };
+            let n = *q as u64 * 4;
+            match levels.iter_mut().find(|e| e.0 == s.lod.per_metre) {
+                Some(e) => {
+                    e.1 += 1;
+                    e.2 += n;
+                }
+                None => levels.push((s.lod.per_metre, 1, n)),
+            }
+        }
+        levels.sort_by_key(|e| std::cmp::Reverse(e.0));
+        (v, levels)
     }
 
     /// Re-mesh every section that touches the box [lo - margin, hi + margin].
@@ -2034,21 +2105,24 @@ impl Gfx {
             rp.set_pipeline(&self.shadow_pipe);
             rp.set_bind_group(0, &self.shadow_bind, &[]);
             let reach = SHADOW_HALF + SECTION as f32 * 2.0;
+            rp.set_index_buffer(self.quad_index.slice(..), wgpu::IndexFormat::Uint32);
             for (at, s) in &self.sections {
-                let (Some(b), n) = (&s.buf, s.opaque) else {
-                    continue;
-                };
-                if n == 0 {
-                    continue;
-                }
                 let (sx, sz) = (at[0], at[2]);
                 let cx = sx as f32 * SECTION as f32 + SECTION as f32 * 0.5;
                 let cz = sz as f32 * SECTION as f32 + SECTION as f32 * 0.5;
                 if (cx - cam.x).abs() > reach || (cz - cam.z).abs() > reach {
                     continue;
                 }
-                rp.set_vertex_buffer(0, b.slice(..));
-                rp.draw(0..n, 0..1);
+                if let Some(b) = &s.buf
+                    && s.opaque > 0
+                {
+                    rp.set_vertex_buffer(0, b.slice(..));
+                    rp.draw(0..s.opaque, 0..1);
+                }
+                if let Some((b, q)) = &s.ground {
+                    rp.set_vertex_buffer(0, b.slice(..));
+                    rp.draw_indexed(0..*q * 6, 0, 0..1);
+                }
             }
             if let Some((b, n)) = &box_buf {
                 rp.set_vertex_buffer(0, b.slice(..));
@@ -2060,7 +2134,9 @@ impl Gfx {
             Some((vp, _, dist)) => self
                 .sections
                 .iter()
-                .filter(|(at, m)| m.buf.is_some() && self.section_visible(**at, vp, dist))
+                .filter(|(at, m)| {
+                    (m.buf.is_some() || m.ground.is_some()) && self.section_visible(**at, vp, dist)
+                })
                 .map(|(_, m)| m)
                 .collect(),
             None => Vec::new(),
@@ -2101,12 +2177,17 @@ impl Gfx {
                 rp.set_pipeline(&self.sky_pipe);
                 rp.draw(0..3, 0..1);
                 rp.set_pipeline(&self.opaque_pipe);
+                rp.set_index_buffer(self.quad_index.slice(..), wgpu::IndexFormat::Uint32);
                 for s in &shown {
                     if let Some(b) = &s.buf
                         && s.opaque > 0
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(0..s.opaque, 0..1);
+                    }
+                    if let Some((b, q)) = &s.ground {
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw_indexed(0..*q * 6, 0, 0..1);
                     }
                 }
                 // the far view, round and beyond the near
@@ -2410,7 +2491,7 @@ mod tests {
                 let t = std::time::Instant::now();
                 let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
                 best[i] = best[i].min(t.elapsed().as_secs_f64() * 1e3);
-                verts += geo.opaque.len() + geo.trans.len();
+                verts += geo.opaque.len() + geo.ground.len() + geo.trans.len();
             }
         }
         let sum: f64 = best.iter().sum();
@@ -2418,7 +2499,10 @@ mod tests {
         let start = std::time::Instant::now();
         let n: usize = all
             .chunks(256)
-            .map(|b| mesh_many(&world, &light, b).len())
+            .map(|b| {
+                let b: Vec<_> = b.iter().map(|s| (*s, Lod::finest())).collect();
+                mesh_many(&world, &light, &b).len()
+            })
             .sum();
         let many = start.elapsed().as_secs_f64();
         eprintln!(
@@ -2454,16 +2538,19 @@ mod tests {
             let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
             let ms = t.elapsed().as_secs_f64() * 1e3;
             worst = worst.max(ms);
-            if !geo.opaque.is_empty() {
+            if !geo.opaque.is_empty() || !geo.ground.is_empty() {
                 busy += 1;
             }
-            verts += geo.opaque.len() + geo.trans.len();
+            verts += geo.opaque.len() + geo.ground.len() + geo.trans.len();
         }
         let one = start.elapsed().as_secs_f64();
         let start = std::time::Instant::now();
         let all: usize = list
             .chunks(256)
-            .map(|b| mesh_many(&world, &light, b).len())
+            .map(|b| {
+                let b: Vec<_> = b.iter().map(|s| (*s, Lod::finest())).collect();
+                mesh_many(&world, &light, &b).len()
+            })
             .sum();
         let many = start.elapsed().as_secs_f64();
         eprintln!(

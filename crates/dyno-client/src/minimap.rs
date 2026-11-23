@@ -835,7 +835,7 @@ mod tests {
     #[test]
     fn changes_on_the_map_mark_it_dirty() {
         let world = World::generate([128, 64, 128], 3);
-        let ctx = egui::Context::default();
+        let ctx = crate::theme::new_context();
         let mut m = Minimap::new();
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
             m.rebuild(ctx, &world, Vec3::new(64.0, 40.0, 64.0));

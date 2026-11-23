@@ -82,6 +82,9 @@ struct FileJson {
     shape_rules: BTreeMap<String, RuleSetJson>,
     #[serde(default)]
     shape_files: BTreeMap<String, ShapeFileJson>,
+    /// fine voxel terrain (`fine.rs`)
+    #[serde(default)]
+    terrain: crate::fine::TerrainJson,
 }
 
 #[derive(Deserialize)]
@@ -292,6 +295,8 @@ pub(crate) struct Pack {
     classes: Vec<String>,
     /// the meshers' flags of each block (`terrain_mesh::F_*`)
     pub(crate) flags: [u8; 256],
+    /// how natural ground is drawn as fine voxels
+    pub(crate) terrain: crate::fine::Params,
 }
 
 /// Tag bits the engine itself reads.
@@ -331,6 +336,7 @@ impl Pack {
             names: HashMap::new(),
             classes: vec![String::new()],
             flags: [0; 256],
+            terrain: crate::fine::Params::default(),
         };
         for t in ENGINE_TAGS {
             p.tag_bit(t);
@@ -405,6 +411,7 @@ impl Pack {
                 p.tags[id] |= p.tag_bit(t);
             }
         }
+        p.terrain = crate::fine::Params::compile(&f.terrain, &p.names);
         let mut set_index = HashMap::new();
         for (name, s) in &f.shape_rules {
             let mut classes = Vec::new();
