@@ -80,7 +80,7 @@ impl Default for Config {
             world_path: PathBuf::from("world/world.dynw"),
             world_size: [384, 96, 384],
             seed: 20261122,
-            motd: "Welcome to Dyno! Build together.".into(),
+            motd: "Welcome to Ashfall Vale.".into(),
             max_players: 32,
             default_mode: Mode::Survival,
             content_path: None,

@@ -66,6 +66,8 @@ pub struct Player {
     pub money: u32,
     /// banked rested XP
     pub rested: u32,
+    /// rested XP not yet a whole point
+    pub rested_carry: f32,
     pub quests: Vec<proto::QuestProgress>,
     pub done: HashSet<u16>,
     /// no health regeneration until then
@@ -576,6 +578,7 @@ impl State {
             xp: data.xp,
             money: data.money,
             rested: rested_now,
+            rested_carry: 0.0,
             quests: data
                 .quests
                 .iter()

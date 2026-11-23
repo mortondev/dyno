@@ -129,7 +129,10 @@ impl State {
                     continue;
                 };
                 let next = dyno_sim::progression::xp_to_next(p.level);
-                let add = rested_gain(next, 1.0 / 60.0, true).max(1);
+                // a minute's share, carried in fractions so slow levels still bank at 5% an hour
+                p.rested_carry += next as f32 * 0.05 / 60.0;
+                let add = p.rested_carry.floor() as u32;
+                p.rested_carry -= add as f32;
                 let pool = (p.rested + add).min(rested_cap(next));
                 if pool != p.rested {
                     p.rested = pool;

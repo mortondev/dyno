@@ -222,6 +222,8 @@ struct Play {
     world_event: Option<(String, String, f32)>,
     /// the first-login intro, when it started
     intro: Option<Instant>,
+    /// F3: version, address, position, frame rate
+    show_info: bool,
     level: u8,
     xp: u32,
     xp_next: u32,
@@ -1155,6 +1157,7 @@ fn new_play(j: Joined) -> Play {
         hover: None,
         world_event: None,
         intro: None,
+        show_info: false,
         ground: Default::default(),
         hearth,
         level: 1,
@@ -1382,7 +1385,9 @@ impl App {
                         p.intro = Some(Instant::now());
                     }
                     self.stage_loaded = false;
-                    p.chat.push(Chat { at: Instant::now(), from: None, text: if p.creative() { "Creative mode. Click to play. WASD move, F fly, left click break, right click place, E all items, G G then V to fill, Ctrl+Z undo, T chat, /help.".into() } else { "Survival mode. Hold left click to break blocks, E opens your pack and recipes, right click places or eats, Q throws, T chat, /help. Punch a tree to start, and make light before night falls.".into() } });
+                    if !p.content.world.protected {
+                        p.chat.push(Chat { at: Instant::now(), from: None, text: if p.creative() { "Creative mode. Click to play. WASD move, F fly, left click break, right click place, E all items, G G then V to fill, Ctrl+Z undo, T chat, /help.".into() } else { "Survival mode. Hold left click to break blocks, E opens your pack and recipes, right click places or eats, Q throws, T chat, /help. Punch a tree to start, and make light before night falls.".into() } });
+                    }
                     if let Some(g) = self.gfx.as_mut() {
                         g.load_world(&p.world, &p.light);
                     }
@@ -2891,6 +2896,10 @@ impl App {
         if p.wow() && matches!(code, KeyCode::KeyW | KeyCode::KeyS) {
             p.autorun = false;
         }
+        if code == KeyCode::F3 {
+            p.show_info = !p.show_info;
+            return;
+        }
         if code == KeyCode::Escape && p.intro.is_some() {
             p.intro = Some(Instant::now() - Duration::from_secs(600));
             return;
@@ -3653,8 +3662,9 @@ fn hud(
             colour.gamma_multiply(fade),
         );
     }
-    // top-left info
+    // top-left info: always in the builder modes, on F3 in the RPG
     let pos = p.player.pos;
+    let show_info = !p.content.world.protected || p.show_info;
     let info = format!(
         "Dyno {} · {} · {} online · {} fps\nx {:.0}  y {:.0}  z {:.0}{}",
         env!("CARGO_PKG_VERSION"),
@@ -3666,6 +3676,7 @@ fn hud(
         pos.z,
         if p.player.flying { "  · flying" } else { "" }
     );
+    let info = if show_info { info } else { String::new() };
     painter.text(
         screen.left_top() + Vec2::new(12.0, 10.0),
         Align2::LEFT_TOP,
