@@ -620,7 +620,7 @@ fn spawn_burst(out: &mut Vec<Particle>, c: Vec3, color: [f32; 3], radius: f32) {
 }
 
 /// Move a camera back from `eye` along -`dir` by up to `dist`, stopping before walls.
-fn pull_back(world: &dyno_world::World, eye: Vec3, dir: Vec3, dist: f32) -> Vec3 {
+pub(crate) fn pull_back(world: &dyno_world::World, eye: Vec3, dir: Vec3, dist: f32) -> Vec3 {
     let mut d = 0.0;
     let step = 0.1;
     while d < dist {
@@ -5846,7 +5846,8 @@ pub fn shot_front(
 }
 
 /// Render one frame with the real HUD, for `dyno shot --ui` (tests and agents).
-/// `ui` is "hud", "pack", "dig" or "dead".
+/// `ui` is "hud", "pack", "dig" or "dead"; or "stand" for the world alone
+/// with a stand-in figure on the ground at `pos` (see `shot::Stand`).
 #[allow(clippy::too_many_arguments)]
 pub fn shot_with_ui(
     j: Joined,
@@ -5863,6 +5864,16 @@ pub fn shot_with_ui(
     if let Some(z) = zoom {
         p.zoom = z;
     }
+    let stand = ui == "stand";
+    // a stand shot waits for its whole view, not just for the stream to pause
+    let view_missing = |p: &Play| {
+        stand
+            && pos.is_some_and(|at| {
+                net::sections_around(&p.world, at, p.view - 2.0 * w::SECTION as f32)
+                    .iter()
+                    .any(|s| !p.world.has_section(*s))
+            })
+    };
     let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
     // the land the join waited for, then the rest of the view as it streams
     // in, taken exactly as play takes it (lit and meshed in batches)
@@ -5877,6 +5888,7 @@ pub fn shot_with_ui(
     while started.elapsed() < Duration::from_millis(700)
         || (last_section.elapsed() < Duration::from_millis(250)
             && started.elapsed() < Duration::from_secs(4))
+        || (view_missing(&p) && started.elapsed() < Duration::from_secs(40))
     {
         match p.conn.rx.recv_timeout(Duration::from_millis(30)) {
             Ok(NetEvent::Msg(m)) => match m {
@@ -6034,6 +6046,16 @@ pub fn shot_with_ui(
     if let Some(pos) = pos {
         p.player.pos = pos.into();
     }
+    if stand {
+        let at = p.player.pos;
+        let (x, z) = (at.x.floor() as i32, at.z.floor() as i32);
+        let near = at.y.is_finite().then_some(at.y);
+        p.player.pos.y = crate::shot::standing_y(&p.world, x, z, near)
+            .ok_or_else(|| format!("nowhere to stand at {x}, {z}"))?;
+        // the same sky for every round of shots
+        p.weather = (0, 0.0);
+        p.weather_mix = 0.0;
+    }
     p.player.yaw = yaw;
     p.player.pitch = pitch;
     p.captured = ui != "pack";
@@ -6138,7 +6160,9 @@ pub fn shot_with_ui(
             .collect();
         p.loot = Some((id, 23, items));
     }
-    p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+    if !stand {
+        p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+    }
     if ui == "dig"
         && let Some(t) = &p.target
     {
@@ -6161,7 +6185,7 @@ pub fn shot_with_ui(
     };
     let right = dir.cross(Vec3::Y).normalize_or_zero();
     let up = right.cross(dir);
-    let vp = glam::Mat4::perspective_rh(75f32.to_radians(), wdt / hgt, 0.05, far)
+    let vp = glam::Mat4::perspective_rh(crate::shot::STAND_FOV.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
     models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
     let mut boxes = Vec::new();
@@ -6200,6 +6224,9 @@ pub fn shot_with_ui(
             .collect();
         look.wear(keys.iter().map(String::as_str));
         look.weapon = models::weapon_look(&p.content, p.held().map(|s| s.item));
+        if stand {
+            look = crate::shot::stand_in_look(&p.content);
+        }
         let at = p.player.pos + Vec3::Y;
         let l = p.light.get(
             at.x.floor() as i32,
@@ -6301,11 +6328,15 @@ pub fn shot_with_ui(
     let mut actions = Vec::new();
     // two passes so windows settle their size; the first pass loads the font atlas
     let first = ctx.run(raw(), |ctx| {
-        hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        if !stand {
+            hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        }
     });
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
     let second = ctx.run(raw(), |ctx| {
-        hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        if !stand {
+            hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        }
     });
     gfx.screenshot = Some(out.clone());
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, second);
