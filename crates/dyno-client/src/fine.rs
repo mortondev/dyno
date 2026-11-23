@@ -289,6 +289,98 @@ impl Lod {
     }
 }
 
+/// The level of detail of every section column, decided from where the
+/// camera is (`terrain.lod` in `blocks.json`). Whoever meshes the world
+/// keeps one: the world worker for a streamed world, the renderer for a
+/// whole one.
+#[derive(Default, Clone)]
+pub struct Lods {
+    /// sections on each axis
+    dims: [i32; 3],
+    /// voxels a metre per section column (x, z); empty until decided
+    cols: Vec<u8>,
+    /// where the camera was when they were last decided
+    from: Option<[f32; 3]>,
+}
+
+impl Lods {
+    /// For a world of `dims` sections, nothing decided yet (every section
+    /// at the finest level).
+    pub fn new(dims: [i32; 3]) -> Lods {
+        Lods {
+            dims,
+            cols: Vec::new(),
+            from: None,
+        }
+    }
+
+    /// Decide again for a camera at `cam`. Columns turn finer as soon as
+    /// they come within a ring and coarser only a little past it, so
+    /// standing on a line does not flicker. Returns false (and decides
+    /// nothing) when the camera has moved less than 4 m since last time.
+    pub fn update(&mut self, cam: [f32; 3]) -> bool {
+        if let Some(f) = self.from
+            && (f[0] - cam[0]).powi(2) + (f[2] - cam[2]).powi(2) < 16.0
+            && !self.cols.is_empty()
+        {
+            return false;
+        }
+        self.from = Some(cam);
+        let p = params();
+        let d = self.dims;
+        let n = (d[0].max(0) * d[2].max(0)) as usize;
+        if self.cols.len() != n {
+            self.cols = vec![0; n];
+        }
+        let s = N as f32;
+        for sz in 0..d[2] {
+            for sx in 0..d[0] {
+                let (x0, z0) = (sx as f32 * s, sz as f32 * s);
+                let dx = (x0 - cam[0]).max(cam[0] - (x0 + s)).max(0.0);
+                let dz = (z0 - cam[2]).max(cam[2] - (z0 + s)).max(0.0);
+                let i = (sz * d[0] + sx) as usize;
+                self.cols[i] = p.per_metre_at((dx * dx + dz * dz).sqrt(), self.cols[i]);
+            }
+        }
+        true
+    }
+
+    fn col(&self, sx: i32, sz: i32) -> u8 {
+        if self.cols.is_empty() {
+            return params().per_metre;
+        }
+        if sx < 0 || sz < 0 || sx >= self.dims[0] || sz >= self.dims[2] {
+            return 0;
+        }
+        self.cols[(sz * self.dims[0] + sx) as usize]
+    }
+
+    /// How section `s` should be meshed now: its column's level, with a
+    /// skirt towards each side whose neighbour differs.
+    pub fn lod(&self, s: [i32; 3]) -> Lod {
+        let r = self.col(s[0], s[2]);
+        let mut skirt = [0u8; 4];
+        for (k, (nx, nz)) in [
+            (s[0] - 1, s[2]),
+            (s[0] + 1, s[2]),
+            (s[0], s[2] - 1),
+            (s[0], s[2] + 1),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let n = self.col(nx, nz);
+            if n != 0 && n != r {
+                skirt[k] = n;
+            }
+        }
+        Lod {
+            per_metre: r,
+            skirt,
+        }
+    }
+}
+
 // ----------------------------------------------------------------- noise
 
 /// A value in -1..1 that drifts smoothly over a lattice `size` voxels a cell.

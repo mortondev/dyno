@@ -65,3 +65,26 @@ framing is cinematic. Notes for the next pass:
 4. **Distant castles and cities** are not places in Ashfall Vale. Keep them only as beyond-the-edge scenery (the horizon panorama), never as promised content.
 5. **Characters in the concepts are chibi** (Cube World proportions). The character direction stays slender, heroic, WoW-like with exaggerated gear; treat concept figures as placeholders for activity and colour, not proportions.
 6. **Seasons mix** within one scene. Each zone keeps one coherent season: spring blossom in Hearthstead, autumn in Birchrise, high summer at the farm, moody late autumn in Barrowwood.
+
+# Round 5 (adopted): WoW gameplay camera and proportions
+
+Every place is now seen as you play it: from about 9 m behind your own
+character, with a wide view, 6–8 m roads, heroic buildings, big
+thick-trunked trees and vistas into haze (docs/design/scale.md). Notes:
+palm trees at the Sunken Shrine do not belong in the vale; distant castles
+crept back into three views (horizon scenery only); the figures still lean
+chibi compared with the re-sculpted characters.
+
+## Round 5, aligned (adopted)
+
+The user picked four images as proportionally right: Hollow Oak,
+Hearthstead at dusk, Barrow crypt and Miner's Rest. The other 14 were
+regenerated against them, and the shared rules are now the CONSISTENCY
+and THE VALE sections of tools/concepts/style.txt:
+
+- **Camera:** low, about 3 m up and 7–8 m behind the character, who stands large in the lower middle of the frame.
+- **Path and landmark:** a path leads to a landmark 40–80 m away.
+- **Roads:** 4–6 m wide, with modest town squares.
+- **Framing and depth:** framing trees and a rich foreground; layered hills and mountains fading into haze.
+- **Voxels:** one voxel size throughout.
+- **The vale:** a temperate valley with no palms and no castles or cities on the horizon.

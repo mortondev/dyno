@@ -12,7 +12,14 @@ pub struct Light {
     size: [i32; 3],
     dims: [i32; 3],
     secs: Vec<Option<Box<[u8; SECTION_CELLS]>>>,
+    /// sections whose light may have changed since `take_changed`
+    changed: Vec<bool>,
+    changed_list: Vec<usize>,
 }
+
+/// One section's light, packed (None: all open sky), as copied between
+/// threads (`Light::section`, `Light::set_section`).
+pub type SectionLight = Option<Box<[u8; SECTION_CELLS]>>;
 
 const R: i32 = 15;
 
@@ -27,22 +34,32 @@ struct Patch {
 const OPEN: u8 = 0xf0;
 
 impl Light {
-    pub fn new(world: &World) -> Self {
+    /// Light for a world of this size with nothing worked out yet (open sky
+    /// everywhere): for a copy filled from elsewhere (`set_section`).
+    pub fn blank(world: &World) -> Self {
         let size = [
             world.size[0] as i32,
             world.size[1] as i32,
             world.size[2] as i32,
         ];
         let dims = world.section_dims();
-        let mut l = Light {
+        let n = (dims[0] * dims[1] * dims[2]) as usize;
+        Light {
             size,
             dims,
-            secs: vec![None; (dims[0] * dims[1] * dims[2]) as usize],
-        };
+            secs: vec![None; n],
+            changed: vec![false; n],
+            changed_list: Vec::new(),
+        }
+    }
+
+    pub fn new(world: &World) -> Self {
+        let mut l = Light::blank(world);
         if world.is_sparse() {
             let held = world.held_list();
             l.arrived(world, &held);
         } else {
+            let size = l.size;
             l.recompute(world, [0, 0, 0], [size[0] - 1, size[1] - 1, size[2] - 1]);
         }
         l
@@ -114,6 +131,40 @@ impl Light {
     pub fn forget(&mut self, s: SectionPos) {
         if let Some(i) = self.sect(s[0], s[1], s[2]) {
             self.secs[i] = None;
+            self.mark(i);
+        }
+    }
+
+    fn mark(&mut self, i: usize) {
+        if !self.changed[i] {
+            self.changed[i] = true;
+            self.changed_list.push(i);
+        }
+    }
+
+    /// The sections whose light may have changed since the last call.
+    pub fn take_changed(&mut self) -> Vec<SectionPos> {
+        let d = self.dims;
+        let list = std::mem::take(&mut self.changed_list);
+        list.into_iter()
+            .map(|i| {
+                self.changed[i] = false;
+                let i = i as i32;
+                [i % d[0], i / (d[0] * d[2]), (i / d[0]) % d[2]]
+            })
+            .collect()
+    }
+
+    /// A copy of one section's light.
+    pub fn section(&self, s: SectionPos) -> SectionLight {
+        self.sect(s[0], s[1], s[2])
+            .and_then(|i| self.secs[i].clone())
+    }
+
+    /// Store one section's light, worked out elsewhere.
+    pub fn set_section(&mut self, s: SectionPos, light: SectionLight) {
+        if let Some(i) = self.sect(s[0], s[1], s[2]) {
+            self.secs[i] = light;
         }
     }
 
@@ -341,6 +392,15 @@ impl Light {
     /// Store worked-out light.
     fn apply(&mut self, p: Patch) {
         let Patch { lo, hi, light } = p;
+        for sy in 0..self.dims[1] {
+            for sz in lo[2] / SECTION..=hi[2] / SECTION {
+                for sx in lo[0] / SECTION..=hi[0] / SECTION {
+                    if let Some(i) = self.sect(sx, sy, sz) {
+                        self.mark(i);
+                    }
+                }
+            }
+        }
         let mut k = 0;
         for y in 0..self.size[1] {
             for z in lo[2]..=hi[2] {
@@ -452,6 +512,16 @@ mod tests {
             }
         }
         assert!(l.bytes() < 48 * SECTION_CELLS, "open sky is not stored");
+        // a copy kept elsewhere, from the sections that changed
+        let mut copy = Light::blank(&c);
+        for s in l.take_changed() {
+            copy.set_section(s, l.section(s));
+        }
+        assert!(l.take_changed().is_empty());
+        for (x, y, z) in [(5, 5, 5), (40, 20, 33), (63, 47, 0)] {
+            assert_eq!(copy.sky(x, y, z), l.sky(x, y, z));
+            assert_eq!(copy.get(x, y, z), l.get(x, y, z));
+        }
         l.forget([0, 0, 0]);
         assert_eq!(l.sky(1, 1, 1), 15);
     }

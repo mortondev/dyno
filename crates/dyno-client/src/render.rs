@@ -10,7 +10,6 @@ use dyno_world::{self as w, BlockId, World};
 use egui_wgpu::wgpu;
 use glam::{Mat4, Vec3};
 use std::sync::Arc;
-use wgpu::util::DeviceExt;
 
 pub const SECTION: i32 = 16;
 pub const SKY: [f32; 3] = [0.62, 0.78, 0.96];
@@ -606,7 +605,7 @@ pub fn section_ready(world: &World, s: [i32; 3]) -> bool {
 }
 
 /// Mesh many sections at once, on every core, each at its level of detail.
-fn mesh_many(world: &World, light: &Light, list: &[([i32; 3], Lod)]) -> Vec<SectionGeo> {
+pub(crate) fn mesh_many(world: &World, light: &Light, list: &[([i32; 3], Lod)]) -> Vec<SectionGeo> {
     let threads = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1)
@@ -1262,12 +1261,18 @@ fn ring(
 
 #[derive(Default)]
 struct SectionMesh {
-    opaque: Option<(wgpu::Buffer, u32)>,
-    /// fine voxel ground: four vertices a quad, and how many quads
+    /// one buffer (one allocation: streaming uploads many sections a
+    /// second): the opaque vertices, then the translucent, then the halos
+    /// round the section's lamps
+    buf: Option<wgpu::Buffer>,
+    opaque: u32,
+    trans: u32,
+    glow: u32,
+    /// fine voxel ground: four vertices a quad (the shared quad index), and
+    /// how many quads
     ground: Option<(wgpu::Buffer, u32)>,
-    trans: Option<(wgpu::Buffer, u32)>,
-    /// halos round the section's lamps
-    glow: Option<(wgpu::Buffer, u32)>,
+    /// the level of detail its ground was meshed at
+    lod: Lod,
     /// where grass grows; turned into blades when the camera is near
     tufts: Vec<Tuft>,
     /// meshed (possibly to nothing) since the section last arrived
@@ -1308,16 +1313,13 @@ pub struct Gfx {
     /// triangles (0 1 2) (0 2 3) for every four vertices, for the ground
     quad_index: wgpu::Buffer,
     quad_cap: u32,
-    /// the level of detail each section's ground was meshed at
-    lods: Vec<Lod>,
-    /// voxels a metre per section column (x, z), as last decided
-    col_lod: Vec<u8>,
-    /// where the levels of detail were last decided from
-    lod_from: Option<Vec3>,
+    /// levels of detail of the ground in a whole world (a streamed world's
+    /// worker keeps its own)
+    lods: crate::fine::Lods,
     /// where the camera will be when the world is next loaded
     focus: Option<Vec3>,
-    /// sections waiting to be meshed at a new level of detail, and how far off
-    lod_queue: Vec<([i32; 3], f32)>,
+    /// sections waiting to be meshed at a new level of detail
+    lod_queue: Vec<[i32; 3]>,
     /// grass and flowers around the camera, and the section column they were built for
     clutter: Option<(wgpu::Buffer, u32)>,
     clutter_at: Option<[i32; 2]>,
@@ -1773,9 +1775,7 @@ impl Gfx {
             dims: [0; 3],
             quad_index,
             quad_cap: 0,
-            lods: Vec::new(),
-            col_lod: Vec::new(),
-            lod_from: None,
+            lods: crate::fine::Lods::default(),
             focus: None,
             lod_queue: Vec::new(),
             clutter: None,
@@ -1834,13 +1834,17 @@ impl Gfx {
         if v.is_empty() {
             return None;
         }
-        let buf = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(v),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        // a plain buffer filled through the queue's pooled staging memory
+        // (create_buffer_init makes a staging buffer of its own each time,
+        // and streaming uploads many sections a second)
+        let bytes: &[u8] = bytemuck::cast_slice(v);
+        let buf = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: bytes.len() as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(&buf, 0, bytes);
         Some((buf, v.len() as u32))
     }
 
@@ -1853,30 +1857,43 @@ impl Gfx {
         let idx: Vec<u32> = (0..cap)
             .flat_map(|q| [0, 1, 2, 0, 2, 3].map(|k| q * 4 + k))
             .collect();
-        self.quad_index = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("quads"),
-                contents: bytemuck::cast_slice(&idx),
-                usage: wgpu::BufferUsages::INDEX,
-            });
+        let bytes: &[u8] = bytemuck::cast_slice(&idx);
+        self.quad_index = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("quads"),
+            size: bytes.len() as u64,
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(&self.quad_index, 0, bytes);
         self.quad_cap = cap;
     }
 
     /// Upload one section's mesh.
     fn store(&mut self, i: usize, geo: SectionGeo) {
-        let mut halo = Vec::with_capacity(geo.glows.len() * 6);
-        for g in &geo.glows {
-            push_glow(&mut halo, g);
+        let SectionGeo {
+            mut opaque,
+            ground,
+            trans,
+            glows,
+            tufts,
+            lod,
+        } = geo;
+        let (o, t) = (opaque.len() as u32, trans.len() as u32);
+        opaque.extend(trans);
+        for g in &glows {
+            push_glow(&mut opaque, g);
         }
-        let quads = (geo.ground.len() / 4) as u32;
+        let glow = opaque.len() as u32 - o - t;
+        let quads = (ground.len() / 4) as u32;
         self.ensure_quad_index(quads);
         self.sections[i] = SectionMesh {
-            opaque: self.upload(&geo.opaque),
-            ground: self.upload(&geo.ground).map(|(b, _)| (b, quads)),
-            trans: self.upload(&geo.trans),
-            glow: self.upload(&halo),
-            tufts: geo.tufts,
+            buf: self.upload(&opaque).map(|(b, _)| b),
+            opaque: o,
+            trans: t,
+            glow,
+            ground: self.upload(&ground).map(|(b, _)| (b, quads)),
+            lod,
+            tufts,
             built: true,
         };
     }
@@ -1893,7 +1910,7 @@ impl Gfx {
         let list: Vec<([i32; 3], Lod)> = list
             .iter()
             .filter(|s| !world.is_sparse() || section_ready(world, **s))
-            .map(|s| (*s, self.lods[self.section_index(*s)]))
+            .map(|s| (*s, self.lods.lod(*s)))
             .collect();
         // in batches, so a whole world's vertices are never all in memory at once
         for batch in list.chunks(256) {
@@ -1912,106 +1929,42 @@ impl Gfx {
         self.focus = Some(at);
     }
 
-    /// Decide each section column's voxels a metre from where the camera
-    /// is, and the level of detail of every section (with skirts where a
-    /// neighbour differs). Returns the sections whose level changed.
-    fn decide_lods(&mut self, cam: Vec3) -> Vec<([i32; 3], f32)> {
-        let p = &crate::shapes::pack().terrain;
-        let d = self.dims;
-        let cols = (d[0] * d[2]) as usize;
-        if self.col_lod.len() != cols {
-            self.col_lod = vec![0; cols];
-        }
-        let dist = |sx: i32, sz: i32| {
-            let (x0, z0) = ((sx * SECTION) as f32, (sz * SECTION) as f32);
-            let s = SECTION as f32;
-            let dx = (x0 - cam.x).max(cam.x - (x0 + s)).max(0.0);
-            let dz = (z0 - cam.z).max(cam.z - (z0 + s)).max(0.0);
-            (dx * dx + dz * dz).sqrt()
-        };
-        for sz in 0..d[2] {
-            for sx in 0..d[0] {
-                let i = (sz * d[0] + sx) as usize;
-                self.col_lod[i] = p.per_metre_at(dist(sx, sz), self.col_lod[i]);
-            }
-        }
-        let col = |sx: i32, sz: i32| -> u8 {
-            if sx < 0 || sz < 0 || sx >= d[0] || sz >= d[2] {
-                return 0;
-            }
-            self.col_lod[(sz * d[0] + sx) as usize]
-        };
-        let mut want = vec![Lod::default(); cols];
-        for sz in 0..d[2] {
-            for sx in 0..d[0] {
-                let r = col(sx, sz);
-                let mut skirt = [0u8; 4];
-                for (k, (nx, nz)) in [(sx - 1, sz), (sx + 1, sz), (sx, sz - 1), (sx, sz + 1)]
-                    .into_iter()
-                    .enumerate()
-                {
-                    let n = col(nx, nz);
-                    if n != 0 && n != r {
-                        skirt[k] = n;
-                    }
-                }
-                want[(sz * d[0] + sx) as usize] = Lod {
-                    per_metre: r,
-                    skirt,
-                };
-            }
-        }
-        if self.lods.len() != self.sections.len() {
-            self.lods = vec![Lod::default(); self.sections.len()];
-        }
-        let mut changed = Vec::new();
-        for sy in 0..d[1] {
-            for sz in 0..d[2] {
-                for sx in 0..d[0] {
-                    let w = want[(sz * d[0] + sx) as usize];
-                    let i = self.section_index([sx, sy, sz]);
-                    if self.lods[i] != w {
-                        self.lods[i] = w;
-                        changed.push(([sx, sy, sz], dist(sx, sz)));
-                    }
-                }
-            }
-        }
-        changed
-    }
-
-    /// Re-mesh the ground at the level of detail the camera now calls for,
-    /// a few sections a frame, nearest first.
+    /// In a whole (not streamed) world, mesh the ground again at the level
+    /// of detail the camera now calls for, a few sections a frame, nearest
+    /// first. (A streamed world's worker does this itself.)
     pub fn update_lod(&mut self, world: &World, light: &Light, cam: Vec3) {
-        if self.sections.is_empty() {
+        if self.sections.is_empty() || world.is_sparse() {
             return;
         }
-        if let Some(from) = self.lod_from
-            && from.distance_squared(cam) < 4.0 * 4.0
-            && self.lod_queue.is_empty()
-        {
-            return;
-        }
-        self.lod_from = Some(cam);
-        let changed = self.decide_lods(cam);
-        for (s, d) in changed {
-            if !self.lod_queue.iter().any(|(q, _)| *q == s) {
-                self.lod_queue.push((s, d));
+        if self.lods.update(cam.into()) {
+            let d = self.dims;
+            for sy in 0..d[1] {
+                for sz in 0..d[2] {
+                    for sx in 0..d[0] {
+                        let s = [sx, sy, sz];
+                        let m = &self.sections[self.section_index(s)];
+                        if m.built && m.lod != self.lods.lod(s) && !self.lod_queue.contains(&s) {
+                            self.lod_queue.push(s);
+                        }
+                    }
+                }
             }
+            // nearest last, so they come off the end first
+            let far = |s: &[i32; 3]| {
+                let c = Vec3::new(
+                    (s[0] * SECTION + SECTION / 2) as f32,
+                    cam.y,
+                    (s[2] * SECTION + SECTION / 2) as f32,
+                );
+                c.distance_squared(cam)
+            };
+            self.lod_queue.sort_by(|a, b| far(b).total_cmp(&far(a)));
         }
         if self.lod_queue.is_empty() {
             return;
         }
-        // nearest last, so they come off the end first
-        self.lod_queue
-            .sort_by(|a, b| b.1.total_cmp(&a.1));
         let n = self.lod_queue.len().min(LOD_REMESH_PER_FRAME);
-        let take: Vec<[i32; 3]> = self
-            .lod_queue
-            .split_off(self.lod_queue.len() - n)
-            .into_iter()
-            .map(|(s, _)| s)
-            .collect();
+        let take = self.lod_queue.split_off(self.lod_queue.len() - n);
         self.remesh(world, light, &take);
     }
 
@@ -2033,11 +1986,9 @@ impl Gfx {
             0.0,
             world.size[2] as f32 * 0.5,
         ));
-        self.col_lod.clear();
-        self.lods.clear();
+        self.lods = crate::fine::Lods::new(d);
+        self.lods.update(cam.into());
         self.lod_queue.clear();
-        self.decide_lods(cam);
-        self.lod_from = Some(cam);
         let mut list = Vec::with_capacity(self.sections.len());
         for sy in 0..d[1] {
             for sz in 0..d[2] {
@@ -2049,39 +2000,38 @@ impl Gfx {
         self.remesh(world, light, &list);
     }
 
-    /// Sections that arrived in a streamed world (already lit): mesh them
-    /// and their neighbours that have become ready. A section is meshed only
-    /// once all its neighbours are here, and light reaches less than a
-    /// section, so an arrival changes no built mesh round it, except below
-    /// it in its column (the sky's light falls straight down).
-    pub fn sections_arrived(&mut self, world: &World, light: &Light, list: &[[i32; 3]]) {
-        if self.sections.is_empty() {
+    /// Start drawing a streamed world: its size, nothing meshed yet (the
+    /// world worker meshes sections as they arrive: `put_mesh`).
+    pub fn begin_world(&mut self, world: &World) {
+        self.dims = world.section_dims();
+        let d = self.dims;
+        self.sections.clear();
+        self.sections
+            .resize_with((d[0] * d[1] * d[2]) as usize, SectionMesh::default);
+        self.clutter_at = None;
+    }
+
+    /// Store (upload) a section's mesh made elsewhere.
+    pub fn put_mesh(&mut self, s: [i32; 3], geo: SectionGeo) {
+        let d = self.dims;
+        if !(0..3).all(|i| s[i] >= 0 && s[i] < d[i]) {
             return;
         }
-        let d = self.dims;
-        let idx = |n: [i32; 3]| ((n[1] * d[2] + n[2]) * d[0] + n[0]) as usize;
-        let mut todo = std::collections::BTreeSet::new();
-        for s in list {
-            for dy in -1..=1 {
-                for dz in -1..=1 {
-                    for dx in -1..=1 {
-                        let n = [s[0] + dx, s[1] + dy, s[2] + dz];
-                        if (0..3).all(|i| n[i] >= 0 && n[i] < d[i])
-                            && (n == *s || !self.sections[idx(n)].built)
-                        {
-                            todo.insert([n[1], n[2], n[0]]);
-                        }
-                    }
-                }
-            }
-            for y in 0..s[1] - 1 {
-                if self.sections[idx([s[0], y, s[2]])].built {
-                    todo.insert([y, s[2], s[0]]);
-                }
-            }
+        self.store(((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize, geo);
+        // grass near the camera may have changed
+        if let Some(at) = self.clutter_at
+            && (s[0] - at[0]).abs() <= CLUTTER_SECTIONS
+            && (s[2] - at[1]).abs() <= CLUTTER_SECTIONS
+        {
+            self.clutter_at = None;
         }
-        let list: Vec<[i32; 3]> = todo.into_iter().map(|[y, z, x]| [x, y, z]).collect();
-        self.remesh(world, light, &list);
+    }
+
+    /// Whether a section has been meshed since it last arrived.
+    pub fn is_built(&self, s: [i32; 3]) -> bool {
+        let d = self.dims;
+        (0..3).all(|i| s[i] >= 0 && s[i] < d[i])
+            && self.sections[((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize].built
     }
 
     /// A section left a streamed world: stop drawing it.
@@ -2103,9 +2053,8 @@ impl Gfx {
     pub fn world_vertices(&self) -> (u64, u64) {
         self.sections.iter().fold((0, 0), |a, s| {
             (
-                a.0 + s.opaque.as_ref().map_or(0, |b| b.1 as u64)
-                    + s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4),
-                a.1 + s.trans.as_ref().map_or(0, |b| b.1 as u64),
+                a.0 + s.opaque as u64 + s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4),
+                a.1 + s.trans as u64,
             )
         })
     }
@@ -2119,15 +2068,15 @@ impl Gfx {
             .map(|s| s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4))
             .sum();
         let mut levels: Vec<(u8, u32, u64)> = Vec::new();
-        for (s, l) in self.sections.iter().zip(&self.lods) {
+        for s in &self.sections {
             let Some((_, q)) = &s.ground else { continue };
             let n = *q as u64 * 4;
-            match levels.iter_mut().find(|e| e.0 == l.per_metre) {
+            match levels.iter_mut().find(|e| e.0 == s.lod.per_metre) {
                 Some(e) => {
                     e.1 += 1;
                     e.2 += n;
                 }
-                None => levels.push((l.per_metre, 1, n)),
+                None => levels.push((s.lod.per_metre, 1, n)),
             }
         }
         levels.sort_by(|a, b| b.0.cmp(&a.0));
@@ -2282,9 +2231,11 @@ impl Gfx {
                 if (cx - cam.x).abs() > reach || (cz - cam.z).abs() > reach {
                     continue;
                 }
-                if let Some((b, n)) = &s.opaque {
+                if let Some(b) = &s.buf
+                    && s.opaque > 0
+                {
                     rp.set_vertex_buffer(0, b.slice(..));
-                    rp.draw(0..*n, 0..1);
+                    rp.draw(0..s.opaque, 0..1);
                 }
                 if let Some((b, q)) = &s.ground {
                     rp.set_vertex_buffer(0, b.slice(..));
@@ -2335,9 +2286,11 @@ impl Gfx {
                     if !visible(i) {
                         continue;
                     }
-                    if let Some((b, n)) = &s.opaque {
+                    if let Some(b) = &s.buf
+                        && s.opaque > 0
+                    {
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(0..*n, 0..1);
+                        rp.draw(0..s.opaque, 0..1);
                     }
                     if let Some((b, q)) = &s.ground {
                         rp.set_vertex_buffer(0, b.slice(..));
@@ -2354,20 +2307,23 @@ impl Gfx {
                 }
                 rp.set_pipeline(&self.trans_pipe);
                 for (i, s) in self.sections.iter().enumerate() {
-                    if let Some((b, n)) = &s.trans
+                    if let Some(b) = &s.buf
+                        && s.trans > 0
                         && visible(i)
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(0..*n, 0..1);
+                        rp.draw(s.opaque..s.opaque + s.trans, 0..1);
                     }
                 }
                 rp.set_pipeline(&self.glow_pipe);
                 for (i, s) in self.sections.iter().enumerate() {
-                    if let Some((b, n)) = &s.glow
+                    if let Some(b) = &s.buf
+                        && s.glow > 0
                         && visible(i)
                     {
+                        let start = s.opaque + s.trans;
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(0..*n, 0..1);
+                        rp.draw(start..start + s.glow, 0..1);
                     }
                 }
                 if let Some((b, n)) = &line_buf {

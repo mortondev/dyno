@@ -1,9 +1,22 @@
-Art direction for Hearthblock Online: a Cube World x World of Warcraft hybrid MMORPG. It must look FUN and BEAUTIFUL: a world you instantly want to adventure in.
-VOXELS: everything is built from voxels at ONE consistent fine scale (about 8 voxels per metre for terrain, buildings, trees and characters alike; finer only for tiny details). Never smooth polygons, never a flat painting.
-CUBE WORLD: clean, charming, colourful voxel forms; soft bright light with gentle ambient occlusion; saturated candy-but-harmonious colours; rounded puffy canopies built from many leaf clumps; rolling terrain.
-WORLD OF WARCRAFT: heroic chunky fantasy architecture, readable landmarks, strong silhouettes, each zone with its own signature palette and mood, light shafts, aerial haze, distant vistas.
-LIFE IS ESSENTIAL: show the world inhabited. Include small voxel adventurers in colourful class gear (a plate warrior, a robed mage casting a glowing spell, a hooded hunter with a bow), townsfolk, a quest giver with a floating gold "!" above them, and creatures fitting the place. Add motion cues: chimney smoke, birds, butterflies, fireflies, falling leaves, glowing magical motes.
-WONDER: give every place at least one fantastical, memorable element (glowing runestones, giant mushrooms, an ancient statue, a small waterfall, magical crystals, banners in the wind).
-VARIETY: mix tree species, sizes and colours (oaks, birches, pines, blossom trees, autumn tints), flower meadows, rocky outcrops, gentle hills; avoid one repeated tree and empty flat fields.
-COMPOSITION: a clear focal landmark, an interesting foreground, a beautiful background vista; never a large blurry object filling the foreground. You may lower and reframe the camera slightly for a more cinematic third-person MMO view, but keep the same location: the same buildings, landmarks, paths and water in the same arrangement as the reference screenshot.
-No text, no UI, no watermark. Wide 16:9 game screenshot.
+This must look like a REAL IN-GAME SCREENSHOT captured from a shipped real-time game, NOT concept art, NOT an illustration, NOT a painting. Hearthblock Online is a Cube World x World of Warcraft hybrid MMORPG rendered in real time.
+RENDERING: a modern real-time voxel engine: every object is made of crisp cubic voxels at one consistent scale (about 8 voxels per metre), flat-shaded voxel faces with per-voxel colour variation, shadow-mapped sun shadows, screen-space ambient occlusion, gentle bloom on light sources, distance fog and blue aerial haze over far terrain, a sky dome with clouds, water with reflections and foam. Sharp focus across the frame (no depth of field), no brush strokes, no painted glows.
+CAMERA (World of Warcraft gameplay view): a third-person chase camera about 9 metres behind and 4 metres above the player's own character, looking 10 to 20 degrees down, wide field of view (90 degrees horizontal). The player's character stands in the lower middle of the frame seen from behind or three-quarter behind, about one sixth of the screen height. The horizon sits in the upper third, and the view reaches far: distant hills, forests and landmarks hundreds of metres away fading into haze.
+SCALE (World of Warcraft proportions; people are 1.8 m tall and every other size is relative to them):
+- heroic architecture about 1.4 times real: doors about 3 m (well over head height), storeys about 4 m, tall steep roofs with deep overhanging eaves, chunky timber frames and stone bases;
+- big trees: common oaks and birches 12 to 16 m with trunks 1 to 2 m thick and crowns 8 to 12 m wide; occasional giant hero trees 20 to 27 m tall with massive trunks at landmarks; pines 15 to 20 m;
+- wide roads: main roads 6 to 8 m wide (several people side by side), trails 2 to 3 m;
+- a broad landscape: rolling hills 15 to 35 m high, large open meadows between clumps of forest (woods are dense where they are woods, then stop), rocky ridges and mountains on the horizon, places spread out like a real MMO zone rather than crammed together;
+- creatures life-sized: boars like real boars, sheep-like grazers like sheep.
+STYLE: Cube World's clean colourful voxels and soft bright lighting with World of Warcraft's art direction (heroic architecture, readable landmarks, a signature colour mood per zone). Varied tree species and sizes; grass and flowers as small voxel tufts.
+LIFE, REALISTICALLY: besides the player's character, a few other players and NPCs at most (slender heroic proportions, not chibi, oversized shoulder armour and weapons), a couple of creatures where they would roam, quest givers marked by a single small gold "!" above the head, light ambient effects (chimney smoke, a few birds or fireflies). Not a crowd.
+One clear focal landmark; calm open space around it; one coherent season per zone.
+CONSISTENCY (match the approved reference screenshots exactly in these respects):
+- camera low: about 3 m above the ground and 7 to 8 m behind the player's character; the character is large in frame (about one sixth of the image height), in the lower middle, standing on the path, seen from behind;
+- a road or path leads from the character's feet toward the focal landmark 40 to 80 m away; the landmark fills about a quarter to a third of the image height;
+- roads about 4 to 6 m wide (never a huge empty plaza or a giant cobbled field); a town square is a modest cobbled space bordered by buildings, stalls and trees;
+- framing tree trunks or canopy at one or both frame edges; a rich foreground of rocks, grass tufts, flowers or a fence;
+- other figures sized consistently with distance;
+- background layered: forest, rolling hills, then mountains fading into blue haze; horizon about one third down from the top;
+- the same voxel size everywhere (ground voxels about 25 cm, leaf clumps about 50 cm) and the same rendering, lighting and colour treatment as the approved images.
+THE VALE: a temperate valley like Elwynn Forest. Only oaks, birches, pines, willows, fruit and blossom trees; never palm trees or tropical plants. No castles, cities, keeps or fortresses anywhere on the horizon or in the distance: the distance is only forests, hills, ridges and mountains.
+No user interface, no text, no watermark. Wide 16:9.

@@ -1521,6 +1521,2094 @@
    "value": 6,
    "level": 5,
    "food": 12
+  },
+  {
+   "key": "ironbound_helm",
+   "name": "Ironbound Helm",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 960,
+   "gear": {
+    "slot": "head",
+    "armor_type": "plate",
+    "armor": 24,
+    "stats": {
+     "str": 4,
+     "sta": 2
+    }
+   },
+   "image": "icons/ironbound_helm.png"
+  },
+  {
+   "key": "ironbound_pauldrons",
+   "name": "Ironbound Pauldrons",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 864,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "plate",
+    "armor": 22,
+    "stats": {
+     "str": 3,
+     "sta": 1
+    }
+   },
+   "image": "icons/ironbound_pauldrons.png"
+  },
+  {
+   "key": "ironbound_cuirass",
+   "name": "Ironbound Cuirass",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 1536,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "plate",
+    "armor": 38,
+    "stats": {
+     "str": 6,
+     "sta": 3
+    }
+   },
+   "image": "icons/ironbound_cuirass.png"
+  },
+  {
+   "key": "ironbound_gauntlets",
+   "name": "Ironbound Gauntlets",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 672,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "plate",
+    "armor": 17,
+    "stats": {
+     "str": 3,
+     "sta": 1
+    }
+   },
+   "image": "icons/ironbound_gauntlets.png"
+  },
+  {
+   "key": "ironbound_girdle",
+   "name": "Ironbound Girdle",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 576,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "plate",
+    "armor": 14,
+    "stats": {
+     "str": 2,
+     "sta": 1
+    }
+   },
+   "image": "icons/ironbound_girdle.png"
+  },
+  {
+   "key": "ironbound_legplates",
+   "name": "Ironbound Legplates",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 1248,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "plate",
+    "armor": 31,
+    "stats": {
+     "str": 5,
+     "sta": 2
+    }
+   },
+   "image": "icons/ironbound_legplates.png"
+  },
+  {
+   "key": "ironbound_sabatons",
+   "name": "Ironbound Sabatons",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 768,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "plate",
+    "armor": 19,
+    "stats": {
+     "str": 3,
+     "sta": 1
+    }
+   },
+   "image": "icons/ironbound_sabatons.png"
+  },
+  {
+   "key": "stormguard_helm",
+   "name": "Stormguard Helm",
+   "color": [
+    0.68,
+    0.73,
+    0.82
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2240,
+   "gear": {
+    "slot": "head",
+    "armor_type": "plate",
+    "armor": 42,
+    "stats": {
+     "str": 8,
+     "sta": 4
+    }
+   },
+   "image": "icons/stormguard_helm.png"
+  },
+  {
+   "key": "stormguard_pauldrons",
+   "name": "Stormguard Pauldrons",
+   "color": [
+    0.68,
+    0.73,
+    0.82
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2016,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "plate",
+    "armor": 38,
+    "stats": {
+     "str": 7,
+     "sta": 3
+    }
+   },
+   "image": "icons/stormguard_pauldrons.png"
+  },
+  {
+   "key": "stormguard_cuirass",
+   "name": "Stormguard Cuirass",
+   "color": [
+    0.68,
+    0.73,
+    0.82
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 3584,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "plate",
+    "armor": 67,
+    "stats": {
+     "str": 13,
+     "sta": 6
+    }
+   },
+   "image": "icons/stormguard_cuirass.png"
+  },
+  {
+   "key": "stormguard_gauntlets",
+   "name": "Stormguard Gauntlets",
+   "color": [
+    0.68,
+    0.73,
+    0.82
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1568,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "plate",
+    "armor": 29,
+    "stats": {
+     "str": 6,
+     "sta": 3
+    }
+   },
+   "image": "icons/stormguard_gauntlets.png"
+  },
+  {
+   "key": "stormguard_girdle",
+   "name": "Stormguard Girdle",
+   "color": [
+    0.68,
+    0.73,
+    0.82
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1344,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "plate",
+    "armor": 25,
+    "stats": {
+     "str": 5,
+     "sta": 2
+    }
+   },
+   "image": "icons/stormguard_girdle.png"
+  },
+  {
+   "key": "stormguard_legplates",
+   "name": "Stormguard Legplates",
+   "color": [
+    0.68,
+    0.73,
+    0.82
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2912,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "plate",
+    "armor": 55,
+    "stats": {
+     "str": 10,
+     "sta": 5
+    }
+   },
+   "image": "icons/stormguard_legplates.png"
+  },
+  {
+   "key": "stormguard_sabatons",
+   "name": "Stormguard Sabatons",
+   "color": [
+    0.68,
+    0.73,
+    0.82
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1792,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "plate",
+    "armor": 34,
+    "stats": {
+     "str": 6,
+     "sta": 3
+    }
+   },
+   "image": "icons/stormguard_sabatons.png"
+  },
+  {
+   "key": "dawnforged_helm",
+   "name": "Dawnforged Helm",
+   "color": [
+    0.9,
+    0.87,
+    0.78
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 4000,
+   "gear": {
+    "slot": "head",
+    "armor_type": "plate",
+    "armor": 60,
+    "stats": {
+     "str": 14,
+     "sta": 7
+    }
+   },
+   "image": "icons/dawnforged_helm.png"
+  },
+  {
+   "key": "dawnforged_pauldrons",
+   "name": "Dawnforged Pauldrons",
+   "color": [
+    0.9,
+    0.87,
+    0.78
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 3600,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "plate",
+    "armor": 54,
+    "stats": {
+     "str": 12,
+     "sta": 6
+    }
+   },
+   "image": "icons/dawnforged_pauldrons.png"
+  },
+  {
+   "key": "dawnforged_cuirass",
+   "name": "Dawnforged Cuirass",
+   "color": [
+    0.9,
+    0.87,
+    0.78
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 6400,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "plate",
+    "armor": 96,
+    "stats": {
+     "str": 22,
+     "sta": 11
+    }
+   },
+   "image": "icons/dawnforged_cuirass.png"
+  },
+  {
+   "key": "dawnforged_gauntlets",
+   "name": "Dawnforged Gauntlets",
+   "color": [
+    0.9,
+    0.87,
+    0.78
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2800,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "plate",
+    "armor": 42,
+    "stats": {
+     "str": 9,
+     "sta": 4
+    }
+   },
+   "image": "icons/dawnforged_gauntlets.png"
+  },
+  {
+   "key": "dawnforged_girdle",
+   "name": "Dawnforged Girdle",
+   "color": [
+    0.9,
+    0.87,
+    0.78
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2400,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "plate",
+    "armor": 36,
+    "stats": {
+     "str": 8,
+     "sta": 4
+    }
+   },
+   "image": "icons/dawnforged_girdle.png"
+  },
+  {
+   "key": "dawnforged_legplates",
+   "name": "Dawnforged Legplates",
+   "color": [
+    0.9,
+    0.87,
+    0.78
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 5200,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "plate",
+    "armor": 78,
+    "stats": {
+     "str": 18,
+     "sta": 9
+    }
+   },
+   "image": "icons/dawnforged_legplates.png"
+  },
+  {
+   "key": "dawnforged_sabatons",
+   "name": "Dawnforged Sabatons",
+   "color": [
+    0.9,
+    0.87,
+    0.78
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 3200,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "plate",
+    "armor": 48,
+    "stats": {
+     "str": 11,
+     "sta": 5
+    }
+   },
+   "image": "icons/dawnforged_sabatons.png"
+  },
+  {
+   "key": "wildstalker_hood",
+   "name": "Wildstalker Hood",
+   "color": [
+    0.5,
+    0.52,
+    0.5
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 960,
+   "gear": {
+    "slot": "head",
+    "armor_type": "mail",
+    "armor": 17,
+    "stats": {
+     "agi": 4,
+     "int": 2
+    }
+   },
+   "image": "icons/wildstalker_hood.png"
+  },
+  {
+   "key": "wildstalker_mantle",
+   "name": "Wildstalker Mantle",
+   "color": [
+    0.5,
+    0.52,
+    0.5
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 864,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "mail",
+    "armor": 16,
+    "stats": {
+     "agi": 3,
+     "int": 1
+    }
+   },
+   "image": "icons/wildstalker_mantle.png"
+  },
+  {
+   "key": "wildstalker_hauberk",
+   "name": "Wildstalker Hauberk",
+   "color": [
+    0.5,
+    0.52,
+    0.5
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 1536,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "mail",
+    "armor": 28,
+    "stats": {
+     "agi": 6,
+     "int": 3
+    }
+   },
+   "image": "icons/wildstalker_hauberk.png"
+  },
+  {
+   "key": "wildstalker_gauntlets",
+   "name": "Wildstalker Gauntlets",
+   "color": [
+    0.5,
+    0.52,
+    0.5
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 672,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "mail",
+    "armor": 12,
+    "stats": {
+     "agi": 3,
+     "int": 1
+    }
+   },
+   "image": "icons/wildstalker_gauntlets.png"
+  },
+  {
+   "key": "wildstalker_belt",
+   "name": "Wildstalker Belt",
+   "color": [
+    0.5,
+    0.52,
+    0.5
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 576,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "mail",
+    "armor": 10,
+    "stats": {
+     "agi": 2,
+     "int": 1
+    }
+   },
+   "image": "icons/wildstalker_belt.png"
+  },
+  {
+   "key": "wildstalker_leggings",
+   "name": "Wildstalker Leggings",
+   "color": [
+    0.5,
+    0.52,
+    0.5
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 1248,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "mail",
+    "armor": 23,
+    "stats": {
+     "agi": 5,
+     "int": 2
+    }
+   },
+   "image": "icons/wildstalker_leggings.png"
+  },
+  {
+   "key": "wildstalker_boots",
+   "name": "Wildstalker Boots",
+   "color": [
+    0.5,
+    0.52,
+    0.5
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 768,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "mail",
+    "armor": 14,
+    "stats": {
+     "agi": 3,
+     "int": 1
+    }
+   },
+   "image": "icons/wildstalker_boots.png"
+  },
+  {
+   "key": "wildstalker_quiver",
+   "name": "Wildstalker Quiver",
+   "color": [
+    0.5,
+    0.52,
+    0.5
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 480,
+   "gear": {
+    "slot": "back",
+    "armor_type": "mail",
+    "armor": 9,
+    "stats": {
+     "agi": 2,
+     "int": 1
+    }
+   },
+   "image": "icons/wildstalker_quiver.png"
+  },
+  {
+   "key": "thornwatch_hood",
+   "name": "Thornwatch Hood",
+   "color": [
+    0.46,
+    0.49,
+    0.52
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2240,
+   "gear": {
+    "slot": "head",
+    "armor_type": "mail",
+    "armor": 30,
+    "stats": {
+     "agi": 8,
+     "int": 4
+    }
+   },
+   "image": "icons/thornwatch_hood.png"
+  },
+  {
+   "key": "thornwatch_mantle",
+   "name": "Thornwatch Mantle",
+   "color": [
+    0.46,
+    0.49,
+    0.52
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2016,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "mail",
+    "armor": 27,
+    "stats": {
+     "agi": 7,
+     "int": 3
+    }
+   },
+   "image": "icons/thornwatch_mantle.png"
+  },
+  {
+   "key": "thornwatch_hauberk",
+   "name": "Thornwatch Hauberk",
+   "color": [
+    0.46,
+    0.49,
+    0.52
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 3584,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "mail",
+    "armor": 49,
+    "stats": {
+     "agi": 13,
+     "int": 6
+    }
+   },
+   "image": "icons/thornwatch_hauberk.png"
+  },
+  {
+   "key": "thornwatch_gauntlets",
+   "name": "Thornwatch Gauntlets",
+   "color": [
+    0.46,
+    0.49,
+    0.52
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1568,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "mail",
+    "armor": 21,
+    "stats": {
+     "agi": 6,
+     "int": 3
+    }
+   },
+   "image": "icons/thornwatch_gauntlets.png"
+  },
+  {
+   "key": "thornwatch_belt",
+   "name": "Thornwatch Belt",
+   "color": [
+    0.46,
+    0.49,
+    0.52
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1344,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "mail",
+    "armor": 18,
+    "stats": {
+     "agi": 5,
+     "int": 2
+    }
+   },
+   "image": "icons/thornwatch_belt.png"
+  },
+  {
+   "key": "thornwatch_leggings",
+   "name": "Thornwatch Leggings",
+   "color": [
+    0.46,
+    0.49,
+    0.52
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2912,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "mail",
+    "armor": 39,
+    "stats": {
+     "agi": 10,
+     "int": 5
+    }
+   },
+   "image": "icons/thornwatch_leggings.png"
+  },
+  {
+   "key": "thornwatch_boots",
+   "name": "Thornwatch Boots",
+   "color": [
+    0.46,
+    0.49,
+    0.52
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1792,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "mail",
+    "armor": 24,
+    "stats": {
+     "agi": 6,
+     "int": 3
+    }
+   },
+   "image": "icons/thornwatch_boots.png"
+  },
+  {
+   "key": "thornwatch_quiver",
+   "name": "Thornwatch Quiver",
+   "color": [
+    0.46,
+    0.49,
+    0.52
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1120,
+   "gear": {
+    "slot": "back",
+    "armor_type": "mail",
+    "armor": 15,
+    "stats": {
+     "agi": 4,
+     "int": 2
+    }
+   },
+   "image": "icons/thornwatch_quiver.png"
+  },
+  {
+   "key": "skyhunter_hood",
+   "name": "Skyhunter Hood",
+   "color": [
+    0.68,
+    0.72,
+    0.8
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 4000,
+   "gear": {
+    "slot": "head",
+    "armor_type": "mail",
+    "armor": 43,
+    "stats": {
+     "agi": 14,
+     "int": 7
+    }
+   },
+   "image": "icons/skyhunter_hood.png"
+  },
+  {
+   "key": "skyhunter_mantle",
+   "name": "Skyhunter Mantle",
+   "color": [
+    0.68,
+    0.72,
+    0.8
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 3600,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "mail",
+    "armor": 39,
+    "stats": {
+     "agi": 12,
+     "int": 6
+    }
+   },
+   "image": "icons/skyhunter_mantle.png"
+  },
+  {
+   "key": "skyhunter_hauberk",
+   "name": "Skyhunter Hauberk",
+   "color": [
+    0.68,
+    0.72,
+    0.8
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 6400,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "mail",
+    "armor": 69,
+    "stats": {
+     "agi": 22,
+     "int": 11
+    }
+   },
+   "image": "icons/skyhunter_hauberk.png"
+  },
+  {
+   "key": "skyhunter_gauntlets",
+   "name": "Skyhunter Gauntlets",
+   "color": [
+    0.68,
+    0.72,
+    0.8
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2800,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "mail",
+    "armor": 30,
+    "stats": {
+     "agi": 9,
+     "int": 4
+    }
+   },
+   "image": "icons/skyhunter_gauntlets.png"
+  },
+  {
+   "key": "skyhunter_belt",
+   "name": "Skyhunter Belt",
+   "color": [
+    0.68,
+    0.72,
+    0.8
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2400,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "mail",
+    "armor": 26,
+    "stats": {
+     "agi": 8,
+     "int": 4
+    }
+   },
+   "image": "icons/skyhunter_belt.png"
+  },
+  {
+   "key": "skyhunter_leggings",
+   "name": "Skyhunter Leggings",
+   "color": [
+    0.68,
+    0.72,
+    0.8
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 5200,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "mail",
+    "armor": 56,
+    "stats": {
+     "agi": 18,
+     "int": 9
+    }
+   },
+   "image": "icons/skyhunter_leggings.png"
+  },
+  {
+   "key": "skyhunter_boots",
+   "name": "Skyhunter Boots",
+   "color": [
+    0.68,
+    0.72,
+    0.8
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 3200,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "mail",
+    "armor": 35,
+    "stats": {
+     "agi": 11,
+     "int": 5
+    }
+   },
+   "image": "icons/skyhunter_boots.png"
+  },
+  {
+   "key": "skyhunter_quiver",
+   "name": "Skyhunter Quiver",
+   "color": [
+    0.68,
+    0.72,
+    0.8
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2000,
+   "gear": {
+    "slot": "back",
+    "armor_type": "mail",
+    "armor": 22,
+    "stats": {
+     "agi": 7,
+     "int": 3
+    }
+   },
+   "image": "icons/skyhunter_quiver.png"
+  },
+  {
+   "key": "nightstalker_cowl",
+   "name": "Nightstalker Cowl",
+   "color": [
+    0.22,
+    0.2,
+    0.2
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 960,
+   "gear": {
+    "slot": "head",
+    "armor_type": "leather",
+    "armor": 11,
+    "stats": {
+     "agi": 4,
+     "sta": 2
+    }
+   },
+   "image": "icons/nightstalker_cowl.png"
+  },
+  {
+   "key": "nightstalker_spaulders",
+   "name": "Nightstalker Spaulders",
+   "color": [
+    0.22,
+    0.2,
+    0.2
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 864,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "leather",
+    "armor": 10,
+    "stats": {
+     "agi": 3,
+     "sta": 1
+    }
+   },
+   "image": "icons/nightstalker_spaulders.png"
+  },
+  {
+   "key": "nightstalker_jerkin",
+   "name": "Nightstalker Jerkin",
+   "color": [
+    0.22,
+    0.2,
+    0.2
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 1536,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "leather",
+    "armor": 17,
+    "stats": {
+     "agi": 6,
+     "sta": 3
+    }
+   },
+   "image": "icons/nightstalker_jerkin.png"
+  },
+  {
+   "key": "nightstalker_gloves",
+   "name": "Nightstalker Gloves",
+   "color": [
+    0.22,
+    0.2,
+    0.2
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 672,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "leather",
+    "armor": 7,
+    "stats": {
+     "agi": 3,
+     "sta": 1
+    }
+   },
+   "image": "icons/nightstalker_gloves.png"
+  },
+  {
+   "key": "nightstalker_belt",
+   "name": "Nightstalker Belt",
+   "color": [
+    0.22,
+    0.2,
+    0.2
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 576,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "leather",
+    "armor": 6,
+    "stats": {
+     "agi": 2,
+     "sta": 1
+    }
+   },
+   "image": "icons/nightstalker_belt.png"
+  },
+  {
+   "key": "nightstalker_breeches",
+   "name": "Nightstalker Breeches",
+   "color": [
+    0.22,
+    0.2,
+    0.2
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 1248,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "leather",
+    "armor": 14,
+    "stats": {
+     "agi": 5,
+     "sta": 2
+    }
+   },
+   "image": "icons/nightstalker_breeches.png"
+  },
+  {
+   "key": "nightstalker_boots",
+   "name": "Nightstalker Boots",
+   "color": [
+    0.22,
+    0.2,
+    0.2
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 768,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "leather",
+    "armor": 9,
+    "stats": {
+     "agi": 3,
+     "sta": 1
+    }
+   },
+   "image": "icons/nightstalker_boots.png"
+  },
+  {
+   "key": "bloodfang_cowl",
+   "name": "Bloodfang Cowl",
+   "color": [
+    0.36,
+    0.13,
+    0.11
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2240,
+   "gear": {
+    "slot": "head",
+    "armor_type": "leather",
+    "armor": 19,
+    "stats": {
+     "agi": 8,
+     "sta": 4
+    }
+   },
+   "image": "icons/bloodfang_cowl.png"
+  },
+  {
+   "key": "bloodfang_spaulders",
+   "name": "Bloodfang Spaulders",
+   "color": [
+    0.36,
+    0.13,
+    0.11
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2016,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "leather",
+    "armor": 17,
+    "stats": {
+     "agi": 7,
+     "sta": 3
+    }
+   },
+   "image": "icons/bloodfang_spaulders.png"
+  },
+  {
+   "key": "bloodfang_jerkin",
+   "name": "Bloodfang Jerkin",
+   "color": [
+    0.36,
+    0.13,
+    0.11
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 3584,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "leather",
+    "armor": 30,
+    "stats": {
+     "agi": 13,
+     "sta": 6
+    }
+   },
+   "image": "icons/bloodfang_jerkin.png"
+  },
+  {
+   "key": "bloodfang_gloves",
+   "name": "Bloodfang Gloves",
+   "color": [
+    0.36,
+    0.13,
+    0.11
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1568,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "leather",
+    "armor": 13,
+    "stats": {
+     "agi": 6,
+     "sta": 3
+    }
+   },
+   "image": "icons/bloodfang_gloves.png"
+  },
+  {
+   "key": "bloodfang_belt",
+   "name": "Bloodfang Belt",
+   "color": [
+    0.36,
+    0.13,
+    0.11
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1344,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "leather",
+    "armor": 11,
+    "stats": {
+     "agi": 5,
+     "sta": 2
+    }
+   },
+   "image": "icons/bloodfang_belt.png"
+  },
+  {
+   "key": "bloodfang_breeches",
+   "name": "Bloodfang Breeches",
+   "color": [
+    0.36,
+    0.13,
+    0.11
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2912,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "leather",
+    "armor": 24,
+    "stats": {
+     "agi": 10,
+     "sta": 5
+    }
+   },
+   "image": "icons/bloodfang_breeches.png"
+  },
+  {
+   "key": "bloodfang_boots",
+   "name": "Bloodfang Boots",
+   "color": [
+    0.36,
+    0.13,
+    0.11
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1792,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "leather",
+    "armor": 15,
+    "stats": {
+     "agi": 6,
+     "sta": 3
+    }
+   },
+   "image": "icons/bloodfang_boots.png"
+  },
+  {
+   "key": "duskwhisper_cowl",
+   "name": "Duskwhisper Cowl",
+   "color": [
+    0.16,
+    0.2,
+    0.33
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 4000,
+   "gear": {
+    "slot": "head",
+    "armor_type": "leather",
+    "armor": 27,
+    "stats": {
+     "agi": 14,
+     "sta": 7
+    }
+   },
+   "image": "icons/duskwhisper_cowl.png"
+  },
+  {
+   "key": "duskwhisper_spaulders",
+   "name": "Duskwhisper Spaulders",
+   "color": [
+    0.16,
+    0.2,
+    0.33
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 3600,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "leather",
+    "armor": 24,
+    "stats": {
+     "agi": 12,
+     "sta": 6
+    }
+   },
+   "image": "icons/duskwhisper_spaulders.png"
+  },
+  {
+   "key": "duskwhisper_jerkin",
+   "name": "Duskwhisper Jerkin",
+   "color": [
+    0.16,
+    0.2,
+    0.33
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 6400,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "leather",
+    "armor": 43,
+    "stats": {
+     "agi": 22,
+     "sta": 11
+    }
+   },
+   "image": "icons/duskwhisper_jerkin.png"
+  },
+  {
+   "key": "duskwhisper_gloves",
+   "name": "Duskwhisper Gloves",
+   "color": [
+    0.16,
+    0.2,
+    0.33
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2800,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "leather",
+    "armor": 19,
+    "stats": {
+     "agi": 9,
+     "sta": 4
+    }
+   },
+   "image": "icons/duskwhisper_gloves.png"
+  },
+  {
+   "key": "duskwhisper_belt",
+   "name": "Duskwhisper Belt",
+   "color": [
+    0.16,
+    0.2,
+    0.33
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2400,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "leather",
+    "armor": 16,
+    "stats": {
+     "agi": 8,
+     "sta": 4
+    }
+   },
+   "image": "icons/duskwhisper_belt.png"
+  },
+  {
+   "key": "duskwhisper_breeches",
+   "name": "Duskwhisper Breeches",
+   "color": [
+    0.16,
+    0.2,
+    0.33
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 5200,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "leather",
+    "armor": 35,
+    "stats": {
+     "agi": 18,
+     "sta": 9
+    }
+   },
+   "image": "icons/duskwhisper_breeches.png"
+  },
+  {
+   "key": "duskwhisper_boots",
+   "name": "Duskwhisper Boots",
+   "color": [
+    0.16,
+    0.2,
+    0.33
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 3200,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "leather",
+    "armor": 21,
+    "stats": {
+     "agi": 11,
+     "sta": 5
+    }
+   },
+   "image": "icons/duskwhisper_boots.png"
+  },
+  {
+   "key": "apprentice_circlet",
+   "name": "Apprentice's Circlet",
+   "color": [
+    0.24,
+    0.34,
+    0.68
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 960,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 5,
+    "stats": {
+     "int": 4,
+     "spi": 2
+    }
+   },
+   "image": "icons/apprentice_circlet.png"
+  },
+  {
+   "key": "apprentice_mantle",
+   "name": "Apprentice's Mantle",
+   "color": [
+    0.24,
+    0.34,
+    0.68
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 864,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 5,
+    "stats": {
+     "int": 3,
+     "spi": 1
+    }
+   },
+   "image": "icons/apprentice_mantle.png"
+  },
+  {
+   "key": "apprentice_robe",
+   "name": "Apprentice's Robe",
+   "color": [
+    0.24,
+    0.34,
+    0.68
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 1536,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 9,
+    "stats": {
+     "int": 6,
+     "spi": 3
+    }
+   },
+   "image": "icons/apprentice_robe.png"
+  },
+  {
+   "key": "apprentice_wraps",
+   "name": "Apprentice's Wraps",
+   "color": [
+    0.24,
+    0.34,
+    0.68
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 672,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "cloth",
+    "armor": 4,
+    "stats": {
+     "int": 3,
+     "spi": 1
+    }
+   },
+   "image": "icons/apprentice_wraps.png"
+  },
+  {
+   "key": "apprentice_sash",
+   "name": "Apprentice's Sash",
+   "color": [
+    0.24,
+    0.34,
+    0.68
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 576,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {
+     "int": 2,
+     "spi": 1
+    }
+   },
+   "image": "icons/apprentice_sash.png"
+  },
+  {
+   "key": "apprentice_trousers",
+   "name": "Apprentice's Trousers",
+   "color": [
+    0.24,
+    0.34,
+    0.68
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 1248,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "cloth",
+    "armor": 7,
+    "stats": {
+     "int": 5,
+     "spi": 2
+    }
+   },
+   "image": "icons/apprentice_trousers.png"
+  },
+  {
+   "key": "apprentice_slippers",
+   "name": "Apprentice's Slippers",
+   "color": [
+    0.24,
+    0.34,
+    0.68
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 2,
+   "level": 8,
+   "value": 768,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "cloth",
+    "armor": 4,
+    "stats": {
+     "int": 3,
+     "spi": 1
+    }
+   },
+   "image": "icons/apprentice_slippers.png"
+  },
+  {
+   "key": "arcanist_circlet",
+   "name": "Arcanist's Circlet",
+   "color": [
+    0.38,
+    0.16,
+    0.56
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2240,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 9,
+    "stats": {
+     "int": 8,
+     "spi": 4
+    }
+   },
+   "image": "icons/arcanist_circlet.png"
+  },
+  {
+   "key": "arcanist_mantle",
+   "name": "Arcanist's Mantle",
+   "color": [
+    0.38,
+    0.16,
+    0.56
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2016,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 8,
+    "stats": {
+     "int": 7,
+     "spi": 3
+    }
+   },
+   "image": "icons/arcanist_mantle.png"
+  },
+  {
+   "key": "arcanist_robe",
+   "name": "Arcanist's Robe",
+   "color": [
+    0.38,
+    0.16,
+    0.56
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 3584,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 15,
+    "stats": {
+     "int": 13,
+     "spi": 6
+    }
+   },
+   "image": "icons/arcanist_robe.png"
+  },
+  {
+   "key": "arcanist_wraps",
+   "name": "Arcanist's Wraps",
+   "color": [
+    0.38,
+    0.16,
+    0.56
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1568,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "cloth",
+    "armor": 7,
+    "stats": {
+     "int": 6,
+     "spi": 3
+    }
+   },
+   "image": "icons/arcanist_wraps.png"
+  },
+  {
+   "key": "arcanist_sash",
+   "name": "Arcanist's Sash",
+   "color": [
+    0.38,
+    0.16,
+    0.56
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1344,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "cloth",
+    "armor": 6,
+    "stats": {
+     "int": 5,
+     "spi": 2
+    }
+   },
+   "image": "icons/arcanist_sash.png"
+  },
+  {
+   "key": "arcanist_trousers",
+   "name": "Arcanist's Trousers",
+   "color": [
+    0.38,
+    0.16,
+    0.56
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 2912,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "cloth",
+    "armor": 12,
+    "stats": {
+     "int": 10,
+     "spi": 5
+    }
+   },
+   "image": "icons/arcanist_trousers.png"
+  },
+  {
+   "key": "arcanist_slippers",
+   "name": "Arcanist's Slippers",
+   "color": [
+    0.38,
+    0.16,
+    0.56
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 3,
+   "level": 14,
+   "value": 1792,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "cloth",
+    "armor": 7,
+    "stats": {
+     "int": 6,
+     "spi": 3
+    }
+   },
+   "image": "icons/arcanist_slippers.png"
+  },
+  {
+   "key": "magister_circlet",
+   "name": "Magister's Circlet",
+   "color": [
+    0.6,
+    0.1,
+    0.12
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 4000,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 13,
+    "stats": {
+     "int": 14,
+     "spi": 7
+    }
+   },
+   "image": "icons/magister_circlet.png"
+  },
+  {
+   "key": "magister_mantle",
+   "name": "Magister's Mantle",
+   "color": [
+    0.6,
+    0.1,
+    0.12
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 3600,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 12,
+    "stats": {
+     "int": 12,
+     "spi": 6
+    }
+   },
+   "image": "icons/magister_mantle.png"
+  },
+  {
+   "key": "magister_robe",
+   "name": "Magister's Robe",
+   "color": [
+    0.6,
+    0.1,
+    0.12
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 6400,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 21,
+    "stats": {
+     "int": 22,
+     "spi": 11
+    }
+   },
+   "image": "icons/magister_robe.png"
+  },
+  {
+   "key": "magister_wraps",
+   "name": "Magister's Wraps",
+   "color": [
+    0.6,
+    0.1,
+    0.12
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2800,
+   "gear": {
+    "slot": "hands",
+    "armor_type": "cloth",
+    "armor": 9,
+    "stats": {
+     "int": 9,
+     "spi": 4
+    }
+   },
+   "image": "icons/magister_wraps.png"
+  },
+  {
+   "key": "magister_sash",
+   "name": "Magister's Sash",
+   "color": [
+    0.6,
+    0.1,
+    0.12
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 2400,
+   "gear": {
+    "slot": "waist",
+    "armor_type": "cloth",
+    "armor": 8,
+    "stats": {
+     "int": 8,
+     "spi": 4
+    }
+   },
+   "image": "icons/magister_sash.png"
+  },
+  {
+   "key": "magister_trousers",
+   "name": "Magister's Trousers",
+   "color": [
+    0.6,
+    0.1,
+    0.12
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 5200,
+   "gear": {
+    "slot": "legs",
+    "armor_type": "cloth",
+    "armor": 17,
+    "stats": {
+     "int": 18,
+     "spi": 9
+    }
+   },
+   "image": "icons/magister_trousers.png"
+  },
+  {
+   "key": "magister_slippers",
+   "name": "Magister's Slippers",
+   "color": [
+    0.6,
+    0.1,
+    0.12
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 4,
+   "level": 20,
+   "value": 3200,
+   "gear": {
+    "slot": "feet",
+    "armor_type": "cloth",
+    "armor": 11,
+    "stats": {
+     "int": 11,
+     "spi": 5
+    }
+   },
+   "image": "icons/magister_slippers.png"
   }
  ],
  "blocks": {

@@ -17,6 +17,7 @@ pub mod models;
 pub mod net;
 pub mod render;
 pub mod rpg_ui;
+pub mod scout;
 pub mod screens;
 pub mod settings;
 pub(crate) mod fine;
@@ -29,6 +30,7 @@ pub mod textures;
 pub mod theme;
 pub mod vox;
 pub mod voxmodel;
+pub mod worldwork;
 
 /// Open the game window. `prefill` sets the server address field.
 pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {

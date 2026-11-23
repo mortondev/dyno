@@ -110,11 +110,18 @@ pub struct Player {
     pub known: std::cell::RefCell<HashSet<u32>>,
     /// players near enough that their poses are sent
     pub near: HashSet<PlayerId>,
+    /// where a tool (`dyno shot --as`) asked to look from: the world and
+    /// what is near stream round this point instead of the player
+    pub look_at: Option<[f32; 3]>,
 }
 
 impl Player {
     pub fn away(&self) -> bool {
         self.last_pose_at.elapsed() > Duration::from_secs(3)
+    }
+    /// Where the world streams round, and what is near is heard from.
+    pub fn centre(&self) -> [f32; 3] {
+        self.look_at.unwrap_or(self.pose.pos)
     }
     fn eye(&self) -> [f32; 3] {
         [self.pose.pos[0], self.pose.pos[1] + 1.62, self.pose.pos[2]]
@@ -581,13 +588,13 @@ impl State {
                 // who know it hear, and those near who may see it meet it now
                 To::Meets(e, at) => {
                     p.known.borrow().contains(e)
-                        || ((at[0] - p.pose.pos[0]).hypot(at[2] - p.pose.pos[2]) <= self.stream.aoi
+                        || ((at[0] - p.centre()[0]).hypot(at[2] - p.centre()[2]) <= self.stream.aoi
                             && self.sees(p.phases, *e)
                             && p.known.borrow_mut().insert(*e))
                 }
                 To::Near(points) => points
                     .iter()
-                    .any(|at| (at[0] - p.pose.pos[0]).hypot(at[2] - p.pose.pos[2]) <= reach),
+                    .any(|at| (at[0] - p.centre()[0]).hypot(at[2] - p.centre()[2]) <= reach),
                 To::Holds(a, b) => p.view.holds_box(*a, *b),
             };
             if send {
@@ -870,6 +877,7 @@ impl State {
             view: Default::default(),
             known: Default::default(),
             near: HashSet::new(),
+            look_at: None,
         };
         let others: Vec<PlayerInfo> = self
             .players
@@ -986,6 +994,10 @@ impl State {
             after.push(ServerMsg::Wielding {
                 player: o,
                 item: self.wielding(o),
+            });
+            after.push(ServerMsg::Wearing {
+                player: o,
+                items: self.wearing(o),
             });
         }
         self.players.insert(id, p);
@@ -1213,12 +1225,21 @@ impl State {
                 Some(id),
             ),
             ClientMsg::Gather { pos } => self.gather(id, pos),
+            // a tool looking from somewhere else (the world data and what
+            // stands in it are no secret: before streaming, every client
+            // heard of everything)
+            ClientMsg::ViewAt { pos } => {
+                if pos.iter().all(|v| v.is_finite())
+                    && let Some(p) = self.players.get_mut(&id)
+                {
+                    p.look_at = Some(pos);
+                }
+            }
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
             ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
             ClientMsg::Chat { .. }
             | ClientMsg::Want { .. }
-            | ClientMsg::ViewAt { .. }
             | ClientMsg::Hello { .. }
             | ClientMsg::Session { .. }
             | ClientMsg::ListCharacters { .. }
@@ -1860,9 +1881,19 @@ impl State {
         slot(dyno_world::content::MAIN_HAND).or_else(|| slot(dyno_world::content::RANGED))
     }
 
+    /// Everything a player has equipped, for others to see on their figure.
+    pub fn wearing(&self, id: PlayerId) -> Vec<u16> {
+        self.players
+            .get(&id)
+            .map(|p| p.equip.iter().flatten().map(|s| s.item).collect())
+            .unwrap_or_default()
+    }
+
     pub fn send_wielding(&self, id: PlayerId) {
         let item = self.wielding(id);
         self.broadcast(&ServerMsg::Wielding { player: id, item }, None);
+        let items = self.wearing(id);
+        self.broadcast(&ServerMsg::Wearing { player: id, items }, None);
     }
 
     pub fn milestone(&mut self, id: PlayerId, trigger: &str) {

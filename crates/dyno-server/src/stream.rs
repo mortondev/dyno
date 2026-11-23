@@ -110,6 +110,11 @@ impl View {
         }
         self.at = Some(col);
         let d = world.section_dims();
+        // somewhere new (a teleport, a recall, a respawn far away): fill
+        // the land round it at the join rate, as at a join
+        if (0..d[1]).any(|y| !self.held.contains(&[col[0], y, col[1]])) {
+            self.filled = false;
+        }
         let dist = |s: [i32; 2]| -> f32 {
             let cx = (s[0] * SECTION + SECTION / 2) as f32;
             let cz = (s[1] * SECTION + SECTION / 2) as f32;
@@ -217,7 +222,7 @@ impl State {
             }
         };
         for p in self.players.values_mut() {
-            let (sent, gone) = p.view.pump_with(world, p.pose.pos, dt, &cfg, &mut encode);
+            let (sent, gone) = p.view.pump_with(world, p.centre(), dt, &cfg, &mut encode);
             for m in [gone, sent].into_iter().flatten() {
                 p.send(&m);
             }
@@ -239,7 +244,7 @@ impl State {
         for id in ids {
             let (pos, phases) = {
                 let p = &self.players[&id];
-                (p.pose.pos, p.phases)
+                (p.centre(), p.phases)
             };
             let mut enter = Vec::new();
             let mut leave = Vec::new();
@@ -311,7 +316,7 @@ impl State {
                 if o == id {
                     continue;
                 }
-                let d = hdist(pose.pos, p.pose.pos);
+                let d = hdist(pose.pos, p.centre());
                 let near = p.near.contains(o);
                 if d <= cfg.aoi || (near && d <= cfg.aoi + cfg.aoi_keep) {
                     p.near.insert(*o);
@@ -349,7 +354,7 @@ impl State {
     pub fn hears(&self, id: PlayerId, at: [f32; 3]) -> bool {
         self.players
             .get(&id)
-            .is_some_and(|p| hdist(p.pose.pos, at) <= self.stream.aoi + self.stream.aoi_keep)
+            .is_some_and(|p| hdist(p.centre(), at) <= self.stream.aoi + self.stream.aoi_keep)
     }
 }
 
@@ -440,5 +445,28 @@ mod tests {
         };
         assert!(gone.iter().all(|s| s[0] <= 10));
         assert!(!v.held.iter().any(|s| s[0] < 9));
+        // a walk keeps the play rate; a teleport to land not held (a
+        // recall, a respawn) fills at the join rate, as a join does
+        for _ in 0..200 {
+            v.pump(&world, [228.0, 30.0, 128.0], 0.05, &cfg);
+        }
+        assert!(v.filled);
+        let (sent, _) = v.pump(&world, [236.0, 30.0, 128.0], 0.05, &cfg);
+        assert!(v.filled, "a step within held land");
+        let walked: usize = match sent {
+            Some(ServerMsg::Sections(l)) => l.iter().map(|(_, d)| d.len() + 16).sum(),
+            _ => 0,
+        };
+        let (sent, _) = v.pump(&world, [40.0, 30.0, 40.0], 0.05, &cfg);
+        assert!(!v.filled, "far away: the burst rate");
+        let Some(ServerMsg::Sections(l)) = sent else {
+            panic!("the land round the arrival streams at once")
+        };
+        let burst: usize = l.iter().map(|(_, d)| d.len() + 16).sum();
+        assert!(
+            burst > walked.max(2000),
+            "{burst} after a teleport, {walked} walking"
+        );
+        assert_eq!(l[0].0, [2, 1, 2], "where you land first");
     }
 }

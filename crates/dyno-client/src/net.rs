@@ -156,7 +156,8 @@ pub struct JoinOptions {
     /// where pack files are kept (default: the platform cache directory)
     pub cache: Option<Cache>,
     pub progress: Option<Arc<Progress>>,
-    /// observers: stream the world around this point (default: the spawn)
+    /// stream the world around this point (default: the spawn): tools
+    /// (`dyno shot`), for an observer or a player looking from elsewhere
     pub view_at: Option<[f32; 3]>,
 }
 
@@ -514,7 +515,7 @@ pub fn connect_with(
         .into(),
     ))
     .map_err(|e| format!("send: {e}"))?;
-    if let Some(pos) = view_at.filter(|_| observer) {
+    if let Some(pos) = view_at {
         ws.send(Message::Binary(
             proto::encode(&ClientMsg::ViewAt { pos }).into(),
         ))
@@ -573,7 +574,7 @@ pub fn connect_with(
                             .map_err(|e| format!("send: {e}"))?;
                     }
                     let w = World::sparse(size);
-                    let at = view_at.filter(|_| observer).unwrap_or(spawn);
+                    let at = view_at.unwrap_or(spawn);
                     needed = sections_around(&w, at, LOAD_RADIUS.min(view));
                     fetch
                         .progress

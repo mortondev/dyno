@@ -117,6 +117,8 @@ pub struct SectionGeo {
     pub trans: Vec<Vertex>,
     pub tufts: Vec<Tuft>,
     pub glows: Vec<Glow>,
+    /// the level of detail its ground was meshed at
+    pub lod: Lod,
 }
 
 #[inline]
@@ -1030,7 +1032,10 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
 
 /// Build everything drawn for one 16³ section, its ground at `lod`.
 pub fn mesh_lod(world: &World, light: &Light, sx: i32, sy: i32, sz: i32, lod: Lod) -> SectionGeo {
-    let mut geo = SectionGeo::default();
+    let mut geo = SectionGeo {
+        lod,
+        ..SectionGeo::default()
+    };
     let g = Grid::load(world, light, [sx * N, sy * N, sz * N]);
     let (mut own, mut all, mut every) = (0u8, 0u8, 0xffu8);
     let mut i = 0;

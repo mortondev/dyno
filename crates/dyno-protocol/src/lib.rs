@@ -214,7 +214,7 @@ pub const MAX_WANT: usize = 1024;
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 19;
+pub const PROTOCOL_VERSION: u32 = 20;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -763,6 +763,12 @@ pub enum ServerMsg {
     Wielding {
         player: PlayerId,
         item: Option<u16>,
+    },
+    /// Everything a player has equipped (item ids), so their figure wears
+    /// it; sent with `Wielding`.
+    Wearing {
+        player: PlayerId,
+        items: Vec<u16>,
     },
 }
 
