@@ -15,6 +15,9 @@ pub mod render;
 pub mod rpg_ui;
 pub mod screens;
 pub mod settings;
+pub(crate) mod shapes;
+#[cfg(test)]
+mod shape_bake;
 pub mod sheet;
 pub mod shot;
 pub mod survival;

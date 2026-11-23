@@ -383,9 +383,25 @@ struct Kit<'a> {
     clear: bool,
     /// texture repeats per unit along a lathe's axis
     vscale: f32,
+    /// (part, opaque len, trans len) where each part's triangles begin
+    pub(crate) marks: Vec<(&'static str, usize, usize)>,
+}
+
+thread_local! {
+    /// Baking: every solid closed, nothing scattered by position.
+    pub(crate) static BAKE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+pub(crate) fn baking() -> bool {
+    BAKE.with(|b| b.get())
 }
 
 impl Kit<'_> {
+    fn mark(&mut self, part: &'static str) {
+        let at = (part, self.opaque.len(), self.trans.len());
+        self.marks.push(at);
+    }
+
     fn turn(&mut self, angle: f32) {
         self.cos = angle.cos();
         self.sin = angle.sin();
@@ -541,6 +557,7 @@ impl Kit<'_> {
 
     /// A box with its edges bevelled by `e`.
     fn bevel(&mut self, lo: Vec3, hi: Vec3, e: f32, mats: [Mat; 3], uv: Uv, skip: u8) {
+        let skip = if baking() { 0 } else { skip };
         let e = e.min((hi - lo).min_element() * 0.45).max(0.0);
         let fit = Some((lo, hi));
         // faces
@@ -642,6 +659,7 @@ impl Kit<'_> {
     /// A box from eight corners (any shape that is roughly a box): low
     /// face 0..4 and high face 4..8 in the same order. Normals face out.
     fn hexa(&mut self, c: [Vec3; 8], uv: Uv, m: Mat, skip: u8) {
+        let skip = if baking() { 0 } else { skip };
         let mid = c.iter().fold(Vec3::ZERO, |a, p| a + *p) / 8.0;
         let faces: [[usize; 4]; 6] = [
             [0, 1, 2, 3],
@@ -682,6 +700,11 @@ impl Kit<'_> {
         m: Mat,
         caps: [Option<Mat>; 2],
     ) {
+        let caps = if baking() {
+            caps.map(|c| c.or(Some(m)))
+        } else {
+            caps
+        };
         let place = |a: f32, r: f32, t: f32| -> (Vec3, Vec3) {
             let (s, c) = (t.sin(), t.cos());
             let (u, v) = (at[0] + r * c, at[1] + r * s);
@@ -858,6 +881,7 @@ pub(crate) fn mesh(g: &Grid, light: &Light, geo: &mut SectionGeo) {
         sin: 0.0,
         clear: false,
         vscale: 1.0,
+        marks: Vec::new(),
     };
     for y in 0..N {
         for z in 0..N {
@@ -963,6 +987,7 @@ fn slope_part(
     let across = k.dir(Vec3::X);
     let u_of = |k: &Kit, p: Vec3| k.pos(p).dot(across);
     let cell_y = k.base.y;
+    k.mark("rows");
     for (i, (a, e)) in rows.iter().copied().enumerate() {
         let h = e - a;
         let lip = if i == 0 && !eave { step * 0.5 } else { step };
@@ -1003,6 +1028,7 @@ fn slope_part(
         }
     }
     // underside
+    k.mark("under");
     let (ua, ue) = (s_lo + lift - thick, s1 + lift - thick);
     let n = Vec3::new(0.0, -1.0, 1.0).normalize();
     k.poly_at(
@@ -1018,6 +1044,7 @@ fn slope_part(
     );
     // rafter ends under the eave
     if eave {
+        k.mark("eave");
         let fa = s_lo;
         for rx in [0.25f32, 0.75] {
             let (w0, w1) = (rx - 0.05, rx + 0.05);
@@ -1049,6 +1076,7 @@ fn slope_part(
         );
     }
     // gable ends: close the slab, and a barge board along it
+    k.mark("ends");
     for (side, open) in ends.iter().enumerate() {
         if !*open || cloth {
             continue;
@@ -1091,6 +1119,7 @@ fn slope_part(
     }
     // the gable wall under the slab
     if let Some(wb) = wedge {
+        k.mark("wedge");
         let wm = mat(wb, 1);
         let sw = (thick - lift).max(0.0);
         let yu = |s: f32| s + lift - thick;
@@ -1113,6 +1142,7 @@ fn slope_part(
                 );
             }
             if wedge_back {
+                k.mark("wedge_back");
                 k.poly_at(
                     &[
                         Vec3::new(0.0, 0.0, s1),
@@ -1177,6 +1207,7 @@ fn roof_slope(k: &mut Kit, c: usize, d: u8) {
         let (lift, _, _, _) = roof_params(b);
         let ahead = g.ids[nb(c, dd)];
         if is_roof(ahead) || !wallish(ahead) {
+            k.mark("cap");
             let cap = mat(b, 1).tint(0.72);
             let (x0, x1) = (
                 if ends[0] { -0.06 } else { 0.0 },
@@ -1216,6 +1247,7 @@ fn roof_peak(k: &mut Kit, c: usize, axis: u8) {
         slope_part(k, b, 0.0, 0.5, false, ends, wedge, false);
         if half == 1 && !is_cloth(b) {
             // ridge roll along the top
+            k.mark("ridge");
             let cap = mat(b, 1).tint(0.72);
             let (x0, x1) = (
                 if ends[0] { -0.08 } else { 0.0 },
@@ -1257,6 +1289,7 @@ fn beam(k: &mut Kit, c: usize) {
         if g.fl[q] & F_OPAQUE != 0 || is_roof(g.ids[q]) {
             continue;
         }
+        k.mark(["skin+x", "skin-x", "skin+y", "skin-y", "skin+z", "skin-z"][axis * 2 + usize::from(!pos)]);
         let (mut lo, mut hi) = (Vec3::ZERO, Vec3::ONE);
         if pos {
             lo[axis] = 1.0;
@@ -1309,6 +1342,7 @@ fn stick(k: &mut Kit, c: usize) {
     if is_post {
         let y0 = if down { 0.0 } else { 0.08 };
         let y1 = if up { 1.0 } else { 0.9 };
+        k.mark("post");
         k.lathe(
             1,
             [0.5, 0.5],
@@ -1322,6 +1356,7 @@ fn stick(k: &mut Kit, c: usize) {
         );
         if down && !is_wood(below) && !is_stone(below) {
             // a stone footing
+            k.mark("foot");
             let foot = mat(w::STONE_BRICKS, 1).tint(0.9);
             k.lathe(
                 1,
@@ -1337,6 +1372,7 @@ fn stick(k: &mut Kit, c: usize) {
         }
         if !up {
             // a cap
+            k.mark("cap");
             k.lathe(
                 1,
                 [0.5, 0.5],
@@ -1350,6 +1386,7 @@ fn stick(k: &mut Kit, c: usize) {
             );
         }
         if !down {
+            k.mark("base");
             k.lathe(
                 1,
                 [0.5, 0.5],
@@ -1363,6 +1400,7 @@ fn stick(k: &mut Kit, c: usize) {
             );
         }
         for k4 in arms {
+            k.mark(["arm0", "arm1", "arm2", "arm3"][k4]);
             let d = H4[k4];
             let n = nb(c, d);
             // a fence when the neighbour is a post too; else one beam
@@ -1390,6 +1428,7 @@ fn stick(k: &mut Kit, c: usize) {
         }
     } else {
         // a beam: along its connections, through the cell
+        k.mark("beam");
         let along_x = arms.iter().any(|a| *a < 2);
         let (k_lo, k_hi) = if along_x { (1, 0) } else { (3, 2) };
         let lo_end = if arms.contains(&k_lo) { 0.0 } else { 0.06 };
@@ -1453,13 +1492,14 @@ fn trunk(k: &mut Kit, c: usize) {
         prof.extend([(0.85, r1), (0.95, r1 * 0.7)]);
     }
     // the same turn all the way up the trunk, so its cells meet
+    k.mark("trunk");
     let h = hash3(k.base.x as i32, 7, k.base.z as i32);
     k.lathe(
         1,
         [0.5, 0.5],
         &prof,
         8,
-        (h & 255) as f32 / 40.0,
+        if baking() { 0.0 } else { (h & 255) as f32 / 40.0 },
         false,
         2.0,
         mat(b, 1),
@@ -1489,6 +1529,7 @@ fn pillar(k: &mut Kit, c: usize) {
     let mut y0 = 0.0;
     let mut y1 = 1.0;
     if foot {
+        k.mark("foot");
         k.bevel(
             Vec3::new(0.04, 0.0, 0.04),
             Vec3::new(0.96, 0.16, 0.96),
@@ -1511,6 +1552,7 @@ fn pillar(k: &mut Kit, c: usize) {
         y0 = 0.28;
     }
     if head {
+        k.mark("head");
         k.lathe(
             1,
             [0.5, 0.5],
@@ -1534,6 +1576,7 @@ fn pillar(k: &mut Kit, c: usize) {
     }
     // a slight swell up the shaft; the stones a little smaller than on a wall
     let mid = (y0 + y1) * 0.5;
+    k.mark("shaft");
     k.vscale = 1.5;
     k.lathe(
         1,
@@ -1576,6 +1619,7 @@ fn sheet(k: &mut Kit, c: usize) {
             Vec3::new(0.0, h(0.0, 1.0) + dy, 1.0),
         ]
     };
+    k.mark("sheet");
     k.poly_at(&pts(0.04), Vec3::Y, Uv::Cell, m);
     k.poly_at(&pts(0.0), Vec3::NEG_Y, Uv::Cell, under);
     // flaps on the open sides
@@ -1583,6 +1627,7 @@ fn sheet(k: &mut Kit, c: usize) {
         if !is_open {
             continue;
         }
+        k.mark(["flap0", "flap1", "flap2", "flap3"][k4]);
         k.quarter(TURN[k4]);
         let top = 0.86;
         let n = 4;
@@ -1612,7 +1657,12 @@ fn prop(k: &mut Kit, c: usize, b: BlockId, wp: [i32; 3]) -> Option<Glow> {
     let above = g.ids[nb(c, dy)];
     // a small turn per column, the same for a stack
     let h = hash3(wp[0], 11, wp[2]);
-    let wiggle = ((h & 1023) as f32 / 1023.0 - 0.5) * 0.24;
+    k.mark("body");
+    let wiggle = if baking() {
+        0.0
+    } else {
+        ((h & 1023) as f32 / 1023.0 - 0.5) * 0.24
+    };
     match b {
         w::BARREL => {
             k.turn(wiggle * 3.0);
@@ -1638,6 +1688,7 @@ fn prop(k: &mut Kit, c: usize, b: BlockId, wp: [i32; 3]) -> Option<Glow> {
             );
             if above != b {
                 // the lid, sunk inside the rim
+                k.mark("lid");
                 k.lathe(
                     1,
                     [0.5, 0.5],
@@ -1678,6 +1729,7 @@ fn prop(k: &mut Kit, c: usize, b: BlockId, wp: [i32; 3]) -> Option<Glow> {
                 0,
             );
             // twine
+            k.mark("twine");
             let twine = mat(w::HAY_BALE, 1).tinted([0.55, 0.42, 0.25]);
             for x in [0.3f32, 0.7] {
                 k.cuboid(
@@ -1777,6 +1829,7 @@ fn prop(k: &mut Kit, c: usize, b: BlockId, wp: [i32; 3]) -> Option<Glow> {
                 [Some(iron), None],
             );
             // the coals
+            k.mark("coals");
             k.lathe(
                 1,
                 [0.5, 0.5],
@@ -1812,7 +1865,7 @@ fn prop(k: &mut Kit, c: usize, b: BlockId, wp: [i32; 3]) -> Option<Glow> {
                 SKIP_PY | SKIP_NY,
             );
             // a soft mound of flowers
-            let hgt = 0.64 + (h & 7) as f32 * 0.01;
+            let hgt = 0.64 + if baking() { 3.0 } else { (h & 7) as f32 } * 0.01;
             k.bevel(
                 Vec3::new(0.07, 0.3, 0.07),
                 Vec3::new(0.93, hgt, 0.93),
@@ -1860,6 +1913,7 @@ fn lantern(k: &mut Kit, c: usize) -> Glow {
     };
     if let (false, false, Some(d)) = (sits, hangs, wall) {
         // a bracket from the wall
+        k.mark("bracket");
         k.quarter(TURN[d]);
         k.cuboid(
             Vec3::new(0.47, 0.86, 0.5),
@@ -1878,6 +1932,7 @@ fn lantern(k: &mut Kit, c: usize) -> Glow {
         k.turn(0.0);
     }
     if hangs || (!sits && wall.is_some()) {
+        k.mark("hanger");
         let top = if hangs { 1.0 } else { 0.9 };
         k.cuboid(
             Vec3::new(0.485, y0 + hgt + 0.12, 0.485),
@@ -1888,6 +1943,7 @@ fn lantern(k: &mut Kit, c: usize) -> Glow {
         );
     }
     // base, glass, corner posts, roof
+    k.mark("lamp");
     k.cuboid(
         Vec3::new(0.5 - w2 - 0.03, y0, 0.5 - w2 - 0.03),
         Vec3::new(0.5 + w2 + 0.03, y0 + 0.06, 0.5 + w2 + 0.03),
@@ -2006,6 +2062,7 @@ fn banner(k: &mut Kit, c: usize) {
         );
     }
     if top_end {
+        k.mark("rod");
         let rod = mat(DARK_PLANKS, 1);
         let zc = (z0 + z1) * 0.5;
         k.lathe(
@@ -2074,6 +2131,7 @@ fn pane(k: &mut Kit, c: usize) {
             (if below == b { SKIP_NY } else { 0 }) | (if above == b { SKIP_PY } else { 0 }),
         );
         // iron straps standing off the planks on both faces
+        k.mark("straps");
         let iron = iron_mat();
         for hy in [0.2f32, 0.78] {
             for (za, zb) in [(0.42, 0.44), (0.56, 0.58)] {
@@ -2104,6 +2162,7 @@ fn pane(k: &mut Kit, c: usize) {
     // window frame: jambs, head and sill where the window ends
     let t = 0.1;
     if left != b {
+        k.mark("frame_l");
         let m = frame_of(left);
         k.cuboid(
             Vec3::new(0.0, 0.0, 0.0),
@@ -2114,6 +2173,7 @@ fn pane(k: &mut Kit, c: usize) {
         );
     }
     if right != b {
+        k.mark("frame_r");
         let m = frame_of(right);
         k.cuboid(
             Vec3::new(1.0 - t, 0.0, 0.0),
@@ -2124,6 +2184,7 @@ fn pane(k: &mut Kit, c: usize) {
         );
     }
     if above != b {
+        k.mark("frame_t");
         let m = frame_of(above);
         k.cuboid(
             Vec3::new(0.0, 1.0 - t, 0.0),
@@ -2134,6 +2195,7 @@ fn pane(k: &mut Kit, c: usize) {
         );
     }
     if below != b {
+        k.mark("frame_b");
         let m = frame_of(below);
         k.cuboid(
             Vec3::new(0.0, 0.0, 0.0),
@@ -2143,6 +2205,7 @@ fn pane(k: &mut Kit, c: usize) {
             SKIP_NY,
         );
         // a sill on both faces
+        k.mark("sill");
         let sill = wood_mat().tint(0.9);
         for (za, zb, skip) in [(-0.1f32, 0.0f32, SKIP_PZ), (1.0, 1.1, SKIP_NZ)] {
             k.cuboid(
@@ -2155,6 +2218,7 @@ fn pane(k: &mut Kit, c: usize) {
         }
     }
     // mullion and transom
+    k.mark("mullion");
     let wood = wood_mat().tint(0.8);
     k.cuboid(
         Vec3::new(0.47, 0.0, 0.42),
@@ -2171,6 +2235,7 @@ fn pane(k: &mut Kit, c: usize) {
         SKIP_NX | SKIP_PX,
     );
     // the glass, both faces
+    k.mark("glass");
     k.clear = true;
     let glass = mat(b, 1);
     for (z, n) in [(0.49f32, Vec3::NEG_Z), (0.51, Vec3::Z)] {
@@ -2183,4 +2248,85 @@ fn pane(k: &mut Kit, c: usize) {
         k.poly_at(&ps, n, Uv::Cell, glass);
     }
     k.clear = false;
+}
+
+// ------------------------------------------------------------- for the bake
+
+/// What one cell part of today's code draws: triangles (opaque, clear),
+/// where each part begins, a lamp's glow, and the shape it chose.
+pub(crate) struct OldCell {
+    pub opaque: Vec<Vertex>,
+    pub trans: Vec<Vertex>,
+    pub marks: Vec<(&'static str, usize, usize)>,
+    pub glow: Option<Glow>,
+    pub shape: String,
+}
+
+pub(crate) fn old_cell(g: &Grid, light: &Light, c: usize, wp: [i32; 3]) -> OldCell {
+    let (mut opaque, mut trans) = (Vec::new(), Vec::new());
+    let s = shape(g, c);
+    let mut glow = None;
+    let marks = {
+        let mut kit = Kit {
+            g,
+            light,
+            field: vec![std::cell::Cell::new(Lit::default()); g.fl.len()],
+            opaque: &mut opaque,
+            trans: &mut trans,
+            base: Vec3::new(wp[0] as f32, wp[1] as f32, wp[2] as f32),
+            cos: 1.0,
+            sin: 0.0,
+            clear: false,
+            vscale: 1.0,
+            marks: Vec::new(),
+        };
+        let b = g.ids[c];
+        match s {
+            Shape::Slope(d) => roof_slope(&mut kit, c, d),
+            Shape::Peak(a) => roof_peak(&mut kit, c, a),
+            Shape::Beam => beam(&mut kit, c),
+            Shape::Stick => stick(&mut kit, c),
+            Shape::Trunk => trunk(&mut kit, c),
+            Shape::Pillar => pillar(&mut kit, c),
+            Shape::Sheet => sheet(&mut kit, c),
+            Shape::Prop => glow = prop(&mut kit, c, b, wp),
+            Shape::Cube => {}
+        }
+        kit.marks
+    };
+    OldCell {
+        opaque,
+        trans,
+        marks,
+        glow,
+        shape: format!("{s:?}"),
+    }
+}
+
+/// Today's detail groups, as the pack's tags.
+pub(crate) fn old_groups(b: BlockId) -> Vec<&'static str> {
+    let mut t = Vec::new();
+    for (on, name) in [
+        (is_roof(b), "roof"),
+        (is_cloth(b), "cloth"),
+        (is_wood(b), "wood"),
+        (is_stone(b), "stone"),
+        (is_prop(b), "prop"),
+        (is_banner(b), "banner"),
+        (is_pane(b), "pane"),
+        (b == w::LANTERN, "lantern"),
+        (b == w::GLASS, "glass"),
+        (wallish(b), "wall"),
+        (stands_on_paving(b), "on_paving"),
+    ] {
+        if on {
+            t.push(name);
+        }
+    }
+    t
+}
+
+/// Today's choice of which detail blocks still fill their cell.
+pub(crate) fn old_classify(g: &mut Grid) {
+    classify(g)
 }

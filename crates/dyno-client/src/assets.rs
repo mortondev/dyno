@@ -67,6 +67,30 @@ pub fn load_dir(root: &Path) -> std::io::Result<usize> {
     Ok(n)
 }
 
+/// Until the server streams the pack: load the local `content/` directory
+/// if nothing has arrived yet. Looks in `$DYNO_CONTENT`, `./content`, and
+/// the source tree the program was built from. Safe to call often.
+pub fn ensure_local_pack() {
+    static ONCE: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
+    let mut done = ONCE.lock().unwrap();
+    if *done || get("blocks.json").is_some() {
+        *done = true;
+        return;
+    }
+    *done = true;
+    let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(d) = std::env::var("DYNO_CONTENT") {
+        dirs.push(d.into());
+    }
+    dirs.push("content".into());
+    dirs.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content"));
+    for d in dirs {
+        if d.join("blocks.json").is_file() && load_dir(&d).is_ok() {
+            return;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
