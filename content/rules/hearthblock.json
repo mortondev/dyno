@@ -2657,7 +2657,7 @@
    ],
    "model": "humanoid",
    "spawn": "dark",
-   "cap": 3,
+   "cap": 2,
    "burns_in_daylight": true,
    "levels": [
     2,
@@ -2801,7 +2801,7 @@
    "cap": 0,
    "attack_speed": 1.8,
    "burns_in_daylight": false,
-   "aggro": 8
+   "aggro": 6
   },
   {
    "key": "ashcloak",
@@ -5492,7 +5492,7 @@
    "radius": 52,
    "levels": [
     4,
-    6
+    5
    ],
    "camps": [
     {

@@ -1338,15 +1338,18 @@ impl Scripted {
 }
 
 /// Is this place near a camp of creatures well above our level (a zone
-/// for later)? The camp's zone band or its creature's own levels count.
+/// for later)? Players see the levels and look for yellow ones: the top of
+/// the zone's band counts (or a named creature's own level).
 pub fn dangerous(b: &crate::body::Body, p: Vec3) -> bool {
     b.content.areas.iter().any(|ar| {
         ar.camps.iter().any(|cp| {
-            let lvl = b
-                .content
-                .creature(cp.creature)
-                .map(|c| c.levels[0].max(ar.levels[0]))
-                .unwrap_or(ar.levels[0]);
+            // camps spawn at the zone's levels; a named elite's own level counts
+            let lvl = match b.content.creature(cp.creature) {
+                Some(c) if cp.rare.is_none() && c.levels[0] == c.levels[1] => {
+                    c.levels[0].max(ar.levels[1])
+                }
+                _ => ar.levels[1],
+            };
             let hostile = b.content.creature(cp.creature).is_some_and(|c| c.hostile);
             hostile && lvl > b.level + 1 && b.rel2(cp.at).distance(p) < cp.spread + 22.0
         })
