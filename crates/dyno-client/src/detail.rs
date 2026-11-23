@@ -453,8 +453,13 @@ impl Kit<'_> {
 
     fn vertex(&self, p: Vec3, n: Vec3, uv: [f32; 2], m: Mat) -> Vertex {
         let (wp, wn) = (self.pos(p), self.dir(n).normalize_or_zero());
-        let (bl, sl, ao) = self.shade(wp, wn);
-        let layer = m.layer;
+        let lit = if m.glow { (0.0, 0.0, 1.0) } else { self.shade(wp, wn) };
+        Self::finish(wp, wn, uv, m, lit)
+    }
+
+    /// A vertex at world position `wp` with world normal `wn`, already lit.
+    #[inline]
+    fn finish(wp: Vec3, wn: Vec3, uv: [f32; 2], m: Mat, lit: (f32, f32, f32)) -> Vertex {
         Vertex {
             pos: wp.into(),
             normal: wn.into(),
@@ -462,11 +467,11 @@ impl Kit<'_> {
                 m.tint[0],
                 m.tint[1],
                 m.tint[2],
-                if m.glow { 2.0 } else { ao },
+                if m.glow { 2.0 } else { lit.2 },
             ],
-            light: bl,
-            sky: sl,
-            tex: [uv[0], uv[1], layer as f32, m.anim],
+            light: lit.0,
+            sky: lit.1,
+            tex: [uv[0], uv[1], m.layer as f32, m.anim],
         }
     }
 
@@ -482,8 +487,25 @@ impl Kit<'_> {
     fn poly(&mut self, ps: &[Vec3], n: Vec3, uvs: &[[f32; 2]], m: Mat) {
         let mut vs = [Vertex::zeroed(); MAX_POLY];
         let k = ps.len().min(MAX_POLY);
+        // a small polygon takes one light, from its middle
+        let (mut lo, mut hi) = (ps[0], ps[0]);
+        for p in &ps[..k] {
+            lo = lo.min(*p);
+            hi = hi.max(*p);
+        }
+        let wn = self.dir(n).normalize_or_zero();
+        let one = (hi - lo).max_element() < 0.4;
+        let lit = if m.glow {
+            (0.0, 0.0, 1.0)
+        } else if one {
+            self.shade(self.pos((lo + hi) * 0.5), wn)
+        } else {
+            (0.0, 0.0, 0.0)
+        };
         for i in 0..k {
-            vs[i] = self.vertex(ps[i], n, uvs[i], m);
+            let wp = self.pos(ps[i]);
+            let l = if one || m.glow { lit } else { self.shade(wp, wn) };
+            vs[i] = Self::finish(wp, wn, uvs[i], m, l);
         }
         let out = self.out();
         for i in 1..k - 1 {
@@ -664,6 +686,8 @@ impl Kit<'_> {
             d[axis] = 1.0;
             d
         };
+        let vk = self.vscale;
+        let mut ring: Vec<Vertex> = Vec::with_capacity((segs + 1) * 2);
         for w in profile.windows(2) {
             let ((a0, r0), (a1, r1)) = (w[0], w[1]);
             if r0 <= 0.0 && r1 <= 0.0 {
@@ -673,33 +697,50 @@ impl Kit<'_> {
             let len = ((a1 - a0).powi(2) + (r1 - r0).powi(2)).sqrt().max(1e-5);
             let (na, nr) = ((r0 - r1) / len, (a1 - a0).abs() / len);
             let sgn = if a1 >= a0 { 1.0 } else { -1.0 };
-            for s in 0..segs {
-                let t0 = phase + TAU * s as f32 / segs as f32;
-                let t1 = phase + TAU * (s + 1) as f32 / segs as f32;
-                let (p00, d0) = place(a0, r0, t0);
-                let (p01, d1) = place(a0, r0, t1);
-                let (p10, _) = place(a1, r1, t0);
-                let (p11, _) = place(a1, r1, t1);
-                let nrm = |d: Vec3| (d * nr + axis_dir * na * sgn).normalize_or_zero();
-                let (n0, n1) = if flat {
+            let nrm = |d: Vec3| (d * nr + axis_dir * na * sgn).normalize_or_zero();
+            let u_at = |s: usize| u_turns * s as f32 / segs as f32;
+            let t_at = |s: usize| phase + TAU * s as f32 / segs as f32;
+            if flat {
+                // one normal and one light per side
+                for s in 0..segs {
+                    let (t0, t1) = (t_at(s), t_at(s + 1));
                     let (_, dm) = place(0.0, 1.0, (t0 + t1) * 0.5);
-                    (nrm(dm), nrm(dm))
-                } else {
-                    (nrm(d0), nrm(d1))
-                };
-                let (u0, u1) = (
-                    u_turns * s as f32 / segs as f32,
-                    u_turns * (s + 1) as f32 / segs as f32,
-                );
-                let vk = self.vscale;
-                let vs = [
-                    self.vertex(p00, n0, [u0, -a0 * vk], m),
-                    self.vertex(p01, n1, [u1, -a0 * vk], m),
-                    self.vertex(p11, n1, [u1, -a1 * vk], m),
-                    self.vertex(p10, n0, [u0, -a1 * vk], m),
-                ];
-                let out = self.out();
-                out.extend([vs[0], vs[1], vs[2], vs[0], vs[2], vs[3]]);
+                    let n = nrm(dm);
+                    let ps = [
+                        place(a0, r0, t0).0,
+                        place(a0, r0, t1).0,
+                        place(a1, r1, t1).0,
+                        place(a1, r1, t0).0,
+                    ];
+                    let uvs = [
+                        [u_at(s), -a0 * vk],
+                        [u_at(s + 1), -a0 * vk],
+                        [u_at(s + 1), -a1 * vk],
+                        [u_at(s), -a1 * vk],
+                    ];
+                    let wn = self.dir(n).normalize_or_zero();
+                    let mid = self.pos((ps[0] + ps[2]) * 0.5);
+                    let lit = if m.glow { (0.0, 0.0, 1.0) } else { self.shade(mid, wn) };
+                    let v = ps.map(|p| self.pos(p));
+                    let q = [0, 1, 2, 3].map(|i| Self::finish(v[i], wn, uvs[i], m, lit));
+                    let out = self.out();
+                    out.extend([q[0], q[1], q[2], q[0], q[2], q[3]]);
+                }
+            } else {
+                // each ring vertex lit once, shared by the two sides it joins
+                ring.clear();
+                for (a, r) in [(a0, r0), (a1, r1)] {
+                    for s in 0..=segs {
+                        let (p, d) = place(a, r, t_at(s));
+                        ring.push(self.vertex(p, nrm(d), [u_at(s), -a * vk], m));
+                    }
+                }
+                let row = segs + 1;
+                for s in 0..segs {
+                    let q = [ring[s], ring[s + 1], ring[row + s + 1], ring[row + s]];
+                    let out = self.out();
+                    out.extend([q[0], q[1], q[2], q[0], q[2], q[3]]);
+                }
             }
         }
         // end caps: discs mapped across the texture
@@ -953,7 +994,7 @@ fn slope_part(
                 ],
                 Uv::Cell,
                 trim,
-                0,
+                2,
             );
         }
         // fascia board along the eave
@@ -1240,13 +1281,16 @@ fn stick(k: &mut Kit, c: usize) {
         if down && !is_wood(below) && !is_stone(below) {
             // a stone footing
             let foot = mat(w::STONE_BRICKS, 1).tint(0.9);
-            k.bevel(
-                Vec3::new(0.5 - r - 0.07, 0.0, 0.5 - r - 0.07),
-                Vec3::new(0.5 + r + 0.07, 0.14, 0.5 + r + 0.07),
-                0.03,
-                [foot; 3],
-                Uv::Cell,
-                SKIP_NY,
+            k.lathe(
+                1,
+                [0.5, 0.5],
+                &[(0.0, r + 0.1), (0.1, r + 0.09), (0.15, r + 0.02)],
+                segs,
+                phase,
+                true,
+                1.0,
+                foot,
+                [None, None],
             );
         }
         if !up {
@@ -1299,7 +1343,7 @@ fn stick(k: &mut Kit, c: usize) {
                     _ => lo.z = 0.0,
                 }
                 let skip = [SKIP_PX, SKIP_NX, SKIP_PZ, SKIP_NZ][k4];
-                k.bevel(lo, hi, 0.02, [side; 3], Uv::Cell, skip);
+                k.cuboid(lo, hi, [side; 3], Uv::Cell, skip);
             }
         }
     } else {
@@ -1322,7 +1366,7 @@ fn stick(k: &mut Kit, c: usize) {
                 (if lo_end == 0.0 { SKIP_NZ } else { 0 }) | (if hi_end == 1.0 { SKIP_PZ } else { 0 }),
             )
         };
-        k.bevel(lo, hi, 0.03, [side, side, side], Uv::Cell, skip);
+        k.cuboid(lo, hi, [side, side, side], Uv::Cell, skip);
     }
 }
 
@@ -1366,7 +1410,7 @@ fn trunk(k: &mut Kit, c: usize) {
         1,
         [0.5, 0.5],
         &prof,
-        12,
+        10,
         (h & 255) as f32 / 40.0,
         false,
         2.0,
@@ -1406,7 +1450,7 @@ fn pillar(k: &mut Kit, c: usize) {
             1,
             [0.5, 0.5],
             &[(0.16, r + 0.08), (0.22, r + 0.08), (0.28, r + 0.02)],
-            16,
+            12,
             0.0,
             false,
             2.0,
@@ -1420,7 +1464,7 @@ fn pillar(k: &mut Kit, c: usize) {
             1,
             [0.5, 0.5],
             &[(0.74, r + 0.01), (0.8, r + 0.07), (0.86, r + 0.09)],
-            16,
+            12,
             0.0,
             false,
             2.0,
@@ -1444,7 +1488,7 @@ fn pillar(k: &mut Kit, c: usize) {
         1,
         [0.5, 0.5],
         &[(y0, r + 0.01), (mid, r + 0.02), (y1, r)],
-        14,
+        12,
         0.0,
         false,
         3.5,
@@ -1526,46 +1570,29 @@ fn prop(k: &mut Kit, c: usize, b: BlockId, wp: [i32; 3]) -> Option<Glow> {
             let r = 0.36;
             let prof = [
                 (0.0, r - 0.05),
-                (0.1, r - 0.01),
-                (0.3, r + 0.025),
+                (0.22, r + 0.02),
                 (0.5, r + 0.04),
-                (0.7, r + 0.025),
-                (0.9, r - 0.01),
+                (0.78, r + 0.02),
                 (top, r - 0.05),
             ];
             k.lathe(
                 1,
                 [0.5, 0.5],
                 &prof,
-                16,
+                12,
                 0.0,
                 false,
                 3.0,
                 mat(b, 1),
                 [None, None],
             );
-            let iron = iron_mat();
-            for hy in [0.16f32, 0.8] {
-                let rr = r + if hy < 0.5 { 0.02 } else { 0.02 } + 0.012;
-                k.lathe(
-                    1,
-                    [0.5, 0.5],
-                    &[(hy - 0.035, rr - 0.01), (hy, rr), (hy + 0.035, rr - 0.01)],
-                    16,
-                    0.0,
-                    false,
-                    3.0,
-                    iron,
-                    [None, None],
-                );
-            }
             if above != b {
                 // the lid, sunk inside the rim
                 k.lathe(
                     1,
                     [0.5, 0.5],
-                    &[(top, r - 0.05), (top, r - 0.08), (top - 0.03, r - 0.08)],
-                    16,
+                    &[(top, r - 0.05), (top - 0.03, r - 0.08)],
+                    12,
                     0.0,
                     false,
                     3.0,
@@ -1719,34 +1746,31 @@ fn prop(k: &mut Kit, c: usize, b: BlockId, wp: [i32; 3]) -> Option<Glow> {
         }
         w::FLOWER_BED => {
             let wood = mat(DARK_PLANKS, 1);
-            k.bevel(
+            k.cuboid(
                 Vec3::new(0.04, 0.0, 0.04),
                 Vec3::new(0.96, 0.42, 0.96),
-                0.025,
                 [wood; 3],
                 Uv::Cell,
-                SKIP_PY,
+                SKIP_PY | SKIP_NY,
             );
+            // a rim round the top of the box
             k.cuboid(
-                Vec3::new(0.08, 0.3, 0.08),
-                Vec3::new(0.92, 0.38, 0.92),
-                [mat(w::DIRT, 0); 3],
+                Vec3::new(0.02, 0.36, 0.02),
+                Vec3::new(0.98, 0.44, 0.98),
+                [wood.tint(0.85); 3],
                 Uv::Cell,
+                SKIP_PY | SKIP_NY,
+            );
+            // a soft mound of flowers
+            let hgt = 0.64 + (h & 7) as f32 * 0.01;
+            k.bevel(
+                Vec3::new(0.07, 0.3, 0.07),
+                Vec3::new(0.93, hgt, 0.93),
+                0.12,
+                [mat(b, 0); 3],
+                Uv::Fit,
                 SKIP_NY,
             );
-            let fl = mat(b, 0);
-            // two soft mounds of flowers
-            for (x0, x1) in [(0.07f32, 0.52), (0.48, 0.93)] {
-                let hgt = 0.62 + ((h >> (x0 as u32 * 7)) & 7) as f32 * 0.01;
-                k.bevel(
-                    Vec3::new(x0, 0.34, 0.07),
-                    Vec3::new(x1, hgt, 0.93),
-                    0.1,
-                    [fl; 3],
-                    Uv::Fit,
-                    SKIP_NY,
-                );
-            }
             None
         }
         w::LANTERN => Some(lantern(k, c)),
@@ -1814,13 +1838,12 @@ fn lantern(k: &mut Kit, c: usize) -> Glow {
         );
     }
     // base, glass, corner posts, roof
-    k.bevel(
+    k.cuboid(
         Vec3::new(0.5 - w2 - 0.03, y0, 0.5 - w2 - 0.03),
         Vec3::new(0.5 + w2 + 0.03, y0 + 0.06, 0.5 + w2 + 0.03),
-        0.015,
         [iron; 3],
         Uv::Cell,
-        0,
+        if sits { SKIP_NY } else { 0 },
     );
     k.cuboid(
         Vec3::new(0.5 - w2 + 0.02, y0 + 0.06, 0.5 - w2 + 0.02),
@@ -2052,14 +2075,13 @@ fn pane(k: &mut Kit, c: usize) {
         k.cuboid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, t, 1.0), [m; 3], Uv::Cell, SKIP_NY);
         // a sill on both faces
         let sill = wood_mat().tint(0.9);
-        for (za, zb) in [(-0.1f32, 0.0f32), (1.0, 1.1)] {
-            k.bevel(
+        for (za, zb, skip) in [(-0.1f32, 0.0f32, SKIP_PZ), (1.0, 1.1, SKIP_NZ)] {
+            k.cuboid(
                 Vec3::new(-0.05, 0.02, za),
                 Vec3::new(1.05, 0.1, zb),
-                0.02,
                 [sill; 3],
                 Uv::Cell,
-                0,
+                skip,
             );
         }
     }

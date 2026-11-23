@@ -2191,15 +2191,26 @@ mod tests {
                 }
             }
         }
-        // best of several runs: the machine may be busy with other work
+        // CPU time of this thread (Linux), so a busy machine does not count;
+        // best of several runs
+        let cpu_ms = || {
+            std::fs::read_to_string("/proc/thread-self/schedstat")
+                .ok()
+                .and_then(|s| s.split_whitespace().next()?.parse::<f64>().ok())
+                .map(|ns| ns / 1e6)
+        };
         let (mut worst, mut sum, mut verts) = (f64::MAX, f64::MAX, 0usize);
         for _ in 0..7 {
             let (mut w1, mut s1) = (0.0f64, 0.0f64);
             verts = 0;
             for s in &town {
                 let t = std::time::Instant::now();
+                let c0 = cpu_ms();
                 let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
-                let ms = t.elapsed().as_secs_f64() * 1e3;
+                let ms = match (c0, cpu_ms()) {
+                    (Some(a), Some(b)) => b - a,
+                    _ => t.elapsed().as_secs_f64() * 1e3,
+                };
                 w1 = w1.max(ms);
                 s1 += ms;
                 verts += geo.opaque.len() + geo.trans.len();
