@@ -7,6 +7,7 @@
 //!
 //! Everything here is pure and time-based (seconds), so tests and the
 //! contact sheet can freeze any pose. See `docs/design/animation.md`.
+#![allow(clippy::needless_range_loop)] // bones are indexed in parallel arrays
 
 use dyno_world::content::Model;
 use glam::{Quat, Vec3};
