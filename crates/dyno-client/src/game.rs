@@ -472,7 +472,11 @@ mod tests {
             );
             was = was.max(p.pos);
         }
-        assert!(p.pos.x > 13.0 && p.pos.y >= 5.9, "out of the pool and up the step: {:?}", p.pos);
+        assert!(
+            p.pos.x > 13.0 && p.pos.y >= 5.9,
+            "out of the pool and up the step: {:?}",
+            p.pos
+        );
         let peak = 0.5 * JUMP * JUMP / GRAVITY;
         assert!((0.5..0.7).contains(&peak), "a life-size jump: {peak}");
     }

@@ -871,9 +871,9 @@ impl State {
             })
             .map(|(t, _)| t)
             .or(mob
-            .last_hit
-            .filter(|(_, at)| at.elapsed() < Duration::from_secs(10))
-            .map(|(p, _)| p));
+                .last_hit
+                .filter(|(_, at)| at.elapsed() < Duration::from_secs(10))
+                .map(|(p, _)| p));
         let credited = killer.map(|k| self.credited(k, pos)).unwrap_or_default();
         let mut items = Vec::new();
         for d in list {
