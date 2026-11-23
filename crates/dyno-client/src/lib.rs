@@ -4,7 +4,6 @@ pub mod anim;
 pub mod app;
 pub mod assets;
 pub mod audio;
-pub(crate) mod detail;
 pub mod front;
 pub mod game;
 pub mod look;
@@ -16,8 +15,6 @@ pub mod render;
 pub mod rpg_ui;
 pub mod screens;
 pub mod settings;
-#[cfg(test)]
-mod shape_bake;
 pub(crate) mod shapes;
 pub mod sheet;
 pub mod shot;

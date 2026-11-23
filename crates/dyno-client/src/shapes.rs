@@ -493,6 +493,12 @@ pub(crate) fn pack() -> &'static Pack {
     static CURRENT: std::sync::Mutex<Option<(u64, &'static Pack)>> = std::sync::Mutex::new(None);
     let mut cur = CURRENT.lock().unwrap_or_else(|e| e.into_inner());
     crate::assets::load_local_pack();
+    // tests share one store, and another may have put a file in it first
+    #[cfg(test)]
+    if crate::assets::get("blocks.json").is_none() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+        let _ = crate::assets::load_dir(&dir);
+    }
     let g = crate::assets::generation();
     let text = crate::assets::get("blocks.json");
     let hash = {
@@ -533,7 +539,8 @@ pub(crate) fn has(b: BlockId, t: u32) -> bool {
 }
 
 /// Blocks drawn by the shape mesher.
-pub(crate) fn is_detail(b: BlockId) -> bool {
+#[cfg(test)]
+fn is_detail(b: BlockId) -> bool {
     pack().shape[b as usize].is_some()
 }
 
@@ -654,39 +661,6 @@ pub(crate) fn classify_with(p: &Pack, g: &mut Grid) {
     for c in thin {
         g.fl[c] &= !F_OPAQUE;
     }
-}
-
-/// For tools: the class a classified cell took (name and turn) and the
-/// value of each feature of its first part.
-#[cfg(test)]
-pub(crate) fn features_at(p: &Pack, g: &Grid, c: usize) -> Option<(String, u8, Vec<bool>)> {
-    let v = *g.cls.get(c)?;
-    let (id, q) = (v >> 2, (v & 3) as u8);
-    if id == 0 {
-        return None;
-    }
-    let (set, _) = p.shape[g.ids[c] as usize]?;
-    let cl = p.sets[set as usize].classes.iter().find(|k| k.id == id)?;
-    let x = Ctx { p, g, c, q };
-    let f = cl
-        .parts
-        .first()
-        .map(|part| part.features.iter().map(|k| x.eval(k)).collect())
-        .unwrap_or_default();
-    Some((p.classes[id as usize].clone(), q, f))
-}
-
-/// For tools: read a pack from text.
-#[cfg(test)]
-pub(crate) fn parse_pack(text: &str) -> Result<Pack, String> {
-    Pack::parse(text)
-}
-
-/// The class a cell was given, by name (for tests and tools).
-#[cfg(test)]
-pub(crate) fn class_name(g: &Grid, c: usize) -> Option<(&'static str, u8)> {
-    let v = *g.cls.get(c)?;
-    (v >> 2 != 0).then(|| (pack().classes[(v >> 2) as usize].as_str(), (v & 3) as u8))
 }
 
 // ----------------------------------------------------------------- meshing
@@ -1031,14 +1005,11 @@ fn emit(
     let place = |v: Vec3| base + Vec3::new(0.5, 0.0, 0.5) + dir(v - Vec3::new(0.5, 0.0, 0.5));
     let models = p.models(file);
     let mut looks: Vec<(usize, [Look; 3])> = Vec::with_capacity(8);
-    // which of the cell's own faces the cell beside covers: an opaque one,
-    // or the same shape going on (a roof or a trunk continuing)
+    // which of the cell's own faces an opaque cell beside it covers
     let mut covered = [false; 6];
     if jitter == 0.0 {
         for (f, s) in STEPS.iter().enumerate() {
-            let n = step(c, turn(*s, q));
-            covered[f] = g.fl[n] & F_OPAQUE != 0
-                || (g.ids[n] == b && g.cls.get(n) == g.cls.get(c) && g.fl[n] & F_DETAIL != 0);
+            covered[f] = g.fl[step(c, turn(*s, q))] & F_OPAQUE != 0;
         }
     }
     for part in &cl.parts {
@@ -1125,13 +1096,6 @@ fn emit(
             out.extend([vs[0], vs[1], vs[2], vs[0], vs[2], vs[3]]);
         }
     }
-}
-
-/// Bits of a table key as the JSON writes them: feature 0 first.
-pub(crate) fn bits_key(bits: u32, n: usize) -> String {
-    (0..n)
-        .map(|i| if bits >> i & 1 == 1 { '1' } else { '0' })
-        .collect()
 }
 
 #[cfg(test)]
