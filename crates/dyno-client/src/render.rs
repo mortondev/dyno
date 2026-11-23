@@ -2,8 +2,8 @@
 //! for built blocks, water, ground clutter, sun shadows and fog, plus a block
 //! highlight and boxes for everything that moves.
 
-use crate::light::Light;
 use crate::fine::Lod;
+use crate::light::Light;
 use crate::terrain_mesh::{self, Glow, SectionGeo};
 use bytemuck::{Pod, Zeroable};
 use dyno_world::{self as w, BlockId, World};
@@ -608,7 +608,8 @@ pub(crate) fn mesh_many(world: &World, light: &Light, list: &[([i32; 3], Lod)]) 
         .unwrap_or(1)
         .min(list.len().div_ceil(2))
         .min(16);
-    let one = |(s, lod): &([i32; 3], Lod)| terrain_mesh::mesh_lod(world, light, s[0], s[1], s[2], *lod);
+    let one =
+        |(s, lod): &([i32; 3], Lod)| terrain_mesh::mesh_lod(world, light, s[0], s[1], s[2], *lod);
     if threads <= 1 {
         return list.iter().map(one).collect();
     }
@@ -1033,7 +1034,9 @@ pub fn push_ground_ring_on(
     radius: f32,
     color: [f32; 3],
 ) {
-    ring(out, center, radius, color, |x, z| ground.height(world, x, z, center.y));
+    ring(out, center, radius, color, |x, z| {
+        ground.height(world, x, z, center.y)
+    });
 }
 
 fn ring(
@@ -1913,7 +1916,7 @@ impl Gfx {
                 None => levels.push((s.lod.per_metre, 1, n)),
             }
         }
-        levels.sort_by(|a, b| b.0.cmp(&a.0));
+        levels.sort_by_key(|e| std::cmp::Reverse(e.0));
         (v, levels)
     }
 

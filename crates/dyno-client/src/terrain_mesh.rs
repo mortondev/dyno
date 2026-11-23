@@ -11,8 +11,8 @@
 //! What is drawn at a place depends only on the blocks near it, so two
 //! neighbouring sections always agree and the borders are seamless.
 
-use crate::light::Light;
 use crate::fine::{self, Lod};
+use crate::light::Light;
 use crate::render::{self, KIND_FOLIAGE, KIND_WATER, SECTION, Vertex};
 use dyno_world::{self as w, BlockId, World};
 use glam::Vec3;
@@ -1152,10 +1152,9 @@ impl Ground {
     pub fn height(&self, world: &World, x: f32, z: f32, y: f32) -> f32 {
         let (bx, bz) = (x.floor() as i32, z.floor() as i32);
         let y0 = y.round() as i32 + 2;
-        let Some(top) = (y0 - 5..=y0)
-            .rev()
-            .find(|y| w::is_solid(world.get(bx, *y, bz)) && !w::is_solid(world.get(bx, *y + 1, bz)))
-        else {
+        let Some(top) = (y0 - 5..=y0).rev().find(|y| {
+            w::is_solid(world.get(bx, *y, bz)) && !w::is_solid(world.get(bx, *y + 1, bz))
+        }) else {
             return y;
         };
         self.feet(world, Vec3::new(x, (top + 1) as f32, z)).y
@@ -1321,7 +1320,10 @@ mod tests {
                 // the winding agrees with the normal
                 let e1 = Vec3::from(q[1].pos) - Vec3::from(q[0].pos);
                 let e2 = Vec3::from(q[2].pos) - Vec3::from(q[0].pos);
-                assert!(e1.cross(e2).dot(Vec3::from(n)) > 0.0, "a face wound inside out");
+                assert!(
+                    e1.cross(e2).dot(Vec3::from(n)) > 0.0,
+                    "a face wound inside out"
+                );
                 let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
                 for a in lo[u]..hi[u] {
                     for b in lo[v]..hi[v] {
@@ -1356,7 +1358,10 @@ mod tests {
             let mut seen = std::collections::HashSet::new();
             let mut edges: HashMap<([i32; 3], usize), u32> = HashMap::new();
             for (c, axis, way) in &faces {
-                assert!(seen.insert((*c, *axis, *way)), "a face drawn twice at {c:?}");
+                assert!(
+                    seen.insert((*c, *axis, *way)),
+                    "a face drawn twice at {c:?}"
+                );
                 let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
                 let (mut cu, mut cv) = (*c, *c);
                 cu[u] += 1;
@@ -1366,7 +1371,11 @@ mod tests {
                 }
             }
             let open = edges.values().filter(|n| *n % 2 == 1).count();
-            let mut odd: Vec<_> = edges.iter().filter(|(_, n)| *n % 2 == 1).map(|(k, _)| *k).collect();
+            let mut odd: Vec<_> = edges
+                .iter()
+                .filter(|(_, n)| *n % 2 == 1)
+                .map(|(k, _)| *k)
+                .collect();
             odd.sort();
             for e in odd.iter().take(12) {
                 eprintln!("open edge at {:?} along {} (r {r})", e.0, e.1);
@@ -1383,7 +1392,11 @@ mod tests {
         let p = &crate::shapes::pack().terrain;
         let r = p.per_metre as i32;
         let (mut compared, mut solid) = (0u32, 0u32);
-        for (a, b) in [([0, 0, 0], [1, 0, 0]), ([1, 0, 1], [1, 1, 1]), ([0, 1, 0], [0, 1, 1])] {
+        for (a, b) in [
+            ([0, 0, 0], [1, 0, 0]),
+            ([1, 0, 1], [1, 1, 1]),
+            ([0, 1, 0], [0, 1, 1]),
+        ] {
             let ga = Grid::load_shape(&world, a.map(|v| v * N));
             let gb = Grid::load_shape(&world, b.map(|v| v * N));
             let mut fa = fine::Fine::new(&ga, p, r as u8);
@@ -1436,7 +1449,10 @@ mod tests {
             for z in 0..N {
                 for j in 0..r {
                     for k in 0..r {
-                        assert!(f.solid(8 * r, y * r + j, z * r + k), "a hole against the wall");
+                        assert!(
+                            f.solid(8 * r, y * r + j, z * r + k),
+                            "a hole against the wall"
+                        );
                         checked += 1;
                     }
                 }
@@ -1446,7 +1462,10 @@ mod tests {
         for z in 0..N {
             for i in 0..r {
                 for k in 0..r {
-                    assert!(f.solid(7 * r + i, 6 * r + r - 1, z * r + k), "a hole under the wall");
+                    assert!(
+                        f.solid(7 * r + i, 6 * r + r - 1, z * r + k),
+                        "a hole under the wall"
+                    );
                 }
             }
         }
@@ -1526,10 +1545,7 @@ mod tests {
         for x in &wall {
             assert!((43.5..=44.5).contains(x), "the wall leans out to {x}");
         }
-        assert!(
-            wall.iter().any(|x| *x != wall[0]),
-            "the wall has no ledges"
-        );
+        assert!(wall.iter().any(|x| *x != wall[0]), "the wall has no ledges");
     }
 
     #[test]
@@ -1658,9 +1674,14 @@ mod tests {
                             } else {
                                 2
                             };
-                            let lo = [0, 1, 2].map(|a| q.iter().map(|v| v.pos[a]).fold(f32::MAX, f32::min));
-                            let hi = [0, 1, 2].map(|a| q.iter().map(|v| v.pos[a]).fold(f32::MIN, f32::max));
-                            let ext: Vec<f32> = (0..3).map(|a| (hi[a] - lo[a]) * r as f32).filter(|e| *e > 0.0).collect();
+                            let lo = [0, 1, 2]
+                                .map(|a| q.iter().map(|v| v.pos[a]).fold(f32::MAX, f32::min));
+                            let hi = [0, 1, 2]
+                                .map(|a| q.iter().map(|v| v.pos[a]).fold(f32::MIN, f32::max));
+                            let ext: Vec<f32> = (0..3)
+                                .map(|a| (hi[a] - lo[a]) * r as f32)
+                                .filter(|e| *e > 0.0)
+                                .collect();
                             let area = ext.iter().product::<f32>();
                             hist[d].0 += 1;
                             hist[d].1 += area as f64;
@@ -1674,7 +1695,12 @@ mod tests {
             let ms = t.elapsed().as_secs_f64() * 1e3;
             let pr = fine::PROF.with(|p| p.replace([0.0; 6]));
             for (name, h) in ["up", "down", "side"].iter().zip(hist) {
-                println!("  {name}: {} quads, {:.1} voxel faces each, {} single", h.0, h.1 / h.0.max(1) as f64, h.2);
+                println!(
+                    "  {name}: {} quads, {:.1} voxel faces each, {} single",
+                    h.0,
+                    h.1 / h.0.max(1) as f64,
+                    h.2
+                );
             }
             println!(
                 "  decide {:.0} ms ({} cells), paint {:.0} ms ({} voxels), emit {:.0} ms ({} quads)",

@@ -29,8 +29,7 @@
 use crate::light::Light;
 use crate::render::{self, KIND_VOXEL, SECTION, Vertex};
 use crate::terrain_mesh::{
-    DX, DY, DZ, F_DARK, F_LEAVES, F_OPAQUE, F_PIN, F_TERRAIN, F_WATER, Grid, SectionGeo, at,
-    hash3,
+    DX, DY, DZ, F_DARK, F_LEAVES, F_OPAQUE, F_PIN, F_TERRAIN, F_WATER, Grid, SectionGeo, at, hash3,
 };
 use dyno_world::{self as w, BlockId};
 use serde::Deserialize;
@@ -702,7 +701,8 @@ impl<'a> Fine<'a> {
             for k in 0..r {
                 for i in 0..r {
                     let kind = self.paint(x * r + i, y * r + r - 1, z * r + k, false);
-                    let deep = ((p.inset[kind as usize] * r as f32 + 0.25).floor() as i32).min(r - 1);
+                    let deep =
+                        ((p.inset[kind as usize] * r as f32 + 0.25).floor() as i32).min(r - 1);
                     for j in r - deep..r {
                         self.pool[base + (j * r + k) as usize] &= !(1u16 << i);
                     }
@@ -771,7 +771,10 @@ impl<'a> Fine<'a> {
         match s {
             EMPTY => 0,
             SOLID | OTHER => self.full,
-            m => self.pool[(m - MIXED) as usize * (self.r * self.r) as usize + (j * self.r + k) as usize],
+            m => {
+                self.pool
+                    [(m - MIXED) as usize * (self.r * self.r) as usize + (j * self.r + k) as usize]
+            }
         }
     }
 
@@ -1000,13 +1003,8 @@ impl<'a> Fine<'a> {
         classes: &mut HashMap<[u32; 3], u32>,
     ) -> u32 {
         let first = self.corner(light, x, y, z);
-        for n in 1..8 {
-            let v = self.corner(
-                light,
-                x + (n & 1) as i32,
-                y + ((n >> 2) & 1) as i32,
-                z + ((n >> 1) & 1) as i32,
-            );
+        for n in 1..8i32 {
+            let v = self.corner(light, x + (n & 1), y + ((n >> 2) & 1), z + ((n >> 1) & 1));
             if v != first {
                 return 0x8000 + ci(x, y, z) as u32;
             }
@@ -1292,7 +1290,7 @@ impl<'a> Fine<'a> {
         let jit = p.jitter[b as usize];
         // a face in cells of one light has it at every corner
         let class = q.key >> 8;
-        let ls = if class >= 1 && class < 0x8000 {
+        let ls = if (1..0x8000).contains(&class) {
             [self.class_light[class as usize - 1]; 4]
         } else {
             c.map(|c| self.light_at(light, c))
@@ -1354,7 +1352,9 @@ impl<'a> Fine<'a> {
                             None => ok = false,
                         }
                     }
-                    let (lo, hi) = hs.iter().fold((f32::MAX, f32::MIN), |a, h| (a.0.min(*h), a.1.max(*h)));
+                    let (lo, hi) = hs
+                        .iter()
+                        .fold((f32::MAX, f32::MIN), |a, h| (a.0.min(*h), a.1.max(*h)));
                     if !ok || hi - lo > 0.5 {
                         continue;
                     }

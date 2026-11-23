@@ -545,13 +545,29 @@ mod tests {
         // each at the level of detail the worker chose for it
         let at: Vec<_> = all.iter().map(|s| (*s, meshes[s].lod)).collect();
         let once = render::mesh_many(&game, &whole, &at);
+        // the ground's faces merge by light, and a section may be meshed
+        // before the light next door has settled: compare the area it
+        // covers, which is its shape
+        let area = |g: &SectionGeo| -> f64 {
+            g.ground
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|q| {
+                    let a = glam::Vec3::from(q[1].pos) - glam::Vec3::from(q[0].pos);
+                    let b = glam::Vec3::from(q[3].pos) - glam::Vec3::from(q[0].pos);
+                    a.cross(b).length() as f64
+                })
+                .sum()
+        };
         for (s, g) in all.iter().zip(once) {
             let m = &meshes[s];
             assert_eq!(
-                (m.opaque.len(), m.ground.len(), m.trans.len()),
-                (g.opaque.len(), g.ground.len(), g.trans.len()),
+                (m.opaque.len(), m.trans.len()),
+                (g.opaque.len(), g.trans.len()),
                 "section {s:?}"
             );
+            assert!((area(m) - area(&g)).abs() < 1e-3, "section {s:?}: ground");
         }
     }
 }
