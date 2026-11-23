@@ -40,6 +40,7 @@ pub fn rested_cap(xp_next: u32) -> u32 {
 
 impl State {
     /// A creature fell: leave its body, holding what it dropped.
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn_corpse(
         &mut self,
         pos: [f32; 3],
@@ -48,6 +49,7 @@ impl State {
         owner: Option<PlayerId>,
         money: u32,
         items: Vec<Stack>,
+        phase: Option<(u8, bool)>,
     ) {
         let id = self.next_entity;
         self.next_entity += 1;
@@ -77,6 +79,7 @@ impl State {
                 pickup_after: now + Duration::from_secs(3600),
                 moved: false,
                 mob: None,
+                phase,
             },
         );
         self.corpses.insert(id, c);
@@ -153,7 +156,7 @@ impl State {
         if p.dead {
             return Err("You are dead.");
         }
-        if dist(p.pose.pos, e.pos) > REACH {
+        if dist(p.pose.pos, e.pos) > REACH || !self.sees(p.phases, id) {
             return Err("You are too far away.");
         }
         if c.owner.is_some_and(|o| o != pid) && c.born.elapsed() < OWNER_LOCK {
@@ -285,7 +288,7 @@ impl State {
             .get(&npc)
             .zip(self.players.get(&pid))
             .is_some_and(|(e, p)| dist(e.pos, p.pose.pos) <= REACH && !p.dead);
-        if !near {
+        if !near || !self.player_sees(pid, npc) {
             return self.tell(pid, "You are too far away.");
         }
         let Some(price) = self

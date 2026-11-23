@@ -37,6 +37,40 @@ pub enum EntityKind {
     Corpse { creature: u16, loot: bool },
 }
 
+/// A member of your party, as the frames show them.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PartyMember {
+    pub name: String,
+    pub level: u8,
+    pub class: Option<u16>,
+    pub health: f32,
+    pub max: f32,
+    pub online: bool,
+    pub leader: bool,
+}
+
+/// Who did something.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum Actor {
+    Player(PlayerId),
+    Entity(u32),
+}
+
+/// A visible action, for animation.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum Act {
+    /// a melee swing
+    Swing,
+    /// a bow shot or thrown weapon
+    Shoot,
+    /// starts casting `ability` for `time` seconds (0: instant)
+    CastStart { ability: u16, time: f32 },
+    /// stops casting (`done`: it went off)
+    CastEnd { done: bool },
+    /// an emote: 0 wave, 1 bow, 2 cheer, 3 point, 4 sit, 5 stand
+    Emote(u8),
+}
+
 /// One quest in a player's log: counts per objective.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QuestProgress {
@@ -53,7 +87,7 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 13;
+pub const PROTOCOL_VERSION: u32 = 14;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -537,6 +571,27 @@ pub enum ServerMsg {
     /// Rested XP you have banked: kills give double XP until it runs out.
     Rested {
         pool: u32,
+    },
+    /// You moved to another copy (shard) of the world without leaving it:
+    /// forget every creature, NPC and player you knew; these are the people
+    /// here now, and the blocks that differ from where you were.
+    Shard {
+        shard: u32,
+        players: Vec<PlayerInfo>,
+        blocks: Vec<([i32; 3], u8)>,
+    },
+    /// Your party (empty: you are not in one).
+    Party {
+        members: Vec<PartyMember>,
+    },
+    /// Someone asks you to join their party ("/accept" or "/decline").
+    Invite {
+        from: String,
+    },
+    /// Someone or something does something visible: swings, shoots, casts, emotes.
+    Act {
+        actor: Actor,
+        act: Act,
     },
 }
 

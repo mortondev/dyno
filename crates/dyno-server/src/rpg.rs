@@ -103,8 +103,14 @@ impl State {
             );
         }
         let h = self.spawn_hearth;
-        let npcs: Vec<(u16, [i32; 3])> = self.content.npcs.iter().map(|n| (n.id, n.at)).collect();
-        for (nid, at) in npcs {
+        type Placed = (u16, [i32; 3], Option<(u8, bool)>);
+        let npcs: Vec<Placed> = self
+            .content
+            .npcs
+            .iter()
+            .map(|n| (n.id, n.at, n.phase))
+            .collect();
+        for (nid, at, phase) in npcs {
             let (x, z) = (h[0] + at[0], h[2] + at[2]);
             let y0 = h[1] + at[1];
             let free = |y: i32| {
@@ -133,6 +139,7 @@ impl State {
                     pickup_after: now,
                     moved: false,
                     mob: None,
+                    phase,
                 },
             );
             self.broadcast(
@@ -383,6 +390,7 @@ impl State {
         let xp = prog::quest_xp(q.xp, level, q.level);
         self.reward(id, xp, q.money);
         self.send_quests(id);
+        self.refresh_phases(id);
     }
 
     // ---------------- resource nodes ----------------

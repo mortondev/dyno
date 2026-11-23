@@ -13,6 +13,7 @@ pub mod game;
 pub mod gear;
 pub mod loot;
 pub mod migrate;
+pub mod party;
 pub mod professions;
 pub mod rpg;
 pub mod store;
@@ -215,10 +216,10 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         content,
         players: HashMap::new(),
         observers: HashMap::new(),
-        next_id: 1,
+        next_id: Arc::new(std::sync::atomic::AtomicU32::new(1)),
         dirty: false,
-        saved,
-        containers,
+        saved: Arc::new(Mutex::new(saved)),
+        containers: Arc::new(Mutex::new(containers)),
         entities: HashMap::new(),
         next_entity: 1,
         rng: Rng::new(cfg.seed as u64 ^ 0x5eed_1234),
@@ -238,6 +239,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         zone_clock: 0.0,
         depleted: HashMap::new(),
         incursion: None,
+        next_phase: None,
+        shard: 0,
         corpses: Default::default(),
         rested_clock: 0.0,
         weather: (0, 0.0, 240.0),
@@ -337,8 +340,8 @@ impl Server {
             };
             (
                 world,
-                st.saved.clone(),
-                st.containers.clone(),
+                st.saved.lock().unwrap().clone(),
+                st.containers.lock().unwrap().clone(),
                 st.content.clone(),
                 meta,
             )
@@ -482,8 +485,7 @@ impl Server {
         let (id, first, world_data) = {
             let mut st = self.state.lock().unwrap();
             if observer {
-                let id = st.next_id;
-                st.next_id += 1;
+                let id = st.next_id.fetch_add(1, Ordering::SeqCst);
                 st.observers.insert(id, tx);
                 let welcome = ServerMsg::Welcome {
                     your_id: id,
@@ -779,6 +781,24 @@ impl Server {
                         st.kill_mob_by(eid);
                     }
                     None => st.tell(id, "No creature near enough."),
+                }
+            }
+            "/finish" => {
+                if !op {
+                    return st.tell(id, "Only the world's owner can finish quests by decree.");
+                }
+                let key = arg.trim();
+                match st.content.quests.iter().find(|q| q.key == key).map(|q| q.id) {
+                    Some(q) => {
+                        if let Some(p) = st.players.get_mut(&id) {
+                            p.quests.retain(|x| x.quest != q);
+                            p.done.insert(q);
+                        }
+                        st.send_quests(id);
+                        st.refresh_phases(id);
+                        st.tell(id, format!("Finished {key}."));
+                    }
+                    None => st.tell(id, "Usage: /finish <quest key>"),
                 }
             }
             "/money" => {

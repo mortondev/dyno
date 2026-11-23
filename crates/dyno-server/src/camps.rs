@@ -109,6 +109,7 @@ impl State {
             let (creature, levels, rare) = (camp.creature, area.levels, camp.rare.clone());
             let level = levels[0] + self.rng.range(0, (levels[1] - levels[0]) as u32) as u8;
             let rare = rare.filter(|r| self.rng.f32() < r.chance);
+            self.next_phase = camp.phase;
             let id = self.spawn_creature(creature, sp.pos);
             if id == 0 {
                 continue;

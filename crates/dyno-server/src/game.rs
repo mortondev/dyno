@@ -14,8 +14,8 @@ use dyno_sim::rng::Rng;
 use dyno_world::content::{Content, ItemId};
 use dyno_world::{self as w, World};
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 pub const CHEST_SLOTS: usize = 27;
@@ -66,6 +66,8 @@ pub struct Player {
     pub money: u32,
     /// banked rested XP
     pub rested: u32,
+    /// the phases this player is in, one bit each
+    pub phases: u64,
     /// rested XP not yet a whole point
     pub rested_carry: f32,
     pub quests: Vec<proto::QuestProgress>,
@@ -137,7 +139,12 @@ pub struct Entity {
     pub moved: bool,
     /// set for creatures
     pub mob: Option<crate::creatures::Mob>,
+    /// seen only by players in (true) or out of (false) a phase
+    pub phase: Option<(u8, bool)>,
 }
+
+/// Every chest's slots by position, shared by all shards.
+pub type Chests = Arc<Mutex<HashMap<[i32; 3], Vec<Option<Stack>>>>>;
 
 pub struct State {
     pub world: World,
@@ -145,10 +152,13 @@ pub struct State {
     pub players: HashMap<PlayerId, Player>,
     /// invisible tool connections: they receive updates but cannot act
     pub observers: HashMap<PlayerId, Sender<Arc<Vec<u8>>>>,
-    pub next_id: PlayerId,
+    /// player IDs are unique across every shard
+    pub next_id: Arc<std::sync::atomic::AtomicU32>,
     pub dirty: bool,
-    pub saved: HashMap<String, PlayerData>,
-    pub containers: HashMap<[i32; 3], Vec<Option<Stack>>>,
+    /// every character, shared by all shards
+    pub saved: Arc<Mutex<HashMap<String, PlayerData>>>,
+    /// chests, shared by all shards so nothing is copied
+    pub containers: Chests,
     pub entities: HashMap<u32, Entity>,
     pub next_entity: u32,
     pub rng: Rng,
@@ -177,6 +187,10 @@ pub struct State {
     pub depleted: HashMap<[i32; 3], u64>,
     /// the Nightfall Incursion, when one is under way
     pub incursion: Option<crate::events::Incursion>,
+    /// the phase the next spawned creature belongs to (set by camps)
+    pub next_phase: Option<(u8, bool)>,
+    /// this shard's number
+    pub shard: u32,
     /// fallen creatures still holding loot
     pub corpses: HashMap<u32, crate::loot::Corpse>,
     pub rested_clock: f32,
@@ -352,8 +366,8 @@ impl State {
             })
             .collect();
         let online: Vec<&Player> = self.players.values().filter(|p| p.token == token).collect();
-        let mut list: Vec<proto::CharacterSummary> = self
-            .saved
+        let saved = self.saved.lock().unwrap();
+        let mut list: Vec<proto::CharacterSummary> = saved
             .iter()
             .filter(|(_, d)| d.token == token && token != 0)
             .map(|(name, d)| {
@@ -365,7 +379,7 @@ impl State {
                 proto::CharacterSummary {
                     name: live.map(|p| p.name.clone()).unwrap_or_else(|| {
                         if d.name.is_empty() {
-                            name.clone()
+                            name.to_string()
                         } else {
                             d.name.clone()
                         }
@@ -404,13 +418,13 @@ impl State {
             .players
             .values()
             .any(|p| p.name.eq_ignore_ascii_case(name));
+        let mut saved = self.saved.lock().unwrap();
         if !online
-            && self
-                .saved
+            && saved
                 .get(&key)
                 .is_some_and(|d| d.token == token && token != 0)
         {
-            self.saved.remove(&key);
+            saved.remove(&key);
             log(format!("Deleted character {name}"));
         }
     }
@@ -453,6 +467,60 @@ impl State {
 
     /// Send to every player and observer, except one player.
     pub fn broadcast(&self, msg: &ServerMsg, except: Option<PlayerId>) {
+        // phasing: a message about a phased entity goes only to those who see it
+        let about = match msg {
+            ServerMsg::EntitySpawn { id, .. }
+            | ServerMsg::EntityHurt { id }
+            | ServerMsg::EntityInfo { id, .. }
+            | ServerMsg::EntityName { id, .. } => Some(*id),
+            ServerMsg::Damage {
+                entity: Some(id), ..
+            } => Some(*id),
+            _ => None,
+        };
+        if let Some(phase) = about
+            .and_then(|id| self.entities.get(&id))
+            .and_then(|e| e.phase)
+        {
+            let bytes = Arc::new(proto::encode(msg));
+            for (id, p) in &self.players {
+                if Some(*id) != except && in_phase(p.phases, phase) {
+                    let _ = p.tx.send(bytes.clone());
+                }
+            }
+            for (id, tx) in &self.observers {
+                if Some(*id) != except {
+                    let _ = tx.send(bytes.clone());
+                }
+            }
+            return;
+        }
+        if let ServerMsg::EntityMoves(list) = msg
+            && list
+                .iter()
+                .any(|(id, ..)| self.entities.get(id).is_some_and(|e| e.phase.is_some()))
+        {
+            for (id, p) in &self.players {
+                if Some(*id) == except {
+                    continue;
+                }
+                let mine: Vec<(u32, [f32; 3], f32)> = list
+                    .iter()
+                    .filter(|(eid, ..)| self.sees(p.phases, *eid))
+                    .copied()
+                    .collect();
+                if !mine.is_empty() {
+                    p.send(&ServerMsg::EntityMoves(mine));
+                }
+            }
+            let bytes = Arc::new(proto::encode(msg));
+            for (id, tx) in &self.observers {
+                if Some(*id) != except {
+                    let _ = tx.send(bytes.clone());
+                }
+            }
+            return;
+        }
         let bytes = Arc::new(proto::encode(msg));
         for (id, p) in &self.players {
             if Some(*id) != except {
@@ -464,6 +532,87 @@ impl State {
                 let _ = tx.send(bytes.clone());
             }
         }
+    }
+
+    /// Whether a player with these phases sees an entity.
+    pub fn sees(&self, phases: u64, entity: u32) -> bool {
+        self.entities
+            .get(&entity)
+            .is_none_or(|e| e.phase.is_none_or(|ph| in_phase(phases, ph)))
+    }
+
+    /// Whether a player sees an entity (and so may talk to, hit or loot it).
+    pub fn player_sees(&self, id: PlayerId, entity: u32) -> bool {
+        self.players
+            .get(&id)
+            .is_some_and(|p| self.sees(p.phases, entity))
+    }
+
+    /// The phases a player's story has put them in.
+    pub fn phases_of(&self, p: &Player) -> u64 {
+        let mut m = 0u64;
+        for (i, ph) in self.content.phases.iter().enumerate().take(64) {
+            if p.done.contains(&ph.done) {
+                m |= 1 << i;
+            }
+        }
+        m
+    }
+
+    /// Recompute a player's phases; show and hide what changed for them.
+    pub fn refresh_phases(&mut self, id: PlayerId) {
+        let Some(p) = self.players.get(&id) else {
+            return;
+        };
+        let new = self.phases_of(p);
+        let old = p.phases;
+        if new == old {
+            return;
+        }
+        let mut msgs = Vec::new();
+        for (eid, e) in &self.entities {
+            let Some(ph) = e.phase else { continue };
+            let (was, now) = (in_phase(old, ph), in_phase(new, ph));
+            if was && !now {
+                msgs.push(ServerMsg::EntityGone {
+                    id: *eid,
+                    picked_by: None,
+                });
+            } else if now && !was {
+                msgs.extend(self.entity_intro(*eid, e));
+            }
+        }
+        let p = self.players.get_mut(&id).unwrap();
+        p.phases = new;
+        for m in &msgs {
+            p.send(m);
+        }
+    }
+
+    /// The messages that introduce an entity to a player who has not seen it.
+    pub fn entity_intro(&self, id: u32, e: &Entity) -> Vec<ServerMsg> {
+        let mut out = vec![ServerMsg::EntitySpawn {
+            id,
+            kind: e.kind,
+            pos: e.pos,
+            yaw: e.yaw,
+        }];
+        if let Some(m) = &e.mob {
+            if let Some(n) = &m.name {
+                out.push(ServerMsg::EntityName {
+                    id,
+                    name: n.clone(),
+                    elite: true,
+                });
+            }
+            out.push(ServerMsg::EntityInfo {
+                id,
+                level: m.level,
+                health: m.health,
+                max: m.max_health,
+            });
+        }
+        out
     }
 
     pub fn tell(&self, id: PlayerId, text: impl Into<String>) {
@@ -499,16 +648,17 @@ impl State {
         {
             return Err(format!("{name} is already playing. Choose another name."));
         }
-        let data = match self.saved.get(&key) {
+        let stored = self.saved.lock().unwrap().get(&key).cloned();
+        let fresh = stored.is_none();
+        let data = match stored {
             Some(d) if d.token != token && d.token != 0 => {
                 return Err(format!(
                     "The name {name} belongs to another player on this server. Choose another name."
                 ));
             }
-            Some(d) => d.clone(),
+            Some(d) => d,
             None => PlayerData::new(self.default_mode, self.spawn_point()),
         };
-        let fresh = !self.saved.contains_key(&key);
         // a new character arrives with the class and looks chosen at creation
         let mut data = data;
         let mut new_class = None;
@@ -521,8 +671,9 @@ impl State {
                 .find(|k| k.key == c.class)
                 .map(|k| k.id);
         }
-        let id = self.next_id;
-        self.next_id += 1;
+        let id = self
+            .next_id
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let mut pack = store::pack_from_keys(&self.content, &data.pack);
         if fresh && self.content.world.protected {
             data.health = dyno_sim::progression::max_health(1);
@@ -578,6 +729,7 @@ impl State {
             xp: data.xp,
             money: data.money,
             rested: rested_now,
+            phases: 0,
             rested_carry: 0.0,
             quests: data
                 .quests
@@ -651,32 +803,12 @@ impl State {
             mode: p.mode,
             content: Box::new(self.content.clone()),
         };
+        let mut p = p;
+        p.phases = self.phases_of(&p);
         let mut after = vec![ServerMsg::Pack(p.pack.slots.clone()), p.status()];
         for (eid, e) in &self.entities {
-            after.push(ServerMsg::EntitySpawn {
-                id: *eid,
-                kind: e.kind,
-                pos: e.pos,
-                yaw: e.yaw,
-            });
-        }
-        for (eid, e) in &self.entities {
-            if let Some(m) = &e.mob
-                && let Some(n) = &m.name
-            {
-                after.push(ServerMsg::EntityName {
-                    id: *eid,
-                    name: n.clone(),
-                    elite: true,
-                });
-            }
-            if let Some(m) = &e.mob {
-                after.push(ServerMsg::EntityInfo {
-                    id: *eid,
-                    level: m.level,
-                    health: m.health,
-                    max: m.max_health,
-                });
+            if self.sees(p.phases, *eid) {
+                after.extend(self.entity_intro(*eid, e));
             }
         }
         {
@@ -857,7 +989,10 @@ impl State {
             fuel: p.fuel,
             milestones: p.milestones.iter().cloned().collect(),
         };
-        self.saved.insert(p.name.to_lowercase(), data);
+        self.saved
+            .lock()
+            .unwrap()
+            .insert(p.name.to_lowercase(), data);
     }
 
     // ---------------- messages ----------------
@@ -953,6 +1088,12 @@ impl State {
                 self.damage(id, amount.min(40) as f32 * scale, [0.0; 3], what);
             }
             ClientMsg::Respawn => self.respawn(id),
+            // phasing: what you cannot see, you cannot touch
+            ClientMsg::Talk { entity } if !self.player_sees(id, entity) => {}
+            ClientMsg::Cast {
+                target: Some(t), ..
+            } if !self.player_sees(id, t) => {}
+            ClientMsg::AutoAttack { target: Some(t) } if !self.player_sees(id, t) => {}
             ClientMsg::Talk { entity } => self.talk(id, entity),
             ClientMsg::Cast { ability, target } => self.cast(id, ability, target),
             ClientMsg::ChooseClass { class } => self.choose_class(id, class),
@@ -1060,9 +1201,12 @@ impl State {
         } else {
             mining::drops(&self.content, b, tool.as_ref(), &mut self.rng)
         };
-        if b == w::CHEST
-            && let Some(slots) = self.containers.remove(&pos)
-        {
+        let removed = if b == w::CHEST {
+            self.containers.lock().unwrap().remove(&pos)
+        } else {
+            None
+        };
+        if let Some(slots) = removed {
             for s in slots.into_iter().flatten() {
                 self.spawn_item(center(pos), s, 0.3);
             }
@@ -1144,7 +1288,10 @@ impl State {
         }
         self.set_block(pos, block);
         if block == w::CHEST {
-            self.containers.insert(pos, vec![None; CHEST_SLOTS]);
+            self.containers
+                .lock()
+                .unwrap()
+                .insert(pos, vec![None; CHEST_SLOTS]);
         }
         let key = format!("place:{}", w::block_key(block));
         self.milestone(id, &key);
@@ -1202,7 +1349,7 @@ impl State {
             for z in lo[2]..=hi[2] {
                 for x in lo[0]..=hi[0] {
                     if self.world.get(x, y, z) == w::CHEST {
-                        self.containers.remove(&[x, y, z]);
+                        self.containers.lock().unwrap().remove(&[x, y, z]);
                     }
                     self.world.set(x, y, z, block);
                 }
@@ -1233,7 +1380,8 @@ impl State {
             SlotRef::Chest(i) => {
                 (i as usize) < CHEST_SLOTS
                     && self.players[&id].container.is_some_and(|c| {
-                        self.containers.contains_key(&c) && self.within(id, c, REACH + 1.0)
+                        self.containers.lock().unwrap().contains_key(&c)
+                            && self.within(id, c, REACH + 1.0)
                     })
             }
         }
@@ -1251,11 +1399,13 @@ impl State {
                 transfer_within(c, &mut p.pack.slots, a as usize, b as usize, count)
             }
             (SlotRef::Chest(a), SlotRef::Chest(b)) => {
-                let slots = self.containers.get_mut(&chest.unwrap()).unwrap();
+                let mut chests = self.containers.lock().unwrap();
+                let slots = chests.get_mut(&chest.unwrap()).unwrap();
                 transfer_within(c, slots, a as usize, b as usize, count);
             }
             (SlotRef::Pack(a), SlotRef::Chest(b)) => {
-                let slots = self.containers.get_mut(&chest.unwrap()).unwrap();
+                let mut chests = self.containers.lock().unwrap();
+                let slots = chests.get_mut(&chest.unwrap()).unwrap();
                 transfer(
                     c,
                     &mut p.pack.slots[a as usize],
@@ -1264,7 +1414,8 @@ impl State {
                 );
             }
             (SlotRef::Chest(a), SlotRef::Pack(b)) => {
-                let slots = self.containers.get_mut(&chest.unwrap()).unwrap();
+                let mut chests = self.containers.lock().unwrap();
+                let slots = chests.get_mut(&chest.unwrap()).unwrap();
                 transfer(
                     c,
                     &mut slots[a as usize],
@@ -1290,7 +1441,8 @@ impl State {
 
     /// Send a chest's contents to everyone who has it open.
     fn send_container(&self, pos: [i32; 3]) {
-        let Some(slots) = self.containers.get(&pos) else {
+        let chests = self.containers.lock().unwrap();
+        let Some(slots) = chests.get(&pos) else {
             return;
         };
         let msg = ServerMsg::Container(Some((pos, slots.clone())));
@@ -1308,7 +1460,8 @@ impl State {
         let taken = match from {
             SlotRef::Pack(i) => p.pack.take(i as usize, count),
             SlotRef::Chest(i) => {
-                let slots = self.containers.get_mut(&chest.unwrap()).unwrap();
+                let mut chests = self.containers.lock().unwrap();
+                let slots = chests.get_mut(&chest.unwrap()).unwrap();
                 let s = slots[i as usize].as_mut();
                 match s {
                     Some(st) => {
@@ -1457,6 +1610,8 @@ impl State {
         match self.world.get(pos[0], pos[1], pos[2]) {
             w::CHEST => {
                 self.containers
+                    .lock()
+                    .unwrap()
                     .entry(pos)
                     .or_insert_with(|| vec![None; CHEST_SLOTS]);
                 self.players.get_mut(&id).unwrap().container = Some(pos);
@@ -1607,6 +1762,7 @@ impl State {
             pickup_after: Instant::now() + Duration::from_millis(500),
             moved: true,
             mob: None,
+            phase: None,
         };
         self.broadcast(
             &ServerMsg::EntitySpawn {
@@ -1917,7 +2073,7 @@ impl State {
                 remap(s, &old, &c);
             }
         }
-        for slots in self.containers.values_mut() {
+        for slots in self.containers.lock().unwrap().values_mut() {
             for s in slots.iter_mut() {
                 remap(s, &old, &c);
             }
@@ -1962,4 +2118,9 @@ impl State {
     pub fn item_id(&self, key: &str) -> Option<ItemId> {
         self.content.item_by_key(key)
     }
+}
+
+/// Whether a phase mask puts you on the visible side of an entity's phase.
+pub fn in_phase(mask: u64, (phase, inside): (u8, bool)) -> bool {
+    ((mask >> phase) & 1 == 1) == inside
 }

@@ -468,7 +468,7 @@ fn quests_give_xp_and_rewards() {
     let mut level = 0;
     let end = Instant::now() + Duration::from_secs(5);
     while Instant::now() < end
-        && (npcs.len() < c.npcs.len()
+        && (npcs.len() < c.npcs.iter().filter(|n| n.phase.is_none()).count()
             || level == 0
             || count(&pack, c.item_by_key("wooden_pickaxe").unwrap()) == 0)
     {
@@ -488,7 +488,11 @@ fn quests_give_xp_and_rewards() {
         }
     }
     assert_eq!(level, 1);
-    assert_eq!(npcs.len(), c.npcs.len(), "every NPC stands in the world");
+    assert_eq!(
+        npcs.len(),
+        c.npcs.iter().filter(|n| n.phase.is_none()).count(),
+        "every unphased NPC stands in the world"
+    );
     assert_eq!(
         count(&pack, c.item_by_key("wooden_pickaxe").unwrap()),
         1,
@@ -997,6 +1001,60 @@ fn corpses_are_looted_and_merchants_sell() {
     let pick = c.item_by_key("iron_pickaxe").unwrap();
     let hollis = c.npcs.iter().find(|n| n.key == "hollis").unwrap();
     assert!(hollis.sells.iter().any(|(i, _)| *i == pick));
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Two players stand side by side; the one whose story has moved on sees a
+/// different world (phasing), and cannot touch what the other sees.
+#[test]
+fn phasing_shows_each_player_their_own_world() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-phase-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "hero", 901, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "other", 902, false, Duration::from_secs(5)).expect("join");
+    let c = a.content.clone();
+    let ansel = c.npcs.iter().find(|n| n.key == "ansel").unwrap().id;
+    let (mut pa, mut pb) = (vec![None; 36], vec![None; 36]);
+    // nobody has finished Rook Varn: nobody sees Corporal Ansel
+    let saw = |j: &Joined, pack: &mut Vec<Option<Stack>>, secs: f32| {
+        wait_opt(j, pack, secs, |m| match m {
+            ServerMsg::EntitySpawn {
+                id,
+                kind: EntityKind::Npc(n),
+                ..
+            } if *n == ansel => Some(*id),
+            _ => None,
+        })
+    };
+    assert_eq!(saw(&a, &mut pa, 1.0), None);
+    // the first player (the owner) finishes it: Ansel appears for them alone
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/finish rook_varn".into(),
+        },
+    );
+    let id = saw(&a, &mut pa, 3.0).expect("the phase shows Ansel");
+    assert_eq!(
+        saw(&b, &mut pb, 1.0),
+        None,
+        "the other player is not in the phase"
+    );
+    // the other cannot talk to someone they cannot see
+    send(&b, ClientMsg::Talk { entity: id });
+    let talked = wait_opt(&b, &mut pb, 1.0, |m| {
+        matches!(m, ServerMsg::Dialog { .. }).then_some(())
+    });
+    assert_eq!(talked, None);
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
