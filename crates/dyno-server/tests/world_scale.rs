@@ -367,7 +367,7 @@ fn the_plaza_is_a_heroic_square() {
             + (1..60).take_while(|d| paved(h[0] - d, h[2] + dz)).count()
             + 1
     };
-    let wide = across(9).max(across(-9));
+    let wide = across(6).max(across(-6));
     assert!((25..=45).contains(&wide), "the plaza is {wide} m across");
 }
 

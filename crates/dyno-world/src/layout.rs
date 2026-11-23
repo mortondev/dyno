@@ -819,6 +819,41 @@ impl Layout {
     /// a height `"y"` n metres under the place's ground.
     pub fn resolve_rules(&self, rules: &mut Value) -> Result<(), String> {
         let hub = self.level(&self.places[0]) + 1;
+        // someone placed from an area's centre (`"area": "windmill"`)
+        // stands at the height of that area's place: heights are the
+        // layout's to give, whatever the land was when the rules were written
+        let mut heights: BTreeMap<String, i64> = BTreeMap::new();
+        for a in rules
+            .get("areas")
+            .and_then(|a| a.as_array())
+            .into_iter()
+            .flatten()
+        {
+            if let (Some(key), Some(place)) = (
+                a.get("key").and_then(|k| k.as_str()),
+                a.get("place").and_then(|k| k.as_str()),
+            ) && let Some(p) = self.place(place)
+            {
+                heights.insert(key.to_string(), (self.level(p) + 1 - hub) as i64);
+            }
+        }
+        for n in rules
+            .get_mut("npcs")
+            .and_then(|n| n.as_array_mut())
+            .into_iter()
+            .flatten()
+        {
+            let up = n
+                .get("area")
+                .and_then(|a| a.as_str())
+                .and_then(|a| heights.get(a))
+                .copied();
+            if let (Some(up), Some(at)) = (up, n.get_mut("at").and_then(|a| a.as_array_mut()))
+                && at.len() == 3
+            {
+                at[1] = Value::from(up);
+            }
+        }
         self.resolve(rules, hub)
     }
 

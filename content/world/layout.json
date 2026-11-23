@@ -423,7 +423,7 @@
     "blend": 26
    },
    "plaza": {
-    "radius": 19,
+    "radius": 15,
     "surface": {"cobble": 3, "flagstones": 4, "mossy_cobble": 1, "stone_bricks": 1}
    },
    "stamps": [
@@ -510,6 +510,12 @@
    ],
    "trees": [
     {"species": "hero_oak", "at": [-20, -36]},
+    {"species": "hero_oak", "at": [12, -94]},
+    {"species": "hero_oak", "at": [-13, 95]},
+    {"species": "hero_oak", "at": [94, 12]},
+    {"species": "birch", "at": [-94, -10]},
+    {"species": "birch", "at": [-12, -96]},
+    {"species": "birch", "at": [96, -12]},
     {"species": "oak", "at": [24, -40]},
     {"species": "birch", "at": [-36, 36]},
     {"species": "oak", "at": [28, 44]},
@@ -589,18 +595,18 @@
    "name": "The Logging Camp",
    "radius": 24,
    "pad": {
-    "radius": [19, 16]
+    "radius": [26, 30]
    },
    "stamps": [
     {"stamp": "hut", "at": [-9, -5]},
     {"stamp": "boulders", "at": [-22, 4], "fit": "ground"},
-    {"stamp": "saw_pit", "at": [4, -8]},
+    {"stamp": "sawmill", "at": [2, -20], "rot": 1},
     {"stamp": "log_pile", "at": [9, 5]},
     {"stamp": "birch_pile", "at": [-3, 8]},
-    {"stamp": "tent_white", "at": [-15, -14], "rot": 1},
-    {"stamp": "stumps", "at": [12, -10]},
+    {"stamp": "tent_white", "at": [-20, -4], "rot": 1},
+    {"stamp": "stumps", "at": [18, 8]},
     {"stamp": "campfire", "at": [4, 5]},
-    {"stamp": "log_pile", "at": [-2, -12], "rot": 1},
+    {"stamp": "log_pile", "at": [-16, 12], "rot": 1},
     {"stamp": "cart", "at": [12, 11]}
    ],
    "was": {
@@ -727,9 +733,14 @@
    "level": "water",
    "pad": {
     "radius": [17, 19],
-    "blend": 14,
-    "surface": {"sand": 1}
+    "blend": 14
    },
+   "plaza": {"radius": 9, "surface": {"sand": 5, "cobble": 1}},
+   "trees": [
+    {"species": "hero_oak", "at": [-24, -8]},
+    {"species": "birch", "at": [-22, 12]},
+    {"species": "willow", "at": [-6, 22]}
+   ],
    "stamps": [
     {"stamp": "fisher_hut", "at": [-9, -8]},
     {"stamp": "fisher_hut", "at": [-10, 7], "rot": 3},
@@ -922,7 +933,7 @@
    "name": "The Hollow Mines",
    "radius": 75,
    "pad": {
-    "radius": [11, 11],
+    "radius": [18, 18],
     "blend": 5,
     "surface": {"cobble": 2, "dirt": 3, "stone": 2}
    },
@@ -930,7 +941,8 @@
     {"stamp": "hollow_mines", "at": [11, -3]},
     {"stamp": "mine_portal", "at": [12, -3]},
     {"stamp": "rail_track", "at": [0, -3]},
-    {"stamp": "mine_head", "at": [19, -3], "fit": "ground"},
+    {"stamp": "mine_head", "at": [1, 10]},
+    {"stamp": "banner_pole_red", "at": [-8, -10]},
     {"stamp": "ore_cart", "at": [-3, 5]},
     {"stamp": "ore_outcrop", "at": [-6, -6]},
     {"stamp": "lamp_post", "at": [6, 4]}

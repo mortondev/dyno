@@ -474,35 +474,96 @@ def stumps():
 
 @recipe
 def windmill():
-    """A stone mill tower with four cloth sails on its south face."""
-    v = tower(4, 3, beacon=False)
-    h = 3 * STOREY
-    # a round-ish shingled cap in place of the fighting top
+    """A stone mill tower, four storeys, with four great cloth sails on its
+    south face."""
+    v = tower(4, 4, beacon=False)
+    h = 4 * STOREY
+    # a shingled cap in place of the fighting top
     v.drop((-6, h, -6), (6, h + 3, 6))
-    for k in range(0, 5):
+    for k in range(0, 6):
         a = 5 - k
-        for x in range(-a, a + 1):
-            for z in range(-a, a + 1):
-                if max(abs(x), abs(z)) == a or k == 4:
+        for x in range(-max(a, 0), max(a, 0) + 1):
+            for z in range(-max(a, 0), max(a, 0) + 1):
+                if max(abs(x), abs(z)) == a or k >= 4:
                     v.set(x, h + k, z, "thatch")
-    # the sails: a cross in the plane just south of the wall
-    hub = (0, h - 2, 6)
-    v.set(0, h - 2, 5, "timber_beam")
+    # the sails: a cross in the plane south of the wall, each arm 12 m
+    # with a ladder of cloth four wide on its trailing side
+    hub = (0, h - 3, 6)
+    v.set(0, h - 3, 5, "timber_beam")
     v.set(*hub, "timber_beam")
     for (dx, dy) in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
-        for i in range(1, 8):
+        for i in range(1, 9):
             v.set(dx * i, hub[1] + dy * i, 6, "timber_beam")
-            if i >= 2:
-                # cloth on the trailing side of each arm
-                v.set(dx * i - dy, hub[1] + dy * i + dx, 6, "white")
-                v.set(dx * i - 2 * dy, hub[1] + dy * i + 2 * dx, 6, "white")
-                if i >= 4:
-                    v.set(dx * i - 3 * dy, hub[1] + dy * i + 3 * dx, 6, "white")
+            for k in range(1, 4):
+                if i >= 2:
+                    v.set(dx * i - k * dy, hub[1] + dy * i + k * dx, 6, "white" if (i + k) % 3 else "yellow")
+    v.col(2, 5, h - 9, h - 6, "red_banner")
+    v.col(-2, 5, h - 9, h - 6, "red_banner")
     v.set(-3, 0, -3, "hay_bale")
     v.set(-3, 1, -3, "hay_bale")
     v.set(3, 0, -3, "barrel")
     v.set(-2, 0, 5, "hay_bale")
     v.points["sails"] = hub
+    return v
+
+
+@recipe
+def sawmill():
+    """The sawmill: a long plank shed open on one side, a great water
+    wheel on its east wall turning in a stone race, logs waiting and
+    planks stacked."""
+    v = house(-5, -8, 5, 8, 1, "plank", ridge_x=False, door=("s", -1), windows=False)
+    v.foundation = "cobble"
+    # open the west side between the posts: the saw floor
+    for z in range(-6, 7):
+        if z % 4:
+            v.col(-5, z, 0, 2, "air")
+    for z in range(-5, 6):
+        v.set(-2, 0, z, "planks") if abs(z) != 3 else None
+    v.set(-2, 1, 0, "timber_beam")
+    v.set(-2, 2, 0, "timber_beam")
+    for z in (-6, -5, 5, 6):
+        v.set(2, 0, z, "log")
+        v.set(3, 0, z, "log")
+    v.set(3, 1, -6, "log")
+    v.set(0, 2, 0, "lantern")
+    # the wheel on the east wall: a rim of timber 5 m in radius, spokes, an axle
+    cx, cy, cz = 7, 3, 0
+    for a in range(0, 360, 6):
+        import math as _m
+        y = cy + round(_m.sin(_m.radians(a)) * 5)
+        z = cz + round(_m.cos(_m.radians(a)) * 5)
+        v.set(cx, y, z, "dark_planks")
+    for k in range(-4, 5):
+        v.set(cx, cy + k, cz, "timber_beam")
+        v.set(cx, cy, cz + k, "timber_beam")
+        if abs(k) <= 3:
+            v.set(cx, cy + k, cz + k, "timber_beam")
+            v.set(cx, cy + k, cz - k, "timber_beam")
+    v.set(6, cy, cz, "timber_beam")
+    v.set(8, cy, cz, "timber_beam")
+    v.col(9, cz, 0, cy, "stone_bricks")
+    # the race: a stone channel of water under the wheel, and the flume above
+    for z in range(-12, 13):
+        for x in (6, 8):
+            v.set(x, -1, z, "stone_bricks")
+            v.set(x, -2, z, "stone_bricks")
+        v.set(7, -3, z, "stone_bricks")
+        v.set(7, -2, z, "water")
+        v.set(7, -1, z, "water")
+        if z != cz and abs(z - cz) > 5:
+            v.set(7, 0, z, "air")
+    for z in range(-12, -4):
+        v.set(7, 8, z, "planks")
+        v.set(7, 9, z, "water") if z > -11 else None
+        v.set(6, 9, z, "dark_planks")
+        v.set(8, 9, z, "dark_planks")
+        if z % 4 == 0:
+            v.col(6, z, 0, 8, "timber_beam")
+    for y in range(4, 9):
+        v.set(7, y, -4, "water")
+    v.points["wheel"] = (cx, cy, cz)
+    v.points["saw"] = (-3, 0, 2)
     return v
 
 
@@ -674,28 +735,40 @@ def ore_cart():
 
 @recipe
 def mine_head():
-    """The headframe over the Hollow Mines' shaft: a timber tower with a
-    winding wheel, and the cage hanging where the hoist stopped."""
+    """The headframe of the Hollow Mines: a timber tower 24 m tall with a
+    winding wheel, braced legs and the cage hanging where the hoist stopped."""
     v = Vol("landmark")
-    for (x, z) in ((-2, -2), (2, -2), (-2, 2), (2, 2)):
-        v.col(x, z, 0, 13, "timber_beam")
-    for y in (4, 9, 13):
-        for i in range(-2, 3):
-            for (x, z) in ((i, -2), (i, 2), (-2, i), (2, i)):
+    H = 22
+    for (x, z) in ((-3, -3), (3, -3), (-3, 3), (3, 3)):
+        v.col(x, z, 0, H, "timber_beam")
+    for y in (5, 11, 17, H):
+        for i in range(-3, 4):
+            for (x, z) in ((i, -3), (i, 3), (-3, i), (3, i)):
                 v.set(x, y, z, "timber_beam")
-    for i in range(-3, 4):
-        v.set(i, 14, 0, "timber_beam")
-        v.set(0, 14, i, "dark_planks")
-    for (x, y) in ((-1, 15), (0, 16), (1, 15), (0, 15)):
+    # cross braces on every face
+    for y0 in (0, 6, 12):
+        for i in range(0, 6):
+            for (x, z) in ((-3 + i, -3), (3 - i, 3), (-3, -3 + i), (3, 3 - i)):
+                v.set(x, y0 + i, z, "dark_planks")
+    # the back legs, raking out behind
+    for i in range(0, 12):
+        v.set(-4 - i // 2, H - 2 * i if H - 2 * i >= 0 else 0, 0, "timber_beam")
+        v.set(-4 - i // 2, max(H - 2 * i - 1, 0), 0, "timber_beam")
+    # the wheel on top
+    for (x, y) in ((-2, H + 1), (-1, H + 2), (0, H + 3), (1, H + 2), (2, H + 1), (0, H + 1), (-1, H + 1), (1, H + 1), (0, H + 2)):
         v.set(x, y, 0, "dark_planks")
-    for y in range(5, 14):
-        v.set(0, y, 0, "timber_beam" if y != 8 else "lantern")
+    for i in range(-4, 5):
+        v.set(0, H, i, "dark_planks")
+    for y in range(6, H):
+        v.set(0, y, 0, "timber_beam" if y != 9 else "lantern")
     for x in range(-1, 2):
         for z in range(-1, 2):
-            v.set(x, 4, z, "planks")
-    v.fill((-2, -1, -2), (2, -1, 2), "planks")
-    v.set(-3, 0, 1, "crate")
-    v.set(3, 0, -1, "barrel")
+            v.set(x, 5, z, "planks")
+    v.col(4, 3, H - 5, H - 2, "red_banner")
+    v.fill((-3, -1, -3), (3, -1, 3), "planks")
+    v.set(-4, 0, 2, "crate")
+    v.set(4, 0, -2, "barrel")
+    v.points["top"] = (0, H, 0)
     return v
 
 
@@ -713,10 +786,15 @@ def mine_portal():
                 else:
                     v.set(x, y, z, "air")
             v.set(x, -1, z, "planks" if abs(z) < 2 and x % 2 == 0 else "cobble")
-    for z in range(-3, 4):
-        for y in range(0, 6):
-            if abs(z) == 3 or y >= 4:
+    for z in range(-5, 6):
+        for y in range(0, 9 - abs(z) // 2):
+            if abs(z) >= 3 or y >= 4:
                 v.set(-1, y, z, pick(0, y, z, MASONRY))
+    v.col(-2, -4, 0, 5, "timber_beam")
+    v.col(-2, 4, 0, 5, "timber_beam")
+    v.col(-2, -4, 3, 5, "red_banner") if False else None
+    v.set(-2, 6, -4, "lantern")
+    v.set(-2, 6, 4, "lantern")
     v.set(-1, 4, 0, "lantern")
     for x in range(-9, 0):
         v.set(x, -1, 0, "timber_beam" if x % 2 else "dark_planks")
