@@ -99,10 +99,13 @@ impl State {
                 if !self.world.in_bounds([x, 1, z]) {
                     continue;
                 }
-                let y = self.world.surface(x, z) + 1;
+                let y = self.world.ground(x, z) + 1;
+                // the level comes from the area's band, like every creature
+                // (overriding it here gave level 5 Shades with level 1 health
+                // and level 5 damage in the level 1 to 2 meadow); later waves
+                // are stronger by numbers
                 let id = self.spawn_creature(shade, [x as f32 + 0.5, y as f32, z as f32 + 0.5]);
                 if let Some(m) = self.entities.get_mut(&id).and_then(|e| e.mob.as_mut()) {
-                    m.level = 2 + inc.wave;
                     m.event = true;
                     // they march on the town
                     m.home = t;

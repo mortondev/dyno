@@ -905,10 +905,16 @@ impl Agent {
                             && usable(a)
                             && in_range(a)
                     })
+                    // like players: a hit with a cooldown goes first when it is
+                    // ready, then the strongest spammable one
                     .max_by(|x, y| {
-                        (x.damage[0] + x.damage[1] + x.weapon * 8.0)
-                            .partial_cmp(&(y.damage[0] + y.damage[1] + y.weapon * 8.0))
-                            .unwrap()
+                        let w = |a: &Ability| {
+                            (a.cooldown > 0.0) as u8 as f32 * 1000.0
+                                + a.damage[0]
+                                + a.damage[1]
+                                + a.weapon * 8.0
+                        };
+                        w(x).partial_cmp(&w(y)).unwrap()
                     })
                     .map(|a| (a.clone(), Some(t)));
             }
