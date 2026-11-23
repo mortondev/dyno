@@ -70,7 +70,8 @@ impl State {
         p.send(&ServerMsg::Gain { xp, money });
         let (name, level) = (p.name.clone(), p.level);
         if ups > 0 {
-            let max = prog::max_health(level);
+            // the character sheet's maximum (class, stats and gear), not the bare curve
+            let max = self.max_health(id);
             let p = self.players.get_mut(&id).unwrap();
             p.health = max; // a level-up heals you fully
             let _ = max_before;

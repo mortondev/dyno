@@ -24,6 +24,11 @@ USAGE:
                                Render animation contact sheets (no server needed)
   dyno bot <address> [name] [seconds]
                                Join as a bot that walks in a circle (demos, tests)
+  dyno bots <address>|--local [--count N] [--minutes M] [--brain mix|completionist|grinder|explorer|social|casual]
+            [--class KEY] [--report out.json] [--stagger SECS]
+                               Playtest with a swarm of headless AI players; writes a fun report (JSON + .md)
+  dyno play <address> --as NAME [--class KEY] [--script FILE]
+                               Play headless through a text interface (one command per line; 'help')
   dyno fill <address> x,y,z x,y,z <block>
                                Fill a box with a block (Air clears it)
   dyno update                  Check for a new release and install it
@@ -319,6 +324,16 @@ fn main() {
                     eprintln!("FAILED: {e}");
                     std::process::exit(1);
                 }
+            }
+        }
+        "bots" => {
+            if let Err(e) = dyno_bot::cli_bots(&args[1..]) {
+                fail(&e);
+            }
+        }
+        "play" if args.len() > 1 => {
+            if let Err(e) = dyno_bot::cli_play(&args[1..]) {
+                fail(&e);
             }
         }
         "" | "connect" | "play" => {

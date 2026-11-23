@@ -9,4 +9,5 @@ description = "Dyno game rules: inventory, crafting, mining. No sockets, no cloc
 
 [dependencies]
 dyno-world = { path = "../dyno-world" }
+glam = "0.30"
 serde = { version = "1", features = ["derive"] }

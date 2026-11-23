@@ -1,0 +1,13 @@
+{
+  "faces": {
+    "cinzel": { "file": "fonts/Cinzel-wght.ttf" },
+    "crimson": { "file": "fonts/CrimsonText-Regular.ttf", "scale": 1.14 },
+    "crimson-semibold": { "file": "fonts/CrimsonText-SemiBold.ttf", "scale": 1.14 }
+  },
+  "families": {
+    "proportional": ["crimson"],
+    "body": ["crimson"],
+    "body-bold": ["crimson-semibold"],
+    "title": ["cinzel", "crimson"]
+  }
+}
