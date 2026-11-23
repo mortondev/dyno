@@ -169,46 +169,104 @@ when quests complete.
   gone for you and Corporal Ansel holds it; the Barrow Warden and the
   Hollow Foreman stay dead for those who finished their quests.
 
-## 5. The cluster (decided; being built)
+## 5. The cluster (built; first version)
 
-The next step runs shards on many server instances that find each other and
-agree on the world's state.
+Shards run on many server instances that find each other, agree on the
+world's state through a Raft quorum, and pass players between them. A server
+started without cluster flags creates none of this and behaves as a single
+instance.
 
 ```mermaid
 flowchart LR
-  subgraph I1["Instance A (edge + host)"]
-    E1[Edge] --> SA[(Shards 0, 1)]
+  subgraph I1["Instance 1 (founder)"]
+    E1[Edge] --> SA[(Shards)]
   end
-  subgraph I2["Instance B"]
-    E2[Edge] --> SB[(Shards 2, 3)]
+  subgraph I2["Instance 2"]
+    E2[Edge] --> SB[(Shards)]
   end
-  subgraph I3["Instance C"]
-    E3[Edge] --> SC[(Shard 4)]
+  subgraph I3["Instance 3"]
+    E3[Edge] --> SC[(Shards)]
   end
   C[Client] --> E1
   E1 -. relay .-> SB
-  R{{Raft quorum<br/>members · versions<br/>shard directory<br/>character locks + epochs<br/>character records}}
+  R{{Raft quorum<br/>members · versions · base world hash<br/>character locks + epochs<br/>character records}}
   I1 <--> R
   I2 <--> R
   I3 <--> R
 ```
 
-| Decision | Why |
-|---|---|
-| Every instance is an **edge**, a **shard host** and a **cluster member** | One public address can front the whole cluster; a client stays on the edge it reached and the edge relays to whichever instance hosts its shard, so moves never reconnect. |
-| Consensus with an existing Raft library (`raft` 0.7, tikv) | Hand-rolled consensus is how worlds lose items. The replicated state stays tiny. |
-| Replicated state: members (address, protocol, content version, capacity), the shard directory, a lock per online character with an **epoch**, and character records | A character can be online in one place only; every save carries the lock's epoch and stale writers are refused. |
-| **Fencing:** an instance that loses the quorum stops writing and drops its players | Prevents duplicated characters and items during a network split. |
-| Cross-instance transfer: freeze, write the full player under a new epoch, attach on the target, switch the edge route, drop the source copy; unfreeze on failure | Same seamless move as within one instance. |
-| New instances fetch the base world from the cluster and verify its hash | The live world holds migrated player builds; it cannot be regenerated from the seed. |
-| Join handshake carries protocol and content versions; a mismatched instance drains instead of serving | Instances self-update independently. |
-| The cluster link is authenticated with a secret kept out of git and logs, and is never exposed through the public tunnel | |
-| A single instance is a quorum of one; the live server's command line keeps working | |
-| Tolerance: 2 instances tolerate no failure; 3 tolerate one | Raft majority. |
+**Running three instances on one machine:**
 
-Tests to pass before shipping: three local processes; kill the leader mid
-transfer; partition one node; assert no character is online twice and item
-counts are unchanged.
+```sh
+head -c 32 /dev/urandom | base64 > secret && chmod 600 secret   # never commit or print it
+dyno server --port 7551 --world a/world.dynw --cluster 127.0.0.1:7561 --cluster-secret-file secret
+dyno server --port 7552 --world b/world.dynw --cluster 127.0.0.1:7562 --join 127.0.0.1:7561 --cluster-secret-file secret
+dyno server --port 7553 --world c/world.dynw --cluster 127.0.0.1:7563 --join 127.0.0.1:7562 --cluster-secret-file secret
+```
+
+The secret can also come from `DYNO_CLUSTER_SECRET` (at least 16 characters).
+`--advertise HOST:PORT` sets the address other instances dial (default: the
+`--cluster` address); `--cluster-dir` holds the Raft log, the instance id and
+the base world (default: `cluster/` beside the world file). Players can
+connect to any instance's game port.
+
+### Built
+
+| Part | How | Where |
+|---|---|---|
+| Cluster link | TCP with a mutual HMAC-SHA256 challenge over both nonces with the shared secret; frames of postcard; a reconnecting queue per peer. The secret is never logged. The link never blocks on game work: relayed client messages go through a worker per connection. | `cluster/link.rs` |
+| Quorum | `raft` 0.7 (tikv): check-quorum and pre-vote; a write-ahead log and snapshots on disk, compacted every 400 entries; snapshots carry the whole state machine. Proposals from any instance (followers forward to the leader). | `cluster/raftnode.rs` |
+| Replicated state | Members (address, protocol, content, version, capacity, down), the base world hash, a lock per online character with an **epoch**, and character records. Applying a command is deterministic. | `cluster/machine.rs` |
+| Joining | A new instance asks any member (a seed); the leader assigns an id, adds it as a voter, and the newcomer fetches the base world from a member, checking it against the recorded hash. The founder records the hash and imports its existing characters once. | `cluster/mod.rs`, `lib.rs` |
+| One character, one place | Joining claims the character's lock through the quorum (refused if another live instance holds it). Saves every 10 s and the final release carry the epoch; stale writes are refused, and a refused save drops the player locally. | `clustered.rs` |
+| Fencing | An instance that hasn't heard the quorum for 5 s drops all its players (without writing) and refuses new ones. The leader marks an instance silent for 12 s as down, which releases its characters. | `clustered.rs`, `cluster/mod.rs` |
+| Relaying | The edge a client reached places it cluster-wide: where its character is already held, else the fullest shard with room on any instance, else the least loaded instance. It relays raw client and server messages to that host over the link, so the client never reconnects. | `clustered.rs`, `lib.rs` (session) |
+| Moving between instances | Freeze (detach at a quiet moment), propose a Move with the epoch, the new host adopts the player and sends a `Shard` message (people there, block differences), and the edge's relay switches. If the Move doesn't commit (for example, the leader died), the player is unfrozen where they were; if adoption fails, the lock moves back. | `clustered.rs` |
+| Load and balancing | Each instance reports its shards, players and versions every second. A quiet instance (a quarter of the cap or less) folds its players into a busier one with room. Operators can move a player with `/instance N`. | `clustered.rs` |
+| Version gating | An instance whose protocol or content differs from the leader's drains: it refuses new players and is not chosen as a host. | `clustered.rs` |
+
+**Tests** (`crates/dyno-server/src/cluster/tests.rs`, `crates/dyno-client/tests/cluster.rs`):
+- three instances agree; a new leader is elected after the old one dies;
+  without a quorum, instances fence;
+- a cut-off instance is marked down and its characters released;
+- a restarted founder replays its log;
+- a player connected to one instance plays on another through the relay,
+  then moves to a third with nothing lost;
+- the leader is killed just as a move starts: the move doesn't commit, the
+  player stays in exactly one place with the same items, and a later move
+  works under the new leader;
+- a cut-off host drops its player, who can't log in elsewhere until the host
+  is declared down, then can, with exactly the last saved items;
+- a new instance takes the founder's world (hash checked), and a wrong
+  secret can't join;
+- an instance on a different content version drains.
+
+It was also tested with three real `dyno server` processes on one machine,
+using a full-size 384 world, the relay and headless screenshots.
+
+### Not built yet
+
+- **Parties and whispers are per instance.** Party gathering, party frames
+  and `/w` only reach players hosted on the same instance; `/who` lists one
+  instance.
+- **Chests are per instance.** They're unused in the RPG world, but a
+  chest's contents aren't replicated.
+- **The shard directory isn't replicated.** Shard ids are local to each
+  instance; placement uses the load reports instead.
+- **Cluster membership only grows.** There is no command to remove an
+  instance for good: a stopped one stays a voter and counts against the
+  quorum until it returns. Two instances tolerate no failure; three tolerate
+  one.
+- **Placement is only as fresh as the last load report.** A burst of joins
+  within a second can overfill a shard slightly.
+- **The day clock and weather are per instance.**
+- **Messages in flight during a move can be lost.** For the few
+  milliseconds while a relay switches hosts, a client message can be dropped.
+- **Saves happen every 10 s.** When an instance is fenced, up to 10 s of a
+  player's progress since the last save is lost. Nothing is ever duplicated.
+- **The live server doesn't use any of this.** It runs without cluster
+  flags. Running a cluster in production needs a stable public address and
+  more than one machine, which are hosting decisions.
 
 ## 6. The world
 
@@ -316,6 +374,6 @@ flowchart LR
 | 9 | Phasing as per-player visibility, enforced on the server | Story changes the world for you without splitting players. |
 | 10 | Moves only at quiet moments, never in combat | Players should never notice. |
 | 11 | Loot by hand from corpses; merchants; rested XP | Classic MMO loop and pacing. |
-| 12 | Multi-instance cluster with a Raft quorum; edges relay | Scale out behind one address; no lost or duplicated characters. |
+| 12 | Multi-instance cluster with a Raft quorum; edges relay (built; see section 5) | Scale out behind one address; no lost or duplicated characters. |
 | 13 | Animation contract: skeletons with an exhaustive `Anim` set | Every model can do every expected action; missing ones fail to compile. |
 | 14 | Playtest with bot swarms and AI agents; measure fun | Aim for fun objectively: reward cadence, droughts, deaths, stuck spots. |

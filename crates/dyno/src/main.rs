@@ -13,6 +13,8 @@ USAGE:
                                [--creative] [--content FILE.json] [--op NAME]...
                                [--webhook DISCORD_URL] (or DYNO_WEBHOOK)
                                [--shard-cap 40] [--area-cap 16] [--max-shards 16]
+                               [--cluster HOST:PORT] [--join HOST:PORT] [--advertise HOST:PORT]
+                               [--cluster-secret-file FILE] (or DYNO_CLUSTER_SECRET) [--cluster-dir DIR]
                                Run a dedicated game server
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
@@ -363,6 +365,8 @@ fn auto_update() -> String {
 
 fn run_server(args: &[String]) {
     let mut cfg = dyno_server::Config::default();
+    let (mut cluster_listen, mut cluster_join, mut cluster_advertise) = (None, None, None);
+    let (mut cluster_secret_file, mut cluster_dir) = (None::<String>, None::<String>);
     let mut port = dyno_protocol::DEFAULT_PORT;
     let mut bind = "0.0.0.0".to_string();
     let mut auto_update = false;
@@ -413,9 +417,65 @@ fn run_server(args: &[String]) {
                 }
                 i += 1;
             }
+            "--cluster" => {
+                cluster_listen = Some(val());
+                i += 1;
+            }
+            "--join" => {
+                cluster_join = Some(val());
+                i += 1;
+            }
+            "--advertise" => {
+                cluster_advertise = Some(val());
+                i += 1;
+            }
+            "--cluster-secret-file" => {
+                cluster_secret_file = Some(val());
+                i += 1;
+            }
+            "--cluster-dir" => {
+                cluster_dir = Some(val());
+                i += 1;
+            }
             other => fail(&format!("unknown server option {other}")),
         }
         i += 1;
+    }
+    // cluster mode: on only when asked for, with a secret from a file or the
+    // environment (never from the command line, never printed)
+    if cluster_listen.is_some() || cluster_join.is_some() {
+        let secret = match &cluster_secret_file {
+            Some(f) => std::fs::read(f)
+                .unwrap_or_else(|e| fail(&format!("cannot read the cluster secret file: {e}"))),
+            None => std::env::var("DYNO_CLUSTER_SECRET")
+                .map(String::into_bytes)
+                .unwrap_or_default(),
+        };
+        let secret: Vec<u8> = String::from_utf8_lossy(&secret).trim().as_bytes().to_vec();
+        if secret.len() < 16 {
+            fail(
+                "cluster mode needs a secret of at least 16 characters in DYNO_CLUSTER_SECRET or --cluster-secret-file",
+            );
+        }
+        let listen = cluster_listen.unwrap_or_else(|| "0.0.0.0:7410".into());
+        let listen: std::net::SocketAddr = listen
+            .parse()
+            .unwrap_or_else(|_| fail("bad --cluster address (use host:port)"));
+        let dir = cluster_dir
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                cfg.world_path
+                    .parent()
+                    .map(|p| p.join("cluster"))
+                    .unwrap_or_else(|| "cluster".into())
+            });
+        cfg.cluster = Some(dyno_server::cluster::ClusterConfig {
+            listen,
+            advertise: cluster_advertise,
+            join: cluster_join,
+            secret,
+            dir,
+        });
     }
     if cfg.webhook.is_none() {
         cfg.webhook = std::env::var("DYNO_WEBHOOK").ok().filter(|u| !u.is_empty());

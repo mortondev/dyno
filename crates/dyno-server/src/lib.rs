@@ -7,6 +7,8 @@
 
 pub mod abilities;
 pub mod camps;
+pub mod cluster;
+mod clustered;
 pub mod creatures;
 pub mod events;
 pub mod game;
@@ -83,6 +85,8 @@ pub struct Config {
     pub max_shards: usize,
     /// accept any movement from clients (tests only)
     pub trust_movement: bool,
+    /// run as one instance of a cluster (absent: a stand-alone server)
+    pub cluster: Option<cluster::ClusterConfig>,
 }
 
 impl Default for Config {
@@ -102,6 +106,7 @@ impl Default for Config {
             area_cap: 16,
             max_shards: 16,
             trust_movement: false,
+            cluster: None,
         }
     }
 }
@@ -119,7 +124,14 @@ struct Route {
     shard: u32,
     name: String,
     tx: Sender<Arc<Vec<u8>>>,
+    /// the client connection (on the edge that holds it)
+    conn: u64,
+    /// relayed players: the edge instance that holds the client
+    edge: Option<cluster::machine::NodeId>,
 }
+
+/// A relayed client: the edge instance and its connection number.
+type RelayKey = (cluster::machine::NodeId, u64);
 
 pub struct Server {
     cfg: Config,
@@ -137,6 +149,27 @@ pub struct Server {
     /// when each player last spoke in a world channel (one line a second)
     channel_at: Mutex<HashMap<PlayerId, Instant>>,
     rpg: bool,
+    /// cluster mode: the quorum and everything that spans instances
+    cluster: Option<Arc<cluster::Cluster>>,
+    /// cluster mode: epochs of the characters this instance hosts
+    epochs: Mutex<HashMap<String, u64>>,
+    /// edge side: client connections whose player lives on another instance
+    relays_out: Mutex<HashMap<u64, clustered::EdgeRelay>>,
+    /// host side: players relayed from another instance's edge
+    hosted: Mutex<HashMap<(cluster::machine::NodeId, u64), PlayerId>>,
+    /// host side: one ordered queue per relayed client (never block the link)
+    relay_in: Mutex<HashMap<RelayKey, Sender<Vec<u8>>>>,
+    next_conn: std::sync::atomic::AtomicU64,
+    /// connections to end (fenced, signed in elsewhere)
+    kicked: Mutex<std::collections::HashSet<u64>>,
+    /// out of contact with the quorum: serve no one
+    fenced: AtomicBool,
+    /// running a different version from the cluster: take no one new
+    draining: AtomicBool,
+    adoptions: cluster::link::Waiters<Result<(), String>>,
+    relay_opens: cluster::link::Waiters<Result<(), String>>,
+    /// the base world, as served to instances that join
+    base_bytes: Vec<u8>,
 }
 
 /// A running server. Dropping it does not stop it; call `stop`.
@@ -151,6 +184,23 @@ impl Handle {
         self.server.stop.store(true, Ordering::SeqCst);
         let _ = TcpStream::connect_timeout(&self.local_addr, Duration::from_millis(200));
         self.server.save();
+        if let Some(c) = &self.server.cluster {
+            c.stop();
+        }
+    }
+
+    /// Stop at once, like a crash: no save, no goodbyes (tests).
+    pub fn kill(&self) {
+        self.server.stop.store(true, Ordering::SeqCst);
+        if let Some(c) = &self.server.cluster {
+            c.stop();
+        }
+        let _ = TcpStream::connect_timeout(&self.local_addr, Duration::from_millis(200));
+    }
+
+    /// The cluster this instance belongs to, if any.
+    pub fn cluster(&self) -> Option<Arc<cluster::Cluster>> {
+        self.server.cluster.clone()
     }
 }
 
@@ -167,6 +217,41 @@ fn load_content(path: &Option<PathBuf>) -> Result<Content, String> {
 /// Start the server in background threads and return at once.
 pub fn start(cfg: Config) -> std::io::Result<Handle> {
     let content = load_content(&cfg.content_path).map_err(std::io::Error::other)?;
+    // cluster mode: join (or found) the cluster first; a new instance takes
+    // the base world from the cluster, checked against its hash
+    let cluster = match &cfg.cluster {
+        Some(cc) => {
+            let me = cluster::Load {
+                protocol: proto::PROTOCOL_VERSION,
+                content: format!("{} v{}", content.name, content.version),
+                version: env!("CARGO_PKG_VERSION").into(),
+                capacity: (cfg.shard_cap.max(1) * cfg.max_shards.max(1)) as u32,
+                ..Default::default()
+            };
+            let c = cluster::Cluster::start(cc.clone(), me).map_err(std::io::Error::other)?;
+            log(format!(
+                "Cluster: this is instance {} ({})",
+                c.id(),
+                if c.founder { "founder" } else { "member" }
+            ));
+            let base_file = cc.dir.join("base.dynw");
+            if !c.founder && !base_file.exists() {
+                let bytes = c.fetch_world().map_err(std::io::Error::other)?;
+                std::fs::write(&base_file, &bytes)?;
+                if !cfg.world_path.exists() {
+                    if let Some(d) = cfg.world_path.parent() {
+                        std::fs::create_dir_all(d)?;
+                    }
+                    World::decode(&bytes)
+                        .map_err(std::io::Error::other)?
+                        .save(&cfg.world_path)?;
+                }
+                log("Cluster: fetched the base world and checked its hash");
+            }
+            Some(c)
+        }
+        None => None,
+    };
     let mut world = match World::load(&cfg.world_path) {
         Ok(w) => {
             log(format!(
@@ -293,7 +378,48 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
     state.spawn_npcs();
     let rpg = state.content.world.protected;
-    let base = state.world.clone();
+    // the base world every shard copies; in a cluster it is fixed at founding
+    let (base, base_bytes) = match (&cluster, &cfg.cluster) {
+        (Some(c), Some(cc)) => {
+            let file = cc.dir.join("base.dynw");
+            let bytes = match std::fs::read(&file) {
+                Ok(b) => b,
+                Err(_) => {
+                    let b = state.world.encode();
+                    std::fs::write(&file, &b)?;
+                    b
+                }
+            };
+            let hash = cluster::sha256_hex(&bytes);
+            if c.founder {
+                let _ = c.propose(
+                    cluster::machine::Cmd::WorldHash { hash: hash.clone() },
+                    Duration::from_secs(5),
+                );
+                // bring this server's characters into the cluster (once)
+                let players: Vec<(String, store::PlayerData)> = state
+                    .saved
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                let _ = c.propose(
+                    cluster::machine::Cmd::Import { players },
+                    Duration::from_secs(10),
+                );
+            }
+            let want = c.shared.machine.read().unwrap().world_hash.clone();
+            if want.as_ref().is_some_and(|w| *w != hash) {
+                return Err(std::io::Error::other(
+                    "this instance's base world does not match the cluster's",
+                ));
+            }
+            let w = World::decode(&bytes).map_err(std::io::Error::other)?;
+            (w, bytes)
+        }
+        _ => (state.world.clone(), Vec::new()),
+    };
     let server = Arc::new(Server {
         cfg,
         stop: AtomicBool::new(false),
@@ -310,7 +436,22 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         snaps: Mutex::new(Vec::new()),
         channel_at: Mutex::new(HashMap::new()),
         rpg,
+        cluster: cluster.clone(),
+        epochs: Mutex::new(HashMap::new()),
+        relays_out: Mutex::new(HashMap::new()),
+        hosted: Mutex::new(HashMap::new()),
+        relay_in: Mutex::new(HashMap::new()),
+        next_conn: std::sync::atomic::AtomicU64::new(1),
+        kicked: Mutex::new(Default::default()),
+        fenced: AtomicBool::new(false),
+        draining: AtomicBool::new(false),
+        adoptions: Default::default(),
+        relay_opens: Default::default(),
+        base_bytes,
     });
+    if server.cluster.is_some() {
+        clustered::attach(&server);
+    }
     log(format!(
         "Dyno server {} listening on {local_addr} (protocol {})",
         env!("CARGO_PKG_VERSION"),
@@ -884,6 +1025,25 @@ impl Server {
                     names.join(", ")
                 ));
             }
+            "/instance" => {
+                let op = self.main_shard().state.lock().unwrap().may_op(&me);
+                match (&self.cluster, rest.parse::<u64>()) {
+                    (None, _) => tell("This server is not part of a cluster.".into()),
+                    (Some(_), Ok(to)) if op => {
+                        if let Err(e) = self.transfer_remote(id, to) {
+                            log(format!(
+                                "Cluster: could not move {me} to instance {to}: {e}"
+                            ));
+                            tell(format!("Cannot move: {e}"));
+                        }
+                    }
+                    (Some(c), _) => tell(format!(
+                        "You are on instance {} of {}.",
+                        c.id(),
+                        c.shared.machine.read().unwrap().alive().len()
+                    )),
+                }
+            }
             "/shard" => {
                 let here = self
                     .routes
@@ -1133,6 +1293,40 @@ impl Server {
         };
         let name = proto::clean_name(&name);
         let (tx, rx) = channel::<Arc<Vec<u8>>>();
+        let conn = self.next_conn.fetch_add(1, Ordering::SeqCst);
+        // cluster mode: the player may live on another instance
+        if !observer && self.cluster.is_some() {
+            if let Err(reason) = self.cluster_ready() {
+                send(&mut ws, &ServerMsg::Reject { reason })?;
+                let _ = ws.close(None);
+                return Err("not serving".into());
+            }
+            let host = self.choose_host(&name);
+            if Some(host) != self.cluster.as_ref().map(|c| c.id()) {
+                if let Err(reason) = self.open_remote(host, conn, &name, token, create, tx) {
+                    send(
+                        &mut ws,
+                        &ServerMsg::Reject {
+                            reason: reason.clone(),
+                        },
+                    )?;
+                    let _ = ws.close(None);
+                    return Err(format!("refused {name}: {reason}"));
+                }
+                log(format!(
+                    "{name} joined from {peer} (dyno {version}), relayed to instance {host}"
+                ));
+                let result = self.session(&mut ws, 0, conn, Vec::new(), None, rx);
+                self.close_conn(conn, "left");
+                log(format!(
+                    "{name} left ({})",
+                    result.as_ref().err().map(String::as_str).unwrap_or("quit")
+                ));
+                let _ = ws.close(None);
+                let _ = ws.flush();
+                return Ok(());
+            }
+        }
 
         let (id, first, world_data) = {
             if !observer {
@@ -1151,6 +1345,17 @@ impl Server {
                     )?;
                     return Err("already playing".into());
                 }
+            }
+            if !observer && let Err(reason) = self.claim_here(&name, token) {
+                self.joining.lock().unwrap().remove(&name.to_lowercase());
+                send(
+                    &mut ws,
+                    &ServerMsg::Reject {
+                        reason: reason.clone(),
+                    },
+                )?;
+                let _ = ws.close(None);
+                return Err(format!("refused {name}: {reason}"));
             }
             let sh = if observer {
                 self.main_shard()
@@ -1209,12 +1414,15 @@ impl Server {
                                 shard: sh.id,
                                 name: display,
                                 tx,
+                                conn,
+                                edge: None,
                             },
                         );
                         (id, msgs, st.world.encode())
                     }
                     Err(reason) => {
                         drop(st);
+                        self.release_claim(&name);
                         send(
                             &mut ws,
                             &ServerMsg::Reject {
@@ -1233,10 +1441,14 @@ impl Server {
                 self.player_count()
             ));
         }
-        let result = self.session(&mut ws, id, first, world_data, rx);
-        let sh = self.shard_of(id).unwrap_or_else(|| self.main_shard());
-        sh.state.lock().unwrap().leave(id);
-        self.routes.lock().unwrap().remove(&id);
+        let result = self.session(&mut ws, id, conn, first, Some(world_data), rx);
+        if self.relays_out.lock().unwrap().contains_key(&conn) {
+            // the player moved to another instance during the session
+            self.close_conn(conn, "left");
+        } else {
+            let id = self.local_id(conn).unwrap_or(id);
+            self.leave_here(id);
+        }
         if !observer {
             log(format!(
                 "{name} left ({}), {} online",
@@ -1249,27 +1461,31 @@ impl Server {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn session(
         &self,
         ws: &mut WebSocket<TcpStream>,
         id: PlayerId,
+        conn: u64,
         first: Vec<ServerMsg>,
-        world_data: Vec<u8>,
+        world_data: Option<Vec<u8>>,
         rx: Receiver<Arc<Vec<u8>>>,
     ) -> Result<(), String> {
         let mut first = first.into_iter();
         if let Some(welcome) = first.next() {
             send(ws, &welcome)?;
         }
-        send(ws, &ServerMsg::World { data: world_data })?;
-        let time = self
-            .shard_of(id)
-            .unwrap_or_else(|| self.main_shard())
-            .state
-            .lock()
-            .unwrap()
-            .time_msg();
-        send(ws, &time)?;
+        if let Some(data) = world_data {
+            send(ws, &ServerMsg::World { data })?;
+            let time = self
+                .shard_of(id)
+                .unwrap_or_else(|| self.main_shard())
+                .state
+                .lock()
+                .unwrap()
+                .time_msg();
+            send(ws, &time)?;
+        }
         for m in first {
             send(ws, &m)?;
         }
@@ -1283,45 +1499,37 @@ impl Server {
             if self.stop.load(Ordering::SeqCst) {
                 return Err("server stopping".into());
             }
+            if self.kicked.lock().unwrap().remove(&conn) {
+                // tell the client why, then end the session
+                let _ = send(
+                    ws,
+                    &ServerMsg::Reject {
+                        reason: "Lost contact with the world. Reconnect in a moment.".into(),
+                    },
+                );
+                return Err("dropped".into());
+            }
             match ws.read() {
+                Ok(Message::Binary(b)) if self.relay_host(conn).is_some() => {
+                    // the player lives on another instance: pass it on untouched
+                    last_msg = Instant::now();
+                    msgs += 1;
+                    self.relay_up(conn, b.to_vec());
+                }
                 Ok(Message::Binary(b)) => {
                     last_msg = Instant::now();
                     msgs += 1;
                     let msg =
                         proto::decode::<ClientMsg>(&b).map_err(|e| format!("bad message: {e}"))?;
-                    match msg {
-                        ClientMsg::Chat { text } => {
-                            chats += 1;
-                            let text: String = text
-                                .chars()
-                                .filter(|c| !c.is_control())
-                                .take(proto::MAX_CHAT)
-                                .collect();
-                            if chats <= 20 && text.trim_start().starts_with('/') {
-                                if !self.global_command(id, text.trim()) {
-                                    self.command(id, text.trim());
-                                }
-                            } else if chats <= 5 && !text.trim().is_empty() {
-                                let Some(sh) = self.shard_of(id) else {
-                                    continue;
-                                };
-                                let st = sh.state.lock().unwrap();
-                                if let Some(p) = st.players.get(&id) {
-                                    let from = p.name.clone();
-                                    log(format!("<{from}> {text}"));
-                                    st.broadcast(&ServerMsg::Chat { from, text }, None);
-                                }
-                            }
-                        }
-                        ClientMsg::Hello { .. } | ClientMsg::Session { .. } => {
-                            return Err("second hello".into());
-                        }
-                        other => {
-                            if let Some(sh) = self.shard_of(id) {
-                                sh.state.lock().unwrap().handle(id, other)?;
-                            }
-                        }
+                    if matches!(msg, ClientMsg::Hello { .. } | ClientMsg::Session { .. }) {
+                        return Err("second hello".into());
                     }
+                    if let ClientMsg::Chat { .. } = msg {
+                        chats += 1;
+                    }
+                    // the player id changes if they moved away and came back
+                    let id = self.local_id(conn).unwrap_or(id);
+                    self.client_msg(id, msg, chats)?;
                 }
                 Ok(Message::Close(_)) => return Ok(()),
                 Ok(_) => last_msg = Instant::now(),
@@ -1357,6 +1565,44 @@ impl Server {
                 }
             }
         }
+    }
+
+    /// One message from a player (from a local session or a relay).
+    /// `chats` counts chat lines in the current second.
+    fn client_msg(&self, id: PlayerId, msg: ClientMsg, chats: u32) -> Result<(), String> {
+        match msg {
+            ClientMsg::Chat { text } => {
+                let text: String = text
+                    .chars()
+                    .filter(|c| !c.is_control())
+                    .take(proto::MAX_CHAT)
+                    .collect();
+                if chats <= 20 && text.trim_start().starts_with('/') {
+                    if !self.global_command(id, text.trim()) {
+                        self.command(id, text.trim());
+                    }
+                } else if chats <= 5 && !text.trim().is_empty() {
+                    let Some(sh) = self.shard_of(id) else {
+                        return Ok(());
+                    };
+                    let st = sh.state.lock().unwrap();
+                    if let Some(p) = st.players.get(&id) {
+                        let from = p.name.clone();
+                        log(format!("<{from}> {text}"));
+                        st.broadcast(&ServerMsg::Chat { from, text }, None);
+                    }
+                }
+            }
+            ClientMsg::Hello { .. } | ClientMsg::Session { .. } => {
+                return Err("second hello".into());
+            }
+            other => {
+                if let Some(sh) = self.shard_of(id) {
+                    sh.state.lock().unwrap().handle(id, other)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     fn command(&self, id: PlayerId, line: &str) {

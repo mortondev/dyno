@@ -108,7 +108,7 @@ These parts of [the spec](docs/spec/index.html) are not built yet:
 - **Transport is WebSocket over TCP**, not QUIC (NET-001), so the server also works through HTTPS tunnels.
 - **Movement is client-authoritative**, checked by the server.
 - **The world is sent whole on join**, not streamed in chunks.
-- **One server instance today.** Running shards across many instances with a quorum is designed and in progress ([docs/architecture.md](docs/architecture.md), section 5).
+- **Clusters are new.** Instances can join a Raft quorum (`--cluster`, `--join`, a shared secret) and relay players to each other ([docs/architecture.md](docs/architecture.md), section 5). Parties, whispers and chests still work within one instance only.
 - **One release signing key**, not the root key list of REL-013. The private key stays offline with the maintainer; CI holds a copy as an Actions secret.
 - **No accounts.** A character belongs to the install that made it.
 
