@@ -260,11 +260,14 @@ pass), the 18 gauntlet cameras (`tools/concepts/shots.py`, `dyno shot
   from a point nudged by noise, so grass meets sand and paths along a
   ragged fine-voxel edge, not a 1 m line. A block with `under` (grass over
   dirt, snow over stone) paints the voxels within `cover_depth` of open air
-  and shows the other below: a grass lip over an earth bank. Paving with
-  `inset` sits a voxel below the grass, column by column, so a path has a
-  hard stepped edge that follows its ragged outline.
-- **Colour per voxel**, in the shader: the block's texture at the voxel's
-  centre on the mip level with one texel a voxel, times a hashed brightness
+  and shows the other below: a grass lip over an earth bank. Paving can
+  sit a voxel below the grass (`inset`, column by column along the ragged
+  outline); it is off, because ground sunk beside paving left as built
+  cubes made those stand proud with their chamfers showing.
+- **Colour per cell**, in the shader: the ground is coloured in cells of
+  `colour_per_metre` (4: 25 cm, the grain of props and buildings; never
+  finer than the voxels), each one flat colour, the block's texture at
+  the cell's centre on the mip level with one texel a cell, times a hashed brightness
   and hue jitter (`jitter`), saturated (`saturation`) and tinted (`tint`)
   per block (warm golden sand, yellow-green grass, warm earth, toward the
   concepts), times the slow world tone. Geometry only knows the kind of
@@ -284,10 +287,13 @@ pass), the 18 gauntlet cameras (`tools/concepts/shots.py`, `dyno shot
   the field a little above or below itself (`terrace`, `terrace_size`),
   so steps bunch in places and open into longer flat runs in others,
   instead of ruled lines; a vertical wall does not change with height, so
-  cliffs are not moved. Grass and sand are lit partly by the slope the
-  voxels make (`smooth`: the field's gradient, blended per vertex), so a
-  meadow does not stripe into lit treads and dark risers; rock keeps its
-  own faces' light. (The face's direction travels in `tex.x`, since the
+  cliffs are not moved. All ground is lit partly by the slope the voxels
+  make (`smooth`, 0.8 by default, per block too: the field's gradient,
+  blended per vertex) where that slope faces up at all, so meadows and
+  stony hillsides do not stripe into lit treads and dark risers; faces of
+  walls and cliffs keep their own light. On gentle slopes the corner
+  shading softens (`shade_gentle`), so a stony hillside is not dashed with
+  creases; cliffs keep it in full. (The face's direction travels in `tex.x`, since the
   normal may be bent.)
 - **Setting.** `ground_shading` (0 none, 1 creases, 2 creases and lips),
   no more than `graphics` allows (low none, medium creases).
@@ -318,7 +324,8 @@ pass), the 18 gauntlet cameras (`tools/concepts/shots.py`, `dyno shot
 
 All of it is data in `blocks.json` (`terrain`): voxels a metre, the levels
 of detail, noise and strata strength and size, edge reach and size, cover
-depth, jitter, corner shading (`ao`, `lip`, `shade_within`), step
+depth, jitter, colour cells (`colour_per_metre`), slope lighting
+(`smooth`), corner shading (`ao`, `lip`, `shade_within`, `shade_gentle`), step
 wander (`terrace`, `terrace_size`), and per block `under`, `jitter`,
 `tint`, `saturation`, `shade`, `smooth`, `edge` and `inset`. The mesher
 is generic.
