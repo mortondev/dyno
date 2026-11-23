@@ -34,6 +34,8 @@ pub struct RealmRow {
 
 pub struct Front {
     pub page: Page,
+    /// a local world is running (Options can stop it)
+    pub hosting: bool,
     pub realms: Vec<RealmRow>,
     pub realm: usize,
     pub add_addr: String,
@@ -62,14 +64,30 @@ pub enum FrontCmd {
     },
     Host,
     StopHost,
+    /// remember this world address (Options)
+    SetWorld(String),
     Quit,
 }
 
+/// The world's address, set when the game is built for release. Players
+/// never choose a server: there is one world, sharded behind this address.
+pub const DEFAULT_SERVER: &str = match option_env!("DYNO_DEFAULT_SERVER") {
+    Some(s) => s,
+    None => "",
+};
+
 impl Front {
     pub fn new(recent: &[String], last_char: &str) -> Front {
-        let realms = recent
+        // the world: an address override from Options, else the built-in one
+        let world: Vec<String> = recent
+            .first()
+            .cloned()
+            .or_else(|| (!DEFAULT_SERVER.is_empty()).then(|| DEFAULT_SERVER.to_string()))
+            .into_iter()
+            .collect();
+        let realms = world
             .iter()
-            .take(8)
+            .take(1)
             .map(|a| RealmRow {
                 addr: a.clone(),
                 info: None,
@@ -82,6 +100,7 @@ impl Front {
         let _ = last_char;
         Front {
             page: Page::Title,
+            hosting: false,
             realms,
             realm: 0,
             add_addr: String::new(),
@@ -296,6 +315,7 @@ pub fn ui(
     hosting: bool,
     out: &mut Vec<FrontCmd>,
 ) {
+    f.hosting = hosting;
     f.poll();
     let screen = ctx.content_rect();
     let painter = ctx.layer_painter(egui::LayerId::new(
@@ -324,7 +344,7 @@ fn title(
     f: &mut Front,
     version: &str,
     update_note: &str,
-    hosting: bool,
+    _hosting: bool,
     out: &mut Vec<FrontCmd>,
 ) {
     let screen = ctx.content_rect();
@@ -365,7 +385,7 @@ fn title(
             ui.set_width(260.0);
             ui.vertical_centered(|ui| {
                 if gold_button(ui, "Play", 260.0, 58.0).clicked() {
-                    // straight to character select on the last realm, or to the realm list
+                    // straight to your characters; Options only if no world is set
                     if f.realms.is_empty() {
                         f.page = Page::Realms;
                     } else {
@@ -375,9 +395,8 @@ fn title(
                     }
                 }
                 let caption = match &last {
-                    Some((n, Some(r))) => format!("Continue as {n} · {r}"),
-                    _ if f.realms.is_empty() => "Choose a realm to begin".to_string(),
-                    _ => format!("Realm: {}", f.realms[0].addr),
+                    Some((n, _)) => format!("Continue as {n}"),
+                    None => "Begin your adventure".to_string(),
                 };
                 ui.label(
                     RichText::new(caption)
@@ -385,31 +404,9 @@ fn title(
                         .color(theme::TEXT_DIM),
                 );
                 ui.add_space(18.0);
-                if dark_button(ui, "Realms", 220.0).clicked() {
-                    for i in 0..f.realms.len() {
-                        out.push(FrontCmd::Query(i));
-                    }
+                if dark_button(ui, "Options", 220.0).clicked() {
+                    f.add_addr = f.realms.first().map(|r| r.addr.clone()).unwrap_or_default();
                     f.page = Page::Realms;
-                }
-                ui.add_space(6.0);
-                if dark_button(
-                    ui,
-                    if hosting {
-                        "Play in my realm"
-                    } else {
-                        "Host a realm"
-                    },
-                    220.0,
-                )
-                .clicked()
-                {
-                    out.push(FrontCmd::Host);
-                }
-                if hosting {
-                    ui.add_space(6.0);
-                    if dark_button(ui, "Stop hosting", 220.0).clicked() {
-                        out.push(FrontCmd::StopHost);
-                    }
                 }
                 ui.add_space(6.0);
                 if dark_button(ui, "Quit", 220.0).clicked() {
@@ -458,139 +455,100 @@ fn title(
     let _ = f;
 }
 
+/// Options: the world's address (for development and private test worlds)
+/// and hosting a local world. Players normally never come here.
 fn realms(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
     let screen = ctx.content_rect();
-    let r = Rect::from_center_size(screen.center(), Vec2::new(760.0, 520.0));
-    panel(ctx, "realms", r, |ui| {
+    let r = Rect::from_center_size(screen.center(), Vec2::new(620.0, 360.0));
+    let hosting = f.hosting;
+    panel(ctx, "options", r, |ui| {
         ui.vertical_centered(|ui| {
             ui.label(
-                RichText::new("Choose a Realm")
+                RichText::new("Options")
                     .font(theme::title_font(26.0))
                     .color(theme::GOLD_BRIGHT),
             );
-            ui.label(
-                RichText::new(
-                    "A realm is a world. Your characters live on the realm where you make them.",
-                )
-                .font(theme::body_font(14.0))
-                .color(theme::TEXT_DIM),
-            );
         });
         theme::ui_divider(ui, theme::GOLD_DARK);
-        egui::Grid::new("realm-grid")
-            .num_columns(5)
-            .spacing([22.0, 8.0])
-            .striped(true)
-            .show(ui, |ui| {
-                for h in ["Realm", "Online", "Ping", "Version", "Yours"] {
-                    ui.label(
-                        RichText::new(h)
-                            .font(theme::title_font(12.0))
-                            .color(theme::TEXT_DIM),
-                    );
-                }
-                ui.end_row();
-                for (i, row) in f.realms.iter().enumerate() {
-                    let name = row
-                        .info
-                        .as_ref()
-                        .map(|r| r.name.clone())
-                        .unwrap_or_else(|| row.addr.clone());
-                    let sel = i == f.realm;
-                    let label = RichText::new(name)
-                        .font(theme::body_font(16.0))
-                        .color(if sel { theme::GOLD_BRIGHT } else { theme::TEXT });
-                    let resp = ui.selectable_label(sel, label);
-                    if resp.clicked() {
-                        f.realm = i;
-                    }
-                    if resp.double_clicked() {
-                        f.realm = i;
-                        out.push(FrontCmd::Query(i));
-                        f.page = Page::Select;
-                    }
-                    let dim = |s: String| {
-                        RichText::new(s)
-                            .font(theme::body_font(14.0))
-                            .color(theme::TEXT)
-                    };
-                    match (&row.info, &row.error) {
-                        (Some(info), _) => {
-                            ui.label(dim(info.online.to_string()));
-                            ui.label(dim(row.ping.map(|p| format!("{p} ms")).unwrap_or_default()));
-                            let ok = info.version == env!("CARGO_PKG_VERSION");
-                            ui.label(
-                                RichText::new(&info.version)
-                                    .font(theme::body_font(14.0))
-                                    .color(if ok {
-                                        theme::GOOD
-                                    } else {
-                                        Color32::from_rgb(230, 150, 70)
-                                    }),
-                            );
-                            ui.label(dim(row.chars.len().to_string()));
-                        }
-                        (None, Some(e)) => {
-                            let short: String = e.chars().take(40).collect();
-                            ui.label(
-                                RichText::new("offline").color(Color32::from_rgb(220, 110, 100)),
-                            );
-                            ui.label(RichText::new(short).small().color(theme::TEXT_DIM));
-                            ui.label("");
-                            ui.label("");
-                        }
-                        _ => {
-                            ui.spinner();
-                            ui.label("");
-                            ui.label("");
-                            ui.label("");
-                        }
-                    }
-                    ui.end_row();
-                }
-            });
-        if f.realms.is_empty() {
+        ui.label(
+            RichText::new("World address")
+                .font(theme::title_font(14.0))
+                .color(theme::GOLD),
+        );
+        ui.label(
+            RichText::new(if DEFAULT_SERVER.is_empty() {
+                "Paste the address of the world to play in.".to_string()
+            } else {
+                format!("Leave empty for the world ({DEFAULT_SERVER}).")
+            })
+            .font(theme::body_font(13.0))
+            .color(theme::TEXT_DIM),
+        );
+        ui.add(
+            egui::TextEdit::singleline(&mut f.add_addr)
+                .hint_text("https://… or 192.168.1.20")
+                .desired_width(560.0),
+        );
+        if let Some(row) = f.realms.first() {
+            let status = match (&row.info, &row.error) {
+                (Some(i), _) => format!("{} · {} online · version {}", i.name, i.online, i.version),
+                (None, Some(e)) => format!(
+                    "Cannot reach it: {}",
+                    e.chars().take(70).collect::<String>()
+                ),
+                _ => "Checking…".to_string(),
+            };
             ui.label(
-                RichText::new("No realms yet. Paste an invite or address from a friend below.")
-                    .font(theme::body_font(15.0))
+                RichText::new(status)
+                    .font(theme::body_font(13.0))
                     .color(theme::TEXT),
             );
         }
-        theme::ui_divider(ui, theme::GOLD_DARK);
+        ui.add_space(12.0);
         ui.label(
-            RichText::new("Add realm: paste the address or link a friend sent you")
-                .font(theme::body_font(14.0))
-                .color(theme::TEXT_DIM),
+            RichText::new("Developers: run a world on this computer")
+                .font(theme::title_font(14.0))
+                .color(theme::GOLD),
         );
         ui.horizontal(|ui| {
-            let resp = ui.add(
-                egui::TextEdit::singleline(&mut f.add_addr)
-                    .hint_text("https://name.trycloudflare.com or 192.168.1.20")
-                    .desired_width(460.0),
-            );
-            let enter = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if (dark_button(ui, "Add", 90.0).clicked() || enter) && !f.add_addr.trim().is_empty() {
-                let addr = f.add_addr.clone();
-                let i = f.add_realm(&addr);
-                f.realm = i;
-                f.add_addr.clear();
-                out.push(FrontCmd::Query(i));
+            if dark_button(
+                ui,
+                if hosting {
+                    "Play in my world"
+                } else {
+                    "Host a local world"
+                },
+                200.0,
+            )
+            .clicked()
+            {
+                out.push(FrontCmd::Host);
+            }
+            if hosting && dark_button(ui, "Stop hosting", 140.0).clicked() {
+                out.push(FrontCmd::StopHost);
             }
         });
-        ui.add_space(10.0);
+        ui.add_space(16.0);
         ui.horizontal(|ui| {
             if dark_button(ui, "Back", 110.0).clicked() {
                 f.page = Page::Title;
             }
-            if dark_button(ui, "Refresh", 110.0).clicked() {
-                for i in 0..f.realms.len() {
-                    out.push(FrontCmd::Query(i));
+            ui.add_space(ui.available_width() - 160.0);
+            if gold_button(ui, "Save", 150.0, 40.0).clicked() {
+                let addr = f.add_addr.trim().to_string();
+                let addr = if addr.is_empty() {
+                    DEFAULT_SERVER.to_string()
+                } else {
+                    addr
+                };
+                f.realms.clear();
+                if !addr.is_empty() {
+                    f.add_realm(&addr);
+                    f.realm = 0;
+                    out.push(FrontCmd::Query(0));
+                    out.push(FrontCmd::SetWorld(addr));
                 }
-            }
-            ui.add_space(ui.available_width() - 220.0);
-            if !f.realms.is_empty() && gold_button(ui, "Enter Realm", 210.0, 42.0).clicked() {
-                out.push(FrontCmd::Query(f.realm));
-                f.page = Page::Select;
+                f.page = Page::Title;
             }
         });
     });
@@ -763,8 +721,8 @@ fn select(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
         .anchor(Align2::LEFT_BOTTOM, Vec2::new(20.0, -24.0))
         .order(egui::Order::Foreground)
         .show(ctx, |ui| {
-            if dark_button(ui, "Back to Realms", 170.0).clicked() {
-                f.page = Page::Realms;
+            if dark_button(ui, "Back", 110.0).clicked() {
+                f.page = Page::Title;
             }
         });
     // drag to turn the character

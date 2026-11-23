@@ -289,14 +289,32 @@ impl State {
     }
 
     /// A creature died to this player: XP and kill objectives.
-    pub fn credit_kill(&mut self, id: PlayerId, creature: u16, level: u8) {
+    /// Who shares a kill made by `killer` at `at`: them, and their party
+    /// members nearby in this shard.
+    pub fn credited(&self, killer: PlayerId, at: [f32; 3]) -> Vec<PlayerId> {
+        let Some(k) = self.players.get(&killer) else {
+            return Vec::new();
+        };
+        let mut out = vec![killer];
+        for (id, p) in &self.players {
+            if *id != killer
+                && k.party.iter().any(|m| m.eq_ignore_ascii_case(&p.name))
+                && crate::game::dist(p.pose.pos, at) < 80.0
+            {
+                out.push(*id);
+            }
+        }
+        out
+    }
+
+    pub fn credit_kill(&mut self, id: PlayerId, creature: u16, level: u8, share: f32) {
         if !self.rpg() {
             return;
         }
         let Some(p) = self.players.get_mut(&id) else {
             return;
         };
-        let base = prog::kill_xp(p.level, level);
+        let base = (prog::kill_xp(p.level, level) as f32 * share).round() as u32;
         // rested: the same again, out of the bank
         let bonus = base.min(p.rested);
         p.rested -= bonus;

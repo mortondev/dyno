@@ -66,6 +66,10 @@ pub struct Player {
     pub money: u32,
     /// banked rested XP
     pub rested: u32,
+    /// my party, by name (kept up to date by the server)
+    pub party: Vec<String>,
+    /// keeps movement honest
+    pub moves: crate::movement::MoveCheck,
     /// the phases this player is in, one bit each
     pub phases: u64,
     /// rested XP not yet a whole point
@@ -168,6 +172,8 @@ pub struct State {
     pub day: u32,
     pub default_mode: Mode,
     pub ops: Vec<String>,
+    /// accept any movement (tests that teleport players about)
+    pub trust_movement: bool,
     /// the first player on a new world; may use operator commands
     pub owner: Option<String>,
     pub light: dyno_world::light::Light,
@@ -191,6 +197,10 @@ pub struct State {
     pub next_phase: Option<(u8, bool)>,
     /// this shard's number
     pub shard: u32,
+    /// open trade windows, both sides
+    pub trades: HashMap<PlayerId, crate::trade::Trade>,
+    /// who has been asked to trade, by whom, when
+    pub trade_asks: HashMap<PlayerId, (PlayerId, Instant)>,
     /// fallen creatures still holding loot
     pub corpses: HashMap<u32, crate::loot::Corpse>,
     pub rested_clock: f32,
@@ -729,6 +739,8 @@ impl State {
             xp: data.xp,
             money: data.money,
             rested: rested_now,
+            moves: crate::movement::MoveCheck::new(data.pos),
+            party: Vec::new(),
             phases: 0,
             rested_carry: 0.0,
             quests: data
@@ -926,6 +938,7 @@ impl State {
     }
 
     pub fn leave(&mut self, id: PlayerId) {
+        self.cancel_trade(id, "Trade cancelled.");
         if let Some(p) = self.players.remove(&id) {
             self.remember(&p);
             self.broadcast(&ServerMsg::PlayerLeft { id }, None);
@@ -1008,13 +1021,14 @@ impl State {
         match msg {
             ClientMsg::Pose(pose) => {
                 let p = self.players.get_mut(&id).unwrap();
-                if pose
+                let ok = pose
                     .pos
                     .iter()
                     .chain([pose.yaw, pose.pitch].iter())
                     .all(|v| v.is_finite())
-                    && !p.dead
-                {
+                    && !p.dead;
+                if ok && self.check_pose(id, pose) {
+                    let p = self.players.get_mut(&id).unwrap();
                     p.pose = pose;
                     p.last_pose_at = Instant::now();
                 }
@@ -1106,6 +1120,7 @@ impl State {
             ClientMsg::Loot { id: corpse, all } => self.open_loot(id, corpse, all),
             ClientMsg::LootTake { id: corpse, slot } => self.take_loot(id, corpse, slot),
             ClientMsg::Buy { npc, item, count } => self.buy(id, npc, item, count),
+            ClientMsg::Trade(op) => self.trade(id, op),
             ClientMsg::Gather { pos } => self.gather(id, pos),
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
@@ -1799,6 +1814,9 @@ impl State {
         }
         self.tick_power(dt);
         self.tick_items(dt);
+        if self.zone_clock == 0.0 {
+            self.tick_trades();
+        }
         self.tick_loot(dt);
         self.tick_creatures(dt);
         self.spawn_creatures(dt);

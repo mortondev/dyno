@@ -23,6 +23,8 @@ pub enum ScreenCmd {
     Unequip(u8),
     Eat(u8),
     Sell(u8),
+    /// put a bag slot on the trade table
+    Offer(u8),
     /// put an ability on action-bar key `slot` (0-based)
     Bind(u16, u8),
     Close,
@@ -48,6 +50,8 @@ pub struct View<'a> {
     pub power: f32,
     /// talking to someone (selling allowed)
     pub at_vendor: bool,
+    /// a trade window is open (right-click offers)
+    pub trading: bool,
     /// ability IDs on keys 1 to 7
     pub bar: &'a [Option<u16>],
     pub skills: &'a [SkillLine<'a>],
@@ -498,7 +502,9 @@ fn bags_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
                     if r.secondary_clicked() {
                         let shift = ui.input(|i| i.modifiers.shift);
                         let it = c.item(st.item);
-                        if v.at_vendor && !shift {
+                        if v.trading && !shift {
+                            out.push(ScreenCmd::Offer(i as u8));
+                        } else if v.at_vendor && !shift {
                             out.push(ScreenCmd::Sell(i as u8));
                         } else if it.gear.is_some() {
                             out.push(ScreenCmd::Equip(i as u8));

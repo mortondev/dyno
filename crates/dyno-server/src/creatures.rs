@@ -36,6 +36,8 @@ pub struct Mob {
     pub burn_flash: f32,
     /// last player who hit it, for drops and milestones
     pub last_hit: Option<(PlayerId, Instant)>,
+    /// who hit it first: it is theirs (and their party's) to kill and loot
+    pub tag: Option<PlayerId>,
     pub level: u8,
     pub max_health: f32,
     pub stunned_until: Instant,
@@ -234,6 +236,7 @@ impl State {
                     on_ground: false,
                     burn_flash: 0.0,
                     last_hit: None,
+                    tag: None,
                     level,
                     max_health: health,
                     stunned_until: now,
@@ -508,6 +511,7 @@ impl State {
             // leash: pulled too far from home, it gives up, heals and walks back
             if rpg && mob.camp && !mob.evading && !mob.event && hdist(e.pos, mob.home) > LEASH {
                 mob.evading = true;
+                mob.tag = None;
                 mob.health = mob.max_health;
                 heal_info.push(id);
                 mob.threat.clear();
@@ -827,10 +831,12 @@ impl State {
         let Some((key, list)) = list else {
             return;
         };
-        let looter = mob
+        // the creature belongs to whoever hit it first, and their party
+        let killer = mob.tag.filter(|t| self.players.contains_key(t)).or(mob
             .last_hit
             .filter(|(_, at)| at.elapsed() < Duration::from_secs(10))
-            .map(|(p, _)| p);
+            .map(|(p, _)| p));
+        let credited = killer.map(|k| self.credited(k, pos)).unwrap_or_default();
         let mut items = Vec::new();
         for d in list {
             if self.rng.f32() < d.chance {
@@ -843,17 +849,26 @@ impl State {
         if self.rpg() {
             // RPG: the body stays, holding its loot for whoever killed it
             let money = self.roll_money(mob.creature, mob.level);
-            self.spawn_corpse(pos, yaw, mob.creature, looter, money, items, phase);
+            self.spawn_corpse(
+                pos,
+                yaw,
+                mob.creature,
+                credited.clone(),
+                money,
+                items,
+                phase,
+            );
         } else {
             for st in items {
                 self.spawn_item([pos[0], pos[1] + 0.6, pos[2]], st, 0.2);
             }
         }
-        if let Some((pid, at)) = mob.last_hit
-            && at.elapsed() < Duration::from_secs(10)
-        {
+        // everyone who shares the kill gets quest credit; XP is split, with a group bonus
+        let n = credited.len().max(1) as f32;
+        let share = (1.0 + 0.15 * (n - 1.0)) / n;
+        for pid in credited {
             self.milestone(pid, &format!("kill:{key}"));
-            self.credit_kill(pid, mob.creature, mob.level);
+            self.credit_kill(pid, mob.creature, mob.level, share);
         }
     }
 
@@ -900,6 +915,7 @@ impl State {
         };
         mob.health -= damage;
         mob.last_hit = Some((pid, Instant::now()));
+        mob.tag.get_or_insert(pid);
         mob.target = Some(pid);
         *mob.threat.entry(pid).or_default() += damage;
         let dx = e.pos[0] - eye[0];

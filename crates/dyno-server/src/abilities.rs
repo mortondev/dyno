@@ -567,6 +567,7 @@ impl State {
         let Some(mob) = e.mob.as_mut() else { return };
         mob.health -= amount;
         mob.last_hit = Some((pid, now));
+        mob.tag.get_or_insert(pid);
         mob.target = Some(pid);
         if mob.evading {
             return;

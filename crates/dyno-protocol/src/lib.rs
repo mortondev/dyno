@@ -49,6 +49,41 @@ pub struct PartyMember {
     pub leader: bool,
 }
 
+/// A step in trading with another player.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum TradeOp {
+    /// ask a player (by id) to trade
+    Ask(PlayerId),
+    /// open the window with whoever asked you
+    Agree,
+    /// put a bag slot on the table (count 0: the whole stack)
+    Offer {
+        slot: u8,
+        count: u8,
+    },
+    /// take a line back off the table
+    Withdraw {
+        line: u8,
+    },
+    /// coins on the table
+    Money(u32),
+    /// happy with both sides (anything changing clears it)
+    Accept,
+    Cancel,
+}
+
+/// The trade window: what each side has put on the table.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TradeView {
+    pub with: String,
+    pub mine: Vec<Stack>,
+    pub theirs: Vec<Stack>,
+    pub my_money: u32,
+    pub their_money: u32,
+    pub i_accept: bool,
+    pub they_accept: bool,
+}
+
 /// Who did something.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Actor {
@@ -271,6 +306,8 @@ pub enum ClientMsg {
         item: u16,
         count: u8,
     },
+    /// Trading with another player.
+    Trade(TradeOp),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -593,6 +630,12 @@ pub enum ServerMsg {
         actor: Actor,
         act: Act,
     },
+    /// Someone asks to trade with you.
+    TradeAsk {
+        from: String,
+    },
+    /// The trade window (None: it closed).
+    Trade(Option<TradeView>),
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {
