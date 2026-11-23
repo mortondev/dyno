@@ -5594,6 +5594,7 @@ impl ApplicationHandler for App {
                 g.water.quality = self.settings.water_quality;
                 eprintln!("graphics: {}", g.adapter_info);
                 g.cover.set_quality(self.settings.ground_cover);
+                crate::foliage::set_detail(self.settings.leaf_detail);
                 crate::theme::apply(&self.egui_ctx);
                 self.egui_ctx.style_mut(|s| {
                     s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
@@ -6602,6 +6603,12 @@ pub fn shot_with_ui(
         let (vo, vt) = gfx.world_vertices();
         eprintln!(
             "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
+        );
+        let (sections, ms) = crate::render::mesh_cost();
+        eprintln!(
+            "meshing: {sections} sections in {ms:.0} ms on the world thread's cores ({:.2} ms a section); vertex memory {:.0} MB",
+            ms / sections.max(1) as f64,
+            (vo + vt) as f64 * std::mem::size_of::<crate::render::Vertex>() as f64 / 1048576.0
         );
     }
     let mut creatures: Vec<String> = p
