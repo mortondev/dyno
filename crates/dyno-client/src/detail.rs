@@ -105,7 +105,13 @@ pub(crate) fn stands_on_paving(b: BlockId) -> bool {
 
 /// Part of a wall: a block that fills its cell and is not one of the
 /// free-standing kinds (posts, roofs, props, cloth).
+#[inline]
 fn wallish(b: BlockId) -> bool {
+    static T: std::sync::OnceLock<[bool; 256]> = std::sync::OnceLock::new();
+    T.get_or_init(|| std::array::from_fn(|i| wallish_slow(i as BlockId)))[b as usize]
+}
+
+fn wallish_slow(b: BlockId) -> bool {
     let f = flags()[b as usize];
     (f & F_OPAQUE != 0
         && !is_roof(b)
@@ -333,51 +339,44 @@ enum Uv {
     Scale(f32),
 }
 
-/// Light and occlusion of every cell of a section's grid, worked out once
-/// for all the detail blocks in it.
+/// Light and occlusion of a cell, worked out when first wanted and kept
+/// for the rest of the section.
 #[derive(Clone, Copy, Default)]
 struct Lit {
-    bl: f32,
-    sl: f32,
-    /// how much the cell closes in what is beside it
-    occ: f32,
-    /// light can be read here (it does not fill its cell)
-    open: bool,
+    bl: u8,
+    sl: u8,
+    /// how much the cell closes in what is beside it: 0 open, 1 a detail
+    /// block, 2 a full cube
+    occ: u8,
+    known: bool,
 }
 
-fn light_field(g: &Grid, light: &Light) -> Vec<Lit> {
-    let mut f = vec![Lit::default(); g.fl.len()];
-    for y in -2..N + 2 {
-        for z in -2..N + 2 {
-            for x in -2..N + 2 {
-                let c = at(x, y, z);
-                let fl = g.fl[c];
-                if fl & F_OPAQUE != 0 {
-                    f[c].occ = 1.0;
-                    continue;
-                }
-                let (bl, sl) = g.light(light, [x, y, z]);
-                f[c] = Lit {
-                    bl,
-                    sl,
-                    occ: if fl & F_DETAIL != 0 && fl & F_DARK != 0 {
-                        0.3
-                    } else {
-                        0.0
-                    },
-                    open: true,
-                };
-            }
-        }
+const OCC: [f32; 3] = [0.0, 0.3, 1.0];
+
+fn lit_cell(g: &Grid, light: &Light, x: i32, y: i32, z: i32) -> Lit {
+    let fl = g.fl[at(x, y, z)];
+    if fl & F_OPAQUE != 0 {
+        return Lit {
+            occ: 2,
+            known: true,
+            ..Lit::default()
+        };
     }
-    f
+    let (bl, sl) = g.light(light, [x, y, z]);
+    Lit {
+        bl: bl as u8,
+        sl: sl as u8,
+        occ: u8::from(fl & F_DETAIL != 0 && fl & F_DARK != 0),
+        known: true,
+    }
 }
 
 /// Writes the triangles of one detail block, in the block's own frame: the
 /// cell is 0..1 on each axis, turned about its vertical centre line.
 struct Kit<'a> {
     g: &'a Grid,
-    field: &'a [Lit],
+    light: &'a Light,
+    field: Vec<std::cell::Cell<Lit>>,
     opaque: &'a mut Vec<Vertex>,
     trans: &'a mut Vec<Vertex>,
     /// world position of the cell's low corner
@@ -414,6 +413,18 @@ impl Kit<'_> {
         self.base + Vec3::new(0.5, 0.0, 0.5) + self.dir(p - Vec3::new(0.5, 0.0, 0.5))
     }
 
+    #[inline]
+    fn cell(&self, x: i32, y: i32, z: i32) -> Lit {
+        let c = &self.field[at(x, y, z)];
+        let l = c.get();
+        if l.known {
+            return l;
+        }
+        let l = lit_cell(self.g, self.light, x, y, z);
+        c.set(l);
+        l
+    }
+
     /// Block light, sky light and occlusion just off a surface, blended
     /// over the eight cells around the point.
     fn shade(&self, p: Vec3, n: Vec3) -> (f32, f32, f32) {
@@ -430,11 +441,11 @@ impl Kit<'_> {
             for (cz, wz) in [(z0, 1.0 - f.z), (z1, f.z)] {
                 for (cx, wx) in [(x0, 1.0 - f.x), (x1, f.x)] {
                     let wgt = wx * wy * wz;
-                    let l = self.field[at(cx, cy, cz)];
-                    occ += wgt * l.occ;
-                    if l.open {
-                        bl += l.bl * wgt;
-                        sl += l.sl * wgt;
+                    let l = self.cell(cx, cy, cz);
+                    occ += wgt * OCC[l.occ as usize];
+                    if l.occ < 2 {
+                        bl += l.bl as f32 * wgt;
+                        sl += l.sl as f32 * wgt;
                         wsum += wgt;
                     }
                 }
@@ -444,8 +455,8 @@ impl Kit<'_> {
             (bl / wsum, sl / wsum)
         } else {
             let c = (p + n * 0.9 - o).floor();
-            let l = self.field[at(lim(c.x), lim(c.y), lim(c.z))];
-            (l.bl, l.sl)
+            let l = self.cell(lim(c.x), lim(c.y), lim(c.z));
+            (l.bl as f32, l.sl as f32)
         };
         let ao = (1.0 - occ * 0.55).clamp(0.45, 1.0);
         (bl / 15.0, sl / 15.0, ao)
@@ -812,10 +823,10 @@ pub(crate) fn mesh(g: &Grid, light: &Light, geo: &mut SectionGeo) {
         glows,
         ..
     } = geo;
-    let field = light_field(g, light);
     let mut kit = Kit {
         g,
-        field: &field,
+        light,
+        field: vec![std::cell::Cell::new(Lit::default()); g.fl.len()],
         opaque,
         trans,
         base: Vec3::ZERO,

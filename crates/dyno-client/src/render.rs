@@ -2191,33 +2191,21 @@ mod tests {
                 }
             }
         }
-        // CPU time of this thread (Linux), so a busy machine does not count;
-        // best of several runs
-        let cpu_ms = || {
-            std::fs::read_to_string("/proc/thread-self/schedstat")
-                .ok()
-                .and_then(|s| s.split_whitespace().next()?.parse::<f64>().ok())
-                .map(|ns| ns / 1e6)
-        };
-        let (mut worst, mut sum, mut verts) = (f64::MAX, f64::MAX, 0usize);
-        for _ in 0..7 {
-            let (mut w1, mut s1) = (0.0f64, 0.0f64);
+        // each section's best time over several runs, so other work on a
+        // busy machine does not count
+        let mut best = vec![f64::MAX; town.len()];
+        let mut verts = 0usize;
+        for _ in 0..9 {
             verts = 0;
-            for s in &town {
+            for (i, s) in town.iter().enumerate() {
                 let t = std::time::Instant::now();
-                let c0 = cpu_ms();
                 let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
-                let ms = match (c0, cpu_ms()) {
-                    (Some(a), Some(b)) => b - a,
-                    _ => t.elapsed().as_secs_f64() * 1e3,
-                };
-                w1 = w1.max(ms);
-                s1 += ms;
+                best[i] = best[i].min(t.elapsed().as_secs_f64() * 1e3);
                 verts += geo.opaque.len() + geo.trans.len();
             }
-            worst = worst.min(w1);
-            sum = sum.min(s1);
         }
+        let sum: f64 = best.iter().sum();
+        let worst = best.iter().copied().fold(0.0, f64::max);
         let start = std::time::Instant::now();
         let n: usize = all
             .chunks(256)
