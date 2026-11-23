@@ -1731,7 +1731,7 @@ impl Server {
                     Some((eid, _)) => {
                         if let Some(m) = st.entities.get_mut(&eid).and_then(|e| e.mob.as_mut()) {
                             m.last_hit = Some((id, std::time::Instant::now()));
-                            m.tag = Some(id);
+                            m.tag = Some((id, std::time::Instant::now()));
                         }
                         st.kill_mob_by(eid);
                     }

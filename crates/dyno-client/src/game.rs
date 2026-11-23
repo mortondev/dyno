@@ -50,7 +50,7 @@ impl Player {
             pitch: 0.0,
             on_ground: false,
             flying: false,
-            auto_step: false,
+            auto_step: true,
             step_offset: 0.0,
             run_speed: 4.4,
         }
@@ -150,13 +150,27 @@ impl Player {
                 }
                 if self.collides(world, next) {
                     // step up onto a one-block ledge instead of stopping
-                    if axis != 1 && self.auto_step && was_on_ground && !self.flying {
-                        let up = Vec3::new(next.x, self.pos.y.floor() + 1.0 + 1e-3, next.z);
-                        let rise = up.y - self.pos.y;
-                        if rise > 0.0 && rise <= 1.05 && !self.collides(world, up) {
-                            self.pos = up;
-                            self.step_offset = (self.step_offset + rise).min(1.0);
-                            self.on_ground = true;
+                    // (or, swimming, climb out over a bank a block above the water)
+                    let wet = in_water
+                        || world.get(
+                            self.pos.x.floor() as i32,
+                            (self.pos.y - 0.2).floor() as i32,
+                            self.pos.z.floor() as i32,
+                        ) == w::WATER;
+                    if axis != 1 && self.auto_step && (was_on_ground || wet) && !self.flying {
+                        let mut stepped = false;
+                        for k in [1.0, 2.0] {
+                            let up = Vec3::new(next.x, self.pos.y.floor() + k + 1e-3, next.z);
+                            let rise = up.y - self.pos.y;
+                            if rise > 0.0 && rise <= 1.1 && !self.collides(world, up) {
+                                self.pos = up;
+                                self.step_offset = (self.step_offset + rise).min(1.0);
+                                self.on_ground = true;
+                                stepped = true;
+                                break;
+                            }
+                        }
+                        if stepped {
                             continue;
                         }
                     }
@@ -422,6 +436,45 @@ mod tests {
         }
         assert!(p.pos.y > 5.9, "fell off: {:?}", p.pos);
         assert!(p.pos.x > 3.5, "walked off the edge: {:?}", p.pos);
+    }
+
+    /// With a life-size jump (0.6 m) you still climb a 1 m step and get out
+    /// of water over a 1 m bank: auto-step does it.
+    #[test]
+    fn climbs_a_step_and_leaves_the_water() {
+        let mut w = World::empty([24, 16, 24]);
+        for x in 0..24 {
+            for z in 0..24 {
+                for y in 0..=4 {
+                    w.set(x, y, z, dyno_world::STONE);
+                }
+                // a step up at x = 12, and a pool before it
+                if x >= 12 {
+                    w.set(x, 5, z, dyno_world::STONE);
+                } else if x >= 6 {
+                    w.set(x, 4, z, dyno_world::WATER);
+                    w.set(x, 3, z, dyno_world::WATER);
+                }
+            }
+        }
+        let mut p = Player::new([3.5, 5.0, 12.5]);
+        p.yaw = -std::f32::consts::FRAC_PI_2;
+        let mut was = p.pos;
+        for _ in 0..600 {
+            p.update(
+                &w,
+                Input {
+                    forward: 1.0,
+                    jump: true,
+                    ..Default::default()
+                },
+                1.0 / 60.0,
+            );
+            was = was.max(p.pos);
+        }
+        assert!(p.pos.x > 13.0 && p.pos.y >= 5.9, "out of the pool and up the step: {:?}", p.pos);
+        let peak = 0.5 * JUMP * JUMP / GRAVITY;
+        assert!((0.5..0.7).contains(&peak), "a life-size jump: {peak}");
     }
 
     #[test]

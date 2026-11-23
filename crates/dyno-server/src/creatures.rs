@@ -37,7 +37,7 @@ pub struct Mob {
     /// last player who hit it, for drops and milestones
     pub last_hit: Option<(PlayerId, Instant)>,
     /// who hit it first: it is theirs (and their party's) to kill and loot
-    pub tag: Option<PlayerId>,
+    pub tag: Option<(PlayerId, Instant)>,
     pub level: u8,
     pub max_health: f32,
     pub stunned_until: Instant,
@@ -60,6 +60,21 @@ pub struct Mob {
     pub fled: bool,
     /// part of a world event (marches on its home, never leashes)
     pub event: bool,
+}
+
+/// How long a tag lasts after its owner's last blow.
+pub const TAG_LIFE: Duration = Duration::from_secs(15);
+
+impl Mob {
+    /// A player hits it: the first to hit owns it, and keeps it while they
+    /// keep fighting. A tag nobody renews runs out, so walking away frees it.
+    pub fn claim(&mut self, pid: PlayerId) {
+        let now = Instant::now();
+        match self.tag {
+            Some((t, at)) if t != pid && at.elapsed() < TAG_LIFE => {}
+            _ => self.tag = Some((pid, now)),
+        }
+    }
 }
 
 /// A ranged attack in flight: target, damage, from, to, colour, creature.
@@ -844,7 +859,18 @@ impl State {
             return;
         };
         // the creature belongs to whoever hit it first, and their party
-        let killer = mob.tag.filter(|t| self.players.contains_key(t)).or(mob
+        // a tag counts while its owner keeps fighting and is still nearby
+        let killer = mob
+            .tag
+            .filter(|(t, at)| {
+                at.elapsed() < TAG_LIFE
+                    && self
+                        .players
+                        .get(t)
+                        .is_some_and(|p| !p.dead && crate::game::dist(p.pose.pos, pos) < 80.0)
+            })
+            .map(|(t, _)| t)
+            .or(mob
             .last_hit
             .filter(|(_, at)| at.elapsed() < Duration::from_secs(10))
             .map(|(p, _)| p));
@@ -927,7 +953,7 @@ impl State {
         };
         mob.health -= damage;
         mob.last_hit = Some((pid, Instant::now()));
-        mob.tag.get_or_insert(pid);
+        mob.claim(pid);
         mob.target = Some(pid);
         *mob.threat.entry(pid).or_default() += damage;
         let dx = e.pos[0] - eye[0];

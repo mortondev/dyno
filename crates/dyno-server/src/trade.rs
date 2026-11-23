@@ -13,7 +13,8 @@ const LINES: usize = 6;
 pub struct Trade {
     pub with: PlayerId,
     /// bag slot and count
-    pub offer: Vec<(u8, u8)>,
+    /// bag slot, and exactly what was offered from it (checked again at the swap)
+    pub offer: Vec<(u8, Stack)>,
     pub money: u32,
     pub accept: bool,
 }
@@ -92,7 +93,7 @@ impl State {
                 } else {
                     count.min(stack.count)
                 };
-                t.offer.push((slot, n));
+                t.offer.push((slot, Stack { count: n, ..stack }));
                 self.changed(id);
             }
             TradeOp::Withdraw { line } => {
@@ -145,21 +146,8 @@ impl State {
         let (Some(t), Some(p)) = (self.trades.get(&id), self.players.get(&id)) else {
             return (Vec::new(), 0);
         };
-        let items = t
-            .offer
-            .iter()
-            .filter_map(|(s, n)| {
-                p.pack
-                    .slots
-                    .get(*s as usize)
-                    .copied()
-                    .flatten()
-                    .map(|st| Stack {
-                        count: (*n).min(st.count),
-                        ..st
-                    })
-            })
-            .collect();
+        let _ = p;
+        let items = t.offer.iter().map(|(_, st)| *st).collect();
         (items, t.money)
     }
 
@@ -219,13 +207,15 @@ impl State {
         }
         // take each side's offer out of a copy of their bags
         let take = |pack: &dyno_sim::inventory::Inventory,
-                    offer: &[(u8, u8)]|
+                    offer: &[(u8, Stack)]|
          -> Option<(dyno_sim::inventory::Inventory, Vec<Stack>)> {
             let mut pack = pack.clone();
             let mut out = Vec::new();
-            for (s, n) in offer {
+            // each offered slot must still hold exactly what was offered
+            for (s, want) in offer {
+                let n = &want.count;
                 let st = pack.slots.get(*s as usize).copied().flatten()?;
-                if st.count < *n {
+                if st.item != want.item || st.wear != want.wear || st.count < *n {
                     return None;
                 }
                 out.push(Stack { count: *n, ..st });
