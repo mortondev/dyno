@@ -15,6 +15,14 @@ pub struct Light {
 }
 
 const R: i32 = 15;
+
+/// Light worked out for the columns of a box, ready to store.
+struct Patch {
+    lo: [i32; 3],
+    hi: [i32; 3],
+    /// packed levels, y then z then x
+    light: Vec<u8>,
+}
 /// Sky 15, block 0: the value of every cell of an unallocated section.
 const OPEN: u8 = 0xf0;
 
@@ -53,25 +61,52 @@ impl Light {
             hi = [hi[0].max(c[0]), hi[1].max(c[1])];
         }
         let area = ((hi[0] - lo[0] + 1) * (hi[1] - lo[1] + 1)) as usize;
+        // a box of columns (whole height), widened by the reach of light
         let boxed = |a: [i32; 2], b: [i32; 2]| {
             (
-                [a[0] * SECTION, 0, a[1] * SECTION],
+                [a[0] * SECTION - R, 0, a[1] * SECTION - R],
                 [
-                    b[0] * SECTION + SECTION - 1,
+                    b[0] * SECTION + SECTION - 1 + R,
                     0,
-                    b[1] * SECTION + SECTION - 1,
+                    b[1] * SECTION + SECTION - 1 + R,
                 ],
             )
         };
         if area <= cols.len() * 4 {
             // close together: one pass over the box round them all
             let (a, b) = boxed(lo, hi);
-            self.changed_box(world, a, b);
-        } else {
-            for c in cols {
-                let (a, b) = boxed(c, c);
-                self.changed_box(world, a, b);
-            }
+            self.recompute(world, a, b);
+            return;
+        }
+        // scattered (a ring round the player): each column on its own, on
+        // every core; overlapping patches agree (the same world made them)
+        let threads = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+            .clamp(1, 8)
+            .min(cols.len());
+        let per = cols.len().div_ceil(threads);
+        let this = &*self;
+        let patches: Vec<Patch> = std::thread::scope(|sc| {
+            let jobs: Vec<_> = cols
+                .chunks(per)
+                .map(|part| {
+                    sc.spawn(move || {
+                        part.iter()
+                            .filter_map(|c| {
+                                let (a, b) = boxed(*c, *c);
+                                this.compute(world, a, b)
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            jobs.into_iter()
+                .flat_map(|j| j.join().expect("a light thread panicked"))
+                .collect()
+        });
+        for p in patches {
+            self.apply(p);
         }
     }
 
@@ -162,6 +197,13 @@ impl Light {
     /// is spread in scratch buffers that also cover the reach of light, so
     /// sources outside the box still count; then only the box is copied back.
     fn recompute(&mut self, world: &World, lo: [i32; 3], hi: [i32; 3]) {
+        if let Some(p) = self.compute(world, lo, hi) {
+            self.apply(p);
+        }
+    }
+
+    /// The light of the columns of the box [lo, hi], worked out but not stored.
+    fn compute(&self, world: &World, lo: [i32; 3], hi: [i32; 3]) -> Option<Patch> {
         let sy = self.size[1];
         let lo = [lo[0].max(0), 0, lo[2].max(0)];
         let hi = [
@@ -170,7 +212,7 @@ impl Light {
             hi[2].min(self.size[2] - 1),
         ];
         if lo[0] > hi[0] || lo[2] > hi[2] {
-            return;
+            return None;
         }
         let elo = [(lo[0] - R).max(0), 0, (lo[2] - R).max(0)];
         let ehi = [
@@ -284,11 +326,27 @@ impl Light {
                 }
             }
         }
+        let mut out = Vec::with_capacity(((hi[0] - lo[0] + 1) * (hi[2] - lo[2] + 1) * sy) as usize);
         for y in 0..sy {
             for z in lo[2]..=hi[2] {
                 for x in lo[0]..=hi[0] {
                     let j = at(x, y, z);
-                    self.put(x, y, z, (sk[j] << 4) | bl[j]);
+                    out.push((sk[j] << 4) | bl[j]);
+                }
+            }
+        }
+        Some(Patch { lo, hi, light: out })
+    }
+
+    /// Store worked-out light.
+    fn apply(&mut self, p: Patch) {
+        let Patch { lo, hi, light } = p;
+        let mut k = 0;
+        for y in 0..self.size[1] {
+            for z in lo[2]..=hi[2] {
+                for x in lo[0]..=hi[0] {
+                    self.put(x, y, z, light[k]);
+                    k += 1;
                 }
             }
         }

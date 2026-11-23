@@ -282,9 +282,11 @@ when one of them is replaced.
   stops in place where the ground has not arrived (`dyno-sim` movement), so
   nobody falls through land that is still on its way. `Light` is stored
   per section, both levels in one byte, open sky not stored; arrivals are
-  lit in batches (`Light::arrived`). A section is meshed once it and its 26
-  neighbours are here (the mesh and the light read past its edge); each
-  arrival remeshes its neighbours; dropped sections free their mesh and
+  lit a whole column at a time once the column is here (`Light::arrived`,
+  scattered columns on every core). A section is meshed once it and its 26
+  neighbours are here (the mesh and the light read past its edge), so an
+  arrival meshes only the neighbours it made ready (and remeshes those
+  below it, whose sky it may shade); dropped sections free their mesh and
   light. The draw distance is capped at the view less a section. The
   minimap redraws as land arrives.
 - **Join.** `net::connect_with` returns once the pack files and every
@@ -299,22 +301,40 @@ when one of them is replaced.
   next one before waiting for spawns.
 
 **Measured** (the full 384 × 96 × 384 world, release builds on one
-machine, `tests/world_measure.rs` against a real server; before is 0.7.1):
+machine, `tests/world_measure.rs` against a real server; before is 0.7.1,
+after is 0.7.2 with this work):
 
 | | Before (whole world) | After (sections) |
 |---|---|---|
-| World bytes before play (fresh join) | 1,239,684 (`World`) | 126,113 (the land within 40 m) |
-| Join until the world round the spawn is here | 148 ms | 66 ms |
-| World bytes for the whole view (160 m) | — | 731,059 (1,890 of 3,456 sections) |
-| `dyno shot` (join to saved frame; after: waits for the whole view) | 8.3–10.9 s | 2.3–3.3 s |
-| One player running across the map (502 m at 7 m/s), ten others wandering | 8.6 KB/s | 12.8 KB/s: sections 6.7, poses 3.0, entity moves 2.9 |
-| The same, everything but sections | 8.6 KB/s | 6.1 KB/s |
-| The wanderers | 8.7 KB/s | 7.6 KB/s |
-| Server RSS with 11 players | 132 MB | 94 MB (light is stored per section) |
+| World bytes before play (fresh join) | 1,239,684 (`World`) | 127,516 (the land within 40 m) |
+| Join until the world round the spawn is here | 148 ms | 49–66 ms |
+| World bytes for the whole view (160 m, from the spawn) | — | 731,059 (1,890 of 3,456 sections) |
+| `dyno shot --ui hud` (process start to saved frame; a proxy for the first frame, with fixed waits) | 8.3–10.9 s | 2.2–3.3 s (and it waits for the whole view) |
+| One player running across the map (502 m at 7 m/s), ten others wandering | 8.6 KB/s | 12.5 KB/s: sections 6.7, poses 3.1, entity moves 2.6 |
+| The same, everything but sections | 8.6 KB/s | 5.9 KB/s |
+| The wanderers | 8.7 KB/s | 7.2 KB/s |
+| Server RSS with 11 players (idle before they joined) | 132 MB (89) | 83 MB (78) |
 | Client world + light | 13.5 + 27.0 MB | 3.9 + 4.3 MB |
 
-A `/who` sent over and over while a view streamed in at a deliberately
-slow 48 KB/s was answered in at most 12 ms (`tests/streaming.rs`).
+The view is about 60% of this small map, so the whole view's bytes fall
+only to 59% of the old world message; the gain is in what must arrive
+before play and in memory, and it grows with the map. Running costs more
+bandwidth than before (the land ahead streams in), though every other
+kind of traffic fell.
+
+- A `/who` sent over and over while a view streamed in at a deliberately
+  slow 48 KB/s was answered in at most 12 ms (`tests/streaming.rs`).
+- Forty players joining at once (a restart) on the full world: a tick of
+  section streaming takes 11 ms on average and 36 ms at worst (the tick is
+  50 ms), because each section is encoded once per shard and kept until it
+  changes (`World::section_rev`); without the cache it was 384 ms.
+- Client: light for a column that arrives takes 2.9 ms (the whole world:
+  109 ms, from 374 ms before the fill read its box once). Arrivals are lit
+  and meshed a few whole columns at a time within about 8 ms of a frame;
+  after a join, the rest of the view (1,655 sections) takes about 50
+  batches of typically 17–30 ms (worst seen 140 ms on a busy machine).
+  Meshes built bit by bit equal those of the whole view built at once
+  (`DYNO_SHOT_VERIFY`).
 
 ## 5. World building as data
 

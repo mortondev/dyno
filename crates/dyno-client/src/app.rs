@@ -132,8 +132,8 @@ struct Play {
     ground: crate::terrain_mesh::Ground,
     /// the sections the server has streamed (a sparse world)
     world: World,
-    /// sections that arrived and are not lit and meshed yet
-    arrived: Vec<[i32; 3]>,
+    /// sections that arrived and are not lit and meshed yet, and when
+    arrived: Vec<([i32; 3], Instant)>,
     /// how far the world streams around you (metres)
     view: f32,
     conn: net::Connection,
@@ -1350,7 +1350,7 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
 fn sections_in(p: &mut Play, list: Vec<([i32; 3], Vec<u8>)>) {
     for (s, data) in list {
         if p.world.put_section(s, &data).is_ok() {
-            p.arrived.push(s);
+            p.arrived.push((s, Instant::now()));
         }
     }
 }
@@ -1360,24 +1360,48 @@ fn sections_out(p: &mut Play, mut gfx: Option<&mut Gfx>, list: Vec<[i32; 3]>) {
     for s in list {
         p.world.drop_section(s);
         p.light.forget(s);
-        p.arrived.retain(|a| *a != s);
+        p.arrived.retain(|a| a.0 != s);
         if let Some(g) = gfx.as_deref_mut() {
             g.section_gone(s);
         }
     }
 }
 
-/// Sections lit and meshed together (a batch costs some milliseconds).
-const ARRIVAL_BATCH: usize = 64;
+/// Columns lit and meshed together (a batch costs some milliseconds).
+const ARRIVAL_COLUMNS: usize = 6;
 
-/// Light and mesh up to `max` of the sections that arrived. Returns how long it took.
+/// Light and mesh the sections of up to `max` columns that arrived.
+/// A column waits until it is whole (the server sends whole columns, and
+/// light is worked out a column at a time), or half a second at most.
+/// Returns how long it took (zero: nothing was ready).
 fn take_arrivals(p: &mut Play, gfx: Option<&mut Gfx>, max: usize) -> Duration {
     let t0 = Instant::now();
     if p.arrived.is_empty() {
         return Duration::ZERO;
     }
-    let n = p.arrived.len().min(max);
-    let batch: Vec<[i32; 3]> = p.arrived.drain(..n).collect();
+    let layers = p.world.section_dims()[1];
+    let mut cols: Vec<[i32; 2]> = Vec::new();
+    for (s, at) in &p.arrived {
+        let c = [s[0], s[2]];
+        if cols.len() >= max || cols.contains(&c) {
+            continue;
+        }
+        let whole = (0..layers).all(|y| p.world.has_section([c[0], y, c[1]]));
+        if whole || at.elapsed() > Duration::from_millis(500) {
+            cols.push(c);
+        }
+    }
+    if cols.is_empty() {
+        return Duration::ZERO;
+    }
+    let mut batch = Vec::new();
+    p.arrived.retain(|(s, _)| {
+        let take = cols.contains(&[s[0], s[2]]);
+        if take {
+            batch.push(*s);
+        }
+        !take
+    });
     p.light.arrived(&p.world, &batch);
     p.ground.clear();
     for s in &batch {
@@ -1388,7 +1412,7 @@ fn take_arrivals(p: &mut Play, gfx: Option<&mut Gfx>, max: usize) -> Duration {
     if let Some(g) = gfx {
         g.sections_arrived(&p.world, &p.light, &batch);
     }
-    t0.elapsed()
+    t0.elapsed().max(Duration::from_nanos(1))
 }
 
 /// Play state for a freshly joined server.
@@ -2431,7 +2455,11 @@ impl App {
             // light and mesh what arrived: about 8 ms of it a frame
             let mut spent = Duration::ZERO;
             while !p.arrived.is_empty() && spent < Duration::from_millis(8) {
-                spent += take_arrivals(p, self.gfx.as_mut(), ARRIVAL_BATCH);
+                let took = take_arrivals(p, self.gfx.as_mut(), ARRIVAL_COLUMNS);
+                if took.is_zero() {
+                    break;
+                }
+                spent += took;
             }
             if p.combat_log.len() > 300 {
                 p.combat_log.drain(..150);
@@ -5841,7 +5869,8 @@ pub fn shot_with_ui(
                 m @ (ServerMsg::Block { .. } | ServerMsg::Fill { .. }) => {
                     net::apply_world(&mut p.world, &m);
                     if let ServerMsg::Block { pos, .. } | ServerMsg::Fill { a: pos, .. } = m {
-                        p.arrived.push(w::section_of(pos));
+                        p.arrived
+                            .push((w::section_of(pos), Instant::now() - Duration::from_secs(1)));
                     }
                 }
                 ServerMsg::Pack(s) => p.pack = s,
@@ -5940,7 +5969,7 @@ pub fn shot_with_ui(
             Ok(NetEvent::Closed(r)) => return Err(r),
             Err(_) => {}
         }
-        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_BATCH);
+        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_COLUMNS);
         if took > Duration::ZERO {
             // the time spent here is not the stream going quiet
             last_section = Instant::now();
@@ -5950,7 +5979,11 @@ pub fn shot_with_ui(
         }
     }
     while !p.arrived.is_empty() {
-        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_BATCH);
+        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_COLUMNS);
+        if took.is_zero() {
+            std::thread::sleep(Duration::from_millis(10));
+            continue;
+        }
         batches += 1;
         worst = worst.max(took);
         streamed += took;

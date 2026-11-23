@@ -1282,6 +1282,8 @@ struct SectionMesh {
     glow: Option<(wgpu::Buffer, u32)>,
     /// where grass grows; turned into blades when the camera is near
     tufts: Vec<Tuft>,
+    /// meshed (possibly to nothing) since the section last arrived
+    built: bool,
 }
 
 pub struct Gfx {
@@ -1839,6 +1841,7 @@ impl Gfx {
             trans: self.upload(&geo.trans),
             glow: self.upload(&halo),
             tufts: geo.tufts,
+            built: true,
         };
     }
 
@@ -1891,24 +1894,33 @@ impl Gfx {
     }
 
     /// Sections that arrived in a streamed world (already lit): mesh them
-    /// and their neighbours that have become ready.
+    /// and their neighbours that have become ready. A section is meshed only
+    /// once all its neighbours are here, and light reaches less than a
+    /// section, so an arrival changes no built mesh round it, except below
+    /// it in its column (the sky's light falls straight down).
     pub fn sections_arrived(&mut self, world: &World, light: &Light, list: &[[i32; 3]]) {
         if self.sections.is_empty() {
             return;
         }
         let d = self.dims;
+        let idx = |n: [i32; 3]| ((n[1] * d[2] + n[2]) * d[0] + n[0]) as usize;
         let mut todo = std::collections::BTreeSet::new();
         for s in list {
             for dy in -1..=1 {
                 for dz in -1..=1 {
                     for dx in -1..=1 {
                         let n = [s[0] + dx, s[1] + dy, s[2] + dz];
-                        if (0..3).all(|i| n[i] >= 0 && n[i] < d[i]) {
-                            // nearest the camera first is the renderer's
-                            // business; here, the order of the grid
+                        if (0..3).all(|i| n[i] >= 0 && n[i] < d[i])
+                            && (n == *s || !self.sections[idx(n)].built)
+                        {
                             todo.insert([n[1], n[2], n[0]]);
                         }
                     }
+                }
+            }
+            for y in 0..s[1] - 1 {
+                if self.sections[idx([s[0], y, s[2]])].built {
+                    todo.insert([y, s[2], s[0]]);
                 }
             }
         }
