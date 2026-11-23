@@ -1642,6 +1642,41 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_thin_roof_has_no_holes() {
+        // grass one block thick over a cave, with ragged steps and air on
+        // its own layer all round, where the noise is at work: every fine
+        // column of the roof keeps ground
+        let mut world = World::empty([32, 32, 32]);
+        for z in 0..32 {
+            for x in 0..32 {
+                let h = 10 + (hash3(x / 2, 0, z / 3) % 2) as i32;
+                for y in 0..=h {
+                    world.set(x, y, z, if y == h { w::GRASS } else { w::DIRT });
+                }
+                // the cave, under the roof at y = 10
+                if (8..24).contains(&x) && (8..24).contains(&z) {
+                    for y in 6..10 {
+                        world.set(x, y, z, w::AIR);
+                    }
+                }
+            }
+        }
+        let p = &crate::shapes::pack().terrain;
+        let r = p.per_metre as i32;
+        let g = Grid::load_shape(&world, [8, 0, 8]);
+        let mut f = fine::Fine::new(&g, p, r as u8);
+        let mut checked = 0;
+        for z in 0..N * r {
+            for x in 0..N * r {
+                let any = (10 * r..11 * r).any(|y| f.solid(x, y, z));
+                assert!(any, "a hole in the roof at fine {x}, {z}");
+                checked += 1;
+            }
+        }
+        assert!(checked > 10_000);
+    }
+
     /// Cost and vertices of the fine voxel ground at each level of detail,
     /// on the made-up landscape:
     /// `cargo test -p dyno-client --release ground_levels_cost -- --ignored --nocapture`

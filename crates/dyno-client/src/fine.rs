@@ -592,6 +592,9 @@ impl<'a> Fine<'a> {
         // bounds over the voxel centres: the field less and plus the most
         // the noise can do there are trilinear too, so their extremes are
         // at the corners of the box of voxel centres
+        // a slab of ground one block thick (a roof over a cave, a ledge):
+        // noise may add to it but never carve it, or it could wear through
+        let slab = terrain && g.fl[c + DY] & F_TERRAIN == 0 && g.fl[c - DY] & F_TERRAIN == 0;
         let tau = 0.5 - 0.5 / r as f32;
         let axb = [(0usize, 1.0 - tau), (1, 0.0), (1, tau)];
         let (mut lo, mut hi) = (f32::MAX, f32::MIN);
@@ -604,7 +607,7 @@ impl<'a> Fine<'a> {
                     } else {
                         0.0
                     };
-                    lo = lo.min(v - w);
+                    lo = lo.min(if slab { v } else { v - w });
                     hi = hi.max(v + w);
                 }
             }
@@ -663,7 +666,8 @@ impl<'a> Fine<'a> {
                             seen = b;
                             sv = band(b) * p.strata;
                         }
-                        val += wt * (n2 + sv);
+                        let n = wt * (n2 + sv);
+                        val += if slab { n.max(0.0) } else { n };
                     }
                     if val > 0.0 {
                         self.pool[base + (jy * r + kz) as usize] |= bit;
