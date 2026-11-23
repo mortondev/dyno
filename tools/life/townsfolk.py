@@ -153,7 +153,28 @@ TOWNSFOLK = [
      ('pickaxe', [0.6, 0.6, 0.66]),
      [stop((12, 18), near='coal_ore', within=10, anim='Chop'),
       stop((8, 14), emotes=['Point']),
-      stop((12, 18), near='iron_ore', within=10, anim='Chop')]),
+      stop((12, 18), near='iron_ore', within=10, anim='Chop')]),    ('ruk', 'Ruk', 'Miner', [0.4, 0.35, 0.3], [156, -5, -13],
+     "Sit. Breathe. The dust settles if you let it.",
+     ('pickaxe', [0.6, 0.6, 0.66]),
+     [stop((20, 36), anim='Sit', emotes=['Wave']),
+      stop((8, 12), at=(-2, -2), emotes=['Point'])]),
+    ('nim', 'Nim', 'Forager', [0.45, 0.55, 0.3], [-125, -8, -61],
+     "Red caps for stew, pale caps for sleep. Don't mix them up. I did once.",
+     None,
+     [stop((16, 28), anim='Kneel'),
+      stop((6, 10), at=(2, 3), emotes=['Wave']),
+      stop((14, 22), at=(4, -1), anim='Kneel')]),
+    ('poll', 'Poll', 'Gardener', [0.4, 0.5, 0.3], [22, 1, -19],
+     "Beans by the tower wall, where the stone holds the warmth.",
+     ('hoe', [0.55, 0.55, 0.6]),
+     [stop((12, 20), anim='Chop'),
+      stop((10, 16), at=(-3, 2), anim='Kneel'),
+      stop((10, 16), at=(-1, 4), anim='Sweep')]),
+    ('wat', 'Wat', 'Shepherd', [0.6, 0.55, 0.4], [-24, -4, -52],
+     "Count them going out, count them coming in. Some nights the sums differ.",
+     ('staff', [0.5, 0.36, 0.2]),
+     [stop((16, 28), emotes=['Wave', 'Point']),
+      stop((14, 22), at=(3, 2), anim='Sit')]),
 ]
 
 
@@ -173,10 +194,12 @@ def rules():
                   if (at[0] - a['at'][0]) ** 2 + (at[2] - a['at'][1]) ** 2 <= a['radius'] ** 2]
         npc = {'key': key, 'name': name, 'title': title, 'color': color, 'at': at,
                'greeting': greeting, 'routine': routine}
-        if inside:
-            a = min(inside, key=lambda a: a['radius'])
-            npc['area'] = a['key']
-            npc['at'] = [at[0] - a['at'][0], at[1], at[2] - a['at'][1]]
+        # (outside every area: from the one whose edge is nearest)
+        a = min(inside, key=lambda a: a['radius']) if inside else min(
+            areas.values(),
+            key=lambda a: ((at[0] - a['at'][0]) ** 2 + (at[2] - a['at'][1]) ** 2) ** 0.5 - a['radius'])
+        npc['area'] = a['key']
+        npc['at'] = [at[0] - a['at'][0], at[1], at[2] - a['at'][1]]
         data['npcs'].append(npc)
     open(path, 'w').write(json.dumps(data, indent=1))
 

@@ -6273,6 +6273,9 @@
     "tess": {"hold": ["rod", [0.55, 0.38, 0.22]]},
     "mira": {"hold": ["torch", [1.0, 0.75, 0.35]]},
     "pell": {"hold": ["pickaxe", [0.6, 0.6, 0.66]]},
+    "ruk": {"hold": ["pickaxe", [0.6, 0.6, 0.66]]},
+    "poll": {"hold": ["hoe", [0.55, 0.55, 0.6]]},
+    "wat": {"hold": ["staff", [0.5, 0.36, 0.2]]},
     "*": {
       "colors": {
         "cape": null

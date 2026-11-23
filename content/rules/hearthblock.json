@@ -6736,6 +6736,202 @@
     }
    ],
    "area": "hollow_mines"
+  },
+  {
+   "key": "ruk",
+   "name": "Ruk",
+   "title": "Miner",
+   "color": [
+    0.4,
+    0.35,
+    0.3
+   ],
+   "at": [
+    -8,
+    -5,
+    42
+   ],
+   "greeting": "Sit. Breathe. The dust settles if you let it.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      36
+     ],
+     "anim": "Sit",
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      -2,
+      -2
+     ],
+     "secs": [
+      8,
+      12
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
+   ],
+   "area": "hollow_mines"
+  },
+  {
+   "key": "nim",
+   "name": "Nim",
+   "title": "Forager",
+   "color": [
+    0.45,
+    0.55,
+    0.3
+   ],
+   "at": [
+    -15,
+    -8,
+    -56
+   ],
+   "greeting": "Red caps for stew, pale caps for sleep. Don't mix them up. I did once.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      16,
+      28
+     ],
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      2,
+      3
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      4,
+      -1
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "anim": "Kneel"
+    }
+   ],
+   "area": "barrowwood"
+  },
+  {
+   "key": "poll",
+   "name": "Poll",
+   "title": "Gardener",
+   "color": [
+    0.4,
+    0.5,
+    0.3
+   ],
+   "at": [
+    22,
+    1,
+    -19
+   ],
+   "greeting": "Beans by the tower wall, where the stone holds the warmth.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      -3,
+      2
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      -1,
+      4
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sweep"
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "wat",
+   "name": "Wat",
+   "title": "Shepherd",
+   "color": [
+    0.6,
+    0.55,
+    0.4
+   ],
+   "at": [
+    6,
+    -4,
+    40
+   ],
+   "greeting": "Count them going out, count them coming in. Some nights the sums differ.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      16,
+      28
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      3,
+      2
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "anim": "Sit"
+    }
+   ],
+   "area": "birchrise"
   }
  ],
  "quests": [

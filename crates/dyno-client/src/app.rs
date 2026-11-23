@@ -6801,10 +6801,11 @@ pub fn shot_with_ui(
         let (vo, vt) = gfx.world_vertices();
         let c = p.life.counts;
         eprintln!(
-            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent; life (quality {life_quality}): {:.3} ms a frame on the CPU (effects {:.3}, critters {:.3}), {} emitters, {} particles, {} critters",
+            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent; life (quality {life_quality}): {:.3} ms a frame on the CPU (last frame: effects {:.3}, critters {:.3}; last look for critters {:.3}), {} emitters, {} particles, {} critters",
             life_ms / n as f64,
             c.particles_ms,
             c.critters_ms,
+            c.populate_ms,
             c.emitters,
             c.particles,
             c.critters
