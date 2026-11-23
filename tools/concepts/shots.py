@@ -11,7 +11,8 @@ usage: python3 tools/concepts/shots.py OUT_DIR [ADDRESS] [name ...]
 Writes OUT_DIR/<name>.jpg for each camera (or the named ones) and
 OUT_DIR/contact.jpg, a sheet of every JPG of the cameras in OUT_DIR.
 Environment: DYNO (the dyno binary, default ./target/debug/dyno),
-SHOT_SIZE (default 1280x720).
+SHOT_SIZE (default 1280x720), DYNO_SHOT_STATS=1 (print each shot's load
+and frame times and vertex counts).
 """
 import json, os, subprocess, sys
 
@@ -40,7 +41,9 @@ def shoot(exe, addr, cam, out_dir, size):
         return False, (r.stderr or r.stdout).strip().splitlines()[-1:]
     subprocess.run(['magick', ppm, '-quality', '90', jpg], check=True)
     os.remove(ppm)
-    return True, jpg
+    # with DYNO_SHOT_STATS=1: load, frame and vertex counts
+    stats = [l for l in (r.stderr + r.stdout).splitlines() if l.startswith(('stats:', 'ground:'))]
+    return True, ' | '.join([jpg] + stats)
 
 
 def contact(out_dir, names):
