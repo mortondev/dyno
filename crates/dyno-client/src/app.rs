@@ -6313,6 +6313,8 @@ pub fn shot_with_ui(
         eprintln!(
             "stats: load_world {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
         );
+        let (gv, levels) = gfx.ground_stats();
+        eprintln!("ground: {gv} vertices; sections by voxels a metre {levels:?}");
     }
     let mut creatures: Vec<String> = p
         .entities

@@ -298,10 +298,28 @@ fn value2(x: i32, z: i32, size: i32, salt: i32) -> f32 {
         (x.rem_euclid(size) as f32 + 0.5) / size as f32,
         (z.rem_euclid(size) as f32 + 0.5) / size as f32,
     );
-    let h = |a: i32, b: i32| (hash3(a, salt, b) & 0xffff) as f32 / 32767.5 - 1.0;
+    // neighbouring voxels share a lattice cell: keep the last few corners
+    type Slot = ([i32; 4], [f32; 4]);
+    thread_local! {
+        static LAST: std::cell::Cell<[Slot; 4]> =
+            const { std::cell::Cell::new([([i32::MIN; 4], [0.0; 4]); 4]) };
+    }
+    let key = [cx, cz, size, salt];
+    let c = LAST.with(|l| {
+        let mut slots = l.get();
+        if let Some(s) = slots.iter().find(|s| s.0 == key) {
+            return s.1;
+        }
+        let h = |a: i32, b: i32| (hash3(a, salt, b) & 0xffff) as f32 / 32767.5 - 1.0;
+        let c = [h(cx, cz), h(cx + 1, cz), h(cx, cz + 1), h(cx + 1, cz + 1)];
+        slots.rotate_right(1);
+        slots[0] = (key, c);
+        l.set(slots);
+        c
+    });
     let (sx, sz) = (fx * fx * (3.0 - 2.0 * fx), fz * fz * (3.0 - 2.0 * fz));
-    let top = h(cx, cz) + (h(cx + 1, cz) - h(cx, cz)) * sx;
-    let bot = h(cx, cz + 1) + (h(cx + 1, cz + 1) - h(cx, cz + 1)) * sx;
+    let top = c[0] + (c[1] - c[0]) * sx;
+    let bot = c[2] + (c[3] - c[2]) * sx;
     top + (bot - top) * sz
 }
 
@@ -404,6 +422,8 @@ pub(crate) struct Fine<'a> {
     ax: Vec<(usize, f32)>,
     /// light at grid corners: block, sky, occlusion; NaN when not yet known
     corners: Vec<[f32; 3]>,
+    /// the light of each uniform light class (class k at k - 1)
+    class_light: Vec<[f32; 3]>,
     /// per ground cell: 1 when other kinds of ground lie beside it (its
     /// voxels may take theirs along a ragged edge), 2 when not, 0 unknown
     ragged: Vec<u8>,
@@ -431,6 +451,7 @@ impl<'a> Fine<'a> {
             ax,
             corners: vec![[f32::NAN; 3]; (LV * LV * LV) as usize],
             ragged: vec![0; n],
+            class_light: Vec::new(),
         }
     }
 
@@ -909,7 +930,11 @@ impl<'a> Fine<'a> {
             }
         }
         let n = classes.len() as u32 + 1;
-        *classes.entry(first.map(f32::to_bits)).or_insert(n)
+        let id = *classes.entry(first.map(f32::to_bits)).or_insert(n);
+        if id == n {
+            self.class_light.push(first);
+        }
+        id
     }
 
     /// Light at a vertex, given in fine voxels from the section's corner:
@@ -1009,6 +1034,14 @@ impl<'a> Fine<'a> {
                         }
                     }
                     let class = self.light_class(light, x, y, z, &mut classes);
+                    // ground of one kind with no other beside it: one
+                    // material for the whole cell, but for the cover
+                    let gc = at(x, y, z);
+                    let plain = if self.g.fl[gc] & F_TERRAIN != 0 && !self.is_ragged(gc) {
+                        Some(self.material(gc))
+                    } else {
+                        None
+                    };
                     let (bx, by, bz) = (x * r, y * r, z * r);
                     for (d, (n, axis)) in DIRS.iter().enumerate() {
                         let ns = nbs[d];
@@ -1076,7 +1109,13 @@ impl<'a> Fine<'a> {
                                     let key = if face[row] >> i & 1 != 0 {
                                         any = true;
                                         let cov = covered[row] >> i & 1 != 0;
-                                        self.paint(bx + i, by + j, bz + k, cov)
+                                        match plain {
+                                            Some(m) if cov && p.under[m as usize] != 0 => {
+                                                p.under[m as usize]
+                                            }
+                                            Some(m) => m,
+                                            None => self.paint(bx + i, by + j, bz + k, cov),
+                                        }
                                     } else {
                                         0
                                     };
@@ -1118,7 +1157,7 @@ impl<'a> Fine<'a> {
         #[cfg(test)]
         let t0 = std::time::Instant::now();
         merge(&mut rects);
-        geo.opaque.reserve(rects.len() * 6);
+        geo.ground.reserve(rects.len() * 4);
         for q in &rects {
             self.emit(light, q, geo);
         }
@@ -1169,7 +1208,13 @@ impl<'a> Fine<'a> {
             render::layer_anim(layer),
         ];
         let jit = p.jitter[b as usize];
-        let ls = c.map(|c| self.light_at(light, c));
+        // a face in cells of one light has it at every corner
+        let class = q.key >> 8;
+        let ls = if class >= 1 && class < 0x8000 {
+            [self.class_light[class as usize - 1]; 4]
+        } else {
+            c.map(|c| self.light_at(light, c))
+        };
         let pos = c.map(|c| {
             [
                 (o[0] * r + c[0]) as f32 / r as f32,
@@ -1178,14 +1223,16 @@ impl<'a> Fine<'a> {
             ]
         });
         let nf = n.map(|v| v as f32);
-        // split so occlusion interpolates evenly
+        // four corners, drawn as (0, 1, 2) and (0, 2, 3) by the shared quad
+        // index: start at the corner that splits it so occlusion
+        // interpolates evenly
         let order = if ls[0][2] + ls[2][2] > ls[1][2] + ls[3][2] {
-            [0, 1, 2, 0, 2, 3]
+            [0, 1, 2, 3]
         } else {
-            [1, 2, 3, 1, 3, 0]
+            [1, 2, 3, 0]
         };
         for i in order {
-            geo.opaque.push(Vertex {
+            geo.ground.push(Vertex {
                 pos: pos[i],
                 normal: nf,
                 color: [jit, 0.0, 0.0, if glow { 2.0 } else { ls[i][2] }],

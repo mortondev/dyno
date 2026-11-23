@@ -153,6 +153,8 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
         eprintln!(
             "stats: load_world {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
         );
+        let (gv, levels) = g.ground_stats();
+        eprintln!("ground: {gv} vertices; sections by voxels a metre {levels:?}");
     }
     Ok(format!(
         "rendered {}x{} at {:?} yaw {} pitch {} time {:.2} with {} other players to {}",

@@ -577,7 +577,11 @@ pub fn mesh_section(
     sy: i32,
     sz: i32,
 ) -> (Vec<Vertex>, Vec<Vertex>) {
-    let geo = terrain_mesh::mesh(world, light, sx, sy, sz);
+    let mut geo = terrain_mesh::mesh(world, light, sx, sy, sz);
+    // the ground's quads as plain triangles
+    for q in geo.ground.as_chunks::<4>().0 {
+        geo.opaque.extend([0, 1, 2, 0, 2, 3].map(|k| q[k]));
+    }
     (geo.opaque, geo.trans)
 }
 
@@ -1259,6 +1263,8 @@ fn ring(
 #[derive(Default)]
 struct SectionMesh {
     opaque: Option<(wgpu::Buffer, u32)>,
+    /// fine voxel ground: four vertices a quad, and how many quads
+    ground: Option<(wgpu::Buffer, u32)>,
     trans: Option<(wgpu::Buffer, u32)>,
     /// halos round the section's lamps
     glow: Option<(wgpu::Buffer, u32)>,
@@ -1299,6 +1305,9 @@ pub struct Gfx {
     assets_gen: u64,
     sections: Vec<SectionMesh>,
     dims: [i32; 3],
+    /// triangles (0 1 2) (0 2 3) for every four vertices, for the ground
+    quad_index: wgpu::Buffer,
+    quad_cap: u32,
     /// the level of detail each section's ground was meshed at
     lods: Vec<Lod>,
     /// voxels a metre per section column (x, z), as last decided
@@ -1729,6 +1738,12 @@ impl Gfx {
             egui_wgpu::RendererOptions::default(),
         );
         let depth = depth_view(&device, config.width, config.height);
+        let quad_index = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("quads"),
+            size: 4,
+            usage: wgpu::BufferUsages::INDEX,
+            mapped_at_creation: false,
+        });
         Ok(Gfx {
             window,
             surface,
@@ -1756,6 +1771,8 @@ impl Gfx {
             assets_gen: crate::assets::generation(),
             sections: Vec::new(),
             dims: [0; 3],
+            quad_index,
+            quad_cap: 0,
             lods: Vec::new(),
             col_lod: Vec::new(),
             lod_from: None,
@@ -1827,14 +1844,36 @@ impl Gfx {
         Some((buf, v.len() as u32))
     }
 
+    /// Make the shared quad index cover at least `quads` quads.
+    fn ensure_quad_index(&mut self, quads: u32) {
+        if quads <= self.quad_cap {
+            return;
+        }
+        let cap = quads.next_power_of_two().max(4096);
+        let idx: Vec<u32> = (0..cap)
+            .flat_map(|q| [0, 1, 2, 0, 2, 3].map(|k| q * 4 + k))
+            .collect();
+        self.quad_index = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("quads"),
+                contents: bytemuck::cast_slice(&idx),
+                usage: wgpu::BufferUsages::INDEX,
+            });
+        self.quad_cap = cap;
+    }
+
     /// Upload one section's mesh.
     fn store(&mut self, i: usize, geo: SectionGeo) {
         let mut halo = Vec::with_capacity(geo.glows.len() * 6);
         for g in &geo.glows {
             push_glow(&mut halo, g);
         }
+        let quads = (geo.ground.len() / 4) as u32;
+        self.ensure_quad_index(quads);
         self.sections[i] = SectionMesh {
             opaque: self.upload(&geo.opaque),
+            ground: self.upload(&geo.ground).map(|(b, _)| (b, quads)),
             trans: self.upload(&geo.trans),
             glow: self.upload(&halo),
             tufts: geo.tufts,
@@ -2064,10 +2103,35 @@ impl Gfx {
     pub fn world_vertices(&self) -> (u64, u64) {
         self.sections.iter().fold((0, 0), |a, s| {
             (
-                a.0 + s.opaque.as_ref().map_or(0, |b| b.1 as u64),
+                a.0 + s.opaque.as_ref().map_or(0, |b| b.1 as u64)
+                    + s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4),
                 a.1 + s.trans.as_ref().map_or(0, |b| b.1 as u64),
             )
         })
+    }
+
+    /// Vertices of the fine voxel ground (part of the opaque count), and
+    /// per level of detail (finest first) its sections and vertices (for stats).
+    pub fn ground_stats(&self) -> (u64, Vec<(u8, u32, u64)>) {
+        let v = self
+            .sections
+            .iter()
+            .map(|s| s.ground.as_ref().map_or(0, |b| b.1 as u64 * 4))
+            .sum();
+        let mut levels: Vec<(u8, u32, u64)> = Vec::new();
+        for (s, l) in self.sections.iter().zip(&self.lods) {
+            let Some((_, q)) = &s.ground else { continue };
+            let n = *q as u64 * 4;
+            match levels.iter_mut().find(|e| e.0 == l.per_metre) {
+                Some(e) => {
+                    e.1 += 1;
+                    e.2 += n;
+                }
+                None => levels.push((l.per_metre, 1, n)),
+            }
+        }
+        levels.sort_by(|a, b| b.0.cmp(&a.0));
+        (v, levels)
     }
 
     /// Re-mesh every section that touches the box [lo - margin, hi + margin].
@@ -2209,8 +2273,8 @@ impl Gfx {
             rp.set_pipeline(&self.shadow_pipe);
             rp.set_bind_group(0, &self.shadow_bind, &[]);
             let reach = SHADOW_HALF + SECTION as f32 * 2.0;
+            rp.set_index_buffer(self.quad_index.slice(..), wgpu::IndexFormat::Uint32);
             for (i, s) in self.sections.iter().enumerate() {
-                let Some((b, n)) = &s.opaque else { continue };
                 let d = self.dims;
                 let (sx, sz) = ((i as i32) % d[0], (i as i32 / d[0]) % d[2]);
                 let cx = sx as f32 * SECTION as f32 + SECTION as f32 * 0.5;
@@ -2218,8 +2282,14 @@ impl Gfx {
                 if (cx - cam.x).abs() > reach || (cz - cam.z).abs() > reach {
                     continue;
                 }
-                rp.set_vertex_buffer(0, b.slice(..));
-                rp.draw(0..*n, 0..1);
+                if let Some((b, n)) = &s.opaque {
+                    rp.set_vertex_buffer(0, b.slice(..));
+                    rp.draw(0..*n, 0..1);
+                }
+                if let Some((b, q)) = &s.ground {
+                    rp.set_vertex_buffer(0, b.slice(..));
+                    rp.draw_indexed(0..*q * 6, 0, 0..1);
+                }
             }
             if let Some((b, n)) = &box_buf {
                 rp.set_vertex_buffer(0, b.slice(..));
@@ -2260,12 +2330,18 @@ impl Gfx {
                 rp.draw(0..3, 0..1);
                 rp.set_pipeline(&self.opaque_pipe);
                 let visible = |i: usize| self.section_visible(i, vp, dist);
+                rp.set_index_buffer(self.quad_index.slice(..), wgpu::IndexFormat::Uint32);
                 for (i, s) in self.sections.iter().enumerate() {
-                    if let Some((b, n)) = &s.opaque
-                        && visible(i)
-                    {
+                    if !visible(i) {
+                        continue;
+                    }
+                    if let Some((b, n)) = &s.opaque {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(0..*n, 0..1);
+                    }
+                    if let Some((b, q)) = &s.ground {
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw_indexed(0..*q * 6, 0, 0..1);
                     }
                 }
                 if let Some((b, n)) = &self.clutter {
@@ -2503,7 +2579,7 @@ mod tests {
                 let t = std::time::Instant::now();
                 let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
                 best[i] = best[i].min(t.elapsed().as_secs_f64() * 1e3);
-                verts += geo.opaque.len() + geo.trans.len();
+                verts += geo.opaque.len() + geo.ground.len() + geo.trans.len();
             }
         }
         let sum: f64 = best.iter().sum();
@@ -2550,10 +2626,10 @@ mod tests {
             let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
             let ms = t.elapsed().as_secs_f64() * 1e3;
             worst = worst.max(ms);
-            if !geo.opaque.is_empty() {
+            if !geo.opaque.is_empty() || !geo.ground.is_empty() {
                 busy += 1;
             }
-            verts += geo.opaque.len() + geo.trans.len();
+            verts += geo.opaque.len() + geo.ground.len() + geo.trans.len();
         }
         let one = start.elapsed().as_secs_f64();
         let start = std::time::Instant::now();

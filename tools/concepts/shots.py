@@ -52,5 +52,5 @@ for name, (t, off, time) in spots.items():
                        capture_output=True, text=True, timeout=600)
     subprocess.run(['magick', out, '-quality', '90', out.replace('.ppm', '.jpg')])
     lines = (r.stderr + r.stdout).strip().splitlines()
-    stats = [l for l in lines if l.startswith('stats:')]
-    print(name, stats[-1] if stats else (lines[-1][:80] if lines else ''), flush=True)
+    stats = [l for l in lines if l.startswith('stats:') or l.startswith('ground:')]
+    print(name, ' | '.join(stats) if stats else (lines[-1][:80] if lines else ''), flush=True)

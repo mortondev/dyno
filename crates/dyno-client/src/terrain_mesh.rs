@@ -111,6 +111,9 @@ pub struct Glow {
 #[derive(Default)]
 pub struct SectionGeo {
     pub opaque: Vec<Vertex>,
+    /// fine voxel ground: four corners a quad, drawn with the shared quad
+    /// index (triangles 0 1 2 and 0 2 3)
+    pub ground: Vec<Vertex>,
     pub trans: Vec<Vertex>,
     pub tufts: Vec<Tuft>,
     pub glows: Vec<Glow>,
@@ -1294,10 +1297,7 @@ mod tests {
     fn unit_faces(geos: &[SectionGeo], r: f32) -> Vec<([i32; 3], usize, bool)> {
         let mut out = Vec::new();
         for geo in geos {
-            for q in geo.opaque.as_chunks::<6>().0 {
-                if q[0].tex[2] < render::KIND_VOXEL {
-                    continue;
-                }
+            for q in geo.ground.as_chunks::<4>().0 {
                 let p: Vec<[i32; 3]> = q
                     .iter()
                     .map(|v| {
@@ -1456,7 +1456,7 @@ mod tests {
         let mut shared = 0;
         for geo in &geos {
             let mut mine: HashMap<[u32; 6], [u32; 3]> = HashMap::new();
-            for v in geo.opaque.iter().filter(|v| v.tex[2] >= render::KIND_VOXEL) {
+            for v in &geo.ground {
                 let p = v.pos.map(f32::to_bits);
                 let n = v.normal.map(f32::to_bits);
                 let at = [p[0], p[1], p[2], n[0], n[1], n[2]];
@@ -1494,7 +1494,7 @@ mod tests {
         }
         let geos = all_sections(&world);
         let mut tops = 0;
-        for v in geos.iter().flat_map(|g| &g.opaque) {
+        for v in geos.iter().flat_map(|g| g.opaque.iter().chain(&g.ground)) {
             if v.pos[0] < 4.0 || v.pos[0] > 36.0 || v.pos[2] < 4.0 || v.pos[2] > 44.0 {
                 continue;
             }
@@ -1508,7 +1508,7 @@ mod tests {
         // line all the way up, with ledges
         let wall: Vec<f32> = geos
             .iter()
-            .flat_map(|g| &g.opaque)
+            .flat_map(|g| &g.ground)
             .filter(|v| {
                 (11.0..13.0).contains(&v.pos[1])
                     && (42.0..46.0).contains(&v.pos[0])
@@ -1641,17 +1641,10 @@ mod tests {
                 for sz in 0..16 {
                     for sx in 0..16 {
                         let geo = mesh_lod(&world, &light, sx, sy, sz, lod);
-                        verts += geo.opaque.len();
-                        ground += geo
-                            .opaque
-                            .iter()
-                            .filter(|v| v.tex[2] >= render::KIND_VOXEL)
-                            .count();
+                        verts += geo.opaque.len() + geo.ground.len();
+                        ground += geo.ground.len();
                         busy += (!geo.opaque.is_empty()) as u32;
-                        for q in geo.opaque.as_chunks::<6>().0 {
-                            if q[0].tex[2] < render::KIND_VOXEL {
-                                continue;
-                            }
+                        for q in geo.ground.as_chunks::<4>().0 {
                             let n = q[0].normal;
                             let d = if n[1] > 0.5 {
                                 0
