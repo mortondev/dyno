@@ -2,10 +2,10 @@
   "seed": 0.3,
   "sets": {
     "default": {
-      "Chop": {"loop":4.0,"time":{"body.oy":-1.8473,"body.ry":-89.9829,"claw.l.ry":11.4592,"claw.l.rz":-11.4592,"claw.r.ry":-11.4592,"claw.r.rz":-11.4592,"leg.0.rx":-23.8679,"leg.1.rx":-24.7762,"leg.2.rx":-24.9251,"leg.3.rx":24.064,"leg.4.rx":23.6664,"leg.5.rx":24.4603}},
-      "Hammer": {"loop":4.0,"time":{"body.oy":-1.8473,"body.ry":-89.9829,"claw.l.ry":11.4592,"claw.l.rz":-11.4592,"claw.r.ry":-11.4592,"claw.r.rz":-11.4592,"leg.0.rx":-23.8679,"leg.1.rx":-24.7762,"leg.2.rx":-24.9251,"leg.3.rx":24.064,"leg.4.rx":23.6664,"leg.5.rx":24.4603}},
-      "Fish": {"loop":4.0,"time":{"body.oy":-1.8473,"body.ry":-89.9829,"claw.l.ry":11.4592,"claw.l.rz":-11.4592,"claw.r.ry":-11.4592,"claw.r.rz":-11.4592,"leg.0.rx":-23.8679,"leg.1.rx":-24.7762,"leg.2.rx":-24.9251,"leg.3.rx":24.064,"leg.4.rx":23.6664,"leg.5.rx":24.4603}},
-      "Sweep": {"loop":4.0,"time":{"body.oy":-1.8473,"body.ry":-89.9829,"claw.l.ry":11.4592,"claw.l.rz":-11.4592,"claw.r.ry":-11.4592,"claw.r.rz":-11.4592,"leg.0.rx":-23.8679,"leg.1.rx":-24.7762,"leg.2.rx":-24.9251,"leg.3.rx":24.064,"leg.4.rx":23.6664,"leg.5.rx":24.4603}},
+      "Chop": {"loop":4.0,"time":{"body.oy":-1.1114,"body.ry":-89.9838,"claw.l.ry":11.4592,"claw.l.rz":47.2016,"claw.r.ry":-11.4592,"claw.r.rz":42.051,"leg.0.rx":-3.1292,"leg.1.rx":-3.6183,"leg.2.rx":-2.9069,"leg.3.rx":2.2593,"leg.4.rx":2.7809,"leg.5.rx":3.568}},
+      "Hammer": {"loop":4.0,"time":{"body.oy":-1.1114,"body.ry":-89.9838,"claw.l.ry":11.4592,"claw.l.rz":47.2016,"claw.r.ry":-11.4592,"claw.r.rz":42.051,"leg.0.rx":-3.1292,"leg.1.rx":-3.6183,"leg.2.rx":-2.9069,"leg.3.rx":2.2593,"leg.4.rx":2.7809,"leg.5.rx":3.568}},
+      "Fish": {"loop":4.0,"time":{"body.oy":-1.1114,"body.ry":-89.9838,"claw.l.ry":11.4592,"claw.l.rz":47.2016,"claw.r.ry":-11.4592,"claw.r.rz":42.051,"leg.0.rx":-3.1292,"leg.1.rx":-3.6183,"leg.2.rx":-2.9069,"leg.3.rx":2.2593,"leg.4.rx":2.7809,"leg.5.rx":3.568}},
+      "Sweep": {"loop":4.0,"time":{"body.oy":-1.1114,"body.ry":-89.9838,"claw.l.ry":11.4592,"claw.l.rz":47.2016,"claw.r.ry":-11.4592,"claw.r.rz":42.051,"leg.0.rx":-3.1292,"leg.1.rx":-3.6183,"leg.2.rx":-2.9069,"leg.3.rx":2.2593,"leg.4.rx":2.7809,"leg.5.rx":3.568}},
       "Attack1H": {
         "duration": 0.7,
         "time": {

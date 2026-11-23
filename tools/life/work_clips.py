@@ -8,7 +8,7 @@ this script as one line each at the top of the `default` set:
 
 People get keyframed loops (below: times in seconds, angles in degrees,
 eased between keys). Creatures cannot do these literally and get a still
-of their `Kneel`, as the contract asks for every animation on every
+of their `Kneel` (crawlers, of their `Ready`), as the contract asks for every animation on every
 skeleton.
 """
 import json, math, os, re
@@ -141,7 +141,10 @@ for name in sorted(os.listdir(ANIMS)):
     if data.get('skeleton') == 'biped':
         clips = {'Chop': chop(default), 'Hammer': hammer(), 'Fish': fish(), 'Sweep': sweep()}
     else:
-        clips = {n: still_of(default['Kneel']) for n in NAMES}
+        # crawlers lie flat to kneel, which sinks them into the ground a
+        # little: they hold their guard instead
+        src = 'Ready' if data.get('skeleton') == 'multileg' else 'Kneel'
+        clips = {n: still_of(default[src]) for n in NAMES}
     lines = ''.join('\n      "%s": %s,' % (n, compact(c)) for n, c in clips.items())
     head = '\n    "default": {'
     assert text.count(head) == 1, path

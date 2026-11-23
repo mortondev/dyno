@@ -116,7 +116,7 @@ TOWNSFOLK = [
      [stop((5, 9), emotes=['Point']),
       stop((5, 9), at=(-5, 3)),
       stop((5, 9), at=(-2, -5), emotes=['Wave'])]),
-    ('rysa', 'Rysa', 'Hunter', [0.3, 0.5, 0.3], [-113, -8, -52],
+    ('rysa', 'Rysa', 'Hunter', [0.3, 0.5, 0.3], [-125, -8, -55],
      "Webs between the roots, thick as rope. Don't touch them.",
      None,
      [stop((10, 18), anim='Kneel'),
