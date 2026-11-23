@@ -63,12 +63,81 @@ pub struct Grade {
     pub rolloff: f32,
 }
 
+/// Water: the look where nothing else is said, named kinds of water that
+/// change parts of it, and where each kind lies (water.rs draws it).
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Water {
     pub deep: [f32; 3],
     pub shallow: [f32; 3],
     pub foam: [f32; 3],
+    /// metres of water over the bed at which the colour is fully `deep`
+    pub depth: f32,
+    /// metres you can see through the water before `shallow` covers the bed
+    pub clarity: f32,
+    /// foam forms where the water is shallower than this (metres)
+    pub foam_width: f32,
+    /// how much of the sky and the land the surface mirrors, 0..1
+    pub reflect: f32,
+    /// strength of the ripples
+    pub ripple: f32,
+    /// glints of the sun and the moon
+    pub sparkle: f32,
+    /// speed along a course, metres a second
+    pub flow: f32,
+    /// what you see when your eyes are under: the colour everything fades
+    /// to, and how fast (per metre)
+    pub fog: [f32; 3],
+    pub fog_density: f32,
+    /// kinds of water by name: each changes what it names of the above
+    pub kinds: std::collections::BTreeMap<String, WaterKind>,
+    /// still water of a kind: an ellipse around a place
+    pub areas: Vec<WaterArea>,
+    /// running water of a kind: it flows along the points in order
+    pub courses: Vec<WaterCourse>,
+}
+
+/// A kind of water: what it changes of the base look.
+#[derive(Deserialize, Clone, Debug, PartialEq, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct WaterKind {
+    pub deep: Option<[f32; 3]>,
+    pub shallow: Option<[f32; 3]>,
+    pub foam: Option<[f32; 3]>,
+    pub depth: Option<f32>,
+    pub clarity: Option<f32>,
+    pub foam_width: Option<f32>,
+    pub reflect: Option<f32>,
+    pub ripple: Option<f32>,
+    pub sparkle: Option<f32>,
+    pub flow: Option<f32>,
+    pub fog: Option<[f32; 3]>,
+    pub fog_density: Option<f32>,
+}
+
+#[derive(Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct WaterArea {
+    pub kind: String,
+    /// centre (x, z) from the spawn hearth
+    pub at: [f32; 2],
+    /// half-axes along x and z
+    pub radius: [f32; 2],
+    /// the part of the radius over which the kind fades in, 0..1
+    #[serde(default = "feather")]
+    pub feather: f32,
+}
+
+fn feather() -> f32 {
+    0.25
+}
+
+#[derive(Deserialize, Clone, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct WaterCourse {
+    pub kind: String,
+    /// x, z from the spawn hearth, and half the width there
+    pub points: Vec<[f32; 3]>,
 }
 
 /// Sky and fog colours (sRGB) through the day: night, day, and the glow
@@ -144,6 +213,18 @@ impl Default for Water {
             deep: [0.1, 0.2, 0.3],
             shallow: [0.2, 0.3, 0.4],
             foam: [0.9; 3],
+            depth: 3.0,
+            clarity: 2.5,
+            foam_width: 0.25,
+            reflect: 0.5,
+            ripple: 1.0,
+            sparkle: 1.0,
+            flow: 0.0,
+            fog: [0.1, 0.2, 0.3],
+            fog_density: 0.12,
+            kinds: Default::default(),
+            areas: Vec::new(),
+            courses: Vec::new(),
         }
     }
 }
@@ -210,6 +291,8 @@ pub struct LookUniform {
     grade_tint: [f32; 4],
     /// contrast, knee, rolloff, relief
     grade: [f32; 4],
+    /// unused since water.rs took the water over; kept so the block's
+    /// layout stays as the shader has it
     water_deep: [f32; 4],
     water_shallow: [f32; 4],
     foam: [f32; 4],

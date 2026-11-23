@@ -2605,6 +2605,7 @@ impl App {
             let proj = glam::Mat4::from_translation(Vec3::new(shift, 0.0, 0.0))
                 * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt.max(1.0), 0.05, far);
             view = Some((proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y), eye, far));
+            gfx.water.look_from(&st.world, eye.into(), st.hearth);
         }
         if let Screen::Playing(p) = &mut self.screen {
             let k = |c: KeyCode| p.keys.contains(&c);
@@ -3277,6 +3278,8 @@ impl App {
                 }
             }
             view = Some((vp, eye, far));
+            gfx.water
+                .look_from(&p.world, eye.into(), p.hearth.unwrap_or_default());
             p.inv_vp = Some(vp.inverse());
             p.screen_px = (wdt, hgt);
             p.fps.1 += 1;
@@ -5481,7 +5484,8 @@ impl ApplicationHandler for App {
             }
         };
         match Gfx::new(window.clone()) {
-            Ok(g) => {
+            Ok(mut g) => {
+                g.water.quality = self.settings.water_quality;
                 eprintln!("graphics: {}", g.adapter_info);
                 crate::theme::apply(&self.egui_ctx);
                 self.egui_ctx.style_mut(|s| {
@@ -6058,6 +6062,11 @@ pub fn shot_with_ui(
             // a frame of the world, as the game draws it
             let (fw, fh) = (gfx.config.width as f32, gfx.config.height as f32);
             let vp = p.player.view_proj(fw / fh, 70.0, 160.0);
+            gfx.water.look_from(
+                &p.world,
+                p.player.eye().into(),
+                p.hearth.unwrap_or_default(),
+            );
             let sky_now = sky(p.time);
             let out = fctx.run(egui::RawInput::default(), |_| {});
             gfx.frame(
@@ -6263,6 +6272,8 @@ pub fn shot_with_ui(
     let up = right.cross(dir);
     let vp = glam::Mat4::perspective_rh(75f32.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+    gfx.water
+        .look_from(&p.world, eye.into(), p.hearth.unwrap_or_default());
     models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
     let mut boxes = Vec::new();
     let mut lines = Vec::new();
