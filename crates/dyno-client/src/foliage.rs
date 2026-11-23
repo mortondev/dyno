@@ -40,6 +40,8 @@ struct FoliageFile {
     /// leaves overhead count as deep
     under: f32,
     depth: f32,
+    /// brightness of the clumps at the very top of a crown (1: as coloured)
+    top: f32,
     /// how much each cube's brightness strays from its colour
     vary: f32,
     /// crowns are drawn in clumps within this many metres of the camera;
@@ -66,6 +68,7 @@ impl Default for FoliageFile {
             crease: 0.6,
             under: 0.7,
             depth: 4.0,
+            top: 1.0,
             vary: 0.1,
             near: 48.0,
             grain: 0,
@@ -112,6 +115,7 @@ pub struct Foliage {
     crease: f32,
     under: f32,
     depth: f32,
+    top: f32,
     vary: f32,
     near: f32,
     grain: f32,
@@ -172,6 +176,7 @@ impl Foliage {
             crease: f.crease.clamp(0.0, 1.0),
             under: f.under.clamp(0.0, 1.0),
             depth: f.depth.max(1.0),
+            top: f.top.clamp(0.5, 2.0),
             vary: f.vary.clamp(0.0, 0.5),
             near: f.near.max(0.0),
             grain: f.grain.min(8) as f32,
@@ -438,7 +443,8 @@ pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo, f
                                 palette[(h >> 10) as usize % palette.len()]
                             };
                             let depth = over as f32 + (n - 1 - j) as f32 * s;
-                            let shade = (1.0 - (1.0 - f.under) * (depth / f.depth).min(1.0))
+                            let deep = (depth / f.depth).min(1.0);
+                            let shade = (f.top + (f.under - f.top) * deep.sqrt())
                                 * (1.0 + f.vary * (unit(h) * 2.0 - 1.0));
                             for (nrm, u, v) in FACES {
                                 let q = [p[0] + nrm[0], p[1] + nrm[1], p[2] + nrm[2]];
