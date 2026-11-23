@@ -110,6 +110,25 @@ pub struct Terrain {
     /// bare rock above this height over the open ground, snow above the second
     #[serde(default)]
     pub rock_line: Option<[f32; 2]>,
+    /// how the water's edge is made: stretches of shelving stone, and
+    /// muddy shallows between them where reeds can grow
+    #[serde(default)]
+    pub banks: Option<Banks>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Banks {
+    /// the stone of the stony stretches, with weights
+    pub stone: BTreeMap<String, u32>,
+    /// share of the shore that is stone (0 to 1), and the length of a stretch
+    pub share: f32,
+    pub scale: f32,
+    /// the block of the muddy margins, at and just under the waterline
+    pub mud: String,
+    /// one column in this many of a stony stretch carries a boulder
+    #[serde(default)]
+    pub boulder_every: u32,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -254,6 +273,19 @@ pub struct Mix {
     /// patches of another surface block (bare earth, rock)
     #[serde(default)]
     pub patches: Option<Patch>,
+    /// stamps strewn over the land (boulders, crags, fallen logs): per
+    /// hectare, on "wood", "open" or "any" ground
+    #[serde(default)]
+    pub scatter: Vec<Strewn>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Strewn {
+    pub stamp: String,
+    pub per_ha: f32,
+    #[serde(default = "any")]
+    pub on: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -652,6 +684,12 @@ impl Layout {
                 .map(|_| ())
                 .ok_or(format!("layout: unknown block \"{k}\""))
         };
+        if let Some(b) = &self.terrain.banks {
+            block(&b.mud)?;
+            for k in b.stone.keys() {
+                block(k)?;
+            }
+        }
         if self.size.iter().any(|&s| s < 16) || self.design.iter().any(|&s| s < 16) {
             return Err("layout: the world is too small".into());
         }
@@ -778,6 +816,16 @@ impl Layout {
                 }
             }
         }
+        for (k, m) in &self.flora.mixes {
+            for sc in &m.scatter {
+                if stamps.get(&sc.stamp).is_none() {
+                    return Err(format!(
+                        "layout: mix \"{k}\" strews unknown stamp \"{}\"",
+                        sc.stamp
+                    ));
+                }
+            }
+        }
         for (k, w) in &self.ways {
             if let Some(l) = &w.lamp
                 && stamps.get(l).is_none()
@@ -796,6 +844,41 @@ impl Layout {
     /// a height `"y"` n metres under the place's ground.
     pub fn resolve_rules(&self, rules: &mut Value) -> Result<(), String> {
         let hub = self.level(&self.places[0]) + 1;
+        // someone placed from an area's centre (`"area": "windmill"`)
+        // stands at the height of that area's place: heights are the
+        // layout's to give, whatever the land was when the rules were written
+        let mut heights: BTreeMap<String, i64> = BTreeMap::new();
+        for a in rules
+            .get("areas")
+            .and_then(|a| a.as_array())
+            .into_iter()
+            .flatten()
+        {
+            if let (Some(key), Some(place)) = (
+                a.get("key").and_then(|k| k.as_str()),
+                a.get("place").and_then(|k| k.as_str()),
+            ) && let Some(p) = self.place(place)
+            {
+                heights.insert(key.to_string(), (self.level(p) + 1 - hub) as i64);
+            }
+        }
+        for n in rules
+            .get_mut("npcs")
+            .and_then(|n| n.as_array_mut())
+            .into_iter()
+            .flatten()
+        {
+            let up = n
+                .get("area")
+                .and_then(|a| a.as_str())
+                .and_then(|a| heights.get(a))
+                .copied();
+            if let (Some(up), Some(at)) = (up, n.get_mut("at").and_then(|a| a.as_array_mut()))
+                && at.len() == 3
+            {
+                at[1] = Value::from(up);
+            }
+        }
         self.resolve(rules, hub)
     }
 
