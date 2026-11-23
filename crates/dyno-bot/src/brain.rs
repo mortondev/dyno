@@ -701,7 +701,9 @@ impl Scripted {
             });
         }
         // 2. rest when hurt or out of mana
-        if (hp < 0.5 || mana_low) && !b.in_combat() {
+        // (at 60%: a level 1 with 45 health at half does not live through
+        // another Grazer, and a person eats before the next pull)
+        if (hp < 0.6 || mana_low) && !b.in_combat() {
             a.doing = "resting".into();
             return Some(Task::rest(0.9));
         }
@@ -1183,7 +1185,12 @@ impl Scripted {
         if blocks.is_empty() {
             return Ok(None);
         }
-        Nodes::fresh(&mut self.nodes, &a.body.world, &a.body.content, a.body.pos());
+        Nodes::fresh(
+            &mut self.nodes,
+            &a.body.world,
+            &a.body.content,
+            a.body.pos(),
+        );
         let now = Instant::now();
         let me = a.body.pos();
         let mut why_not = None;

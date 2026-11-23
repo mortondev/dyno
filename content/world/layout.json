@@ -1322,6 +1322,17 @@
    ]
   },
   {
+   "key": "gate_rocks",
+   "kind": "wayside",
+   "at": [-96, 26],
+   "name": "West Gate Rocks",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "coal_seam", "at": [0, 0], "rot": 3, "fit": "ground"},
+    {"stamp": "boulders", "at": [-6, 6], "fit": "ground"}
+   ]
+  },
+  {
    "key": "beacon_rocks",
    "kind": "wayside",
    "at": [45, -275],

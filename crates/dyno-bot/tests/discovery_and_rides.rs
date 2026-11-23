@@ -41,20 +41,29 @@ fn discovery_pays_once_and_rides_need_it() {
 
     // a carter will not drive to a place you have not found
     a.body.say("/money 500");
-    let ride = c
-        .items
-        .iter()
-        .find(|i| i.ride.as_ref().is_some_and(|r| r.area.is_some()))
-        .expect("the pack has a ride");
+    // the carter nearest the hearth, and the first ride on the cart (to
+    // somewhere a new character has not been)
+    let is_ride = |i: u16| {
+        c.items
+            .iter()
+            .find(|x| x.id == i)
+            .is_some_and(|x| x.ride.as_ref().is_some_and(|r| r.area.is_some()))
+    };
     let carter = c
         .npcs
         .iter()
-        .filter(|n| n.sells.iter().any(|(i, _)| *i == ride.id))
+        .filter(|n| n.sells.iter().any(|(i, _)| is_ride(*i)))
         .min_by_key(|n| n.at[0].abs() + n.at[2].abs())
-        .expect("someone sells it");
+        .expect("a carter in the pack");
+    let ride = carter
+        .sells
+        .iter()
+        .map(|(i, _)| *i)
+        .find(|i| is_ride(*i))
+        .unwrap();
     assert!(run_until(&mut a, 5.0, |a| a.body.money == 500));
     let before = a.body.pos();
-    a.set(Task::talk(carter.id, vec![Deal::Buy(ride.id, 1)]));
+    a.set(Task::talk(carter.id, vec![Deal::Buy(ride, 1)]));
     run_until(&mut a, 30.0, |a| a.task.is_none());
     run_until(&mut a, 1.0, |_| false);
     assert_eq!(a.body.money, 500, "an unknown place costs nothing");

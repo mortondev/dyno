@@ -3632,7 +3632,7 @@
   },
   {
    "key": "ride_logging_camp",
-   "name": "Cart ride to Garrick's Logging Camp",
+   "name": "Cart ride to Garrick's Camp",
    "color": [
     0.62,
     0.45,
@@ -4769,7 +4769,7 @@
   {
    "key": "grazer",
    "name": "Grazer",
-   "health": 36,
+   "health": 32,
    "speed": 1.6,
    "hostile": false,
    "drops": [
@@ -4808,7 +4808,7 @@
    "model": "quadruped",
    "spawn": "meadow",
    "cap": 8,
-   "damage": 3,
+   "damage": 2.5,
    "levels": [
     1,
     2
@@ -4818,10 +4818,10 @@
   {
    "key": "shade",
    "name": "Shade",
-   "health": 44,
+   "health": 40,
    "speed": 3.8,
    "hostile": true,
-   "damage": 3.5,
+   "damage": 3,
    "drops": [
     {
      "item": "shade_dust",
@@ -5456,9 +5456,10 @@
   ],
   "group_bonus": 0.7,
   "discovery_xp": [
-   20,
-   15
-  ]
+   15,
+   10
+  ],
+  "kill_xp": 0.7
  },
  "npcs": [
   {
@@ -7118,7 +7119,7 @@
      "talk": "maren"
     }
    ],
-   "xp": 40,
+   "xp": 30,
    "money": 10,
    "requires": []
   },
@@ -7144,7 +7145,7 @@
     ]
    ],
    "requires": [],
-   "xp": 150
+   "xp": 110
   },
   {
    "key": "thin_the_herd",
@@ -7181,7 +7182,7 @@
      1
     ]
    ],
-   "xp": 170
+   "xp": 130
   },
   {
    "key": "kindling",
@@ -7206,7 +7207,7 @@
      1
     ]
    ],
-   "xp": 140
+   "xp": 100
   },
   {
    "key": "wool_for_winter",
@@ -7235,7 +7236,7 @@
      5
     ]
    ],
-   "xp": 110
+   "xp": 80
   },
   {
    "key": "coal_for_the_watch",
@@ -7245,7 +7246,7 @@
    "requires": [
     "kindling"
    ],
-   "text": "Light keeps the Shades back, and torches need coal. The Old Quarry lies north-west of the town, under a minute on foot: look for black-flecked stone in the rock faces there and bring me 6 coal. Your wooden pick will do for coal.",
+   "text": "Light keeps the Shades back, and torches need coal. There is a seam in the rocks outside the west gate, and more at the Old Quarry north-west of the town: look for black-flecked stone and bring me 6 coal. Your wooden pick will do for coal.",
    "done": "Torches for the Watch, and some for you. Shades cannot rise in good light.",
    "objectives": [
     {
@@ -7260,7 +7261,7 @@
      16
     ]
    ],
-   "xp": 190
+   "xp": 170
   },
   {
    "key": "north_watch",
@@ -7286,7 +7287,7 @@
     }
    ],
    "money": 80,
-   "xp": 140,
+   "xp": 120,
    "ender": "holt"
   },
   {
@@ -7434,7 +7435,7 @@
    ],
    "money": 60,
    "done": "Hear that crackle? That's the sound of the dark backing off.",
-   "xp": 110
+   "xp": 100
   },
   {
    "key": "boar_trouble",
@@ -7999,7 +8000,7 @@
      "radius": 14
     }
    ],
-   "xp": 110,
+   "xp": 90,
    "money": 40
   },
   {
@@ -8045,7 +8046,7 @@
      "radius": 14
     }
    ],
-   "xp": 300,
+   "xp": 260,
    "money": 90,
    "choice": [
     [
@@ -8085,7 +8086,7 @@
      "radius": 14
     }
    ],
-   "xp": 120,
+   "xp": 100,
    "money": 50
   },
   {
@@ -8801,7 +8802,7 @@
     0.8,
     0.6
    ],
-   "cost": 10,
+   "cost": 7,
    "cooldown": 6,
    "range": 30,
    "damage": [
@@ -8821,7 +8822,7 @@
     0.2,
     0.2
    ],
-   "cost": 12,
+   "cost": 9,
    "range": 30,
    "dot": [
     20,
@@ -9450,7 +9451,7 @@
     },
     {
      "creature": "thornboar",
-     "count": 3,
+     "count": 2,
      "place": "hearthstead",
      "at": [
       -150,
@@ -9461,7 +9462,7 @@
     },
     {
      "creature": "thornboar",
-     "count": 3,
+     "count": 2,
      "place": "hearthstead",
      "at": [
       55,
@@ -9472,7 +9473,7 @@
     },
     {
      "creature": "thornboar",
-     "count": 3,
+     "count": 2,
      "place": "hearthstead",
      "at": [
       150,
@@ -9550,14 +9551,14 @@
    "camps": [
     {
      "creature": "thornboar",
-     "count": 4,
+     "count": 3,
      "place": "birchrise_boars_1",
      "spread": 16,
      "respawn": 120
     },
     {
      "creature": "thornboar",
-     "count": 4,
+     "count": 3,
      "place": "birchrise_boars_2",
      "spread": 16,
      "respawn": 120,
@@ -9575,7 +9576,7 @@
     },
     {
      "creature": "thornboar",
-     "count": 4,
+     "count": 3,
      "place": "birchrise_boars_3",
      "spread": 16,
      "respawn": 120
@@ -10239,6 +10240,16 @@
    "levels": [
     5,
     6
+   ]
+  },
+  {
+   "key": "gate_rocks",
+   "name": "West Gate Rocks",
+   "place": "gate_rocks",
+   "radius": 20,
+   "levels": [
+    1,
+    2
    ]
   }
  ],

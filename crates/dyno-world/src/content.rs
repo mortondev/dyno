@@ -581,6 +581,11 @@ pub struct WorldRules {
     /// this much for each level of the area's lowest level (none: no XP)
     #[serde(default)]
     pub discovery_xp: Option<[u32; 2]>,
+    /// kill XP as a share of the design formula (none: all of it). Where
+    /// creatures stand close to the quest givers, kills come faster than
+    /// the formula assumed.
+    #[serde(default)]
+    pub kill_xp: Option<f32>,
 }
 
 impl WorldRules {

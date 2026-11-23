@@ -361,7 +361,8 @@ impl State {
         let Some(p) = self.players.get_mut(&id) else {
             return;
         };
-        let base = (prog::kill_xp(p.level, level) as f32 * share).round() as u32;
+        let scale = self.content.world.kill_xp.unwrap_or(1.0).max(0.0);
+        let base = (prog::kill_xp(p.level, level) as f32 * share * scale).round() as u32;
         // rested: the same again, out of the bank
         let bonus = base.min(p.rested);
         p.rested -= bonus;

@@ -362,7 +362,11 @@ impl State {
         if p.combat_until > Instant::now() {
             return self.tell(pid, "You cannot leave in the middle of a fight.");
         }
-        if ride.area.as_ref().is_some_and(|a| !p.discovered.contains(a)) {
+        if ride
+            .area
+            .as_ref()
+            .is_some_and(|a| !p.discovered.contains(a))
+        {
             return self.tell(
                 pid,
                 "You have not found that place yet. Walk there once, and the ride is yours.",
