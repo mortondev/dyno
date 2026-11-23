@@ -331,6 +331,15 @@ impl Remote {
         self.at = Instant::now();
     }
 
+    /// Velocity in blocks per second, from the last two poses (zero once
+    /// they go stale).
+    pub fn velocity(&self) -> glam::Vec3 {
+        if self.at.elapsed().as_secs_f32() > 0.2 {
+            return glam::Vec3::ZERO;
+        }
+        (glam::Vec3::from(self.to.pos) - glam::Vec3::from(self.from.pos)) / 0.05
+    }
+
     /// Horizontal speed in blocks per second.
     pub fn speed(&self) -> f32 {
         let d = [

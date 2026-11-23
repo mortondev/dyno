@@ -14,3 +14,8 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 tungstenite = "0.30.0"
 ureq = { version = "3.5.2", features = ["json"] }
+postcard = { version = "1.2.0", features = ["use-std"] }
+protobuf = "2.28.0"
+raft = "0.7.0"
+sha2 = "0.11.1"
+slog = "2.8.2"

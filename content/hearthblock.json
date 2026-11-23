@@ -1,6 +1,6 @@
 {
  "name": "Hearthblock Online",
- "version": 7,
+ "version": 8,
  "items": [
   {
    "key": "stick",
@@ -3332,6 +3332,27 @@
     8
    ],
    "greeting": "Something lit candles down in the Hollow. Something that isn't us."
+  },
+  {
+   "key": "ansel",
+   "name": "Corporal Ansel",
+   "title": "Ashcloak Stockade",
+   "color": [
+    0.3,
+    0.36,
+    0.55
+   ],
+   "at": [
+    62,
+    -10,
+    64
+   ],
+   "greeting": "With Rook Varn dead, the Watch holds this stockade. The East Road breathes again, thanks to you.",
+   "phase": "stockade_taken",
+   "sells": [
+    "hearth_bread",
+    "miners_stew"
+   ]
   }
  ],
  "quests": [
@@ -5410,7 +5431,8 @@
      ],
      "spread": 2,
      "respawn": 600,
-     "y": -11
+     "y": -11,
+     "phase": "!warden_rests"
     }
    ]
   },
@@ -5569,7 +5591,8 @@
       67
      ],
      "spread": 9,
-     "respawn": 120
+     "respawn": 120,
+     "phase": "!stockade_taken"
     },
     {
      "creature": "ashcloak_leader",
@@ -5579,7 +5602,8 @@
       63
      ],
      "spread": 4,
-     "respawn": 240
+     "respawn": 240,
+     "phase": "!stockade_taken"
     },
     {
      "creature": "rook_varn",
@@ -5589,7 +5613,8 @@
       61
      ],
      "spread": 1,
-     "respawn": 600
+     "respawn": 600,
+     "phase": "!stockade_taken"
     },
     {
      "creature": "ashcloak",
@@ -5682,9 +5707,24 @@
      ],
      "spread": 1,
      "respawn": 1200,
-     "y": -30
+     "y": -30,
+     "phase": "!foreman_slain"
     }
    ]
+  }
+ ],
+ "phases": [
+  {
+   "key": "stockade_taken",
+   "done": "rook_varn"
+  },
+  {
+   "key": "warden_rests",
+   "done": "barrow_warden"
+  },
+  {
+   "key": "foreman_slain",
+   "done": "hollow_foreman"
   }
  ]
 }

@@ -299,6 +299,7 @@ impl State {
 
     /// Apply an ability's effects and pay for it.
     fn resolve(&mut self, id: PlayerId, a: &Ability, target: Option<u32>) {
+        let my_phases = self.players.get(&id).map(|p| p.phases).unwrap_or(0);
         let now = Instant::now();
         let Some(p) = self.players.get_mut(&id) else {
             return;
@@ -387,7 +388,9 @@ impl State {
             hits = self
                 .entities
                 .iter()
-                .filter(|(_, e)| e.mob.is_some() && dist(e.pos, center) <= a.radius)
+                .filter(|(i, e)| {
+                    e.mob.is_some() && dist(e.pos, center) <= a.radius && self.sees(my_phases, **i)
+                })
                 .map(|(i, _)| *i)
                 .collect();
             self.broadcast(
@@ -564,6 +567,7 @@ impl State {
         let Some(mob) = e.mob.as_mut() else { return };
         mob.health -= amount;
         mob.last_hit = Some((pid, now));
+        mob.tag.get_or_insert(pid);
         mob.target = Some(pid);
         if mob.evading {
             return;

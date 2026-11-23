@@ -19,6 +19,7 @@ fn start_server(dir: &std::path::Path) -> dyno_server::Handle {
         world_path: dir.join("world.dynw"),
         world_size: [48, 48, 48],
         content_path: Some(survival),
+        trust_movement: true,
         ..Default::default()
     };
     dyno_server::start(cfg).expect("server starts")
@@ -97,6 +98,7 @@ fn night_brings_shades() {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [192, 48, 192],
+        trust_movement: true,
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
@@ -455,6 +457,7 @@ fn quests_give_xp_and_rewards() {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [96, 48, 96],
+        trust_movement: true,
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
@@ -468,7 +471,7 @@ fn quests_give_xp_and_rewards() {
     let mut level = 0;
     let end = Instant::now() + Duration::from_secs(5);
     while Instant::now() < end
-        && (npcs.len() < c.npcs.len()
+        && (npcs.len() < c.npcs.iter().filter(|n| n.phase.is_none()).count()
             || level == 0
             || count(&pack, c.item_by_key("wooden_pickaxe").unwrap()) == 0)
     {
@@ -488,7 +491,11 @@ fn quests_give_xp_and_rewards() {
         }
     }
     assert_eq!(level, 1);
-    assert_eq!(npcs.len(), c.npcs.len(), "every NPC stands in the world");
+    assert_eq!(
+        npcs.len(),
+        c.npcs.iter().filter(|n| n.phase.is_none()).count(),
+        "every unphased NPC stands in the world"
+    );
     assert_eq!(
         count(&pack, c.item_by_key("wooden_pickaxe").unwrap()),
         1,
@@ -867,6 +874,7 @@ fn corpses_are_looted_and_merchants_sell() {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [96, 48, 96],
+        trust_movement: true,
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
@@ -997,6 +1005,416 @@ fn corpses_are_looted_and_merchants_sell() {
     let pick = c.item_by_key("iron_pickaxe").unwrap();
     let hollis = c.npcs.iter().find(|n| n.key == "hollis").unwrap();
     assert!(hollis.sells.iter().any(|(i, _)| *i == pick));
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Two players stand side by side; the one whose story has moved on sees a
+/// different world (phasing), and cannot touch what the other sees.
+#[test]
+fn phasing_shows_each_player_their_own_world() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-phase-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "hero", 901, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "other", 902, false, Duration::from_secs(5)).expect("join");
+    let c = a.content.clone();
+    let ansel = c.npcs.iter().find(|n| n.key == "ansel").unwrap().id;
+    let (mut pa, mut pb) = (vec![None; 36], vec![None; 36]);
+    // nobody has finished Rook Varn: nobody sees Corporal Ansel
+    let saw = |j: &Joined, pack: &mut Vec<Option<Stack>>, secs: f32| {
+        wait_opt(j, pack, secs, |m| match m {
+            ServerMsg::EntitySpawn {
+                id,
+                kind: EntityKind::Npc(n),
+                ..
+            } if *n == ansel => Some(*id),
+            _ => None,
+        })
+    };
+    assert_eq!(saw(&a, &mut pa, 1.0), None);
+    // the first player (the owner) finishes it: Ansel appears for them alone
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/finish rook_varn".into(),
+        },
+    );
+    let id = saw(&a, &mut pa, 3.0).expect("the phase shows Ansel");
+    assert_eq!(
+        saw(&b, &mut pb, 1.0),
+        None,
+        "the other player is not in the phase"
+    );
+    // the other cannot talk to someone they cannot see
+    send(&b, ClientMsg::Talk { entity: id });
+    let talked = wait_opt(&b, &mut pb, 1.0, |m| {
+        matches!(m, ServerMsg::Dialog { .. }).then_some(())
+    });
+    assert_eq!(talked, None);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Shards: a full copy of the world opens another; a party is drawn
+/// together; nobody reconnects or reloads.
+#[test]
+fn shards_fill_split_and_parties_meet() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-shards-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        shard_cap: 2,
+        area_cap: 100,
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "ada", 1001, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "bo", 1002, false, Duration::from_secs(5)).expect("join");
+    let c = net::connect(&addr, "cy", 1003, false, Duration::from_secs(5)).expect("join");
+    assert_eq!(
+        server.server.shard_count(),
+        2,
+        "the third player opens a second shard"
+    );
+    let (mut pa, mut pb, mut pc) = (vec![None; 36], vec![None; 36], vec![None; 36]);
+    // in different shards, they cannot see each other
+    let mut b_sees_c = false;
+    wait_opt(&b, &mut pb, 0.5, |m| {
+        if let ServerMsg::PlayerJoined(i) = m
+            && i.name == "cy"
+        {
+            b_sees_c = true;
+        }
+        None::<()>
+    });
+    assert!(!b_sees_c);
+    // ada invites cy (across shards); cy accepts and is drawn into ada's shard
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/invite cy".into(),
+        },
+    );
+    wait(&c, &mut pc, 3.0, |m, _| {
+        matches!(m, ServerMsg::Invite { from } if from == "ada").then_some(())
+    });
+    send(
+        &c,
+        ClientMsg::Chat {
+            text: "/accept".into(),
+        },
+    );
+    let (shard, names) = wait(&c, &mut pc, 8.0, |m, _| match m {
+        ServerMsg::Shard { shard, players, .. } => Some((
+            *shard,
+            players.iter().map(|p| p.name.clone()).collect::<Vec<_>>(),
+        )),
+        _ => None,
+    });
+    assert_eq!(shard, 0);
+    assert!(names.contains(&"ada".to_string()), "{names:?}");
+    // the party frames list both
+    let party = wait(&a, &mut pa, 3.0, |m, _| match m {
+        ServerMsg::Party { members } if members.len() == 2 => Some(members.clone()),
+        _ => None,
+    });
+    assert!(party[0].leader && party[0].name == "ada");
+    // still connected: cy can act in the new shard
+    send(
+        &c,
+        ClientMsg::Chat {
+            text: "/who".into(),
+        },
+    );
+    wait(&c, &mut pc, 3.0, |m, _| match m {
+        ServerMsg::System { text } if text.starts_with("3 online") => Some(()),
+        _ => None,
+    });
+    // the second shard empties and closes after a while (not waited for here)
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Crowding is managed per area, not just per world: too many people in one
+/// place are spread across copies of that place.
+#[test]
+fn crowded_areas_are_spread_across_shards() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-areas-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        shard_cap: 40,
+        area_cap: 1,
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "ada", 2001, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "bo", 2002, false, Duration::from_secs(5)).expect("join");
+    assert_eq!(
+        server.server.shard_count(),
+        1,
+        "plenty of room in the world"
+    );
+    let (mut pa, mut pb) = (vec![None; 36], vec![None; 36]);
+    // both stand in town: one of them (the later arrival) is moved
+    let moved = wait(&b, &mut pb, 10.0, |m, _| match m {
+        ServerMsg::Shard { shard, .. } => Some(*shard),
+        _ => None,
+    });
+    assert_ne!(moved, 0);
+    assert_eq!(server.server.shard_count(), 2);
+    let a_moved = wait_opt(&a, &mut pa, 0.5, |m| {
+        matches!(m, ServerMsg::Shard { .. }).then_some(())
+    });
+    assert_eq!(a_moved, None, "the first arrival stays");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The server keeps movement honest: walking is fine, teleporting and
+/// flying put you back where you stood.
+#[test]
+fn cheating_movement_is_put_back() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-moves-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let j = net::connect(&addr, "mover", 3001, false, Duration::from_secs(5)).expect("join");
+    let mut pack = vec![None; 36];
+    let start = j.spawn;
+    std::thread::sleep(Duration::from_millis(300));
+    // a short step is accepted: no correction comes back
+    pose(&j, [start[0] + 0.4, start[1], start[2]]);
+    let fixed = wait_opt(&j, &mut pack, 0.6, |m| {
+        matches!(m, ServerMsg::Teleport { .. }).then_some(())
+    });
+    assert_eq!(fixed, None, "walking is fine");
+    // a 40-block jump is refused and the player is put back
+    pose(&j, [start[0] + 40.0, start[1], start[2]]);
+    let back = wait(&j, &mut pack, 2.0, |m, _| match m {
+        ServerMsg::Teleport { pos } => Some(*pos),
+        _ => None,
+    });
+    assert!(
+        (back[0] - start[0]).abs() < 2.0,
+        "put back near the start: {back:?}"
+    );
+    // hanging high in the air for seconds is flying: back to the ground
+    std::thread::sleep(Duration::from_millis(1500));
+    let mut at = [start[0] + 0.4, start[1], start[2]];
+    let mut grounded = None;
+    for _ in 0..30 {
+        std::thread::sleep(Duration::from_millis(150));
+        if at[1] < start[1] + 8.0 {
+            at[1] += 1.0;
+        }
+        pose(&j, at);
+        if let Some(p) = wait_opt(&j, &mut pack, 0.02, |m| match m {
+            ServerMsg::Teleport { pos } => Some(*pos),
+            _ => None,
+        }) {
+            grounded = Some(p);
+            break;
+        }
+    }
+    let g = grounded.expect("flying is noticed");
+    assert!(g[1] < start[1] + 3.0, "put back on the ground: {g:?}");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Fighting together pays: a party member nearby shares the kill (XP with a
+/// group bonus, quest credit) and may loot the body.
+#[test]
+fn parties_share_kills_and_loot() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-share-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "ada", 4001, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "bo", 4002, false, Duration::from_secs(5)).expect("join");
+    let (mut pa, mut pb) = (vec![None; 36], vec![None; 36]);
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/invite bo".into(),
+        },
+    );
+    wait(&b, &mut pb, 3.0, |m, _| {
+        matches!(m, ServerMsg::Invite { .. }).then_some(())
+    });
+    send(
+        &b,
+        ClientMsg::Chat {
+            text: "/accept".into(),
+        },
+    );
+    wait(&a, &mut pa, 3.0, |m, _| match m {
+        ServerMsg::Party { members } if members.len() == 2 => Some(()),
+        _ => None,
+    });
+    // the shards learn the party within a second
+    std::thread::sleep(Duration::from_millis(1300));
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/summon thornboar".into(),
+        },
+    );
+    wait(&a, &mut pa, 3.0, |m, _| {
+        matches!(
+            m,
+            ServerMsg::EntitySpawn {
+                kind: EntityKind::Creature(_),
+                ..
+            }
+        )
+        .then_some(())
+    });
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/slay".into(),
+        },
+    );
+    let mut corpse = None;
+    let xp_b = wait(&b, &mut pb, 3.0, |m, _| match m {
+        ServerMsg::EntitySpawn {
+            id,
+            kind: EntityKind::Corpse { .. },
+            ..
+        } => {
+            corpse = Some(*id);
+            None
+        }
+        ServerMsg::Gain { xp, .. } if *xp > 0 => Some(*xp),
+        _ => None,
+    });
+    assert!(xp_b > 0, "the party member shares the kill");
+    // and may open the body (it is the party's, not just the killer's)
+    let corpse = corpse.expect("the body lies there");
+    send(
+        &b,
+        ClientMsg::Loot {
+            id: corpse,
+            all: false,
+        },
+    );
+    let refused = wait_opt(&b, &mut pb, 1.5, |m| match m {
+        ServerMsg::System { text } if text.contains("not yours") => Some(()),
+        _ => None,
+    });
+    assert_eq!(refused, None);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Two players trade: items and coins change hands only when both accept.
+#[test]
+fn players_trade_items_and_coins() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-trade-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "ada", 5001, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "bo", 5002, false, Duration::from_secs(5)).expect("join");
+    let c = a.content.clone();
+    let (mut pa, mut pb) = (vec![None; 36], vec![None; 36]);
+    let tusk = c.item_by_key("boar_tusk").unwrap();
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/give boar_tusk 3".into(),
+        },
+    );
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/money 50".into(),
+        },
+    );
+    let slot = wait(&a, &mut pa, 3.0, |m, p| {
+        matches!(m, ServerMsg::Pack(_))
+            .then(|| p.iter().position(|s| s.is_some_and(|s| s.item == tusk)))
+            .flatten()
+    });
+    let bo = b.your_id;
+    send(&a, ClientMsg::Trade(dyno_protocol::TradeOp::Ask(bo)));
+    wait(&b, &mut pb, 3.0, |m, _| {
+        matches!(m, ServerMsg::TradeAsk { .. }).then_some(())
+    });
+    send(&b, ClientMsg::Trade(dyno_protocol::TradeOp::Agree));
+    // the window opens for both
+    wait(&a, &mut pa, 3.0, |m, _| {
+        matches!(m, ServerMsg::Trade(Some(_))).then_some(())
+    });
+    send(
+        &a,
+        ClientMsg::Trade(dyno_protocol::TradeOp::Offer {
+            slot: slot as u8,
+            count: 2,
+        }),
+    );
+    send(&a, ClientMsg::Trade(dyno_protocol::TradeOp::Money(20)));
+    wait(&b, &mut pb, 3.0, |m, _| match m {
+        ServerMsg::Trade(Some(v)) if v.their_money == 20 && !v.theirs.is_empty() => Some(()),
+        _ => None,
+    });
+    // one side accepting is not enough
+    send(&a, ClientMsg::Trade(dyno_protocol::TradeOp::Accept));
+    wait(&b, &mut pb, 3.0, |m, _| match m {
+        ServerMsg::Trade(Some(v)) if v.they_accept => Some(()),
+        _ => None,
+    });
+    assert_eq!(count(&pb, tusk), 0);
+    send(&b, ClientMsg::Trade(dyno_protocol::TradeOp::Accept));
+    wait(&b, &mut pb, 3.0, |m, p| {
+        matches!(m, ServerMsg::Pack(_))
+            .then_some(())
+            .filter(|_| count(p, tusk) == 2)
+    });
+    let money_b = wait(&b, &mut pb, 3.0, |m, _| match m {
+        ServerMsg::Character { money, .. } => Some(*money),
+        _ => None,
+    });
+    assert_eq!(money_b, 20);
+    wait(&a, &mut pa, 3.0, |m, p| {
+        matches!(m, ServerMsg::Pack(_))
+            .then_some(())
+            .filter(|_| count(p, tusk) == 1)
+    });
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

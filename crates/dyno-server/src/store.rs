@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 /// A saved stack: item key, count, wear.
 pub type SavedStack = (String, u8, u16);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PlayerData {
     #[serde(default)]
     pub token: u64,

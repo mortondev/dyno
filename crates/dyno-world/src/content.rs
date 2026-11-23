@@ -335,6 +335,18 @@ pub struct Npc {
     /// what they sell, and the price in copper
     #[serde(default)]
     pub sells: Vec<(ItemId, u32)>,
+    /// shown only in (true) or out of (false) a phase
+    #[serde(default)]
+    pub phase: Option<(u8, bool)>,
+}
+
+/// A phase: a way the world looks to you once your story has moved it on.
+/// Two players side by side can see different things.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Phase {
+    pub key: String,
+    /// you are in the phase once you have finished this quest
+    pub done: u16,
 }
 
 /// One thing a quest asks for.
@@ -551,6 +563,8 @@ pub struct Content {
     pub professions: Vec<Profession>,
     #[serde(default)]
     pub areas: Vec<Area>,
+    #[serde(default)]
+    pub phases: Vec<Phase>,
 }
 
 /// A named place on the map: its name shows when you enter, and it holds
@@ -574,6 +588,9 @@ pub struct Area {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Camp {
     pub creature: u16,
+    /// shown only in (true) or out of (false) a phase
+    #[serde(default)]
+    pub phase: Option<(u8, bool)>,
     /// spawn points in the camp (around its centre)
     pub count: u8,
     /// centre (x, z) relative to the spawn hearth; spawn points scatter within `spread`
@@ -635,6 +652,14 @@ struct AFile {
     professions: Vec<Profession>,
     #[serde(default)]
     areas: Vec<AArea>,
+    #[serde(default)]
+    phases: Vec<APhase>,
+}
+
+#[derive(Deserialize)]
+struct APhase {
+    key: String,
+    done: String,
 }
 
 #[derive(Deserialize)]
@@ -663,6 +688,8 @@ struct ACamp {
     rare: Option<Rare>,
     #[serde(default)]
     y: Option<i32>,
+    #[serde(default)]
+    phase: Option<String>,
 }
 
 fn five_min() -> u16 {
@@ -737,6 +764,9 @@ struct ANpc {
     /// item keys, each optionally with a price: "cooked_meat:25"
     #[serde(default)]
     sells: Vec<String>,
+    /// "key" to show only in a phase, "!key" only outside it
+    #[serde(default)]
+    phase: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -1074,6 +1104,22 @@ impl Content {
                 aggro: c.aggro,
             });
         }
+        let phase_of = |v: &Option<String>| -> Result<Option<(u8, bool)>, String> {
+            let Some(v) = v else { return Ok(None) };
+            let (key, inside) = match v.strip_prefix('!') {
+                Some(k) => (k, false),
+                None => (v.as_str(), true),
+            };
+            let i = f
+                .phases
+                .iter()
+                .position(|p| p.key == key)
+                .ok_or_else(|| format!("unknown phase '{key}'"))?;
+            if i >= 64 {
+                return Err("at most 64 phases".into());
+            }
+            Ok(Some((i as u8, inside)))
+        };
         let mut npcs: Vec<Npc> = Vec::new();
         for (i, n) in f.npcs.iter().enumerate() {
             let mut sells = Vec::new();
@@ -1102,6 +1148,7 @@ impl Content {
                 at: n.at,
                 greeting: n.greeting.clone(),
                 sells,
+                phase: phase_of(&n.phase)?,
             });
         }
         let npc = |k: &str| -> Result<u16, String> {
@@ -1266,6 +1313,7 @@ impl Content {
                     })?;
                 camps.push(Camp {
                     creature: id,
+                    phase: phase_of(&c.phase)?,
                     count: c.count,
                     at: c.at,
                     spread: c.spread,
@@ -1284,8 +1332,21 @@ impl Content {
                 camps,
             });
         }
+        let mut phases = Vec::new();
+        for p in &f.phases {
+            let done = quests
+                .iter()
+                .find(|q| q.key == p.done)
+                .map(|q| q.id)
+                .ok_or_else(|| format!("phase '{}': unknown quest '{}'", p.key, p.done))?;
+            phases.push(Phase {
+                key: p.key.clone(),
+                done,
+            });
+        }
         Ok(Content {
             areas,
+            phases,
             professions: f.professions,
             classes,
             abilities,

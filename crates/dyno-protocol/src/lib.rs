@@ -37,6 +37,75 @@ pub enum EntityKind {
     Corpse { creature: u16, loot: bool },
 }
 
+/// A member of your party, as the frames show them.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PartyMember {
+    pub name: String,
+    pub level: u8,
+    pub class: Option<u16>,
+    pub health: f32,
+    pub max: f32,
+    pub online: bool,
+    pub leader: bool,
+}
+
+/// A step in trading with another player.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum TradeOp {
+    /// ask a player (by id) to trade
+    Ask(PlayerId),
+    /// open the window with whoever asked you
+    Agree,
+    /// put a bag slot on the table (count 0: the whole stack)
+    Offer {
+        slot: u8,
+        count: u8,
+    },
+    /// take a line back off the table
+    Withdraw {
+        line: u8,
+    },
+    /// coins on the table
+    Money(u32),
+    /// happy with both sides (anything changing clears it)
+    Accept,
+    Cancel,
+}
+
+/// The trade window: what each side has put on the table.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TradeView {
+    pub with: String,
+    pub mine: Vec<Stack>,
+    pub theirs: Vec<Stack>,
+    pub my_money: u32,
+    pub their_money: u32,
+    pub i_accept: bool,
+    pub they_accept: bool,
+}
+
+/// Who did something.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum Actor {
+    Player(PlayerId),
+    Entity(u32),
+}
+
+/// A visible action, for animation.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum Act {
+    /// a melee swing
+    Swing,
+    /// a bow shot or thrown weapon
+    Shoot,
+    /// starts casting `ability` for `time` seconds (0: instant)
+    CastStart { ability: u16, time: f32 },
+    /// stops casting (`done`: it went off)
+    CastEnd { done: bool },
+    /// an emote: 0 wave, 1 bow, 2 cheer, 3 point, 4 sit, 5 stand
+    Emote(u8),
+}
+
 /// One quest in a player's log: counts per objective.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QuestProgress {
@@ -53,7 +122,7 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 13;
+pub const PROTOCOL_VERSION: u32 = 14;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -237,6 +306,8 @@ pub enum ClientMsg {
         item: u16,
         count: u8,
     },
+    /// Trading with another player.
+    Trade(TradeOp),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -538,6 +609,33 @@ pub enum ServerMsg {
     Rested {
         pool: u32,
     },
+    /// You moved to another copy (shard) of the world without leaving it:
+    /// forget every creature, NPC and player you knew; these are the people
+    /// here now, and the blocks that differ from where you were.
+    Shard {
+        shard: u32,
+        players: Vec<PlayerInfo>,
+        blocks: Vec<([i32; 3], u8)>,
+    },
+    /// Your party (empty: you are not in one).
+    Party {
+        members: Vec<PartyMember>,
+    },
+    /// Someone asks you to join their party ("/accept" or "/decline").
+    Invite {
+        from: String,
+    },
+    /// Someone or something does something visible: swings, shoots, casts, emotes.
+    Act {
+        actor: Actor,
+        act: Act,
+    },
+    /// Someone asks to trade with you.
+    TradeAsk {
+        from: String,
+    },
+    /// The trade window (None: it closed).
+    Trade(Option<TradeView>),
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

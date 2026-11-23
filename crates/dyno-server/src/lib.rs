@@ -7,15 +7,21 @@
 
 pub mod abilities;
 pub mod camps;
+pub mod cluster;
+mod clustered;
 pub mod creatures;
 pub mod events;
 pub mod game;
 pub mod gear;
 pub mod loot;
 pub mod migrate;
+pub mod movement;
+pub mod party;
 pub mod professions;
 pub mod rpg;
+pub mod shard;
 pub mod store;
+pub mod trade;
 
 use dyno_protocol::{self as proto, ClientMsg, Mode, PlayerId, Pose, ServerMsg};
 use dyno_sim::rng::Rng;
@@ -26,9 +32,9 @@ use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::{Receiver, channel};
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 use tungstenite::protocol::WebSocketConfig;
 use tungstenite::{Message, WebSocket};
@@ -71,6 +77,16 @@ pub struct Config {
     pub ops: Vec<String>,
     /// Discord webhook URL for milestones, deaths and days (optional)
     pub webhook: Option<String>,
+    /// players per shard before another copy of the world opens (RPG worlds)
+    pub shard_cap: usize,
+    /// players in one area of one shard before newcomers there are spread out
+    pub area_cap: usize,
+    /// most shards one server runs
+    pub max_shards: usize,
+    /// accept any movement from clients (tests only)
+    pub trust_movement: bool,
+    /// run as one instance of a cluster (absent: a stand-alone server)
+    pub cluster: Option<cluster::ClusterConfig>,
 }
 
 impl Default for Config {
@@ -86,14 +102,74 @@ impl Default for Config {
             content_path: None,
             ops: Vec::new(),
             webhook: None,
+            shard_cap: 40,
+            area_cap: 16,
+            max_shards: 16,
+            trust_movement: false,
+            cluster: None,
         }
     }
 }
 
+/// One copy of the world and the players in it.
+pub struct ShardHost {
+    pub id: u32,
+    pub state: Mutex<State>,
+    empty_since: Mutex<Option<Instant>>,
+}
+
+/// Where a connected player is, and how to reach them.
+#[derive(Clone)]
+struct Route {
+    shard: u32,
+    name: String,
+    tx: Sender<Arc<Vec<u8>>>,
+    /// the client connection (on the edge that holds it)
+    conn: u64,
+    /// relayed players: the edge instance that holds the client
+    edge: Option<cluster::machine::NodeId>,
+}
+
+/// A relayed client: the edge instance and its connection number.
+type RelayKey = (cluster::machine::NodeId, u64);
+
 pub struct Server {
     cfg: Config,
-    state: Mutex<State>,
     stop: AtomicBool,
+    shards: RwLock<Vec<Arc<ShardHost>>>,
+    routes: Mutex<HashMap<PlayerId, Route>>,
+    /// names being joined right now (one character, one place)
+    joining: Mutex<std::collections::HashSet<String>>,
+    parties: Mutex<party::Parties>,
+    /// the world as built at start: every new shard is a copy of it
+    base: World,
+    next_shard: AtomicU32,
+    /// the latest view of every player, for the balancer and party frames
+    snaps: Mutex<Vec<shard::Snap>>,
+    /// when each player last spoke in a world channel (one line a second)
+    channel_at: Mutex<HashMap<PlayerId, Instant>>,
+    rpg: bool,
+    /// cluster mode: the quorum and everything that spans instances
+    cluster: Option<Arc<cluster::Cluster>>,
+    /// cluster mode: epochs of the characters this instance hosts
+    epochs: Mutex<HashMap<String, u64>>,
+    /// edge side: client connections whose player lives on another instance
+    relays_out: Mutex<HashMap<u64, clustered::EdgeRelay>>,
+    /// host side: players relayed from another instance's edge
+    hosted: Mutex<HashMap<(cluster::machine::NodeId, u64), PlayerId>>,
+    /// host side: one ordered queue per relayed client (never block the link)
+    relay_in: Mutex<HashMap<RelayKey, Sender<Vec<u8>>>>,
+    next_conn: std::sync::atomic::AtomicU64,
+    /// connections to end (fenced, signed in elsewhere)
+    kicked: Mutex<std::collections::HashSet<u64>>,
+    /// out of contact with the quorum: serve no one
+    fenced: AtomicBool,
+    /// running a different version from the cluster: take no one new
+    draining: AtomicBool,
+    adoptions: cluster::link::Waiters<Result<(), String>>,
+    relay_opens: cluster::link::Waiters<Result<(), String>>,
+    /// the base world, as served to instances that join
+    base_bytes: Vec<u8>,
 }
 
 /// A running server. Dropping it does not stop it; call `stop`.
@@ -108,6 +184,23 @@ impl Handle {
         self.server.stop.store(true, Ordering::SeqCst);
         let _ = TcpStream::connect_timeout(&self.local_addr, Duration::from_millis(200));
         self.server.save();
+        if let Some(c) = &self.server.cluster {
+            c.stop();
+        }
+    }
+
+    /// Stop at once, like a crash: no save, no goodbyes (tests).
+    pub fn kill(&self) {
+        self.server.stop.store(true, Ordering::SeqCst);
+        if let Some(c) = &self.server.cluster {
+            c.stop();
+        }
+        let _ = TcpStream::connect_timeout(&self.local_addr, Duration::from_millis(200));
+    }
+
+    /// The cluster this instance belongs to, if any.
+    pub fn cluster(&self) -> Option<Arc<cluster::Cluster>> {
+        self.server.cluster.clone()
     }
 }
 
@@ -124,6 +217,41 @@ fn load_content(path: &Option<PathBuf>) -> Result<Content, String> {
 /// Start the server in background threads and return at once.
 pub fn start(cfg: Config) -> std::io::Result<Handle> {
     let content = load_content(&cfg.content_path).map_err(std::io::Error::other)?;
+    // cluster mode: join (or found) the cluster first; a new instance takes
+    // the base world from the cluster, checked against its hash
+    let cluster = match &cfg.cluster {
+        Some(cc) => {
+            let me = cluster::Load {
+                protocol: proto::PROTOCOL_VERSION,
+                content: format!("{} v{}", content.name, content.version),
+                version: env!("CARGO_PKG_VERSION").into(),
+                capacity: (cfg.shard_cap.max(1) * cfg.max_shards.max(1)) as u32,
+                ..Default::default()
+            };
+            let c = cluster::Cluster::start(cc.clone(), me).map_err(std::io::Error::other)?;
+            log(format!(
+                "Cluster: this is instance {} ({})",
+                c.id(),
+                if c.founder { "founder" } else { "member" }
+            ));
+            let base_file = cc.dir.join("base.dynw");
+            if !c.founder && !base_file.exists() {
+                let bytes = c.fetch_world().map_err(std::io::Error::other)?;
+                std::fs::write(&base_file, &bytes)?;
+                if !cfg.world_path.exists() {
+                    if let Some(d) = cfg.world_path.parent() {
+                        std::fs::create_dir_all(d)?;
+                    }
+                    World::decode(&bytes)
+                        .map_err(std::io::Error::other)?
+                        .save(&cfg.world_path)?;
+                }
+                log("Cluster: fetched the base world and checked its hash");
+            }
+            Some(c)
+        }
+        None => None,
+    };
     let mut world = match World::load(&cfg.world_path) {
         Ok(w) => {
             log(format!(
@@ -215,16 +343,17 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         content,
         players: HashMap::new(),
         observers: HashMap::new(),
-        next_id: 1,
+        next_id: Arc::new(std::sync::atomic::AtomicU32::new(1)),
         dirty: false,
-        saved,
-        containers,
+        saved: Arc::new(Mutex::new(saved)),
+        containers: Arc::new(Mutex::new(containers)),
         entities: HashMap::new(),
         next_entity: 1,
         rng: Rng::new(cfg.seed as u64 ^ 0x5eed_1234),
         clock: if meta.day == 0 { 0.02 } else { meta.clock },
         day: meta.day.max(1),
         default_mode: cfg.default_mode,
+        trust_movement: cfg.trust_movement,
         ops: cfg.ops.clone(),
         owner: meta.owner,
         light,
@@ -238,17 +367,91 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         zone_clock: 0.0,
         depleted: HashMap::new(),
         incursion: None,
+        next_phase: None,
+        shard: 0,
+        trades: Default::default(),
+        trade_asks: Default::default(),
         corpses: Default::default(),
         rested_clock: 0.0,
         weather: (0, 0.0, 240.0),
     };
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
     state.spawn_npcs();
+    let rpg = state.content.world.protected;
+    // the base world every shard copies; in a cluster it is fixed at founding
+    let (base, base_bytes) = match (&cluster, &cfg.cluster) {
+        (Some(c), Some(cc)) => {
+            let file = cc.dir.join("base.dynw");
+            let bytes = match std::fs::read(&file) {
+                Ok(b) => b,
+                Err(_) => {
+                    let b = state.world.encode();
+                    std::fs::write(&file, &b)?;
+                    b
+                }
+            };
+            let hash = cluster::sha256_hex(&bytes);
+            if c.founder {
+                let _ = c.propose(
+                    cluster::machine::Cmd::WorldHash { hash: hash.clone() },
+                    Duration::from_secs(5),
+                );
+                // bring this server's characters into the cluster (once)
+                let players: Vec<(String, store::PlayerData)> = state
+                    .saved
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone()))
+                    .collect();
+                let _ = c.propose(
+                    cluster::machine::Cmd::Import { players },
+                    Duration::from_secs(10),
+                );
+            }
+            let want = c.shared.machine.read().unwrap().world_hash.clone();
+            if want.as_ref().is_some_and(|w| *w != hash) {
+                return Err(std::io::Error::other(
+                    "this instance's base world does not match the cluster's",
+                ));
+            }
+            let w = World::decode(&bytes).map_err(std::io::Error::other)?;
+            (w, bytes)
+        }
+        _ => (state.world.clone(), Vec::new()),
+    };
     let server = Arc::new(Server {
         cfg,
-        state: Mutex::new(state),
         stop: AtomicBool::new(false),
+        shards: RwLock::new(vec![Arc::new(ShardHost {
+            id: 0,
+            state: Mutex::new(state),
+            empty_since: Mutex::new(None),
+        })]),
+        routes: Mutex::new(HashMap::new()),
+        joining: Mutex::new(Default::default()),
+        parties: Mutex::new(Default::default()),
+        base,
+        next_shard: AtomicU32::new(1),
+        snaps: Mutex::new(Vec::new()),
+        channel_at: Mutex::new(HashMap::new()),
+        rpg,
+        cluster: cluster.clone(),
+        epochs: Mutex::new(HashMap::new()),
+        relays_out: Mutex::new(HashMap::new()),
+        hosted: Mutex::new(HashMap::new()),
+        relay_in: Mutex::new(HashMap::new()),
+        next_conn: std::sync::atomic::AtomicU64::new(1),
+        kicked: Mutex::new(Default::default()),
+        fenced: AtomicBool::new(false),
+        draining: AtomicBool::new(false),
+        adoptions: Default::default(),
+        relay_opens: Default::default(),
+        base_bytes,
     });
+    if server.cluster.is_some() {
+        clustered::attach(&server);
+    }
     log(format!(
         "Dyno server {} listening on {local_addr} (protocol {})",
         env!("CARGO_PKG_VERSION"),
@@ -298,22 +501,597 @@ fn send(ws: &mut WebSocket<TcpStream>, msg: &ServerMsg) -> Result<(), String> {
 
 impl Server {
     pub fn player_count(&self) -> usize {
-        self.state.lock().unwrap().players.len()
+        self.shard_list()
+            .iter()
+            .map(|s| s.state.lock().unwrap().players.len())
+            .sum()
+    }
+
+    /// How many shards are open.
+    pub fn shard_count(&self) -> usize {
+        self.shards.read().unwrap().len()
     }
 
     /// Send a system message to everyone.
     pub fn announce(&self, text: &str) {
-        self.state.lock().unwrap().broadcast(
-            &ServerMsg::System {
-                text: text.to_string(),
-            },
-            None,
-        );
+        for sh in self.shard_list() {
+            sh.state.lock().unwrap().broadcast(
+                &ServerMsg::System {
+                    text: text.to_string(),
+                },
+                None,
+            );
+        }
+    }
+
+    fn shard_list(&self) -> Vec<Arc<ShardHost>> {
+        self.shards.read().unwrap().clone()
+    }
+
+    fn shard(&self, sid: u32) -> Option<Arc<ShardHost>> {
+        self.shards
+            .read()
+            .unwrap()
+            .iter()
+            .find(|s| s.id == sid)
+            .cloned()
+    }
+
+    fn main_shard(&self) -> Arc<ShardHost> {
+        self.shards.read().unwrap()[0].clone()
+    }
+
+    fn shard_of(&self, id: PlayerId) -> Option<Arc<ShardHost>> {
+        let sid = self.routes.lock().unwrap().get(&id)?.shard;
+        self.shard(sid)
+    }
+
+    /// Players per shard before another opens.
+    fn cap(&self) -> usize {
+        if self.rpg {
+            self.cfg.shard_cap.max(1)
+        } else {
+            usize::MAX
+        }
+    }
+
+    fn population(&self) -> HashMap<u32, usize> {
+        let mut pop: HashMap<u32, usize> = self.shard_list().iter().map(|s| (s.id, 0)).collect();
+        for r in self.routes.lock().unwrap().values() {
+            *pop.entry(r.shard).or_default() += 1;
+        }
+        pop
+    }
+
+    /// The shard a joining player goes to: their party's, else the fullest
+    /// one with room (busy worlds are fun), else a new one.
+    fn place(&self, name: &str) -> Arc<ShardHost> {
+        let cap = self.cap();
+        let pop = self.population();
+        let members = self.parties.lock().unwrap().members(name);
+        {
+            let routes = self.routes.lock().unwrap();
+            for m in &members {
+                if let Some(r) = routes.values().find(|r| r.name.eq_ignore_ascii_case(m))
+                    && pop.get(&r.shard).copied().unwrap_or(0) < cap + party::MAX_PARTY
+                    && let Some(sh) = self.shard(r.shard)
+                {
+                    return sh;
+                }
+            }
+        }
+        let mut open: Vec<(u32, usize)> = pop.into_iter().filter(|(_, n)| *n < cap).collect();
+        open.sort_by_key(|(id, n)| (std::cmp::Reverse(*n), *id));
+        if let Some((id, _)) = open.first()
+            && let Some(sh) = self.shard(*id)
+        {
+            return sh;
+        }
+        self.open_shard().unwrap_or_else(|| self.main_shard())
+    }
+
+    /// Open another copy of the world.
+    fn open_shard(&self) -> Option<Arc<ShardHost>> {
+        if self.shard_count() >= self.cfg.max_shards.max(1) {
+            return None;
+        }
+        let id = self.next_shard.fetch_add(1, Ordering::SeqCst);
+        let seed = self.main_shard().state.lock().unwrap().fork_seed();
+        let st = State::fork(seed, id, self.base.clone());
+        let sh = Arc::new(ShardHost {
+            id,
+            state: Mutex::new(st),
+            empty_since: Mutex::new(None),
+        });
+        self.shards.write().unwrap().push(sh.clone());
+        log(format!("Opened shard {id}"));
+        Some(sh)
+    }
+
+    /// Move a player to another shard, if they can go now. They stay
+    /// connected; their client is told what changed.
+    pub fn transfer(&self, id: PlayerId, to: u32) -> bool {
+        let Some(from) = self.routes.lock().unwrap().get(&id).map(|r| r.shard) else {
+            return false;
+        };
+        let (Some(a), Some(b)) = (self.shard(from), self.shard(to)) else {
+            return false;
+        };
+        if from == to {
+            return false;
+        }
+        // always lock the lower shard first
+        let (mut ga, mut gb) = if from < to {
+            let ga = a.state.lock().unwrap();
+            (ga, b.state.lock().unwrap())
+        } else {
+            let gb = b.state.lock().unwrap();
+            (a.state.lock().unwrap(), gb)
+        };
+        if !ga.movable(id) {
+            return false;
+        }
+        let Some(p) = ga.detach(id) else {
+            return false;
+        };
+        let blocks = ga.world.diff(&gb.world);
+        gb.attach(id, p, blocks);
+        drop((ga, gb));
+        if let Some(r) = self.routes.lock().unwrap().get_mut(&id) {
+            r.shard = to;
+        }
+        true
+    }
+
+    /// Keep shards healthy: parties together, no area too crowded, quiet
+    /// shards folded into busier ones, empty ones closed.
+    fn balance(&self) {
+        let cap = self.cap();
+        if cap == usize::MAX {
+            return;
+        }
+        let snaps = self.snaps.lock().unwrap().clone();
+        let mut pop = self.population();
+        let mut moves: Vec<(PlayerId, u32)> = Vec::new();
+        let moving = |moves: &Vec<(PlayerId, u32)>, id: PlayerId| moves.iter().any(|m| m.0 == id);
+        // 1. parties play in one shard
+        let parties: Vec<Vec<String>> = self
+            .parties
+            .lock()
+            .unwrap()
+            .all()
+            .map(|p| p.members.clone())
+            .collect();
+        let in_party: std::collections::HashSet<String> =
+            parties.iter().flatten().map(|n| n.to_lowercase()).collect();
+        for members in &parties {
+            let here: Vec<&shard::Snap> = snaps
+                .iter()
+                .filter(|s| members.iter().any(|m| m.eq_ignore_ascii_case(&s.name)))
+                .collect();
+            if here.len() < 2 {
+                continue;
+            }
+            let leader = here
+                .iter()
+                .find(|s| s.name.eq_ignore_ascii_case(&members[0]))
+                .map(|s| s.shard);
+            let target = leader.unwrap_or_else(|| {
+                let mut count: HashMap<u32, usize> = HashMap::new();
+                for s in &here {
+                    *count.entry(s.shard).or_default() += 1;
+                }
+                count
+                    .into_iter()
+                    .max_by_key(|(id, n)| (*n, std::cmp::Reverse(*id)))
+                    .unwrap()
+                    .0
+            });
+            for s in &here {
+                if s.shard != target
+                    && s.movable
+                    && pop.get(&target).copied().unwrap_or(0) < cap + party::MAX_PARTY
+                {
+                    moves.push((s.id, target));
+                    *pop.entry(target).or_default() += 1;
+                    *pop.entry(s.shard).or_default() -= 1;
+                }
+            }
+        }
+        // 2. no area crowded: spread newcomers to the quietest copy of that area
+        let area_cap = self.cfg.area_cap.max(1);
+        let mut dens: HashMap<(u32, usize), usize> = HashMap::new();
+        for s in &snaps {
+            if let Some(a) = s.area {
+                *dens.entry((s.shard, a)).or_default() += 1;
+            }
+        }
+        let crowded: Vec<((u32, usize), usize)> = dens
+            .iter()
+            .filter(|(_, n)| **n > area_cap)
+            .map(|(k, n)| (*k, *n))
+            .collect();
+        for ((sid, area), n) in crowded {
+            let mut extra = n - area_cap;
+            let mut who: Vec<&shard::Snap> = snaps
+                .iter()
+                .filter(|s| {
+                    s.shard == sid
+                        && s.area == Some(area)
+                        && s.movable
+                        && !in_party.contains(&s.name.to_lowercase())
+                        && !moving(&moves, s.id)
+                })
+                .collect();
+            // the most recent arrivals move first (highest id joined last)
+            who.sort_by_key(|s| std::cmp::Reverse(s.id));
+            for s in who {
+                if extra == 0 {
+                    break;
+                }
+                let target = pop
+                    .iter()
+                    .filter(|(t, n)| {
+                        **t != sid
+                            && **n < cap
+                            && dens.get(&(**t, area)).copied().unwrap_or(0) < area_cap
+                    })
+                    .min_by_key(|(t, _)| (dens.get(&(**t, area)).copied().unwrap_or(0), **t))
+                    .map(|(t, _)| *t)
+                    .or_else(|| self.open_shard().map(|sh| sh.id));
+                let Some(t) = target else { break };
+                pop.entry(t).or_default();
+                moves.push((s.id, t));
+                *pop.entry(t).or_default() += 1;
+                *pop.entry(sid).or_default() -= 1;
+                *dens.entry((t, area)).or_default() += 1;
+                *dens.entry((sid, area)).or_default() -= 1;
+                extra -= 1;
+            }
+        }
+        // 3. fold a quiet shard into a busier one, if no area gets crowded
+        let mut by_pop: Vec<(u32, usize)> = pop.iter().map(|(k, v)| (*k, *v)).collect();
+        by_pop.sort_by_key(|(id, n)| (*n, std::cmp::Reverse(*id)));
+        if let Some(&(small, n)) = by_pop.iter().find(|(_, n)| *n > 0)
+            && n <= cap / 4
+        {
+            let fits = |t: u32| {
+                dens.iter()
+                    .filter(|((sh, _), _)| *sh == small)
+                    .all(|((_, a), k)| dens.get(&(t, *a)).copied().unwrap_or(0) + k <= area_cap)
+            };
+            let target = by_pop
+                .iter()
+                .rev()
+                .find(|(t, m)| *t != small && *m > 0 && m + n <= cap * 3 / 4 && fits(*t))
+                .map(|(t, _)| *t);
+            if let Some(t) = target {
+                for s in snaps.iter().filter(|s| s.shard == small && s.movable) {
+                    if !moving(&moves, s.id) {
+                        moves.push((s.id, t));
+                    }
+                }
+            }
+        }
+        for (id, to) in moves {
+            if self.transfer(id, to) {
+                log(format!("Moved player {id} to shard {to}"));
+            }
+        }
+        // 4. close shards that have stood empty a while (never the first)
+        let pop = self.population();
+        let mut close = Vec::new();
+        for sh in self.shard_list() {
+            if sh.id == 0 {
+                continue;
+            }
+            let mut since = sh.empty_since.lock().unwrap();
+            if pop.get(&sh.id).copied().unwrap_or(0) == 0 {
+                let t = since.get_or_insert_with(Instant::now);
+                if t.elapsed() > Duration::from_secs(30) {
+                    close.push(sh.id);
+                }
+            } else {
+                *since = None;
+            }
+        }
+        if !close.is_empty() {
+            self.shards
+                .write()
+                .unwrap()
+                .retain(|s| !close.contains(&s.id));
+            for id in close {
+                log(format!("Closed shard {id}"));
+            }
+        }
+    }
+
+    /// Party frames, once a second; shards learn who is grouped with whom.
+    fn send_parties(&self) {
+        {
+            let parties = self.parties.lock().unwrap();
+            for sh in self.shard_list() {
+                let mut st = sh.state.lock().unwrap();
+                for p in st.players.values_mut() {
+                    p.party = parties.members(&p.name);
+                }
+            }
+        }
+        let snaps = self.snaps.lock().unwrap().clone();
+        let routes = self.routes.lock().unwrap().clone();
+        let parties: Vec<Vec<String>> = self
+            .parties
+            .lock()
+            .unwrap()
+            .all()
+            .map(|p| p.members.clone())
+            .collect();
+        for members in parties {
+            let list: Vec<proto::PartyMember> = members
+                .iter()
+                .enumerate()
+                .map(|(i, m)| {
+                    let s = snaps.iter().find(|s| s.name.eq_ignore_ascii_case(m));
+                    proto::PartyMember {
+                        name: s.map(|s| s.name.clone()).unwrap_or_else(|| m.clone()),
+                        level: s.map(|s| s.level).unwrap_or(0),
+                        class: s.and_then(|s| s.class),
+                        health: s.map(|s| s.health).unwrap_or(0.0),
+                        max: s.map(|s| s.max).unwrap_or(1.0),
+                        online: s.is_some(),
+                        leader: i == 0,
+                    }
+                })
+                .collect();
+            let bytes = Arc::new(proto::encode(&ServerMsg::Party { members: list }));
+            for r in routes.values() {
+                if members.iter().any(|m| m.eq_ignore_ascii_case(&r.name)) {
+                    let _ = r.tx.send(bytes.clone());
+                }
+            }
+        }
+    }
+
+    /// Tell one connected player something, wherever they are.
+    fn tell_name(&self, name: &str, msg: &ServerMsg) -> bool {
+        let routes = self.routes.lock().unwrap();
+        match routes.values().find(|r| r.name.eq_ignore_ascii_case(name)) {
+            Some(r) => {
+                let _ = r.tx.send(Arc::new(proto::encode(msg)));
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Commands that reach across shards. Returns false if `line` is not one.
+    fn global_command(&self, id: PlayerId, line: &str) -> bool {
+        let me = match self.routes.lock().unwrap().get(&id) {
+            Some(r) => r.name.clone(),
+            None => return true,
+        };
+        let mut parts = line.splitn(2, ' ');
+        let cmd = parts.next().unwrap_or("").to_ascii_lowercase();
+        let rest = parts.next().unwrap_or("").trim().to_string();
+        let sys = |text: String| ServerMsg::System { text };
+        let tell = |text: String| {
+            self.tell_name(&me, &sys(text));
+        };
+        match cmd.as_str() {
+            "/invite" => {
+                let who = rest.split_whitespace().next().unwrap_or("").to_string();
+                let online = self
+                    .routes
+                    .lock()
+                    .unwrap()
+                    .values()
+                    .find(|r| r.name.eq_ignore_ascii_case(&who))
+                    .map(|r| r.name.clone());
+                match online {
+                    None => tell(format!("No one called '{who}' is online.")),
+                    Some(who) => match self.parties.lock().unwrap().invite(&me, &who) {
+                        Ok(()) => {
+                            self.tell_name(&who, &ServerMsg::Invite { from: me.clone() });
+                            tell(format!("You invite {who} to your party."));
+                        }
+                        Err(e) => tell(e),
+                    },
+                }
+            }
+            "/accept" => {
+                let r = self.parties.lock().unwrap().accept(&me);
+                match r {
+                    Ok(members) => {
+                        for m in &members {
+                            self.tell_name(m, &sys(format!("{me} joins the party.")));
+                        }
+                        self.send_parties();
+                    }
+                    Err(e) => tell(e),
+                }
+            }
+            "/decline" => {
+                if let Some(from) = self.parties.lock().unwrap().decline(&me) {
+                    self.tell_name(&from, &sys(format!("{me} declines your invitation.")));
+                }
+            }
+            "/leave" | "/leaveparty" => {
+                let left = self.parties.lock().unwrap().leave(&me);
+                self.tell_name(
+                    &me,
+                    &ServerMsg::Party {
+                        members: Vec::new(),
+                    },
+                );
+                tell("You leave the party.".into());
+                for m in &left {
+                    self.tell_name(m, &sys(format!("{me} leaves the party.")));
+                    if left.len() <= 1 {
+                        self.tell_name(
+                            m,
+                            &ServerMsg::Party {
+                                members: Vec::new(),
+                            },
+                        );
+                    }
+                }
+                self.send_parties();
+            }
+            "/p" | "/party" => {
+                let members = self.parties.lock().unwrap().members(&me);
+                if members.is_empty() {
+                    tell("You are not in a party.".into());
+                } else {
+                    let text: String = rest.chars().take(proto::MAX_CHAT).collect();
+                    for m in &members {
+                        self.tell_name(
+                            m,
+                            &ServerMsg::Chat {
+                                from: format!("[Party] {me}"),
+                                text: text.clone(),
+                            },
+                        );
+                    }
+                }
+            }
+            // world channels reach everyone in every shard
+            "/1" | "/g" | "/general" | "/2" | "/t" | "/trade" => {
+                let channel = if matches!(cmd.as_str(), "/2" | "/t" | "/trade") {
+                    "Trade"
+                } else {
+                    "General"
+                };
+                let text: String = rest
+                    .chars()
+                    .filter(|c| !c.is_control())
+                    .take(proto::MAX_CHAT)
+                    .collect();
+                if text.trim().is_empty() {
+                    return true;
+                }
+                {
+                    let mut at = self.channel_at.lock().unwrap();
+                    if at
+                        .get(&id)
+                        .is_some_and(|t| t.elapsed() < Duration::from_millis(1000))
+                    {
+                        tell("You are speaking too quickly.".into());
+                        return true;
+                    }
+                    at.insert(id, Instant::now());
+                }
+                log(format!("[{channel}] <{me}> {text}"));
+                let bytes = Arc::new(proto::encode(&ServerMsg::Chat {
+                    from: format!("[{channel}] {me}"),
+                    text,
+                }));
+                for r in self.routes.lock().unwrap().values() {
+                    let _ = r.tx.send(bytes.clone());
+                }
+            }
+            "/w" | "/whisper" | "/tell" => {
+                let mut it = rest.splitn(2, ' ');
+                let who = it.next().unwrap_or("").to_string();
+                let text: String = it
+                    .next()
+                    .unwrap_or("")
+                    .chars()
+                    .take(proto::MAX_CHAT)
+                    .collect();
+                let sent = self.tell_name(
+                    &who,
+                    &ServerMsg::Chat {
+                        from: format!("[From] {me}"),
+                        text: text.clone(),
+                    },
+                );
+                if sent {
+                    tell(format!("[To {who}] {text}"));
+                } else {
+                    tell(format!("No one called '{who}' is online."));
+                }
+            }
+            "/who" => {
+                let routes = self.routes.lock().unwrap();
+                let mut names: Vec<String> = routes.values().map(|r| r.name.clone()).collect();
+                names.sort();
+                let here = routes.get(&id).map(|r| r.shard);
+                let near = routes.values().filter(|r| Some(r.shard) == here).count();
+                drop(routes);
+                tell(format!(
+                    "{} online ({} near you): {}",
+                    names.len(),
+                    near,
+                    names.join(", ")
+                ));
+            }
+            "/instance" => {
+                let op = self.main_shard().state.lock().unwrap().may_op(&me);
+                match (&self.cluster, rest.parse::<u64>()) {
+                    (None, _) => tell("This server is not part of a cluster.".into()),
+                    (Some(_), Ok(to)) if op => {
+                        if let Err(e) = self.transfer_remote(id, to) {
+                            log(format!(
+                                "Cluster: could not move {me} to instance {to}: {e}"
+                            ));
+                            tell(format!("Cannot move: {e}"));
+                        }
+                    }
+                    (Some(c), _) => tell(format!(
+                        "You are on instance {} of {}.",
+                        c.id(),
+                        c.shared.machine.read().unwrap().alive().len()
+                    )),
+                }
+            }
+            "/shard" => {
+                let here = self
+                    .routes
+                    .lock()
+                    .unwrap()
+                    .get(&id)
+                    .map(|r| r.shard)
+                    .unwrap_or(0);
+                let op = self.main_shard().state.lock().unwrap().may_op(&me);
+                match rest.parse::<u32>() {
+                    Ok(to) if op => {
+                        let to = if self.shard(to).is_some() {
+                            Some(to)
+                        } else {
+                            self.open_shard().map(|s| s.id)
+                        };
+                        match to {
+                            Some(to) if self.transfer(id, to) => {
+                                tell(format!("You are now in shard {to}."))
+                            }
+                            _ => tell("You cannot move right now.".into()),
+                        }
+                    }
+                    _ => tell(format!(
+                        "You are in shard {here} of {}.",
+                        self.shard_count()
+                    )),
+                }
+            }
+            _ => return false,
+        }
+        true
     }
 
     pub fn save(&self) {
+        // everyone, in every shard, is written to the shared store first
+        for sh in self.shard_list().iter().skip(1) {
+            let mut st = sh.state.lock().unwrap();
+            let ids: Vec<PlayerId> = st.players.keys().copied().collect();
+            for id in ids {
+                let p = st.players.remove(&id).unwrap();
+                st.remember(&p);
+                st.players.insert(id, p);
+            }
+        }
+        let main = self.main_shard();
         let (world, players, chests, content, meta) = {
-            let mut st = self.state.lock().unwrap();
+            let mut st = main.state.lock().unwrap();
             let ids: Vec<PlayerId> = st.players.keys().copied().collect();
             for id in ids {
                 let p = st.players.remove(&id).unwrap();
@@ -337,8 +1115,8 @@ impl Server {
             };
             (
                 world,
-                st.saved.clone(),
-                st.containers.clone(),
+                st.saved.lock().unwrap().clone(),
+                st.containers.lock().unwrap().clone(),
                 st.content.clone(),
                 meta,
             )
@@ -371,9 +1149,23 @@ impl Server {
             n += 1;
             let dt = last_tick.elapsed().as_secs_f32().min(0.25);
             last_tick = Instant::now();
-            {
-                let mut st = self.state.lock().unwrap();
+            let mut snaps = Vec::new();
+            let main_clock = {
+                let st = self.main_shard();
+                let st = st.state.lock().unwrap();
+                (st.clock, st.day)
+            };
+            for sh in self.shard_list() {
+                let mut st = sh.state.lock().unwrap();
+                // every shard shares the main shard's day
+                if sh.id != 0 {
+                    st.clock = main_clock.0;
+                    st.day = main_clock.1;
+                }
                 st.tick(dt);
+                if n.is_multiple_of(10) {
+                    snaps.extend(st.snapshot());
+                }
                 // poses of everyone else, to each player; everyone to observers
                 if !st.players.is_empty() {
                     let all: Vec<(PlayerId, Pose)> = st
@@ -400,10 +1192,19 @@ impl Server {
                     st.broadcast(&m, None);
                 }
             }
+            if n.is_multiple_of(10) {
+                *self.snaps.lock().unwrap() = snaps;
+                self.send_parties();
+            }
+            if n.is_multiple_of(40) {
+                self.balance();
+            }
             if last_time.elapsed() > Duration::from_secs(10) {
                 last_time = Instant::now();
-                let st = self.state.lock().unwrap();
-                st.broadcast(&st.time_msg(), None);
+                for sh in self.shard_list() {
+                    let st = sh.state.lock().unwrap();
+                    st.broadcast(&st.time_msg(), None);
+                }
             }
             if last_save.elapsed() > Duration::from_secs(10) {
                 last_save = Instant::now();
@@ -459,15 +1260,29 @@ impl Server {
             } => (token, observer, create),
             // the character select screen: list (or delete) my characters, then close
             ClientMsg::ListCharacters { token } => {
-                let msg = self.state.lock().unwrap().characters(token, &self.cfg.motd);
+                let msg = self
+                    .main_shard()
+                    .state
+                    .lock()
+                    .unwrap()
+                    .characters(token, &self.cfg.motd);
                 send(&mut ws, &msg)?;
                 let _ = ws.close(None);
                 return Ok(());
             }
             ClientMsg::DeleteCharacter { token, name } => {
+                let online = self
+                    .routes
+                    .lock()
+                    .unwrap()
+                    .values()
+                    .any(|r| r.name.eq_ignore_ascii_case(&name));
+                let main = self.main_shard();
                 let msg = {
-                    let mut st = self.state.lock().unwrap();
-                    st.delete_character(token, &name);
+                    let mut st = main.state.lock().unwrap();
+                    if !online {
+                        st.delete_character(token, &name);
+                    }
                     st.characters(token, &self.cfg.motd)
                 };
                 send(&mut ws, &msg)?;
@@ -478,12 +1293,78 @@ impl Server {
         };
         let name = proto::clean_name(&name);
         let (tx, rx) = channel::<Arc<Vec<u8>>>();
+        let conn = self.next_conn.fetch_add(1, Ordering::SeqCst);
+        // cluster mode: the player may live on another instance
+        if !observer && self.cluster.is_some() {
+            if let Err(reason) = self.cluster_ready() {
+                send(&mut ws, &ServerMsg::Reject { reason })?;
+                let _ = ws.close(None);
+                return Err("not serving".into());
+            }
+            let host = self.choose_host(&name);
+            if Some(host) != self.cluster.as_ref().map(|c| c.id()) {
+                if let Err(reason) = self.open_remote(host, conn, &name, token, create, tx) {
+                    send(
+                        &mut ws,
+                        &ServerMsg::Reject {
+                            reason: reason.clone(),
+                        },
+                    )?;
+                    let _ = ws.close(None);
+                    return Err(format!("refused {name}: {reason}"));
+                }
+                log(format!(
+                    "{name} joined from {peer} (dyno {version}), relayed to instance {host}"
+                ));
+                let result = self.session(&mut ws, 0, conn, Vec::new(), None, rx);
+                self.close_conn(conn, "left");
+                log(format!(
+                    "{name} left ({})",
+                    result.as_ref().err().map(String::as_str).unwrap_or("quit")
+                ));
+                let _ = ws.close(None);
+                let _ = ws.flush();
+                return Ok(());
+            }
+        }
 
         let (id, first, world_data) = {
-            let mut st = self.state.lock().unwrap();
+            if !observer {
+                let playing = self
+                    .routes
+                    .lock()
+                    .unwrap()
+                    .values()
+                    .any(|r| r.name.eq_ignore_ascii_case(&name));
+                if playing || !self.joining.lock().unwrap().insert(name.to_lowercase()) {
+                    send(
+                        &mut ws,
+                        &ServerMsg::Reject {
+                            reason: format!("{name} is already playing. Choose another name."),
+                        },
+                    )?;
+                    return Err("already playing".into());
+                }
+            }
+            if !observer && let Err(reason) = self.claim_here(&name, token) {
+                self.joining.lock().unwrap().remove(&name.to_lowercase());
+                send(
+                    &mut ws,
+                    &ServerMsg::Reject {
+                        reason: reason.clone(),
+                    },
+                )?;
+                let _ = ws.close(None);
+                return Err(format!("refused {name}: {reason}"));
+            }
+            let sh = if observer {
+                self.main_shard()
+            } else {
+                self.place(&name)
+            };
+            let mut st = sh.state.lock().unwrap();
             if observer {
-                let id = st.next_id;
-                st.next_id += 1;
+                let id = st.next_id.fetch_add(1, Ordering::SeqCst);
                 st.observers.insert(id, tx);
                 let welcome = ServerMsg::Welcome {
                     your_id: id,
@@ -501,8 +1382,9 @@ impl Server {
                 };
                 (id, vec![welcome], st.world.encode())
             } else {
-                if st.players.len() >= self.cfg.max_players {
+                if self.routes.lock().unwrap().len() >= self.cfg.max_players.max(self.cap()) {
                     drop(st);
+                    self.joining.lock().unwrap().remove(&name.to_lowercase());
                     send(
                         &mut ws,
                         &ServerMsg::Reject {
@@ -514,15 +1396,33 @@ impl Server {
                     )?;
                     return Err("server full".into());
                 }
-                match st.join(&name, token, tx, create) {
+                let joined = st.join(&name, token, tx.clone(), create);
+                self.joining.lock().unwrap().remove(&name.to_lowercase());
+                match joined {
                     Ok((id, mut msgs)) => {
                         if let Some(ServerMsg::Welcome { motd, .. }) = msgs.first_mut() {
                             *motd = self.cfg.motd.clone();
                         }
+                        let display = st
+                            .players
+                            .get(&id)
+                            .map(|p| p.name.clone())
+                            .unwrap_or(name.clone());
+                        self.routes.lock().unwrap().insert(
+                            id,
+                            Route {
+                                shard: sh.id,
+                                name: display,
+                                tx,
+                                conn,
+                                edge: None,
+                            },
+                        );
                         (id, msgs, st.world.encode())
                     }
                     Err(reason) => {
                         drop(st);
+                        self.release_claim(&name);
                         send(
                             &mut ws,
                             &ServerMsg::Reject {
@@ -541,8 +1441,14 @@ impl Server {
                 self.player_count()
             ));
         }
-        let result = self.session(&mut ws, id, first, world_data, rx);
-        self.state.lock().unwrap().leave(id);
+        let result = self.session(&mut ws, id, conn, first, Some(world_data), rx);
+        if self.relays_out.lock().unwrap().contains_key(&conn) {
+            // the player moved to another instance during the session
+            self.close_conn(conn, "left");
+        } else {
+            let id = self.local_id(conn).unwrap_or(id);
+            self.leave_here(id);
+        }
         if !observer {
             log(format!(
                 "{name} left ({}), {} online",
@@ -555,21 +1461,31 @@ impl Server {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn session(
         &self,
         ws: &mut WebSocket<TcpStream>,
         id: PlayerId,
+        conn: u64,
         first: Vec<ServerMsg>,
-        world_data: Vec<u8>,
+        world_data: Option<Vec<u8>>,
         rx: Receiver<Arc<Vec<u8>>>,
     ) -> Result<(), String> {
         let mut first = first.into_iter();
         if let Some(welcome) = first.next() {
             send(ws, &welcome)?;
         }
-        send(ws, &ServerMsg::World { data: world_data })?;
-        let time = self.state.lock().unwrap().time_msg();
-        send(ws, &time)?;
+        if let Some(data) = world_data {
+            send(ws, &ServerMsg::World { data })?;
+            let time = self
+                .shard_of(id)
+                .unwrap_or_else(|| self.main_shard())
+                .state
+                .lock()
+                .unwrap()
+                .time_msg();
+            send(ws, &time)?;
+        }
         for m in first {
             send(ws, &m)?;
         }
@@ -583,36 +1499,37 @@ impl Server {
             if self.stop.load(Ordering::SeqCst) {
                 return Err("server stopping".into());
             }
+            if self.kicked.lock().unwrap().remove(&conn) {
+                // tell the client why, then end the session
+                let _ = send(
+                    ws,
+                    &ServerMsg::Reject {
+                        reason: "Lost contact with the world. Reconnect in a moment.".into(),
+                    },
+                );
+                return Err("dropped".into());
+            }
             match ws.read() {
+                Ok(Message::Binary(b)) if self.relay_host(conn).is_some() => {
+                    // the player lives on another instance: pass it on untouched
+                    last_msg = Instant::now();
+                    msgs += 1;
+                    self.relay_up(conn, b.to_vec());
+                }
                 Ok(Message::Binary(b)) => {
                     last_msg = Instant::now();
                     msgs += 1;
                     let msg =
                         proto::decode::<ClientMsg>(&b).map_err(|e| format!("bad message: {e}"))?;
-                    match msg {
-                        ClientMsg::Chat { text } => {
-                            chats += 1;
-                            let text: String = text
-                                .chars()
-                                .filter(|c| !c.is_control())
-                                .take(proto::MAX_CHAT)
-                                .collect();
-                            if chats <= 20 && text.trim_start().starts_with('/') {
-                                self.command(id, text.trim());
-                            } else if chats <= 5 && !text.trim().is_empty() {
-                                let st = self.state.lock().unwrap();
-                                if let Some(p) = st.players.get(&id) {
-                                    let from = p.name.clone();
-                                    log(format!("<{from}> {text}"));
-                                    st.broadcast(&ServerMsg::Chat { from, text }, None);
-                                }
-                            }
-                        }
-                        ClientMsg::Hello { .. } | ClientMsg::Session { .. } => {
-                            return Err("second hello".into());
-                        }
-                        other => self.state.lock().unwrap().handle(id, other)?,
+                    if matches!(msg, ClientMsg::Hello { .. } | ClientMsg::Session { .. }) {
+                        return Err("second hello".into());
                     }
+                    if let ClientMsg::Chat { .. } = msg {
+                        chats += 1;
+                    }
+                    // the player id changes if they moved away and came back
+                    let id = self.local_id(conn).unwrap_or(id);
+                    self.client_msg(id, msg, chats)?;
                 }
                 Ok(Message::Close(_)) => return Ok(()),
                 Ok(_) => last_msg = Instant::now(),
@@ -650,8 +1567,47 @@ impl Server {
         }
     }
 
+    /// One message from a player (from a local session or a relay).
+    /// `chats` counts chat lines in the current second.
+    fn client_msg(&self, id: PlayerId, msg: ClientMsg, chats: u32) -> Result<(), String> {
+        match msg {
+            ClientMsg::Chat { text } => {
+                let text: String = text
+                    .chars()
+                    .filter(|c| !c.is_control())
+                    .take(proto::MAX_CHAT)
+                    .collect();
+                if chats <= 20 && text.trim_start().starts_with('/') {
+                    if !self.global_command(id, text.trim()) {
+                        self.command(id, text.trim());
+                    }
+                } else if chats <= 5 && !text.trim().is_empty() {
+                    let Some(sh) = self.shard_of(id) else {
+                        return Ok(());
+                    };
+                    let st = sh.state.lock().unwrap();
+                    if let Some(p) = st.players.get(&id) {
+                        let from = p.name.clone();
+                        log(format!("<{from}> {text}"));
+                        st.broadcast(&ServerMsg::Chat { from, text }, None);
+                    }
+                }
+            }
+            ClientMsg::Hello { .. } | ClientMsg::Session { .. } => {
+                return Err("second hello".into());
+            }
+            other => {
+                if let Some(sh) = self.shard_of(id) {
+                    sh.state.lock().unwrap().handle(id, other)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn command(&self, id: PlayerId, line: &str) {
-        let mut st = self.state.lock().unwrap();
+        let Some(sh) = self.shard_of(id) else { return };
+        let mut st = sh.state.lock().unwrap();
         let Some(me) = st.players.get(&id).map(|p| p.name.clone()) else {
             return;
         };
@@ -662,7 +1618,7 @@ impl Server {
         log(format!("{me} ran {line}"));
         let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(id, "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
+            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
             "/who" => {
                 let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
@@ -775,10 +1731,29 @@ impl Server {
                     Some((eid, _)) => {
                         if let Some(m) = st.entities.get_mut(&eid).and_then(|e| e.mob.as_mut()) {
                             m.last_hit = Some((id, std::time::Instant::now()));
+                            m.tag = Some(id);
                         }
                         st.kill_mob_by(eid);
                     }
                     None => st.tell(id, "No creature near enough."),
+                }
+            }
+            "/finish" => {
+                if !op {
+                    return st.tell(id, "Only the world's owner can finish quests by decree.");
+                }
+                let key = arg.trim();
+                match st.content.quests.iter().find(|q| q.key == key).map(|q| q.id) {
+                    Some(q) => {
+                        if let Some(p) = st.players.get_mut(&id) {
+                            p.quests.retain(|x| x.quest != q);
+                            p.done.insert(q);
+                        }
+                        st.send_quests(id);
+                        st.refresh_phases(id);
+                        st.tell(id, format!("Finished {key}."));
+                    }
+                    None => st.tell(id, "Usage: /finish <quest key>"),
                 }
             }
             "/money" => {

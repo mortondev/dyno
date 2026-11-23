@@ -15,7 +15,8 @@ const REACH: f32 = 6.0;
 #[derive(Clone, Debug)]
 pub struct Corpse {
     pub creature: u16,
-    pub owner: Option<PlayerId>,
+    /// who may loot it (the killer and their party); anyone after a minute
+    pub owners: Vec<PlayerId>,
     pub money: u32,
     pub items: Vec<Stack>,
     pub born: Instant,
@@ -40,21 +41,23 @@ pub fn rested_cap(xp_next: u32) -> u32 {
 
 impl State {
     /// A creature fell: leave its body, holding what it dropped.
+    #[allow(clippy::too_many_arguments)]
     pub fn spawn_corpse(
         &mut self,
         pos: [f32; 3],
         yaw: f32,
         creature: u16,
-        owner: Option<PlayerId>,
+        owners: Vec<PlayerId>,
         money: u32,
         items: Vec<Stack>,
+        phase: Option<(u8, bool)>,
     ) {
         let id = self.next_entity;
         self.next_entity += 1;
         let now = Instant::now();
         let c = Corpse {
             creature,
-            owner,
+            owners,
             money,
             items,
             born: now,
@@ -77,6 +80,7 @@ impl State {
                 pickup_after: now + Duration::from_secs(3600),
                 moved: false,
                 mob: None,
+                phase,
             },
         );
         self.corpses.insert(id, c);
@@ -153,10 +157,10 @@ impl State {
         if p.dead {
             return Err("You are dead.");
         }
-        if dist(p.pose.pos, e.pos) > REACH {
+        if dist(p.pose.pos, e.pos) > REACH || !self.sees(p.phases, id) {
             return Err("You are too far away.");
         }
-        if c.owner.is_some_and(|o| o != pid) && c.born.elapsed() < OWNER_LOCK {
+        if !c.owners.is_empty() && !c.owners.contains(&pid) && c.born.elapsed() < OWNER_LOCK {
             return Err("That is not yours to loot.");
         }
         if c.empty() {
@@ -285,7 +289,7 @@ impl State {
             .get(&npc)
             .zip(self.players.get(&pid))
             .is_some_and(|(e, p)| dist(e.pos, p.pose.pos) <= REACH && !p.dead);
-        if !near {
+        if !near || !self.player_sees(pid, npc) {
             return self.tell(pid, "You are too far away.");
         }
         let Some(price) = self

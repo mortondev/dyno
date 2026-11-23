@@ -1,5 +1,6 @@
 //! Window, input, screens (connect, joining, playing) and the HUD.
 
+use crate::anim::{self, Anim, Book as Anims, Skeleton};
 use crate::audio::{Audio, Sfx};
 use crate::front::{self, Front, FrontCmd};
 use crate::game::{self, Input, Player, Remote, Remotes, Target};
@@ -106,6 +107,8 @@ enum Screen {
     Menu,
     Joining {
         rx: Receiver<Result<Joined, String>>,
+        /// the address being joined (for logs; players never see it)
+        #[allow(dead_code)]
         label: String,
         since: Instant,
     },
@@ -128,9 +131,15 @@ struct Play {
     url: String,
     player: Player,
     remotes: Remotes,
+    /// everyone's animation state
+    anims: Anims,
     chat: Vec<Chat>,
     chat_open: bool,
     chat_text: String,
+    /// the chat panel shows the combat log instead
+    chat_tab_combat: bool,
+    /// what happened in fights: newest last
+    combat_log: Vec<(Instant, String, Color32)>,
     focus_chat: bool,
     menu_open: bool,
     captured: bool,
@@ -224,6 +233,18 @@ struct Play {
     intro: Option<Instant>,
     /// F3: version, address, position, frame rate
     show_info: bool,
+    /// my party (empty: none)
+    party: Vec<dyno_protocol::PartyMember>,
+    /// someone asks to trade
+    trade_ask: Option<String>,
+    /// the open trade window
+    trade: Option<dyno_protocol::TradeView>,
+    /// coins typed into the trade window
+    trade_money: String,
+    /// someone has invited me to their party
+    invite: Option<String>,
+    /// which copy of the world I am in
+    shard: u32,
     level: u8,
     xp: u32,
     xp_next: u32,
@@ -253,6 +274,7 @@ struct Play {
     undo: Vec<([i32; 3], w::BlockId, w::BlockId)>,
     /// fill selection corners
     sel: (Option<[i32; 3]>, Option<[i32; 3]>),
+    minimap: crate::minimap::Minimap,
 }
 
 struct ClientEntity {
@@ -441,6 +463,19 @@ fn use_action(p: &mut Play, i: usize) {
     if let Some(t) = target {
         p.focus = Some(t);
     }
+    // instant abilities: a weapon strike or a flick of the hands, at once
+    if let ClientMsg::Cast { ability, .. } = &msg
+        && let Some(a) = p.content.ability(*ability)
+        && a.cast <= 0.0
+    {
+        let now = p.anims.now();
+        let act = if a.weapon > 0.0 {
+            anim::attack_for(p.anims.grip)
+        } else {
+            Anim::CastRelease
+        };
+        p.anims.me(now).play_fresh(now, act);
+    }
     let _ = p.conn.tx.send(msg);
 }
 
@@ -606,31 +641,44 @@ fn quest_finished(c: &dyno_world::content::Content, q: &dyno_protocol::QuestProg
     })
 }
 
-/// Draw every creature, lit by the block light where it stands.
-fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
+/// Draw every creature and NPC, lit by the block light where it stands and
+/// animated from what it is doing (see `docs/design/animation.md`).
+fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f32) {
+    let now = book.now();
+    let talking = match &p.panel {
+        Some(rpg_ui::Panel::Dialog { entity, .. } | rpg_ui::Panel::Vendor { entity, .. }) => {
+            Some(*entity)
+        }
+        _ => None,
+    };
     for (id, e) in &p.entities {
+        let pos = p.ground.feet(&p.world, e.pos());
+        let step = Vec3::from(e.to) - Vec3::from(e.from);
+        let vel = if e.at.elapsed().as_secs_f32() < 0.25 {
+            step / 0.1
+        } else {
+            Vec3::ZERO
+        };
+        let at = pos + Vec3::Y;
+        let light = p.light.get(
+            at.x.floor() as i32,
+            at.y.floor() as i32,
+            at.z.floor() as i32,
+        ) as f32
+            / 15.0;
         if let EntityKind::Npc(n) = e.kind
             && let Some(npc) = p.content.npc(n)
         {
-            let pos = p.ground.feet(&p.world, e.pos());
-            let at = pos + Vec3::Y;
-            let light = p.light.get(
-                at.x.floor() as i32,
-                at.y.floor() as i32,
-                at.z.floor() as i32,
-            ) as f32
-                / 15.0;
+            let base = if talking == Some(*id) {
+                Anim::Talk
+            } else {
+                anim::locomotion(vel, e.yaw, 4.0).unwrap_or(Anim::Idle)
+            };
+            let speed = Vec3::new(vel.x, 0.0, vel.z).length();
+            let (a, _) = book.entity(*id, now);
+            a.drive_at(now, base, pos, Skeleton::Biped.step(speed, 1.0));
             let look = models::Look::npc(&npc.key, npc.color);
-            models::push_person(
-                boxes,
-                pos,
-                e.yaw,
-                0.0,
-                &look,
-                light.max(0.35),
-                clock * 2.0,
-                0.0,
-            );
+            models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
             continue;
         }
         let EntityKind::Creature(cid) = e.kind else {
@@ -639,54 +687,38 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
         let Some(c) = p.content.creature(cid) else {
             continue;
         };
-        let pos = p.ground.feet(&p.world, e.pos());
-        let step = Vec3::from(e.to) - Vec3::from(e.from);
-        let moving = e.at.elapsed().as_secs_f32() < 0.25;
-        let walk = if moving {
-            (Vec3::new(step.x, 0.0, step.z).length() / 0.1 / c.speed.max(0.5)).min(1.0)
-        } else {
-            0.0
-        };
         let flash = e
             .hurt_at
             .map(|t| (1.0 - t.elapsed().as_secs_f32() / 0.12).max(0.0))
             .unwrap_or(0.0);
-        let at = pos + Vec3::Y;
-        let light = p.light.get(
-            at.x.floor() as i32,
-            at.y.floor() as i32,
-            at.z.floor() as i32,
-        ) as f32
-            / 15.0;
-        let start = boxes.len();
-        models::push_creature(
-            boxes,
-            c.model,
-            c.variant,
-            pos,
-            e.yaw,
-            c.color,
-            light,
-            clock * 9.0 + *id as f32,
-            walk,
-            flash,
-            clock + *id as f32 * 0.37,
-        );
         // size: the creature's own scale, and rare elites are a quarter larger
         let scale = c.scale * if e.name.is_some() { 1.25 } else { 1.0 };
-        if (scale - 1.0).abs() > 0.01 {
-            for v in &mut boxes[start..] {
-                let q = (Vec3::from(v.pos) - pos) * scale + pos;
-                v.pos = q.into();
-            }
-        }
+        let skeleton = Skeleton::of(c.model, c.variant);
+        // in a fight: hit lately, or a hostile that has you targeted
+        let hurt = e.info.is_some_and(|(_, h, max)| h < max);
+        let fighting = (hurt
+            && e.hurt_at
+                .is_some_and(|t| t.elapsed() < Duration::from_secs(8)))
+            || (c.hostile && p.attacking == Some(*id));
+        let base = anim::locomotion(vel, e.yaw, c.speed.max(0.5)).unwrap_or(if fighting {
+            Anim::Ready
+        } else {
+            Anim::Idle
+        });
+        let speed = Vec3::new(vel.x, 0.0, vel.z).length();
+        let (a, _) = book.entity(*id, now);
+        a.drive_at(now, base, pos, skeleton.step(speed, scale));
+        models::push_creature(
+            boxes, c.model, c.variant, pos, e.yaw, c.color, light, flash, scale, a, now,
+        );
     }
-    push_corpses(boxes, p, clock);
+    push_corpses(boxes, p, book, clock);
 }
 
-/// The fallen: the creature on its side (it topples as it dies), with a
-/// glint of gold while it still holds loot.
-fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
+/// The fallen: a creature that died a moment ago plays its death, one found
+/// lying there is simply dead; a glint of gold while it still holds loot.
+fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f32) {
+    let now = book.now();
     for (id, e) in &p.entities {
         let EntityKind::Corpse { creature, loot } = e.kind else {
             continue;
@@ -702,7 +734,17 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             at.z.floor() as i32,
         ) as f32
             / 15.0;
-        let start = boxes.len();
+        let fresh = book.fresh_corpse(pos, now);
+        let (a, new) = book.entity(*id, now);
+        let base = if new && fresh {
+            Anim::Death
+        } else if new {
+            Anim::Dead
+        } else {
+            a.base()
+        };
+        a.drive_at(now, base, pos, 1.0);
+        let dying = base == Anim::Death && a.base_time(now) < 1.5;
         models::push_creature(
             boxes,
             c.model,
@@ -712,25 +754,11 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             [c.color[0] * 0.75, c.color[1] * 0.75, c.color[2] * 0.75],
             light,
             0.0,
-            0.0,
-            0.0,
-            *id as f32 * 0.37,
+            c.scale,
+            a,
+            now,
         );
-        // topple onto its side over a moment, then lie still
-        let t = (e.born.elapsed().as_secs_f32() / 0.45).min(1.0);
-        let fall = t * t * (3.0 - 2.0 * t);
-        let half = c.scale * 0.5;
-        let forward = Vec3::new(-e.yaw.sin(), 0.0, -e.yaw.cos());
-        let rot = glam::Quat::from_axis_angle(forward, std::f32::consts::FRAC_PI_2 * 0.96 * fall);
-        // lie on the ground: the body's half-width lifts it as it rolls
-        let lift = Vec3::Y * (0.12 * c.scale * fall);
-        let sink = Vec3::Y * (-half * 0.15 * fall);
-        for v in &mut boxes[start..] {
-            let q = (Vec3::from(v.pos) - pos) * c.scale;
-            v.pos = (rot * q + pos + lift + sink).into();
-            v.normal = (rot * Vec3::from(v.normal)).into();
-        }
-        if loot && fall >= 1.0 {
+        if loot && !dying {
             // a few motes of gold drifting up
             for k in 0..5 {
                 let ph = clock * 0.6 + k as f32 * 0.2 + *id as f32 * 0.13;
@@ -752,6 +780,178 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
                 );
             }
         }
+    }
+}
+
+/// Your own figure's state, from your movement, casting, fighting and the
+/// emote you hold.
+fn my_anim(p: &Play, book: &mut Anims, look: &models::Look, now: f32) -> Anim {
+    book.grip = models::person_rig(look).grip;
+    let pl = &p.player;
+    let wet = |y: f32| {
+        p.world.get(
+            pl.pos.x.floor() as i32,
+            (pl.pos.y + y).floor() as i32,
+            pl.pos.z.floor() as i32,
+        ) == w::WATER
+    };
+    let swimming = wet(0.9) && wet(0.3);
+    book.casts
+        .retain(|_, (_, at, secs)| now - *at < *secs + 0.5);
+    let airborne = !pl.on_ground && !pl.flying && !swimming;
+    // the moment of leaving the ground, and of landing
+    if airborne && book.grounded {
+        book.air_since = now;
+        if pl.vel.y > 0.5 {
+            book.me(now).play(now, Anim::JumpStart);
+        }
+    } else if !airborne && !book.grounded && now - book.air_since > 0.3 {
+        book.me(now).play(now, Anim::JumpLand);
+    }
+    book.grounded = !airborne;
+    let moving = anim::locomotion(pl.vel, pl.yaw, pl.run_speed);
+    if moving.is_some() || airborne || p.dead.is_some() {
+        book.hold = None;
+    }
+    if p.dead.is_some() {
+        Anim::Death
+    } else if swimming {
+        Anim::Swim
+    } else if airborne {
+        if pl.vel.y < -7.0 || now - book.air_since > 0.9 {
+            Anim::Fall
+        } else {
+            Anim::JumpAir
+        }
+    } else if let Some(m) = moving {
+        m
+    } else if let Some((a, at, secs)) = p.my_cast
+        && at.elapsed().as_secs_f32() < secs + 0.5
+    {
+        cast_anim(&p.content, a)
+    } else if p.loot.is_some() {
+        Anim::Kneel
+    } else if let Some(h) = book.hold {
+        h
+    } else if p.attacking.is_some() {
+        Anim::Ready
+    } else {
+        Anim::Idle
+    }
+}
+
+/// How a figure looks while casting an ability: gathering kneels, heals and
+/// recall raise the arms, the rest gather power in front.
+fn cast_anim(content: &dyno_world::content::Content, ability: u16) -> Anim {
+    if ability == dyno_protocol::GATHER {
+        return Anim::Kneel;
+    }
+    match content.ability(ability) {
+        Some(a) if a.damage[1] > 0.0 => Anim::CastDirected,
+        Some(a) if a.heal[1] > 0.0 || a.recall || a.hot[0] > 0.0 => Anim::CastOmni,
+        Some(_) => Anim::Channel,
+        None => Anim::CastOmni,
+    }
+}
+
+/// Another player's state, from their motion and what they are casting or
+/// breaking.
+fn remote_anim(p: &Play, book: &mut Anims, id: u32, r: &Remote, now: f32) -> Anim {
+    let pose = r.current();
+    let vel = r.velocity();
+    // in the air: nothing under the feet, and rising or falling
+    let under = p.world.get(
+        pose.pos[0].floor() as i32,
+        (pose.pos[1] - 0.3).floor() as i32,
+        pose.pos[2].floor() as i32,
+    );
+    let high = under == w::AIR && vel.y.abs() > 0.5;
+    if book.digging.contains_key(&id) {
+        // swing after swing while they break a block
+        let a = book.player(id, now);
+        if a.action(now).is_none() {
+            a.play(now, Anim::Attack1H);
+        }
+    }
+    if high {
+        if vel.y < -6.0 {
+            Anim::Fall
+        } else {
+            Anim::JumpAir
+        }
+    } else if let Some(m) = anim::locomotion(vel, pose.yaw, 4.4) {
+        m
+    } else if let Some(a) = book.casting(id, now) {
+        cast_anim(&p.content, a)
+    } else {
+        Anim::Idle
+    }
+}
+
+/// The colour of a ranged auto-attack's shot (`dyno-server` gear.rs).
+const AUTO_SHOT: [f32; 3] = [0.9, 0.8, 0.6];
+
+/// A spell or shot left `from`: whoever stands there plays its release, or
+/// its shot (a creature, its attack).
+fn animate_caster(p: &mut Play, from: Vec3, color: [f32; 3]) {
+    let now = p.anims.now();
+    let shot = color == AUTO_SHOT;
+    if from.distance(p.player.eye()) < 1.6 {
+        let a = if shot {
+            anim::attack_for(p.anims.grip)
+        } else {
+            Anim::CastRelease
+        };
+        p.anims.me(now).play_fresh(now, a);
+        p.anims.last_swing = now;
+        return;
+    }
+    for (id, r) in &p.remotes {
+        let at = Vec3::from(r.current().pos);
+        if from.distance(at + Vec3::Y * 1.4) < 1.6 {
+            let a = if shot { Anim::Shoot } else { Anim::CastRelease };
+            p.anims.player(*id, now).play_fresh(now, a);
+            return;
+        }
+    }
+    let caster = p
+        .entities
+        .iter()
+        .filter_map(|(id, e)| match e.kind {
+            EntityKind::Creature(c) => Some((*id, e.pos().distance(from), c)),
+            _ => None,
+        })
+        .filter(|(_, d, _)| *d < 2.5)
+        .min_by(|a, b| a.1.total_cmp(&b.1));
+    if let Some((id, _, cid)) = caster
+        && let Some(c) = p.content.creature(cid)
+    {
+        let swing = models::creature_attack(c.model, c.variant);
+        p.anims.play_entity(id, now, swing);
+    }
+}
+
+/// You were hit: you flinch, and the nearest hostile in reach strikes.
+fn animate_blow(p: &mut Play) {
+    let now = p.anims.now();
+    p.anims.me(now).play_fresh(now, Anim::HitReact);
+    let me = p.player.pos;
+    let striker = p
+        .entities
+        .iter()
+        .filter_map(|(id, e)| match e.kind {
+            EntityKind::Creature(c) => p
+                .content
+                .creature(c)
+                .filter(|c| c.hostile)
+                .map(|c| (*id, e.pos().distance(me) - c.scale, c)),
+            _ => None,
+        })
+        .filter(|(_, d, _)| *d < 3.0)
+        .min_by(|a, b| a.1.total_cmp(&b.1));
+    if let Some((id, _, c)) = striker {
+        let swing = models::creature_attack(c.model, c.variant);
+        p.anims.play_entity(id, now, swing);
     }
 }
 
@@ -1062,6 +1262,7 @@ fn new_play(j: Joined) -> Play {
     );
     Play {
         player: Player::new(j.spawn),
+        anims: Anims::default(),
         remotes: j
             .players
             .iter()
@@ -1107,6 +1308,7 @@ fn new_play(j: Joined) -> Play {
         next_cricket: 3.0,
         undo: Vec::new(),
         sel: (None, None),
+        minimap: crate::minimap::Minimap::new(),
         content: j.content,
         mode: j.mode,
         pack: vec![None; dyno_sim::SLOTS],
@@ -1157,7 +1359,15 @@ fn new_play(j: Joined) -> Play {
         hover: None,
         world_event: None,
         intro: None,
+        chat_tab_combat: false,
+        combat_log: Vec::new(),
         show_info: false,
+        party: Vec::new(),
+        invite: None,
+        trade_ask: None,
+        trade: None,
+        trade_money: String::new(),
+        shard: 0,
         ground: Default::default(),
         hearth,
         level: 1,
@@ -1438,11 +1648,68 @@ impl App {
                         ServerMsg::PlayerLeft { id } => {
                             p.remotes.remove(&id);
                         }
+                        // moved to another copy of the world: same place, new company
+                        ServerMsg::Shard {
+                            shard,
+                            players,
+                            blocks,
+                        } => {
+                            p.shard = shard;
+                            p.entities.clear();
+                            p.remotes.clear();
+                            p.focus = None;
+                            p.hover = None;
+                            p.loot = None;
+                            if matches!(
+                                p.panel,
+                                Some(rpg_ui::Panel::Dialog { .. } | rpg_ui::Panel::Vendor { .. })
+                            ) {
+                                p.panel = None;
+                            }
+                            for info in players {
+                                if info.id != p.my_id {
+                                    let mut r = Remote::new(info.name, info.pose);
+                                    r.look = info.look;
+                                    r.color = info.color;
+                                    p.remotes.insert(info.id, r);
+                                }
+                            }
+                            p.ground.clear();
+                            for (pos, block) in blocks {
+                                if p.world.get(pos[0], pos[1], pos[2]) != block {
+                                    p.world.set(pos[0], pos[1], pos[2], block);
+                                    p.minimap.block_changed(pos);
+                                    p.light.changed(&p.world, pos);
+                                    if let Some(g) = self.gfx.as_mut() {
+                                        g.block_changed(&p.world, &p.light, pos, 15);
+                                    }
+                                }
+                            }
+                        }
+                        ServerMsg::Party { members } => p.party = members,
+                        ServerMsg::TradeAsk { from } => {
+                            p.trade_ask = Some(from);
+                            self.audio.play(Sfx::Click, 0.8);
+                            release = true;
+                        }
+                        ServerMsg::Trade(view) => {
+                            if view.is_some() && p.trade.is_none() {
+                                p.screen_tab = Some(screens::Tab::Bags);
+                                release = true;
+                            }
+                            p.trade = view;
+                        }
+                        ServerMsg::Invite { from } => {
+                            p.invite = Some(from);
+                            self.audio.play(Sfx::Click, 0.8);
+                            release = true;
+                        }
                         ServerMsg::Block { pos, block } => {
                             p.ground.clear();
                             let old = p.world.get(pos[0], pos[1], pos[2]);
                             if old != block {
                                 p.world.set(pos[0], pos[1], pos[2], block);
+                                p.minimap.block_changed(pos);
                                 p.light.changed(&p.world, pos);
                                 let r = if w::emission(old) > 0
                                     || w::emission(block) > 0
@@ -1500,6 +1767,7 @@ impl App {
                                 }
                             }
                             p.light.changed_box(&p.world, a, b);
+                            p.minimap.region_changed(a, b);
                             if let Some(g) = self.gfx.as_mut() {
                                 g.region_changed(&p.world, &p.light, a, b, 15);
                             }
@@ -1585,6 +1853,13 @@ impl App {
                             }
                         }
                         ServerMsg::EntityGone { id, picked_by } => {
+                            if let Some(e) = p.entities.get(&id)
+                                && let EntityKind::Creature(_) = e.kind
+                            {
+                                let at = p.ground.feet(&p.world, e.pos());
+                                let now = p.anims.now();
+                                p.anims.creature_gone(at, now);
+                            }
                             if let Some(e) = p.entities.remove(&id)
                                 && let EntityKind::Creature(cid) = e.kind
                                 && let Some(c) = p.content.creature(cid)
@@ -1625,6 +1900,15 @@ impl App {
                             if player == p.my_id {
                                 p.my_cast = ability.map(|a| (a, Instant::now(), secs));
                             }
+                            let now = p.anims.now();
+                            match ability {
+                                Some(a) => {
+                                    p.anims.casts.insert(player, (a, now, secs));
+                                }
+                                None => {
+                                    p.anims.casts.remove(&player);
+                                }
+                            }
                         }
                         ServerMsg::Cooldowns { list, global } => {
                             let now = Instant::now();
@@ -1641,6 +1925,7 @@ impl App {
                             radius,
                         } => {
                             let (a, b) = (Vec3::from(from), Vec3::from(to));
+                            animate_caster(p, a, color);
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
                                 self.audio.play(Sfx::Dissolve, 0.5);
@@ -1704,6 +1989,45 @@ impl App {
                             amount,
                             crit,
                         } => {
+                            let who = entity.and_then(|e| p.entities.get(&e)).and_then(|e| match e
+                                .kind
+                            {
+                                EntityKind::Creature(c) => e
+                                    .name
+                                    .clone()
+                                    .or_else(|| p.content.creature(c).map(|c| c.name.clone())),
+                                _ => None,
+                            });
+                            let line = match (entity.is_some(), who) {
+                                (true, Some(w)) => (
+                                    format!(
+                                        "You hit {w} for {}{}.",
+                                        amount.round(),
+                                        if crit { " (critical)" } else { "" }
+                                    ),
+                                    Color32::from_rgb(235, 225, 200),
+                                ),
+                                (true, None) => (
+                                    format!("You hit for {}.", amount.round()),
+                                    Color32::from_rgb(235, 225, 200),
+                                ),
+                                (false, _) => (
+                                    format!("You take {} damage.", amount.round()),
+                                    Color32::from_rgb(235, 120, 100),
+                                ),
+                            };
+                            p.combat_log.push((Instant::now(), line.0, line.1));
+                            // a blow on your auto-attack target is your swing
+                            // (not a damage-over-time tick: those come slower)
+                            let now = p.anims.now();
+                            if entity.is_some()
+                                && entity == p.attacking
+                                && now - p.anims.last_swing > 0.75
+                            {
+                                let swing = anim::attack_for(p.anims.grip);
+                                p.anims.me(now).play_fresh(now, swing);
+                                p.anims.last_swing = now;
+                            }
                             let (text, col) = match entity {
                                 Some(_) if crit => {
                                     (format!("{:.0}!", amount), Color32::from_rgb(255, 230, 80))
@@ -1739,6 +2063,23 @@ impl App {
                         }
                         ServerMsg::Gain { xp, money } => {
                             if xp > 0 {
+                                p.combat_log.push((
+                                    Instant::now(),
+                                    format!("You gain {xp} experience."),
+                                    Color32::from_rgb(190, 140, 250),
+                                ));
+                            }
+                            if money > 0 {
+                                p.combat_log.push((
+                                    Instant::now(),
+                                    format!(
+                                        "You receive {}.",
+                                        dyno_sim::progression::money_text(money)
+                                    ),
+                                    Color32::from_rgb(240, 200, 90),
+                                ));
+                            }
+                            if xp > 0 {
                                 p.floaters.push((
                                     Instant::now(),
                                     format!("+{xp} XP"),
@@ -1766,6 +2107,12 @@ impl App {
                             max,
                         } => {
                             if let Some(e) = p.entities.get_mut(&id) {
+                                // a real blow (EntityHurt also comes on regen)
+                                if e.info.is_some_and(|(_, h, _)| health < h - 0.01) && health > 0.0
+                                {
+                                    let now = p.anims.now();
+                                    p.anims.play_entity(id, now, Anim::HitReact);
+                                }
                                 e.info = Some((level, health, max));
                             }
                         }
@@ -1824,6 +2171,7 @@ impl App {
                             }
                         }
                         ServerMsg::Hurt { amount, push } => {
+                            animate_blow(p);
                             p.hurt_flash = (0.4 + amount * 0.08).min(1.0);
                             p.player.vel += Vec3::from(push);
                             self.audio.play(Sfx::Break(w::Material::Cloth), 0.9);
@@ -1839,11 +2187,21 @@ impl App {
                             self.audio.play(Sfx::Join, 0.7);
                         }
                         ServerMsg::Content(c) => p.content = *c,
-                        ServerMsg::Digging { .. } => {}
+                        ServerMsg::Digging { player, pos } => {
+                            let now = p.anims.now();
+                            if pos.is_some() {
+                                p.anims.digging.entry(player).or_insert(now);
+                            } else {
+                                p.anims.digging.remove(&player);
+                            }
+                        }
                         ServerMsg::Reject { reason } => closed = Some(reason),
                         _ => {}
                     },
                 }
+            }
+            if p.combat_log.len() > 300 {
+                p.combat_log.drain(..150);
             }
             if p.chat.len() > 200 {
                 p.chat.drain(..100);
@@ -2137,6 +2495,7 @@ impl App {
                                 p.dig = None;
                                 let _ = p.conn.tx.send(ClientMsg::Dig { pos });
                                 p.world.set(pos[0], pos[1], pos[2], w::AIR);
+                                p.minimap.block_changed(pos);
                                 p.light.changed(&p.world, pos);
                                 gfx.block_changed(&p.world, &p.light, pos, 15);
                                 spawn_particles(
@@ -2230,25 +2589,21 @@ impl App {
             let light_at = |l: &Light, v: Vec3| {
                 l.get(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32) as f32 / 15.0
             };
-            let anim_t = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
+            let mut book = std::mem::take(&mut p.anims);
+            let now = book.now();
+            book.prune(now);
             for (id, r) in &p.remotes {
                 let pose = r.current();
                 let base = p.ground.feet(&p.world, Vec3::from(pose.pos));
                 let bl = light_at(&p.light, base + Vec3::Y);
-                let walk = (r.speed() / 4.0).min(1.0);
-                let _ = id;
+                let state = remote_anim(p, &mut book, *id, r, now);
+                let step = Skeleton::Biped.step(r.speed(), 1.0);
+                let a = book.player(*id, now);
+                a.drive_at(now, state, base, step);
                 let look = models::Look::from_appearance(&r.look, r.color);
-                models::push_person(
-                    &mut boxes,
-                    base,
-                    pose.yaw,
-                    pose.pitch,
-                    &look,
-                    bl,
-                    anim_t * 9.0,
-                    walk,
-                );
+                models::push_person_anim(&mut boxes, base, pose.yaw, pose.pitch, &look, bl, a, now);
             }
+            p.anims = book;
             // night ambience: fireflies and crickets
             let night = sky_now.stars;
             if night > 0.5 {
@@ -2529,16 +2884,27 @@ impl App {
                         .unwrap_or([0.5, 0.5, 0.6]),
                 );
                 look.weapon = models::weapon_look(&p.content, held_item.map(|s| s.item));
-                models::push_person(
+                let mut book = std::mem::take(&mut p.anims);
+                let now = book.now();
+                let feet = p.ground.feet(&p.world, p.player.pos);
+                let state = my_anim(p, &mut book, &look, now);
+                let step = Skeleton::Biped.step(speed, 1.0);
+                let me = book.me(now);
+                if p.dig.is_some() && me.action(now).is_none() {
+                    me.play(now, Anim::Attack1H);
+                }
+                me.drive_at(now, state, feet, step);
+                models::push_person_anim(
                     &mut boxes,
-                    p.ground.feet(&p.world, p.player.pos),
+                    feet,
                     p.player.yaw,
                     p.player.pitch,
                     &look,
                     light_at(&p.light, p.player.pos + Vec3::Y),
-                    p.bob * 2.2,
-                    (speed / 4.0).min(1.0),
+                    me,
+                    now,
                 );
+                p.anims = book;
             }
             // block in hand, with a swing when breaking or placing
             let sw = (p.swing * std::f32::consts::PI).sin();
@@ -2571,7 +2937,9 @@ impl App {
             }
             // creatures
             let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
-            push_creatures(&mut boxes, p, clock);
+            let mut book = std::mem::take(&mut p.anims);
+            push_creatures(&mut boxes, p, &mut book, clock);
+            p.anims = book;
             // items lying in the world: small spinning cubes
             for e in p.entities.values() {
                 if let EntityKind::Item(s) = e.kind {
@@ -2687,6 +3055,11 @@ impl App {
                                 let _ = p.conn.tx.send(ClientMsg::Held { slot: i });
                                 let _ = p.conn.tx.send(ClientMsg::UseHeld);
                                 p.sent_held = i as usize;
+                            }
+                            screens::ScreenCmd::Offer(i) => {
+                                let _ = p.conn.tx.send(ClientMsg::Trade(
+                                    dyno_protocol::TradeOp::Offer { slot: i, count: 0 },
+                                ));
                             }
                             screens::ScreenCmd::Sell(i) => {
                                 let _ = p.conn.tx.send(ClientMsg::Sell { from: i });
@@ -2861,6 +3234,10 @@ impl App {
                     }
                     FrontCmd::Host => self.act(Action::Host),
                     FrontCmd::StopHost => self.act(Action::StopHost),
+                    FrontCmd::SetWorld(addr) => {
+                        self.settings.remember_server(&addr);
+                        let _ = self.settings.save();
+                    }
                     FrontCmd::Quit => std::process::exit(0),
                 }
             }
@@ -3101,6 +3478,7 @@ impl App {
                 let pos = tb;
                 let old = p.world.get(pos[0], pos[1], pos[2]);
                 p.world.set(pos[0], pos[1], pos[2], w::AIR);
+                p.minimap.block_changed(pos);
                 p.light.changed(&p.world, pos);
                 gfx.block_changed(&p.world, &p.light, pos, 15);
                 spawn_particles(
@@ -3154,6 +3532,7 @@ impl App {
                     && (!w::is_solid(block) || !p.player.overlaps_block(pos))
                 {
                     p.world.set(pos[0], pos[1], pos[2], block);
+                    p.minimap.block_changed(pos);
                     p.light.changed(&p.world, pos);
                     gfx.block_changed(&p.world, &p.light, pos, 15);
                     self.audio.play(Sfx::Place(material_of(block)), 0.9);
@@ -3299,7 +3678,7 @@ fn ui(
             );
             actions.extend(cmds.into_iter().map(Action::Front));
         }
-        Screen::Joining { label, since, .. } => {
+        Screen::Joining { since, .. } => {
             // the loading screen: the zone's name over the town, a tip, a burning fuse
             let screen = ctx.content_rect();
             let p = ctx.layer_painter(egui::LayerId::new(
@@ -3360,7 +3739,7 @@ fn ui(
                 &p,
                 Pos2::new(screen.center().x, screen.bottom() - 40.0),
                 Align2::CENTER_CENTER,
-                &format!("Entering {label}"),
+                "Entering Ashfall Vale",
                 crate::theme::body_font(13.0),
                 crate::theme::TEXT_DIM,
             );
@@ -3554,6 +3933,29 @@ fn hud(
             }
         }
     }
+    let map = p.minimap.show(
+        ctx,
+        &painter,
+        &crate::minimap::View {
+            world: &p.world,
+            content: &p.content,
+            me: &me,
+            pos: p.player.pos,
+            yaw: p.player.yaw,
+            zone: &p.zone,
+            time: (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract(),
+            remotes: &p.remotes,
+            entities: p
+                .entities
+                .values()
+                .map(|e| (e.kind, e.pos(), e.name.as_deref()))
+                .collect(),
+            captured: p.captured,
+        },
+    );
+    // the world event box and the quest tracker stack under the minimap
+    let event_top = map.bottom() + 10.0;
+    let tracker_top = event_top + if p.world_event.is_some() { 68.0 } else { 0.0 };
     if p.content.world.protected {
         // player frame, target frame, quest tracker, XP bar
         rpg_ui::unit_frame(
@@ -3607,12 +4009,12 @@ fn hud(
                 );
             }
         }
-        rpg_ui::tracker(&painter, screen, &me);
+        rpg_ui::tracker(&painter, screen, &me, tracker_top);
     }
     // a world event in progress: an orange tracker box at the right
     if let Some((title, text, prog)) = &p.world_event {
         let r = Rect::from_min_size(
-            Pos2::new(screen.right() - 300.0, screen.top() + 120.0),
+            Pos2::new(screen.right() - 300.0, event_top),
             Vec2::new(284.0, 58.0),
         );
         painter.rect_filled(r, 6.0, Color32::from_black_alpha(170));
@@ -3943,11 +4345,42 @@ fn hud(
         .take(10)
         .collect();
     let mut y = chat_bottom;
-    for m in visible {
-        let (txt, col) = match &m.from {
-            Some(f) => (format!("<{f}> {}", m.text), Color32::WHITE),
-            None => (m.text.clone(), Color32::from_rgb(232, 200, 110)),
-        };
+    // the combat log takes the panel's place while its tab is chosen
+    let combat: Vec<(String, Color32)> = if p.chat_tab_combat {
+        p.combat_log
+            .iter()
+            .rev()
+            .take(12)
+            .map(|(_, t, c)| (t.clone(), *c))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let lines: Vec<(String, Color32)> = if p.chat_tab_combat {
+        combat
+    } else {
+        visible
+            .iter()
+            .map(|m| match &m.from {
+                // channel colours, as players expect them
+                Some(f) if f.starts_with("[Party]") => {
+                    (format!("{f}: {}", m.text), Color32::from_rgb(140, 190, 255))
+                }
+                Some(f) if f.starts_with("[From]") || f.starts_with("[To") => {
+                    (format!("{f}: {}", m.text), Color32::from_rgb(240, 150, 230))
+                }
+                Some(f) if f.starts_with("[General]") => {
+                    (format!("{f}: {}", m.text), Color32::from_rgb(250, 210, 170))
+                }
+                Some(f) if f.starts_with("[Trade]") => {
+                    (format!("{f}: {}", m.text), Color32::from_rgb(250, 190, 140))
+                }
+                Some(f) => (format!("{f} says: {}", m.text), Color32::WHITE),
+                None => (m.text.clone(), Color32::from_rgb(232, 200, 110)),
+            })
+            .collect()
+    };
+    for (txt, col) in lines {
         let galley = painter.layout(txt, FontId::proportional(14.0), col, 520.0);
         y -= galley.size().y + 4.0;
         let r = Rect::from_min_size(
@@ -3957,6 +4390,34 @@ fn hud(
         painter.rect_filled(r, 3.0, Color32::from_black_alpha(120));
         painter.galley(Pos2::new(screen.left() + 15.0, y), galley, col);
     }
+    // tabs: Chat and Combat
+    egui::Area::new(egui::Id::new("chat_tabs"))
+        .fixed_pos(Pos2::new(
+            screen.left() + 10.0,
+            y.min(chat_bottom - 20.0) - 28.0,
+        ))
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                for (label, combat) in [("Chat", false), ("Combat", true)] {
+                    let on = p.chat_tab_combat == combat;
+                    let t = RichText::new(label).size(12.0).color(if on {
+                        crate::theme::GOLD_BRIGHT
+                    } else {
+                        crate::theme::TEXT_DIM
+                    });
+                    if ui
+                        .add(egui::Button::new(t).fill(Color32::from_black_alpha(if on {
+                            170
+                        } else {
+                            90
+                        })))
+                        .clicked()
+                    {
+                        p.chat_tab_combat = combat;
+                    }
+                }
+            });
+        });
     if p.chat_open {
         egui::Area::new(egui::Id::new("chat_in"))
             .fixed_pos(Pos2::new(screen.left() + 10.0, chat_bottom + 6.0))
@@ -3974,7 +4435,36 @@ fn hud(
                 let cancel = ui.input(|i| i.key_pressed(egui::Key::Escape));
                 if send {
                     let t = p.chat_text.trim().to_string();
-                    if !t.is_empty() {
+                    // emotes play on your own figure (others cannot see them yet)
+                    let emote = t.starts_with('/').then(|| Anim::emote(&t)).flatten();
+                    if let Some(e) = emote {
+                        let now = p.anims.now();
+                        if e.duration().is_some() {
+                            p.anims.me(now).play(now, e);
+                        } else {
+                            p.anims.hold = Some(e);
+                        }
+                    } else if let Some(who) = t.strip_prefix("/trade ") {
+                        // trade with a player near you, by name
+                        let who = who.trim();
+                        match p
+                            .remotes
+                            .iter()
+                            .find(|(_, r)| r.name.eq_ignore_ascii_case(who))
+                        {
+                            Some((id, _)) => {
+                                let _ = p
+                                    .conn
+                                    .tx
+                                    .send(ClientMsg::Trade(dyno_protocol::TradeOp::Ask(*id)));
+                            }
+                            None => p.chat.push(Chat {
+                                at: Instant::now(),
+                                from: None,
+                                text: format!("No one called '{who}' is near you."),
+                            }),
+                        }
+                    } else if !t.is_empty() {
                         let _ = p.conn.tx.send(ClientMsg::Chat { text: t });
                     }
                     p.chat_text.clear();
@@ -4044,6 +4534,7 @@ fn hud(
             equip: &p.equip,
             health: p.health,
             power: p.power,
+            trading: p.trade.is_some(),
             at_vendor: matches!(
                 p.panel,
                 Some(rpg_ui::Panel::Dialog { .. } | rpg_ui::Panel::Vendor { .. })
@@ -4066,10 +4557,7 @@ fn hud(
                 continue;
             };
             let r = Rect::from_min_size(
-                Pos2::new(
-                    screen.right() - 220.0 - k as f32 * 40.0,
-                    screen.top() + 12.0,
-                ),
+                Pos2::new(map.left() - 44.0 - k as f32 * 40.0, screen.top() + 12.0),
                 Vec2::splat(34.0),
             );
             painter.rect_filled(r, 4.0, Color32::from_black_alpha(160));
@@ -4296,6 +4784,222 @@ fn hud(
         p.panel = Some(panel);
         if !cmds.is_empty() {
             actions.push(Action::Rpg(cmds));
+        }
+    }
+    // party frames, under my own
+    let others: Vec<&dyno_protocol::PartyMember> =
+        p.party.iter().filter(|m| m.name != p.my_name).collect();
+    for (i, m) in others.iter().enumerate() {
+        let r = Rect::from_min_size(
+            Pos2::new(screen.left() + 14.0, screen.top() + 96.0 + i as f32 * 40.0),
+            Vec2::new(170.0, 34.0),
+        );
+        painter.rect_filled(r, 4.0, Color32::from_rgba_unmultiplied(20, 14, 10, 200));
+        painter.rect_stroke(
+            r,
+            4.0,
+            Stroke::new(1.0_f32, crate::theme::GOLD_DARK),
+            egui::StrokeKind::Inside,
+        );
+        let col = m
+            .class
+            .and_then(|c| p.content.class(c))
+            .map(|c| {
+                Color32::from_rgb(
+                    (c.color[0] * 255.0) as u8,
+                    (c.color[1] * 255.0) as u8,
+                    (c.color[2] * 255.0) as u8,
+                )
+            })
+            .unwrap_or(crate::theme::TEXT);
+        let label = if m.online {
+            format!(
+                "{}{}  {}",
+                if m.leader { "♛ " } else { "" },
+                m.name,
+                m.level
+            )
+        } else {
+            format!("{} (offline)", m.name)
+        };
+        painter.text(
+            r.left_top() + Vec2::new(8.0, 3.0),
+            Align2::LEFT_TOP,
+            label,
+            crate::theme::body_font(13.0),
+            if m.online {
+                col
+            } else {
+                Color32::from_gray(130)
+            },
+        );
+        let bar = Rect::from_min_size(r.left_top() + Vec2::new(8.0, 21.0), Vec2::new(154.0, 7.0));
+        painter.rect_filled(bar, 2.0, Color32::from_black_alpha(200));
+        let f = (m.health / m.max.max(1.0)).clamp(0.0, 1.0);
+        painter.rect_filled(
+            Rect::from_min_size(bar.min, Vec2::new(bar.width() * f, bar.height())),
+            2.0,
+            Color32::from_rgb(60, 180, 70),
+        );
+    }
+    // a party invitation
+    if let Some(from) = p.invite.clone() {
+        let mut answer = None;
+        egui::Window::new("Party invitation")
+            .id(egui::Id::new("party-invite"))
+            .title_bar(false)
+            .resizable(false)
+            .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 120.0))
+            .frame(crate::theme::window_frame())
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new(format!("{from} invites you to join their party."))
+                        .font(crate::theme::body_font(16.0))
+                        .color(crate::theme::TEXT),
+                );
+                ui.horizontal(|ui| {
+                    if ui.button("Accept").clicked() {
+                        answer = Some("/accept");
+                    }
+                    if ui.button("Decline").clicked() {
+                        answer = Some("/decline");
+                    }
+                });
+            });
+        if let Some(a) = answer {
+            let _ = p.conn.tx.send(ClientMsg::Chat { text: a.into() });
+            p.invite = None;
+        }
+    }
+    // someone asks to trade
+    if let Some(from) = p.trade_ask.clone() {
+        let mut answer = None;
+        egui::Window::new("Trade request")
+            .id(egui::Id::new("trade-ask"))
+            .title_bar(false)
+            .resizable(false)
+            .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 190.0))
+            .frame(crate::theme::window_frame())
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new(format!("{from} wants to trade with you."))
+                        .font(crate::theme::body_font(16.0))
+                        .color(crate::theme::TEXT),
+                );
+                ui.horizontal(|ui| {
+                    if ui.button("Trade").clicked() {
+                        answer = Some(dyno_protocol::TradeOp::Agree);
+                    }
+                    if ui.button("Decline").clicked() {
+                        answer = Some(dyno_protocol::TradeOp::Cancel);
+                    }
+                });
+            });
+        if let Some(a) = answer {
+            let _ = p.conn.tx.send(ClientMsg::Trade(a));
+            p.trade_ask = None;
+        }
+    }
+    // the trade window
+    if let Some(view) = p.trade.clone() {
+        let mut ops = Vec::new();
+        let mut open = true;
+        crate::theme::window(
+            ctx,
+            "trade",
+            "Trade",
+            &format!("with {}", view.with),
+            430.0,
+            (Align2::LEFT_CENTER, Vec2::new(40.0, 0.0)),
+            &mut open,
+            |ui| {
+                ui.label(
+                    RichText::new("Right-click items in your bags to offer them. Click a line to take it back.")
+                        .small()
+                        .color(crate::theme::TEXT_DIM),
+                );
+                ui.columns(2, |cols| {
+                    for (k, (title, items, money, accept)) in [
+                        ("You offer", &view.mine, view.my_money, view.i_accept),
+                        (
+                            view.with.as_str(),
+                            &view.theirs,
+                            view.their_money,
+                            view.they_accept,
+                        ),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        let ui = &mut cols[k];
+                        ui.label(
+                            RichText::new(title)
+                                .font(crate::theme::title_font(14.0))
+                                .color(crate::theme::GOLD),
+                        );
+                        for (i, st) in items.iter().enumerate() {
+                            let it = p.content.item(st.item);
+                            let label = if st.count > 1 {
+                                format!("{} ×{}", it.name, st.count)
+                            } else {
+                                it.name.to_string()
+                            };
+                            let r = ui.add(egui::Button::new(
+                                RichText::new(label).color(crate::theme::quality_color(it.quality)),
+                            ));
+                            if k == 0 && r.clicked() {
+                                ops.push(dyno_protocol::TradeOp::Withdraw { line: i as u8 });
+                            }
+                        }
+                        ui.label(
+                            RichText::new(dyno_sim::progression::money_text(money))
+                                .color(crate::theme::GOLD),
+                        );
+                        ui.label(
+                            RichText::new(if accept {
+                                "Accepted"
+                            } else {
+                                "Not yet accepted"
+                            })
+                            .small()
+                            .color(if accept {
+                                Color32::from_rgb(120, 210, 120)
+                            } else {
+                                crate::theme::TEXT_DIM
+                            }),
+                        );
+                    }
+                });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    ui.label("Coins (copper):");
+                    let r =
+                        ui.add(egui::TextEdit::singleline(&mut p.trade_money).desired_width(80.0));
+                    if r.lost_focus()
+                        && let Ok(n) = p.trade_money.trim().parse::<u32>()
+                    {
+                        ops.push(dyno_protocol::TradeOp::Money(n));
+                    }
+                });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui
+                        .button(RichText::new("Accept").color(crate::theme::GOLD_BRIGHT))
+                        .clicked()
+                    {
+                        ops.push(dyno_protocol::TradeOp::Accept);
+                    }
+                    if ui.button("Cancel").clicked() {
+                        ops.push(dyno_protocol::TradeOp::Cancel);
+                    }
+                });
+            },
+        );
+        if !open {
+            ops.push(dyno_protocol::TradeOp::Cancel);
+        }
+        for op in ops {
+            let _ = p.conn.tx.send(ClientMsg::Trade(op));
         }
     }
     // an open corpse
@@ -4880,6 +5584,7 @@ pub fn shot_with_ui(
                     p.weather_mix = strength;
                 }
                 ServerMsg::Equipment(e) => p.equip = e,
+                ServerMsg::Zone { name, .. } => p.zone = name,
                 ServerMsg::Skills(sk) => p.skills = sk,
                 ServerMsg::Power { value, max } => {
                     p.power = value;
@@ -5034,6 +5739,7 @@ pub fn shot_with_ui(
         p.dead = Some("You fell from a high place.".into());
     }
     let t = time.unwrap_or(p.time);
+    p.time = t;
     let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
     let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
     let load_start = Instant::now();
@@ -5099,7 +5805,9 @@ pub fn shot_with_ui(
             0.0,
         );
     }
-    push_creatures(&mut boxes, &p, 1.3);
+    let mut book = std::mem::take(&mut p.anims);
+    push_creatures(&mut boxes, &p, &mut book, 1.3);
+    p.anims = book;
     for (id, r) in &p.remotes {
         let pose = r.current();
         let base = Vec3::from(pose.pos);
