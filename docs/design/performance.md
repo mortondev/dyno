@@ -282,7 +282,7 @@ Low (no occlusion or bloom):
 | mirrormere | 236 | 0.013 | 0.007% | 0.004% |
 | windmill_farm | 174 | 0.017 | 0.029% | 0.017% |
 
-The largest differences (over 150) are single pixels on edges. Where the
+The largest differences sit on the edges of shapes. Where the
 pictures differ:
 
 - **Edges.** A position moves by at most a quarter of a millimetre, so a
