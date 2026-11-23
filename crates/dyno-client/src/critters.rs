@@ -169,6 +169,7 @@ pub struct Critters {
     populate_eye: Vec3,
     /// look at the squares this frame whatever the clock says
     pub settle_now: bool,
+    populate_ms: f32,
 }
 
 fn load(kind: &Kind) -> Option<Frames> {
@@ -351,8 +352,11 @@ impl Critters {
             self.settle_now = false;
             self.populate_at = clock;
             self.populate_eye = s.eye;
+            let t = std::time::Instant::now();
             self.populate(s, clock, radius, thin);
+            self.populate_ms = t.elapsed().as_secs_f32() * 1e3;
         }
+        counts.populate_ms = self.populate_ms;
         let dt = dt.clamp(0.0, 0.25);
         for i in 0..self.list.len() {
             let kind = &self.kinds[self.list[i].kind as usize];

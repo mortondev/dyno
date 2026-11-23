@@ -418,6 +418,9 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     let world_layout = layout.as_ref().map(|l| l.version);
     // building or growing a world rewrites what is saved beside it
     let meta = store::load_meta(&store::meta_path(&cfg.world_path));
+    // changes are noted, so the far view's tiles are sent again (stream.rs)
+    let mut world = world;
+    world.log_changes(true);
     let hearths = creatures::find_hearths(&world);
     let light = dyno_world::light::Light::new(&world);
     let webhook = cfg

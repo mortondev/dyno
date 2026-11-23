@@ -26,9 +26,10 @@ USAGE:
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
                                [--ui hud|pack|dig|dead|talk|log|char|bags|spells|skills] [--as NAME]
                                Join, render one frame off-screen to an image, leave
-  dyno shot <address> --stand x,z|x,y,z --face x,y,z [--from-hearth] [--zoom 9] [--pitch 15] [--time 0-1] [--size WxH] [--out f.ppm]
+  dyno shot <address> --stand x,z|x,y,z --face x,y,z [--from-hearth] [--hero CLASS] [--zoom 9] [--pitch 15] [--time 0-1] [--size WxH] [--out f.ppm]
                                The view of a player standing there and facing that point: a stand-in figure on
                                the ground, the play camera behind it (--pitch: degrees down), no interface.
+                               --hero: the stand-in is the pack's hero of that class (default: a new character)
                                --from-hearth: the positions are metres from the world's hearth
   dyno scout <address> [--landmarks tools/concepts/landmarks.json] [--out tools/concepts/cameras.json] [name ...]
                                Choose where the stand shot of each landmark stands; write the camera data
@@ -236,6 +237,7 @@ fn main() {
                         continue;
                     }
                     "--stand" => stand = Some(nums(&v)),
+                    "--hero" => drop(dyno_client::shot::STAND_HERO.set(v.clone())),
                     "--face" => face = nums(&v).try_into().ok(),
                     "--pitch" => pitch_down = v.parse().unwrap_or(pitch_down),
                     "--pos" => o.pos = nums(&v).try_into().ok(),

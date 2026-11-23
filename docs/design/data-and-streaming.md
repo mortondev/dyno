@@ -314,8 +314,9 @@ when one of them is replaced.
     stand on or walk round belongs in the world as blocks.
 - **Foliage** (`foliage.json`; `dyno-client/src/foliage.rs`): leaf crowns as
   clumps of cubes. `cells` cubes along a block (0: the smooth canopy), `erode`
-  (how much of a crown's outside is worn away), `crease`, `under`, `depth`
-  and `vary` (shading), `leaves` (colours per leaf block key), `trunks` (the
+  (how much of a crown's outside is worn away), `crease`, `under`, `depth`,
+  `top`, `vary` and `clump` (cubes along a clump of one colour; shading: the brightness of the topmost clumps, falling
+  to `under` at `depth` blocks down), `leaves` (colours per leaf block key), `trunks` (the
   blocks trees are made of) and `areas` (per area key: the `blocks` that
   turn, and `tones` with the `share` of trees each takes: autumn, blossom).
   Which cells hold leaves stays the world's business.
@@ -478,7 +479,7 @@ kind of traffic fell.
   frames still rose to 20–40 ms in a few join runs while their world work
   stayed under 10 ms: the rest is rendering and scheduling.
 
-### The 2 km world (protocol 21)
+### The 2 km world (protocol 21; the far view's ground and seam: 23)
 
 For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
 
@@ -506,13 +507,31 @@ For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
 - **Far view** (`dyno_world::far`, `dyno-client/src/farview.rs`). Beyond
   the streamed 160 m, the server sends a coarse heightmap in tiles of
   64 m: for each 4 × 4 m cell, the top of its highest block and that
-  block's kind (`ServerMsg::Far`, about 300 bytes a tile), after the near
-  view and within the same budget, out to 800 m (`--far`), remade and sent
-  again only when a block in the tile changed (the sum of its sections'
-  counts of changes). The client draws each cell as a column (a top, and
-  the sides it shows above its neighbours) coloured by its block, outside
-  the near view; the fog then ends at 900 m. A tower, a windmill, a
-  headframe or a hero tree wins its cell, so landmarks stand out.
+  block's kind, and the ground (the lowest top of the land in the cell,
+  trees and water left out) and its kind (`ServerMsg::Far`, about 600
+  bytes a tile), after the near view and within the same budget, out to
+  800 m (`--far`). A tile is sent again when a block in it changes, even
+  if its holder stays put: the world notes changed sections
+  (`World::log_changes`) and each tick the shard resends the tiles they
+  fall in to those who hold them. The client draws it so the seam with
+  the near view does not show:
+  - the ground layer from 64 m out, half a metre low: never above the
+    near land (it is each cell's lowest ground), so the near land hides it,
+    and where the near view ends, however raggedly, it carries on with no
+    gap;
+  - what stands on the ground (trees, roofs, a tower, a ridge) only past
+    the near view, dithered in over 32 m (`farview::FADE`), so there is no
+    hard line; past that, one layer of tops;
+  - colours are the mean of each block's own texture (water: the render
+    settings' water colours), toned, lit and fogged by the land's own
+    shader, so the far land matches the near; the fog ends at 900 m;
+  - cells beyond 400 m are drawn 8 m wide;
+  - its own compact vertices (24 bytes: place, colour, normal, fade) and
+    pipeline (`vs_far`), a third the size of the land's.
+  A tower, a windmill, a headframe or a hero tree wins its cell, so
+  landmarks stand out. Measured on the 2 km world from 46 m up: 490 tiles,
+  813,870 vertices, 18.6 MB on the GPU (86 MB before compact vertices and
+  one layer past the fade); the slowest tile made and uploaded 0.6–6 ms.
   `--world-size WxHxD` makes a new world of that size.
 
 Measured on 2048 × 256 × 2048 (today's generator; release; a machine shared

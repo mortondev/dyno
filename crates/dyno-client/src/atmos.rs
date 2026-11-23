@@ -42,6 +42,10 @@ pub struct Lighting {
     /// `moon_lift` raises it from the horizon
     pub moon_arc: f32,
     pub moon_lift: f32,
+    /// lamps as lights of their own, pooling on what stands round them:
+    /// their strength (0: none) and how far each reaches (metres)
+    pub point: f32,
+    pub point_reach: f32,
 }
 
 impl Default for Lighting {
@@ -65,6 +69,8 @@ impl Default for Lighting {
             moon_shadow: 1.0,
             moon_arc: 1.0,
             moon_lift: 0.0,
+            point: 0.0,
+            point_reach: 7.0,
         }
     }
 }
@@ -140,6 +146,8 @@ pub struct Frame {
     pub rim: [f32; 3],
     pub rim_strength: f32,
     pub rim_power: f32,
+    pub point: f32,
+    pub point_reach: f32,
     pub haze: [f32; 3],
     pub haze_follow: f32,
     pub haze_density: f32,
@@ -204,13 +212,48 @@ pub struct EnvUniform {
     /// height, falloff, max, start
     fog2: [f32; 4],
     dome: crate::sky::DomeUniform,
+    /// x: how many of `lights` are lit
+    light_count: [f32; 4],
+    /// the lamps nearest the camera, two entries each: xyz where it
+    /// stands, w its reach; then rgb its light
+    lights: [[f32; 4]; MAX_LIGHTS * 2],
+}
+
+/// How many lamps can light the picture as lights of their own at once.
+pub const MAX_LIGHTS: usize = 24;
+
+/// A lamp near the camera: where it stands, its colour (sRGB), and how much
+/// of its light counts (lamps fade in as they come into range).
+#[derive(Clone, Copy)]
+pub struct Lamp {
+    pub pos: [f32; 3],
+    pub color: [f32; 3],
+    pub weight: f32,
 }
 
 impl EnvUniform {
     /// `cascades`: the shadow maps' transforms with the world size of one of
     /// their texels (shadows.rs).
-    pub fn pack(sky: &Sky, cascades: &[(Mat4, f32); 3], shadow_size: u32) -> EnvUniform {
+    pub fn pack(
+        sky: &Sky,
+        cascades: &[(Mat4, f32); 3],
+        shadow_size: u32,
+        lamps: &[Lamp],
+    ) -> EnvUniform {
         let f = &sky.env;
+        let mut lights = [[0.0; 4]; MAX_LIGHTS * 2];
+        let count = if f.point > 0.0 {
+            lamps.len().min(MAX_LIGHTS)
+        } else {
+            0
+        };
+        for (i, l) in lamps.iter().take(count).enumerate() {
+            lights[i * 2] = v4(l.pos, f.point_reach.max(0.5));
+            lights[i * 2 + 1] = v4(
+                lin(l.color).map(|v| v * f.point * f.lamp_strength * l.weight),
+                0.0,
+            );
+        }
         let horizon = lin(sky.horizon);
         let top = lin(sky.top);
         let light = lin(sky.light);
@@ -255,6 +298,8 @@ impl EnvUniform {
                 f.fog_start,
             ],
             dome: f.dome.uniform(horizon, top, light),
+            light_count: [count as f32, 0.0, 0.0, 0.0],
+            lights,
         }
     }
 }
@@ -288,6 +333,8 @@ struct Env {
   ridge_far: vec4<f32>,
   ridge_snow: vec4<f32>,
   stars: vec4<f32>,
+  light_count: vec4<f32>,
+  lights: array<vec4<f32>, 48>,
 };
 @group(0) @binding(6) var<uniform> env: Env;
 
@@ -438,7 +485,28 @@ fn world_light(wpos: vec3<f32>, n: vec3<f32>, lam: f32, wrap: f32, has_n: bool, 
   }
   day = day * (sl * 0.97 + 0.03);
   let lum = dot(day, vec3<f32>(0.3, 0.6, 0.1));
-  return day + env.lamp.rgb * bl * (1.0 - env.lamp.w * clamp(lum * 1.4, 0.0, 1.0));
+  var lamps = env.lamp.rgb * bl;
+  // the lamps nearest the camera as lights of their own: a pool round each,
+  // on the faces turned to it. Only where the light of lamps reaches at
+  // all (bl), so none shines through a wall.
+  let count = i32(env.light_count.x);
+  if (count > 0 && bl > 0.0) {
+    var pool = vec3<f32>(0.0);
+    for (var k = 0; k < count; k++) {
+      let at = env.lights[k * 2];
+      let to = at.xyz - wpos;
+      let d2 = dot(to, to);
+      if (d2 < at.w * at.w) {
+        let d = sqrt(d2);
+        let near = 1.0 - d / at.w;
+        var facing = 0.8;
+        if (has_n) { facing = max(dot(n, to / max(d, 0.001)) * 0.65 + 0.35, 0.0); }
+        pool += env.lights[k * 2 + 1].rgb * (near * near * facing);
+      }
+    }
+    lamps += pool * smoothstep(0.0, 0.06, bl);
+  }
+  return day + lamps * (1.0 - env.lamp.w * clamp(lum * 1.4, 0.0, 1.0));
 }
 
 // What the air does to a colour seen from the camera: blue haze with

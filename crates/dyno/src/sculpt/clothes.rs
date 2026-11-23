@@ -434,7 +434,7 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         // round the shoulders at the top, hang straight below
         let zc = c0.z - 0.4 - drop * 0.06 - smooth(8.0, 24.0, drop) * 1.3 - fold
             + (p.x / w).powi(2) * 1.8 * smooth(6.0, 0.0, drop);
-        if (p.z - zc).abs() > 0.42 {
+        if (p.z - zc).abs() > 0.5 {
             return None;
         }
         let seg = if drop < 13.0 {
@@ -444,7 +444,7 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         } else {
             "cape.2"
         };
-        let c = if drop > 37.6 || p.x.abs() > w - 0.45 {
+        let c = if drop > 37.0 || p.x.abs() > w - 1.0 {
             ink.trim[0]
         } else if fold > 0.2 {
             ink.cape[2]
@@ -455,6 +455,37 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         };
         Some((part_index(seg), Mode::Set, c))
     })];
+    // the device on the cape
+    for e in 1..=4u8 {
+        let bb = b.clone();
+        out.push(layer(
+            g,
+            &format!("back/cape-device={e}"),
+            bi,
+            &[("cape", &[1]), ("emblem", &[e])],
+            move |p| {
+                let b = &bb;
+                let drop = c0.y + 0.4 - p.y;
+                if !(4.0..26.0).contains(&drop) || p.x.abs() > 6.0 {
+                    return None;
+                }
+                let w = (if b.female { 7.4 } else { 8.6 }) + drop * 0.065;
+                let fold = 0.38 * (p.x * 1.05 + drop * 0.05).sin() * smooth(0.0, 8.0, drop);
+                let zc = c0.z - 0.4 - drop * 0.06 - smooth(8.0, 24.0, drop) * 1.3 - fold
+                    + (p.x / w).powi(2) * 1.8 * smooth(6.0, 0.0, drop);
+                if (p.z - zc).abs() > 0.5 {
+                    return None;
+                }
+                // bigger than on a tabard, hung below the shoulders
+                let (x, y) = (p.x / 1.6, 39.5 + (p.y - (c0.y - 14.0)) / 1.6);
+                super::gear::device(e, x, y).then_some((
+                    part_index(if drop < 13.0 { "cape.0" } else { "cape.1" }),
+                    Mode::Set,
+                    ink.trim[1],
+                ))
+            },
+        ));
+    }
     let bb = b.clone();
     out.push(layer(
         g,
@@ -696,7 +727,7 @@ fn hair(g: &Grid, b: &Body, bi: usize, ink: &Inks, style: u8) -> Layer {
         &b.clone(),
         bi,
         // hats and hoods hide the hair (a circlet does not)
-        &[("hair_style", &[style]), ("helm", &[0, 1])],
+        &[("hair_style", &[style]), ("helm", &[0, 1, 5])],
         move |p| {
             let m = mirror(p);
             let y = |v: f32| b.hy(v);

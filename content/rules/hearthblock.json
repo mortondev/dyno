@@ -3611,6 +3611,258 @@
    "image": "icons/magister_slippers.png"
   },
   {
+   "key": "recruits_tabard",
+   "name": "Recruit's Tabard",
+   "color": [
+    0.74,
+    0.12,
+    0.1
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "recruits_pauldrons",
+   "name": "Recruit's Pauldrons",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "image": "icons/ironbound_pauldrons.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "initiates_tabard",
+   "name": "Initiate's Tabard",
+   "color": [
+    0.14,
+    0.27,
+    0.68
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "initiates_pauldrons",
+   "name": "Initiate's Pauldrons",
+   "color": [
+    0.74,
+    0.76,
+    0.82
+   ],
+   "icon": "lump",
+   "image": "icons/stormguard_pauldrons.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "trackers_jerkin",
+   "name": "Tracker's Jerkin",
+   "color": [
+    0.22,
+    0.52,
+    0.2
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "trackers_hood",
+   "name": "Tracker's Hood",
+   "color": [
+    0.22,
+    0.52,
+    0.2
+   ],
+   "icon": "lump",
+   "image": "icons/wildstalker_hood.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "footpads_jerkin",
+   "name": "Footpad's Jerkin",
+   "color": [
+    0.3,
+    0.22,
+    0.2
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "footpads_cowl",
+   "name": "Footpad's Cowl",
+   "color": [
+    0.6,
+    0.15,
+    0.12
+   ],
+   "icon": "lump",
+   "image": "icons/nightstalker_cowl.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "acolytes_robe",
+   "name": "Acolyte's Robe",
+   "color": [
+    0.94,
+    0.92,
+    0.86
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "acolytes_hood",
+   "name": "Acolyte's Hood",
+   "color": [
+    0.94,
+    0.92,
+    0.86
+   ],
+   "icon": "lump",
+   "image": "icons/wildstalker_hood.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "novices_robe",
+   "name": "Novice's Robe",
+   "color": [
+    0.14,
+    0.27,
+    0.68
+   ],
+   "icon": "lump",
+   "image": "icons/apprentice_robe.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "novices_mantle",
+   "name": "Novice's Mantle",
+   "color": [
+    0.14,
+    0.27,
+    0.68
+   ],
+   "icon": "lump",
+   "image": "icons/apprentice_mantle.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
    "key": "ride_hearthstead",
    "name": "Cart ride to Hearthstead",
    "color": [
@@ -5869,10 +6121,11 @@
     0.42,
     0.6
    ],
+   "place": "hearthstead",
    "at": [
     3,
     0,
-    -7
+    -34
    ],
    "greeting": "Mind the dust. And the boots. Especially the boots.",
    "routine": [
@@ -5922,8 +6175,7 @@
      ],
      "anim": "Sweep"
     }
-   ],
-   "area": "hearthstead"
+   ]
   },
   {
    "key": "odo",
@@ -5934,10 +6186,11 @@
     0.55,
     0.3
    ],
+   "place": "hearthstead",
    "at": [
-    -6,
+    -4,
     0,
-    -12
+    -38
    ],
    "greeting": "Fresh from Ostrin's fields this morning. Well. Yesterday morning.",
    "routine": [
@@ -5971,8 +6224,7 @@
       "Wave"
      ]
     }
-   ],
-   "area": "hearthstead"
+   ]
   },
   {
    "key": "bram",
@@ -5983,10 +6235,11 @@
     0.35,
     0.25
    ],
+   "place": "hearthstead",
    "at": [
-    2,
+    6,
     0,
-    5
+    1
    ],
    "greeting": "Three hundred years that hearth burned. I give it three more, with you about.",
    "routine": [
@@ -6039,8 +6292,7 @@
       "Wave"
      ]
     }
-   ],
-   "area": "hearthstead"
+   ]
   },
   {
    "key": "ilsa",
@@ -6051,10 +6303,11 @@
     0.45,
     0.5
    ],
+   "place": "hearthstead",
    "at": [
-    4,
+    -4,
     0,
-    11
+    4
    ],
    "greeting": "Sit a while. The stones are still warm if you believe hard enough.",
    "routine": [
@@ -6083,8 +6336,7 @@
       "Cheer"
      ]
     }
-   ],
-   "area": "hearthstead"
+   ]
   },
   {
    "key": "tam",
@@ -6095,9 +6347,10 @@
     0.3,
     0.2
    ],
+   "place": "logging_camp",
    "at": [
-    -2,
-    -3,
+    -5,
+    0,
     -2
    ],
    "greeting": "Birch splits clean. Oak fights back. I respect oak.",
@@ -6141,8 +6394,7 @@
      "within": 12,
      "anim": "Chop"
     }
-   ],
-   "area": "logging_camp"
+   ]
   },
   {
    "key": "wyn",
@@ -6153,10 +6405,11 @@
     0.45,
     0.3
    ],
+   "place": "logging_camp",
    "at": [
-    5,
-    -3,
-    -4
+    7,
+    0,
+    -5
    ],
    "greeting": "Garrick says axes down. Garrick isn't the one behind on his cords.",
    "routine": [
@@ -6197,8 +6450,7 @@
      "within": 8,
      "anim": "Chop"
     }
-   ],
-   "area": "logging_camp"
+   ]
   },
   {
    "key": "edric",
@@ -6209,10 +6461,11 @@
     0.35,
     0.6
    ],
+   "place": "north_watch",
    "at": [
-    -2,
-    -7,
-    5
+    -12,
+    0,
+    -11
    ],
    "greeting": "Quiet night. I don't trust quiet nights.",
    "routine": [
@@ -6259,8 +6512,7 @@
       8
      ]
     }
-   ],
-   "area": "north_watch"
+   ]
   },
   {
    "key": "jory",
@@ -6271,10 +6523,11 @@
     0.6,
     0.3
    ],
+   "place": "windmill_farm",
    "at": [
-    4,
-    -10,
-    6
+    -30,
+    0,
+    -25
    ],
    "greeting": "Ostrin says the mill grinds, the hands rake. So I rake.",
    "routine": [
@@ -6315,8 +6568,7 @@
       "Wave"
      ]
     }
-   ],
-   "area": "windmill"
+   ]
   },
   {
    "key": "marl",
@@ -6327,10 +6579,11 @@
     0.45,
     0.6
    ],
+   "place": "fishers_landing",
    "at": [
-    -3,
-    -11,
-    -2
+    -4,
+    0,
+    -3
    ],
    "greeting": "Hush. You'll scare the supper.",
    "routine": [
@@ -6360,8 +6613,7 @@
       "Wave"
      ]
     }
-   ],
-   "area": "fishers_landing"
+   ]
   },
   {
    "key": "dag",
@@ -6372,10 +6624,11 @@
     0.4,
     0.35
    ],
+   "place": "miners_rest",
    "at": [
-    -4,
-    -4,
-    -3
+    -7,
+    0,
+    3
    ],
    "greeting": "Coal's shallow here. Iron's deep. Candlekin are deeper. Guess which I dig.",
    "routine": [
@@ -6416,8 +6669,7 @@
      "within": 14,
      "anim": "Chop"
     }
-   ],
-   "area": "miners_rest"
+   ]
   },
   {
    "key": "sela",
@@ -6428,10 +6680,11 @@
     0.3,
     0.55
    ],
+   "place": "emberford_bridge",
    "at": [
-    9,
-    -6,
-    -5
+    4,
+    0,
+    -1
    ],
    "greeting": "East road's no place to walk alone. So I walk it quickly.",
    "routine": [
@@ -6461,8 +6714,7 @@
       "Point"
      ]
     }
-   ],
-   "area": "east_road"
+   ]
   },
   {
    "key": "hobb",
@@ -6473,10 +6725,11 @@
     0.45,
     0.3
    ],
+   "place": "wrecked_caravan",
    "at": [
-    -36,
-    -6,
-    -14
+    5,
+    0,
+    -9
    ],
    "greeting": "A good wagon, that was. Forty years. Then Ashcloaks.",
    "routine": [
@@ -6506,8 +6759,7 @@
       "Point"
      ]
     }
-   ],
-   "area": "east_road"
+   ]
   },
   {
    "key": "tolan",
@@ -6518,10 +6770,11 @@
     0.35,
     0.6
    ],
+   "place": "hearthstead",
    "at": [
-    15,
-    1,
-    -18
+    4,
+    0,
+    -44
    ],
    "greeting": "Tower's sound. It's the roads I'd watch.",
    "routine": [
@@ -6561,8 +6814,7 @@
       "Wave"
      ]
     }
-   ],
-   "area": "hearthstead"
+   ]
   },
   {
    "key": "rysa",
@@ -6573,10 +6825,11 @@
     0.5,
     0.3
    ],
+   "place": "hollow_oak",
    "at": [
-    -21,
     -8,
-    -3
+    0,
+    36
    ],
    "greeting": "Webs between the roots, thick as rope. Don't touch them.",
    "routine": [
@@ -6614,8 +6867,7 @@
       10
      ]
     }
-   ],
-   "area": "hollow_oak"
+   ]
   },
   {
    "key": "anwen",
@@ -6626,10 +6878,11 @@
     0.4,
     0.65
    ],
+   "place": "old_barrow",
    "at": [
-    -14,
-    -6,
-    20
+    6,
+    0,
+    -2
    ],
    "greeting": "The stones are older than the hearth. Whatever sleeps under them is older still.",
    "routine": [
@@ -6660,8 +6913,7 @@
       "Bow"
      ]
     }
-   ],
-   "area": "barrowwood"
+   ]
   },
   {
    "key": "calder",
@@ -6672,10 +6924,11 @@
     0.5,
     0.3
    ],
+   "place": "old_barrow",
    "at": [
-    -3,
-    -9,
-    12
+    11,
+    0,
+    7
    ],
    "greeting": "A light at the door, every night. It's all that keeps them in.",
    "routine": [
@@ -6713,8 +6966,7 @@
       10
      ]
     }
-   ],
-   "area": "barrowwood"
+   ]
   },
   {
    "key": "tess",
@@ -6725,10 +6977,11 @@
     0.5,
     0.55
    ],
+   "place": "fishers_landing",
    "at": [
-    13,
-    -11,
-    -9
+    27,
+    0,
+    -18
    ],
    "greeting": "Mirrormere gives if you're patient. Takes, if you wade.",
    "routine": [
@@ -6758,8 +7011,7 @@
       "Wave"
      ]
     }
-   ],
-   "area": "mirrormere"
+   ]
   },
   {
    "key": "oswin",
@@ -6770,10 +7022,11 @@
     0.72,
     0.6
    ],
+   "place": "sunken_shrine",
    "at": [
-    25,
-    -10,
-    16
+    3,
+    0,
+    21
    ],
    "greeting": "They built it to stand in the water. I like to think they knew why.",
    "routine": [
@@ -6805,8 +7058,7 @@
       "Point"
      ]
     }
-   ],
-   "area": "mirrormere"
+   ]
   },
   {
    "key": "mira",
@@ -6817,10 +7069,11 @@
     0.3,
     0.45
    ],
+   "place": "ashcloak_stockade",
    "at": [
-    -25,
-    -11,
-    44
+    11,
+    0,
+    0
    ],
    "greeting": "Six by the fire, two on the gate. Stay behind my light.",
    "routine": [
@@ -6848,8 +7101,7 @@
      ],
      "anim": "Kneel"
     }
-   ],
-   "area": "east_road"
+   ]
   },
   {
    "key": "pell",
@@ -6860,10 +7112,11 @@
     0.45,
     0.3
    ],
+   "place": "hollow_mines",
    "at": [
-    -11,
-    -6,
-    37
+    1,
+    0,
+    3
    ],
    "greeting": "Shaft's sound enough. It's what moved in that isn't.",
    "routine": [
@@ -6906,8 +7159,203 @@
      "within": 10,
      "anim": "Chop"
     }
+   ]
+  },
+  {
+   "key": "ruk",
+   "name": "Ruk",
+   "title": "Miner",
+   "color": [
+    0.4,
+    0.35,
+    0.3
    ],
-   "area": "hollow_mines"
+   "place": "hollow_mines",
+   "at": [
+    -3,
+    0,
+    -4
+   ],
+   "greeting": "Sit. Breathe. The dust settles if you let it.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      36
+     ],
+     "anim": "Sit",
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      -2,
+      -2
+     ],
+     "secs": [
+      8,
+      12
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "nim",
+   "name": "Nim",
+   "title": "Forager",
+   "color": [
+    0.45,
+    0.55,
+    0.3
+   ],
+   "place": "hollow_oak",
+   "at": [
+    -15,
+    0,
+    29
+   ],
+   "greeting": "Red caps for stew, pale caps for sleep. Don't mix them up. I did once.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      16,
+      28
+     ],
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      2,
+      3
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      4,
+      -1
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "anim": "Kneel"
+    }
+   ]
+  },
+  {
+   "key": "poll",
+   "name": "Poll",
+   "title": "Gardener",
+   "color": [
+    0.4,
+    0.5,
+    0.3
+   ],
+   "place": "hearthstead",
+   "at": [
+    5,
+    0,
+    -14
+   ],
+   "greeting": "Beans by the tower wall, where the stone holds the warmth.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      -3,
+      2
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      -1,
+      4
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sweep"
+    }
+   ]
+  },
+  {
+   "key": "wat",
+   "name": "Wat",
+   "title": "Shepherd",
+   "color": [
+    0.6,
+    0.55,
+    0.4
+   ],
+   "place": "north_watch",
+   "at": [
+    -13,
+    0,
+    -21
+   ],
+   "greeting": "Count them going out, count them coming in. Some nights the sums differ.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      16,
+      28
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      3,
+      2
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "anim": "Sit"
+    }
+   ]
   },
   {
    "key": "jeb",
@@ -8274,7 +8722,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "recruits_tabard",
+     1
+    ],
+    [
+     "recruits_pauldrons",
      1
     ],
     [
@@ -8323,7 +8775,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "initiates_tabard",
+     1
+    ],
+    [
+     "initiates_pauldrons",
      1
     ],
     [
@@ -8377,7 +8833,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "trackers_jerkin",
+     1
+    ],
+    [
+     "trackers_hood",
      1
     ],
     [
@@ -8425,7 +8885,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "footpads_jerkin",
+     1
+    ],
+    [
+     "footpads_cowl",
      1
     ],
     [
@@ -8474,7 +8938,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "acolytes_robe",
+     1
+    ],
+    [
+     "acolytes_hood",
      1
     ],
     [
@@ -8523,7 +8991,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "novices_robe",
+     1
+    ],
+    [
+     "novices_mantle",
      1
     ],
     [

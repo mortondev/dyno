@@ -139,6 +139,8 @@ struct Play {
     far: crate::farview::FarTiles,
     far_dirty: std::collections::HashSet<[i32; 2]>,
     far_centre: Option<[f32; 2]>,
+    /// the slowest far tile made and uploaded (for `dyno shot` stats)
+    far_worst: Duration,
     /// the land round you has not all streamed in and been meshed yet (a
     /// join, a long teleport): a loading veil is shown
     land_wait: bool,
@@ -1542,13 +1544,21 @@ fn far_uploads(p: &mut Play, gfx: &mut Gfx, cam: Vec3, budget: Duration) -> Dura
         .is_none_or(|c| (c[0] - here[0]).hypot(c[1] - here[1]) > 16.0)
     {
         p.far_centre = Some(here);
-        // the tiles the edge of the cut can touch
+        // the tiles whose mesh depends on where the camera is: near the start
+        // of the ground, the cut and its fade, or the ring where cells coarsen
+        let edges = [
+            crate::farview::GROUND_FROM,
+            cut,
+            cut + crate::farview::FADE,
+            crate::farview::COARSE,
+        ];
         for t in p.far.keys() {
             let c = [
                 t[0] as f32 * tile + tile * 0.5,
                 t[1] as f32 * tile + tile * 0.5,
             ];
-            if (c[0] - here[0]).hypot(c[1] - here[1]) < cut + tile * 1.5 {
+            let d = (c[0] - here[0]).hypot(c[1] - here[1]);
+            if edges.iter().any(|e| (d - e).abs() < tile * 1.5) {
                 p.far_dirty.insert(*t);
             }
         }
@@ -1565,8 +1575,10 @@ fn far_uploads(p: &mut Play, gfx: &mut Gfx, cam: Vec3, budget: Duration) -> Dura
     for t in todo {
         p.far_dirty.remove(&t);
         if p.far.contains_key(&t) {
+            let one = Instant::now();
             let verts = crate::farview::mesh_tile(&p.far, t, centre, cut);
             gfx.put_far(t, &verts);
+            p.far_worst = p.far_worst.max(one.elapsed());
         }
         if t0.elapsed() >= budget {
             break;
@@ -1619,6 +1631,7 @@ fn new_play(j: Joined) -> Play {
         far: Default::default(),
         far_dirty: Default::default(),
         far_centre: None,
+        far_worst: Duration::ZERO,
         world: j.world,
         land_wait: true,
         conn: j.conn,
@@ -3691,6 +3704,19 @@ impl App {
                 }
             }
             Action::CancelJoin => self.screen = Screen::Menu,
+            Action::Graphics => {
+                // the options panel changed something: apply and save
+                if let Some(o) = crate::options::get() {
+                    o.into(&mut self.settings);
+                    let _ = self.settings.save();
+                    if let Some(g) = &mut self.gfx {
+                        g.set_graphics(o.tier);
+                        g.water.quality = o.water;
+                        g.cover.set_quality(o.cover);
+                    }
+                    crate::foliage::set_detail(o.leaves);
+                }
+            }
             Action::Resume => {
                 if let Screen::Playing(p) = &mut self.screen {
                     p.menu_open = false;
@@ -3722,6 +3748,7 @@ impl App {
                         self.settings.remember_server(&addr);
                         let _ = self.settings.save();
                     }
+                    FrontCmd::Graphics => self.act(Action::Graphics),
                     FrontCmd::Quit => std::process::exit(0),
                 }
             }
@@ -4065,6 +4092,8 @@ enum Action {
     Tunnel,
     CancelJoin,
     Resume,
+    /// the graphics options changed (options.rs)
+    Graphics,
     Disconnect,
     Capture,
     Front(FrontCmd),
@@ -5616,10 +5645,14 @@ fn hud(
     }
     // pause menu
     if p.menu_open {
-        egui::Window::new("Menu").collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+        egui::Window::new("Menu").frame(crate::theme::window_frame()).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
             ui.set_width(380.0);
             if ui.add_sized([ui.available_width(), 32.0], egui::Button::new("Back to game")).clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
                 actions.push(Action::Resume);
+            }
+            ui.add_space(6.0);
+            if crate::options::panel(ui) {
+                actions.push(Action::Graphics);
             }
             ui.add_space(6.0);
             host_panel(ui, host, actions);
@@ -5672,10 +5705,25 @@ impl ApplicationHandler for App {
         };
         match Gfx::new(window.clone()) {
             Ok(mut g) => {
-                g.water.quality = self.settings.water_quality;
                 eprintln!("graphics: {}", g.adapter_info);
-                g.cover.set_quality(self.settings.ground_cover);
-                crate::foliage::set_detail(self.settings.leaf_detail);
+                // nothing chosen yet: the tier picked for this adapter, and
+                // what goes with it
+                if self.settings.graphics > 3 {
+                    crate::options::Graphics::preset(g.graphics_tier).into(&mut self.settings);
+                    let _ = self.settings.save();
+                }
+                let opts = crate::options::Graphics::of(&self.settings);
+                crate::options::set(opts);
+                g.water.quality = opts.water;
+                g.cover.set_quality(opts.cover);
+                crate::foliage::set_detail(opts.leaves);
+                // the ground's voxel shading as the graphics setting allows:
+                // none on low, creases on medium, creases and lips above
+                crate::fine::set_shading(
+                    self.settings
+                        .ground_shading
+                        .min(self.settings.graphics.min(2)),
+                );
                 crate::theme::apply(&self.egui_ctx);
                 self.egui_ctx.style_mut(|s| {
                     s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
@@ -6799,12 +6847,19 @@ pub fn shot_with_ui(
         }
         let frame_ms = t0.elapsed().as_secs_f64() * 1e3 / n as f64;
         let (vo, vt) = gfx.world_vertices();
+        let (ft, fv) = gfx.far_stats();
+        eprintln!(
+            "stats: far view {ft} tiles, {fv} vertices, {:.1} MB on the GPU; slowest tile made and uploaded {:.1} ms",
+            (fv as usize * std::mem::size_of::<crate::render::FarVertex>()) as f64 / 1048576.0,
+            p.far_worst.as_secs_f64() * 1e3
+        );
         let c = p.life.counts;
         eprintln!(
-            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent; life (quality {life_quality}): {:.3} ms a frame on the CPU (effects {:.3}, critters {:.3}), {} emitters, {} particles, {} critters",
+            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent; life (quality {life_quality}): {:.3} ms a frame on the CPU (last frame: effects {:.3}, critters {:.3}; last look for critters {:.3}), {} emitters, {} particles, {} critters",
             life_ms / n as f64,
             c.particles_ms,
             c.critters_ms,
+            c.populate_ms,
             c.emitters,
             c.particles,
             c.critters

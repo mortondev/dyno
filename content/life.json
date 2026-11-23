@@ -148,8 +148,8 @@
   },
 
   "emitters": [
-    {"effect": "chimney_smoke", "block": "stone_bricks", "above": "air", "below": "stone_bricks", "alone": 2, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 3, "offset": [0.5, 1.05, 0.5]},
-    {"effect": "chimney_smoke", "block": "cobble", "above": "air", "below": "stone_bricks", "alone": 1, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 3, "offset": [0.5, 1.05, 0.5]},
+    {"effect": "chimney_smoke", "block": "stone_bricks", "above": "air", "below": "stone_bricks", "alone": 2, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 8, "offset": [0.5, 1.05, 0.5]},
+    {"effect": "chimney_smoke", "block": "cobble", "above": "air", "below": "stone_bricks", "alone": 1, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 8, "offset": [0.5, 1.05, 0.5]},
     {"effect": "fire_embers", "block": "brazier", "offset": [0.5, 0.8, 0.5]},
     {"effect": "fire_smoke", "block": "brazier", "above": "air", "offset": [0.5, 1.0, 0.5]},
     {"effect": "fire_embers", "block": "hearth", "above": "air", "offset": [0.5, 1.0, 0.5]},
@@ -180,16 +180,16 @@
     "bat": { "model": "models/critters/bird.vox", "unit": 0.07, "behave": "flock",
       "speed": 6.0, "range": 5, "fps": 10, "height": [3, 6], "reach": 50 },
     "butterfly_orange": { "model": "models/critters/butterfly_orange.vox", "unit": 0.06,
-      "behave": "flutter", "speed": 1.0, "range": 2.2, "fps": 9, "height": [0.5, 1.3], "reach": 45 },
+      "behave": "flutter", "speed": 1.0, "range": 2.2, "fps": 9, "height": [0.5, 1.3], "reach": 32 },
     "butterfly_blue": { "model": "models/critters/butterfly_blue.vox", "unit": 0.06,
-      "behave": "flutter", "speed": 1.1, "range": 2.4, "fps": 9, "height": [0.5, 1.4], "reach": 45 },
+      "behave": "flutter", "speed": 1.1, "range": 2.4, "fps": 9, "height": [0.5, 1.4], "reach": 32 },
     "butterfly_white": { "model": "models/critters/butterfly_white.vox", "unit": 0.055,
-      "behave": "flutter", "speed": 0.9, "range": 2.0, "fps": 10, "height": [0.4, 1.1], "reach": 45 },
+      "behave": "flutter", "speed": 0.9, "range": 2.0, "fps": 10, "height": [0.4, 1.1], "reach": 32 },
     "duck": { "model": "models/critters/duck.vox", "unit": 0.07, "behave": "swim",
       "speed": 0.5, "range": 5, "flee": 3.5, "fps": 2, "reach": 80 },
     "heron": { "model": "models/critters/heron.vox", "unit": 0.085, "behave": "wade", "reach": 90 },
     "rabbit": { "model": "models/critters/rabbit.vox", "unit": 0.065, "behave": "graze",
-      "speed": 1.5, "range": 5, "flee": 6, "fps": 5, "hop": 0.14, "reach": 60 },
+      "speed": 1.5, "range": 5, "flee": 6, "fps": 5, "hop": 0.14, "reach": 48 },
     "deer": { "model": "models/critters/deer.vox", "unit": 0.075, "behave": "graze",
       "speed": 1.1, "range": 8, "flee": 9, "fps": 4, "reach": 100 },
     "stag": { "model": "models/critters/stag.vox", "unit": 0.08, "behave": "graze",
@@ -197,7 +197,7 @@
     "sheep": { "model": "models/critters/sheep.vox", "unit": 0.085, "behave": "graze",
       "speed": 0.45, "range": 4, "fps": 3, "reach": 100 },
     "crab": { "model": "models/critters/crab.vox", "unit": 0.07, "behave": "scuttle",
-      "speed": 1.3, "range": 2.5, "flee": 3, "fps": 8, "reach": 50 }
+      "speed": 1.3, "range": 2.5, "flee": 3, "fps": 8, "reach": 42 }
   },
 
   "wildlife": [
