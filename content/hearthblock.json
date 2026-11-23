@@ -1553,7 +1553,7 @@
    "respawn": 300,
    "skill": [
     "mining",
-    25
+    5
    ]
   },
   "emberstone": {
@@ -3370,7 +3370,7 @@
      "talk": "maren"
     }
    ],
-   "xp": 120,
+   "xp": 60,
    "money": 10,
    "requires": []
   },
@@ -3379,13 +3379,13 @@
    "title": "Meat for the Pot",
    "level": 1,
    "giver": "tilda",
-   "text": "Grazers wander the meadows around Hearthstead. Bring me 4 pieces of raw meat and I'll make sure nobody fights on an empty stomach.",
+   "text": "Grazers wander the meadows around Hearthstead. Bring me 6 pieces of raw meat and I'll make sure nobody fights on an empty stomach.",
    "progress": "No meat, no stew.",
    "done": "Lovely. Here, take some of yesterday's.",
    "objectives": [
     {
      "collect": "raw_meat",
-     "count": 4
+     "count": 6
     }
    ],
    "money": 40,
@@ -3395,7 +3395,8 @@
      4
     ]
    ],
-   "requires": []
+   "requires": [],
+   "xp": 200
   },
   {
    "key": "thin_the_herd",
@@ -3405,12 +3406,12 @@
    "requires": [
     "cold_hearth"
    ],
-   "text": "The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 8 of them should do.",
+   "text": "The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 10 of them should do.",
    "done": "That's better. Take one of these. You've earned it.",
    "objectives": [
     {
      "kill": "grazer",
-     "count": 8
+     "count": 10
     }
    ],
    "money": 60,
@@ -3431,7 +3432,8 @@
      "acolyte_rod",
      1
     ]
-   ]
+   ],
+   "xp": 220
   },
   {
    "key": "kindling",
@@ -3455,7 +3457,8 @@
      "stone_pickaxe",
      1
     ]
-   ]
+   ],
+   "xp": 200
   },
   {
    "key": "wool_for_winter",
@@ -3465,12 +3468,12 @@
    "requires": [
     "meat_for_the_pot"
    ],
-   "text": "Nights are cold and blankets are thin. Grazer wool, 6 bundles of it, and I'll stitch something warm.",
+   "text": "Nights are cold and blankets are thin. Grazer wool, 8 bundles of it, and I'll stitch something warm.",
    "done": "Soft as anything. Take this. A bed of your own, so you wake somewhere better than the hearth.",
    "objectives": [
     {
      "collect": "white",
-     "count": 6
+     "count": 8
     }
    ],
    "money": 60,
@@ -3480,10 +3483,11 @@
      1
     ],
     [
-     "bed",
-     1
+     "hearth_bread",
+     5
     ]
-   ]
+   ],
+   "xp": 200
   },
   {
    "key": "coal_for_the_watch",
@@ -3507,7 +3511,8 @@
      "torch",
      16
     ]
-   ]
+   ],
+   "xp": 220
   },
   {
    "key": "north_watch",
@@ -3531,7 +3536,8 @@
      "radius": 7
     }
    ],
-   "money": 80
+   "money": 80,
+   "xp": 120
   },
   {
    "key": "eyes_in_the_dark",
@@ -3564,7 +3570,8 @@
      "hearthkeeper_robe",
      1
     ]
-   ]
+   ],
+   "xp": 260
   },
   {
    "key": "iron_for_hollis",
@@ -3574,7 +3581,7 @@
    "requires": [
     "coal_for_the_watch"
    ],
-   "text": "The iron seams run deeper than coal: rust-red flecks in the stone. A stone pickaxe will do. Bring me 6 raw iron and I'll show you what a forge can do.",
+   "text": "The iron seams run deeper than coal: rust-red flecks in the stone. You'll want a stone pickaxe (Old Brannoc gives one for kindling, or I sell them) and a little practice: dig coal until your Mining reaches 5, and the iron will come away for you. Bring me 6 raw iron and I'll show you what a forge can do.",
    "done": "Good ore. Here, a proper pick, from my own anvil.",
    "objectives": [
     {
@@ -3675,7 +3682,8 @@
    ],
    "money": 30,
    "ender": "holt",
-   "done": "Maren's orders? Then you're with me now."
+   "done": "Maren's orders? Then you're with me now.",
+   "xp": 40
   },
   {
    "key": "watchfire",
@@ -3693,7 +3701,8 @@
     "report_to_holt"
    ],
    "money": 60,
-   "done": "Hear that crackle? That's the sound of the dark backing off."
+   "done": "Hear that crackle? That's the sound of the dark backing off.",
+   "xp": 120
   },
   {
    "key": "boar_trouble",
@@ -3721,7 +3730,8 @@
      "woolen_cloak",
      1
     ]
-   ]
+   ],
+   "xp": 240
   },
   {
    "key": "garricks_camp",
@@ -3738,7 +3748,8 @@
     "report_to_holt"
    ],
    "money": 20,
-   "ender": "garrick"
+   "ender": "garrick",
+   "xp": 40
   },
   {
    "key": "tusks_and_tempers",
@@ -3756,7 +3767,8 @@
     "garricks_camp"
    ],
    "money": 90,
-   "done": "Ha! Look at the size of that one."
+   "done": "Ha! Look at the size of that one.",
+   "xp": 240
   },
   {
    "key": "silk_for_sails",
@@ -3774,7 +3786,8 @@
     "garricks_camp"
    ],
    "money": 110,
-   "done": "Strong as rope. Ostrin will be grateful."
+   "done": "Strong as rope. Ostrin will be grateful.",
+   "xp": 260
   },
   {
    "key": "into_barrowwood",
@@ -3833,7 +3846,8 @@
     "wool_for_winter"
    ],
    "money": 20,
-   "ender": "ostrin"
+   "ender": "ostrin",
+   "xp": 40
   },
   {
    "key": "thieves_in_fields",
@@ -3896,7 +3910,8 @@
     "windmill_breadcrumb"
    ],
    "money": 20,
-   "ender": "wenna"
+   "ender": "wenna",
+   "xp": 40
   },
   {
    "key": "pincher_supper",
@@ -4000,7 +4015,8 @@
     "iron_for_hollis"
    ],
    "money": 30,
-   "ender": "bree"
+   "ender": "bree",
+   "xp": 40
   },
   {
    "key": "ambush_east_road",
@@ -5578,8 +5594,8 @@
      "creature": "ashcloak",
      "count": 2,
      "at": [
-      50,
-      -9
+      84,
+      -16
      ],
      "spread": 5,
      "respawn": 120

@@ -184,7 +184,7 @@ impl State {
             b,
             dyno_world::COAL_ORE | dyno_world::IRON_ORE | dyno_world::EMBERSTONE
         ) {
-            self.set_block(pos, dyno_world::STONE);
+            self.set_block_as(pos, dyno_world::STONE, false);
             self.regrow.push((pos, b, until));
         } else {
             self.depleted.insert(pos, until);
