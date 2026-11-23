@@ -55,6 +55,16 @@ fn ground_top(world: &World, x: i32, z: i32, from: i32) -> Option<(u16, BlockId)
     None
 }
 
+/// The land as it lies (not built on, not grown on): a cell's top made of
+/// these takes the block most of it is made of.
+fn bare_land(b: BlockId) -> bool {
+    use crate::*;
+    matches!(
+        b,
+        GRASS | DIRT | SAND | SNOW | STONE | CLAY | COAL_ORE | IRON_ORE
+    )
+}
+
 impl FarTile {
     /// The tile as the world stands.
     pub fn build(world: &World, tile: TilePos) -> FarTile {
@@ -65,6 +75,10 @@ impl FarTile {
         for cz in 0..TILE_CELLS {
             for cx in 0..TILE_CELLS {
                 let k = (cz * TILE_CELLS + cx) as usize;
+                // the blocks the land's tops are made of, and whether the
+                // highest top is land (not a tree, a roof or water)
+                let mut land: Vec<(BlockId, u8)> = Vec::new();
+                let mut highest_is_land = false;
                 for dz in 0..CELL {
                     for dx in 0..CELL {
                         let x = tile[0] * TILE + cx * CELL + dx;
@@ -73,11 +87,20 @@ impl FarTile {
                             ground[k] = 0;
                             continue;
                         };
+                        let g = ground_top(world, x, z, y);
+                        let is_land = bare_land(b) && g.is_some_and(|(g, _)| g == (y + 1) as u16);
                         if (y + 1) as u16 > heights[k] {
                             heights[k] = (y + 1) as u16;
                             blocks[k] = b;
+                            highest_is_land = is_land;
                         }
-                        match ground_top(world, x, z, y) {
+                        if is_land {
+                            match land.iter_mut().find(|(lb, _)| *lb == b) {
+                                Some(e) => e.1 += 1,
+                                None => land.push((b, 1)),
+                            }
+                        }
+                        match g {
                             Some((g, gb)) if g < ground[k] => {
                                 ground[k] = g;
                                 ground_blocks[k] = gb;
@@ -89,6 +112,13 @@ impl FarTile {
                 }
                 if ground[k] == u16::MAX {
                     ground[k] = 0;
+                }
+                // bare land at the top: the block most of it is made of, so
+                // one outcrop or boulder on a grass slope does not make the
+                // whole cell stone (a pale square from afar); a tree, a roof
+                // or water at the top stays what it is
+                if highest_is_land && let Some((b, _)) = land.iter().max_by_key(|(_, n)| *n) {
+                    blocks[k] = *b;
                 }
             }
         }
@@ -180,6 +210,42 @@ pub fn tile_dims(world: &World) -> [i32; 2] {
 
 /// Changes whenever a block in the tile changes (the sum of its sections'
 /// counts of changes), so a tile is made and sent again only then.
+/// Every tile of a world, encoded, with its revision: what a server keeps so
+/// no tick has to build tiles (the first far view of a join comes in a burst).
+pub type Encoded = std::collections::HashMap<TilePos, (u64, Vec<u8>)>;
+
+/// Build and encode every tile of a world, on every core (the 2 km world:
+/// 1,024 tiles, about 0.7 MB).
+pub fn encode_all(world: &World) -> Encoded {
+    let d = tile_dims(world);
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .clamp(1, 8);
+    let rows: Vec<i32> = (0..d[1]).collect();
+    std::thread::scope(|sc| {
+        let jobs: Vec<_> = rows
+            .chunks(rows.len().div_ceil(threads).max(1))
+            .map(|part| {
+                sc.spawn(move || {
+                    let mut out = Vec::new();
+                    for &tz in part {
+                        for tx in 0..d[0] {
+                            let t = [tx, tz];
+                            let data = FarTile::build(world, t).encode();
+                            out.push((t, (tile_rev(world, t), data)));
+                        }
+                    }
+                    out
+                })
+            })
+            .collect();
+        jobs.into_iter()
+            .flat_map(|j| j.join().expect("a far tile thread panicked"))
+            .collect()
+    })
+}
+
 pub fn tile_rev(world: &World, tile: TilePos) -> u64 {
     let per = TILE / SECTION;
     let d = world.section_dims();
@@ -234,5 +300,35 @@ mod tests {
         assert_ne!(tile_rev(&w, [1, 1]), r);
         assert_eq!(tile_rev(&w, [0, 0]), r0);
         assert_eq!(tile_dims(&w), [2, 2]);
+    }
+
+    /// A boulder on a grass slope does not make its cell stone: bare land
+    /// takes the block most of the cell's top is made of.
+    #[test]
+    fn a_cell_of_bare_land_is_what_most_of_it_is() {
+        let mut w = World::generate([128, 64, 128], 7);
+        let (x0, z0) = (80, 80);
+        // a grass cell with one stone a block above the rest
+        let top = (0..CELL)
+            .flat_map(|dz| (0..CELL).map(move |dx| (dx, dz)))
+            .map(|(dx, dz)| w.surface(x0 + dx, z0 + dz))
+            .max()
+            .unwrap();
+        for dz in 0..CELL {
+            for dx in 0..CELL {
+                let (x, z) = (x0 + dx, z0 + dz);
+                for y in w.surface(x, z) + 1..=top + 4 {
+                    w.set(x, y, z, crate::AIR);
+                }
+                for y in w.surface(x, z)..=top {
+                    w.set(x, y, z, crate::DIRT);
+                }
+                w.set(x, top, z, crate::GRASS);
+            }
+        }
+        w.set(x0 + 1, top + 1, z0 + 2, crate::STONE);
+        let (cx, cz) = ((x0 - TILE) / CELL, (z0 - TILE) / CELL);
+        let t = FarTile::build(&w, [1, 1]);
+        assert_eq!(t.cell(cx, cz), ((top + 2) as u16, crate::GRASS));
     }
 }

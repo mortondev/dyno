@@ -105,6 +105,18 @@ impl BlocksFile {
     }
 }
 
+/// Encode 8-bit RGB pixels as a PNG.
+pub fn encode_png(w: u32, h: u32, rgb: &[u8]) -> Result<Vec<u8>, String> {
+    let mut file = Vec::new();
+    let mut e = png::Encoder::new(&mut file, w, h);
+    e.set_color(png::ColorType::Rgb);
+    e.set_depth(png::BitDepth::Eight);
+    e.write_header()
+        .and_then(|mut w| w.write_image_data(rgb).and_then(|_| w.finish()))
+        .map_err(|e| e.to_string())?;
+    Ok(file)
+}
+
 /// Decode a PNG to 8-bit RGBA: (width, height, pixels).
 pub fn decode_png(bytes: &[u8]) -> Option<(usize, usize, Vec<u8>)> {
     let mut d = png::Decoder::new(std::io::Cursor::new(bytes));

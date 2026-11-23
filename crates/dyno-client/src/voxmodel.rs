@@ -650,6 +650,29 @@ pub fn set_view(view: Option<(Vec3, Vec3)>) {
     });
 }
 
+thread_local! {
+    /// the sides of the view and the direction towards the light, when known
+    static SIGHT: std::cell::Cell<Option<([glam::Vec4; 5], Vec3)>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// Tell the models what the camera sees (`render::view_planes`) and where
+/// the shadows' light is (`shadows::to_light`), so that figures neither in
+/// the picture nor casting a shadow into it need not be made (`in_sight`).
+/// `None`: everything is in sight.
+pub fn set_sight(sight: Option<([glam::Vec4; 5], Vec3)>) {
+    SIGHT.with(|s| s.set(sight));
+}
+
+/// Whether something within `r` of `c` shows in the picture or can cast a
+/// shadow into it. True when the view is not known.
+pub fn in_sight(c: Vec3, r: f32) -> bool {
+    SIGHT.with(|s| {
+        s.get()
+            .is_none_or(|(planes, light)| crate::render::casts_into(&planes, c, r, light))
+    })
+}
+
 /// Distance from the camera to a point, if the camera is known.
 pub fn view_distance(p: Vec3) -> Option<f32> {
     VIEW.with(|v| v.get().map(|(eye, _)| eye.distance(p.into())))

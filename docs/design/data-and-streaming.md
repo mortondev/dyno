@@ -403,8 +403,10 @@ when one of them is replaced.
   the neighbours it made ready (and remeshes those below it, whose sky it
   may shade). The main thread copies the light in and uploads meshes until
   3 ms of the frame are spent (`world_uploads` in `app.rs`); each section is
-  one vertex buffer (opaque, translucent, then lamp halos) filled through
-  the queue's staging memory. Meshes for a section dropped since are
+  one buffer of packed vertices for its solid mesh (24 bytes a vertex,
+  packed on the worker: `pack.rs`, docs/design/performance.md) and, where
+  it has any, one of plain vertices for its translucent faces and lamp
+  halos, filled through the queue's staging memory. Meshes for a section dropped since are
   ignored. `DYNO_WORLD_INLINE=1` does the same work on the main thread, a
   step a frame (as before the worker), to compare. The mesher's interface
   (`terrain_mesh::mesh`) is unchanged. The draw distance is capped at the
@@ -510,7 +512,10 @@ For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
   block's kind, and the ground (the lowest top of the land in the cell,
   trees and water left out) and its kind (`ServerMsg::Far`, about 600
   bytes a tile), after the near view and within the same budget, out to
-  800 m (`--far`). A tile is sent again when a block in it changes, even
+  800 m (`--far`). Every tile is built when the server starts (the 2 km
+  world: 1,024 tiles, about 0.7 MB, on every core), and a new shard
+  starts with the base world's, so no tick builds more than the tiles an
+  edit changed. A tile is sent again when a block in it changes, even
   if its holder stays put: the world notes changed sections
   (`World::log_changes`) and each tick the shard resends the tiles they
   fall in to those who hold them. The client draws it so the seam with
@@ -580,8 +585,10 @@ the same: its tiles of 128 × 128 columns nearly always reach a high
 point somewhere.) Section and far tile bytes are as sent: they are their
 own encoding (a section all one block is 3 bytes) and are not compressed
 again. The far view (a quarter of a megabyte on the 2 km
-world, against 28 KB) comes after the near view at the play rate, so it
-fills in over about a second after play starts.
+world, against 28 KB) comes straight after the near view at the join
+rate until it is whole (`View::far_filled`; a teleport bursts again),
+then at the play rate: the whole view, near and far, is there 233–283 ms
+after joining at the spawn (it was 1.1–1.8 s at the play rate).
 
 ## 5. World building as data
 

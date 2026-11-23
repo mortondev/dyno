@@ -112,7 +112,7 @@ def smithy():
     # the lean-to on the east side
     for z in range(-4, 5):
         for x in range(5, 10):
-            v.set(x, -1, z, "flagstones")
+            v.set(x, -1, z, "cobble")
             v.set(x, 3 if x < 8 else 2, z, "slate_roof")
     for (x, z) in ((9, -4), (9, 4), (9, 0)):
         v.col(x, z, 0, 1, "timber_beam")
@@ -171,7 +171,7 @@ def tower(half, storeys, banner=None, beacon=True, style_wall=None):
             for z in range(-a, a + 1):
                 edge = abs(x) == a or abs(z) == a
                 if y == -1:
-                    v.set(x, y, z, "flagstones")
+                    v.set(x, y, z, "cobble")
                 elif edge:
                     v.set(x, y, z, pick(x, y, z, MASONRY))
                 elif y % STOREY == STOREY - 1:
@@ -191,8 +191,8 @@ def tower(half, storeys, banner=None, beacon=True, style_wall=None):
     # the door, south
     v.col(0, a, 0, DOOR - 1, "air")
     v.col(1, a, 0, DOOR - 1, "wooden_door")
-    v.set(0, -1, a + 1, "flagstones")
-    v.set(1, -1, a + 1, "flagstones")
+    v.set(0, -1, a + 1, "cobble")
+    v.set(1, -1, a + 1, "cobble")
     v.doors.append({"at": [0, 0, a], "height": DOOR})
     v.points["door"] = (0, 0, a + 2)
     # the fighting top: a parapet a block out, with merlons
@@ -245,24 +245,25 @@ def north_watch():
 
 @recipe
 def great_hearth():
-    """The Great Hearth: a ring of cold stones in the middle of the plaza."""
+    """The Great Hearth: the hearth on a round stone step in the middle of
+    the plaza, a low kerb round it, four benches facing the fire and four
+    lanterns. Open cobbles all about it."""
     v = Vol("landmark")
-    for x in range(-6, 7):
-        for z in range(-6, 7):
+    for x in range(-5, 6):
+        for z in range(-5, 6):
             d = math.hypot(x, z)
-            if d <= 6.3:
-                v.set(x, -1, z, pick(x, 0, z, ["cobble", "flagstones", "mossy_cobble", "flagstones"]))
-            if 2.6 <= d <= 3.4 and not (abs(x) <= 0 or abs(z) <= 0):
-                v.set(x, 0, z, pick(x, 1, z, ["stone_bricks", "cobble", "mossy_cobble"]))
+            if d <= 2.3:
+                v.set(x, -1, z, "stone_bricks")
+            elif d <= 5.2:
+                v.set(x, -1, z, "cobble")
+            if 4.4 <= d <= 5.2 and abs(x) > 1 and abs(z) > 1:
+                v.set(x, 0, z, "stone_bricks")
     v.set(0, 0, 0, "hearth")
     v.points["hearth"] = (0, 0, 0)
-    # broken pillars of the old hall
-    for i, (x, z) in enumerate(((-5, -5), (5, -5), (-5, 5), (5, 5))):
-        h = (5, 2, 3, 6)[i]
-        for y in range(h):
-            v.set(x, y, z, "mossy_cobble" if y == h - 1 and i % 2 == 0 else "stone_bricks")
-    for (x, z) in ((-2, 5), (-1, 5), (1, 5), (2, 5), (-2, -5), (-1, -5), (1, -5), (2, -5)):
+    for (x, z) in ((-1, 3), (0, 3), (1, 3), (-1, -3), (0, -3), (1, -3), (3, -1), (3, 0), (3, 1), (-3, -1), (-3, 0), (-3, 1)):
         v.set(x, 0, z, "planks")
+    for (x, z) in ((4, 4), (-4, 4), (4, -4), (-4, -4)):
+        lamp_post(v, x, 1, z, 3)
     return v
 
 
@@ -474,35 +475,96 @@ def stumps():
 
 @recipe
 def windmill():
-    """A stone mill tower with four cloth sails on its south face."""
-    v = tower(4, 3, beacon=False)
-    h = 3 * STOREY
-    # a round-ish shingled cap in place of the fighting top
+    """A stone mill tower, four storeys, with four great cloth sails on its
+    south face."""
+    v = tower(4, 4, beacon=False)
+    h = 4 * STOREY
+    # a shingled cap in place of the fighting top
     v.drop((-6, h, -6), (6, h + 3, 6))
-    for k in range(0, 5):
+    for k in range(0, 6):
         a = 5 - k
-        for x in range(-a, a + 1):
-            for z in range(-a, a + 1):
-                if max(abs(x), abs(z)) == a or k == 4:
+        for x in range(-max(a, 0), max(a, 0) + 1):
+            for z in range(-max(a, 0), max(a, 0) + 1):
+                if max(abs(x), abs(z)) == a or k >= 4:
                     v.set(x, h + k, z, "thatch")
-    # the sails: a cross in the plane just south of the wall
-    hub = (0, h - 2, 6)
-    v.set(0, h - 2, 5, "timber_beam")
+    # the sails: a cross in the plane south of the wall, each arm 12 m
+    # with a ladder of cloth four wide on its trailing side
+    hub = (0, h - 3, 6)
+    v.set(0, h - 3, 5, "timber_beam")
     v.set(*hub, "timber_beam")
     for (dx, dy) in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
-        for i in range(1, 8):
+        for i in range(1, 9):
             v.set(dx * i, hub[1] + dy * i, 6, "timber_beam")
-            if i >= 2:
-                # cloth on the trailing side of each arm
-                v.set(dx * i - dy, hub[1] + dy * i + dx, 6, "white")
-                v.set(dx * i - 2 * dy, hub[1] + dy * i + 2 * dx, 6, "white")
-                if i >= 4:
-                    v.set(dx * i - 3 * dy, hub[1] + dy * i + 3 * dx, 6, "white")
+            for k in range(1, 4):
+                if i >= 2:
+                    v.set(dx * i - k * dy, hub[1] + dy * i + k * dx, 6, "white" if (i + k) % 3 else "yellow")
+    v.col(2, 5, h - 9, h - 6, "red_banner")
+    v.col(-2, 5, h - 9, h - 6, "red_banner")
     v.set(-3, 0, -3, "hay_bale")
     v.set(-3, 1, -3, "hay_bale")
     v.set(3, 0, -3, "barrel")
     v.set(-2, 0, 5, "hay_bale")
     v.points["sails"] = hub
+    return v
+
+
+@recipe
+def sawmill():
+    """The sawmill: a long plank shed open on one side, a great water
+    wheel on its east wall turning in a stone race, logs waiting and
+    planks stacked."""
+    v = house(-5, -8, 5, 8, 1, "plank", ridge_x=False, door=("s", -1), windows=False)
+    v.foundation = "cobble"
+    # open the west side between the posts: the saw floor
+    for z in range(-6, 7):
+        if z % 4:
+            v.col(-5, z, 0, 2, "air")
+    for z in range(-5, 6):
+        v.set(-2, 0, z, "planks") if abs(z) != 3 else None
+    v.set(-2, 1, 0, "timber_beam")
+    v.set(-2, 2, 0, "timber_beam")
+    for z in (-6, -5, 5, 6):
+        v.set(2, 0, z, "log")
+        v.set(3, 0, z, "log")
+    v.set(3, 1, -6, "log")
+    v.set(0, 2, 0, "lantern")
+    # the wheel on the east wall: a rim of timber 5 m in radius, spokes, an axle
+    cx, cy, cz = 7, 3, 0
+    for a in range(0, 360, 6):
+        import math as _m
+        y = cy + round(_m.sin(_m.radians(a)) * 5)
+        z = cz + round(_m.cos(_m.radians(a)) * 5)
+        v.set(cx, y, z, "dark_planks")
+    for k in range(-4, 5):
+        v.set(cx, cy + k, cz, "timber_beam")
+        v.set(cx, cy, cz + k, "timber_beam")
+        if abs(k) <= 3:
+            v.set(cx, cy + k, cz + k, "timber_beam")
+            v.set(cx, cy + k, cz - k, "timber_beam")
+    v.set(6, cy, cz, "timber_beam")
+    v.set(8, cy, cz, "timber_beam")
+    v.col(9, cz, 0, cy, "stone_bricks")
+    # the race: a stone channel of water under the wheel, and the flume above
+    for z in range(-12, 13):
+        for x in (6, 8):
+            v.set(x, -1, z, "stone_bricks")
+            v.set(x, -2, z, "stone_bricks")
+        v.set(7, -3, z, "stone_bricks")
+        v.set(7, -2, z, "water")
+        v.set(7, -1, z, "water")
+        if z != cz and abs(z - cz) > 5:
+            v.set(7, 0, z, "air")
+    for z in range(-12, -4):
+        v.set(7, 8, z, "planks")
+        v.set(7, 9, z, "water") if z > -11 else None
+        v.set(6, 9, z, "dark_planks")
+        v.set(8, 9, z, "dark_planks")
+        if z % 4 == 0:
+            v.col(6, z, 0, 8, "timber_beam")
+    for y in range(4, 9):
+        v.set(7, y, -4, "water")
+    v.points["wheel"] = (cx, cy, cz)
+    v.points["saw"] = (-3, 0, 2)
     return v
 
 
@@ -613,7 +675,7 @@ def bridge():
         rise = 1 if abs(x) <= 13 else 0
         for z in range(-4, 5):
             edge = abs(z) == 4
-            v.set(x, rise, z, pick(x, 0, z, ["flagstones", "cobble", "flagstones", "stone_bricks"]))
+            v.set(x, rise, z, pick(x, 0, z, ["cobble", "cobble", "cobble", "stone_bricks"]))
             if rise:
                 v.set(x, 0, z, "stone_bricks")
             v.col(x, z, rise + 1, rise + 5, "air")
@@ -674,28 +736,40 @@ def ore_cart():
 
 @recipe
 def mine_head():
-    """The headframe over the Hollow Mines' shaft: a timber tower with a
-    winding wheel, and the cage hanging where the hoist stopped."""
+    """The headframe of the Hollow Mines: a timber tower 24 m tall with a
+    winding wheel, braced legs and the cage hanging where the hoist stopped."""
     v = Vol("landmark")
-    for (x, z) in ((-2, -2), (2, -2), (-2, 2), (2, 2)):
-        v.col(x, z, 0, 13, "timber_beam")
-    for y in (4, 9, 13):
-        for i in range(-2, 3):
-            for (x, z) in ((i, -2), (i, 2), (-2, i), (2, i)):
+    H = 22
+    for (x, z) in ((-3, -3), (3, -3), (-3, 3), (3, 3)):
+        v.col(x, z, 0, H, "timber_beam")
+    for y in (5, 11, 17, H):
+        for i in range(-3, 4):
+            for (x, z) in ((i, -3), (i, 3), (-3, i), (3, i)):
                 v.set(x, y, z, "timber_beam")
-    for i in range(-3, 4):
-        v.set(i, 14, 0, "timber_beam")
-        v.set(0, 14, i, "dark_planks")
-    for (x, y) in ((-1, 15), (0, 16), (1, 15), (0, 15)):
+    # cross braces on every face
+    for y0 in (0, 6, 12):
+        for i in range(0, 6):
+            for (x, z) in ((-3 + i, -3), (3 - i, 3), (-3, -3 + i), (3, 3 - i)):
+                v.set(x, y0 + i, z, "dark_planks")
+    # the back legs, raking out behind
+    for i in range(0, 12):
+        v.set(-4 - i // 2, H - 2 * i if H - 2 * i >= 0 else 0, 0, "timber_beam")
+        v.set(-4 - i // 2, max(H - 2 * i - 1, 0), 0, "timber_beam")
+    # the wheel on top
+    for (x, y) in ((-2, H + 1), (-1, H + 2), (0, H + 3), (1, H + 2), (2, H + 1), (0, H + 1), (-1, H + 1), (1, H + 1), (0, H + 2)):
         v.set(x, y, 0, "dark_planks")
-    for y in range(5, 14):
-        v.set(0, y, 0, "timber_beam" if y != 8 else "lantern")
+    for i in range(-4, 5):
+        v.set(0, H, i, "dark_planks")
+    for y in range(6, H):
+        v.set(0, y, 0, "timber_beam" if y != 9 else "lantern")
     for x in range(-1, 2):
         for z in range(-1, 2):
-            v.set(x, 4, z, "planks")
-    v.fill((-2, -1, -2), (2, -1, 2), "planks")
-    v.set(-3, 0, 1, "crate")
-    v.set(3, 0, -1, "barrel")
+            v.set(x, 5, z, "planks")
+    v.col(4, 3, H - 5, H - 2, "red_banner")
+    v.fill((-3, -1, -3), (3, -1, 3), "planks")
+    v.set(-4, 0, 2, "crate")
+    v.set(4, 0, -2, "barrel")
+    v.points["top"] = (0, H, 0)
     return v
 
 
@@ -713,10 +787,15 @@ def mine_portal():
                 else:
                     v.set(x, y, z, "air")
             v.set(x, -1, z, "planks" if abs(z) < 2 and x % 2 == 0 else "cobble")
-    for z in range(-3, 4):
-        for y in range(0, 6):
-            if abs(z) == 3 or y >= 4:
+    for z in range(-5, 6):
+        for y in range(0, 9 - abs(z) // 2):
+            if abs(z) >= 3 or y >= 4:
                 v.set(-1, y, z, pick(0, y, z, MASONRY))
+    v.col(-2, -4, 0, 5, "timber_beam")
+    v.col(-2, 4, 0, 5, "timber_beam")
+    v.col(-2, -4, 3, 5, "red_banner") if False else None
+    v.set(-2, 6, -4, "lantern")
+    v.set(-2, 6, 4, "lantern")
     v.set(-1, 4, 0, "lantern")
     for x in range(-9, 0):
         v.set(x, -1, 0, "timber_beam" if x % 2 else "dark_planks")
@@ -799,7 +878,7 @@ def hollow_oak():
     """The Hollow Oak: a giant of the old wood, 26 m tall, its trunk
     rotted open and hung with webs."""
     v = Vol("landmark")
-    H = 26
+    H = 29
     for y in range(0, H - 6):
         r = 3.4 if y < 3 else 2.9 if y < 12 else 2.3
         for x in range(-4, 5):
@@ -832,6 +911,8 @@ def hollow_oak():
     blob(v, 0, H - 4, 0, 6.5, 3.6, "leaves", 9)
     blob(v, 0, H - 8, 0, 8.4, 3.0, "leaves", 10)
     # webs in the hollow and under the limbs
+    for (x, z) in ((5, 3), (-5, -2), (3, -5), (-4, 5), (6, -3), (-6, 2), (2, 6)):
+        v.set(x, 0, z, "glowshroom")
     for (x, y, z) in ((1, 6, 1), (-1, 8, 0), (0, 10, -1), (1, 9, -1), (-3, 12, 3), (4, 13, -2), (-4, 14, -3), (2, 4, 4), (-2, 3, 4), (3, 12, 4)):
         v.set(x, y, z, "white")
     return v
@@ -888,7 +969,7 @@ def ruin_tower():
                 v.set(x, y, z, pick(x, y, z, MASONRY))
     v.col(0, 3, 0, 2, "air")
     v.doors.append({"at": [0, 0, 3], "height": 3})
-    v.fill((-2, -1, -2), (2, -1, 2), "flagstones")
+    v.fill((-2, -1, -2), (2, -1, 2), "cobble")
     for (x, y, z) in ((-5, 0, 1), (-4, 0, -2), (-5, 0, -1), (-4, 1, -2), (1, 0, 1), (-1, 0, -1)):
         v.set(x, y, z, "cobble" if (x + z) % 2 else "mossy_cobble")
     v.set(2, 0, -2, "chest")
@@ -918,7 +999,7 @@ def wayshrine():
     v = Vol("prop")
     for x in range(-1, 2):
         for z in range(-1, 2):
-            v.set(x, -1, z, "flagstones")
+            v.set(x, -1, z, "cobble")
     v.col(0, 0, 0, 1, "stone_bricks")
     v.set(0, 2, 0, "lantern")
     for (x, z) in ((-1, 0), (1, 0), (0, 1)):
@@ -951,7 +1032,7 @@ def viewpoint():
     for x in range(-3, 4):
         for z in range(-3, 4):
             if math.hypot(x, z) <= 3.6:
-                v.set(x, 0, z, pick(x, 0, z, ["flagstones", "cobble", "stone_bricks"]))
+                v.set(x, 0, z, pick(x, 0, z, ["cobble", "cobble", "stone_bricks"]))
                 if math.hypot(x, z) > 2.7 and z < 2:
                     v.set(x, 1, z, "stone_bricks")
     v.col(0, -3, 2, 5, "timber_beam")
@@ -1105,6 +1186,198 @@ def pond():
                 v.set(x, -1, z, "sand")
     v.set(5, 0, 2, "flower_bed")
     v.set(-5, 0, -2, "flower_bed")
+    return v
+
+
+@recipe
+def townhouse():
+    """A two-storey town house under red tiles, its gable to the street."""
+    v = house(-4, -5, 4, 5, 2, "tile", ridge_x=False, door=("s", -1), chimney=(0, -5))
+    furnish_home(v, -4, -5, 4, 5)
+    stairs(v, 3, 0, 3, 0, -1)
+    v.set(-3, STOREY, -3, "bed")
+    v.set(-3, STOREY, -2, "bed")
+    v.set(3, STOREY, -4, "chest")
+    v.set(0, STOREY + 2, 0, "lantern")
+    v.set(2, 3, 6, "lantern")
+    return v
+
+
+@recipe
+def townhouse_slate():
+    v = house(-5, -4, 5, 4, 2, "slate", ridge_x=True, door=("s", -1), chimney=(-5, 0))
+    furnish_home(v, -5, -4, 5, 4)
+    stairs(v, 4, 0, 2, 0, -1)
+    v.set(-4, STOREY, -3, "bed")
+    v.set(0, STOREY + 2, 0, "lantern")
+    v.set(2, 3, 5, "lantern")
+    return v
+
+
+@recipe
+def town_wall():
+    """Hearthstead's wall: a ring of stone 78 m out with a walk on top and a
+    tower at every eighth, open where the three roads and the west trail
+    leave (the gates are their own stamps)."""
+    v = Vol("building")
+    v.foundation = "stone_bricks"
+    R = 78
+    for x in range(-R - 3, R + 4):
+        for z in range(-R - 3, R + 4):
+            d = math.hypot(x, z)
+            road = (abs(x) <= 8 and abs(z) > 40 and z != 0) or (abs(z) <= 8 and x > 40) or (abs(z) <= 3 and x < -40)
+            if road:
+                continue
+            if R - 1.2 <= d < R + 1.2:
+                for y in range(0, 5):
+                    v.set(x, y, z, pick(x, y, z, MASONRY))
+                if d >= R + 0.2 and (x + z) % 2 == 0:
+                    v.set(x, 5, z, "stone_bricks")
+    # towers between the gates
+    for k in range(8):
+        a = (k + 0.5) / 8 * math.tau
+        cx, cz = round(math.cos(a) * R), round(math.sin(a) * R)
+        for x in range(cx - 2, cx + 3):
+            for z in range(cz - 2, cz + 3):
+                edge = max(abs(x - cx), abs(z - cz)) == 2
+                for y in range(0, 9):
+                    if edge or y == 8:
+                        v.set(x, y, z, pick(x, y, z, MASONRY))
+                if edge and (x + z) % 2 == 0:
+                    v.set(x, 9, z, "stone_bricks")
+        v.set(cx, 9, cz, "brazier")
+        ox, oz = round(math.cos(a) * (R + 3)), round(math.sin(a) * (R + 3))
+        for y in range(4, 8):
+            v.set(ox, y, oz, "blue_banner" if k % 2 else "red_banner")
+    return v
+
+
+def banner_pole_(banner):
+    v = Vol("prop")
+    v.col(0, 0, 0, 6, "timber_beam")
+    v.set(1, 6, 0, "timber_beam")
+    for y in range(3, 6):
+        v.set(1, y, 0, banner)
+    v.set(0, 7, 0, "lantern")
+    return v
+
+
+@recipe
+def banner_pole():
+    return banner_pole_("blue_banner")
+
+
+@recipe
+def banner_pole_red():
+    return banner_pole_("red_banner")
+
+
+@recipe
+def hedge():
+    """A length of hedgerow."""
+    v = Vol("prop")
+    for x in range(-7, 8):
+        v.set(x, 0, 0, "leaves")
+        if rnd(x, 0, 0, 7) % 4:
+            v.set(x, 1, 0, "leaves")
+        if rnd(x, 0, 0, 8) % 5 == 0:
+            v.set(x, 0, 1, "leaves")
+    v.set(-8, 0, 0, "timber_beam")
+    v.set(8, 0, 0, "timber_beam")
+    return v
+
+
+@recipe
+def stone_wall():
+    """A length of dry-stone field wall, tumbled in places."""
+    v = Vol("prop")
+    for x in range(-8, 9):
+        h = 1 + (rnd(x, 0, 0, 9) % 3 > 0)
+        if rnd(x, 0, 0, 10) % 9 == 0:
+            h = 0
+            v.set(x, 0, 1, "cobble")
+        for y in range(h):
+            v.set(x, y, 0, pick(x, y, 0, ["cobble", "mossy_cobble", "cobble", "stone"]))
+    return v
+
+
+@recipe
+def fallen_log():
+    v = Vol("prop")
+    for x in range(-3, 4):
+        v.set(x, 0, 0, "log")
+    v.set(4, 0, 1, "log")
+    v.set(-4, 0, 0, "mossy_cobble")
+    v.set(-1, 1, 0, "leaves")
+    return v
+
+
+@recipe
+def outcrop():
+    """A crag of mossy rock, taller than a house."""
+    v = Vol("prop")
+    v.foundation = "stone"
+    blob(v, 0, 2, 0, 4.6, 4.2, "stone", 11)
+    blob(v, 4, 0.5, 2, 3.0, 2.4, "stone", 12)
+    blob(v, -4, 0, -2, 2.6, 2.0, "stone", 13)
+    blob(v, 1, 5, -1, 2.4, 2.6, "stone", 14)
+    v.c = {k: b for k, b in v.c.items() if k[1] >= 0}
+    for (x, y, z) in list(v.c):
+        # moss and grass on the tops
+        if (x, y + 1, z) not in v.c:
+            r = rnd(x, y, z, 15) % 5
+            v.c[(x, y, z)] = "mossy_cobble" if r < 2 else "grass" if r == 2 else "stone"
+    return v
+
+
+@recipe
+def falls():
+    """A crag with a spring at its top: water falls down its south face
+    into a pool."""
+    v = Vol("landmark")
+    v.foundation = "stone"
+    blob(v, 0, 5, -2, 6.5, 9.0, "stone", 21)
+    blob(v, 5, 2, -3, 4.0, 5.0, "stone", 22)
+    blob(v, -5, 1, -1, 3.6, 4.0, "stone", 23)
+    v.c = {k: b for k, b in v.c.items() if k[1] >= 0}
+    for (x, y, z) in list(v.c):
+        if (x, y + 1, z) not in v.c and rnd(x, y, z, 24) % 3 == 0:
+            v.c[(x, y, z)] = "mossy_cobble"
+    # the stream down the face, and the pool it fills
+    top = max(y for (x, y, z) in v.c if x == 0)
+    for y in range(top, -1, -1):
+        zs = [z for (x, yy, z) in v.c if x == 0 and yy == y]
+        if not zs:
+            continue
+        z = max(zs)
+        for x in (-1, 0, 1):
+            v.set(x, y, z + 1, "water")
+            v.set(x, y, z, "water") if y == top else None
+    for x in range(-6, 7):
+        for z in range(4, 14):
+            d = (x / 6) ** 2 + ((z - 8.5) / 5) ** 2
+            if d <= 1.0:
+                v.set(x, -1, z, "water")
+                v.set(x, -2, z, "water" if d < 0.55 else "sand")
+                v.set(x, -3, z, "sand")
+            elif d <= 1.4:
+                v.set(x, -1, z, "sand" if rnd(x, 0, z, 25) % 3 else "cobble")
+    v.points["pool"] = (0, 0, 9)
+    return v
+
+
+@recipe
+def rail_track():
+    """A length of mine track on sleepers, with a loaded cart."""
+    v = Vol("prop")
+    for x in range(-8, 9):
+        v.set(x, -1, 0, "dark_planks" if x % 2 == 0 else "cobble")
+        v.set(x, -1, -1, "timber_beam")
+        v.set(x, -1, 1, "timber_beam")
+    for x in (2, 3):
+        v.set(x, 0, 0, "dark_planks")
+        v.set(x, 1, 0, "coal_ore" if x == 2 else "iron_ore")
+    v.set(-8, 0, 0, "timber_beam")
     return v
 
 
