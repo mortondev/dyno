@@ -58,15 +58,21 @@ jobs:
       - name: Protocol buffers compiler 3.20.3 (raft-proto's version check rejects newer numbering)
         shell: bash
         run: |
-          case "$RUNNER_OS" in
-            Linux) zip=protoc-3.20.3-linux-x86_64.zip ;;
-            macOS) zip=protoc-3.20.3-osx-universal_binary.zip ;;
-            Windows) zip=protoc-3.20.3-win64.zip ;;
-          esac
-          curl -sSLo protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/$zip"
-          mkdir -p "$RUNNER_TEMP/protoc" && unzip -q -o protoc.zip -d "$RUNNER_TEMP/protoc"
-          echo "$RUNNER_TEMP/protoc/bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/protoc/bin/protoc" --version
+          if [ "$RUNNER_OS" = macOS ]; then
+            # protobuf@21 reports itself as 3.21.x (3.20.3 has no Apple Silicon build)
+            brew install protobuf@21
+            echo "$(brew --prefix protobuf@21)/bin" >> "$GITHUB_PATH"
+            "$(brew --prefix protobuf@21)/bin/protoc" --version
+          else
+            case "$RUNNER_OS" in
+              Linux) zip=protoc-3.20.3-linux-x86_64.zip ;;
+              Windows) zip=protoc-3.20.3-win64.zip ;;
+            esac
+            curl -fsSLo protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/$zip"
+            mkdir -p "$RUNNER_TEMP/protoc" && unzip -q -o protoc.zip -d "$RUNNER_TEMP/protoc"
+            echo "$RUNNER_TEMP/protoc/bin" >> "$GITHUB_PATH"
+            "$RUNNER_TEMP/protoc/bin/protoc" --version
+          fi
       # dyno: servers, tools, bots and the dev client (the live server updates as dyno)
       - run: cargo build --release --locked -p dyno --target ${{ matrix.target }}
       # hearthblock: the player client, size-optimised, checked for content strings
