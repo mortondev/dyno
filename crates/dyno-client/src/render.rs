@@ -173,11 +173,21 @@ fn grade(c0: vec3<f32>) -> vec3<f32> {
   return max(c, vec3<f32>(0.0));
 }
 
+// Integer hashes of whole-number points. (A sin-based hash loses
+// precision far from zero and breaks the clouds into hard shards.)
+fn mixu(h0: u32) -> u32 {
+  var h = h0;
+  h = (h ^ (h >> 16u)) * 0x7feb352du;
+  h = (h ^ (h >> 15u)) * 0x846ca68bu;
+  return h ^ (h >> 16u);
+}
 fn hash3(p: vec3<f32>) -> f32 {
-  return fract(sin(dot(p, vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
+  let q = bitcast<vec3<u32>>(vec3<i32>(p));
+  return f32(mixu(q.x * 0x9E3779B1u ^ mixu(q.y * 0x85EBCA77u ^ mixu(q.z))) >> 8u) / 16777216.0;
 }
 fn hash2(p: vec2<f32>) -> f32 {
-  return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453);
+  let q = bitcast<vec2<u32>>(vec2<i32>(p));
+  return f32(mixu(q.x * 0x9E3779B1u ^ mixu(q.y)) >> 8u) / 16777216.0;
 }
 fn vnoise(p: vec2<f32>) -> f32 {
   let i = floor(p);
@@ -242,6 +252,10 @@ struct VOut {
     tone = world_tone(root.xz);
   } else if (kz >= K_TERRAIN) {
     tone = world_tone(pos.xz);
+  } else if (kz >= 0.0) {
+    // built blocks: the same slow drift of tone, so a wall is not one tile
+    // stamped over and over
+    tone = world_tone(pos.xz * 1.7 + vec2<f32>(pos.y * 0.9, -pos.y * 0.6));
   } else if (kz < -2.5 && kz > -3.5) {
     pull = 0.35;
   } else if (kz < -3.5) {
@@ -367,6 +381,22 @@ fn ground_tone(m: f32) -> vec3<f32> {
   let has_n = dot(i.normal, i.normal) > 0.25;
   var n = vec3<f32>(0.0, 1.0, 0.0);
   if (has_n) { n = normalize(i.normal); }
+  // painted relief: the texture's brightness taken as height (dark mortar
+  // and cracks sink, stones stand out), turned into a bent normal from
+  // screen-space slopes; fades out with distance, where it would shimmer
+  let hgt = dot(tx0.rgb, vec3<f32>(0.3, 0.55, 0.15));
+  let dhx = dpdx(hgt);
+  let dhy = dpdy(hgt);
+  var bent = n;
+  if (has_n && kz >= 0.0 && kz < K_FOLIAGE && d < 40.0) {
+    let r1 = cross(dpy, n);
+    let r2 = cross(n, dpx);
+    let det = dot(dpx, r1);
+    let g = sign(det) * (dhx * r1 + dhy * r2);
+    // smooth ground: only on its level tops, which show the texture seen from above
+    let k = 0.022 * (1.0 - smoothstep(18.0, 40.0, d)) * select(1.0, smoothstep(0.6, 0.9, n.y), kz >= K_TERRAIN);
+    bent = normalize(abs(det) * n - g * k);
+  }
   var base = i.color.rgb;
   var grain = 1.0;
   // 0: hard sunlight; towards 1: light wraps round the form (foliage)
@@ -415,7 +445,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
     base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
     if (tx0.a < 0.5) { discard; }
-    base = base * tx0.rgb;
+    base = base * tx0.rgb * mix(0.88, 1.08, i.tone);
   } else if (kz > -1.5) {
     // 16 x 16 texel grain on untextured boxes so they read as pixel art
     let t = floor(i.wpos * 16.0 - i.normal * 0.01);
@@ -426,7 +456,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
   let bl = i.light * i.light;
   let sl = i.sky * i.sky;
   let ldir = normalize(select(-u.sun.xyz, u.sun.xyz, u.sun.y > 0.0));
-  let lam = dot(n, ldir);
+  let lam = dot(select(n, bent, kz >= 0.0 && kz < K_FOLIAGE), ldir);
   let ndl = select(0.75, max(mix(lam, lam * 0.5 + 0.5, wrap), 0.0), has_n);
   let vis = sun_visible(i.wpos, n);
   let up = select(0.75, 0.6 + 0.4 * n.y, has_n);
@@ -468,9 +498,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
   if (-sd > 0.9994) { c = mix(c, vec3<f32>(0.85, 0.88, 0.95), u.sun.w); }
   // painted clouds: soft billows lit from the sun side, with warm rims
   if (h > 0.01) {
-    var q = dir.xz / (h + 0.08) * 1.1 + vec2<f32>(u.cam.w * 0.010, u.cam.w * 0.004);
-    // keep coordinates small: the hash loses precision far from zero
-    q = q - floor(q / 97.0) * 97.0;
+    let q = dir.xz / (h + 0.08) * 1.1 + vec2<f32>(u.cam.w * 0.010, u.cam.w * 0.004);
     let n = vnoise(q * 0.8) * 0.5 + vnoise(q * 1.9 + 7.3) * 0.3 + vnoise(q * 4.3 + 2.1) * 0.2;
     let over = u.sky_top.w;
     let cov = smoothstep(0.46 - over * 0.5, 0.78 - over * 0.45, n) * smoothstep(0.01, 0.25, h);

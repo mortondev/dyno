@@ -457,7 +457,7 @@ impl Town<'_> {
                     continue;
                 }
                 let b = if r2 > 36 {
-                    STONE_BRICKS
+                    COBBLE
                 } else if hash(x, z, 17).is_multiple_of(11) {
                     COBBLE
                 } else {
@@ -812,12 +812,9 @@ impl Town<'_> {
             let corner = (x == r.x0 || x == r.x1) && (z == r.z0 || z == r.z1);
             for y in 1..=top {
                 let n = hash3(x, y, z, 5) % 12;
-                let b = if corner {
-                    STONE_BRICKS
-                } else if y <= 3 && n < 3 {
+                // dressed stone, with moss creeping up from the ground
+                let b = if !corner && y <= 2 && n < 2 {
                     MOSSY
-                } else if n == 3 {
-                    COBBLE
                 } else {
                     STONE_BRICKS
                 };

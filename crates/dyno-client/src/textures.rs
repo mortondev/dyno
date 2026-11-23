@@ -4218,3 +4218,38 @@ pub fn item_sprite(item: &ItemView) -> Rgba {
     }
     img.rgba()
 }
+
+#[cfg(test)]
+mod dump_tests {
+    /// Write every block face to one image (top, side, bottom per block,
+    /// eight blocks a row). Set DYNO_TEX_DUMP to the output .ppm path and
+    /// run the ignored test `dump_block_faces`.
+    #[test]
+    #[ignore]
+    fn dump_block_faces() {
+        let Some(out) = std::env::var_os("DYNO_TEX_DUMP") else {
+            return;
+        };
+        let t = super::Textures::blocks();
+        let n = t.block_faces.len();
+        let s = super::TILE;
+        let (w, h) = (s * 3 * 8, s * n.div_ceil(8));
+        let mut img = vec![0u8; w * h * 3];
+        for (id, f) in t.block_faces.iter().enumerate() {
+            for (k, layer) in f.iter().enumerate() {
+                let l = &t.layers[*layer as usize];
+                let (ox, oy) = ((id % 8) * 3 * s + k * s, (id / 8) * s);
+                for y in 0..s {
+                    for x in 0..s {
+                        let p = &l[(y * s + x) * 4..];
+                        let q = ((oy + y) * w + ox + x) * 3;
+                        img[q..q + 3].copy_from_slice(&p[..3]);
+                    }
+                }
+            }
+        }
+        let mut f = format!("P6 {w} {h} 255\n").into_bytes();
+        f.extend_from_slice(&img);
+        std::fs::write(out, f).unwrap();
+    }
+}

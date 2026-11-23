@@ -171,7 +171,7 @@ fn masonry(x: i32, y: i32, z: i32) -> BlockId {
             STONE_BRICKS,
             MOSSY,
             STONE_BRICKS,
-            COBBLE,
+            STONE_BRICKS,
             STONE_BRICKS,
         ],
     )
