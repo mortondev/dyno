@@ -3,7 +3,7 @@
 //! Brains and the text interface drive a body; it does no thinking itself.
 
 use crate::nav::{self, Cell, Goal};
-use dyno_client::game::{Input, Player};
+use dyno_client::game::{Input, Player, PlayerPose};
 use dyno_client::net::{self, Joined, NetEvent};
 use dyno_protocol::{
     self as proto, Appearance, ClientMsg, EntityKind, EnvDamage, NewCharacter, PlayerId,
