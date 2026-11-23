@@ -8708,7 +8708,7 @@
     0.61,
     0.43
    ],
-   "armor": "plate",
+   "armor": "mail",
    "weapons": [
     "sword",
     "axe",
@@ -8767,7 +8767,7 @@
     0.55,
     0.73
    ],
-   "armor": "plate",
+   "armor": "mail",
    "weapons": [
     "mace",
     "sword",
@@ -8820,7 +8820,7 @@
     0.83,
     0.45
    ],
-   "armor": "mail",
+   "armor": "leather",
    "weapons": [
     "bow",
     "axe",
@@ -9279,7 +9279,7 @@
     0.8,
     0.6
    ],
-   "cost": 7,
+   "cost": 10,
    "cooldown": 6,
    "range": 30,
    "damage": [
@@ -9299,7 +9299,7 @@
     0.2,
     0.2
    ],
-   "cost": 9,
+   "cost": 12,
    "range": 30,
    "dot": [
     20,

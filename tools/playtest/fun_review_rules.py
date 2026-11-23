@@ -17,18 +17,10 @@ areas = {a["key"]: a for a in r["areas"]}
 npcs = {n["key"]: n for n in r["npcs"]}
 items = {i["key"]: i for i in r["items"]}
 creatures = {c["key"]: c for c in r["creatures"]}
-classes = {c["key"]: c for c in r["classes"]}
 
 # ---------------------------------------------------------------- world
 # first steps into a named place pay: 30 XP + 20 a level of the place
 r["world"]["discovery_xp"] = [30, 20]
-
-# ---------------------------------------------------------------- classes
-# no class could wear plate (the Ironbound set), and the hunter could not wear
-# the mail set made for it (Wildstalker)
-classes["warrior"]["armor"] = "plate"
-classes["paladin"]["armor"] = "plate"
-classes["hunter"]["armor"] = "mail"
 
 # ---------------------------------------------------------------- camps
 # The meadow: flocks from 125 m of the hearth (they began at 260 m, a minute's

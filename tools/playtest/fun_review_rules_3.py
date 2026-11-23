@@ -16,7 +16,6 @@ if "kill_xp" in r["world"]:
 quests = {q["key"]: q for q in r["quests"]}
 items = {i["key"]: i for i in r["items"]}
 creatures = {c["key"]: c for c in r["creatures"]}
-abilities = {a["key"]: a for a in r["abilities"]}
 
 # pace: with creatures at the gate a kill costs 10 s, not a minute's walk.
 # Kills pay 70% of the design formula; the opening quests pay for their length.
@@ -44,10 +43,6 @@ for a in r["areas"]:
             c["count"] = 3
         if c["creature"] == "thornboar" and a["key"] == "hearthmeadow":
             c["count"] = 2
-
-# the hunter's 52 mana lasted four fights
-abilities["quick_shot"]["cost"] = 7
-abilities["barbed_arrow"]["cost"] = 9
 
 # "gather log" matched the ride to the Logging Camp
 items["ride_logging_camp"]["name"] = "Cart ride to Garrick's Camp"
