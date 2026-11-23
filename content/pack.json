@@ -9,5 +9,16 @@
   "strings": "ui/strings.json",
   "stage": "stage/title.dynw"
  },
- "stream": []
+ "stream": [
+  "models/creatures/",
+  "models/held/",
+  "rigs/multileg",
+  "rigs/quadruped",
+  "rigs/wisp",
+  "rigs/wraith",
+  "anims/multileg",
+  "anims/quadruped",
+  "anims/wisp",
+  "anims/wraith"
+ ]
 }

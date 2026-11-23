@@ -957,8 +957,27 @@ impl State {
                 .filter(|(_, at)| at.elapsed() < Duration::from_secs(10))
                 .map(|(p, _)| p));
         let credited = killer.map(|k| self.credited(k, pos)).unwrap_or_default();
+        // in a party, quest items drop for each member who needs one (and go
+        // straight into their bags); the shared body holds the rest
+        let personal: Vec<(PlayerId, Vec<u16>)> = if credited.len() > 1 {
+            credited
+                .iter()
+                .map(|pid| (*pid, self.quest_items_needed(*pid)))
+                .collect()
+        } else {
+            Vec::new()
+        };
         let mut items = Vec::new();
         for d in list {
+            if personal.iter().any(|(_, need)| need.contains(&d.item)) {
+                for (pid, need) in &personal {
+                    if need.contains(&d.item) && self.rng.f32() < d.chance {
+                        let n = self.rng.range(d.min as u32, d.max as u32).max(1) as u8;
+                        self.give_loot(*pid, Stack::new(d.item, n));
+                    }
+                }
+                continue;
+            }
             if self.rng.f32() < d.chance {
                 let n = self.rng.range(d.min as u32, d.max as u32) as u8;
                 if n > 0 {
@@ -984,8 +1003,7 @@ impl State {
             }
         }
         // everyone who shares the kill gets quest credit; XP is split, with a group bonus
-        let n = credited.len().max(1) as f32;
-        let share = (1.0 + 0.15 * (n - 1.0)) / n;
+        let share = self.content.world.kill_share(credited.len());
         for pid in credited {
             self.milestone(pid, &format!("kill:{key}"));
             self.credit_kill(pid, mob.creature, mob.level, share);

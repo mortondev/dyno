@@ -19,6 +19,116 @@ Evidence in `runs/`:
 
 Coordinates are x,y,z blocks from the spawn hearth (north is -z).
 
+## Tuning round 2 (deaths, grouping, pace, a second button)
+
+Measured on main 6e1f765 (before) and the `tuning-2` branch (after): the
+20-bot, 12-minute swarm on a fresh world (run twice after, on two servers at
+once, to show the spread) and 4 party bots (2 pairs) against 4 solo
+completionists, 10 minutes each on their own fresh worlds. Runs:
+`runs/tuning2-before-*.md`, `runs/tuning2-after-*.md`. Every fresh world
+starts in the morning; night falls at about minute 9.5, so the last 2.5
+minutes of each swarm are night.
+
+| | Before | After (run A / run B) | Target |
+|---|---|---|---|
+| Deaths per hour (swarm) | 9.1 | 4.3 / 5.3 | 1.5 |
+| of which by day / at night | 22 / 14 | 8 / 9 and 9 / 12 | |
+| Fights won | 95% | 97% / 97% | >= 90% |
+| XP per hour (swarm, median) | 8,624 | 8,899 / 9,016 | 6,400 |
+| Level 2 (median) | 251 s | 191 s / 239 s | about 300 s |
+| XP from quests | 55% | 58% / 57% | about 60% |
+| Reward gap / bots with a 5-minute drought | 8.5 s / 0% | 9 s / 0% (both) | <= 60 s / <= 10% |
+| Most-used ability's share of casts | 91% | 71% / 75% | <= 70% |
+| Distinct abilities per fighting bot | 1.85 | 2+ (check passes) | >= 2 |
+| Party vs. solo, own worlds: XP per hour | 14,178 vs 16,017 (-11%) | 14,256 vs 14,469 (-1.5%) | >= solo |
+| Party vs. solo, own worlds: deaths per hour | 6.0 vs 22.5 | 1.5 vs 6.0 | |
+| Party vs. completionist in the swarm: XP per hour | 8,877 vs 7,865 | 9,045 vs 8,435 / 7,983 vs 8,617 | |
+| Party vs. completionist in the swarm: deaths per hour | 6.3 vs 7.5 | 0.0 vs 1.7 / 2.5 vs 7.5 | |
+
+Intermediate runs (same swarm, after each step): 5.2, 10.0 and 5.5 deaths
+per hour; the spread between runs is large (mostly how many Shades find
+someone in the last minutes), so read the deaths as "about halved".
+
+### Data changes (content/rules/hearthblock.json)
+
+| What | Before | After | Why |
+|---|---|---|---|
+| Mirrormere level band | 3-5 | 3-4 | its quests are level 4 to 5, taken from level 3 |
+| East Road level band | 4-6 | 4-5 | the same; level 6 bandits killed level 3s |
+| Hollow Oak level band | 4-5 | 3-4 | Silk for Sails (level 4) is taken at 3 |
+| Birchrise level band | 2-4 | 2-3 | Boar Trouble is level 3 |
+| Barrowwood level band | 4-6 | 4-5 | its Thornboars killed level 3-4s on Tusks and Tempers |
+| Mirrormere Ashcloak camp | (20,101) | (46,99) | it stood 12 blocks from Farmer Ostrin, where a level 3 breadcrumb sends level 2s; (42,112) was tried first and is lake |
+| Hollow Oak big Websnare camp | 5 | 4 | packs |
+| Websnare aggro | 10 | 6 | |
+| Thornboar aggro / charge range | 6 / 14 | 4 / 10 | boars charged level 1-2s walking past to Birchrise's grazers |
+| Shade cap (near one player) / damage | 3 / 6 | 2 / 4 | night was half of all deaths |
+| Creature health | grazer 25, thornboar 40, mirepincher 48, websnare 35, ashcloak 45, shade 40 | 32, 48, 55, 40, 50, 44 | longer fights: room for a second button, slower kill XP |
+| Creature damage | thornboar 6, mirepincher 6, websnare 6, ashcloak 7 | 5, 5, 5, 6 | safer |
+| Ashcloak raw iron drop (35%) | yes | removed, and Iron for Hollis no longer mentions it | it pulled level 3s to the bandits and the stockade |
+| Ability levels | Rending Cut 6, Rebuke 6, Barbed Arrow 4, Low Blow 4, Withering Word 4, Fire Blast 4 | 3, 3, 2, 3, 2, 2 | a second button before level 4 |
+| world.group_bonus (new) | 0.15 (in code) | 0.7 | a pair gets 85% of a kill's XP each (was 57.5%) |
+
+### Engine changes (small)
+
+- **Per-member quest drops** (`creatures.rs` `kill_mob`, `rpg.rs`
+  `quest_items_needed`, `give_loot`): when a party shares a kill, each member
+  who still needs a drop for a collect quest rolls for it and gets it straight
+  into their bags; the shared corpse holds the rest. Solo is unchanged. Test:
+  `crates/dyno-bot/tests/party_drops.rs` (two bots group, take Meat for the
+  Pot, the leader kills; the follower gets raw meat without looting).
+- **The group bonus is data**: `world.group_bonus` in the rules
+  (`WorldRules::kill_share`, default 0.15 as before). Test in `content.rs`.
+- **Nightfall Incursion Shades** (`events.rs`): the event set their level to
+  `2 + wave` after spawning, which bypassed the area level bands and gave
+  level 3 to 5 damage with level 1 to 2 health; they now keep the band of
+  where they appear (the waves still grow in numbers), and they spawn on the
+  ground, not on canopies. The incursion test now checks the band and health.
+
+### Bot changes (so the bots play like people)
+
+- They read zone levels: a camp in a zone whose top level is more than one
+  above theirs costs 400 blocks extra when choosing where to hunt, and they do
+  not start fights there or with elites. Before, a level 3 on Thieves in the
+  Fields went to the nearest bandits, which were the stockade's.
+- In the rotation, a damaging ability with a cooldown goes first when ready
+  (Fire Blast, Rebuke), as players weave them; then the strongest spammable one.
+- `dyno play` `probe` marks columns under water (`~`).
+
+### Casts by class (after, run A; levels 1 to 4)
+
+| Class | Before | After |
+|---|---|---|
+| Hunter | Quick Shot 93%, Barbed Arrow 7% | Quick Shot 57%, Barbed Arrow 42% |
+| Mage | Fireball 98% | Fireball 79%, Fire Blast 20% |
+| Paladin | Judging Blow 90%, Holy Mend 10% | Judging Blow 78%, Holy Mend 15%, Rebuke 8% |
+| Priest | Smite 97%, Mend 2%, Withering Word 1% | Smite 69%, Withering Word 31% |
+| Rogue | Vicious Strike 78%, Finishing Cut 22% | Vicious Strike 81%, Finishing Cut 19% (Low Blow at 3 is never chosen: 40 energy for 1 damage and a stun) |
+| Warrior | Heroic Blow 76%, Battle Cry 24% | Heroic Blow 58%, Rending Cut 22%, Battle Cry 20% |
+
+### Still open
+
+- **Night.** 9 to 12 of the deaths in each after-run come in the last 2.5
+  minutes, when night falls: Shades in the dark and the Nightfall Incursion,
+  which marches up to 9 Shades a wave into Hearthstead, the "safe" town
+  (Shades killed level 2-3 players in Hearthstead in every run). By day the
+  rate is about 2.7 an hour. The incursion's size and the town's safety are
+  in code (`events.rs`), not data: making the waves scale with the players'
+  levels, or keeping them at the gate, would be the next step.
+- **Pace did not move** (8,624 before; 7,677 to 10,054 across five after-runs,
+  8,900 in the final pair), because dying less buys back the time that longer
+  fights cost. Kill XP is in code (`progression::kill_xp`); the data levers
+  left are quest XP (about 57% of XP) and creature health. Cutting the XP of
+  the level 1 to 3 quests by about 25% would land near the design, but the
+  first-quest pace is already near the 5-minute target (level 2 in 191 to
+  239 s), so I would rather slow levels 3 to 5 than the first ten minutes.
+- **Kill-quest objectives have no place.** "Thieves in the Fields" means
+  Ostrin's fields, but any Ashcloak counts, and the East Road and the
+  stockade have them too. A quest objective with an area (data) would let the
+  tracker, players and bots go to the right camp.
+- Tag contention in the crowd (31 to 36% of kills tagged by someone else) was
+  not looked at, as agreed.
+
 ## After the fixes (23 November, second pass)
 
 Fixed since the first pass (main c535f75 and the `playtest-fixes` branch).

@@ -443,6 +443,56 @@ mod tests {
         assert!(bad.is_empty(), "{bad:#?}");
     }
 
+    /// Loops are short and meet themselves: the pose at the end of a loop
+    /// is the pose at its start. Hit reacts may flinch either way, and the
+    /// mirror image is a true one.
+    #[test]
+    fn loops_are_seamless_and_flinches_mirror() {
+        pack();
+        let mut bad = Vec::new();
+        let mut mirrored = 0;
+        for (name, look, g) in figures() {
+            let fig_name = if name.starts_with("person ") {
+                figure::player_figure().unwrap()
+            } else {
+                name.clone()
+            };
+            let fig = figure::figure(&fig_name).unwrap();
+            let set = fig.clips(&look, g).unwrap();
+            for &a in Anim::ALL {
+                let Some(l) = set.clip(a).and_then(|c| c.looping) else {
+                    continue;
+                };
+                if l > 16.5 {
+                    bad.push(format!("{name} {a:?}: a {l} s loop"));
+                }
+                // the same stride, so only the timed channels move
+                let start = set.pose(a, 0.0, 1.0, set.seed);
+                let end = set.pose(a, l - 1e-3, 1.0, set.seed);
+                let d = start.distance(&end);
+                if d > 0.02 {
+                    bad.push(format!("{name} {a:?}: the seam jumps {d}"));
+                }
+            }
+            if set.mirrors(Anim::HitReact) {
+                mirrored += 1;
+                let p = set.pose_side(Anim::HitReact, 0.2, 1.0, set.seed, false);
+                let m = set.pose_side(Anim::HitReact, 0.2, 1.0, set.seed, true);
+                assert!(p.distance(&m) > 0.01, "{name}: the mirror changes nothing");
+                for b in 0..crate::anim::MAX_BONES {
+                    let o = set.mirror[b];
+                    // a turn about y swaps sides: its mirror turns back
+                    let (y, _, _) = p.rot[b].to_euler(glam::EulerRot::YXZ);
+                    let (my, _, _) = m.rot[o].to_euler(glam::EulerRot::YXZ);
+                    assert!((y + my).abs() < 1e-3, "{name}: bone {b} {y} {my}");
+                    assert!((p.off[b].x + m.off[o].x).abs() < 1e-4);
+                }
+            }
+        }
+        assert!(mirrored > 0, "no figure flinches either way");
+        assert!(bad.is_empty(), "{bad:#?}");
+    }
+
     /// Geometry was made, every vertex is a number, and the figure stays in
     /// its box.
     fn check(

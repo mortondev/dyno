@@ -954,34 +954,40 @@ impl Scripted {
         let b = &a.body;
         // none alive in sight (we hear only of what is near): go to their
         // camp; one found empty, try the next before waiting at the nearest
-        let camps: Vec<([i32; 2], Vec3)> = b
+        let me = b.pos();
+        // like a player reading the zone levels: a camp in a zone for our
+        // level beats a nearer one among stronger creatures
+        let camps: Vec<([i32; 2], Vec3, f32)> = b
             .content
             .areas
             .iter()
             .flat_map(|ar| ar.camps.iter())
             .filter(|cp| cp.creature == creature)
-            .map(|cp| (cp.at, b.rel2(cp.at)))
+            .map(|cp| {
+                let p = b.rel2(cp.at);
+                let cost = p.distance(me) + if dangerous(b, p) { 400.0 } else { 0.0 };
+                (cp.at, p, cost)
+            })
             .collect();
-        let me = b.pos();
         self.empty_camps
             .retain(|(_, t)| t.elapsed() < Duration::from_secs(45));
-        if let Some((at, _)) = camps.iter().find(|(_, p)| b.dist(*p) <= 10.0)
+        if let Some((at, ..)) = camps.iter().find(|(_, p, _)| b.dist(*p) <= 10.0)
             && !self.empty_camps.iter().any(|(c, _)| c == at)
         {
             self.empty_camps.push((*at, Instant::now()));
         }
-        let fresh: Vec<&([i32; 2], Vec3)> = camps
+        let fresh: Vec<&([i32; 2], Vec3, f32)> = camps
             .iter()
-            .filter(|(at, _)| !self.empty_camps.iter().any(|(c, _)| c == at))
+            .filter(|(at, ..)| !self.empty_camps.iter().any(|(c, _)| c == at))
             .collect();
-        let pool: Vec<&([i32; 2], Vec3)> = if fresh.is_empty() {
+        let pool: Vec<&([i32; 2], Vec3, f32)> = if fresh.is_empty() {
             camps.iter().collect()
         } else {
             fresh
         };
-        if let Some((_, p)) = pool
+        if let Some((_, p, _)) = pool
             .into_iter()
-            .min_by(|x, y| x.1.distance(me).partial_cmp(&y.1.distance(me)).unwrap())
+            .min_by(|x, y| x.2.partial_cmp(&y.2).unwrap())
         {
             let d = b.dist(*p);
             if d > 10.0 {
@@ -1049,7 +1055,9 @@ impl Scripted {
                     && e.health < e.max;
                 // creatures that stand on tree tops cannot be reached (or looted)
                 !theirs
-                    && e.level <= b.level + 3
+                    && e.level <= b.level + 2
+                    && !e.elite
+                    && !dangerous(b, e.pos)
                     && b.dist(e.pos) < 140.0
                     && !crate::body::on_canopy(&b.world, e.pos)
             })
@@ -1350,6 +1358,25 @@ impl Scripted {
             why: format!("explore {name}"),
         })
     }
+}
+
+/// Is this place near a camp of creatures well above our level (a zone
+/// for later)? Players see the levels and look for yellow ones: the top of
+/// the zone's band counts (or a named creature's own level).
+pub fn dangerous(b: &crate::body::Body, p: Vec3) -> bool {
+    b.content.areas.iter().any(|ar| {
+        ar.camps.iter().any(|cp| {
+            // camps spawn at the zone's levels; a named elite's own level counts
+            let lvl = match b.content.creature(cp.creature) {
+                Some(c) if cp.rare.is_none() && c.levels[0] == c.levels[1] => {
+                    c.levels[0].max(ar.levels[1])
+                }
+                _ => ar.levels[1],
+            };
+            let hostile = b.content.creature(cp.creature).is_some_and(|c| c.hostile);
+            hostile && lvl > b.level + 1 && b.rel2(cp.at).distance(p) < cp.spread + 22.0
+        })
+    })
 }
 
 /// Does an open quest ask us to talk to this NPC?

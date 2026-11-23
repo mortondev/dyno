@@ -121,6 +121,8 @@ mod tests {
             path: "cache-test/cache.txt".into(),
             hash: sha256(&bytes),
             size: bytes.len() as u32,
+            codec: dyno_protocol::wire::RAW,
+            wire: bytes.len() as u32,
         };
         assert!(c.read(&f).is_none());
         c.write(&f.hash, &bytes);

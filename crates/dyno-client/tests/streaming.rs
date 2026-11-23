@@ -94,7 +94,12 @@ fn a_second_join_with_nothing_changed_downloads_nothing() {
     // fonts, the stage and the strings
     // (the store is shared with the other tests here, so check the bytes in
     // this test's own cache)
+    // (streamed files, such as creatures, wait until something asks)
     for f in &pack.manifest.files {
+        if !pack.manifest.preload(&f.path) {
+            assert!(Cache::at(&cache).read(f).is_none(), "{} came early", f.path);
+            continue;
+        }
         assert!(
             dyno_client::assets::get(&f.path).is_some(),
             "{} did not arrive",
@@ -102,6 +107,13 @@ fn a_second_join_with_nothing_changed_downloads_nothing() {
         );
         assert!(Cache::at(&cache).read(f).is_some(), "{} not cached", f.path);
     }
+    // they travel compressed, and a first join stays small
+    assert!(first.downloaded < pack.bytes() / 2);
+    assert!(
+        first.downloaded < 4_000_000,
+        "a first join downloads {} bytes",
+        first.downloaded
+    );
     assert!(pack.manifest.file("blocks.json").is_some());
     // what the server sent while the files downloaded still reaches the game
     assert!(
@@ -138,7 +150,13 @@ fn a_second_join_with_nothing_changed_downloads_nothing() {
     std::fs::write(&strings, text.replace("Ashfall Vale", "Ashfall Vale!")).unwrap();
     let (server2, addr2) = start(&dir.join("2"), Some(packdir), 4 * 1024 * 1024);
     let (third, _) = join(&addr2, "cy", 3, &cache);
-    let changed = std::fs::metadata(&strings).unwrap().len();
+    let changed = server2
+        .server
+        .pack()
+        .manifest
+        .file("ui/strings.json")
+        .unwrap()
+        .wire as u64;
     assert_eq!(third.downloaded, changed, "only the changed file downloads");
     drop(third);
     server2.stop();
@@ -152,12 +170,18 @@ fn streamed_files_arrive_during_play_without_holding_it_up() {
     write_pack(&packdir);
     // a large file the pack streams when first needed
     let meta = std::fs::read_to_string(packdir.join("pack.json")).unwrap();
-    std::fs::write(
-        packdir.join("pack.json"),
-        meta.replace("\"stream\": []", "\"stream\": [\"big/\"]"),
-    )
-    .unwrap();
-    let big: Vec<u8> = (0..640 * 1024u32).map(|i| (i * 31 % 253) as u8).collect();
+    let mut meta: serde_json::Value = serde_json::from_str(&meta).unwrap();
+    meta["stream"].as_array_mut().unwrap().push("big/".into());
+    std::fs::write(packdir.join("pack.json"), meta.to_string()).unwrap();
+    // noise, so it travels as it is and the budget is easy to check
+    let big: Vec<u8> = (0..640 * 1024u32)
+        .scan(0x9E37_79B9u32, |x, _| {
+            *x ^= *x << 13;
+            *x ^= *x >> 17;
+            *x ^= *x << 5;
+            Some((*x >> 24) as u8)
+        })
+        .collect();
     std::fs::create_dir_all(packdir.join("big")).unwrap();
     std::fs::write(packdir.join("big/blob.bin"), &big).unwrap();
     let rate = 256 * 1024;

@@ -797,19 +797,36 @@ fn nightfall_incursion() {
     });
     assert_eq!(title, "Nightfall Incursion");
     let end = Instant::now() + Duration::from_secs(10);
-    let mut seen = 0;
-    while seen < 3 && Instant::now() < end {
+    let mut ids = std::collections::HashSet::new();
+    let mut levels = Vec::new();
+    while levels.len() < 3 && Instant::now() < end {
         pose(&j, j.spawn);
-        if wait_opt(&j, &mut pack, 0.5, |m| {
-            matches!(m, ServerMsg::EntitySpawn { kind: EntityKind::Creature(c), .. } if *c == shade)
-                .then_some(())
-        })
-        .is_some()
-        {
-            seen += 1;
-        }
+        wait_opt(&j, &mut pack, 0.5, |m| {
+            match m {
+                ServerMsg::EntitySpawn {
+                    id,
+                    kind: EntityKind::Creature(c),
+                    ..
+                } if *c == shade => {
+                    ids.insert(*id);
+                }
+                ServerMsg::EntityInfo { id, level, max, .. } if ids.contains(id) => {
+                    levels.push((*level, *max));
+                }
+                _ => {}
+            }
+            None::<()>
+        });
     }
-    assert!(seen >= 3, "a wave of Shades arrives ({seen})");
+    assert!(levels.len() >= 3, "a wave of Shades arrives ({levels:?})");
+    // they take the level band of the meadow at the gate (1 to 2), with the
+    // health of their level
+    let base = j.content.creatures[shade as usize].health;
+    for (level, max) in levels {
+        assert!(level <= 2, "a level {level} Shade in the level 1-2 meadow");
+        let want = base * dyno_sim::progression::mob_scale(level).0;
+        assert!((max - want).abs() < 0.5, "health {max} for level {level}");
+    }
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

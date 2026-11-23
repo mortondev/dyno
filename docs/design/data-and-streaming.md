@@ -54,7 +54,7 @@ content/
   stage/               # the title-screen scene
 ```
 
-**Status: built** (protocol 17). Today's pack: `pack.json`, the rules
+**Status: built** (protocol 18: compressed transfer). Today's pack: `pack.json`, the rules
 (`rules/hearthblock.json`), `blocks.json`, `render.json`, `fonts/`,
 `textures/`, `icons/`, `sounds/` (from the textures and sounds bake),
 `ui/strings.json` (loading screen, intro, class prompt, news) and
@@ -67,8 +67,17 @@ content/
   "entries": { "rules": "rules/hearthblock.json", "blocks": "blocks.json",
                "render": "render.json", "fonts": "fonts/fonts.json",
                "strings": "ui/strings.json", "stage": "stage/title.dynw" },
-  "stream": [] }
+  "stream": ["models/creatures/", "models/held/", "rigs/multileg", "anims/multileg", …] }
 ```
+
+**The pack build** (`dyno_server::pack::compile`, run by `Pack::from_files`
+on every load, so the embedded pack, a pack directory and `/reload` all get
+it): source files become what is streamed. Today one rule: each
+`anims/<skeleton>.json` (clips as artists edit them) becomes
+`anims/<skeleton>.clips` (`dyno_protocol::clips`: keys thinned within a
+tolerance, quantised, shared, in binary; 4.0 MB of JSON becomes 178 KB,
+106 KB on the wire). The source is not in the manifest. The client reads
+either: the compact form from the server, the source from a local pack.
 
 **Loading** (`dyno-server/src/pack.rs`). `--content` takes a pack
 directory, or a rules JSON file (the built-in pack with those rules: tests
@@ -105,6 +114,17 @@ port through a tunnel.
 - `ClientMsg::Want { hashes: Vec<[u8; 32]> }` (at most 1024 per message)
 - `ServerMsg::Asset { hash, offset: u32, total: u32, data: Vec<u8> }` in chunks of up to 64 KB.
 
+Files travel compressed (`dyno_protocol::wire`). The server encodes each
+file once (per process, by hash, on every core) with the smallest of:
+`RAW` (PNGs, which do not shrink), `DEFLATE` (raw deflate via
+`miniz_oxide`, which the client already links for PNG) and `PCM16` (a 16-bit
+WAV's samples less their order-2 prediction, split into low and high byte
+planes, then deflated: lossless, 2.3 MB for 4.0 MB of sounds where deflate
+alone gives 3.0 MB). `AssetRef` carries the `codec` and the `wire` size
+beside the original `size` and hash; chunks add up to `wire`. The client
+inflates with a limit of `size`, checks the hash of the original bytes and
+caches the original, so files are always named by what they are.
+
 Each session has an `Outbox` (a queue and a token bucket). Every pass of the
 session loop writes the game messages waiting for it first, then the asset
 chunks the budget allows: 256 KB/s by default once the player plays
@@ -127,8 +147,17 @@ read. On join it asks only for hashes it lacks, keeps playing messages that
 arrive during the download, and returns when the files needed before play
 are present (`net::connect_with`; `Joined::downloaded` counts the bytes). It
 pings the server during long downloads and gives up after 30 s with no
-progress. A second join with nothing changed downloads nothing: 4,290,437
-bytes on the first join, 0 on the second (`tests/streaming.rs`). It also keeps
+progress. A second join with nothing changed downloads nothing
+(`tests/streaming.rs`, which also holds a first join under 4 MB).
+`Joined::downloaded` and the loading bar count bytes on the wire.
+
+| First join | Bytes |
+|---|---|
+| 0.7.0, before figures and shapes moved to the pack | 4,290,976 |
+| figures, clips and shapes as pack data, uncompressed | 12,485,452 |
+| compressed, compact clips, creatures and held items streamed | 3,037,774 |
+
+The cache also keeps
 the last manifest, so the title screen shows the last world's stage, news
 and strings before any join. The loading screen shows the download.
 
@@ -158,8 +187,14 @@ plain title backdrop, egui's own fonts and flat block colours.
 ["models/creatures/", …]`); the join fetches everything else. Engine code
 that finds `assets::get(path)` empty calls `assets::request(path)`; the
 connection sends `Want` and the file arrives through `assets::insert`
-during play, within the session's budget. Today's pack streams nothing;
-the asset bakers choose prefixes as their files land.
+during play, within the session's budget. Today's pack streams creature
+models (`models/creatures/`), held items (`models/held/`) and the rigs and
+clips of every skeleton but the biped: `figure.rs` asks for a figure's
+`.vox`, rig and clips when it first draws one, and draws the stand-in until
+they arrive. The person figure, its rig and clips come before play. Files
+arriving in play do not throw away figures already built: the figure
+library keeps the addresses of the files it used and starts again only
+when one of them is replaced.
 
 ## 3. Formats
 
@@ -177,7 +212,8 @@ the asset bakers choose prefixes as their files land.
   their own scale).
 - **Rigs** (`rigs/<skeleton>.json`): bones with name, parent, pivot in
   voxels, and the part model drawn on each; grip and attachment points.
-- **Clips** (`anims/<skeleton>.json`): for each animation name, a duration
+- **Clips** (`anims/<skeleton>.json`, compiled to `.clips` by the pack
+  build): for each animation name, a duration
   or loop, keyframes per bone (rotation in degrees, offset), and
   `stride: metres per cycle` for locomotion so feet don't skate. The engine
   blends and layers as `anim.rs` does today. Bake today's procedural poses
@@ -201,7 +237,7 @@ the asset bakers choose prefixes as their files land.
   shard-move block diff (which becomes "resend the sections you have").
 - The title screen's stage is a small baked scene in the pack.
 
-**Status: built** (protocol 18).
+**Status: built** (protocol 19).
 
 - **Sections on the wire.** `ServerMsg::Sections(Vec<(pos, data)>)`:
   section positions with each section's cells run-length encoded

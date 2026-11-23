@@ -687,8 +687,10 @@ impl Grid {
 
 fn load_figure(spec: &FigureSpec) -> Result<Option<Figure>, String> {
     let Some(bytes) = assets::get(&spec.file) else {
+        assets::request(&spec.file);
         return Ok(None);
     };
+    used(&spec.file);
     let file = vox::read(&bytes)?;
     let mut slots: Vec<String> = Vec::new();
     let palette = spec
@@ -817,8 +819,10 @@ fn rig_file(skeleton: &str) -> Result<Option<Rc<RigFile>>, String> {
         }
         let path = format!("rigs/{skeleton}.json");
         let Some(text) = assets::text(&path) else {
+            assets::request(&path);
             return Ok(None);
         };
+        used(&path);
         let r: RigFile = serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
         let r = Rc::new(r);
         l.borrow_mut().rigs.insert(skeleton.to_string(), r.clone());
@@ -833,11 +837,20 @@ fn clip_file(skeleton: &str, sk: &SkeletonSpec) -> Result<Option<Sets>, String> 
         if let Some(r) = l.borrow().clips.get(skeleton) {
             return Ok(Some(r.clone()));
         }
-        let path = format!("anims/{skeleton}.json");
-        let Some(text) = assets::text(&path) else {
+        // the compact form the server streams, or the source (local packs)
+        let compact = format!("anims/{skeleton}.clips");
+        let source = format!("anims/{skeleton}.json");
+        let (path, v): (&str, Value) = if let Some(b) = assets::get(&compact) {
+            let v = dyno_protocol::clips::decode(&b).map_err(|e| format!("{compact}: {e}"))?;
+            (&compact, v)
+        } else if let Some(text) = assets::text(&source) {
+            let v = serde_json::from_str(&text).map_err(|e| format!("{source}: {e}"))?;
+            (&source, v)
+        } else {
+            assets::request(&compact);
             return Ok(None);
         };
-        let v: Value = serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
+        used(path);
         let sets = Rc::new(crate::clip::parse_sets(sk, &v).map_err(|e| format!("{path}: {e}"))?);
         l.borrow_mut()
             .clips
@@ -854,8 +867,10 @@ struct Lib {
     clips: HashMap<String, Sets>,
     /// problems already reported
     told: Vec<String>,
-    /// the asset store's generation when this was loaded
+    /// the asset store's generation when this was last checked
     generation: u64,
+    /// the files loaded so far, and where their bytes were
+    used: Vec<(String, usize)>,
 }
 
 thread_local! {
@@ -873,6 +888,18 @@ fn complain(e: String) {
     });
 }
 
+/// Where a file's bytes are in the asset store (0 when missing): it changes
+/// exactly when the file is added or replaced.
+fn addr(path: &str) -> usize {
+    assets::get(path).map(|b| b.as_ptr() as usize).unwrap_or(0)
+}
+
+/// Note a file what is loaded was made from.
+fn used(path: &str) {
+    let a = addr(path);
+    LIB.with(|l| l.borrow_mut().used.push((path.to_string(), a)));
+}
+
 /// Forget everything loaded, for a new pack.
 pub fn reset() {
     LIB.with(|l| *l.borrow_mut() = Lib::default());
@@ -882,18 +909,26 @@ fn spec() -> Option<Rc<FiguresSpec>> {
     // files arrived or changed: look again
     let generation = assets::generation();
     if LIB.with(|l| l.borrow().generation != generation) {
-        LIB.with(|l| {
-            *l.borrow_mut() = Lib {
-                generation,
-                ..Lib::default()
-            }
-        });
-        BUILT.with(|b| b.clear());
+        // a streamed file arriving in play changes nothing already loaded:
+        // start again only when a file in use was replaced
+        let same = LIB.with(|l| l.borrow().used.iter().all(|(p, a)| addr(p) == *a));
+        if same {
+            LIB.with(|l| l.borrow_mut().generation = generation);
+        } else {
+            LIB.with(|l| {
+                *l.borrow_mut() = Lib {
+                    generation,
+                    ..Lib::default()
+                }
+            });
+            BUILT.with(|b| b.clear());
+        }
     }
     if let Some(s) = LIB.with(|l| l.borrow().spec.clone()) {
         return Some(s);
     }
     let text = assets::text("figures.json")?;
+    used("figures.json");
     match serde_json::from_str::<FiguresSpec>(&text) {
         Ok(s) => {
             let s = Rc::new(s);
