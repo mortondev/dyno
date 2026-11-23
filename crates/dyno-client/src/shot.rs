@@ -106,10 +106,14 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
     let mut g = Gfx::new_headless(o.width, o.height)?;
     g.load_world(&j.world, &light);
     let t = o.time.unwrap_or(server_time);
-    let sky = crate::app::sky(t);
     let mut player = Player::new(o.pos.unwrap_or(j.spawn));
     player.yaw = o.yaw;
     player.pitch = o.pitch;
+    // the sky of the place the shot looks at, a little ahead of the lens
+    // (where the character would stand): its mood is the pack's (mood.rs)
+    crate::mood::set_world(j.hearth, &j.content.areas);
+    let ahead = player.look_dir() * Vec3::new(1.0, 0.0, 1.0);
+    let sky = crate::sky::sky_at(t, Some(player.eye() + ahead.normalize_or_zero() * 24.0));
     let far = 160.0;
     let vp = player.view_proj(o.width as f32 / o.height as f32, 75.0, far);
     let mut boxes = Vec::new();

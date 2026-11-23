@@ -21,9 +21,20 @@ pub struct RenderSettings {
     pub relief: f32,
     pub grade: Grade,
     pub water: Water,
-    /// height haze in low valleys: how much it greys the picture
+    /// (was the height haze; `atmosphere` describes haze and fog now)
     pub haze: f32,
     pub sky: SkyPalette,
+    /// sunlight, moonlight, sky light and lamps (atmos.rs)
+    pub light: crate::atmos::Lighting,
+    /// aerial haze and fog in low ground (atmos.rs)
+    pub atmosphere: crate::atmos::Atmosphere,
+    /// sun, moon, stars, clouds and the far ridges (sky.rs)
+    pub dome: crate::sky::DomeLook,
+    /// exposure, bloom and ambient occlusion (post.rs)
+    pub post: crate::post::PostLook,
+    /// the mood of the whole world, and of regions of it (mood.rs)
+    pub mood: crate::mood::Mood,
+    pub moods: Vec<crate::mood::Region>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -87,6 +98,14 @@ pub struct SkyPalette {
     pub night_light: [f32; 3],
     pub day_light: [f32; 3],
     pub sunset_light: [f32; 3],
+    /// the sky just after sunset and before sunrise, and how much of it
+    /// shows (0: none)
+    pub dusk_top: [f32; 3],
+    pub dusk_horizon: [f32; 3],
+    pub dusk: f32,
+    /// how high the sun stands (as the sine of its height) while the
+    /// sunset colours still show
+    pub sunset_width: f32,
 }
 
 impl Default for RenderSettings {
@@ -99,6 +118,12 @@ impl Default for RenderSettings {
             water: Water::default(),
             haze: 0.0,
             sky: SkyPalette::default(),
+            light: Default::default(),
+            atmosphere: Default::default(),
+            dome: Default::default(),
+            post: Default::default(),
+            mood: Default::default(),
+            moods: Vec::new(),
         }
     }
 }
@@ -160,6 +185,10 @@ impl Default for SkyPalette {
             night_light: [0.3; 3],
             day_light: [1.0; 3],
             sunset_light: [1.0; 3],
+            dusk_top: [0.2; 3],
+            dusk_horizon: [0.4; 3],
+            dusk: 0.0,
+            sunset_width: 0.17,
         }
     }
 }

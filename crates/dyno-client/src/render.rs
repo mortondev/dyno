@@ -106,22 +106,15 @@ pub struct Sky {
     pub stars: f32,
     /// 0 clear sky .. 1 overcast
     pub cover: f32,
+    /// the light and air of the frame, and the dome behind it (atmos.rs, sky.rs)
+    pub env: crate::atmos::Frame,
 }
 
-/// Depth-only pass from the sun.
-const SHADOW_SHADER: &str = r#"
+/// The frame's uniforms, for shaders kept in other modules (the sky).
+const U_WGSL: &str = r#"
 struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32>, shadow_vp: mat4x4<f32> };
 @group(0) @binding(0) var<uniform> u: U;
-@vertex fn vs(@location(0) pos: vec3<f32>, @location(5) tex: vec4<f32>) -> @builtin(position) vec4<f32> {
-  // decals and halos cast no shadow
-  if (tex.z < -2.5) { return vec4<f32>(2.0, 2.0, 2.0, 1.0); }
-  return u.shadow_vp * vec4<f32>(pos, 1.0);
-}
 "#;
-
-/// Size of the shadow map, and how far around the camera it reaches.
-const SHADOW_SIZE: u32 = 2048;
-const SHADOW_HALF: f32 = 72.0;
 
 const SHADER: &str = r#"
 struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32>, shadow_vp: mat4x4<f32> };
@@ -129,7 +122,7 @@ struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, f
 
 @group(0) @binding(1) var tex_array: texture_2d_array<f32>;
 @group(0) @binding(2) var tex_samp: sampler;
-@group(0) @binding(3) var shadow_map: texture_depth_2d;
+@group(0) @binding(3) var shadow_map: texture_depth_2d_array;
 @group(0) @binding(4) var shadow_samp: sampler_comparison;
 // the render settings from the pack (look.rs)
 struct Look { leaf_under: vec4<f32>, leaf_over: vec4<f32>, tone_low: vec4<f32>, tone_high: vec4<f32>, grade_tint: vec4<f32>, grade: vec4<f32>, water_deep: vec4<f32>, water_shallow: vec4<f32>, foam: vec4<f32>, misc: vec4<f32> };
@@ -145,33 +138,12 @@ const K_TERRAIN: f32 = 4096.0;
 const K_FOLIAGE: f32 = 8192.0;
 const K_WATER: f32 = 12288.0;
 
-// 1 in sunlight, 0 in shadow; soft-edged. Four taps: the sampler compares
-// and blends 2 x 2 texels at each, so together they cover the same patch a
-// 3 x 3 loop of taps did, for less than half the cost.
-fn sun_visible(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
-  let p = u.shadow_vp * vec4<f32>(wpos + n * 0.04, 1.0);
-  let ndc = p.xyz / p.w;
-  let uv = vec2<f32>(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
-  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || ndc.z > 1.0) { return 1.0; }
-  let o = 0.9 / 2048.0;
-  let z = ndc.z - 0.0015;
-  return 0.25 * (textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(-o, -o), z)
-    + textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(o, -o), z)
-    + textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(-o, o), z)
-    + textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(o, o), z));
-}
+// Shadows, light, haze and fog: atmos.rs (appended to this shader).
 
-// The colour grade: tint, saturation, contrast round mid grey, and a soft
-// roll-off of highlights instead of clipping.
+// The colour grade is laid over the finished picture (post.rs); the world
+// is drawn in plain light, which may be brighter than white.
 fn grade(c0: vec3<f32>) -> vec3<f32> {
-  var c = c0 * look.grade_tint.rgb;
-  let l = dot(c, vec3<f32>(0.2126, 0.7152, 0.0722));
-  c = mix(vec3<f32>(l), c, look.grade_tint.w);
-  c = (c - 0.18) * look.grade.x + 0.18;
-  let knee = vec3<f32>(look.grade.y);
-  let k = max(c - knee, vec3<f32>(0.0));
-  c = min(c, knee) + k / (vec3<f32>(1.0) + k * look.grade.z);
-  return max(c, vec3<f32>(0.0));
+  return c0;
 }
 
 // Integer hashes of whole-number points. (A sin-based hash loses
@@ -458,83 +430,24 @@ fn ground_tone(m: f32) -> vec3<f32> {
     let t = floor(i.wpos * 16.0 - i.normal * 0.01);
     grain = select(1.0, 0.86 + 0.24 * hash3(t), has_n);
   }
-  // sun or moon light (with shadows and the angle of the surface), soft sky
-  // light from above, or warm block light, whichever is brighter
+  // the light on it and the air in front of it (atmos.rs)
   let bl = i.light * i.light;
   let sl = i.sky * i.sky;
-  let ldir = normalize(select(-u.sun.xyz, u.sun.xyz, u.sun.y > 0.0));
-  let lam = dot(select(n, bent, kz >= 0.0 && kz < K_FOLIAGE), ldir);
-  let ndl = select(0.75, max(mix(lam, lam * 0.5 + 0.5, wrap), 0.0), has_n);
-  let vis = sun_visible(i.wpos, n);
-  let up = select(0.75, 0.6 + 0.4 * n.y, has_n);
-  // cool, blue-violet shade; warm direct sun
-  let sky_amb = mix(u.sky_top.rgb, vec3<f32>(0.45, 0.5, 0.75), 0.5) * 0.42 * up;
-  let direct = u.light.rgb * vec3<f32>(1.08, 1.0, 0.9) * (0.2 + 1.0 * ndl * vis);
-  let daylight = (direct + sky_amb) * (sl * 0.97 + 0.03);
-  let lit = max(daylight, vec3<f32>(1.0, 0.78, 0.5) * bl * 1.15);
+  let lam = dot(select(n, bent, kz >= 0.0 && kz < K_FOLIAGE), env.light_dir.xyz);
+  let lit = world_light(i.wpos, n, lam, wrap, has_n, sl, bl);
   var c = base * grain * min(i.color.a, 1.0) * lit * dim;
-  if (i.color.a > 1.9) { c = base * grain * 1.1; }
-  let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
-  // height haze in low valleys, then distance fog
-  let haze = clamp((26.0 - i.wpos.y) / 26.0, 0.0, 1.0) * clamp(d / 110.0, 0.0, 1.0) * look.misc.y;
-  c = mix(c, u.fog.rgb, max(f, haze));
-  return vec4<f32>(grade(c), 1.0);
+  // glowing blocks: brighter than white, so they bloom
+  if (i.color.a > 1.9) { c = base * grain * env.sun_tint.w; }
+  return vec4<f32>(grade(atmosphere(c, i.wpos)), 1.0);
 }
 
-struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> };
-
-@vertex fn vs_sky(@builtin(vertex_index) vi: u32) -> SkyOut {
-  let p = vec2<f32>(f32((vi << 1u) & 2u), f32(vi & 2u)) * 2.0 - 1.0;
-  var o: SkyOut;
-  o.clip = vec4<f32>(p, 1.0, 1.0);
-  o.ndc = p;
-  return o;
-}
-
-@fragment fn fs_sky(i: SkyOut) -> @location(0) vec4<f32> {
-  let far = u.inv_view_proj * vec4<f32>(i.ndc, 1.0, 1.0);
-  let dir = normalize(far.xyz / far.w - u.cam.xyz);
-  let h = clamp(dir.y, -1.0, 1.0);
-  var c = mix(u.fog.rgb, u.sky_top.rgb, smoothstep(-0.02, 0.55, h));
-  c = mix(c, u.fog.rgb * 0.6, smoothstep(0.0, -0.4, h));
-  let sd = dot(dir, u.sun.xyz);
-  // sun glow and disc
-  c += vec3<f32>(1.0, 0.75, 0.45) * pow(max(sd, 0.0), 48.0) * 0.6 * (1.0 - u.sun.w * 0.8);
-  if (sd > 0.9992) { c = mix(c, vec3<f32>(1.0, 0.97, 0.88), 0.95); }
-  // moon opposite the sun
-  if (-sd > 0.9994) { c = mix(c, vec3<f32>(0.85, 0.88, 0.95), u.sun.w); }
-  // painted clouds: soft billows lit from the sun side, with warm rims
-  if (h > 0.01) {
-    let q = dir.xz / (h + 0.08) * 1.1 + vec2<f32>(u.cam.w * 0.010, u.cam.w * 0.004);
-    let n = vnoise(q * 0.8) * 0.5 + vnoise(q * 1.9 + 7.3) * 0.3 + vnoise(q * 4.3 + 2.1) * 0.2;
-    let over = u.sky_top.w;
-    let cov = smoothstep(0.46 - over * 0.5, 0.78 - over * 0.45, n) * smoothstep(0.01, 0.25, h);
-    // brighter where the cloud thins and faces the sun
-    let edge = 1.0 - smoothstep(0.55, 0.8, n);
-    let toward = max(dot(normalize(vec3<f32>(dir.x, 0.0, dir.z) + vec3<f32>(0.0, 0.001, 0.0)), normalize(vec3<f32>(u.sun.x, 0.0, u.sun.z) + vec3<f32>(0.0, 0.001, 0.0))), 0.0);
-    let body = mix(u.fog.rgb * 0.9, vec3<f32>(1.0, 0.98, 0.95), 0.6 - over * 0.45) * (u.light.rgb * 0.8 + 0.2) * (1.0 - over * 0.35);
-    let rim = vec3<f32>(1.0, 0.82, 0.55) * (u.light.rgb * 0.9 + 0.1);
-    let shade = mix(u.sky_top.rgb * 0.8, body, 0.65);
-    var cc = mix(shade, body, smoothstep(0.5, 0.9, n));
-    cc = mix(cc, rim, edge * toward * 0.5);
-    c = mix(c, cc, cov * 0.92);
-  }
-  // stars
-  if (u.sun.w > 0.01 && h > 0.0) {
-    let cell = floor(dir * 220.0);
-    let r = hash3(cell);
-    if (r > 0.9965) { c += vec3<f32>(0.9, 0.92, 1.0) * u.sun.w * (r - 0.9965) * 220.0 * smoothstep(0.0, 0.2, h); }
-  }
-  return vec4<f32>(grade(c), 1.0);
-}
+// The sky dome: sky.rs.
 
 @fragment fn fs_translucent(i: VOut) -> @location(0) vec4<f32> {
   let kz = i.tex.z;
   var l0 = 0;
   if (kz >= 0.0 && kz < K_TERRAIN) { l0 = anim_layer(kz, i.tex.w); }
   let tx0 = textureSample(tex_array, tex_samp, i.tex.xy, l0);
-  let d = distance(i.wpos, u.cam.xyz);
-  let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   let lit = max(u.light.rgb * (i.sky * i.sky * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * i.light * i.light);
   var c = i.color.rgb * lit;
   var a = i.color.a;
@@ -576,8 +489,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
     a = tx0.a;
     if (a < 0.02) { discard; }
   }
-  c = mix(c, u.fog.rgb, f);
-  return vec4<f32>(grade(c), a);
+  return vec4<f32>(grade(atmosphere(c, i.wpos)), a);
 }
 
 // Halos: added on top of the picture, brightest in the dark.
@@ -960,6 +872,7 @@ struct Bindings<'a> {
     shadow_view: &'a wgpu::TextureView,
     shadow_samp: &'a wgpu::Sampler,
     look_buf: &'a wgpu::Buffer,
+    env_buf: &'a wgpu::Buffer,
 }
 
 fn make_bind(device: &wgpu::Device, b: Bindings) -> wgpu::BindGroup {
@@ -990,6 +903,10 @@ fn make_bind(device: &wgpu::Device, b: Bindings) -> wgpu::BindGroup {
             wgpu::BindGroupEntry {
                 binding: 5,
                 resource: b.look_buf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 6,
+                resource: b.env_buf.as_entire_binding(),
             },
         ],
     })
@@ -1303,10 +1220,13 @@ pub struct Gfx {
     line_pipe: wgpu::RenderPipeline,
     glow_pipe: wgpu::RenderPipeline,
     sky_pipe: wgpu::RenderPipeline,
-    shadow_pipe: wgpu::RenderPipeline,
-    shadow_bind: wgpu::BindGroup,
-    shadow_view: wgpu::TextureView,
+    /// sun and moon shadows (shadows.rs)
+    shadows: crate::shadows::Shadows,
+    /// what finishes the picture: occlusion, bloom, the grade (post.rs)
+    post: crate::post::Post,
     ubuf: wgpu::Buffer,
+    /// light, air and the sky dome (atmos.rs), written every frame
+    env_buf: wgpu::Buffer,
     bind: wgpu::BindGroup,
     bgl: wgpu::BindGroupLayout,
     tex_samp: wgpu::Sampler,
@@ -1346,7 +1266,8 @@ fn depth_view(device: &wgpu::Device, w: u32, h: u32) -> wgpu::TextureView {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: DEPTH,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            // the passes after the world read it (post.rs)
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         })
         .create_view(&wgpu::TextureViewDescriptor::default())
@@ -1453,8 +1374,40 @@ impl Gfx {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("voxel"),
-            source: wgpu::ShaderSource::Wgsl(SHADER.into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!(
+                    "{SHADER}{}{}",
+                    crate::atmos::ENV_WGSL,
+                    crate::atmos::LIGHT_WGSL
+                )
+                .into(),
+            ),
         });
+        let sky_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("sky"),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{U_WGSL}{}{}", crate::atmos::ENV_WGSL, crate::sky::SKY_WGSL).into(),
+            ),
+        });
+        let env_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("env"),
+            size: std::mem::size_of::<crate::atmos::EnvUniform>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let quality = crate::post::Quality::from_env(crate::settings::Settings::peek().graphics);
+        let vlayout = crate::shadows::vertex_layout();
+        let shadows = crate::shadows::Shadows::new(&device, quality.shadow_size, &vlayout);
+        let depth = depth_view(&device, config.width, config.height);
+        let post = crate::post::Post::new(
+            &device,
+            &adapter,
+            config.format,
+            config.width,
+            config.height,
+            &depth,
+            quality,
+        );
         let ubuf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("uniforms"),
             size: std::mem::size_of::<Uniforms>() as u64,
@@ -1470,21 +1423,6 @@ impl Gfx {
         let tex_gen = crate::textures::generation();
         let tex_view = upload_textures(&device, &queue, textures());
         let tex_samp = texture_sampler(&device);
-        let shadow_tex = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("shadow"),
-            size: wgpu::Extent3d {
-                width: SHADOW_SIZE,
-                height: SHADOW_SIZE,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: DEPTH,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let shadow_view = shadow_tex.create_view(&wgpu::TextureViewDescriptor::default());
         let shadow_samp = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("shadow"),
             mag_filter: wgpu::FilterMode::Linear,
@@ -1526,7 +1464,7 @@ impl Gfx {
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Texture {
                         sample_type: wgpu::TextureSampleType::Depth,
-                        view_dimension: wgpu::TextureViewDimension::D2,
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
                         multisampled: false,
                     },
                     count: None,
@@ -1547,6 +1485,16 @@ impl Gfx {
                     },
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
             ],
         });
         let bind = make_bind(
@@ -1556,52 +1504,17 @@ impl Gfx {
                 ubuf: &ubuf,
                 tex_view: &tex_view,
                 tex_samp: &tex_samp,
-                shadow_view: &shadow_view,
+                shadow_view: &shadows.view,
                 shadow_samp: &shadow_samp,
                 look_buf: &look_buf,
+                env_buf: &env_buf,
             },
         );
-        // the shadow pass only needs the uniforms
-        let shadow_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("shadow"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
-        let shadow_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("shadow"),
-            layout: &shadow_bgl,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: ubuf.as_entire_binding(),
-            }],
-        });
-        let shadow_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("shadow"),
-            source: wgpu::ShaderSource::Wgsl(SHADOW_SHADER.into()),
-        });
-        let shadow_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("shadow"),
-            bind_group_layouts: &[&shadow_bgl],
-            push_constant_ranges: &[],
-        });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[&bgl],
             push_constant_ranges: &[],
         });
-        let vlayout = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Vertex>() as u64,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x4, 3 => Float32, 4 => Float32, 5 => Float32x4],
-        };
         let make = |fs: &str,
                     topo: wgpu::PrimitiveTopology,
                     blend: Option<wgpu::BlendState>,
@@ -1633,7 +1546,7 @@ impl Gfx {
                     entry_point: Some(fs),
                     compilation_options: Default::default(),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: config.format,
+                        format: post.format,
                         blend,
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -1653,7 +1566,7 @@ impl Gfx {
             label: Some("sky"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
-                module: &shader,
+                module: &sky_shader,
                 entry_point: Some("vs_sky"),
                 compilation_options: Default::default(),
                 buffers: &[],
@@ -1662,17 +1575,19 @@ impl Gfx {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: DEPTH,
                 depth_write_enabled: false,
-                depth_compare: wgpu::CompareFunction::Always,
+                // drawn after the solid world, at the far plane: only where
+                // nothing stands in front
+                depth_compare: wgpu::CompareFunction::LessEqual,
                 stencil: Default::default(),
                 bias: Default::default(),
             }),
             multisample: Default::default(),
             fragment: Some(wgpu::FragmentState {
-                module: &shader,
+                module: &sky_shader,
                 entry_point: Some("fs_sky"),
                 compilation_options: Default::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
+                    format: post.format,
                     blend: None,
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -1704,41 +1619,11 @@ impl Gfx {
             }),
             false,
         );
-        let shadow_pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("shadow"),
-            layout: Some(&shadow_layout),
-            vertex: wgpu::VertexState {
-                module: &shadow_module,
-                entry_point: Some("vs"),
-                compilation_options: Default::default(),
-                buffers: std::slice::from_ref(&vlayout),
-            },
-            primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DEPTH,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
-                stencil: Default::default(),
-                bias: wgpu::DepthBiasState {
-                    constant: 2,
-                    slope_scale: 2.0,
-                    clamp: 0.0,
-                },
-            }),
-            multisample: Default::default(),
-            fragment: None,
-            multiview: None,
-            cache: None,
-        });
         let egui = egui_wgpu::Renderer::new(
             &device,
             config.format,
             egui_wgpu::RendererOptions::default(),
         );
-        let depth = depth_view(&device, config.width, config.height);
         Ok(Gfx {
             window,
             surface,
@@ -1753,10 +1638,10 @@ impl Gfx {
             line_pipe,
             glow_pipe,
             sky_pipe,
-            shadow_pipe,
-            shadow_bind,
-            shadow_view,
+            shadows,
+            post,
             ubuf,
+            env_buf,
             bind,
             bgl,
             tex_samp,
@@ -1797,9 +1682,10 @@ impl Gfx {
                 ubuf: &self.ubuf,
                 tex_view: &tex_view,
                 tex_samp: &self.tex_samp,
-                shadow_view: &self.shadow_view,
+                shadow_view: &self.shadows.view,
                 shadow_samp: &self.shadow_samp,
                 look_buf: &self.look_buf,
+                env_buf: &self.env_buf,
             },
         );
         self.grass_tint = layer_mean(textures().face(w::GRASS, 0));
@@ -1816,6 +1702,7 @@ impl Gfx {
             s.configure(&self.device, &self.config);
         }
         self.depth = depth_view(&self.device, w, h);
+        self.post.resize(&self.device, w, h, &self.depth);
     }
 
     fn upload(&self, v: &[Vertex]) -> Option<(wgpu::Buffer, u32)> {
@@ -2034,7 +1921,8 @@ impl Gfx {
         egui_out: egui::FullOutput,
     ) {
         self.refresh_textures();
-        let look = crate::look::settings().uniform();
+        let settings = crate::look::settings();
+        let look = settings.uniform();
         self.queue
             .write_buffer(&self.look_buf, 0, bytemuck::bytes_of(&look));
         if let Some((_, cam, _)) = view_proj {
@@ -2060,7 +1948,12 @@ impl Gfx {
         let fog = srgb(sky.horizon);
         let top = srgb(sky.top);
         let light = srgb(sky.light);
-        if let Some((vp, cam, dist)) = view_proj {
+        // sun and moon shadows: the cascades round this view (shadows.rs)
+        let cascades = view_proj.map(|(vp, cam, _)| {
+            let forward = vp.inverse().project_point3(Vec3::new(0.0, 0.0, 0.5)) - cam;
+            crate::shadows::cascades(cam, forward, sky.env.light_dir, self.shadows.size)
+        });
+        if let (Some((vp, cam, dist)), Some(cascades)) = (view_proj, &cascades) {
             let u = Uniforms {
                 view_proj: vp.to_cols_array_2d(),
                 inv_view_proj: vp.inverse().to_cols_array_2d(),
@@ -2074,91 +1967,103 @@ impl Gfx {
                 sky_top: [top[0], top[1], top[2], sky.cover],
                 light: [light[0], light[1], light[2], 0.0],
                 sun: [sky.sun_dir[0], sky.sun_dir[1], sky.sun_dir[2], sky.stars],
-                shadow_vp: shadow_matrix(cam, sky.sun_dir).to_cols_array_2d(),
+                shadow_vp: cascades[1].vp.to_cols_array_2d(),
             };
             self.queue
                 .write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
+            let env = crate::atmos::EnvUniform::pack(
+                sky,
+                &cascades.map(|c| (c.vp, c.texel)),
+                self.shadows.size,
+            );
+            self.queue
+                .write_buffer(&self.env_buf, 0, bytemuck::bytes_of(&env));
         }
+        self.post.prepare(
+            &self.queue,
+            &settings,
+            &sky.env,
+            view_proj.map(|(vp, cam, _)| (vp, cam)),
+        );
         let box_buf = self.upload(boxes);
         let line_buf = self.upload(lines);
 
         let mut enc = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-        if let Some((_, cam, _)) = view_proj {
-            let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("shadow"),
-                color_attachments: &[],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.shadow_view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: None,
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-            rp.set_pipeline(&self.shadow_pipe);
-            rp.set_bind_group(0, &self.shadow_bind, &[]);
-            let reach = SHADOW_HALF + SECTION as f32 * 2.0;
-            for (i, s) in self.sections.iter().enumerate() {
-                let (Some(b), n) = (&s.buf, s.opaque) else {
-                    continue;
-                };
-                if n == 0 {
-                    continue;
-                }
-                let d = self.dims;
-                let (sx, sz) = ((i as i32) % d[0], (i as i32 / d[0]) % d[2]);
-                let cx = sx as f32 * SECTION as f32 + SECTION as f32 * 0.5;
-                let cz = sz as f32 * SECTION as f32 + SECTION as f32 * 0.5;
-                if (cx - cam.x).abs() > reach || (cz - cam.z).abs() > reach {
-                    continue;
-                }
-                rp.set_vertex_buffer(0, b.slice(..));
-                rp.draw(0..n, 0..1);
-            }
-            if let Some((b, n)) = &box_buf {
-                rp.set_vertex_buffer(0, b.slice(..));
-                rp.draw(0..*n, 0..1);
-            }
-        }
+        if let Some(cascades) = &cascades
+            && sky.env.shadow > 0.0
         {
-            let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("world"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
+            let d = self.dims;
+            let r = SECTION as f32 * 0.87;
+            self.shadows
+                .render(&self.queue, &mut enc, cascades, |rp, cascade| {
+                    for (i, s) in self.sections.iter().enumerate() {
+                        let (Some(b), n) = (&s.buf, s.opaque) else {
+                            continue;
+                        };
+                        if n == 0 {
+                            continue;
+                        }
+                        let i = i as i32;
+                        let c = Vec3::new(
+                            ((i % d[0]) * SECTION + SECTION / 2) as f32,
+                            ((i / (d[0] * d[2])) * SECTION + SECTION / 2) as f32,
+                            (((i / d[0]) % d[2]) * SECTION + SECTION / 2) as f32,
+                        );
+                        if !cascade.reaches(c, r) {
+                            continue;
+                        }
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw(0..n, 0..1);
+                    }
+                    if let Some((b, n)) = &box_buf {
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw(0..*n, 0..1);
+                    }
+                });
+        }
+        // The world is drawn into the post chain's picture (brighter than
+        // white allowed), in two passes: the solid world, whose creases the
+        // occlusion pass then darkens; then the sky behind it, water, halos.
+        if let Some((vp, _, dist)) = view_proj {
+            let visible = |i: usize| self.section_visible(i, vp, dist);
+            let color = |load| {
+                Some(wgpu::RenderPassColorAttachment {
+                    view: &self.post.hdr,
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: fog[0] as f64,
-                            g: fog[1] as f64,
-                            b: fog[2] as f64,
-                            a: 1.0,
-                        }),
+                        load,
                         store: wgpu::StoreOp::Store,
                     },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                })
+            };
+            let depth = |load| {
+                Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.depth,
                     depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
+                        load,
                         store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: None,
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-            if let Some((vp, _, dist)) = view_proj {
+                })
+            };
+            {
+                let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("world"),
+                    color_attachments: &[color(wgpu::LoadOp::Clear(wgpu::Color {
+                        r: fog[0] as f64,
+                        g: fog[1] as f64,
+                        b: fog[2] as f64,
+                        a: 1.0,
+                    }))],
+                    depth_stencil_attachment: depth(wgpu::LoadOp::Clear(1.0)),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
                 rp.set_bind_group(0, &self.bind, &[]);
-                rp.set_pipeline(&self.sky_pipe);
-                rp.draw(0..3, 0..1);
                 rp.set_pipeline(&self.opaque_pipe);
-                let visible = |i: usize| self.section_visible(i, vp, dist);
                 for (i, s) in self.sections.iter().enumerate() {
                     if let Some(b) = &s.buf
                         && s.opaque > 0
@@ -2176,6 +2081,19 @@ impl Gfx {
                     rp.set_vertex_buffer(0, b.slice(..));
                     rp.draw(0..*n, 0..1);
                 }
+            }
+            self.post.occlude(&mut enc);
+            {
+                let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("sky and water"),
+                    color_attachments: &[color(wgpu::LoadOp::Load)],
+                    depth_stencil_attachment: depth(wgpu::LoadOp::Load),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                rp.set_bind_group(0, &self.bind, &[]);
+                rp.set_pipeline(&self.sky_pipe);
+                rp.draw(0..3, 0..1);
                 rp.set_pipeline(&self.trans_pipe);
                 for (i, s) in self.sections.iter().enumerate() {
                     if let Some(b) = &s.buf
@@ -2203,8 +2121,31 @@ impl Gfx {
                     rp.draw(0..*n, 0..1);
                 }
             }
+            // bloom and the grade, into the screen
+            self.post.finish(&mut enc, &view);
+        } else {
+            // no world: a plain backdrop for the interface
+            enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("backdrop"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color {
+                            r: fog[0] as f64,
+                            g: fog[1] as f64,
+                            b: fog[2] as f64,
+                            a: 1.0,
+                        }),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
         }
-
         // egui
         let ppp = egui_ctx.pixels_per_point();
         let jobs = egui_ctx.tessellate(egui_out.shapes, ppp);
@@ -2335,35 +2276,6 @@ impl Gfx {
         let w = clip.w.abs() + r * 2.0;
         clip.x.abs() <= w * 1.2 && clip.y.abs() <= w * 1.2
     }
-}
-
-/// The sun's view of the area around the camera, snapped to shadow texels so
-/// shadows do not shimmer as you walk.
-fn shadow_matrix(cam: Vec3, sun_dir: [f32; 3]) -> Mat4 {
-    let mut dir = Vec3::from(sun_dir).normalize_or_zero();
-    if dir.y < 0.0 {
-        dir = -dir; // the moon is opposite the sun
-    }
-    let dir = Vec3::new(dir.x, dir.y.max(0.25), dir.z).normalize();
-    let up = if dir.x.abs() < 0.9 { Vec3::X } else { Vec3::Z };
-    let view = Mat4::look_to_rh(Vec3::ZERO, -dir, up);
-    // snap the centre to whole texels in light space
-    let texel = SHADOW_HALF * 2.0 / SHADOW_SIZE as f32;
-    let c = view.transform_point3(cam);
-    let c = Vec3::new(
-        (c.x / texel).floor() * texel,
-        (c.y / texel).floor() * texel,
-        c.z,
-    );
-    let proj = Mat4::orthographic_rh(
-        c.x - SHADOW_HALF,
-        c.x + SHADOW_HALF,
-        c.y - SHADOW_HALF,
-        c.y + SHADOW_HALF,
-        -c.z - 200.0,
-        -c.z + 200.0,
-    );
-    proj * view
 }
 
 #[cfg(test)]

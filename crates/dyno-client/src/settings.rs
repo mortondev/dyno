@@ -17,6 +17,9 @@ pub struct Settings {
     /// Block IDs in the 9 hotbar slots.
     pub hotbar: Vec<u8>,
     pub volume: f32,
+    /// what the costly parts of the picture may spend (shadow detail,
+    /// ambient occlusion, bloom): 0 low, 1 medium, 2 high, 3 ultra
+    pub graphics: u8,
     /// random ID of this install; servers bind your name to it
     pub token: u64,
 }
@@ -32,6 +35,7 @@ impl Default for Settings {
             view_distance: 160.0,
             hotbar: dyno_world::HOTBAR.to_vec(),
             volume: 0.8,
+            graphics: 2,
             token: 0,
         }
     }
@@ -47,6 +51,14 @@ pub fn path() -> Option<PathBuf> {
 }
 
 impl Settings {
+    /// The saved settings, read without touching the file.
+    pub fn peek() -> Self {
+        path()
+            .and_then(|p| std::fs::read(p).ok())
+            .and_then(|b| serde_json::from_slice(&b).ok())
+            .unwrap_or_default()
+    }
+
     pub fn load() -> Self {
         let mut s: Settings = path()
             .and_then(|p| std::fs::read(p).ok())
