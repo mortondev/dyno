@@ -20,6 +20,7 @@ pub mod net;
 pub mod particles;
 pub mod render;
 pub mod rpg_ui;
+pub mod scout;
 pub mod screens;
 pub mod settings;
 pub(crate) mod shapes;

@@ -1,0 +1,25 @@
+{
+ "note": "The 18 locations of the concept references and the visual gauntlet: input of `dyno scout`, which chooses the cameras in cameras.json. Positions are metres from the world's hearth (x east, y up, z south). at/half/height: the box the landmark fills (centre and half-sizes of its footprint, height above the ground around it; base sets the ground height instead). anchor: a place a player can stand there (x,z or x,y,z), from which the walkable ground is found. time: time of day of the shot, 0-1. near/far: how far from its centre to stand; zoom: metres behind the figure; pitch: degrees down, preferred first; min_zoom: let walls pull the camera in this far (indoors). paths: blocks that pave roads and trails.",
+ "paths": ["flagstones", "cobble", "dirt"],
+ "defaults": {"near": 12, "far": 32, "zoom": 9, "pitch": [15, 12, 18, 10, 20]},
+ "landmarks": [
+  {"name": "hearthstead_plaza", "at": [0, 0], "half": [7, 7], "height": 5, "anchor": [0, 5], "time": 0.3, "near": 8, "far": 26, "base": 0},
+  {"name": "hearthstead_street", "at": [0, -24], "half": [3, 14], "height": 6, "anchor": [0, -15], "time": 0.28, "near": 10, "far": 30, "base": 0},
+  {"name": "hearthstead_dusk", "at": [3, -6], "half": [10, 10], "height": 21, "anchor": [0, 5], "time": 0.47, "near": 22, "far": 45, "base": 0},
+  {"name": "watch_tower", "at": [7, -13], "half": [4, 4], "height": 18, "anchor": [0, -15], "time": 0.32, "base": 0, "far": 26},
+  {"name": "north_watch", "at": [0, -56], "half": [5, 5], "height": 15.5, "anchor": [0, -51], "time": 0.3},
+  {"name": "logging_camp", "at": [-45, -88], "half": [11, 9], "height": 7, "anchor": [-45, -86], "time": 0.27},
+  {"name": "hollow_oak", "at": [-100, -55], "half": [8, 8], "height": 22, "anchor": [-87, -53], "time": 0.36},
+  {"name": "old_barrow", "at": [-130, 10], "half": [13, 13], "height": 12, "anchor": [-116, 10], "time": 0.4},
+  {"name": "barrow_crypt", "at": [-118, 10], "half": [5, 4], "height": 5, "anchor": [-114, 10], "time": 0.62, "near": 8, "far": 22},
+  {"name": "wrecked_caravan", "at": [50, -12], "half": [5, 3], "height": 4, "anchor": [50, -9], "time": 0.3, "near": 10, "far": 22},
+  {"name": "emberford_bridge", "at": [95, 0], "half": [10, 3], "height": 5, "anchor": [84, 3], "time": 0.29},
+  {"name": "windmill_farm", "at": [15, 95], "half": [6, 6], "height": 18, "anchor": [10, 95], "time": 0.26},
+  {"name": "fishers_landing", "at": [-30, 135], "half": [8, 8], "height": 6, "anchor": [-28, 136], "time": 0.45},
+  {"name": "mirrormere", "at": [2, 134], "half": [22, 17], "height": 3, "anchor": [-9, 105], "time": 0.25, "near": 20, "far": 45},
+  {"name": "sunken_shrine", "at": [20, 155], "half": [7, 7], "height": 8, "anchor": [8, 159], "time": 0.33},
+  {"name": "ashcloak_stockade", "at": [62, 60], "half": [11, 11], "height": 8, "anchor": [62, 72], "time": 0.6},
+  {"name": "miners_rest", "at": [130, 8], "half": [10, 8], "height": 8, "anchor": [128, 10], "time": 0.31},
+  {"name": "hollow_mines", "at": [158, -20], "half": [4, 4], "height": 8, "anchor": [155, -17], "time": 0.34, "base": -7, "near": 5, "far": 28, "min_zoom": 4}
+ ]
+}

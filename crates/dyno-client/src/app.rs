@@ -627,7 +627,7 @@ fn spawn_burst(out: &mut Vec<Particle>, c: Vec3, color: [f32; 3], radius: f32) {
 }
 
 /// Move a camera back from `eye` along -`dir` by up to `dist`, stopping before walls.
-fn pull_back(world: &dyno_world::World, eye: Vec3, dir: Vec3, dist: f32) -> Vec3 {
+pub(crate) fn pull_back(world: &dyno_world::World, eye: Vec3, dir: Vec3, dist: f32) -> Vec3 {
     let mut d = 0.0;
     let step = 0.1;
     while d < dist {
@@ -5926,7 +5926,9 @@ pub fn shot_front(
 }
 
 /// Render one frame with the real HUD, for `dyno shot --ui` (tests and agents).
-/// `ui` is "hud", "pack", "dig" or "dead".
+/// `ui` is "hud", "pack", "dig" or "dead"; or "stand" for the world alone
+/// with a stand-in figure on the ground at `pos` (see `shot::Stand`; a
+/// negative height there means the open ground of the column).
 #[allow(clippy::too_many_arguments)]
 pub fn shot_with_ui(
     j: Joined,
@@ -5943,6 +5945,16 @@ pub fn shot_with_ui(
     if let Some(z) = zoom {
         p.zoom = z;
     }
+    let stand = ui == "stand";
+    // a stand shot waits for its whole view, not just for the stream to pause
+    let view_missing = |p: &Play| {
+        stand
+            && pos.is_some_and(|at| {
+                net::sections_around(&p.world, at, p.view - 2.0 * w::SECTION as f32)
+                    .iter()
+                    .any(|s| !p.world.has_section(*s))
+            })
+    };
     let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
     // the camera: where asked (the server streams the world round it), else
     // the character; DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]" flies it across
@@ -6167,8 +6179,14 @@ pub fn shot_with_ui(
         let quiet = started.elapsed() > Duration::from_millis(700)
             && last_section.elapsed() > Duration::from_millis(250)
             && p.work.idle();
-        if (!flying && quiet)
-            || started.elapsed() > Duration::from_secs(if run.is_some() { 120 } else { 8 })
+        let limit = if run.is_some() {
+            120
+        } else if stand {
+            40
+        } else {
+            8
+        };
+        if (!flying && quiet && !view_missing(&p)) || started.elapsed() > Duration::from_secs(limit)
         {
             break;
         }
@@ -6227,17 +6245,15 @@ pub fn shot_with_ui(
         p.player.yaw = yaw;
         p.player.pitch = pitch;
     }
-    // DYNO_SHOT_GROUND=h: h metres over the ground under the asked-for
-    // place (0: standing on it), whatever height was asked for
-    if let Some(h) = std::env::var("DYNO_SHOT_GROUND")
-        .ok()
-        .and_then(|v| v.parse::<f32>().ok())
-    {
-        let (x, z) = (p.player.pos.x.floor() as i32, p.player.pos.z.floor() as i32);
-        let g = p.world.ground(x, z);
-        if g > 0 {
-            p.player.pos.y = g as f32 + 1.0 + h;
-        }
+    if stand {
+        let at = p.player.pos;
+        let (x, z) = (at.x.floor() as i32, at.z.floor() as i32);
+        let near = (at.y >= 0.0).then_some(at.y);
+        p.player.pos.y = crate::shot::standing_y(&p.world, x, z, near)
+            .ok_or_else(|| format!("nowhere to stand at {x}, {z}"))?;
+        // the same sky for every round of shots
+        p.weather = (0, 0.0);
+        p.weather_mix = 0.0;
     }
     p.captured = ui != "pack";
     p.picker_open = ui == "pack";
@@ -6341,7 +6357,9 @@ pub fn shot_with_ui(
             .collect();
         p.loot = Some((id, 23, items));
     }
-    p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+    if !stand {
+        p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+    }
     if ui == "dig"
         && let Some(t) = &p.target
     {
@@ -6364,7 +6382,7 @@ pub fn shot_with_ui(
     };
     let right = dir.cross(Vec3::Y).normalize_or_zero();
     let up = right.cross(dir);
-    let vp = glam::Mat4::perspective_rh(75f32.to_radians(), wdt / hgt, 0.05, far)
+    let vp = glam::Mat4::perspective_rh(crate::shot::STAND_FOV.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
     models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
     let mut boxes = Vec::new();
@@ -6403,6 +6421,9 @@ pub fn shot_with_ui(
             .collect();
         look.wear(keys.iter().map(String::as_str));
         look.weapon = models::weapon_look(&p.content, p.held().map(|s| s.item));
+        if stand {
+            look = crate::shot::stand_in_look(&p.content);
+        }
         let at = p.player.pos + Vec3::Y;
         let l = p.light.get(
             at.x.floor() as i32,
@@ -6443,7 +6464,7 @@ pub fn shot_with_ui(
             0.0,
         );
     }
-    if p.zoom < 0.5 && ui != "world" {
+    if p.zoom < 0.5 {
         let hand = eye + dir * 0.62 + right * 0.36 - up * 0.34;
         let (s1, c1) = 0.6f32.sin_cos();
         let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];
@@ -6508,10 +6529,8 @@ pub fn shot_with_ui(
     let mut host = None;
     let mut actions = Vec::new();
     // two passes so windows settle their size; the first pass loads the font atlas
-    // "world": the picture alone, without the interface
-    let bare = ui == "world";
     let first = ctx.run(raw(), |ctx| {
-        if !bare {
+        if !stand {
             hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
         }
     });
@@ -6519,7 +6538,7 @@ pub fn shot_with_ui(
     gfx.fx_glow = fx_glow.clone();
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
     let second = ctx.run(raw(), |ctx| {
-        if !bare {
+        if !stand {
             hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
         }
     });
