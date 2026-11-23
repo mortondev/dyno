@@ -2974,7 +2974,9 @@ fn build_blocks() -> Textures {
         *slot = match id {
             w::AIR => [air; 3],
             w::GRASS => {
-                let top = b.add(&grass_top_surf(base).render(0.0).recenter(base, 0.8));
+                // a deeper, less yellow green than the block's swatch colour
+                let lawn = mix(base, [0.30, 0.56, 0.27], 0.45);
+                let top = b.add(&grass_top_surf(lawn).render(0.0).recenter(lawn, 0.8));
                 let side = b.add(&grass_side_surf(base, &dirt).render(0.45));
                 [top, side, dirt_l]
             }

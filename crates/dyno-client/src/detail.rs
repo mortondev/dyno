@@ -25,11 +25,14 @@ use crate::terrain_mesh::{
     DX, DY, DZ, F_DARK, F_DETAIL, F_OPAQUE, Glow, Grid, SectionGeo, at, flags, hash3, is_paving,
     is_terrain,
 };
+use bytemuck::Zeroable;
 use dyno_world::{self as w, BlockId};
 use glam::Vec3;
 use std::f32::consts::{FRAC_PI_4, PI, TAU};
 
 const N: i32 = SECTION;
+/// Most corners a flat polygon may have.
+const MAX_POLY: usize = 16;
 const MOSSY: BlockId = 19;
 const DARK_PLANKS: BlockId = 20;
 const WOOL_FIRST: BlockId = 23;
@@ -174,17 +177,18 @@ fn shape(g: &Grid, c: usize) -> Shape {
     }
     if is_wood(b) {
         let wall_h = H4.iter().any(|d| wallish(id(*d)));
-        let wood: Vec<usize> = (0..4).filter(|k| is_wood(id(H4[*k]))).collect();
+        let wood = |k: usize| is_wood(id(H4[k]));
+        let wood_x = wood(0) || wood(1);
+        let wood_z = wood(2) || wood(3);
         let wall_v = wallish(id(-(DY as isize))) || wallish(id(DY as isize));
-        let corner = wood.len() >= 2
-            && wood.iter().any(|k| *k < 2)
-            && wood.iter().any(|k| *k >= 2)
+        let corner = wood_x
+            && wood_z
             && is_wood(id(-(DY as isize)))
             && w::is_solid(id(DY as isize));
-        if wall_h || (wall_v && !wood.is_empty()) || corner {
+        if wall_h || (wall_v && (wood_x || wood_z)) || corner {
             return Shape::Beam;
         }
-        if b != w::TIMBER_BEAM && wood.is_empty() {
+        if b != w::TIMBER_BEAM && !wood_x && !wood_z {
             return Shape::Trunk;
         }
         return Shape::Stick;
@@ -287,14 +291,18 @@ pub(crate) fn classify(g: &mut Grid) {
 #[derive(Clone, Copy)]
 struct Mat {
     layer: u16,
+    /// the layer's animation, as the shader wants it
+    anim: f32,
     tint: [f32; 3],
     /// lit by itself (lantern glass, embers)
     glow: bool,
 }
 
 fn mat(b: BlockId, face: usize) -> Mat {
+    let layer = render::textures().face(b, face);
     Mat {
-        layer: render::textures().face(b, face),
+        layer,
+        anim: render::layer_anim(layer),
         tint: [1.0; 3],
         glow: false,
     }
@@ -325,11 +333,51 @@ enum Uv {
     Scale(f32),
 }
 
+/// Light and occlusion of every cell of a section's grid, worked out once
+/// for all the detail blocks in it.
+#[derive(Clone, Copy, Default)]
+struct Lit {
+    bl: f32,
+    sl: f32,
+    /// how much the cell closes in what is beside it
+    occ: f32,
+    /// light can be read here (it does not fill its cell)
+    open: bool,
+}
+
+fn light_field(g: &Grid, light: &Light) -> Vec<Lit> {
+    let mut f = vec![Lit::default(); g.fl.len()];
+    for y in -2..N + 2 {
+        for z in -2..N + 2 {
+            for x in -2..N + 2 {
+                let c = at(x, y, z);
+                let fl = g.fl[c];
+                if fl & F_OPAQUE != 0 {
+                    f[c].occ = 1.0;
+                    continue;
+                }
+                let (bl, sl) = g.light(light, [x, y, z]);
+                f[c] = Lit {
+                    bl,
+                    sl,
+                    occ: if fl & F_DETAIL != 0 && fl & F_DARK != 0 {
+                        0.3
+                    } else {
+                        0.0
+                    },
+                    open: true,
+                };
+            }
+        }
+    }
+    f
+}
+
 /// Writes the triangles of one detail block, in the block's own frame: the
 /// cell is 0..1 on each axis, turned about its vertical centre line.
 struct Kit<'a> {
     g: &'a Grid,
-    light: &'a Light,
+    field: &'a [Lit],
     opaque: &'a mut Vec<Vertex>,
     trans: &'a mut Vec<Vertex>,
     /// world position of the cell's low corner
@@ -370,39 +418,34 @@ impl Kit<'_> {
     /// over the eight cells around the point.
     fn shade(&self, p: Vec3, n: Vec3) -> (f32, f32, f32) {
         let g = self.g;
-        let q = p + n * 0.5 - Vec3::new(g.o[0] as f32, g.o[1] as f32, g.o[2] as f32) - 0.5;
+        let o = Vec3::new(g.o[0] as f32, g.o[1] as f32, g.o[2] as f32);
+        let q = p + n * 0.5 - o - 0.5;
         let i0 = q.floor();
         let f = q - i0;
-        let lim = |v: f32| (v as i32).clamp(-3, N + 2);
+        let lim = |v: f32| (v as i32).clamp(-2, N + 1);
+        let (x0, y0, z0) = (lim(i0.x), lim(i0.y), lim(i0.z));
+        let (x1, y1, z1) = (lim(i0.x + 1.0), lim(i0.y + 1.0), lim(i0.z + 1.0));
         let (mut bl, mut sl, mut wsum, mut occ) = (0.0, 0.0, 0.0, 0.0);
-        for k in 0..8 {
-            let (ox, oy, oz) = (k & 1, (k >> 1) & 1, (k >> 2) & 1);
-            let wgt = (if ox == 1 { f.x } else { 1.0 - f.x })
-                * (if oy == 1 { f.y } else { 1.0 - f.y })
-                * (if oz == 1 { f.z } else { 1.0 - f.z });
-            let cell = [
-                lim(i0.x + ox as f32),
-                lim(i0.y + oy as f32),
-                lim(i0.z + oz as f32),
-            ];
-            let fl = g.fl[at(cell[0], cell[1], cell[2])];
-            if fl & F_OPAQUE != 0 {
-                occ += wgt;
-                continue;
+        for (cy, wy) in [(y0, 1.0 - f.y), (y1, f.y)] {
+            for (cz, wz) in [(z0, 1.0 - f.z), (z1, f.z)] {
+                for (cx, wx) in [(x0, 1.0 - f.x), (x1, f.x)] {
+                    let wgt = wx * wy * wz;
+                    let l = self.field[at(cx, cy, cz)];
+                    occ += wgt * l.occ;
+                    if l.open {
+                        bl += l.bl * wgt;
+                        sl += l.sl * wgt;
+                        wsum += wgt;
+                    }
+                }
             }
-            if fl & F_DETAIL != 0 && fl & F_DARK != 0 {
-                occ += wgt * 0.3;
-            }
-            let (b, s) = g.light(self.light, cell);
-            bl += b * wgt;
-            sl += s * wgt;
-            wsum += wgt;
         }
         let (bl, sl) = if wsum > 0.01 {
             (bl / wsum, sl / wsum)
         } else {
-            let c = (p + n * 0.9 - Vec3::new(g.o[0] as f32, g.o[1] as f32, g.o[2] as f32)).floor();
-            g.light(self.light, [lim(c.x), lim(c.y), lim(c.z)])
+            let c = (p + n * 0.9 - o).floor();
+            let l = self.field[at(lim(c.x), lim(c.y), lim(c.z))];
+            (l.bl, l.sl)
         };
         let ao = (1.0 - occ * 0.55).clamp(0.45, 1.0);
         (bl / 15.0, sl / 15.0, ao)
@@ -423,7 +466,7 @@ impl Kit<'_> {
             ],
             light: bl,
             sky: sl,
-            tex: [uv[0], uv[1], layer as f32, render::layer_anim(layer)],
+            tex: [uv[0], uv[1], layer as f32, m.anim],
         }
     }
 
@@ -437,21 +480,24 @@ impl Kit<'_> {
 
     /// A flat polygon (convex, corners in order) with one normal.
     fn poly(&mut self, ps: &[Vec3], n: Vec3, uvs: &[[f32; 2]], m: Mat) {
-        let vs: Vec<Vertex> = ps
-            .iter()
-            .zip(uvs)
-            .map(|(p, uv)| self.vertex(*p, n, *uv, m))
-            .collect();
+        let mut vs = [Vertex::zeroed(); MAX_POLY];
+        let k = ps.len().min(MAX_POLY);
+        for i in 0..k {
+            vs[i] = self.vertex(ps[i], n, uvs[i], m);
+        }
         let out = self.out();
-        for i in 1..vs.len() - 1 {
+        for i in 1..k - 1 {
             out.extend([vs[0], vs[i], vs[i + 1]]);
         }
     }
 
     /// A polygon mapped by position (`Uv::Cell` or `Uv::Scale`).
     fn poly_at(&mut self, ps: &[Vec3], n: Vec3, uv: Uv, m: Mat) {
-        let uvs: Vec<[f32; 2]> = ps.iter().map(|p| map_uv(*p, n, uv, None)).collect();
-        self.poly(ps, n, &uvs, m);
+        let mut uvs = [[0.0; 2]; MAX_POLY];
+        for (i, p) in ps.iter().take(MAX_POLY).enumerate() {
+            uvs[i] = map_uv(*p, n, uv, None);
+        }
+        self.poly(ps, n, &uvs[..ps.len().min(MAX_POLY)], m);
     }
 
     /// An axis-aligned box. `mats` are top, sides, bottom. `skip` bits:
@@ -490,10 +536,7 @@ impl Kit<'_> {
                 -1 => mats[2],
                 _ => mats[1],
             };
-            let uvs: Vec<[f32; 2]> = ps
-                .iter()
-                .map(|p| map_uv(*p, n, uv, if matches!(uv, Uv::Fit) { fit } else { None }))
-                .collect();
+            let uvs = ps.map(|p| map_uv(p, n, uv, if matches!(uv, Uv::Fit) { fit } else { None }));
             self.poly(&ps, n, &uvs, m);
         }
         if e <= 0.0 {
@@ -532,10 +575,8 @@ impl Kit<'_> {
                     } else {
                         mats[1]
                     };
-                    let uvs: Vec<[f32; 2]> = p
-                        .iter()
-                        .map(|q| map_uv(*q, n, uv, if matches!(uv, Uv::Fit) { fit } else { None }))
-                        .collect();
+                    let uvs =
+                        p.map(|q| map_uv(q, n, uv, if matches!(uv, Uv::Fit) { fit } else { None }));
                     self.poly(&p, n, &uvs, m);
                 }
             }
@@ -558,7 +599,7 @@ impl Kit<'_> {
                     ];
                     let n = Vec3::new(sx, sy, sz).normalize();
                     let m = if sy > 0.0 { mats[0] } else { mats[1] };
-                    let uvs: Vec<[f32; 2]> = ps.iter().map(|q| map_uv(*q, n, uv, None)).collect();
+                    let uvs = ps.map(|q| map_uv(q, n, uv, None));
                     self.poly(&ps, n, &uvs, m);
                 }
             }
@@ -730,9 +771,10 @@ pub(crate) fn mesh(g: &Grid, light: &Light, geo: &mut SectionGeo) {
         glows,
         ..
     } = geo;
+    let field = light_field(g, light);
     let mut kit = Kit {
         g,
-        light,
+        field: &field,
         opaque,
         trans,
         base: Vec3::ZERO,

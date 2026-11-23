@@ -46,7 +46,7 @@ pub(crate) const F_DETAIL: u8 = 64;
 /// from thinning to nothing.
 const MARGIN: f32 = 0.15;
 /// Leaf canopies: the surface sits where the blurred leaf field crosses this.
-const LEAF_ISO: f32 = 0.33;
+const LEAF_ISO: f32 = 0.37;
 const LEAF_IN: f32 = 0.2;
 const LEAF_OUT: f32 = 0.08;
 /// How much of its smoothing a corner keeps on a cliff.
