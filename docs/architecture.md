@@ -4,8 +4,10 @@ This is the map of how the game is built and why. Read it before changing
 anything structural; add to the decision log at the end when you do.
 
 Hearthblock Online is a classic fantasy MMORPG (WoW-like progression, quests,
-classes) running on **Dyno**, a Rust engine with a voxel world. One binary,
-`dyno`, is the game client, the server, the updater and the dev tools.
+classes) running on **Dyno**, a Rust engine with a voxel world. Two
+binaries: `hearthblock`, the player client (an engine with no content: the
+server streams the content pack), and `dyno`, the server, tools, bots and a
+dev client that can host a local world. Both update themselves.
 
 ## 1. The big picture
 
@@ -50,7 +52,10 @@ flowchart LR
   of the world) automatically.
 - **Content is data.** Items, creatures, NPCs, quests, classes, abilities,
   professions, areas, camps, phases and merchant stock live in
-  `content/hearthblock.json`. The server sends it to every client at join.
+  `content/rules/hearthblock.json`, one file of the content pack
+  (`content/`, see `docs/design/data-and-streaming.md`). The server hashes
+  the pack into a manifest; clients download the files they lack at join and
+  cache them by hash.
 - **The server is authoritative** for everything except moment-to-moment
   movement (the client simulates its own player; the server checks it).
 
@@ -58,15 +63,18 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  dyno[dyno<br/>CLI: play · server · shot · bots · update]
-  client[dyno-client<br/>render · UI · input · audio · net]
-  server[dyno-server<br/>shards · game rules · AI · stores]
-  proto[dyno-protocol<br/>messages · version]
+  dyno[dyno<br/>CLI: server · shot · bots · bake-stage · update · dev client]
+  hb[hearthblock<br/>the player client]
+  client[dyno-client<br/>render · UI · input · audio · net · asset cache]
+  server[dyno-server<br/>shards · game rules · AI · stores · pack]
+  proto[dyno-protocol<br/>messages · manifest · version]
   sim[dyno-sim<br/>progression · combat sheet · inventory · rng]
   world[dyno-world<br/>blocks · World · light · content · worldgen · village/zones/POIs]
   update[dyno-update<br/>signed self-update]
   dyno --> client & server & update
+  hb --> client & update
   client --> proto & sim & world
+  client -. feature host .-> server
   server --> proto & sim & world
   proto --> sim & world
   sim --> world
@@ -76,10 +84,12 @@ flowchart TD
 |---|---|
 | `dyno-world` | The block grid (`World`, 1 m blocks), lighting, the content schema and parser, world generation, and the builders for Hearthstead (`village.rs`), the zones (`zones.rs`) and points of interest (`poi.rs`). |
 | `dyno-sim` | Rules shared by client and server: the XP curve and mob scaling (`progression.rs`), the character sheet and armour maths (`character.rs`), inventory and stacks. |
-| `dyno-protocol` | Every message between client and server (postcard over WebSocket), `PROTOCOL_VERSION` (now 14). A version mismatch is refused with a clear reason. |
-| `dyno-server` | The game: shards, players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. |
-| `dyno-client` | Rendering (wgpu), the UI (egui, themed), input (classic MMO controls), audio, the front end (title, character select and creation), the minimap, headless screenshots. |
-| `dyno-update` | Checks GitHub Releases, verifies the signed manifest, swaps the binary. Used by clients and by servers (`--auto-update`). |
+| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 17). A version mismatch is refused with a clear reason. |
+| `dyno-server` | The game: shards, players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. The content pack (`pack.rs`: loading, hashing, the built-in pack embedded from `content/`, each session's asset outbox). |
+| `dyno-client` | Rendering (wgpu), the UI (egui, themed), input (classic MMO controls), audio, the front end (title, character select and creation), the minimap, headless screenshots. The asset store (`assets.rs`) and the cache of pack files (`cache.rs`). Local hosting only with the `host` feature. |
+| `dyno-update` | Checks GitHub Releases, verifies the signed manifest, picks the artifact named like its own executable (`dyno` or `hearthblock`), swaps the binary. Used by clients and by servers (`--auto-update`). |
+| `dyno` | Server, tools, bots and the dev client (`host` on). |
+| `hearthblock` | The player client: `dyno-client` without `host`. No server, world builders or content in it; checked by `.github/scripts/check-client.sh`. |
 
 ## 3. A player's session
 
@@ -96,7 +106,10 @@ sequenceDiagram
   C->>E: Hello + Session{token, create?}
   E->>E: one character, one place (already playing?)
   E->>B: place(name): party's shard, else fullest with room, else open one
-  E->>S: join → Welcome, World, entities (phase-filtered)
+  E->>S: join → Welcome{manifest}, World, entities (phase-filtered)
+  C->>E: Want{hashes the cache lacks}
+  E-->>C: Asset chunks (≤ 64 KB, after game messages, 256 KB/s budget)
+  Note over C: rules parsed from the pack; files cached by hash
   loop play
     C->>S: Pose, Cast, Talk, Loot, Buy…
     S-->>C: Poses, EntityMoves, Damage, Quests…
@@ -223,7 +236,8 @@ connect to any instance's game port.
 | Relaying | The edge a client reached places it cluster-wide: where its character is already held, else the fullest shard with room on any instance, else the least loaded instance. It relays raw client and server messages to that host over the link, so the client never reconnects. | `clustered.rs`, `lib.rs` (session) |
 | Moving between instances | Freeze (detach at a quiet moment), propose a Move with the epoch, the new host adopts the player and sends a `Shard` message (people there, block differences), and the edge's relay switches. If the Move doesn't commit (for example, the leader died), the player is unfrozen where they were; if adoption fails, the lock moves back. | `clustered.rs` |
 | Load and balancing | Each instance reports its shards, players and versions every second. A quiet instance (a quarter of the cap or less) folds its players into a busier one with room. Operators can move a player with `/instance N`. | `clustered.rs` |
-| Version gating | An instance whose protocol or content differs from the leader's drains: it refuses new players and is not chosen as a host. | `clustered.rs` |
+| Version gating | An instance whose protocol or content differs from the leader's drains: it refuses new players and is not chosen as a host. Content means the rules' name and version and the content pack's hash, so one changed texture is enough. | `clustered.rs`, `lib.rs` (`content_identity`) |
+| Pack files when relayed | The edge answers `Want` from its own pack and names its own manifest in the relayed `Welcome`; `Want` never crosses the link. | `lib.rs` (session) |
 
 **Tests** (`crates/dyno-server/src/cluster/tests.rs`, `crates/dyno-client/tests/cluster.rs`):
 - three instances agree; a new leader is elected after the old one dies;
@@ -239,7 +253,10 @@ connect to any instance's game port.
   is declared down, then can, with exactly the last saved items;
 - a new instance takes the founder's world (hash checked), and a wrong
   secret can't join;
-- an instance on a different content version drains.
+- an instance on a different content version drains, and so does one whose
+  pack has one more file;
+- a player relayed through an edge downloads the pack from the edge, and a
+  second relayed join with the same cache downloads nothing.
 
 It was also tested with three real `dyno server` processes on one machine,
 using a full-size 384 world, the relay and headless screenshots.
@@ -309,7 +326,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  F[Front end<br/>title · character select · creation] -->|Enter World| J[Loading screen]
+  F[Front end<br/>title · character select · creation] -->|Enter World| J[Loading screen<br/>pack download progress]
   J --> P[Play]
   P --> R[Render: smooth terrain · canopies · water · grass · shadows]
   P --> M[Models: 1/32-voxel characters and creatures · animation]
@@ -330,13 +347,17 @@ flowchart TD
   windows; quest dialogs and log; loot and merchant windows; party frames.
 - **Headless tools:** `dyno shot` renders the real client to an image
   (`--ui hud|pack|talk|loot|vendor|…`, `--front title|select|class|look|name|…`).
+- **Content comes from the pack** (`assets::get`, `assets::text`): the
+  rules, the loading screen's words, the intro, the title news and the title
+  stage (`stage/title.dynw`). The player client shows a plain title backdrop
+  until its first join has cached a pack.
 
 ## 9. Shipping
 
 ```mermaid
 flowchart LR
   Dev[commit + tag vX.Y.Z] --> CI[GitHub Actions<br/>fmt · clippy · tests]
-  CI --> Build[build Linux / macOS / Windows]
+  CI --> Build[build dyno + hearthblock<br/>Linux / macOS / Windows<br/>client: no content strings, under 10 MB]
   Build --> Sign[sign manifest<br/>Ed25519]
   Sign --> Rel[GitHub Release]
   Rel --> Srv[servers: --auto-update<br/>restart in place]
@@ -349,6 +370,11 @@ flowchart LR
 - Servers self-update within about 5 minutes and restart with the same
   command line; saves migrate unaided (rehearse on a copy of the live world
   first).
+- Each release carries `dyno-<target>` and `hearthblock-<target>`. The
+  signed manifest's `assets` lists only the dyno binaries (what every
+  updater up to 0.6 reads, so the live server keeps updating as `dyno`);
+  `programs` lists both. Updaters from 0.7 pick the program named like their
+  own executable.
 
 ## 10. Testing
 
@@ -377,3 +403,7 @@ flowchart LR
 | 12 | Multi-instance cluster with a Raft quorum; edges relay (built; see section 5) | Scale out behind one address; no lost or duplicated characters. |
 | 13 | Animation contract: skeletons with an exhaustive `Anim` set | Every model can do every expected action; missing ones fail to compile. |
 | 14 | Playtest with bot swarms and AI agents; measure fun | Aim for fun objectively: reward cadence, droughts, deaths, stuck spots. |
+| 15 | The server streams a content pack (manifest of SHA-256 hashes, `Want`/`Asset` on the game socket, a per-session budget after game messages); clients cache by hash | All content is data; one public port; play never waits behind a download; a second join downloads nothing. |
+| 16 | The built-in pack is embedded in the server binary | The live server is a lone release binary with no `content/` beside it. |
+| 17 | Two binaries: `hearthblock` (player client, no `host` feature) and `dyno` (server, tools, dev client); one release, the updater picks by executable name, `assets` stays dyno-only | A tiny client with no content in it, while the live server keeps updating as `dyno`. |
+| 18 | The pack hash is part of an instance's content identity | Instances serving different files must not share players. |

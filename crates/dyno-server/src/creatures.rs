@@ -60,12 +60,97 @@ pub struct Mob {
     pub fled: bool,
     /// part of a world event (marches on its home, never leashes)
     pub event: bool,
+    /// seconds it has wanted to move and could not (a wall, a ledge, a tree)
+    pub stuck: f32,
 }
+
+/// An evading creature that cannot walk home gives up and appears there.
+pub const EVADE_STUCK: f32 = 3.0;
+/// A creature that cannot get at its target this long gives up the fight.
+pub const CHASE_STUCK: f32 = 6.0;
 
 /// How long a tag lasts after its owner's last blow.
 pub const TAG_LIFE: Duration = Duration::from_secs(15);
 
 impl Mob {
+    /// A creature at `pos` with full `health`.
+    pub fn new(creature: u16, health: f32, level: u8, pos: [f32; 3]) -> Mob {
+        let now = Instant::now();
+        Mob {
+            creature,
+            health,
+            target: None,
+            wander: [0.0; 2],
+            think: 0.0,
+            attack_cd: 1.0,
+            flee: 0.0,
+            flee_from: pos,
+            stun: 0.0,
+            on_ground: false,
+            burn_flash: 0.0,
+            last_hit: None,
+            tag: None,
+            level,
+            max_health: health,
+            stunned_until: now,
+            rooted_until: now,
+            dots: Vec::new(),
+            home: pos,
+            evading: false,
+            threat: std::collections::HashMap::new(),
+            power: 1.0,
+            name: None,
+            camp: false,
+            charge_until: now,
+            ability_ready: now,
+            fled: false,
+            event: false,
+            stuck: 0.0,
+        }
+    }
+
+    /// Give up the fight: heal, forget everyone, walk home (and take no
+    /// damage on the way).
+    pub fn evade(&mut self) {
+        self.evading = true;
+        self.tag = None;
+        self.health = self.max_health;
+        self.threat.clear();
+        self.target = None;
+        self.dots.clear();
+        self.stuck = 0.0;
+    }
+
+    /// Home again (walked or put back): whole, and free for anyone.
+    pub fn arrive_home(&mut self) {
+        self.evading = false;
+        self.health = self.max_health;
+        self.tag = None;
+        self.stuck = 0.0;
+    }
+
+    /// Count the time it wanted to move but did not get anywhere.
+    pub fn note_motion(&mut self, wanted: bool, moved: f32, dt: f32) {
+        if wanted && moved < 0.01 {
+            self.stuck += dt;
+        } else if moved > 0.05 || !wanted {
+            self.stuck = 0.0;
+        }
+    }
+
+    /// Damage from a player. An evading creature takes none (it would heal
+    /// anyway); returns false then.
+    pub fn take_hit(&mut self, pid: PlayerId, amount: f32) -> bool {
+        if self.evading {
+            return false;
+        }
+        self.health -= amount;
+        self.last_hit = Some((pid, Instant::now()));
+        self.claim(pid);
+        self.target = Some(pid);
+        true
+    }
+
     /// A player hits it: the first to hit owns it, and keeps it while they
     /// keep fighting. A tag nobody renews runs out, so walking away frees it.
     pub fn claim(&mut self, pid: PlayerId) {
@@ -244,36 +329,7 @@ impl State {
                 pickup_after: now,
                 moved: false,
                 phase,
-                mob: Some(Mob {
-                    creature,
-                    health,
-                    target: None,
-                    wander: [0.0; 2],
-                    think: 0.0,
-                    attack_cd: 1.0,
-                    flee: 0.0,
-                    flee_from: pos,
-                    stun: 0.0,
-                    on_ground: false,
-                    burn_flash: 0.0,
-                    last_hit: None,
-                    tag: None,
-                    level,
-                    max_health: health,
-                    stunned_until: now,
-                    rooted_until: now,
-                    dots: Vec::new(),
-                    home: pos,
-                    evading: false,
-                    threat: std::collections::HashMap::new(),
-                    power: 1.0,
-                    name: None,
-                    camp: false,
-                    charge_until: now,
-                    ability_ready: now,
-                    fled: false,
-                    event: false,
-                }),
+                mob: Some(Mob::new(creature, health, level, pos)),
             },
         );
         self.broadcast(
@@ -533,20 +589,30 @@ impl State {
             let mut want = [0.0f32; 2];
             // leash: pulled too far from home, it gives up, heals and walks back
             if rpg && mob.camp && !mob.evading && !mob.event && hdist(e.pos, mob.home) > LEASH {
-                mob.evading = true;
-                mob.tag = None;
-                mob.health = mob.max_health;
+                mob.evade();
                 heal_info.push(id);
-                mob.threat.clear();
-                mob.target = None;
-                mob.dots.clear();
+            }
+            // it cannot get at its target (a ledge, a wall, a tree between):
+            // it gives up rather than stand there being hit
+            if rpg && !mob.evading && !mob.event && mob.target.is_some() && mob.stuck >= CHASE_STUCK
+            {
+                mob.evade();
+                heal_info.push(id);
+            }
+            // it cannot walk home either: it is put back there
+            if mob.evading && mob.stuck >= EVADE_STUCK {
+                e.pos = mob.home;
+                e.vel = [0.0; 3];
+                e.moved = true;
+                mob.arrive_home();
+                heal_info.push(id);
             }
             if mob.evading {
                 let dx = mob.home[0] - e.pos[0];
                 let dz = mob.home[2] - e.pos[2];
                 let d = (dx * dx + dz * dz).sqrt();
                 if d < 2.0 {
-                    mob.evading = false;
+                    mob.arrive_home();
                     heal_info.push(id);
                 } else {
                     want = [dx / d, dz / d];
@@ -763,6 +829,16 @@ impl State {
                 e.vel[1] = e.vel[1].max(2.5);
             }
             mob.on_ground = ground;
+            // standing still to shoot, or in reach of its target, is not stuck
+            let in_reach = mob
+                .target
+                .and_then(|t| prey_all.iter().find(|(p, ..)| *p == t))
+                .is_some_and(|(_, p, _)| hdist(*p, e.pos) < 1.7 && (p[1] - e.pos[1]).abs() < 2.0);
+            mob.note_motion(
+                want != [0.0, 0.0] && (mob.target.is_some() || mob.evading) && !in_reach,
+                hdist(before, e.pos),
+                dt,
+            );
             if hdist(before, e.pos) > 0.001 || (before[1] - e.pos[1]).abs() > 0.001 {
                 e.moved = true;
             }
@@ -957,10 +1033,9 @@ impl State {
         } else {
             tool.as_ref().map(|t| t.damage).unwrap_or(1.0) * power
         };
-        mob.health -= damage;
-        mob.last_hit = Some((pid, Instant::now()));
-        mob.claim(pid);
-        mob.target = Some(pid);
+        if !mob.take_hit(pid, damage) {
+            return;
+        }
         *mob.threat.entry(pid).or_default() += damage;
         let dx = e.pos[0] - eye[0];
         let dz = e.pos[2] - eye[2];
@@ -1012,4 +1087,53 @@ impl State {
 /// Does this content define any creature that spawns in the dark?
 pub fn has_shades(c: &Content) -> bool {
     c.creatures.iter().any(|c| c.spawn == Spawn::Dark)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The Thornboar stall from the playtest: a creature pulled past its
+    /// leash walked home, got stuck on a ledge, and stayed evading forever:
+    /// it took hits without dying and never fought back.
+    #[test]
+    fn an_evading_creature_takes_no_damage_and_is_not_stuck_forever() {
+        let mut m = Mob::new(0, 60.0, 4, [10.0, 5.0, 10.0]);
+        m.take_hit(1, 20.0);
+        assert_eq!(m.health, 40.0);
+        m.evade();
+        assert_eq!(m.health, 60.0, "evading heals");
+        assert!(!m.take_hit(1, 20.0), "no damage while evading");
+        assert_eq!(m.health, 60.0);
+        assert!(m.tag.is_none() && m.target.is_none());
+        // it wants to walk home but a ledge stops it
+        for _ in 0..40 {
+            m.note_motion(true, 0.0, 0.05);
+        }
+        assert!(m.stuck >= 2.0 - 1e-3 && m.stuck < EVADE_STUCK);
+        for _ in 0..30 {
+            m.note_motion(true, 0.0, 0.05);
+        }
+        assert!(m.stuck >= EVADE_STUCK, "the tick puts it home now");
+        m.arrive_home();
+        assert!(!m.evading && m.stuck == 0.0 && m.health == m.max_health);
+        assert!(m.take_hit(2, 5.0), "and it can be fought again");
+    }
+
+    #[test]
+    fn moving_or_standing_still_on_purpose_is_not_stuck() {
+        let mut m = Mob::new(0, 40.0, 3, [0.0; 3]);
+        for _ in 0..200 {
+            m.note_motion(true, 0.2, 0.05); // running along
+        }
+        assert_eq!(m.stuck, 0.0);
+        for _ in 0..200 {
+            m.note_motion(false, 0.0, 0.05); // idle, or in reach of its target
+        }
+        assert_eq!(m.stuck, 0.0);
+        for _ in 0..(CHASE_STUCK / 0.05) as usize + 1 {
+            m.note_motion(true, 0.0, 0.05); // blocked by a wall
+        }
+        assert!(m.stuck >= CHASE_STUCK);
+    }
 }

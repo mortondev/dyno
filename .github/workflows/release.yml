@@ -33,6 +33,7 @@ jobs:
       - name: Tests must pass before anything ships to auto-updating players
         run: |
           cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo clippy -p hearthblock --locked -- -D warnings
           cargo test --workspace --locked
 
   build:
@@ -54,24 +55,33 @@ jobs:
       - name: Linux audio headers
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
-      - name: Protocol buffers compiler (the raft crate builds with it where it has no bundled one)
+      - name: Protocol buffers compiler 3.20.3 (raft-proto's version check rejects newer numbering)
         shell: bash
         run: |
           case "$RUNNER_OS" in
-            Linux) sudo apt-get install -y protobuf-compiler ;;
-            macOS) brew install protobuf ;;
-            Windows) choco install protoc -y --no-progress ;;
+            Linux) zip=protoc-3.20.3-linux-x86_64.zip ;;
+            macOS) zip=protoc-3.20.3-osx-universal_binary.zip ;;
+            Windows) zip=protoc-3.20.3-win64.zip ;;
           esac
-          protoc --version
+          curl -sSLo protoc.zip "https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/$zip"
+          mkdir -p "$RUNNER_TEMP/protoc" && unzip -q -o protoc.zip -d "$RUNNER_TEMP/protoc"
+          echo "$RUNNER_TEMP/protoc/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/protoc/bin/protoc" --version
+      # dyno: servers, tools, bots and the dev client (the live server updates as dyno)
       - run: cargo build --release --locked -p dyno --target ${{ matrix.target }}
-      - name: Collect binary
+      # hearthblock: the player client, size-optimised, checked for content strings
+      - name: Build and check the player client
+        shell: bash
+        run: bash .github/scripts/check-client.sh ${{ matrix.target }}
+      - name: Collect binaries
         shell: bash
         run: |
           mkdir dist
           cp "target/${{ matrix.target }}/release/dyno${{ matrix.ext }}" "dist/dyno-${{ matrix.target }}${{ matrix.ext }}"
+          cp "target/${{ matrix.target }}/client-release/hearthblock${{ matrix.ext }}" "dist/hearthblock-${{ matrix.target }}${{ matrix.ext }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: dyno-${{ matrix.target }}
+          name: binaries-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
 
@@ -101,6 +111,8 @@ jobs:
           chmod +x dist/dyno-x86_64-unknown-linux-gnu
           dist/dyno-x86_64-unknown-linux-gnu verify-manifest dist/manifest.json dist/manifest.json.sig
           dist/dyno-x86_64-unknown-linux-gnu version | grep -F "dyno ${GITHUB_REF_NAME#v} "
+          chmod +x dist/hearthblock-x86_64-unknown-linux-gnu
+          dist/hearthblock-x86_64-unknown-linux-gnu version | grep -F "hearthblock ${GITHUB_REF_NAME#v} "
       - name: Publish (draft first, then make it latest)
         env:
           GH_TOKEN: ${{ github.token }}

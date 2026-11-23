@@ -608,6 +608,8 @@ impl Body {
                     self.messages += 1;
                     self.handle(m);
                 }
+                // new rules from the pack (after /reload)
+                Ok(NetEvent::Content(c)) => self.content = *c,
                 Ok(NetEvent::Closed(r)) => {
                     self.closed = Some(r.clone());
                     self.ev(Ev::Closed(r));

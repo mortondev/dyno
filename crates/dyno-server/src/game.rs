@@ -813,7 +813,8 @@ impl State {
             spawn: data.pos,
             players: others,
             mode: p.mode,
-            content: Box::new(self.content.clone()),
+            // the server fills in its pack's manifest
+            manifest: Default::default(),
         };
         let mut p = p;
         p.phases = self.phases_of(&p);
@@ -1140,6 +1141,7 @@ impl State {
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
             ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
             ClientMsg::Chat { .. }
+            | ClientMsg::Want { .. }
             | ClientMsg::Hello { .. }
             | ClientMsg::Session { .. }
             | ClientMsg::ListCharacters { .. }
@@ -1164,6 +1166,12 @@ impl State {
     }
 
     pub fn set_block(&mut self, pos: [i32; 3], block: u8) {
+        self.set_block_as(pos, block, true);
+    }
+
+    /// Change a block; `persist` false for changes that need no world save
+    /// (a worked-out ore node and its regrowth live in the meta's regrow list).
+    pub fn set_block_as(&mut self, pos: [i32; 3], block: u8, persist: bool) {
         let old = self.world.get(pos[0], pos[1], pos[2]);
         if old == w::HEARTH {
             self.hearths.retain(|h| *h != pos);
@@ -1175,7 +1183,11 @@ impl State {
             self.world.set(pos[0], pos[1], pos[2], block);
             self.light.changed(&self.world, pos);
         }
-        self.dirty = true;
+        if persist {
+            self.dirty = true;
+        } else {
+            self.meta_dirty = true;
+        }
         self.broadcast(&ServerMsg::Block { pos, block }, None);
     }
 
@@ -2098,7 +2110,7 @@ impl State {
     }
 
     /// Swap content (after /reload). Items keep their keys; IDs may change.
-    pub fn replace_content(&mut self, new: Content) {
+    pub fn replace_content(&mut self, new: Content, manifest: proto::Manifest) {
         self.clear_creatures();
         // quests are kept by key
         let saved: Vec<SavedQuests> = self
@@ -2148,7 +2160,8 @@ impl State {
                 self.remove_entity(i, None);
             }
         }
-        self.broadcast(&ServerMsg::Content(Box::new(self.content.clone())), None);
+        // clients fetch the changed files (the rules among them)
+        self.broadcast(&ServerMsg::Manifest(manifest), None);
         for p in self.players.values() {
             p.send(&ServerMsg::Pack(p.pack.slots.clone()));
         }

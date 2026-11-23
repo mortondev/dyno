@@ -777,7 +777,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
 name = "dyno"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "dyno-bot",
  "dyno-client",
@@ -789,7 +789,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-bot"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "dyno-client",
  "dyno-protocol",
@@ -803,7 +803,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-client"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "bytemuck",
  "directories",
@@ -821,12 +821,14 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "sha2",
  "tungstenite",
+ "winit",
 ]
 
 [[package]]
 name = "dyno-protocol"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "dyno-sim",
  "dyno-world",
@@ -836,7 +838,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-server"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "dyno-protocol",
  "dyno-sim",
@@ -854,7 +856,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-sim"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "dyno-world",
  "glam",
@@ -863,7 +865,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-update"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "ed25519-dalek",
  "self-replace",
@@ -876,7 +878,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-world"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -967,7 +969,6 @@ dependencies = [
  "raw-window-handle",
  "smithay-clipboard",
  "web-time",
- "webbrowser",
  "winit",
 ]
 
@@ -1377,6 +1378,14 @@ dependencies = [
  "serde",
  "spin",
  "stable_deref_trait",
+]
+
+[[package]]
+name = "hearthblock"
+version = "0.7.0"
+dependencies = [
+ "dyno-client",
+ "dyno-update",
 ]
 
 [[package]]
@@ -3865,22 +3874,6 @@ checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "webbrowser"
-version = "1.2.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73e91ccd4698f2647d6137e8eb17a3f1dcfd63810be9029fb2398f507279b95b"
-dependencies = [
- "jni",
- "log",
- "ndk-context",
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
- "url",
- "web-sys",
 ]
 
 [[package]]

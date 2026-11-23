@@ -19,7 +19,103 @@ Evidence in `runs/`:
 
 Coordinates are x,y,z blocks from the spawn hearth (north is -z).
 
-## Headline numbers (main run, 20 bots x 12 min)
+## After the fixes (23 November, second pass)
+
+Fixed since the first pass (main c535f75 and the `playtest-fixes` branch).
+Every content change is in `content/hearthblock.json`; the code changes are
+for engine bugs only.
+
+| Problem | Fix | Kind |
+|---|---|---|
+| 1. Shades of level 9 in the meadow | creatures take the level band of the area they appear in | engine (coordinator) |
+| 2. Creatures on tree canopies | spawn on `World::ground`, not on leaves | engine (coordinator) |
+| 3. Thornboar (and bandit) stalls | evading creatures take no damage and are put home if they cannot walk there for 3 s; a creature that cannot get at its target for 6 s gives up and evades; it heals and loses its tag on arriving home | engine, `creatures.rs` + `abilities.rs` (`Mob::evade`, `arrive_home`, `note_motion`, `take_hit`); regression tests in `creatures.rs` |
+| 4. Iron for Hollis hidden grind | iron ore needs Mining 5, not 25; the quest text says how (stone pickaxe from Brannoc's Kindling or Hollis, practise on coal); Ashcloak Bandits drop raw iron (35%), "they rob the miners' carts" | content |
+| 5. Bandits beside the level 1 grazers | the East Road camp at (50,-9) moved to (84,-16) | content |
+| 6. Level-ups heal above the maximum | the sheet's maximum for level-ups, food and respawns | engine (coordinator) |
+| 9. Pace | talk quests give 40 to 60 XP (was 120 or about 300); first quests ask for more (meat 6, grazers 10, wool 8); explicit XP for the level 1 to 3 quests (120 to 260) | content |
+| 10. Bed reward | Wool for Winter gives 5 Hearth Bread instead of a Bed | content |
+| 10. World saved every 10 s | working out an ore node and its regrowth no longer mark the world dirty (the regrow list is in the meta already) | engine, `game.rs` `set_block_as`, used by `professions.rs` and `rpg.rs` |
+| new: Farmer Ostrin unreachable | his spot was inside the windmill, so the server put him in the cave under it (y -17; `dyno play` `npcs`: "partial path"); moved to the mill's west side (8,-10,97) | content |
+
+Before: `runs/swarm-20x12.md` (main 6e9d11a). After: `runs/after-swarm-20x12.md`
+(this branch, fresh world, 20 bots x 12 min), with the solo and party runs
+beside it. `runs/after-fixes-without-iron-drop-swarm-20x12.md` is the same run
+before the bandit iron drop and the Ostrin move.
+
+| | Before | After | Design / target |
+|---|---|---|---|
+| XP per hour (median, 20 bots) | 13,694 (2.1x design) | 8,346 (1.3x) | 6,400 |
+| XP per hour, 4 solo bots on an empty world | 20,975 | 17,474 | 6,400 (bots are faster than people) |
+| Level 2 (median) | 97 s | 218 s | about 300 s |
+| XP from quests | 71% | 51% | about 60% |
+| Minutes per quest (median) | 1.1 | 1.2 | 3 to 10 |
+| Reward gap / bots with a 5-minute drought | 9.5 s / 10% | 9.1 s / 0% | <= 60 s / <= 10% |
+| Fights won | 82% | 94% | >= 90% |
+| Fights that stalled ("no progress", creature never hurt) | 60 (58 Thornboar) | 0 | 0 |
+| Thornboar fights won | 25 of 100 | 82 of 87 | |
+| Deaths per hour | 9.0 | 11.0 | <= 1.5 |
+| Waiting for spawns | 3% | 12% | |
+| Kills credited to someone else's tag | 20% | 26% | <= 5% |
+| Rubber-bands | 0 | 0 | 0 |
+| "Saved world" lines while ore regrows | 168 in 50 min | 0 in the whole run | only on real changes |
+| windmill_breadcrumb (accepted / done) | 10 / 4, then 10 / 0 on a fresh world | 10 / 7 (solo 4 / 4) | |
+| iron_for_hollis | 9 / 0 | 11 / 0 in 12 min; 3 / 1 in a 20-minute solo run (5.2 min), which unlocked word_from_east (done) | completable |
+
+Still open:
+- **Deaths went up**, from 9 to 11 an hour. Shade deaths fell (20 to 12), but
+  level 3 bots now go after Ashcloak Bandits (for raw iron and the level 4
+  `thieves_in_fields`) and walk into the stockade at (62,67): Rook Varn
+  (elite, level 6) and Cutthroats killed 8, bandits 8. In the 20-minute solo
+  run, Ashcloak Bandits caused 13 of 34 deaths. Bandits and the stockade sit
+  next to the quests that send level 3 to 4 players to them. The bots overreach
+  (they take level 4 quests at level 3 and fight what is near), but players
+  will do the same.
+- **Pace is still fast for bots** (1.3x the design in a crowd, 2.7x alone);
+  people read, explore and get lost, so the crowded number is the closer
+  estimate. Kill XP is in code (`progression::kill_xp`), and 20 to 25 kills in
+  10 minutes give about the whole design pace on their own. The next lever in
+  the data is creature health (grazers die in about 5 s).
+- **Ore near the surface is scarce.** `dyno play` `nodes coal`: 81,431 coal
+  nodes, of which 2,472 can be gathered while standing in the open, and 4,578
+  are exposed in caves. For iron the numbers are 50,799, 470 and 2,995. Coal
+  ran out for 12 bots ("no source in reach"). This is world generation, not data.
+- **Tag contention** (26%) was not looked at (as agreed).
+
+### Casts by class (after; one-button combat, not redesigned)
+
+From `runs/after-swarm-20x12.md` (levels 1 to 4):
+
+| Class | Casts | Abilities (share of casts) |
+|---|---|---|
+| Hunter | 94 | Quick Shot 96%, Barbed Arrow 4% |
+| Mage | 190 | Fireball 98%, Scholar's Focus 2% |
+| Paladin | 99 | Judging Blow 84%, Holy Mend 16% |
+| Priest | 180 | Smite 99%, Mend 1% |
+| Rogue | 95 | Vicious Strike 85%, Finishing Cut 15% |
+| Warrior | 70 | Heroic Blow 84%, Battle Cry 16% |
+
+In the first levels every class has one damaging button. The second
+ability is a heal, a buff or a finisher that comes up rarely, because
+grazers die in 1 to 3 casts.
+
+### Party vs. solo (after)
+
+| | Party (2 pairs) | Solo (4) |
+|---|---|---|
+| XP per hour (median) | 14,770 | 17,474 |
+| Quests turned in | 39 | 50 |
+| Fights won | 84% | 81% |
+| Deaths per hour | 15.0 | 18.0 |
+
+Grouping is about 15% slower than solo now (it was 4% before). Solo got
+safer and the quests need more kills, which a pair shares (one corpse's loot
+for two players). The group bonus (15% per extra member) does not yet make
+up for it.
+
+## First pass
+
+### Headline numbers (main run, 20 bots x 12 min)
 
 | | Value | Target |
 |---|---|---|

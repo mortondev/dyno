@@ -43,10 +43,26 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
 
+  # the player client on its own: `--workspace` turns on the dev `host`
+  # feature everywhere, so build and lint hearthblock alone, then check the
+  # shipped binary has no content strings and stays under its 10 MB ceiling
+  client:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Linux audio headers
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy -p hearthblock --locked -- -D warnings
+      - run: bash .github/scripts/check-client.sh
+
   ci-ok:
     if: always()
-    needs: [fmt, test]
+    needs: [fmt, test, client]
     runs-on: ubuntu-22.04
     steps:
       - run: |
-          [ "${{ needs.fmt.result }}" = success ] && [ "${{ needs.test.result }}" = success ]
+          [ "${{ needs.fmt.result }}" = success ] && [ "${{ needs.test.result }}" = success ] && [ "${{ needs.client.result }}" = success ]

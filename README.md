@@ -104,7 +104,7 @@ dyno version             Print the version
 
 These parts of [the spec](docs/spec/index.html) are not built yet:
 
-- **No Luau yet.** Game rules are Rust (`crates/dyno-sim`, `crates/dyno-server`); content is data in [content/hearthblock.json](content/hearthblock.json), sent to players on join; `/reload` changes it live.
+- **No Luau yet.** Game rules are Rust (`crates/dyno-sim`, `crates/dyno-server`); content is data in [content/rules/hearthblock.json](content/rules/hearthblock.json), part of the content pack streamed to players on join; `/reload` changes it live.
 - **Transport is WebSocket over TCP**, not QUIC (NET-001), so the server also works through HTTPS tunnels.
 - **Movement is client-authoritative**, checked by the server.
 - **The world is sent whole on join**, not streamed in chunks.

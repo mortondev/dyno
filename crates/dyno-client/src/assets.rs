@@ -43,9 +43,22 @@ pub fn generation() -> u64 {
     GENERATION.load(std::sync::atomic::Ordering::Acquire)
 }
 
-/// Until the server streams the pack: load the local `content/` directory
-/// if nothing is in the store yet. Looks in the working directory, next to
-/// the executable, then in the source tree (dev builds and tests).
+/// Dev builds, tools and tests: load the local `content/` directory if
+/// nothing is in the store yet. Looks in the working directory, next to the
+/// executable, then in the source tree. The player client (a release build
+/// without `host`) has no local pack: the server streams it, and the cache
+/// keeps it (`crate::cache`).
+#[cfg(not(any(feature = "host", debug_assertions)))]
+pub fn load_local_pack() -> usize {
+    0
+}
+
+/// Dev builds, tools and tests: load the local `content/` directory if
+/// nothing is in the store yet. Looks in the working directory, next to the
+/// executable, then in the source tree. The player client (a release build
+/// without `host`) has no local pack: the server streams it, and the cache
+/// keeps it (`crate::cache`).
+#[cfg(any(feature = "host", debug_assertions))]
 pub fn load_local_pack() -> usize {
     if !store().read().unwrap().is_empty() {
         return 0;
@@ -57,6 +70,9 @@ pub fn load_local_pack() -> usize {
     {
         dirs.push(d);
     }
+    // the source tree: debug builds and tests only (a release `dyno` has the
+    // built-in pack, and no build path is compiled into release binaries)
+    #[cfg(debug_assertions)]
     dirs.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content"));
     for d in dirs {
         if d.join("blocks.json").is_file()
@@ -79,6 +95,33 @@ pub fn list(prefix: &str) -> Vec<String> {
         .collect();
     v.sort();
     v
+}
+
+static REQUESTS: OnceLock<std::sync::Mutex<Vec<String>>> = OnceLock::new();
+
+/// Ask the server for a streamed file (one under a `stream` prefix of the
+/// pack) that `get` does not have yet. It arrives through `insert`; until
+/// then, draw a neutral placeholder. Asking twice is harmless.
+pub fn request(path: &str) {
+    let mut q = REQUESTS.get_or_init(Default::default).lock().unwrap();
+    if !q.iter().any(|p| p == path) {
+        q.push(path.to_string());
+    }
+}
+
+/// The paths asked for that a connection can serve (`known`); the rest wait
+/// for another connection.
+pub(crate) fn take_requests(known: impl Fn(&str) -> bool) -> Vec<String> {
+    let Some(q) = REQUESTS.get() else {
+        return Vec::new();
+    };
+    let mut q = q.lock().unwrap();
+    if q.is_empty() {
+        return Vec::new();
+    }
+    let (mine, rest): (Vec<String>, Vec<String>) = q.drain(..).partition(|p| known(p));
+    *q = rest;
+    mine
 }
 
 /// Load every file under a local pack directory (tools, tests, dev builds).

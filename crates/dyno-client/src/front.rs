@@ -422,36 +422,34 @@ fn title(
         theme::body_font(13.0),
         theme::TEXT_DIM,
     );
-    // news
+    // news, from the pack of the last world joined (none before the first join)
+    let news = crate::app::pack_lines("news", "lines");
     let r = Rect::from_min_size(
         Pos2::new(screen.right() - 360.0, screen.bottom() - 200.0),
         Vec2::new(330.0, 170.0),
     );
-    panel(ctx, "news", r, |ui| {
-        ui.label(
-            RichText::new("The Living Vale")
-                .font(theme::title_font(18.0))
-                .color(theme::GOLD),
-        );
-        ui.label(
-            RichText::new("What's new")
-                .font(theme::body_font(12.0))
-                .color(theme::TEXT_DIM),
-        );
-        ui.add_space(4.0);
-        for l in [
-            "Six classic classes, gear and character screens",
-            "Hearthstead rebuilt in timber and stone",
-            "Camps, rare elites and the Nightfall Incursion",
-            "Classic controls: hold right mouse to steer",
-        ] {
+    if !news.is_empty() {
+        panel(ctx, "news", r, |ui| {
             ui.label(
-                RichText::new(format!("• {l}"))
-                    .font(theme::body_font(14.0))
-                    .color(theme::TEXT),
+                RichText::new(crate::app::pack_text("news", "title"))
+                    .font(theme::title_font(18.0))
+                    .color(theme::GOLD),
             );
-        }
-    });
+            ui.label(
+                RichText::new("What's new")
+                    .font(theme::body_font(12.0))
+                    .color(theme::TEXT_DIM),
+            );
+            ui.add_space(4.0);
+            for l in &news {
+                ui.label(
+                    RichText::new(format!("• {l}"))
+                        .font(theme::body_font(14.0))
+                        .color(theme::TEXT),
+                );
+            }
+        });
+    }
     let _ = f;
 }
 
@@ -504,13 +502,19 @@ fn realms(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
                     .color(theme::TEXT),
             );
         }
-        ui.add_space(12.0);
-        ui.label(
-            RichText::new("Developers: run a world on this computer")
-                .font(theme::title_font(14.0))
-                .color(theme::GOLD),
-        );
+        // hosting a local world is for the dev build (`dyno`), not the player client
+        if cfg!(feature = "host") {
+            ui.add_space(12.0);
+            ui.label(
+                RichText::new("Developers: run a world on this computer")
+                    .font(theme::title_font(14.0))
+                    .color(theme::GOLD),
+            );
+        }
         ui.horizontal(|ui| {
+            if !cfg!(feature = "host") {
+                return;
+            }
             if dark_button(
                 ui,
                 if hosting {

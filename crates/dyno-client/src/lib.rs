@@ -4,6 +4,7 @@ pub mod anim;
 pub mod app;
 pub mod assets;
 pub mod audio;
+pub mod cache;
 pub mod clip;
 pub mod expr;
 pub mod figure;
@@ -32,4 +33,17 @@ pub mod voxmodel;
 pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
     assets::load_local_pack();
     app::run(prefill, update_note)
+}
+
+/// Put the pack built into the local server in the asset store (dev
+/// builds and tools that host or render without joining). The player
+/// client has no pack of its own: the server streams it.
+#[cfg(feature = "host")]
+pub fn load_builtin_pack() -> usize {
+    let pack = dyno_server::pack::Pack::builtin();
+    let files = pack.files();
+    for (path, bytes) in &files {
+        assets::insert(path, bytes.clone());
+    }
+    files.len()
 }

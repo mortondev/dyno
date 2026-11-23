@@ -41,6 +41,13 @@ from the spawn hearth (north is -z). The body keeps living between commands
 and defends itself if attacked; `auto <minutes>` hands control to a scripted
 player for a while.
 
+Diagnostics: in `dyno play`, `npcs` lists where every NPC stands and whether
+you can walk there, `nodes <item>` counts the resource nodes for an item (all,
+gatherable while standing in the open, exposed to the air), and `probe x,z`
+prints the ground heights around a place and tries a path there. Setting
+`DYNO_BOT_TRACE=1` makes every bot print a line per second of each fight
+(its health, the creature's health, distance and height difference).
+
 ## Rewarding moments
 
 A rewarding moment is any of: a kill that gave XP or quest credit, loot

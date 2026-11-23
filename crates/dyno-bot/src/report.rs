@@ -149,6 +149,9 @@ pub struct Report {
     pub rubberbands: Vec<String>,
     /// fight outcomes by creature: "Thornboar lv3-4: lost (it fled home and healed)"
     pub fights: Vec<Count>,
+    /// casts per ability, by class (how many buttons a class really presses)
+    #[serde(default)]
+    pub abilities_by_class: BTreeMap<String, BTreeMap<String, u32>>,
     pub telemetry: Vec<Telemetry>,
 }
 
@@ -793,6 +796,16 @@ pub fn build(title: &str, server: &str, ts: Vec<Telemetry>) -> Report {
         notes,
         canopy,
         fights,
+        abilities_by_class: {
+            let mut m: BTreeMap<String, BTreeMap<String, u32>> = BTreeMap::new();
+            for t in &ts {
+                let e = m.entry(t.class.clone()).or_default();
+                for (k, v) in &t.abilities {
+                    *e.entry(k.clone()).or_insert(0) += v;
+                }
+            }
+            m
+        },
         rubberbands: ts
             .iter()
             .flat_map(|t| {
@@ -956,6 +969,23 @@ pub fn markdown(r: &Report) -> String {
     );
     list(&mut s, "Deaths by cause", &r.deaths_by_cause);
     list(&mut s, "Fights by creature and outcome", &r.fights);
+    if !r.abilities_by_class.is_empty() {
+        let _ = writeln!(s, "\n## Casts by class and ability\n");
+        let _ = writeln!(
+            s,
+            "| Class | Casts | Abilities (share of casts) |\n|---|---|---|"
+        );
+        for (class, m) in &r.abilities_by_class {
+            let total: u32 = m.values().sum();
+            let mut v: Vec<(&String, &u32)> = m.iter().collect();
+            v.sort_by(|a, b| b.1.cmp(a.1));
+            let parts: Vec<String> = v
+                .iter()
+                .map(|(k, n)| format!("{k} {:.0}%", **n as f64 * 100.0 / total.max(1) as f64))
+                .collect();
+            let _ = writeln!(s, "| {class} | {total} | {} |", parts.join(", "));
+        }
+    }
     list(&mut s, "Unreachable NPCs", &r.unreachable);
     if !r.stuck_heatmap.is_empty() {
         let _ = writeln!(
