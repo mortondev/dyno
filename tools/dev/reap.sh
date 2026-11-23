@@ -40,7 +40,7 @@ for pid in $(pgrep -u "$me" -f "until .*do sleep"); do
 done
 # scratch folders no one has written to for 12 hours (session scratchpads only;
 # concept sources, the gauntlet record and the integration tree are kept)
-for scratch in /tmp/claude-$me/*/*/scratchpad; do
+for scratch in /tmp/claude-$me/-home-james-dyno/*/scratchpad; do
   [ -d "$scratch" ] || continue
   for d in "$scratch"/*/; do
     d=${d%/}; n=$(basename "$d")
