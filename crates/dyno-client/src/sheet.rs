@@ -1,7 +1,7 @@
 //! Animation contact sheets: every kind of figure in its key poses, drawn
 //! off-screen from a third-person camera, for `dyno shot --anim-sheet`.
 
-use crate::anim::{Anim, Animator, Skeleton};
+use crate::anim::{Anim, Animator};
 use crate::models::{self, Look};
 use crate::render::{self, Gfx, Vertex};
 use dyno_world::content::{Content, Model, WeaponKind};
@@ -16,16 +16,16 @@ enum Figure {
 }
 
 impl Figure {
-    fn skeleton(&self) -> Skeleton {
+    fn skeleton(&self) -> String {
         match self {
-            Figure::Person(_) => Skeleton::Biped,
-            Figure::Creature(m, v, _) => Skeleton::of(*m, *v),
+            Figure::Person(_) => "biped".into(),
+            Figure::Creature(m, v, _) => models::creature_skeleton(*m, *v).unwrap_or_default(),
         }
     }
 
     fn attack(&self) -> Anim {
         match self {
-            Figure::Person(l) => crate::anim::attack_for(models::person_rig(l).grip),
+            Figure::Person(l) => crate::anim::attack_for(models::grip(l)),
             Figure::Creature(m, v, _) => models::creature_attack(*m, *v),
         }
     }
@@ -73,9 +73,9 @@ fn figures(content: &Content) -> Vec<(String, Figure)> {
     ] {
         let mut l = Look::player(seed, color);
         l.weapon = weapon.map(|k| (k, [0.62, 0.63, 0.68]));
-        l.robe = robe;
         if robe {
-            l.cape = None;
+            l.set("robe", 1);
+            l.colors.remove("cape");
         }
         list.push((name.to_string(), Figure::Person(l)));
     }
@@ -96,7 +96,7 @@ fn figures(content: &Content) -> Vec<(String, Figure)> {
 /// When to show an animation: a one-shot at its most telling moment, a
 /// loop a little way in.
 fn moment(a: Anim) -> f32 {
-    let at = |u: f32| a.duration().unwrap_or(1.0) * u;
+    let at = |u: f32| models::duration(a).unwrap_or(1.0) * u;
     match a {
         Anim::Attack1H => at(0.4),
         Anim::AttackUnarmed => at(0.45),
@@ -265,6 +265,7 @@ fn save(path: &Path, (w, h, px): (u32, u32, Vec<u8>)) -> Result<PathBuf, String>
 /// beside it, `<name>-all` holds every animation for one figure of each
 /// skeleton.
 pub fn anim_sheet(out: &Path) -> Result<String, String> {
+    crate::assets::load_local_pack();
     let content = Content::default_pack();
     let figs = figures(&content);
     let (cw, ch) = (240u32, 260u32);
@@ -308,7 +309,7 @@ pub fn anim_sheet(out: &Path) -> Result<String, String> {
     for (name, f) in &figs {
         let s = f.skeleton();
         let crab = matches!(f, Figure::Creature(Model::Quadruped, 2, _));
-        if done.contains(&(s, crab)) {
+        if done.contains(&(s.clone(), crab)) {
             continue;
         }
         done.push((s, crab));
@@ -366,7 +367,7 @@ pub fn anim_sheet(out: &Path) -> Result<String, String> {
         .into_iter()
         .map(|(i, a)| {
             let (name, f) = &figs[i];
-            let d = a.duration().unwrap_or(2.0);
+            let d = models::duration(a).unwrap_or(2.0);
             let cells = (0..8)
                 .map(|k| {
                     let t = d * k as f32 / 7.0;

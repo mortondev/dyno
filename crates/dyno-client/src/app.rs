@@ -1,6 +1,6 @@
 //! Window, input, screens (connect, joining, playing) and the HUD.
 
-use crate::anim::{self, Anim, Book as Anims, Skeleton};
+use crate::anim::{self, Anim, Book as Anims};
 use crate::audio::{Audio, Sfx};
 use crate::front::{self, Front, FrontCmd};
 use crate::game::{self, Input, Player, PlayerPose, Remote, Remotes, Target};
@@ -683,7 +683,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             };
             let speed = Vec3::new(vel.x, 0.0, vel.z).length();
             let (a, _) = book.entity(*id, now);
-            a.drive_at(now, base, pos, Skeleton::Biped.step(speed, 1.0));
+            a.drive_at(now, base, pos, models::person_step(speed));
             let look = models::Look::npc(&npc.key, npc.color);
             models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
             continue;
@@ -700,7 +700,6 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             .unwrap_or(0.0);
         // size: the creature's own scale, and rare elites are a quarter larger
         let scale = c.scale * if e.name.is_some() { 1.25 } else { 1.0 };
-        let skeleton = Skeleton::of(c.model, c.variant);
         // in a fight: hit lately, or a hostile that has you targeted
         let hurt = e.info.is_some_and(|(_, h, max)| h < max);
         let fighting = (hurt
@@ -714,7 +713,12 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         });
         let speed = Vec3::new(vel.x, 0.0, vel.z).length();
         let (a, _) = book.entity(*id, now);
-        a.drive_at(now, base, pos, skeleton.step(speed, scale));
+        a.drive_at(
+            now,
+            base,
+            pos,
+            models::creature_step(c.model, c.variant, speed, scale),
+        );
         let start = boxes.len();
         models::push_creature(
             boxes, c.model, c.variant, pos, e.yaw, c.color, light, flash, scale, a, now,
@@ -800,7 +804,7 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f32)
 /// Your own figure's state, from your movement, casting, fighting and the
 /// emote you hold.
 fn my_anim(p: &Play, book: &mut Anims, look: &models::Look, now: f32) -> Anim {
-    book.grip = models::person_rig(look).grip;
+    book.grip = models::grip(look);
     let pl = &p.player;
     let wet = |y: f32| {
         p.world.get(
@@ -1746,7 +1750,7 @@ impl App {
                                         }
                                         dyno_protocol::Act::Emote(n) => {
                                             match Anim::ALL.get(n as usize).copied() {
-                                                Some(e) if e.duration().is_none() => {
+                                                Some(e) if !e.one_shot() => {
                                                     p.remote_hold.insert(pid, e);
                                                     None
                                                 }
@@ -2683,7 +2687,7 @@ impl App {
                 let base = p.ground.feet(&p.world, Vec3::from(pose.pos));
                 let bl = light_at(&p.light, base + Vec3::Y);
                 let state = remote_anim(p, &mut book, *id, r, now);
-                let step = Skeleton::Biped.step(r.speed(), 1.0);
+                let step = models::person_step(r.speed());
                 let a = book.player(*id, now);
                 a.drive_at(now, state, base, step);
                 let mut look = models::Look::from_appearance(&r.look, r.color);
@@ -2975,7 +2979,7 @@ impl App {
                 let now = book.now();
                 let feet = p.ground.feet(&p.world, p.player.pos);
                 let state = my_anim(p, &mut book, &look, now);
-                let step = Skeleton::Biped.step(speed, 1.0);
+                let step = models::person_step(speed);
                 let me = book.me(now);
                 if p.dig.is_some() && me.action(now).is_none() {
                     me.play(now, Anim::Attack1H);
@@ -4532,7 +4536,7 @@ fn hud(
                             let _ = p.conn.tx.send(ClientMsg::Emote(n as u8));
                         }
                         let now = p.anims.now();
-                        if e.duration().is_some() {
+                        if e.one_shot() {
                             p.anims.me(now).play(now, e);
                         } else {
                             p.anims.hold = Some(e);

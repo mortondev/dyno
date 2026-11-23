@@ -79,8 +79,9 @@ impl Look {
 }
 
 fn name_hash(s: &str) -> u32 {
-    s.bytes()
-        .fold(0x811C_9DC5u32, |h, b| (h ^ b as u32).wrapping_mul(0x0100_0193))
+    s.bytes().fold(0x811C_9DC5u32, |h, b| {
+        (h ^ b as u32).wrapping_mul(0x0100_0193)
+    })
 }
 
 /// The hash a traveller's look is drawn from.
@@ -281,7 +282,9 @@ struct GridSpec {
 enum ClipChoice {
     Name(String),
     /// the set named by the grip, with "+feature" for each feature worn
-    ByGrip { features: Vec<String> },
+    ByGrip {
+        features: Vec<String>,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -507,7 +510,9 @@ fn compile_rig(sk: &SkeletonSpec, spec: &RigSpec, grids: &[GridSpec]) -> Result<
                 ops.push(Op::Pose);
                 continue;
             }
-            let obj = op.as_object().ok_or("rig: an op is \"pose\" or {name: value}")?;
+            let obj = op
+                .as_object()
+                .ok_or("rig: an op is \"pose\" or {name: value}")?;
             for (k, v) in obj {
                 ops.push(match k.as_str() {
                     "rx" => Op::Rot(0, ex(v)?),
@@ -810,7 +815,9 @@ fn clip_file(skeleton: &str, sk: &SkeletonSpec) -> Result<Option<Sets>, String> 
         };
         let v: Value = serde_json::from_str(&text).map_err(|e| format!("{path}: {e}"))?;
         let sets = Rc::new(crate::clip::parse_sets(sk, &v).map_err(|e| format!("{path}: {e}"))?);
-        l.borrow_mut().clips.insert(skeleton.to_string(), sets.clone());
+        l.borrow_mut()
+            .clips
+            .insert(skeleton.to_string(), sets.clone());
         Ok(Some(sets))
     })
 }
@@ -902,7 +909,13 @@ pub fn figure(name: &str) -> Option<Rc<Figure>> {
 
 // ------------------------------------------------------------- choosing
 
-fn gen_color(g: &Gen<[f32; 3]>, h: u32, base: &BTreeMap<String, [f32; 3]>, color: [f32; 3], look: &Look) -> Option<[f32; 3]> {
+fn gen_color(
+    g: &Gen<[f32; 3]>,
+    h: u32,
+    base: &BTreeMap<String, [f32; 3]>,
+    color: [f32; 3],
+    look: &Look,
+) -> Option<[f32; 3]> {
     match g {
         Gen::Fixed(c) => Some(*c),
         Gen::Pick { pick, shift, by } => {
@@ -988,9 +1001,11 @@ fn apply_spec(s: &FiguresSpec, l: &mut Look, spec: &LookSpec, color: [f32; 3]) {
 
 fn weapon_kind(name: &str) -> Option<WeaponKind> {
     use WeaponKind::*;
-    [Sword, Axe, Mace, Dagger, Staff, Polearm, Bow, Wand, Shield, Offhand]
-        .into_iter()
-        .find(|k| format!("{k:?}") == name)
+    [
+        Sword, Axe, Mace, Dagger, Staff, Polearm, Bow, Wand, Shield, Offhand,
+    ]
+    .into_iter()
+    .find(|k| format!("{k:?}") == name)
 }
 
 fn look_from_spec(s: &FiguresSpec, spec: &LookSpec, key: &str, color: [f32; 3]) -> Look {
@@ -1007,7 +1022,9 @@ fn look_from_spec(s: &FiguresSpec, spec: &LookSpec, key: &str, color: [f32; 3]) 
 impl Look {
     /// A traveller's look from a seed and a signature colour.
     pub fn player(seed: u32, color: [f32; 3]) -> Look {
-        spec().map(|s| traveller(&s, seed, color)).unwrap_or_default()
+        spec()
+            .map(|s| traveller(&s, seed, color))
+            .unwrap_or_default()
     }
 
     /// A player's look from the appearance they chose, in their class colour.
@@ -1064,9 +1081,16 @@ impl Look {
     }
 }
 
+/// A held kind and its colour.
+pub type HeldRef = (String, [f32; 3]);
+
 /// The figure and look of a creature (by its content model and variant),
 /// and what it holds.
-pub fn creature(model: &str, variant: u8, color: [f32; 3]) -> Option<(String, Look, Option<(String, [f32; 3])>)> {
+pub fn creature(
+    model: &str,
+    variant: u8,
+    color: [f32; 3],
+) -> Option<(String, Look, Option<HeldRef>)> {
     let s = spec()?;
     let c = s
         .creatures
@@ -1186,7 +1210,8 @@ impl Figure {
                     let i = match inks[ink as usize] {
                         Some(i) => i,
                         None => {
-                            let (rgb, glow) = self.color(ink, look).unwrap_or(([1.0, 0.0, 1.0], false));
+                            let (rgb, glow) =
+                                self.color(ink, look).unwrap_or(([1.0, 0.0, 1.0], false));
                             let i = if glow { v.glow(rgb) } else { v.ink(rgb) };
                             inks[ink as usize] = Some(i);
                             i
@@ -1279,7 +1304,11 @@ fn build(fig: &Figure, look: &Look) -> Built {
 }
 
 fn built(name: &str, fig: &Figure, look: &Look) -> Rc<Built> {
-    let key = key_of(&[name_hash(name), (look.key() >> 32) as u32, look.key() as u32]);
+    let key = key_of(&[
+        name_hash(name),
+        (look.key() >> 32) as u32,
+        look.key() as u32,
+    ]);
     BUILT.with(|c| c.get(key, || build(fig, look)))
 }
 
@@ -1315,7 +1344,13 @@ pub struct Holding {
 
 /// The held model of a kind in a colour, of a quality, glowing or not, at
 /// an animation frame (a torch's flame).
-pub fn holding(kind: &str, color: [f32; 3], quality: u8, glows: bool, frame: u8) -> Option<Holding> {
+pub fn holding(
+    kind: &str,
+    color: [f32; 3],
+    quality: u8,
+    glows: bool,
+    frame: u8,
+) -> Option<Holding> {
     let k = held_kind(kind)?;
     let fig = figure(&k.figure)?;
     let mut look = Look::default();
@@ -1395,12 +1430,20 @@ pub fn draw(
                         _ => Mat3::from_rotation_z(a),
                     })
                 }
-                Op::Move(v) => f * Affine3A::from_translation(Vec3::new(v[0].eval(&vars), v[1].eval(&vars), v[2].eval(&vars))),
-                Op::Scale(v) => f * Affine3A::from_mat3(Mat3::from_diagonal(Vec3::new(
-                    v[0].eval(&vars),
-                    v[1].eval(&vars),
-                    v[2].eval(&vars),
-                ))),
+                Op::Move(v) => {
+                    f * Affine3A::from_translation(Vec3::new(
+                        v[0].eval(&vars),
+                        v[1].eval(&vars),
+                        v[2].eval(&vars),
+                    ))
+                }
+                Op::Scale(v) => {
+                    f * Affine3A::from_mat3(Mat3::from_diagonal(Vec3::new(
+                        v[0].eval(&vars),
+                        v[1].eval(&vars),
+                        v[2].eval(&vars),
+                    )))
+                }
             };
         }
         frames.push(f);
@@ -1414,7 +1457,8 @@ pub fn draw(
         };
         if p.held {
             if let Some(h) = held {
-                let fit = Mat3::from_rotation_y(h.carry_turn) * Mat3::from_diagonal(Vec3::splat(h.unit * fig.per_block));
+                let fit = Mat3::from_rotation_y(h.carry_turn)
+                    * Mat3::from_diagonal(Vec3::splat(h.unit * fig.per_block));
                 emit(out, h.mesh(), &(frame * Affine3A::from_mat3(fit)), paint);
             }
             continue;

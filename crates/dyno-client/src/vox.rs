@@ -157,7 +157,10 @@ pub fn read(data: &[u8]) -> Result<File, String> {
                     if f == 0
                         && let Some(t) = d.get("_t")
                     {
-                        let v: Vec<i32> = t.split_whitespace().filter_map(|s| s.parse().ok()).collect();
+                        let v: Vec<i32> = t
+                            .split_whitespace()
+                            .filter_map(|s| s.parse().ok())
+                            .collect();
                         if v.len() == 3 {
                             at = [v[0], v[1], v[2]];
                         }
@@ -207,11 +210,19 @@ pub fn read(data: &[u8]) -> Result<File, String> {
             .cloned()
             .unwrap_or_else(|| (i.to_string(), [size[0] / 2, size[1] / 2, size[2] / 2]));
         // MagicaVoxel centres a model on its translation
-        let lo = [at[0] - size[0] / 2, at[1] - size[1] / 2, at[2] - size[2] / 2];
+        let lo = [
+            at[0] - size[0] / 2,
+            at[1] - size[1] / 2,
+            at[2] - size[2] / 2,
+        ];
         let voxels = vox
             .iter()
             .map(|v| {
-                let p = [lo[0] + v[0] as i32, lo[1] + v[1] as i32, lo[2] + v[2] as i32];
+                let p = [
+                    lo[0] + v[0] as i32,
+                    lo[1] + v[1] as i32,
+                    lo[2] + v[2] as i32,
+                ];
                 (from_vox(p), v[3])
             })
             .collect();
