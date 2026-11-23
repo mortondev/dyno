@@ -96,6 +96,14 @@ anims! {
     Bow,
     Cheer,
     Point,
+    /// at work: swinging an axe or a pick at something in front (loops)
+    Chop,
+    /// at work: short blows with a hammer on something at waist height
+    Hammer,
+    /// at work: a rod held out over the water, now and then a tug
+    Fish,
+    /// at work: long strokes with a broom or a rake
+    Sweep,
 }
 
 impl Anim {

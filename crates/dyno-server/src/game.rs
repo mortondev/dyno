@@ -232,6 +232,10 @@ pub struct State {
     /// sections encoded for streaming, with the world's count of changes
     /// to each when it was encoded (stream.rs)
     pub encoded: HashMap<dyno_world::SectionPos, (u32, Vec<u8>)>,
+    /// the rounds NPCs walk, by entity (routines.rs)
+    pub routines: HashMap<u32, crate::routines::Routine>,
+    /// time spent walking them, and over how many ticks
+    pub routine_cost: (std::time::Duration, u32),
 }
 
 pub fn now_secs() -> u64 {
@@ -695,6 +699,13 @@ impl State {
                 level: m.level,
                 health: m.health,
                 max: m.max_health,
+            });
+        }
+        // what an NPC is busy with
+        if let Some(a) = self.routines.get(&id).and_then(|r| r.hold) {
+            out.push(ServerMsg::Act {
+                actor: proto::Actor::Entity(id),
+                act: proto::Act::Emote(a),
             });
         }
         out
@@ -1985,6 +1996,7 @@ impl State {
         }
         self.tick_loot(dt);
         self.tick_creatures(dt);
+        self.tick_routines(dt);
         self.spawn_creatures(dt);
         self.tick_players(dt);
     }

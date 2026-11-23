@@ -164,6 +164,10 @@ struct Play {
     fps: (Instant, u32, u32),
     light: Light,
     particles: Vec<Particle>,
+    /// ambient effects and critters (life.rs)
+    life: crate::life::Life,
+    /// what NPCs are busy with: the animation each holds (their routines)
+    entity_hold: HashMap<u32, Anim>,
     /// time of day at `time_at`, and day length in seconds
     time: f32,
     day_seconds: f32,
@@ -695,7 +699,9 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             let base = if talking == Some(*id) {
                 Anim::Talk
             } else {
-                anim::locomotion(vel, e.yaw, 4.0).unwrap_or(Anim::Idle)
+                anim::locomotion(vel, e.yaw, 4.0)
+                    .or(p.entity_hold.get(id).copied())
+                    .unwrap_or(Anim::Idle)
             };
             let speed = Vec3::new(vel.x, 0.0, vel.z).length();
             let (a, _) = book.entity(*id, now);
@@ -747,6 +753,66 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         p.tops.borrow_mut().insert(*id, top - pos.y);
     }
     push_corpses(boxes, p, book, clock);
+}
+
+/// An NPC's routine says what it does now: a looping animation is held
+/// until the next one (the first of the list lets it go), a one-shot is
+/// returned to be played.
+fn entity_emote(p: &mut Play, entity: u32, n: u8) -> Option<Anim> {
+    match Anim::ALL.get(n as usize).copied() {
+        Some(Anim::Idle) | None => {
+            p.entity_hold.remove(&entity);
+            None
+        }
+        Some(a) if a.one_shot() => Some(a),
+        Some(a) => {
+            p.entity_hold.insert(entity, a);
+            None
+        }
+    }
+}
+
+/// Ambient life round the camera: smoke, fireflies, birds, deer (life.rs).
+/// Critters go into `boxes`; the effects into the renderer's own lists.
+#[allow(clippy::too_many_arguments)]
+fn push_life(
+    p: &mut Play,
+    gfx: &mut Gfx,
+    boxes: &mut Vec<Vertex>,
+    eye: Vec3,
+    dir: Vec3,
+    time: f32,
+    dt: f32,
+    quality: u8,
+    settle: bool,
+) {
+    let mut people: Vec<Vec3> = vec![p.player.pos];
+    people.extend(
+        p.remotes
+            .iter()
+            .filter(|(_, r)| !r.far)
+            .map(|(_, r)| Vec3::from(r.current().pos)),
+    );
+    let scene = crate::life::Scene {
+        world: &p.world,
+        light: &p.light,
+        content: &p.content,
+        hearth: p.hearth,
+        time,
+        eye,
+        dir,
+        people: &people,
+    };
+    let clock = p.anims.now() as f64 + 600.0;
+    if settle {
+        p.life.settle(&scene, clock, quality);
+    }
+    let mut out = crate::life::Out {
+        boxes,
+        fx: &mut gfx.fx,
+        glow: &mut gfx.fx_glow,
+    };
+    p.life.frame(&scene, clock, dt, quality, &mut out);
 }
 
 /// The fallen: a creature that died a moment ago plays its death, one found
@@ -1469,6 +1535,8 @@ fn new_play(j: Joined) -> Play {
         fps: (Instant::now(), 0, 0),
         light,
         particles: Vec::new(),
+        life: Default::default(),
+        entity_hold: HashMap::new(),
         time: 0.05,
         day_seconds: 1200.0,
         time_at: Instant::now(),
@@ -1935,6 +2003,7 @@ impl App {
                                         dyno_protocol::Act::Swing => Some(Anim::AttackUnarmed),
                                         dyno_protocol::Act::Special => Some(Anim::Special),
                                         dyno_protocol::Act::Shoot => Some(Anim::Shoot),
+                                        dyno_protocol::Act::Emote(n) => entity_emote(p, eid, n),
                                         _ => None,
                                     };
                                     if let Some(a) = a {
@@ -3218,6 +3287,10 @@ impl App {
             let mut book = std::mem::take(&mut p.anims);
             push_creatures(&mut boxes, p, &mut book, clock);
             p.anims = book;
+            // smoke, fireflies, birds, deer
+            let tod = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
+            let quality = crate::life::quality(self.settings.life);
+            push_life(p, gfx, &mut boxes, eye, dir, tod, dt, quality, false);
             // items lying in the world: small spinning cubes
             for e in p.entities.values() {
                 if let EntityKind::Item(s) = e.kind {
@@ -5976,6 +6049,24 @@ pub fn shot_with_ui(
                         p.money = money;
                         p.max_health = max_health;
                     }
+                    ServerMsg::EntityMoves(list) => {
+                        for (id, pos, yaw) in list {
+                            if let Some(e) = p.entities.get_mut(&id) {
+                                e.from = pos;
+                                e.to = pos;
+                                e.yaw = yaw;
+                            }
+                        }
+                    }
+                    ServerMsg::EntityGone { id, .. } => {
+                        p.entities.remove(&id);
+                    }
+                    ServerMsg::Act {
+                        actor: dyno_protocol::Actor::Entity(id),
+                        act: dyno_protocol::Act::Emote(n),
+                    } => {
+                        entity_emote(&mut p, id, n);
+                    }
                     ServerMsg::Weather { kind, strength } => {
                         p.weather = (kind, strength);
                         p.weather_mix = strength;
@@ -6135,6 +6226,18 @@ pub fn shot_with_ui(
         p.player.pos = start_cam.into();
         p.player.yaw = yaw;
         p.player.pitch = pitch;
+    }
+    // DYNO_SHOT_GROUND=h: h metres over the ground under the asked-for
+    // place (0: standing on it), whatever height was asked for
+    if let Some(h) = std::env::var("DYNO_SHOT_GROUND")
+        .ok()
+        .and_then(|v| v.parse::<f32>().ok())
+    {
+        let (x, z) = (p.player.pos.x.floor() as i32, p.player.pos.z.floor() as i32);
+        let g = p.world.ground(x, z);
+        if g > 0 {
+            p.player.pos.y = g as f32 + 1.0 + h;
+        }
     }
     p.captured = ui != "pack";
     p.picker_open = ui == "pack";
@@ -6321,6 +6424,11 @@ pub fn shot_with_ui(
     let mut book = std::mem::take(&mut p.anims);
     push_creatures(&mut boxes, &p, &mut book, 1.3);
     p.anims = book;
+    // ambient life, as play draws it (DYNO_LIFE=0 leaves it out)
+    let life_quality = crate::life::quality(2);
+    let figures = boxes.len();
+    push_life(&mut p, gfx, &mut boxes, eye, dir, t, 0.0, life_quality, true);
+    let (fx, fx_glow) = (gfx.fx.clone(), gfx.fx_glow.clone());
     for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let pose = r.current();
         let base = Vec3::from(pose.pos);
@@ -6335,7 +6443,7 @@ pub fn shot_with_ui(
             0.0,
         );
     }
-    if p.zoom < 0.5 {
+    if p.zoom < 0.5 && ui != "world" {
         let hand = eye + dir * 0.62 + right * 0.36 - up * 0.34;
         let (s1, c1) = 0.6f32.sin_cos();
         let ax = [right * c1 + dir * s1, up, dir * c1 - right * s1];
@@ -6400,29 +6508,67 @@ pub fn shot_with_ui(
     let mut host = None;
     let mut actions = Vec::new();
     // two passes so windows settle their size; the first pass loads the font atlas
+    // "world": the picture alone, without the interface
+    let bare = ui == "world";
     let first = ctx.run(raw(), |ctx| {
-        hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        if !bare {
+            hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        }
     });
+    gfx.fx = fx.clone();
+    gfx.fx_glow = fx_glow.clone();
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
     let second = ctx.run(raw(), |ctx| {
-        hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        if !bare {
+            hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        }
     });
     gfx.screenshot = Some(out.clone());
+    gfx.fx = fx;
+    gfx.fx_glow = fx_glow;
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, second);
+    // DYNO_SHOT_FRAMES=n: n more pictures a tenth of a second apart
+    // (out-01.ppm ...), to see what moves
+    let more: usize = std::env::var("DYNO_SHOT_FRAMES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+    for i in 1..=more {
+        std::thread::sleep(Duration::from_millis(100));
+        let mut boxes = boxes[..figures].to_vec();
+        push_life(&mut p, gfx, &mut boxes, eye, dir, t, 0.1, life_quality, false);
+        let o = ctx.run(raw(), |_| {});
+        let stem = out.with_extension("");
+        gfx.screenshot = Some(format!("{}-{i:02}.ppm", stem.display()).into());
+        gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
+    }
     if stats {
-        // frame time on the headless path: the world only, GPU waited on
+        // frame time on the headless path: the world, the figures and the
+        // ambient life made anew each frame, GPU waited on
         gfx.wait_idle();
         let n = 30;
+        let mut life_ms = 0.0;
         let t0 = Instant::now();
         for _ in 0..n {
             let o = ctx.run(raw(), |_| {});
+            let mut boxes = boxes[..figures].to_vec();
+            let t1 = Instant::now();
+            push_life(&mut p, gfx, &mut boxes, eye, dir, t, 0.016, life_quality, false);
+            life_ms += t1.elapsed().as_secs_f64() * 1e3;
             gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
             gfx.wait_idle();
         }
         let frame_ms = t0.elapsed().as_secs_f64() * 1e3 / n as f64;
         let (vo, vt) = gfx.world_vertices();
+        let c = p.life.counts;
         eprintln!(
-            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
+            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent; life (quality {life_quality}): {:.3} ms a frame on the CPU (effects {:.3}, critters {:.3}), {} emitters, {} particles, {} critters",
+            life_ms / n as f64,
+            c.particles_ms,
+            c.critters_ms,
+            c.emitters,
+            c.particles,
+            c.critters
         );
     }
     let mut creatures: Vec<String> = p

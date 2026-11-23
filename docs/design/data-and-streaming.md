@@ -219,6 +219,32 @@ when one of them is replaced.
   blends and layers as `anim.rs` does today. Bake today's procedural poses
   into keyframes by sampling them. A **pack test** fails if any figure lacks
   any standard animation, replacing the compile-time check.
+- **Ambient life** (`life.json`; `life.rs`, `particles.rs`, `critters.rs`):
+  decoration each client makes for itself, at no cost to the server.
+  - `effects`: streams of small cubes (rate, life, start box, velocity and
+    spread, push, drag, wind, meander, size and colours through life,
+    `glow` for a shining cube with a halo, `blink`, a time-of-day window).
+    A particle is a pure function of its emitter, its number and the
+    clock: nothing is stored, any moment can be drawn.
+  - `emitters`: block rules (`block`, `above`, `below`, `alone`, `near`,
+    `chance`, areas): a brazier, the top of a lone stone column by a roof
+    (a chimney), birch leaves over open air in the autumn woods.
+  - `ambient`: effects scattered over the land by area, ground, cover and
+    time (fireflies, wisps, pollen, dust).
+  - `critters`: a `.vox` with frames `idle`, `move1`, `move2`, `alt`; metres
+    per voxel; one behaviour the engine knows (`flock`, `flutter`, `swim`,
+    `wade`, `graze`, `scuttle`); speed, range, how near people may come.
+  - `wildlife`: where each kind lives (areas, ground, beside what, time,
+    group size). The land is cut into squares; the same squares always
+    hold the same life.
+  - Quality: `Settings::life` (0 none, 1 less and near, 2 all), or
+    `DYNO_LIFE=0|1|2`.
+  - The models and tables are written by `tools/life/*.py`.
+- **Routines** (rules, per NPC: `routine`): the stops of an NPC's round.
+  Each is a spot (`at`, blocks from where the NPC stands, or `near`: beside
+  the nearest block of a kind), an `anim` held there, `emotes`, `secs`. The
+  server walks them (`routines.rs`) and tells clients with `EntityMoves`
+  and `Act::Emote`; what an NPC holds is `hold` in `figures.json`.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.

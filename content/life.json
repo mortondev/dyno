@@ -1,0 +1,242 @@
+{
+  "wind": [0.45, 0.18],
+
+  "effects": {
+    "chimney_smoke": {
+      "rate": 5, "life": [4.5, 7.0],
+      "spawn": [0.15, 0.05, 0.15],
+      "velocity": [0, 0.95, 0], "spread": [0.1, 0.2, 0.1], "drag": 0.12,
+      "wind": 1.0, "wander": [0.22, 0.11],
+      "size": [0.24, 0.8],
+      "colors": [[0.60, 0.60, 0.63], [0.80, 0.80, 0.83], [0.93, 0.93, 0.95]],
+      "shade": 0.05, "fade": [0.06, 0.55], "reach": 110
+    },
+    "fire_smoke": {
+      "rate": 2.2, "life": [2.5, 4.2],
+      "spawn": [0.15, 0.05, 0.15],
+      "velocity": [0, 0.85, 0], "spread": [0.1, 0.15, 0.1], "drag": 0.1,
+      "wind": 0.8, "wander": [0.18, 0.13],
+      "size": [0.14, 0.5],
+      "colors": [[0.36, 0.34, 0.34], [0.55, 0.54, 0.56], [0.72, 0.72, 0.75]],
+      "shade": 0.06, "fade": [0.08, 0.6], "reach": 70
+    },
+    "fire_embers": {
+      "rate": 7, "life": [0.8, 1.9],
+      "spawn": [0.22, 0.08, 0.22],
+      "velocity": [0, 1.25, 0], "spread": [0.35, 0.5, 0.35], "accel": [0, 0.3, 0],
+      "wind": 0.6, "wander": [0.12, 0.9],
+      "size": [0.08, 0.03],
+      "colors": [[1.0, 0.86, 0.42], [1.0, 0.52, 0.12], [0.85, 0.22, 0.05]],
+      "glow": 0.2, "glow_alpha": 0.75, "fade": [0.05, 0.4], "reach": 60
+    },
+    "forge_sparks": {
+      "rate": 6, "life": [0.4, 0.9],
+      "spawn": [0.35, 0.3, 0.35],
+      "velocity": [0, 1.6, 0], "spread": [1.4, 1.2, 1.4], "accel": [0, -6.5, 0],
+      "size": [0.06, 0.025],
+      "colors": [[1.0, 0.96, 0.62], [1.0, 0.62, 0.16]],
+      "glow": 0.16, "glow_alpha": 0.8, "fade": [0.02, 0.3], "reach": 45
+    },
+    "torch_embers": {
+      "rate": 2, "life": [0.6, 1.2],
+      "spawn": [0.05, 0.02, 0.05],
+      "velocity": [0, 0.7, 0], "spread": [0.12, 0.2, 0.12],
+      "wander": [0.05, 1.1],
+      "size": [0.05, 0.02],
+      "colors": [[1.0, 0.8, 0.35], [1.0, 0.45, 0.1]],
+      "glow": 0.12, "glow_alpha": 0.6, "reach": 28
+    },
+    "ember_motes": {
+      "rate": 1.0, "life": [2.5, 4.5],
+      "spawn": [0.4, 0.1, 0.4],
+      "velocity": [0, 0.35, 0], "spread": [0.08, 0.1, 0.08],
+      "wander": [0.25, 0.2],
+      "size": [0.06, 0.03],
+      "colors": [[1.0, 0.6, 0.2], [0.9, 0.3, 0.1]],
+      "glow": 0.25, "glow_alpha": 0.7, "reach": 45
+    },
+    "crystal_motes": {
+      "rate": 1.3, "life": [3.0, 5.5],
+      "spawn": [0.45, 0.2, 0.45],
+      "velocity": [0, 0.28, 0], "spread": [0.1, 0.1, 0.1],
+      "wander": [0.3, 0.15],
+      "size": [0.07, 0.03],
+      "colors": [[0.55, 0.98, 1.0], [0.3, 0.72, 1.0]],
+      "glow": 0.3, "glow_alpha": 0.8, "reach": 55
+    },
+    "shrine_motes": {
+      "rate": 0.9, "life": [4.0, 7.0],
+      "spawn": [2.0, 0.4, 2.0],
+      "velocity": [0, 0.22, 0], "spread": [0.06, 0.08, 0.06],
+      "wander": [0.4, 0.1],
+      "size": [0.07, 0.04],
+      "colors": [[0.6, 1.0, 0.95], [0.35, 0.8, 1.0]],
+      "glow": 0.32, "glow_alpha": 0.8, "reach": 60
+    },
+    "fireflies": {
+      "rate": 0.55, "life": [5.0, 9.0],
+      "spawn": [3.5, 0.6, 3.5],
+      "wander": [1.2, 0.08],
+      "size": [0.08, 0.08],
+      "colors": [[0.86, 1.0, 0.38]],
+      "glow": 0.42, "glow_alpha": 0.95, "blink": 0.33,
+      "fade": [0.15, 0.15], "time": [0.455, 0.985], "reach": 60
+    },
+    "wisp": {
+      "rate": 0.11, "life": [9.0, 15.0],
+      "spawn": [2.5, 0.5, 2.5],
+      "wander": [2.6, 0.035],
+      "size": [0.24, 0.24],
+      "colors": [[0.55, 1.0, 0.95]],
+      "glow": 1.15, "glow_alpha": 0.8,
+      "fade": [0.2, 0.2], "time": [0.4, 0.06], "reach": 70
+    },
+    "barrow_motes": {
+      "rate": 1.0, "life": [4.0, 7.0],
+      "spawn": [4.0, 1.4, 4.0],
+      "velocity": [0, 0.14, 0],
+      "wander": [0.5, 0.09],
+      "size": [0.055, 0.055],
+      "colors": [[0.66, 0.52, 1.0], [0.42, 0.9, 1.0]],
+      "glow": 0.28, "glow_alpha": 0.7,
+      "fade": [0.2, 0.3], "reach": 50
+    },
+    "leaves_autumn": {
+      "rate": 0.22, "life": [5.0, 8.0],
+      "spawn": [0.5, 0.0, 0.5],
+      "velocity": [0, -0.6, 0], "spread": [0.25, 0.12, 0.25],
+      "wind": 0.6, "wander": [0.55, 0.3],
+      "size": [0.12, 0.12],
+      "colors": [[0.96, 0.66, 0.12], [0.9, 0.42, 0.1]],
+      "shade": 0.18, "fade": [0.04, 0.08], "reach": 55
+    },
+    "leaves_green": {
+      "rate": 0.1, "life": [5.0, 8.0],
+      "spawn": [0.5, 0.0, 0.5],
+      "velocity": [0, -0.6, 0], "spread": [0.25, 0.12, 0.25],
+      "wind": 0.6, "wander": [0.55, 0.3],
+      "size": [0.1, 0.1],
+      "colors": [[0.42, 0.66, 0.2], [0.5, 0.62, 0.18]],
+      "shade": 0.18, "fade": [0.04, 0.08], "reach": 45
+    },
+    "pollen": {
+      "rate": 0.7, "life": [6.0, 10.0],
+      "spawn": [5.0, 1.4, 5.0],
+      "velocity": [0.12, 0.03, 0.06],
+      "wind": 0.3, "wander": [0.6, 0.06],
+      "size": [0.04, 0.04],
+      "colors": [[1.0, 1.0, 0.88]],
+      "fade": [0.2, 0.2], "time": [0.03, 0.46], "reach": 36
+    },
+    "mine_dust": {
+      "rate": 0.9, "life": [5.0, 8.0],
+      "spawn": [4.0, 1.8, 4.0],
+      "velocity": [0.15, 0.04, 0.08],
+      "wind": 0.4, "wander": [0.5, 0.07],
+      "size": [0.05, 0.05],
+      "colors": [[0.9, 0.72, 0.46]],
+      "fade": [0.2, 0.2], "reach": 40
+    }
+  },
+
+  "emitters": [
+    { "effect": "chimney_smoke", "block": "stone_bricks", "above": "air", "below": "stone_bricks",
+      "alone": 2, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 3,
+      "offset": [0.5, 1.05, 0.5] },
+    { "effect": "chimney_smoke", "block": "cobble", "above": "air", "below": "stone_bricks",
+      "alone": 1, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 3,
+      "offset": [0.5, 1.05, 0.5] },
+    { "effect": "fire_embers", "block": "brazier", "offset": [0.5, 0.8, 0.5] },
+    { "effect": "fire_smoke", "block": "brazier", "above": "air", "offset": [0.5, 1.0, 0.5] },
+    { "effect": "fire_embers", "block": "hearth", "above": "air", "offset": [0.5, 1.0, 0.5] },
+    { "effect": "fire_smoke", "block": "hearth", "above": "air", "offset": [0.5, 1.2, 0.5] },
+    { "effect": "forge_sparks", "block": "furnace", "offset": [0.5, 0.7, 0.5] },
+    { "effect": "torch_embers", "block": "torch", "above": "air", "offset": [0.5, 0.75, 0.5] },
+    { "effect": "ember_motes", "block": "emberstone", "above": "air", "offset": [0.5, 1.1, 0.5] },
+    { "effect": "crystal_motes", "block": "glowshroom", "offset": [0.5, 0.8, 0.5] },
+    { "effect": "leaves_autumn", "block": "birch_leaves", "below": "air", "chance": 0.06,
+      "offset": [0.5, -0.1, 0.5], "areas": ["birchrise", "logging_camp", "north_watch"] },
+    { "effect": "leaves_green", "block": "leaves", "below": "air", "chance": 0.012,
+      "offset": [0.5, -0.1, 0.5] }
+  ],
+
+  "ambient": [
+    { "effect": "fireflies", "cell": 9, "chance": 0.55, "height": [0.6, 1.5],
+      "ground": ["grass"], "not_areas": ["hollow_mines"] },
+    { "effect": "wisp", "cell": 15, "chance": 0.5, "height": [1.0, 2.2],
+      "areas": ["barrowwood"] },
+    { "effect": "barrow_motes", "cell": 10, "chance": 0.6, "height": [0.8, 2.4],
+      "areas": ["barrowwood"] },
+    { "effect": "pollen", "cell": 13, "chance": 0.45, "height": [0.6, 1.6],
+      "ground": ["grass"], "open": true, "not_areas": ["barrowwood", "hollow_mines"] },
+    { "effect": "mine_dust", "cell": 10, "chance": 0.6, "height": [0.8, 2.5],
+      "areas": ["hollow_mines", "miners_rest"] },
+    { "effect": "shrine_motes", "cell": 6, "chance": 0.55, "height": [0.3, 1.2],
+      "areas": ["sunken_shrine"], "ground": ["water", "sand", "stone_bricks", "mossy_cobble"] }
+  ],
+
+  "critters": {
+    "bird": { "model": "models/critters/bird.vox", "unit": 0.11, "behave": "flock",
+      "speed": 7.0, "range": 15, "fps": 5, "height": [13, 22], "reach": 150 },
+    "gull": { "model": "models/critters/gull.vox", "unit": 0.11, "behave": "flock",
+      "speed": 6.0, "range": 13, "fps": 4, "height": [8, 15], "reach": 150 },
+    "bat": { "model": "models/critters/bird.vox", "unit": 0.05, "behave": "flock",
+      "speed": 6.0, "range": 5, "fps": 10, "height": [3, 6], "reach": 50 },
+    "butterfly_orange": { "model": "models/critters/butterfly_orange.vox", "unit": 0.045,
+      "behave": "flutter", "speed": 1.0, "range": 2.2, "fps": 9, "height": [0.5, 1.3], "reach": 45 },
+    "butterfly_blue": { "model": "models/critters/butterfly_blue.vox", "unit": 0.045,
+      "behave": "flutter", "speed": 1.1, "range": 2.4, "fps": 9, "height": [0.5, 1.4], "reach": 45 },
+    "butterfly_white": { "model": "models/critters/butterfly_white.vox", "unit": 0.04,
+      "behave": "flutter", "speed": 0.9, "range": 2.0, "fps": 10, "height": [0.4, 1.1], "reach": 45 },
+    "duck": { "model": "models/critters/duck.vox", "unit": 0.07, "behave": "swim",
+      "speed": 0.5, "range": 5, "flee": 3.5, "fps": 2, "reach": 80 },
+    "heron": { "model": "models/critters/heron.vox", "unit": 0.075, "behave": "wade", "reach": 90 },
+    "rabbit": { "model": "models/critters/rabbit.vox", "unit": 0.05, "behave": "graze",
+      "speed": 1.5, "range": 5, "flee": 6, "fps": 5, "hop": 0.14, "reach": 60 },
+    "deer": { "model": "models/critters/deer.vox", "unit": 0.075, "behave": "graze",
+      "speed": 1.1, "range": 8, "flee": 9, "fps": 4, "reach": 100 },
+    "stag": { "model": "models/critters/stag.vox", "unit": 0.08, "behave": "graze",
+      "speed": 1.1, "range": 8, "flee": 10, "fps": 4, "reach": 100 },
+    "sheep": { "model": "models/critters/sheep.vox", "unit": 0.085, "behave": "graze",
+      "speed": 0.45, "range": 4, "fps": 3, "reach": 100 },
+    "crab": { "model": "models/critters/crab.vox", "unit": 0.05, "behave": "scuttle",
+      "speed": 1.3, "range": 2.5, "flee": 3, "fps": 8, "reach": 50 }
+  },
+
+  "wildlife": [
+    { "critter": "bird", "cell": 64, "chance": 0.8, "group": [3, 6], "spread": 5,
+      "time": [0.985, 0.52], "not_areas": ["hollow_mines"] },
+    { "critter": "gull", "cell": 44, "chance": 0.8, "group": [2, 4], "spread": 5,
+      "time": [0.0, 0.52], "areas": ["mirrormere", "fishers_landing", "sunken_shrine"] },
+    { "critter": "bat", "cell": 26, "chance": 0.6, "group": [2, 4], "spread": 3,
+      "time": [0.52, 0.97], "areas": ["barrowwood", "hollow_oak"] },
+    { "critter": "butterfly_orange", "cell": 15, "chance": 0.5, "group": [1, 3], "spread": 2.5,
+      "time": [0.04, 0.46], "ground": ["grass"], "open": true,
+      "not_areas": ["barrowwood", "hollow_mines"] },
+    { "critter": "butterfly_blue", "cell": 21, "chance": 0.45, "group": [1, 2], "spread": 2.5,
+      "time": [0.04, 0.46], "ground": ["grass"], "open": true,
+      "not_areas": ["barrowwood", "hollow_mines"] },
+    { "critter": "butterfly_white", "cell": 18, "chance": 0.45, "group": [1, 3], "spread": 2.5,
+      "time": [0.04, 0.46], "ground": ["grass"], "open": true,
+      "not_areas": ["barrowwood", "hollow_mines"] },
+    { "critter": "duck", "cell": 20, "chance": 0.6, "group": [2, 4], "spread": 2.5,
+      "ground": ["water"], "beside": ["sand", "grass", "dirt"], "beside_r": 5 },
+    { "critter": "heron", "cell": 34, "chance": 0.7, "group": [1, 1], "spread": 1,
+      "ground": ["sand", "grass"], "beside": ["water"], "beside_r": 1, "open": true,
+      "not_areas": ["hearthstead"] },
+    { "critter": "crab", "cell": 15, "chance": 0.55, "group": [1, 3], "spread": 2,
+      "ground": ["sand"], "beside": ["water"], "beside_r": 3 },
+    { "critter": "rabbit", "cell": 26, "chance": 0.5, "group": [1, 2], "spread": 2.5,
+      "ground": ["grass"], "not_areas": ["barrowwood", "hollow_mines"] },
+    { "critter": "deer", "cell": 44, "chance": 0.5, "group": [1, 3], "spread": 5,
+      "ground": ["grass"],
+      "areas": ["birchrise", "hollow_oak", "hearthmeadow", "east_road", "barrowwood", "mirrormere"],
+      "not_areas": ["hearthstead", "logging_camp", "windmill", "fishers_landing", "miners_rest"] },
+    { "critter": "stag", "cell": 70, "chance": 0.45, "group": [1, 1], "spread": 1,
+      "ground": ["grass"],
+      "areas": ["birchrise", "hollow_oak", "barrowwood", "east_road"],
+      "not_areas": ["hearthstead", "logging_camp", "miners_rest"] },
+    { "critter": "sheep", "cell": 9, "chance": 0.5, "group": [1, 2], "spread": 2.5,
+      "ground": ["grass"], "open": true, "areas": ["windmill"] }
+  ]
+}

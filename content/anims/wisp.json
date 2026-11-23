@@ -2,6 +2,10 @@
   "seed": 0.3,
   "sets": {
     "default": {
+      "Chop": {"loop":4.0,"time":{"root.oy":-11.1444,"shape":0.9305,"spread":0.7,"veil.ox":1.0686,"veil.oy":1.0686,"veil.oz":1.0686}},
+      "Hammer": {"loop":4.0,"time":{"root.oy":-11.1444,"shape":0.9305,"spread":0.7,"veil.ox":1.0686,"veil.oy":1.0686,"veil.oz":1.0686}},
+      "Fish": {"loop":4.0,"time":{"root.oy":-11.1444,"shape":0.9305,"spread":0.7,"veil.ox":1.0686,"veil.oy":1.0686,"veil.oz":1.0686}},
+      "Sweep": {"loop":4.0,"time":{"root.oy":-11.1444,"shape":0.9305,"spread":0.7,"veil.ox":1.0686,"veil.oy":1.0686,"veil.oz":1.0686}},
       "Attack1H": {
         "duration": 0.7,
         "time": {

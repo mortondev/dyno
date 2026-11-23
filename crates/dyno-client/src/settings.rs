@@ -17,6 +17,9 @@ pub struct Settings {
     /// Block IDs in the 9 hotbar slots.
     pub hotbar: Vec<u8>,
     pub volume: f32,
+    /// ambient life (smoke, fireflies, birds, deer): 0 none, 1 a little
+    /// and near, 2 all of it
+    pub life: u8,
     /// random ID of this install; servers bind your name to it
     pub token: u64,
 }
@@ -32,6 +35,7 @@ impl Default for Settings {
             view_distance: 160.0,
             hotbar: dyno_world::HOTBAR.to_vec(),
             volume: 0.8,
+            life: 2,
             token: 0,
         }
     }

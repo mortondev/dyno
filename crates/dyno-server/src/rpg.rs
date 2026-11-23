@@ -153,6 +153,7 @@ impl State {
                 None,
             );
         }
+        self.start_routines();
     }
 
     fn npc_entity(&self, npc: u16) -> Option<(u32, [f32; 3])> {
