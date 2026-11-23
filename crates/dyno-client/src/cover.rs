@@ -773,6 +773,63 @@ struct Instance {
 /// Rebuild the instances when the camera has moved this far.
 const STEP: f32 = 6.0;
 
+/// The spots drawn for a camera at `cam` at a quality (0 to 2), of those
+/// in `sections`: each with the mesh it is drawn with (model × 2 + level of
+/// detail, of `meshes`) and how far it shows, in metres.
+fn pick<'a>(
+    cover: &Cover,
+    quality: f32,
+    meshes: usize,
+    cam: Vec3,
+    sections: impl Iterator<Item = &'a [Spot]>,
+    mut each: impl FnMut(u32, &Spot, f32),
+) {
+    let quality = quality.clamp(0.0, 2.0);
+    let range = cover.range * quality.sqrt();
+    let keep = (quality * 255.0).min(255.0) as u8;
+    let detail = cover.detail * cover.detail;
+    for spots in sections {
+        for s in spots {
+            if s.keep > keep || s.model as usize * 2 + 1 >= meshes {
+                continue;
+            }
+            let reach = s.reach as f32 / 255.0 * range;
+            let d = Vec3::from(s.pos).distance_squared(cam);
+            // those that would come into reach before the next rebuild too
+            if d > (reach + STEP) * (reach + STEP) {
+                continue;
+            }
+            // voxel by voxel near the camera, column by column beyond
+            each(s.model as u32 * 2 + (d > detail) as u32, s, reach);
+        }
+    }
+}
+
+/// Instances and triangles of the cover a camera at `cam` draws at a
+/// quality (the player's setting, 0 to 2) from the spots of the sections
+/// round it: what `Gpu` would draw, counted without a graphics card.
+pub fn weigh<'a>(
+    cam: Vec3,
+    quality: f32,
+    sections: impl Iterator<Item = &'a [Spot]>,
+) -> (u32, u64) {
+    let cover = current();
+    let tris: Vec<u64> = cover
+        .models
+        .iter()
+        .flat_map(|m| &m.lods)
+        .map(|m| m.indices.len() as u64 / 3)
+        .collect();
+    let (mut n, mut sum) = (0u32, 0u64);
+    if quality > 0.0 {
+        pick(&cover, quality, tris.len(), cam, sections, |mesh, _, _| {
+            n += 1;
+            sum += tris[mesh as usize];
+        });
+    }
+    (n, sum)
+}
+
 /// The models on the graphics card and the instances near the camera.
 pub struct Gpu {
     pipe: wgpu::RenderPipeline,
@@ -947,28 +1004,19 @@ impl Gpu {
         self.at = Some(cam);
         self.draws.clear();
         let quality = self.quality.clamp(0.0, 2.0);
-        let range = self.range();
         if self.models.is_none() || quality <= 0.0 {
             return;
         }
-        let keep = (quality * 255.0).min(255.0) as u8;
         // count the instances of each model, then lay them out model by model
         let mut starts = vec![0u32; self.ranges.len() + 1];
         let mut picked: Vec<(u32, Instance)> = Vec::new();
-        let detail = cover.detail * cover.detail;
-        for spots in sections {
-            for s in spots {
-                if s.keep > keep || s.model as usize * 2 + 1 >= self.ranges.len() {
-                    continue;
-                }
-                let reach = s.reach as f32 / 255.0 * range;
-                let d = Vec3::from(s.pos).distance_squared(cam);
-                // those that would come into reach before the next rebuild too
-                if d > (reach + STEP) * (reach + STEP) {
-                    continue;
-                }
-                // voxel by voxel near the camera, column by column beyond
-                let mesh = s.model as u32 * 2 + (d > detail) as u32;
+        pick(
+            &cover,
+            quality,
+            self.ranges.len(),
+            cam,
+            sections,
+            |mesh, s, reach| {
                 starts[mesh as usize + 1] += 1;
                 picked.push((
                     mesh,
@@ -978,8 +1026,8 @@ impl Gpu {
                         misc: [s.light, s.sky, s.turn, 0],
                     },
                 ));
-            }
-        }
+            },
+        );
         for i in 1..starts.len() {
             starts[i] += starts[i - 1];
         }
