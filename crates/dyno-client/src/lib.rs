@@ -40,6 +40,8 @@ pub mod survival;
 pub mod terrain_mesh;
 pub mod textures;
 pub mod theme;
+pub mod tips;
+pub mod uitext;
 pub mod vox;
 pub mod voxmodel;
 pub mod water;

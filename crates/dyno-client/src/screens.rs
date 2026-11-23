@@ -17,6 +17,14 @@ pub enum Tab {
     Skills,
 }
 
+/// What is being dragged to the action bar: one of its own slots, or an
+/// ability from the spellbook (egui's drag-and-drop payload).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BarDrag {
+    Slot(usize),
+    Ability(u16),
+}
+
 /// What a screen asks the game to do.
 pub enum ScreenCmd {
     Equip(u8),

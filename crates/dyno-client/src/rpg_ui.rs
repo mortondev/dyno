@@ -801,7 +801,7 @@ pub fn unit_frame(
     let bw = r.right() - 8.0 - x0;
     let clip = Rect::from_min_max(Pos2::new(x0, plate.top()), plate.max - Vec2::new(6.0, 0.0));
     painter.with_clip_rect(clip).text(
-        Pos2::new(x0 + 1.0, at.y + 7.0),
+        Pos2::new(x0 + 1.0, at.y + if resource.is_some() { 5.0 } else { 7.0 }),
         Align2::LEFT_TOP,
         name,
         theme::title_font(13.0),
@@ -812,7 +812,7 @@ pub fn unit_frame(
         Some((v, m, col)) => {
             theme::resource_bar(
                 painter,
-                Rect::from_min_size(Pos2::new(x0, at.y + 24.0), Vec2::new(bw, 13.0)),
+                Rect::from_min_size(Pos2::new(x0, at.y + 22.0), Vec2::new(bw, 14.0)),
                 health,
                 max,
                 theme::HEALTH,
@@ -820,11 +820,11 @@ pub fn unit_frame(
             );
             theme::resource_bar(
                 painter,
-                Rect::from_min_size(Pos2::new(x0, at.y + 39.0), Vec2::new(bw, 7.0)),
+                Rect::from_min_size(Pos2::new(x0, at.y + 37.0), Vec2::new(bw, 11.0)),
                 v,
                 m,
                 col,
-                "",
+                &format!("{} / {}", v.floor() as i32, m.round() as i32),
             );
         }
         None => theme::resource_bar(

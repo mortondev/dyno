@@ -32,5 +32,397 @@
    "Camps, rare elites and the Nightfall Incursion",
    "Classic controls: hold right mouse to steer"
   ]
+ },
+ "hud": {
+  "level_up": "Level {level}",
+  "level_reached": "You have reached level {level}.",
+  "level_health": "+{n} health",
+  "new_ability": "New ability: {ability}",
+  "new_ability_key": "On your action bar: press {key}",
+  "new_ability_book": "In your spellbook (P): drag it to your action bar",
+  "quest_accepted": "Quest accepted: {quest}",
+  "quest_ready": "{quest}: complete. Return to {npc}.",
+  "quest_done": "Quest completed: {quest}",
+  "elite": "Elite {kind}",
+  "offline": "{name} (offline)",
+  "minutes": "{n}m",
+  "seconds": "{n}s",
+  "key": "Key: {key}",
+  "recall": "Recall",
+  "recall_text": "Return to your bed, or to the town hearth.",
+  "eat": "Eat",
+  "eat_text": "Eat the best food in your bags. Out of combat, food restores health quickly.",
+  "gathering": "Gathering",
+  "log_heal": "You are healed for {n}."
+ },
+ "death": {
+  "title": "You have died",
+  "hint": "You keep everything you carry. Release to wake at the hearth.",
+  "release": "Release spirit",
+  "hint_survival": "Your items are where you fell. Friends can pick them up too.",
+  "respawn": "Respawn"
+ },
+ "menu": {
+  "title": "Game Menu",
+  "resume": "Return to game",
+  "options": "Options",
+  "controls": "Controls",
+  "leave": "Leave the world",
+  "quit": "Quit the game",
+  "back": "Back"
+ },
+ "options": {
+  "interface": "Interface",
+  "size": "Size",
+  "scales": [
+   "80%",
+   "90%",
+   "100%",
+   "115%",
+   "130%"
+  ],
+  "tips": "Tips",
+  "off": "Off",
+  "on": "On",
+  "tips_again": "Show again"
+ },
+ "keys": {
+  "rpg": [
+   {
+    "name": "Moving",
+    "rows": [
+     [
+      "W  S",
+      "Walk forward and back"
+     ],
+     [
+      "A  D",
+      "Turn (strafe while the right mouse button is held)"
+     ],
+     [
+      "Q  E",
+      "Step left and right"
+     ],
+     [
+      "Space",
+      "Jump"
+     ],
+     [
+      "R",
+      "Run on by yourself (autorun)"
+     ],
+     [
+      "Right mouse",
+      "Hold to steer"
+     ],
+     [
+      "Left mouse",
+      "Hold to look around"
+     ],
+     [
+      "Both mouse",
+      "Hold to run forward"
+     ],
+     [
+      "Wheel",
+      "Zoom the camera"
+     ]
+    ]
+   },
+   {
+    "name": "Fighting",
+    "rows": [
+     [
+      "Tab",
+      "Target the nearest enemy"
+     ],
+     [
+      "Left click",
+      "Select a creature or a person"
+     ],
+     [
+      "Right click",
+      "Attack, talk, loot or gather"
+     ],
+     [
+      "1  …  0  -  =",
+      "Use the action bar"
+     ],
+     [
+      "Esc",
+      "Clear your target; close a window; open this menu"
+     ]
+    ]
+   },
+   {
+    "name": "Windows",
+    "rows": [
+     [
+      "C",
+      "Character"
+     ],
+     [
+      "B",
+      "Bags"
+     ],
+     [
+      "P",
+      "Spellbook"
+     ],
+     [
+      "K",
+      "Skills"
+     ],
+     [
+      "L",
+      "Quest log"
+     ],
+     [
+      "Enter  T",
+      "Chat (/ for commands)"
+     ],
+     [
+      "F3",
+      "Version, position and frame rate"
+     ]
+    ]
+   }
+  ],
+  "builder": [
+   {
+    "name": "Moving",
+    "rows": [
+     [
+      "W  A  S  D",
+      "Move"
+     ],
+     [
+      "Space",
+      "Jump (up when flying)"
+     ],
+     [
+      "Shift",
+      "Down when flying"
+     ],
+     [
+      "Ctrl  R",
+      "Sprint"
+     ],
+     [
+      "F",
+      "Fly"
+     ]
+    ]
+   },
+   {
+    "name": "Building",
+    "rows": [
+     [
+      "Left click",
+      "Break"
+     ],
+     [
+      "Right click",
+      "Place"
+     ],
+     [
+      "Middle click",
+      "Pick the block you look at"
+     ],
+     [
+      "1  …  9",
+      "Choose a block"
+     ],
+     [
+      "E",
+      "All blocks"
+     ],
+     [
+      "G  V  X",
+      "Mark a corner; fill; clear"
+     ],
+     [
+      "Ctrl  Z",
+      "Undo"
+     ]
+    ]
+   }
+  ]
+ },
+ "tips": {
+  "dismiss": "Click to close",
+  "list": [
+   {
+    "id": "move",
+    "on": "spawn",
+    "until": "moved",
+    "anchor": "center",
+    "title": "Finding your feet",
+    "text": "Hold the right mouse button to steer and press W to walk. Hold both mouse buttons to run. The wheel zooms."
+   },
+   {
+    "id": "talk",
+    "on": "spawn",
+    "until": "dialog",
+    "anchor": "center",
+    "secs": 30,
+    "title": "A gold ! is a quest",
+    "text": "Someone with a gold ! above their head has work for you. Walk up and right-click them to talk."
+   },
+   {
+    "id": "minimap",
+    "on": "moved",
+    "anchor": "minimap",
+    "title": "The map",
+    "text": "North is up. A yellow ! is a quest to take, a yellow ? one to hand in. The + and − buttons zoom."
+   },
+   {
+    "id": "tracker",
+    "on": "quest_accepted",
+    "anchor": "tracker",
+    "title": "Your quests",
+    "text": "What each quest needs is listed here, and counts up as you go. Press L to read the whole story again."
+   },
+   {
+    "id": "target",
+    "on": "target",
+    "anchor": "target",
+    "title": "Your target",
+    "text": "This is what you have selected. The colour of its level tells you the danger: grey is trivial, yellow is a fair fight, red will kill you. Right-click it to attack."
+   },
+   {
+    "id": "bar",
+    "on": "combat",
+    "anchor": "bar",
+    "title": "Your abilities",
+    "text": "You swing by yourself. Press 1, 2, 3 (or click) to use an ability. A dark sweep means it is recovering; a red tint means you are too far away or short of power."
+   },
+   {
+    "id": "rage",
+    "on": "combat_rage",
+    "anchor": "frame",
+    "title": "Rage",
+    "text": "The red bar is rage. It builds as you hit and are hit, and drains away after the fight: spend it while it lasts."
+   },
+   {
+    "id": "energy",
+    "on": "combat_energy",
+    "anchor": "frame",
+    "title": "Energy",
+    "text": "The yellow bar is energy. It comes back quickly by itself, so strike, wait a breath, and strike again."
+   },
+   {
+    "id": "mana",
+    "on": "combat_mana",
+    "anchor": "frame",
+    "title": "Mana",
+    "text": "The blue bar is mana. Spells spend it and it returns slowly. When it runs low, finish with your weapon, then rest or eat."
+   },
+   {
+    "id": "combo",
+    "on": "combo",
+    "anchor": "target",
+    "title": "Combo points",
+    "text": "Your strikes mark the target, up to five points. A finishing move spends them all: the more points, the harder it lands."
+   },
+   {
+    "id": "xp",
+    "on": "xp",
+    "anchor": "xp",
+    "title": "Experience",
+    "text": "Kills and quests fill this bar. When it is full you gain a level: more health, harder hits, and now and then a new ability."
+   },
+   {
+    "id": "loot",
+    "on": "loot",
+    "anchor": "center",
+    "title": "Loot",
+    "text": "The creature carried something. Click an item to take it, or take everything. A body that sparkles still holds loot: right-click it."
+   },
+   {
+    "id": "item",
+    "on": "item",
+    "anchor": "center",
+    "title": "Into your bags",
+    "text": "What you receive is shown at the lower right and goes into your bags. Press B to open them."
+   },
+   {
+    "id": "gear",
+    "on": "gear",
+    "anchor": "center",
+    "title": "Something to wear",
+    "text": "Press B and point at it: green arrows show where it beats what you have on, red where it is worse. Right-click to put it on."
+   },
+   {
+    "id": "bags",
+    "on": "bags",
+    "anchor": "center",
+    "title": "Bags",
+    "text": "Right-click an item to wear it, eat it or use it. Grey items are junk: sell them to any merchant. Sort tidies everything up."
+   },
+   {
+    "id": "quest_ready",
+    "on": "quest_ready",
+    "anchor": "tracker",
+    "title": "Ready to hand in",
+    "text": "The quest turns green when it is done. Go back to the person named here (a gold ? on the map) for your reward."
+   },
+   {
+    "id": "low_health",
+    "on": "low_health",
+    "anchor": "frame",
+    "title": "You are badly hurt",
+    "text": "Back away if you can. Out of combat, press = to eat: food brings your health back quickly."
+   },
+   {
+    "id": "ability",
+    "on": "ability",
+    "anchor": "bar",
+    "title": "A new ability",
+    "text": "It is on your action bar, glowing. Point at it to read what it does. Drag buttons to rearrange them."
+   },
+   {
+    "id": "spellbook",
+    "on": "spellbook",
+    "anchor": "center",
+    "title": "Spellbook",
+    "text": "Everything your class learns and the level it arrives. Drag an ability onto the action bar to put it on a key."
+   },
+   {
+    "id": "character",
+    "on": "character",
+    "anchor": "center",
+    "title": "Character",
+    "text": "What you wear, and what it adds up to. Point at a number to see what it does for you."
+   },
+   {
+    "id": "vendor",
+    "on": "vendor",
+    "anchor": "center",
+    "title": "Merchants",
+    "text": "Click an item to buy it. Right-click things in your bags to sell them, or sell every grey item at once with Sell junk."
+   },
+   {
+    "id": "rested",
+    "on": "rested",
+    "anchor": "xp",
+    "title": "Rested",
+    "text": "You rested at a hearth. Until the blue marker on this bar, kills give double experience."
+   },
+   {
+    "id": "party",
+    "on": "party",
+    "anchor": "frame",
+    "title": "Party",
+    "text": "Your companions are listed under your own frame. Kills and quest credit are shared while you stay near each other. /p talks to the party."
+   },
+   {
+    "id": "death",
+    "on": "death",
+    "anchor": "center",
+    "title": "Death is not the end",
+    "text": "You lose nothing you carry. Release, and you wake at the nearest hearth."
+   }
+  ]
  }
 }
