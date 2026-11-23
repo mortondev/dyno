@@ -546,7 +546,9 @@ mod tests {
             assert!(w::is_leaves(b), "{key} is not leaves");
             assert!(!colors.is_empty(), "{key}");
         }
+        let areas = crate::cover::tests::rule_areas();
         for (key, a) in &file.areas {
+            assert!(areas.contains(key), "no area '{key}' in the rules");
             assert!(
                 a.tones.iter().map(|t| t.share).sum::<f32>() <= 1.001,
                 "{key}"
