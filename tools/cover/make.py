@@ -218,6 +218,34 @@ def rock(seed, cells, moss=0.3):
     return m
 
 
+def bush(seed, cells, bloom=None):
+    """A low bush of quarter-metre leaf clumps (two voxels a side), lighter on
+    top, with gaps; `bloom` dots it with flowers or berries."""
+    rnd = random.Random(seed)
+    greens = [(44, 104, 36), (58, 124, 40), (76, 146, 46), (98, 168, 54), (124, 188, 62)]
+    w, h, d = cells
+    solid = set()
+    for x in range(w):
+        for z in range(d):
+            fx, fz = (x + 0.5) / w * 2 - 1, (z + 0.5) / d * 2 - 1
+            top = h * (1 - 0.7 * (fx * fx + fz * fz)) + rnd.uniform(-0.7, 0.5)
+            for y in range(max(0, round(top))):
+                if y < h and rnd.random() > 0.12:
+                    solid.add((x, y, z))
+    m = {}
+    for (x, y, z) in solid:
+        k = y / max(h - 1, 1)
+        base = greens[min(4, max(0, int(k * 3 + rnd.uniform(0, 1.6))))]
+        if bloom and (x, y + 1, z) not in solid and rnd.random() < 0.3:
+            base = bloom[rnd.randrange(len(bloom))]
+        for i in range(2):
+            for j in range(2):
+                for q in range(2):
+                    v = rnd.randint(-6, 6)
+                    m[(x * 2 + i, y * 2 + j, z * 2 + q)] = tuple(max(0, min(255, c + v)) for c in base)
+    return m
+
+
 def litter(seed, count):
     rnd = random.Random(seed)
     tones = [(214, 132, 38), (196, 84, 34), (226, 176, 52), (170, 96, 40)]
@@ -266,6 +294,8 @@ KINDS = {
     'rock': [rock(s, c, 0.4) for s, c in ((151, (4, 2, 3)), (152, (3, 3, 4)), (153, (5, 3, 4)))],
     'boulder': [rock(s, c, 0.45) for s, c in ((161, (6, 4, 5)), (162, (5, 5, 6)), (163, (7, 4, 6)))],
     'stepping_stone': [rock(s, c, 0.25) for s, c in ((171, (4, 1, 4)), (172, (5, 1, 4)), (173, (4, 1, 3)))],
+    'bush': [bush(s, c) for s, c in ((211, (4, 3, 4)), (212, (5, 3, 4)), (213, (3, 2, 3)), (214, (5, 4, 5)))],
+    'bush_bloom': [bush(s, c, b) for s, c, b in ((221, (4, 3, 4), [(214, 44, 38), (232, 70, 48)]), (222, (4, 2, 3), [(244, 244, 236)]), (223, (5, 3, 4), [(240, 150, 190), (248, 186, 214)]))],
     'leaf_litter': [litter(s, n) for s, n in ((181, 5), (182, 7), (183, 4))],
     'mushroom_red': [mushrooms(s, n, (196, 48, 40), (240, 236, 226)) for s, n in ((191, 2), (192, 3))],
     'mushroom_brown': [mushrooms(s, n, (150, 104, 66), (176, 132, 90)) for s, n in ((201, 3), (202, 2))],

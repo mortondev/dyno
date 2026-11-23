@@ -74,6 +74,18 @@
       "file": "cover/rock.vox",
       "voxel": 0.125
     },
+    "bush": {
+      "file": "cover/bush.vox",
+      "voxel": 0.125,
+      "sway": 0.15,
+      "soft": 0.35
+    },
+    "bush_bloom": {
+      "file": "cover/bush_bloom.vox",
+      "voxel": 0.125,
+      "sway": 0.15,
+      "soft": 0.35
+    },
     "leaf_litter": {
       "file": "cover/leaf_litter.vox",
       "soft": 0.8
@@ -380,6 +392,31 @@
       },
       "far": 1.0,
       "tint": [[0.9, 0.9, 0.9], [1.05, 1.05, 1.05]]
+    },
+    {
+      "name": "bushes in loose thickets, and flowering ones round the town",
+      "kinds": ["bush", "bush", "bush_bloom"],
+      "on": ["grass"],
+      "per_block": 0.09,
+      "patch": {"scale": 15, "from": 0.6, "to": 0.85, "seed": 10},
+      "away": {"blocks": ["cobble", "mossy_cobble", "flagstones"], "within": 2, "keep": 0.0},
+      "far": 1.0,
+      "tint": [[0.85, 0.9, 0.85], [1.05, 1.05, 0.95]],
+      "areas": {
+        "birchrise": {"tint": [1.25, 0.95, 0.5]},
+        "barrowwood": {"tint": [0.65, 0.8, 0.85]},
+        "hollow_oak": {"tint": [0.75, 0.95, 0.9]}
+      }
+    },
+    {
+      "name": "a bush here and there under the trees",
+      "kinds": ["bush"],
+      "on": ["grass", "dirt"],
+      "per_block": 0.05,
+      "near": {"blocks": ["log", "birch_log"], "within": 3},
+      "far": 1.0,
+      "tint": [[0.8, 0.88, 0.82], [1.0, 1.0, 0.92]],
+      "areas": {"birchrise": {"tint": [1.25, 0.95, 0.5]}, "barrowwood": {"tint": [0.65, 0.8, 0.85]}}
     },
     {
       "name": "fallen leaves in the autumn wood",
