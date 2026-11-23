@@ -198,6 +198,13 @@ struct Worker {
     urgent: HashSet<SectionPos>,
     cam: [f32; 3],
     dir: [f32; 3],
+    /// the camera has been told (until then leaves are meshed in full)
+    focused: bool,
+    /// sections with leaves drawn as cubes: whether in clumps (near the
+    /// camera) or a cube a block; remeshed when the camera makes it the other
+    leafy: std::collections::HashMap<SectionPos, bool>,
+    /// where the camera was when `leafy` was last looked through
+    leafy_at: [f32; 3],
 }
 
 impl Worker {
@@ -213,6 +220,9 @@ impl Worker {
             urgent: HashSet::new(),
             cam: [0.0; 3],
             dir: [0.0, 0.0, -1.0],
+            focused: false,
+            leafy: std::collections::HashMap::new(),
+            leafy_at: [f32::MAX; 3],
         }
     }
 
@@ -233,6 +243,7 @@ impl Worker {
                     self.world.drop_section(s);
                     self.light.forget(s);
                     self.built.remove(&s);
+                    self.leafy.remove(&s);
                     self.todo.remove(&s);
                     self.urgent.remove(&s);
                     self.unlit.retain(|(u, _)| *u != s);
@@ -258,6 +269,8 @@ impl Worker {
             Job::Focus(cam, dir) => {
                 self.cam = cam;
                 self.dir = dir;
+                self.focused = true;
+                self.leaves_again();
             }
         }
     }
@@ -274,6 +287,26 @@ impl Worker {
                 for sx in s0(lo[0], 0)..=s1(hi[0], 0) {
                     self.urgent.insert([sx, sy, sz]);
                 }
+            }
+        }
+    }
+
+    /// Remesh the sections whose leaves should now be drawn finer or
+    /// coarser, the camera having moved on.
+    fn leaves_again(&mut self) {
+        let moved: f32 = (0..3)
+            .map(|i| (self.cam[i] - self.leafy_at[i]).powi(2))
+            .sum();
+        if moved < 16.0 {
+            return;
+        }
+        self.leafy_at = self.cam;
+        let Some(f) = crate::foliage::current() else {
+            return;
+        };
+        for (s, fine) in &self.leafy {
+            if f.fine(Some(self.cam), *s, Some(*fine)) != *fine && self.built.contains(s) {
+                self.todo.insert(*s);
             }
         }
     }
@@ -429,7 +462,21 @@ impl Worker {
         // the open sky, and rock all round, draw nothing: no need to mesh
         let (empty, solid): (Vec<SectionPos>, Vec<SectionPos>) =
             list.into_iter().partition(|s| self.nothing_to_draw(*s));
-        let geos = render::mesh_many(&self.world, &self.light, &solid);
+        let with: Vec<_> = solid
+            .iter()
+            .map(|s| (*s, self.leafy.get(s).copied()))
+            .collect();
+        let focus = self.focused.then_some(self.cam);
+        let geos = render::mesh_many_at(&self.world, &self.light, &with, focus);
+        for s in &empty {
+            self.leafy.remove(s);
+        }
+        for (s, g) in solid.iter().zip(&geos) {
+            match g.leaves_fine {
+                Some(fine) => self.leafy.insert(*s, fine),
+                None => self.leafy.remove(s),
+            };
+        }
         empty
             .into_iter()
             .map(|s| (s, SectionGeo::default()))

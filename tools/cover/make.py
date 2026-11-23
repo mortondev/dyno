@@ -7,7 +7,7 @@ recipes here and run this again. Where they grow is in content/cover.json.
 
 usage: python3 tools/cover/make.py [OUT_DIR]   (default content/cover)
 """
-import os, random, struct, sys
+import math, os, random, struct, sys
 
 GREENS = [(38, 92, 30), (52, 116, 34), (72, 142, 40), (98, 168, 48), (130, 190, 58), (162, 208, 72)]
 STEM = (48, 108, 36)
@@ -157,18 +157,28 @@ def reeds(seed, stalks):
     return m
 
 
-def pebbles(seed, count, spread, greys, big=2):
+def pebbles(seed, count, spread, greys, big=3):
+    """A scatter of small stones: rounded (no corners), a lighter cap on the
+    bigger ones, one now and then green with moss."""
     rnd = random.Random(seed)
     m = {}
     for _ in range(count):
         x, z = rnd.randint(-spread, spread), rnd.randint(-spread, spread)
         w, d = rnd.randint(1, big), rnd.randint(1, big)
         c = greys[rnd.randrange(len(greys))]
+        if rnd.random() < 0.12:
+            c = (92, 126, 58)
         for i in range(w):
             for j in range(d):
-                m[(x + i, 0, z + j)] = c
-        if w > 1 and d > 1 and rnd.random() < 0.5:
-            m[(x, 1, z)] = tuple(min(255, v + 18) for v in c)
+                if w > 2 and d > 2 and i in (0, w - 1) and j in (0, d - 1):
+                    continue
+                v = rnd.randint(-8, 8)
+                m[(x + i, 0, z + j)] = tuple(max(0, min(255, a + v)) for a in c)
+        if w > 1 and d > 1:
+            for i in range(1 if w > 2 else 0, w - 1 if w > 2 else 1):
+                for j in range(1 if d > 2 else 0, d - 1 if d > 2 else 1):
+                    if rnd.random() < 0.7:
+                        m[(x + i, 1, z + j)] = tuple(min(255, a + 16) for a in c)
     return m
 
 
@@ -190,31 +200,56 @@ def slabs(seed, count, spread, tones):
 
 
 def rock(seed, cells, moss=0.3):
-    """A lump of stone built from quarter-metre cubes (two voxels a side),
-    mossy on top. `cells` is its rough size in those cubes: (wide, high, deep)."""
+    """A mossy rock: a huddle of stone blocks of different sizes and heights,
+    their corners knocked off, each block its own grey with flecks, darker at
+    the foot, moss lying on the tops and hanging a little over the edges.
+    `cells` is its rough size in quarter metres (two voxels): (wide, high, deep)."""
     rnd = random.Random(seed)
-    greys = [(104, 106, 112), (124, 126, 130), (144, 146, 148), (164, 164, 162)]
-    mossy = [(86, 122, 54), (104, 140, 60)]
-    w, h, d = cells
-    solid = set()
-    for x in range(w):
-        for z in range(d):
-            # an uneven dome
-            fx, fz = (x + 0.5) / w * 2 - 1, (z + 0.5) / d * 2 - 1
-            top = h * (1 - 0.55 * (fx * fx + fz * fz)) + rnd.uniform(-0.6, 0.4)
-            for y in range(max(1, round(top))):
-                if y < h:
-                    solid.add((x, y, z))
+    greys = [(96, 98, 106), (116, 118, 124), (136, 138, 142), (156, 156, 156), (172, 170, 164)]
+    mossy = [(74, 110, 48), (90, 128, 54), (108, 146, 62)]
+    w, h, d = (c * 2 for c in cells)
+    stone = {}
+    blocks = max(2, (cells[0] * cells[2]) // 2 + 1)
+    for i in range(blocks):
+        # the first block is the body; the rest lean on it, lower
+        bw = rnd.randint(max(2, w // 3), max(2, w * 2 // 3 if i else w - 1))
+        bd = rnd.randint(max(2, d // 3), max(2, d * 2 // 3 if i else d - 1))
+        bh = rnd.randint(max(1, h // 3), h) if i else h
+        x0, z0 = rnd.randint(0, max(0, w - bw)), rnd.randint(0, max(0, d - bd))
+        tone = rnd.randrange(len(greys))
+        for x in range(x0, x0 + bw):
+            for z in range(z0, z0 + bd):
+                for y in range(bh):
+                    # knock the corners and the top edges off
+                    edge = (x in (x0, x0 + bw - 1)) + (z in (z0, z0 + bd - 1)) + (y == bh - 1)
+                    if edge >= 3 or (edge == 2 and rnd.random() < 0.3):
+                        continue
+                    if (x, y, z) not in stone or rnd.random() < 0.5:
+                        stone[(x, y, z)] = tone
+    # nothing hangs in the air
+    stone = {p: t for p, t in stone.items() if all((p[0], y, p[2]) in stone for y in range(p[1]))}
     m = {}
-    for (x, y, z) in solid:
-        base = greys[min(3, max(0, int(1.2 + y / max(h - 1, 1) * 1.6 + rnd.uniform(-1, 1))))]
-        if (x, y + 1, z) not in solid and rnd.random() < moss:
-            base = mossy[rnd.randrange(2)]
-        for i in range(2):
-            for j in range(2):
-                for k in range(2):
-                    v = rnd.randint(-5, 5)
-                    m[(x * 2 + i, y * 2 + j, z * 2 + k)] = tuple(max(0, min(255, a + v)) for a in base)
+    for (x, y, z), tone in stone.items():
+        top = (x, y + 1, z) not in stone
+        k = tone + (1 if top else 0) - (1 if y == 0 else 0)
+        # flecks: voxels in pairs, a shade off
+        fleck = (hash((x // 2, y, z // 2, seed)) % 5 == 0)
+        base = greys[min(len(greys) - 1, max(0, k - (1 if fleck else 0)))]
+        v = rnd.randint(-7, 7)
+        m[(x, y, z)] = tuple(max(0, min(255, c + v)) for c in base)
+    # moss in patches on the tops, creeping a voxel down the sides
+    patch = rnd.random() * 10
+    for (x, y, z) in list(stone):
+        if (x, y + 1, z) in stone:
+            continue
+        n = (math.sin(x * 0.9 + patch) + math.sin(z * 1.1 + patch * 1.7) + 2) / 4
+        if n < moss * 1.6:
+            g = mossy[rnd.randrange(3)]
+            m[(x, y, z)] = g
+            for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                side = (x + dx, y, z + dz)
+                if side not in stone and y > 0 and rnd.random() < 0.35:
+                    m[(x, y - 1, z)] = mossy[0] if (x + dx, y - 1, z + dz) not in stone else m[(x, y - 1, z)]
     return m
 
 
@@ -291,8 +326,8 @@ KINDS = {
     'pebbles': [pebbles(s, n, 5, [(112, 114, 120), (138, 138, 140), (160, 158, 154), (92, 94, 100)]) for s, n in ((111, 4), (112, 6), (113, 3), (114, 5))],
     'cobbles': [slabs(s, n, 5, [(128, 120, 112), (146, 138, 128), (110, 106, 104)]) for s, n in ((121, 2), (122, 3), (123, 2))],
     'path_stones': [slabs(s, n, 6, [(132, 128, 124), (152, 146, 138), (116, 112, 110)]) for s, n in ((131, 2), (132, 3), (133, 1))],
-    'rock_small': [rock(s, c) for s, c in ((141, (2, 1, 2)), (142, (3, 2, 2)), (143, (2, 2, 3)), (144, (3, 1, 2)))],
-    'rock': [rock(s, c, 0.4) for s, c in ((151, (4, 2, 3)), (152, (3, 3, 4)), (153, (5, 3, 4)))],
+    'rock_small': [rock(s, c) for s, c in ((141, (3, 2, 2)), (142, (3, 2, 3)), (143, (2, 2, 3)), (144, (4, 2, 3)), (145, (3, 3, 3)))],
+    'rock': [rock(s, c, 0.4) for s, c in ((151, (5, 3, 4)), (152, (4, 4, 5)), (153, (6, 3, 4)), (154, (5, 4, 5)))],
     'boulder': [rock(s, c, 0.45) for s, c in ((161, (6, 4, 5)), (162, (5, 5, 6)), (163, (7, 4, 6)))],
     'stepping_stone': [rock(s, c, 0.25) for s, c in ((171, (4, 1, 4)), (172, (5, 1, 4)), (173, (4, 1, 3)))],
     'bush': [bush(s, c) for s, c in ((211, (4, 3, 4)), (212, (5, 3, 4)), (213, (3, 2, 3)), (214, (5, 4, 5)))],

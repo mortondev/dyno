@@ -367,7 +367,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
   if (kz >= K_FOLIAGE) {
     // leaves: larger painted clumps than one tile a block
     uv0 = i.wpos.xz * leaf_scale;
-    l0 = anim_layer(kz - K_FOLIAGE, i.tex.w);
+    l0 = anim_layer(kz - K_FOLIAGE, select(i.tex.w, 0.0, i.tex.x >= 0.5));
   } else if (kz >= K_TERRAIN) {
     uv0 = i.wpos.xz;
     l0 = anim_layer(kz - K_TERRAIN, i.tex.w);
@@ -401,9 +401,19 @@ fn ground_tone(m: f32) -> vec3<f32> {
   var wrap = 0.0;
   var dim = 1.0;
   if (kz >= K_FOLIAGE) {
-    // tex.x 1: leaves as cubes in their own colours (foliage.rs), no texture
+    // tex.x from 1: leaves as cubes in their own colours (foliage.rs), no
+    // texture; seen close, each face breaks into squares (tex.w: how many a
+    // side, and by how much they differ), told apart by the face's own
+    // coordinates in tex.xy
     var tx = vec4<f32>(1.0);
-    if (i.tex.x < 0.5) {
+    if (i.tex.x >= 0.5) {
+      let squares = floor(i.tex.w);
+      if (squares > 0.5 && d < 36.0) {
+        let cell = floor(i.tex.xy * squares + vec2<f32>(0.001));
+        let r = hash3(vec3<f32>(cell, floor(kz)));
+        tx = vec4<f32>(vec3<f32>(1.0 + (r - 0.5) * 2.0 * fract(i.tex.w) * (1.0 - smoothstep(18.0, 36.0, d))), 1.0);
+      }
+    } else {
       let w3 = tri_weights(n);
       tx = w3.y * tx0;
       if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos * leaf_scale, dpx * leaf_scale, dpy * leaf_scale); }
@@ -614,14 +624,45 @@ pub fn section_ready(world: &World, s: [i32; 3]) -> bool {
     true
 }
 
+static MESH_NANOS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static MESH_COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+use std::sync::atomic::Ordering;
+
+/// Sections meshed so far and the time spent meshing them, in milliseconds
+/// (summed over the threads that did it), for measurements.
+pub fn mesh_cost() -> (u64, f64) {
+    (
+        MESH_COUNT.load(Ordering::Relaxed),
+        MESH_NANOS.load(Ordering::Relaxed) as f64 / 1e6,
+    )
+}
+
 /// Mesh many sections at once, on every core.
 pub(crate) fn mesh_many(world: &World, light: &Light, list: &[[i32; 3]]) -> Vec<SectionGeo> {
+    let plain: Vec<_> = list.iter().map(|s| (*s, None)).collect();
+    mesh_many_at(world, light, &plain, None)
+}
+
+/// Mesh many sections at once as seen from a camera at `focus`; each comes
+/// with how its leaves are drawn now (see `terrain_mesh::mesh_at`).
+pub(crate) fn mesh_many_at(
+    world: &World,
+    light: &Light,
+    list: &[([i32; 3], Option<bool>)],
+    focus: Option<[f32; 3]>,
+) -> Vec<SectionGeo> {
     let threads = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1)
         .min(list.len().div_ceil(2))
         .min(16);
-    let one = |s: &[i32; 3]| terrain_mesh::mesh(world, light, s[0], s[1], s[2]);
+    let one = |s: &([i32; 3], Option<bool>)| {
+        let t = std::time::Instant::now();
+        let geo = terrain_mesh::mesh_at(world, light, s.0, focus, s.1);
+        MESH_NANOS.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        MESH_COUNT.fetch_add(1, Ordering::Relaxed);
+        geo
+    };
     if threads <= 1 {
         return list.iter().map(one).collect();
     }
