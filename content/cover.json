@@ -1,7 +1,7 @@
 {
   "voxel": 0.0625,
   "range": 52,
-  "near": 15,
+  "near": 12,
   "detail": 11,
   "kinds": {
     "grass_short": {
@@ -136,23 +136,38 @@
   },
   "layers": [
     {
-      "name": "grass tufts: ragged patches over every meadow, thin beside roads",
-      "kinds": ["grass", "grass", "grass_lush", "grass_short"],
+      "name": "short turf tufts, scattered; roads, paths and props stay clear",
+      "kinds": ["grass_short", "grass_short", "grass"],
       "on": ["grass"],
-      "per_block": 2.6,
+      "per_block": 2.3,
       "patch": {
         "scale": 7,
-        "from": 0.08,
-        "to": 0.45,
+        "from": 0.2,
+        "to": 0.62,
         "seed": 1
       },
       "away": {
-        "blocks": ["cobble", "mossy_cobble", "flagstones"],
+        "blocks": [
+          "cobble",
+          "mossy_cobble",
+          "flagstones",
+          "crate",
+          "barrel",
+          "hay_bale",
+          "flower_bed",
+          "chest",
+          "anvil",
+          "brazier",
+          "lantern",
+          "crafting_table",
+          "furnace",
+          "bed"
+        ],
         "within": 2,
-        "keep": 0.45
+        "keep": 0.1
       },
       "far": 0.03,
-      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]],
+      "tint": [[0.66, 0.72, 0.38], [0.86, 0.86, 0.5]],
       "areas": {
         "birchrise": {
           "density": 0.9,
@@ -177,22 +192,37 @@
     },
     {
       "name": "tall seeding grass in the open, away from roads",
-      "kinds": ["grass_tall", "grass_lush"],
+      "kinds": ["grass_tall", "grass"],
       "on": ["grass"],
-      "per_block": 1.2,
+      "per_block": 0.35,
       "patch": {
         "scale": 13,
-        "from": 0.4,
-        "to": 0.7,
+        "from": 0.6,
+        "to": 0.84,
         "seed": 2
       },
       "away": {
-        "blocks": ["cobble", "mossy_cobble", "flagstones"],
-        "within": 3,
-        "keep": 0.0
+        "blocks": [
+          "cobble",
+          "mossy_cobble",
+          "flagstones",
+          "crate",
+          "barrel",
+          "hay_bale",
+          "flower_bed",
+          "chest",
+          "anvil",
+          "brazier",
+          "lantern",
+          "crafting_table",
+          "furnace",
+          "bed"
+        ],
+        "within": 2,
+        "keep": 0.1
       },
       "far": 0.06,
-      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]],
+      "tint": [[0.66, 0.72, 0.38], [0.86, 0.86, 0.5]],
       "areas": {
         "birchrise": {
           "tint": [1.15, 1.0, 0.7]
@@ -209,11 +239,11 @@
       "name": "lupin meadows",
       "kinds": ["lupin", "lupin_drift", "lupin_drift"],
       "on": ["grass"],
-      "per_block": 0.45,
+      "per_block": 0.27,
       "patch": {
         "scale": 16,
-        "from": 0.56,
-        "to": 0.78,
+        "from": 0.63,
+        "to": 0.84,
         "seed": 3
       },
       "sky": [0.75, 1.0],
@@ -229,13 +259,33 @@
         "hollow_mines": {
           "density": 0.4
         }
+      },
+      "away": {
+        "blocks": [
+          "cobble",
+          "mossy_cobble",
+          "flagstones",
+          "crate",
+          "barrel",
+          "hay_bale",
+          "flower_bed",
+          "chest",
+          "anvil",
+          "brazier",
+          "lantern",
+          "crafting_table",
+          "furnace",
+          "bed"
+        ],
+        "within": 1,
+        "keep": 0.15
       }
     },
     {
       "name": "a few lupins along the roadside",
       "kinds": ["lupin", "lupin_drift"],
       "on": ["grass"],
-      "per_block": 0.16,
+      "per_block": 0.07,
       "near": {
         "blocks": ["cobble", "mossy_cobble", "flagstones"],
         "within": 3
@@ -247,24 +297,44 @@
       "name": "daisies",
       "kinds": ["daisy", "daisy_drift", "daisy_drift"],
       "on": ["grass"],
-      "per_block": 0.45,
+      "per_block": 0.27,
       "patch": {
         "scale": 11,
-        "from": 0.56,
-        "to": 0.8,
+        "from": 0.63,
+        "to": 0.86,
         "seed": 4
       },
-      "far": 0.28
+      "far": 0.28,
+      "away": {
+        "blocks": [
+          "cobble",
+          "mossy_cobble",
+          "flagstones",
+          "crate",
+          "barrel",
+          "hay_bale",
+          "flower_bed",
+          "chest",
+          "anvil",
+          "brazier",
+          "lantern",
+          "crafting_table",
+          "furnace",
+          "bed"
+        ],
+        "within": 1,
+        "keep": 0.15
+      }
     },
     {
       "name": "buttercups",
       "kinds": ["buttercup", "buttercup_drift", "buttercup_drift"],
       "on": ["grass"],
-      "per_block": 0.42,
+      "per_block": 0.25,
       "patch": {
         "scale": 14,
-        "from": 0.6,
-        "to": 0.82,
+        "from": 0.67,
+        "to": 0.88,
         "seed": 5
       },
       "sky": [0.7, 1.0],
@@ -273,17 +343,37 @@
         "barrowwood": {
           "density": 0.2
         }
+      },
+      "away": {
+        "blocks": [
+          "cobble",
+          "mossy_cobble",
+          "flagstones",
+          "crate",
+          "barrel",
+          "hay_bale",
+          "flower_bed",
+          "chest",
+          "anvil",
+          "brazier",
+          "lantern",
+          "crafting_table",
+          "furnace",
+          "bed"
+        ],
+        "within": 1,
+        "keep": 0.15
       }
     },
     {
       "name": "poppies",
       "kinds": ["poppy", "poppy_drift", "poppy_drift"],
       "on": ["grass"],
-      "per_block": 0.36,
+      "per_block": 0.22,
       "patch": {
         "scale": 18,
-        "from": 0.64,
-        "to": 0.84,
+        "from": 0.71,
+        "to": 0.9,
         "seed": 6
       },
       "sky": [0.8, 1.0],
@@ -295,17 +385,37 @@
         "birchrise": {
           "density": 0.4
         }
+      },
+      "away": {
+        "blocks": [
+          "cobble",
+          "mossy_cobble",
+          "flagstones",
+          "crate",
+          "barrel",
+          "hay_bale",
+          "flower_bed",
+          "chest",
+          "anvil",
+          "brazier",
+          "lantern",
+          "crafting_table",
+          "furnace",
+          "bed"
+        ],
+        "within": 1,
+        "keep": 0.15
       }
     },
     {
       "name": "pinks round the town and the mere",
       "kinds": ["pink"],
       "on": ["grass"],
-      "per_block": 0.22,
+      "per_block": 0.13,
       "patch": {
         "scale": 12,
-        "from": 0.7,
-        "to": 0.88,
+        "from": 0.77,
+        "to": 0.94,
         "seed": 7
       },
       "far": 0.28,
@@ -316,13 +426,33 @@
         "mirrormere": {},
         "fishers_landing": {},
         "windmill": {}
+      },
+      "away": {
+        "blocks": [
+          "cobble",
+          "mossy_cobble",
+          "flagstones",
+          "crate",
+          "barrel",
+          "hay_bale",
+          "flower_bed",
+          "chest",
+          "anvil",
+          "brazier",
+          "lantern",
+          "crafting_table",
+          "furnace",
+          "bed"
+        ],
+        "within": 1,
+        "keep": 0.15
       }
     },
     {
       "name": "ferns round the feet of trees",
       "kinds": ["fern", "fern_big", "fern_big"],
       "on": ["grass", "dirt"],
-      "per_block": 1.0,
+      "per_block": 0.5,
       "near": {
         "blocks": ["log", "birch_log"],
         "within": 3
@@ -370,13 +500,13 @@
       "name": "grass creeping over the edge of the paving",
       "kinds": ["grass_short"],
       "on": ["cobble", "mossy_cobble", "flagstones"],
-      "per_block": 0.7,
+      "per_block": 0.35,
       "near": {
         "blocks": ["grass"],
         "within": 1
       },
       "far": 0.05,
-      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]]
+      "tint": [[0.66, 0.72, 0.38], [0.86, 0.86, 0.5]]
     },
     {
       "name": "loose cobbles and pebbles in the grass beside the paving",
@@ -398,29 +528,29 @@
     },
     {
       "name": "grass at the edges of earth paths",
-      "kinds": ["grass_short", "grass"],
+      "kinds": ["grass_short"],
       "on": ["dirt"],
-      "per_block": 1.8,
+      "per_block": 0.5,
       "near": {
         "blocks": ["grass"],
         "within": 1
       },
       "far": 0.05,
-      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]]
+      "tint": [[0.66, 0.72, 0.38], [0.86, 0.86, 0.5]]
     },
     {
       "name": "small mossy rocks",
       "kinds": ["rock_small"],
       "on": ["grass", "dirt", "sand"],
-      "per_block": 0.02,
+      "per_block": 0.035,
       "far": 0.9,
       "tint": [[0.9, 0.9, 0.9], [1.05, 1.05, 1.05]]
     },
     {
       "name": "rocks beside roads and water, where the concepts frame the view",
-      "kinds": ["rock", "rock_small"],
+      "kinds": ["rock", "rock", "rock_small"],
       "on": ["grass"],
-      "per_block": 0.035,
+      "per_block": 0.05,
       "near": {
         "blocks": ["cobble", "mossy_cobble", "flagstones", "water"],
         "within": 3
@@ -429,43 +559,10 @@
       "tint": [[0.9, 0.9, 0.9], [1.05, 1.05, 1.05]]
     },
     {
-      "name": "the foreground of every verge: lush grass close along roads and paths",
-      "kinds": ["grass_lush", "grass_tall"],
-      "on": ["grass"],
-      "per_block": 1.1,
-      "near": {
-        "blocks": ["cobble", "mossy_cobble", "flagstones", "dirt", "sand"],
-        "within": 3
-      },
-      "far": 0.04,
-      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]],
-      "areas": {
-        "birchrise": {
-          "density": 0.9,
-          "tint": [1.12, 1.0, 0.72]
-        },
-        "logging_camp": {
-          "density": 0.6,
-          "tint": [1.12, 1.0, 0.72]
-        },
-        "barrowwood": {
-          "density": 0.8,
-          "tint": [0.72, 0.86, 0.9]
-        },
-        "hollow_oak": {
-          "density": 1.0,
-          "tint": [0.8, 0.98, 0.92]
-        },
-        "hearthstead": {
-          "density": 0.7
-        }
-      }
-    },
-    {
       "name": "ferns in the shade of the crowns",
       "kinds": ["fern", "fern_big"],
       "on": ["grass", "dirt"],
-      "per_block": 0.5,
+      "per_block": 0.25,
       "sky": [0.0, 0.8],
       "patch": {
         "scale": 8,
@@ -479,7 +576,7 @@
       "name": "bushes along the roads and paths",
       "kinds": ["bush", "bush", "bush_bloom"],
       "on": ["grass"],
-      "per_block": 0.07,
+      "per_block": 0.05,
       "near": {
         "blocks": ["cobble", "mossy_cobble", "flagstones"],
         "within": 3
