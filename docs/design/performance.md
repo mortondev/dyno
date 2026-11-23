@@ -96,9 +96,12 @@ CI has no graphics card, so the test counts on the processor: it builds
 the layout's world, takes the sections a server would send for each of the
 six cameras, lights and meshes them with the world worker for a camera
 there, and adds up the bytes of their vertices, their triangles and the
-triangles of the ground cover round the camera. It fails when any of them
+triangles of the ground cover round the camera (all the sections held,
+not only those in view: culling is the benchmark's to show). It fails when any of them
 is more than 15% over `tools/bench/counts.json`. Two runs give the same
-counts to the byte. It takes about a minute in a debug build.
+counts to the byte. It takes about a minute in a debug build on sixteen
+cores (most of it building the 2 km world); on a CI runner's two to four
+it has not been timed.
 
 When a change is meant to add that much (new vegetation, a rebuilt world),
 record the counts again and say why in the commit:
@@ -111,7 +114,9 @@ DYNO_BLESS=1 cargo test -p dyno-client --test budget
 
 Release builds, 1920 × 1080, RTX 3080 (Vulkan), a fresh world of the
 pack's layout (2048 × 256 × 2048). "Before" is main at c507290 with only
-the benchmark added; "after" is this branch. Each cell is before → after.
+the benchmark added; "after" is this branch as merged with that main (it
+has since merged main again, which changed figures, not the world). Each
+cell is before → after.
 GPU is the median (after: the least of any frame in brackets); CPU the
 median of the main thread's own time; vertex memory the peak.
 
@@ -200,9 +205,12 @@ Each step was measured on the benchmark before the next.
    scene (and on the 384 world main had when this began: 328–419 MB to
    114–142 MB). Packing adds 0.1–0.3 ms to a section's meshing. A test packs
    every vertex the meshers make for a stretch of land and holds each
-   field to its tolerance (`the_worlds_meshes_pack_within_tolerance`), so
-   a mesher that starts using a field differently fails there, not on
-   screen.
+   field to its tolerance (`the_worlds_meshes_pack_within_tolerance`),
+   and the budget test holds that no value of any vertex of the layout
+   world's six scenes was cut to fit its field (`pack::cut`). A mesher
+   that starts using a field differently should fail there, not on
+   screen: that happened once in this work (main began to keep a ground face's
+   direction in a field the packing had sized for less).
 2. **What moves goes into buffers kept from frame to frame.** Figures,
    effects and lines are made anew every frame (60,000 to 250,000 plain
    vertices: 4 to 15 MB); each frame made a new buffer for them. Kept
@@ -247,9 +255,9 @@ Tried, measured and left alone:
 the "before" build against itself: its pictures repeat (0.000–0.001% of
 pixels more than 2 of 255 apart, a mean difference of 0.000). Against it,
 with the occlusion pass off (low) the pictures differ in at most 0.11% of
-pixels by more than 2; with it on (high) in 0.3 to 5.4%, a speckle on
-walls that is the occlusion pass's own (see below). The mean difference
-of a channel is at most 0.3 of 255 on any picture.
+pixels by more than 2; with it on (high) in 0.3 to 5.4%, on wall panels
+and window panes (see below: an open deviation). The mean difference of a
+channel is at most 0.3 of 255 on any picture.
 
 High (the default tier: shadows, occlusion, bloom, lamps as lights):
 
@@ -278,14 +286,27 @@ pictures differ:
 
 - **Edges.** A position moves by at most a quarter of a millimetre, so a
   few pixels on the edges of shapes fall the other side.
-- **The occlusion pass (high and ultra).** It works a surface's normal out
-  from the depth of neighbouring pixels and counts how far each of eight
-  samples stands above it; where that is near its threshold (recessed
-  wall panels between beams, window panes) the last bit of the depth
-  decides, and the last bit changes when a quad's corners are sent in
-  another order. The differences are a speckle of the pass's own noise,
-  not a change of shape or light: with occlusion turned off in the pack
-  the same camera differs in 0.08% of pixels instead of 5.4%.
+- **The occlusion pass (high and ultra): an open deviation.** With it on,
+  0.3 to 5.4% of pixels differ by more than 2, most on recessed wall
+  panels between beams and on window panes; to the eye the pictures are
+  the same, to a difference picture they are not. What is known:
+  - it is the occlusion pass: with its strength set to 0 in the pack, the
+    worst camera (Miner's Rest) differs in 0.08% of pixels instead of 5.4%;
+  - it is not the order a quad's corners are sent in: packed with the
+    meshers' own triangles instead of quads, the same camera differs from
+    the quads' picture in 0.03% of pixels;
+  - the pictures repeat: the same build twice gives the same picture.
+
+  What is supposed, not shown: the pass works a surface's normal out from
+  the depth of neighbouring pixels, and the depth buffer (near plane at
+  5 cm, not reversed) resolves about 0.3 mm at 15 m, so that normal is
+  already at the limit of what the depth holds; a beam standing 1/16 m
+  proud of a panel subtends exactly the pass's threshold half a metre
+  away. A change of a fraction of a millimetre in a vertex (the packed
+  positions' steps are 0.49 mm) or of the last bit of a depth then tips
+  samples over the threshold. If so the pass wants a steadier normal (a
+  reversed depth buffer, or the normal the geometry already has); until
+  that is tried, the default tier's pictures are close, not identical.
 
 ## What a frame costs now, and what is left
 
@@ -315,8 +336,17 @@ and 6 ms).
   Packing adds 0.1–0.3 ms a section; the meshers could write packed
   vertices directly. No hot spot was hunted further: the budget is met
   five times over.
-- **The occlusion pass** is sensitive to the last bit of depth (above); a
-  small bias on its threshold would make pictures repeat exactly.
+- **The occlusion pass** tips on sub-millimetre changes (above): the one
+  place the packed pictures are not the plain ones. Its normal should not
+  come from a depth buffer at the limit of its precision.
 - **GPU times on a shared machine** are noisy; a quiet reference machine
   (or the card's clocks pinned) would let the report hold times as well as
   counts.
+- **Not measured:** how many quads a plane-wide merge of the ground would
+  save (`ground_levels_cost` in `terrain_mesh.rs` counts them); where
+  within a section's millisecond the meshing time goes; the counts test's
+  time on a CI runner.
+- **Not run:** the packed pipeline on the GL fallback (ten-bit colour,
+  whole-number attributes, a first instance other than zero). A headless
+  GL device does not start on the machine this was written on, with or
+  without these changes.

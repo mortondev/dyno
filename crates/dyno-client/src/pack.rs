@@ -14,7 +14,7 @@
 //! - **normal:** a signed byte a part (exact along the axes);
 //! - **colour:** ten bits a part of its square root, up to 1.28 (dark
 //!   colours keep their steps fine; white is exact); **brightness:** steps
-//!   of 1/800 up to 1.26, or "glows" (2);
+//!   of 1/540 up to 1.87, or "glows" (2);
 //! - **light and sky:** ten bits each;
 //! - **texture coordinates:** steps of 1/2048 tile within ±16 tiles
 //!   (blocks and shapes), or of 1/64 (leaves, whose faces count squares);
@@ -39,7 +39,7 @@ pub const BEFORE: f32 = 8.0;
 /// The largest colour part that packs: such that 1 packs exactly (as 904 of 1023).
 const COLOR_MAX: f32 = (1023.0 / 904.0) * (1023.0 / 904.0);
 /// Steps of brightness to 1.
-const SHADE_STEPS: f32 = 800.0;
+const SHADE_STEPS: f32 = 540.0;
 /// The brightness code of a glowing face (`color[3]` of 2).
 const SHADE_GLOW: u32 = 1015;
 
@@ -104,7 +104,7 @@ fn unpack(v: PIn) -> Plain {
   o.normal = v.normal.xyz;
   let rgb = v.color.rgb * v.color.rgb * 1.2806032;
   let shade = u32(round(v.color.a * 3.0)) * 254u + u32(i32(round(v.normal.w * 127.0)) + 127);
-  var a = f32(shade) / 800.0;
+  var a = f32(shade) / 540.0;
   if (shade >= 1015u) { a = 2.0; }
   o.color = vec4<f32>(rgb, a);
   o.light = f32(v.light & 1023u) / 1023.0;
@@ -129,61 +129,99 @@ fn unpack(v: PIn) -> Plain {
 }
 "#;
 
-/// Values that did not fit their field and were cut to its range.
-static CUT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// The fields a value can fail to fit.
+pub const FIELDS: [&str; 7] = [
+    "position",
+    "kind",
+    "colour",
+    "brightness",
+    "texture coordinate",
+    "ground's facing or saturation",
+    "animation",
+];
+const POSITION: usize = 0;
+const KIND: usize = 1;
+const COLOUR: usize = 2;
+const BRIGHTNESS: usize = 3;
+const TEXTURE: usize = 4;
+const GROUND: usize = 5;
+const ANIMATION: usize = 6;
 
-/// How many values did not fit their packed field so far (a position past
-/// the reach, a texture coordinate past its range, a colour over 1.28...):
-/// none on the pack's content, which a test holds (`tests/budget.rs`).
-pub fn cut() -> u64 {
-    CUT.load(std::sync::atomic::Ordering::Relaxed)
+/// Values that did not fit their field and were cut to its range, by field.
+static CUT: [std::sync::atomic::AtomicU64; FIELDS.len()] =
+    [const { std::sync::atomic::AtomicU64::new(0) }; FIELDS.len()];
+
+/// How many values did not fit their packed field so far, by field
+/// (`FIELDS`: a position past the reach, a texture coordinate past its
+/// range, a colour over 1.28...): none on the pack's content, which a test
+/// holds (`tests/budget.rs`).
+pub fn cut() -> [u64; FIELDS.len()] {
+    std::array::from_fn(|i| CUT[i].load(std::sync::atomic::Ordering::Relaxed))
 }
 
-/// `v` within `lo..=hi`, counted when it was not.
-fn fit(v: f32, lo: f32, hi: f32) -> f32 {
+/// `v` within `lo..=hi`, counted against `field` when it was not.
+fn fit(v: f32, lo: f32, hi: f32, field: usize) -> f32 {
     if !(lo..=hi).contains(&v) {
-        CUT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        CUT[field].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
     v.clamp(lo, hi)
 }
 
-fn clamp_i16(v: f32) -> i16 {
-    fit(v.round(), i16::MIN as f32, i16::MAX as f32) as i16
+fn clamp_i16(v: f32, field: usize) -> i16 {
+    fit(v.round(), i16::MIN as f32, i16::MAX as f32, field) as i16
 }
 
 /// Pack a vertex of the section whose corner is at `origin` (metres).
 pub fn pack(v: &Vertex, origin: [f32; 3]) -> Packed {
-    let p = [0, 1, 2].map(|i| clamp_i16((v.pos[i] - origin[i] - BEFORE) * STEPS));
+    let p = [0, 1, 2].map(|i| clamp_i16((v.pos[i] - origin[i] - BEFORE) * STEPS, POSITION));
     let kz = v.tex[2];
     let foliage = (KIND_FOLIAGE..KIND_WATER).contains(&kz);
     let n = v.normal.map(|c| (c.clamp(-1.0, 1.0) * 127.0).round() as i8);
-    let c = [0, 1, 2]
-        .map(|i| ((fit(v.color[i], 0.0, COLOR_MAX) / COLOR_MAX).sqrt() * 1023.0).round() as u32);
+    let c = [0, 1, 2].map(|i| {
+        ((fit(v.color[i], 0.0, COLOR_MAX, COLOUR) / COLOR_MAX).sqrt() * 1023.0).round() as u32
+    });
     let shade = if v.color[3] >= 1.9 {
         SHADE_GLOW
     } else {
-        (fit(v.color[3], 0.0, (SHADE_GLOW - 1) as f32 / SHADE_STEPS) * SHADE_STEPS).round() as u32
+        (fit(
+            v.color[3],
+            0.0,
+            (SHADE_GLOW - 1) as f32 / SHADE_STEPS,
+            BRIGHTNESS,
+        ) * SHADE_STEPS)
+            .round() as u32
     };
     let (hi, lo) = (shade / 254, (shade % 254) as i32 - 127);
     let uv = if kz >= KIND_VOXEL {
         // voxels a metre and the way the face looks (32 times it);
         // saturation in hundredths, jitter in thousandths
-        let dir = fit((v.tex[0] / 32.0).floor(), 0.0, 7.0);
+        let dir = fit((v.tex[0] / 32.0).floor(), 0.0, 7.0, GROUND);
         let per = (v.tex[0] - dir * 32.0).round().clamp(0.0, 31.0) as i16;
-        let sat = fit(v.tex[1].floor(), 0.0, 511.0);
+        let sat = fit(v.tex[1].floor(), 0.0, 511.0, GROUND);
         let jit = ((v.tex[1] - sat) * 1000.0).round().clamp(0.0, 1023.0) as i16;
         [sat as i16 | (dir as i16) << 9, per << 10 | jit]
     } else if foliage {
-        [clamp_i16(v.tex[0] * 64.0), clamp_i16(v.tex[1] * 64.0)]
+        [
+            clamp_i16(v.tex[0] * 64.0, TEXTURE),
+            clamp_i16(v.tex[1] * 64.0, TEXTURE),
+        ]
     } else {
-        [clamp_i16(v.tex[0] * 2048.0), clamp_i16(v.tex[1] * 2048.0)]
+        [
+            clamp_i16(v.tex[0] * 2048.0, TEXTURE),
+            clamp_i16(v.tex[1] * 2048.0, TEXTURE),
+        ]
     };
-    let whole = fit(v.tex[3].floor(), 0.0, 15.0);
+    let whole = fit(v.tex[3].floor(), 0.0, 15.0, ANIMATION);
     let steps = if foliage { 100.0 } else { 10000.0 };
-    let part = fit(((v.tex[3].max(0.0) - whole) * steps).round(), 0.0, 255.0) as u32;
+    let part = fit(
+        ((v.tex[3].max(0.0) - whole) * steps).round(),
+        0.0,
+        255.0,
+        ANIMATION,
+    ) as u32;
     let ten = |x: f32| (x.clamp(0.0, 1.0) * 1023.0).round() as u32;
     Packed {
-        pos: [p[0], p[1], p[2], clamp_i16(kz)],
+        pos: [p[0], p[1], p[2], clamp_i16(kz, KIND)],
         normal: [n[0], n[1], n[2], lo as i8],
         color: c[0] | c[1] << 10 | c[2] << 20 | hi << 30,
         uv,

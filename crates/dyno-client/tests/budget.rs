@@ -157,10 +157,16 @@ fn the_fixed_scenes_keep_their_weight() {
         now.insert(name.clone(), c);
     }
     // every value of every vertex of those meshes fitted its packed field
-    assert_eq!(
-        dyno_client::pack::cut(),
-        0,
-        "vertices of the world's meshes did not fit the packed format (pack.rs)"
+    let cut: Vec<String> = dyno_client::pack::cut()
+        .iter()
+        .zip(dyno_client::pack::FIELDS)
+        .filter(|(n, _)| **n > 0)
+        .map(|(n, field)| format!("{field}: {n}"))
+        .collect();
+    assert!(
+        cut.is_empty(),
+        "values of the world's vertices did not fit the packed format (pack.rs): {}",
+        cut.join(", ")
     );
     let path = root().join("tools/bench/counts.json");
     if std::env::var_os("DYNO_BLESS").is_some() {
