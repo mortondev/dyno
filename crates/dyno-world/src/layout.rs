@@ -496,6 +496,21 @@ impl Layout {
         }
     }
 
+    /// The rivers as they run in this world: key, width, and the centre
+    /// line as offsets from the origin, a point about every 6 m. This is the
+    /// one source of a river's course (the land is carved along it); what
+    /// draws flowing water should read it from here.
+    pub fn river_courses(&self) -> Vec<(&str, f32, Vec<[f32; 2]>)> {
+        self.terrain
+            .rivers
+            .iter()
+            .map(|r| {
+                let pts: Vec<[f32; 2]> = r.path.iter().map(|p| self.pos(*p)).collect();
+                (r.key.as_str(), r.width, spline(&pts, 6.0))
+            })
+            .collect()
+    }
+
     /// The points of a road as offsets in this world.
     pub fn road_points(&self, r: &Road) -> Vec<[f32; 2]> {
         r.path
@@ -543,7 +558,7 @@ impl Layout {
     }
 
     /// Pick from weights with a hash.
-    pub(crate) fn pick<'a>(of: &'a BTreeMap<String, u32>, r: u32) -> Option<&'a str> {
+    pub(crate) fn pick(of: &BTreeMap<String, u32>, r: u32) -> Option<&str> {
         let total: u32 = of.values().sum();
         if total == 0 {
             return None;
@@ -838,11 +853,13 @@ impl<'a> Land<'a> {
         }
         let crag = 1.0 - (self.l.noise(x, z, 58.0, 50) * 2.0 - 1.0).abs();
         let crest = 0.55 + 0.45 * self.l.noise(x, z, 150.0, 51) + 0.25 * (crag - 0.5);
+        // mountains: where a ridge runs into the rim the higher one stands
+        let mut mount = 0.0f32;
         for (r, path) in t.ridges.iter().zip(&self.ridges) {
             let d = path_distance([x, z], path);
             let w = r.width * s.max(0.6);
             if d < w {
-                h += r.rise * v * smooth(1.0 - d / w) * crest;
+                mount = mount.max(r.rise * v * smooth(1.0 - d / w) * crest);
             }
         }
         if let Some(rim) = t.rim {
@@ -850,9 +867,10 @@ impl<'a> Land<'a> {
             let edge = (half[0] - x.abs()).min(half[1] - z.abs());
             let w = rim.width * s.max(0.6);
             if edge < w {
-                h += rim.rise * v * smooth(1.0 - edge / w) * crest;
+                mount = mount.max(rim.rise * v * smooth(1.0 - edge / w) * crest);
             }
         }
+        h += mount;
         // no puddles: only rivers and lakes go below the water
         h = h.max(t.sea as f32 + 2.5);
         let (keep, bed) = self.wet(x, z);

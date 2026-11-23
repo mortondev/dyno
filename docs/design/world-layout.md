@@ -22,11 +22,12 @@ When `size` is smaller, every distance between places is drawn in by
 the sky; the sizes of things (stamps, road widths, trees, pads) never
 change.
 
-Today `size` is **1024 × 192 × 1024** (`spread` 0.5), because the server's
-world is still dense and saves stop at 1024. When the sparse server world
-and the new save format land, set `"size": [2048, 256, 2048]` and bump
-`"version"`: the live world is rebuilt once and every character moves to
-its place (see "Rebuilding" below). Nothing else changes.
+Today `size` is the design size, **2048 × 256 × 2048** (`spread` 1). A
+smaller `size` (1024 × 192 × 1024 was used before the server's world became
+sparse) is a complete, playable zone with every place in it, only closer
+together. To change the size of a live world, change `size` and bump
+`"version"`: the world is rebuilt once and every character moves to its
+place (see "Rebuilding" below).
 
 A server asked for a smaller world (`Config::world_size`, used by tests and
 the title stage) builds the window of that size round the spawn; places
@@ -118,7 +119,8 @@ Blocks of the old world are not carried over; the backup keeps them.
 ```sh
 python3 tools/stamps/build.py            # write the stamps from their recipes
 dyno map --out map.ppm                   # build the world, draw it from above, list the places
-dyno map --design --out map.ppm          # the same at design size (2048 m; a gigabyte of blocks)
+dyno map --size 512 --out map.ppm        # only the middle: the window a test server would build
+python3 tools/world/landmarks.py         # put the gauntlet's landmarks where the layout has their places
 python3 tools/world/shots.py OUT map.places.json ADDR   # gameplay-camera shots of every place
 dyno bake-stage                          # the title stage: the middle of the world
 ```
@@ -130,3 +132,9 @@ measures doors, storeys, road widths, trees, the plaza, running times
 between named places, the longest stretch of road with nothing to see, the
 hills and the rim against docs/design/scale.md. The pack test in the same
 file validates the layout and every stamp.
+
+## The map
+
+![Ashfall Vale from above, 2048 m across, north up](world-map.jpg)
+
+Drawn by `dyno map` from the world the pack builds.

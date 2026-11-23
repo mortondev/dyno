@@ -46,6 +46,10 @@ BOX = {
 }
 
 
+# tall or far-off landmarks need more room to stand back
+FAR = {"watch_tower": 60, "hollow_oak": 50, "sunken_shrine": 42, "north_watch": 44, "windmill_farm": 44}
+
+
 def rnd(v):
     """Round half away from zero, as the engine does."""
     return int(v + 0.5) if v >= 0 else -int(-v + 0.5)
@@ -67,6 +71,8 @@ def main():
         lm["half"], lm["height"] = list(half), height
         if place != "hearthstead":
             lm.pop("base", None)
+        if lm["name"] in FAR:
+            lm["far"] = FAR[lm["name"]]
     lines = ["{", f' "note": {json.dumps(data["note"])},', f' "paths": {json.dumps(data["paths"])},',
              f' "defaults": {json.dumps(data["defaults"])},', ' "landmarks": [']
     lines += ["  " + json.dumps(lm) + ("," if i + 1 < len(data["landmarks"]) else "")

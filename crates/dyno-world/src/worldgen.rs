@@ -169,11 +169,16 @@ impl<'a> Gen<'a> {
     }
 
     /// Level a box of ground (under a stamp that stands on its own).
-    fn level_box(&mut self, lo: [i32; 2], hi: [i32; 2], level: i32) {
+    /// With `banks`, only dry land is levelled: the banks under the ends of
+    /// a bridge, not the river under its span.
+    fn level_box(&mut self, lo: [i32; 2], hi: [i32; 2], level: i32, banks: bool) {
         let blend = 4;
         for z in lo[1] - blend..=hi[1] + blend {
             for x in lo[0] - blend..=hi[0] + blend {
                 let Some(i) = self.idx(x, z) else { continue };
+                if banks && self.flags[i] & WET != 0 {
+                    continue;
+                }
                 let d = (lo[0] - x).max(x - hi[0]).max(lo[1] - z).max(z - hi[1]);
                 if d <= 0 {
                     self.g[i] = level as f32;
@@ -265,11 +270,16 @@ impl<'a> Gen<'a> {
                         .as_deref()
                         .unwrap_or(if p.pad.is_some() { "pad" } else { "ground" });
                 let y = match fit {
-                    "pad" => level,
+                    "pad" => {
+                        if p.pad.is_none() {
+                            self.level_box(lo, hi, level, true);
+                        }
+                        level
+                    }
                     "float" => self.top(x, z),
                     _ => {
                         let y = self.top(x, z).max(l.terrain.sea + 1);
-                        self.level_box(lo, hi, y);
+                        self.level_box(lo, hi, y, false);
                         y
                     }
                 };
@@ -377,7 +387,7 @@ impl<'a> Gen<'a> {
                 let h = sum / weight;
                 let f = self.flags[i];
                 // a ragged edge, less so on a narrow trail
-                let rag = 0.004 * (half / 3.5).min(1.0);
+                let rag = 0.004 * (half / 3.5).min(1.0).powi(2);
                 let on = d <= half - 0.01 + (rnd(i as i32, 7, 63) % 100) as f32 * rag;
                 if f & WET != 0 {
                     // a ford: the bed comes up under a trail
@@ -627,8 +637,28 @@ impl<'a> Gen<'a> {
             let at = l.place_at(p);
             for (n, t) in p.trees.iter().enumerate() {
                 let sp = &l.flora.species[&t.species];
-                let (x, z) = (at[0] + t.at[0], at[1] + t.at[1]);
-                self.plant(w, &t.species, sp, x, z, rnd(x, z, 70 + n as u32));
+                // where the layout says, or a little further out if a road
+                // has come to run there
+                let len = (t.at[0] as f32).hypot(t.at[1] as f32).max(1.0);
+                let reach = sp.girth[1] + 2;
+                let spot = (0..12).map(|k| {
+                    let k = k as f32;
+                    (
+                        at[0] + t.at[0] + (t.at[0] as f32 / len * k).round() as i32,
+                        at[1] + t.at[1] + (t.at[1] as f32 / len * k).round() as i32,
+                    )
+                });
+                let free = spot.into_iter().find(|(x, z)| {
+                    (-reach..=reach).all(|dz| {
+                        (-reach..=reach).all(|dx| {
+                            self.idx(x + dx, z + dz)
+                                .is_none_or(|j| self.flags[j] & ROAD == 0)
+                        })
+                    })
+                });
+                if let Some((x, z)) = free {
+                    self.plant(w, &t.species, sp, x, z, rnd(x, z, 70 + n as u32));
+                }
             }
         }
         // one candidate per cell of a grid, jittered

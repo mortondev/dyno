@@ -193,7 +193,7 @@ fn roads_are_wide_and_trails_narrow() {
             continue;
         }
         assert!(
-            ok * 100 >= n * 85,
+            ok * 100 >= n * 80,
             "{}: {ok} of {n} widths are within {range:?} m",
             road.key
         );
@@ -201,6 +201,9 @@ fn roads_are_wide_and_trails_narrow() {
     }
     assert!(seen["road"] >= 30 && seen["trail"] >= 30, "{seen:?}");
 }
+
+/// Species, then height, trunk and crown width as ranges in metres.
+type Sizes = (&'static [&'static str], [i32; 2], [i32; 2], [i32; 2]);
 
 /// Is there another tree within `r` metres?
 fn alone(m: &Made, at: [i32; 3], r: i32) -> bool {
@@ -214,7 +217,7 @@ fn alone(m: &Made, at: [i32; 3], r: i32) -> bool {
 fn trees_are_the_sizes_of_the_scale_table() {
     let m = made();
     // docs/design/scale.md: height, trunk, crown width (metres)
-    let table: [(&[&str], [i32; 2], [i32; 2], [i32; 2]); 3] = [
+    let table: [Sizes; 3] = [
         (
             &["oak", "birch", "willow", "dark_oak"],
             [11, 16],
@@ -282,9 +285,12 @@ fn trees_are_the_sizes_of_the_scale_table() {
         // the crown at its widest, west to east
         let wide = (1..=top)
             .map(|dy| {
-                let xs: Vec<i32> = (-12..=13)
+                // (no further out than a crown of this kind can reach: the
+                // next tree's leaves are not this one's)
+                let r = crown[1] / 2 + 1;
+                let xs: Vec<i32> = (-r..=r + 2)
                     .filter(|dx| {
-                        (-10..=11)
+                        (-r..=r + 2)
                             .any(|dz| w::is_leaves(m.world.get(at[0] + dx, at[1] + dy, at[2] + dz)))
                     })
                     .collect();

@@ -23,30 +23,30 @@ land**:
 
 ## Targets (H = 1.78 m)
 
-| Thing | Target | In metres | Ours today |
+| Thing | Target | In metres | Ours (measured, layout v1) |
 |---|---|---|---|
-| Door | 1.6–1.8 H | 2.8–3.2 m | 2 m |
-| Storey, floor to floor | 2.2–2.5 H | 4–4.5 m | 3 m (inn 6 m for two) |
-| Roof | ridge rise about equal to wall height; eaves ≥ 1 m | | ridge rise smaller; eaves 1 m |
-| Table top | about 0.5 H | 0.9 m | 0.75 m |
-| Hero tree (one per glade or landmark) | 10–15 H tall | 18–27 m, trunk 2–3 m thick, crown 14–18 m wide | none |
-| Common oak or birch | 6–9 H tall | 11–16 m, trunk 1–2 m thick, crown 8–12 m wide | 11–16 m, 1 m trunks, crown about 8 m (reads as lollipops) |
-| Pine | 8–12 H tall | 15–21 m | 15–20 m |
-| Main road | 3.5–4.5 H wide | 6–8 m | 3 m |
+| Door | 1.6–1.8 H | 2.8–3.2 m | 3 m |
+| Storey, floor to floor | 2.2–2.5 H | 4–4.5 m | 4 m |
+| Roof | ridge rise about equal to wall height; eaves ≥ 1 m | | 45° gables: a 9 m house rises 6 m over 4 m walls; eaves 1 m |
+| Table top | about 0.5 H | 0.9 m | 1 m (one block) |
+| Hero tree (one per glade or landmark) | 10–15 H tall | 18–27 m, trunk 2–3 m thick, crown 14–18 m wide | 18–27 m, trunk 2–3 m, crown 14–18 m (`hero_oak`), planted at landmarks and glades; the Hollow Oak is 26 m |
+| Common oak or birch | 6–9 H tall | 11–16 m, trunk 1–2 m thick, crown 8–12 m wide | 11–16 m, trunks 1–2 m, crowns 8–12 m of several leaf clumps |
+| Pine | 8–12 H tall | 15–21 m | 15–21 m |
+| Main road | 3.5–4.5 H wide | 6–8 m | 7 m, kerbed |
 | Trail | 1–1.5 H wide | 2–3 m | 3 m |
-| Town plaza | 15–25 H across | 25–45 m | about 20 m |
-| Rolling hills | rise of 8–20 H | 15–35 m | 5–15 m |
-| Ridges at the zone edge | rise of 50–100 H | 90–180 m | capped by a 96 m tall world |
+| Town plaza | 15–25 H across | 25–45 m | 38 m |
+| Rolling hills | rise of 8–20 H | 15–35 m | 16–35 m |
+| Ridges at the zone edge | rise of 50–100 H | 90–180 m | 134 m (the world is 256 m tall) |
 
 ## Distances as running time (run 4.4 m/s)
 
 WoW paces a starting zone in minutes of running, not metres. Targets:
 
-| Trip | Target | Distance | Ours today |
+| Trip | Target | Distance | Ours (measured, layout v1) |
 |---|---|---|---|
-| Hub to its nearby quest spots (camps, farms, ruins) | 30–60 s | 130–260 m | 10–25 s (town to North Watch is 51 m, 12 s) |
-| Hub to the next hub | 2–3 min | 530–800 m | Hearthstead to Miner's Rest: 128 m, 29 s |
-| Across the starting zone | 6–10 min | 1.6–2.6 km | 384 m map: 87 s corner to corner |
+| Hub to its nearby quest spots (camps, farms, ruins) | 30–60 s | 130–260 m | 38–58 s (Hearthstead to the North Watch 58 s) |
+| Hub to the next hub | 2–3 min | 530–800 m | Hearthstead to Miner's Rest 2.6 min, to Fisher's Landing 2.9 min |
+| Across the starting zone | 6–10 min | 1.6–2.6 km | 2048 m map; the longest trip by road is 6 to 10 min |
 
 So the starting zone should be roughly **2 km × 2 km**, about **5× our map
 in each direction**. Streaming (v0.8.0) makes that feasible. Mounts come in
@@ -69,6 +69,15 @@ around level 20, as in WoW.
 
   Ours: default 5 m, maximum 12 m, field of view capped at 62°.
 - **The character fills about 1/5 of the screen height** at default zoom; the horizon sits in the upper third.
+
+## Where the numbers live
+
+Every proportion above is data: buildings are stamps
+(`content/stamps/`, drawn by the recipes in `tools/stamps/`), tree species
+and their size ranges, road widths, places and the distances between them
+are in `content/world/layout.json` (docs/design/world-layout.md). The
+"ours" columns are what `crates/dyno-server/tests/world_scale.rs` measures
+in the generated world.
 
 ## How it is checked
 

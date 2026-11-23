@@ -14,7 +14,8 @@ USAGE:
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
                                [--creative] [--content PACK_DIR|RULES.json] [--op NAME]...
                                [--asset-rate 256] [--join-asset-rate 2048] (KB/s of pack files per player, in play / loading)
-                               [--view 160] [--aoi 100] (metres: the world streamed round each player; what they hear of)
+                               [--world-size 384x96x384] (a new world's size)
+                               [--view 160] [--aoi 100] [--far 800] (metres: the world streamed round each player; what they hear of; the far view)
                                [--section-rate 256] [--join-section-rate 2048] (KB/s of world sections per player)
                                [--webhook DISCORD_URL] (or DYNO_WEBHOOK)
                                [--shard-cap 40] [--area-cap 16] [--max-shards 16]
@@ -633,6 +634,33 @@ fn run_server(args: &[String]) {
                     .parse()
                     .unwrap_or_else(|_| fail("--join-asset-rate needs KB per second"));
                 cfg.join_asset_rate = kb.max(1) * 1024;
+                i += 1;
+            }
+            "--world-size" => {
+                let v: Vec<u32> = val().split('x').filter_map(|n| n.parse().ok()).collect();
+                let ok = v.len() == 3
+                    && v[0] >= 16
+                    && v[2] >= 16
+                    && v[1] >= 16
+                    && v[0] <= dyno_world::MAX_SIDE
+                    && v[2] <= dyno_world::MAX_SIDE
+                    && v[1] <= dyno_world::MAX_HEIGHT;
+                if !ok {
+                    fail(&format!(
+                        "--world-size needs WxHxD, at most {0}x{1}x{0} (a new world; an existing one keeps its size)",
+                        dyno_world::MAX_SIDE,
+                        dyno_world::MAX_HEIGHT
+                    ));
+                }
+                cfg.world_size = [v[0], v[1], v[2]];
+                i += 1;
+            }
+            "--far" => {
+                cfg.stream.far = val()
+                    .parse()
+                    .ok()
+                    .filter(|m: &f32| m.is_finite() && *m >= 0.0)
+                    .unwrap_or_else(|| fail("--far needs metres (0: no far view)"));
                 i += 1;
             }
             "--view" | "--aoi" => {

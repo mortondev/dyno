@@ -909,7 +909,7 @@ def standing_stones():
             continue
         v.col(x, z, 0, h, "stone" if i % 2 else "mossy_cobble")
     v.set(0, 0, 0, "stone_bricks")
-    v.set(0, 1, 0, "glowshroom")
+    v.set(0, 1, 0, "brazier")
     return v
 
 

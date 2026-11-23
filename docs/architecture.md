@@ -82,9 +82,9 @@ flowchart TD
 
 | Crate | Owns |
 |---|---|
-| `dyno-world` | The block grid (`World`, 1 m blocks; dense on the server, a sparse store of streamed 16³ sections on clients), lighting (stored per section), the content schema and parser, and building a world from data: the layout (`layout.rs`), stamps (`stamp.rs`) and the generator that shapes land, lays roads, places stamps and scatters vegetation (`worldgen.rs`). |
+| `dyno-world` | The block grid (`World`, 1 m blocks in 16³ sections: all-one-block sections free, others palette-packed, shared copy-on-write between shards; clients hold only the streamed sections), the far view's heightmap tiles (`far.rs`), lighting (stored the same way), the content schema and parser, and building a world from data: the layout (`layout.rs`), stamps (`stamp.rs`) and the generator that shapes land, lays roads, places stamps and scatters vegetation (`worldgen.rs`). |
 | `dyno-sim` | Rules shared by client and server: the XP curve and mob scaling (`progression.rs`), the character sheet and armour maths (`character.rs`), inventory and stacks. |
-| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 19). A version mismatch is refused with a clear reason. |
+| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 21). A version mismatch is refused with a clear reason. |
 | `dyno-server` | The game: shards, world streaming and area of interest (`stream.rs`), players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. The content pack (`pack.rs`: loading, hashing, the built-in pack embedded from `content/`, each session's asset outbox). |
 | `dyno-client` | Rendering (wgpu), the UI (egui, themed), input (classic MMO controls), audio, the front end (title, character select and creation), the minimap, headless screenshots. The asset store (`assets.rs`) and the cache of pack files (`cache.rs`). Local hosting only with the `host` feature. |
 | `dyno-update` | Checks GitHub Releases, verifies the signed manifest, picks the artifact named like its own executable (`dyno` or `hearthblock`), swaps the binary. Used by clients and by servers (`--auto-update`). |
@@ -311,9 +311,8 @@ flowchart LR
   `content/world/layout.json`; every structure is a stamp. Proportions and
   distances follow docs/design/scale.md and are measured by
   `crates/dyno-server/tests/world_scale.rs`.
-- **Size** is one value in the layout: 1024 × 192 × 1024 today, written
-  for 2048 × 256 × 2048 (distances between places are drawn in by half
-  until the server's world is sparse).
+- **Size** is one value in the layout: 2048 × 256 × 2048. A smaller size
+  draws the places closer together in proportion; nothing else changes.
 - A saved world keeps the layout version it was built from; another
   version rebuilds it once, with backups, and moves every character to its
   place (`migrate::rebuild`). Worlds without a layout (builder worlds) are
@@ -432,3 +431,4 @@ flowchart LR
 | 17 | Two binaries: `hearthblock` (player client, no `host` feature) and `dyno` (server, tools, dev client); one release, the updater picks by executable name, `assets` stays dyno-only | A tiny client with no content in it, while the live server keeps updating as `dyno`. |
 | 18 | The pack hash is part of an instance's content identity | Instances serving different files must not share players. |
 | 19 | The world streams in 16³ sections from the shard's tick (on the player's own ordered queue, a section held from when it is queued); entities, poses and actions by area of interest at the one `broadcast` chokepoint | The client holds only what is near; worlds can grow; no quadratic pose fan-out. Sending from the shard keeps relayed players working (the edge has no world) and an edit can never overtake its section. |
+| 20 | Sections are the storage everywhere: all-one-block sections cost nothing, others are packed with a palette, copies share them (copy on write); saves are section by section (`DYNW2`, `DYNW1` still loads); the far view is a coarse heightmap the server streams in 64 m tiles | A 2 km × 256 m world fits in about 160 MB per server (world and light) and 10 MB more per shard; landmarks show from 800 m with no content in the client. |

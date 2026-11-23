@@ -1,6 +1,6 @@
 {
  "version": 1,
- "size": [1024, 192, 1024],
+ "size": [2048, 256, 2048],
  "design": [2048, 256, 2048],
  "seed": 20261123,
  "terrain": {
@@ -15,7 +15,7 @@
    {
     "at": [-150, -480],
     "radius": [320, 230],
-    "rise": 28,
+    "rise": 17,
     "rough": 0.6
    },
    {
@@ -27,13 +27,13 @@
    {
     "at": [520, 560],
     "radius": [270, 230],
-    "rise": 30,
+    "rise": 16,
     "rough": 0.7
    },
    {
     "at": [400, -560],
     "radius": [240, 220],
-    "rise": 26,
+    "rise": 17,
     "rough": 0.6
    },
    {
@@ -51,7 +51,7 @@
    {
     "at": [-420, 520],
     "radius": [230, 220],
-    "rise": 24,
+    "rise": 17,
     "rough": 0.6
    }
   ],
@@ -60,10 +60,10 @@
     "key": "east_ridge",
     "path": [[850, -1000], [820, -420], [830, -100], [840, 150], [800, 520], [840, 1000]],
     "width": 110,
-    "rise": 150
+    "rise": 125
    }
   ],
-  "rim": {"width": 220, "rise": 150},
+  "rim": {"width": 220, "rise": 125},
   "lakes": [
    {
     "key": "mirrormere",
@@ -332,7 +332,7 @@
   {
    "key": "ford_trail",
    "way": "trail",
-   "path": ["windmill_farm", "ford_trail_ruin_20", [200, 455], "ford_trail_stones_21", "emberrun_ford", [430, 370], "ford_trail_wayshrine_22", [540, 230], "ford_trail_camp_23", "miners_rest"]
+   "path": [[38, 470], "windmill_farm", "ford_trail_ruin_20", [200, 455], "ford_trail_stones_21", "emberrun_ford", [430, 370], "ford_trail_wayshrine_22", [540, 230], "ford_trail_camp_23", "miners_rest"]
   },
   {
    "key": "stockade_trail",
@@ -522,7 +522,9 @@
     "wooded": true
    },
    "stamps": [
-    {"stamp": "hollow_oak", "at": [0, 0]}
+    {"stamp": "hollow_oak", "at": [0, 0]},
+    {"stamp": "pond", "at": [15, 13], "fit": "ground"},
+    {"stamp": "boulders", "at": [-13, 10], "fit": "ground"}
    ],
    "was": {
     "at": [-95, -54],
@@ -640,7 +642,7 @@
   {
    "key": "sunken_shrine",
    "kind": "site",
-   "at": [30, 750],
+   "at": [30, 762],
    "name": "The Sunken Shrine",
    "radius": 30,
    "level": "water",
@@ -655,7 +657,7 @@
   {
    "key": "shrine_shore",
    "kind": "view",
-   "at": [30, 795],
+   "at": [30, 790],
    "radius": 14,
    "stamps": [
     {"stamp": "wayshrine", "at": [-6, -2], "fit": "ground"},
@@ -764,6 +766,8 @@
     {"stamp": "hut", "at": [-13, 7]},
     {"stamp": "tent_white", "at": [11, 6], "rot": 2},
     {"stamp": "ore_cart", "at": [14, -6]},
+    {"stamp": "pond", "at": [14, 14]},
+    {"stamp": "boulders", "at": [6, -17]},
     {"stamp": "campfire", "at": [2, 7]},
     {"stamp": "signpost", "at": [-6, 5]},
     {"stamp": "lamp_post", "at": [6, 3]},
