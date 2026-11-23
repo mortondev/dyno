@@ -40,7 +40,8 @@ pub const KIND_FOLIAGE: f32 = 8192.0;
 /// The water surface: waves, shore foam (`normal[0]` is how near the shore is).
 pub const KIND_WATER: f32 = 12288.0;
 /// Fine voxel ground: one colour per voxel, from the layer at the voxel's
-/// centre. `tex[0]` is voxels a metre; `tex[1]` the saturation in
+/// centre. `tex[0]` is voxels a metre plus 32 times the face's direction
+/// (+x -x +y -y +z -z: the normal may be bent towards the slope); `tex[1]` the saturation in
 /// hundredths plus the brightness jitter (below 1); `color.rgb` a tint.
 pub const KIND_VOXEL: f32 = 16384.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
@@ -361,13 +362,16 @@ fn ground_tone(m: f32) -> vec3<f32> {
   if (kz >= K_VOXEL) {
     // fine voxel ground: one colour a voxel, the layer's texel at the
     // voxel's centre on the mip level with a texel a voxel, jittered
-    let r = i.tex.x;
-    let an = abs(n);
-    var ax = vec3<f32>(0.0, sign(n.y), 0.0);
-    if (an.x > an.y && an.x > an.z) {
-      ax = vec3<f32>(sign(n.x), 0.0, 0.0);
-    } else if (an.z > an.y) {
-      ax = vec3<f32>(0.0, 0.0, sign(n.z));
+    // tex.x: voxels a metre plus 32 times the face's direction (+x -x +y
+    // -y +z -z), as the normal may be bent towards the slope
+    let dir = floor(i.tex.x / 32.0);
+    let r = i.tex.x - dir * 32.0;
+    let sgn = select(-1.0, 1.0, (i32(dir) & 1) == 0);
+    var ax = vec3<f32>(0.0, sgn, 0.0);
+    if (dir < 1.5) {
+      ax = vec3<f32>(sgn, 0.0, 0.0);
+    } else if (dir > 3.5) {
+      ax = vec3<f32>(0.0, 0.0, sgn);
     }
     let vox = floor(i.wpos * r - ax * 0.5);
     let ctr = (vox + 0.5) / r;

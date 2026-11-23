@@ -66,6 +66,12 @@ pub(crate) struct TerrainJson {
     pub strata: f32,
     /// height of one stratum, metres
     pub strata_height: f32,
+    /// how far up or down a slope's steps wander, metres: on a gentle slope
+    /// the steps bunch in places and open into flat runs in others, so it
+    /// reads as gently stepped, not ruled (walls are not moved by it)
+    pub terrace: f32,
+    /// size of that wandering, metres
+    pub terrace_size: f32,
     /// how far kinds of ground reach into each other along a ragged edge, metres
     pub edge: f32,
     /// size of the edge's wiggles, metres
@@ -74,6 +80,15 @@ pub(crate) struct TerrainJson {
     pub cover_depth: f32,
     /// brightness jitter per voxel, for blocks that do not set their own
     pub jitter: f32,
+    /// brightness of a voxel corner by how closed in it is: 3, 2, 1 and 0
+    /// open neighbours of the three round it in front of the face (where
+    /// steps meet, at the foot of a ledge, along a path's edge)
+    pub ao: [f32; 4],
+    /// brightness of the top faces' corners on a convex edge (the lip of a
+    /// step or a ledge)
+    pub lip: f32,
+    /// the corner shading reaches this far from the camera, metres
+    pub shade_within: f32,
     /// per block (by key)
     pub blocks: BTreeMap<String, BlockJson>,
 }
@@ -97,6 +112,14 @@ pub(crate) struct BlockJson {
     tint: Option<[f32; 3]>,
     /// colour saturation (1: as painted)
     saturation: Option<f32>,
+    /// how strongly its voxels' creases and lips are shaded (1: fully;
+    /// grass softer, so a slope reads gently stepped)
+    shade: Option<f32>,
+    /// how much its voxels are lit as the slope they make rather than by
+    /// their own faces (0: crisp, as rock; towards 1: a stepped meadow
+    /// lights like a smooth one, without stripes of lit treads and dark
+    /// risers)
+    smooth: Option<f32>,
     /// how far it reaches into other ground and they into it (0: a crisp
     /// block edge), as a multiple of `edge`
     edge: Option<f32>,
@@ -123,10 +146,15 @@ impl Default for TerrainJson {
             noise_size: 0.5,
             strata: 0.05,
             strata_height: 0.375,
+            terrace: 0.2,
+            terrace_size: 3.0,
             edge: 0.3,
             edge_size: 0.5,
             cover_depth: 0.25,
             jitter: 0.08,
+            ao: [0.6, 0.74, 0.87, 1.0],
+            lip: 1.08,
+            shade_within: 24.0,
             blocks: BTreeMap::new(),
         }
     }
@@ -141,13 +169,20 @@ pub(crate) struct Params {
     noise_size: f32,
     strata: f32,
     strata_height: f32,
+    terrace: f32,
+    terrace_size: f32,
     edge: f32,
     edge_size: f32,
     cover_depth: f32,
+    pub(crate) ao: [f32; 4],
+    lip: f32,
+    shade_within: f32,
     under: [BlockId; 256],
     jitter: [f32; 256],
     tint: [[f32; 3]; 256],
     saturation: [f32; 256],
+    shade: [f32; 256],
+    smooth: [f32; 256],
     edge_of: [f32; 256],
     inset: [f32; 256],
 }
@@ -162,13 +197,20 @@ impl Params {
             noise_size: j.noise_size.max(0.0),
             strata: j.strata.clamp(0.0, 0.06),
             strata_height: j.strata_height.max(0.0),
+            terrace: j.terrace.clamp(0.0, 0.45),
+            terrace_size: j.terrace_size.max(0.0),
             edge: j.edge.clamp(0.0, 0.9),
             edge_size: j.edge_size.max(0.0),
             cover_depth: j.cover_depth.max(0.0),
+            ao: j.ao.map(|v| v.clamp(0.0, 2.0)),
+            lip: j.lip.clamp(0.0, 2.0),
+            shade_within: j.shade_within.max(0.0),
             under: [0; 256],
             jitter: [j.jitter; 256],
             tint: [[1.0; 3]; 256],
             saturation: [1.0; 256],
+            shade: [1.0; 256],
+            smooth: [0.0; 256],
             edge_of: [1.0; 256],
             inset: [0.0; 256],
         };
@@ -193,6 +235,12 @@ impl Params {
             }
             if let Some(v) = b.tint {
                 p.tint[id] = v;
+            }
+            if let Some(v) = b.smooth {
+                p.smooth[id] = v.clamp(0.0, 1.0);
+            }
+            if let Some(v) = b.shade {
+                p.shade[id] = v.clamp(0.0, 1.0);
             }
             if let Some(v) = b.saturation {
                 p.saturation[id] = v.clamp(0.0, 3.0);
@@ -228,6 +276,27 @@ impl Default for Params {
     }
 }
 
+static SHADING: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(2);
+
+/// The player's setting for the ground's voxel shading: 0 none, 1 the
+/// creases where voxels meet darkened, 2 also the lips of steps and ledges
+/// lit. Sections meshed after a change take it.
+pub fn set_shading(level: u8) {
+    SHADING.store(level.min(2), std::sync::atomic::Ordering::Relaxed);
+}
+
+/// The setting, unless `DYNO_GROUND_SHADING` says otherwise (tools).
+fn shading() -> u8 {
+    static TOOL: std::sync::OnceLock<Option<u8>> = std::sync::OnceLock::new();
+    TOOL.get_or_init(|| {
+        std::env::var("DYNO_GROUND_SHADING")
+            .ok()
+            .and_then(|v| v.parse().ok())
+    })
+    .unwrap_or_else(|| SHADING.load(std::sync::atomic::Ordering::Relaxed))
+    .min(2)
+}
+
 fn params() -> &'static Params {
     &crate::shapes::pack().terrain
 }
@@ -239,6 +308,8 @@ fn params() -> &'static Params {
 pub struct Lod {
     pub per_metre: u8,
     pub skirt: [u8; 4],
+    /// close enough to the camera for the voxels' corner shading
+    pub shade: bool,
 }
 
 impl Lod {
@@ -247,6 +318,7 @@ impl Lod {
         Lod {
             per_metre: params().per_metre,
             skirt: [0; 4],
+            shade: true,
         }
     }
 }
@@ -261,6 +333,8 @@ pub struct Lods {
     dims: [i32; 3],
     /// voxels a metre per section column (x, z); empty until decided
     cols: Vec<u8>,
+    /// per section column: near enough for the corner shading
+    shaded: Vec<bool>,
     /// where the camera was when they were last decided
     from: Option<[f32; 3]>,
 }
@@ -272,6 +346,7 @@ impl Lods {
         Lods {
             dims,
             cols: Vec::new(),
+            shaded: Vec::new(),
             from: None,
         }
     }
@@ -293,6 +368,7 @@ impl Lods {
         let n = (d[0].max(0) * d[2].max(0)) as usize;
         if self.cols.len() != n {
             self.cols = vec![0; n];
+            self.shaded = vec![false; n];
         }
         let s = N as f32;
         for sz in 0..d[2] {
@@ -301,7 +377,11 @@ impl Lods {
                 let dx = (x0 - cam[0]).max(cam[0] - (x0 + s)).max(0.0);
                 let dz = (z0 - cam[2]).max(cam[2] - (z0 + s)).max(0.0);
                 let i = (sz * d[0] + sx) as usize;
-                self.cols[i] = p.per_metre_at((dx * dx + dz * dz).sqrt(), self.cols[i]);
+                let d = (dx * dx + dz * dz).sqrt();
+                self.cols[i] = p.per_metre_at(d, self.cols[i]);
+                // a little past the line before it turns off, as above
+                let within = p.shade_within + if self.shaded[i] { 8.0 } else { 0.0 };
+                self.shaded[i] = d <= within;
             }
         }
         true
@@ -336,9 +416,16 @@ impl Lods {
                 skirt[k] = n;
             }
         }
+        let shade = if self.cols.is_empty() {
+            true
+        } else {
+            (s[0] >= 0 && s[2] >= 0 && s[0] < self.dims[0] && s[2] < self.dims[2])
+                && self.shaded[(s[2] * self.dims[0] + s[0]) as usize]
+        };
         Lod {
             per_metre: r,
             skirt,
+            shade,
         }
     }
 }
@@ -447,7 +534,8 @@ struct Rect {
     v0: i32,
     u1: i32,
     v1: i32,
-    key: u32,
+    /// light class (above bit 32), corner shading (bits 8..20), kind of ground
+    key: u64,
 }
 
 /// A point of a face's plane, from its (u, v) across it.
@@ -476,6 +564,8 @@ pub(crate) struct Fine<'a> {
     ax: Vec<(usize, f32)>,
     /// light at grid corners: block, sky, occlusion; NaN when not yet known
     corners: Vec<[f32; 3]>,
+    /// the ground's smooth outward direction at grid corners; NaN unknown
+    slopes: Vec<[f32; 3]>,
     /// the light of each uniform light class (class k at k - 1)
     class_light: Vec<[f32; 3]>,
     /// per ground cell: 1 when other kinds of ground lie beside it (its
@@ -504,6 +594,7 @@ impl<'a> Fine<'a> {
             pool: Vec::new(),
             ax,
             corners: vec![[f32::NAN; 3]; (LV * LV * LV) as usize],
+            slopes: vec![[f32::NAN; 3]; (LV * LV * LV) as usize],
             ragged: vec![0; n],
             class_light: Vec::new(),
         }
@@ -611,8 +702,14 @@ impl<'a> Fine<'a> {
         let slab = terrain && g.fl[c + DY] & F_TERRAIN == 0 && g.fl[c - DY] & F_TERRAIN == 0;
         let tau = 0.5 - 0.5 / r as f32;
         let axb = [(0usize, 1.0 - tau), (1, 0.0), (1, tau)];
+        let tau_y = if wmax > 0.0 && !slab {
+            (tau + p.terrace).min(1.0)
+        } else {
+            tau
+        };
+        let axy = [(0usize, 1.0 - tau_y), (1, 0.0), (1, tau_y)];
         let (mut lo, mut hi) = (f32::MAX, f32::MIN);
-        for &(ly, ty) in &axb {
+        for &(ly, ty) in &axy {
             for &(lz, tz) in &axb {
                 for &(lx, tx) in &axb {
                     let v = tri(&d, ly, ty, lz, tz, lx, tx);
@@ -644,6 +741,7 @@ impl<'a> Fine<'a> {
         let (wx0, wy0, wz0) = ((o[0] + x) * r, (o[1] + y) * r, (o[2] + z) * r);
         let ns = ((p.noise_size * r as f32).round() as i32).max(1);
         let hs = ((p.strata_height * r as f32).round() as i32).max(1);
+        let ts = ((p.terrace_size * r as f32).round() as i32).max(1);
         for kz in 0..r {
             let (lz, tz) = self.ax[kz as usize];
             for ix in 0..r {
@@ -667,13 +765,25 @@ impl<'a> Fine<'a> {
                 }
                 let wv = [col(&m, 0), col(&m, 1), col(&m, 2)];
                 let n2 = value2(wx, wz, ns, 0x3a1) * p.noise;
+                // how far this column reads the field above or below itself
+                let lift = if slab {
+                    0.0
+                } else {
+                    value2(wx, wz, ts, 0x9b1) * p.terrace
+                };
                 let sh = (value2(wx, wz, hs * 6, 0x7c3) * hs as f32 * 1.5).round() as i32;
                 // strata: one value a band, the band shifted per column
                 let (mut seen, mut sv) = (i32::MIN, 0.0);
                 for jy in 0..r {
                     let (ly, ty) = self.ax[jy as usize];
-                    let mut val = lerp(v[ly], v[ly + 1], ty);
                     let wt = lerp(wv[ly], wv[ly + 1], ty);
+                    let mut val = if wt > 0.0 && lift != 0.0 {
+                        let sy = ((jy as f32 + 0.5) / r as f32 - 0.5 + lift * wt).clamp(-1.0, 1.0);
+                        let (ly2, ty2) = if sy < 0.0 { (0, 1.0 + sy) } else { (1, sy) };
+                        lerp(v[ly2], v[ly2 + 1], ty2)
+                    } else {
+                        lerp(v[ly], v[ly + 1], ty)
+                    };
                     if wt > 0.0 {
                         let b = (wy0 + jy + sh).div_euclid(hs);
                         if b != seen {
@@ -1035,6 +1145,54 @@ impl<'a> Fine<'a> {
         id
     }
 
+    /// The ground's smooth outward direction at a grid corner (local): down
+    /// the field across the eight blocks round it. Not normalised.
+    fn slope_corner(&mut self, i: i32, j: i32, k: i32) -> [f32; 3] {
+        let idx = li(i, j, k);
+        let v = self.slopes[idx];
+        if !v[0].is_nan() {
+            return v;
+        }
+        let mut g = [0f32; 3];
+        for n in 0..8i32 {
+            let (a, b, c) = (n & 1, (n >> 2) & 1, (n >> 1) & 1);
+            let d = self.density(i - 1 + a, j - 1 + b, k - 1 + c);
+            g[0] -= d * (2 * a - 1) as f32;
+            g[1] -= d * (2 * b - 1) as f32;
+            g[2] -= d * (2 * c - 1) as f32;
+        }
+        self.slopes[idx] = g;
+        g
+    }
+
+    /// The ground's smooth outward direction at a vertex (fine voxels from
+    /// the section's corner), blended between grid corners; unit length,
+    /// or zero where there is no slope to speak of.
+    fn slope_at(&mut self, p: [i32; 3]) -> [f32; 3] {
+        let r = self.r;
+        let b = p.map(|v| v.div_euclid(r).clamp(-1, N));
+        let f = [0, 1, 2].map(|a| (p[a] - b[a] * r) as f32 / r as f32);
+        let mut out = [0f32; 3];
+        for n in 0..8i32 {
+            let (a, bb, c) = (n & 1, (n >> 2) & 1, (n >> 1) & 1);
+            let w = (if a == 1 { f[0] } else { 1.0 - f[0] })
+                * (if bb == 1 { f[1] } else { 1.0 - f[1] })
+                * (if c == 1 { f[2] } else { 1.0 - f[2] });
+            if w == 0.0 {
+                continue;
+            }
+            let g = self.slope_corner(b[0] + a, b[1] + bb, b[2] + c);
+            for e in 0..3 {
+                out[e] += g[e] * w;
+            }
+        }
+        let len = (out[0] * out[0] + out[1] * out[1] + out[2] * out[2]).sqrt();
+        if len < 1e-4 {
+            return [0.0; 3];
+        }
+        out.map(|v| v / len)
+    }
+
     /// Light at a vertex, given in fine voxels from the section's corner:
     /// blended between the grid corners round it.
     fn light_at(&mut self, light: &Light, p: [i32; 3]) -> [f32; 3] {
@@ -1061,6 +1219,56 @@ impl<'a> Fine<'a> {
         out
     }
 
+    /// The shading of a voxel face's corners, in the order of a face's
+    /// corners (u0 v0, u1 v0, u1 v1, u0 v1): per corner two bits of
+    /// occlusion (open neighbours of the three in front of it) and a bit
+    /// for a lip (a top face's corner on a convex edge). 0 when all are
+    /// open. Each corner's value depends on the voxels round that corner
+    /// only, so faces sharing a corner agree.
+    fn face_shade(&mut self, v: [i32; 3], d: usize, level: u8) -> u32 {
+        let (n, axis) = DIRS[d];
+        let (ua, va) = match axis {
+            1 => (0, 2),
+            2 => (0, 1),
+            _ => (2, 1),
+        };
+        let at = |base: [i32; 3], du: i32, dv: i32| {
+            let mut q = base;
+            q[ua] += du;
+            q[va] += dv;
+            q
+        };
+        let front = [v[0] + n[0], v[1] + n[1], v[2] + n[2]];
+        let mut sig = 0u32;
+        for (c, (su, sv)) in [(-1, -1), (1, -1), (1, 1), (-1, 1)].into_iter().enumerate() {
+            let p1 = at(front, su, 0);
+            let p2 = at(front, 0, sv);
+            let p3 = at(front, su, sv);
+            let s1 = self.solid(p1[0], p1[1], p1[2]) as u32;
+            let s2 = self.solid(p2[0], p2[1], p2[2]) as u32;
+            let s3 = self.solid(p3[0], p3[1], p3[2]) as u32;
+            let open = if s1 == 1 && s2 == 1 { 0 } else { 3 - (s1 + s2 + s3) };
+            // stored as how closed, so 0 is open all round
+            let mut bits = 3 - open;
+            // a lip: an open top whose corner lies on a convex edge, told
+            // from the four voxels round the corner in the face's own layer
+            // (so every face that shares the corner agrees)
+            if level >= 2 && d == 2 && open == 3 {
+                let e1 = at(v, su, 0);
+                let e2 = at(v, 0, sv);
+                let e3 = at(v, su, sv);
+                if !self.solid(e1[0], e1[1], e1[2])
+                    || !self.solid(e2[0], e2[1], e2[2])
+                    || !self.solid(e3[0], e3[1], e3[2])
+                {
+                    bits |= 4;
+                }
+            }
+            sig |= bits << (c * 3);
+        }
+        sig
+    }
+
     /// Draw the section's own ground.
     pub(crate) fn run(&mut self, light: &Light, lod: Lod, geo: &mut SectionGeo) {
         let r = self.r;
@@ -1072,7 +1280,14 @@ impl<'a> Fine<'a> {
         // per row: voxels whose `depth` voxels above are all filled
         let mut covered = vec![0u16; rr];
         let mut face = vec![0u16; rr];
-        let mut keys = vec![0u8; rr];
+        let mut keys = vec![0u32; rr];
+        // shaded near the camera only: further out the creases are below
+        // a pixel and would only cost faces
+        let level = if lod.shade && lod.per_metre >= p.per_metre {
+            shading()
+        } else {
+            0
+        };
         let mut rects: Vec<Rect> = Vec::new();
         let mut classes: HashMap<[u32; 3], u32> = HashMap::new();
         #[cfg(test)]
@@ -1207,13 +1422,22 @@ impl<'a> Fine<'a> {
                                     let key = if face[row] >> i & 1 != 0 {
                                         any = true;
                                         let cov = covered[row] >> i & 1 != 0;
-                                        match plain {
+                                        let m = match plain {
                                             Some(m) if cov && p.under[m as usize] != 0 => {
                                                 p.under[m as usize]
                                             }
                                             Some(m) => m,
                                             None => self.paint(bx + i, by + j, bz + k, cov),
-                                        }
+                                        };
+                                        // corners shaded where voxels meet:
+                                        // a face of another shading does
+                                        // not merge with it
+                                        let sh = if level > 0 {
+                                            self.face_shade([bx + i, by + j, bz + k], d, level)
+                                        } else {
+                                            0
+                                        };
+                                        sh << 8 | m as u32
                                     } else {
                                         0
                                     };
@@ -1237,7 +1461,7 @@ impl<'a> Fine<'a> {
                                     v0: cv + v as i32,
                                     u1: cu + (u + du) as i32,
                                     v1: cv + (v + dv) as i32,
-                                    key: class << 8 | key as u32,
+                                    key: (class as u64) << 32 | key as u64,
                                 });
                             });
                         }
@@ -1281,14 +1505,24 @@ impl<'a> Fine<'a> {
             e1[2] * e2[0] - e1[0] * e2[2],
             e1[0] * e2[1] - e1[1] * e2[0],
         ];
+        // each corner's shading, in the same order
+        let sig = ((q.key >> 8) & 0xfff) as u32;
+        let p = self.p;
+        let strength = p.shade[(q.key & 0xff) as usize];
+        let mut shade = [0, 1, 2, 3].map(|k| {
+            let bits = sig >> (k * 3);
+            let a = p.ao[3 - (bits & 3) as usize];
+            let a = if bits & 4 != 0 { a * p.lip } else { a };
+            1.0 + (a - 1.0) * strength
+        });
         if cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0 {
             c.swap(1, 3);
+            shade.swap(1, 3);
         }
         let b = (q.key & 0xff) as BlockId;
         let r = self.r;
         let o = self.g.o;
         let t = render::textures();
-        let p = self.p;
         let layer = if p.under[b as usize] != 0 {
             t.face(b, 0)
         } else {
@@ -1300,20 +1534,25 @@ impl<'a> Fine<'a> {
         };
         let glow = w::emission(b) > 0;
         // saturation (in hundredths) and jitter, packed
+        // voxels a metre, and which way the face looks (the normal may be
+        // bent towards the slope, below)
         let tex = [
-            r as f32,
+            r as f32 + 32.0 * q.dir as f32,
             (p.saturation[b as usize] * 100.0).round() + p.jitter[b as usize],
             KIND_VOXEL + layer as f32,
             render::layer_anim(layer),
         ];
         let tint = p.tint[b as usize];
         // a face in cells of one light has it at every corner
-        let class = q.key >> 8;
-        let ls = if (1..0x8000).contains(&class) {
+        let class = (q.key >> 32) as u32;
+        let mut ls = if (1..0x8000).contains(&class) {
             [self.class_light[class as usize - 1]; 4]
         } else {
             c.map(|c| self.light_at(light, c))
         };
+        for (l, s) in ls.iter_mut().zip(shade) {
+            l[2] *= s;
+        }
         let pos = c.map(|c| {
             [
                 (o[0] * r + c[0]) as f32 / r as f32,
@@ -1322,6 +1561,21 @@ impl<'a> Fine<'a> {
             ]
         });
         let nf = n.map(|v| v as f32);
+        // lit partly as the slope the voxels make, where the block says so
+        // and the slope faces up at all
+        let smooth = p.smooth[b as usize];
+        let ns = c.map(|c| {
+            if smooth == 0.0 {
+                return nf;
+            }
+            let sl = self.slope_at(c);
+            if sl[1] < 0.3 {
+                return nf;
+            }
+            let m = [0, 1, 2].map(|e| nf[e] + (sl[e] - nf[e]) * smooth);
+            let len = (m[0] * m[0] + m[1] * m[1] + m[2] * m[2]).sqrt().max(1e-4);
+            m.map(|v| v / len)
+        });
         // four corners, drawn as (0, 1, 2) and (0, 2, 3) by the shared quad
         // index: start at the corner that splits it so occlusion
         // interpolates evenly
@@ -1333,7 +1587,7 @@ impl<'a> Fine<'a> {
         for i in order {
             geo.ground.push(Vertex {
                 pos: pos[i],
-                normal: nf,
+                normal: ns[i],
                 color: [tint[0], tint[1], tint[2], if glow { 2.0 } else { ls[i][2] }],
                 light: ls[i][0],
                 sky: ls[i][1],
@@ -1461,9 +1715,9 @@ fn tri(d: &[[[f32; 3]; 3]; 3], ly: usize, ty: f32, lz: usize, tz: f32, lx: usize
     lerp(at(ly), at(ly + 1), ty)
 }
 
-/// Merge equal keys of a square grid (`n` a side, row-major by v) into
+/// Merge equal keys (0: none) of a square grid (`n` a side, row-major by v) into
 /// rectangles: (u, v, width, height, key). Clears the grid.
-fn greedy(keys: &mut [u8], n: usize, mut emit: impl FnMut(usize, usize, usize, usize, BlockId)) {
+fn greedy(keys: &mut [u32], n: usize, mut emit: impl FnMut(usize, usize, usize, usize, u32)) {
     for v in 0..n {
         let mut u = 0;
         while u < n {

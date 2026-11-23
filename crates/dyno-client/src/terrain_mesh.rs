@@ -1296,9 +1296,14 @@ mod tests {
                 let lo = [0, 1, 2].map(|a| p.iter().map(|c| c[a]).min().unwrap());
                 let hi = [0, 1, 2].map(|a| p.iter().map(|c| c[a]).max().unwrap());
                 let axis = (0..3).find(|a| lo[*a] == hi[*a]).expect("a flat face");
-                let n = q[0].normal;
+                // which way the face looks (the normal may be bent towards
+                // the slope): tex.x is voxels a metre plus 32 times it
+                let dir = (q[0].tex[0] / 32.0).floor() as usize;
+                assert_eq!(dir / 2, axis, "direction and plane agree");
+                let mut n = [0f32; 3];
+                n[axis] = if dir % 2 == 0 { 1.0 } else { -1.0 };
                 let out_way = n[axis] > 0.0;
-                // the winding agrees with the normal
+                // the winding agrees with the facing
                 let e1 = Vec3::from(q[1].pos) - Vec3::from(q[0].pos);
                 let e2 = Vec3::from(q[2].pos) - Vec3::from(q[0].pos);
                 assert!(
@@ -1332,6 +1337,7 @@ mod tests {
                 Lod {
                     per_metre: r,
                     skirt: [0; 4],
+                    shade: true,
                 },
             );
             let faces = unit_faces(&geos, r as f32);
@@ -1456,15 +1462,25 @@ mod tests {
     #[test]
     fn sections_agree_at_their_borders() {
         let geos = all_sections(&lumpy());
-        // same corner and facing, same light, whichever section drew it
-        let mut seen: HashMap<[u32; 6], [u32; 3]> = HashMap::new();
+        // same corner, facing and kind of ground: same light, normal and
+        // shading, whichever section drew it
+        let mut seen: HashMap<[u32; 8], [u32; 3]> = HashMap::new();
         let mut shared = 0;
         for geo in &geos {
-            let mut mine: HashMap<[u32; 6], [u32; 3]> = HashMap::new();
+            let mut mine: HashMap<[u32; 8], [u32; 3]> = HashMap::new();
             for v in &geo.ground {
                 let p = v.pos.map(f32::to_bits);
                 let n = v.normal.map(f32::to_bits);
-                let at = [p[0], p[1], p[2], n[0], n[1], n[2]];
+                let at = [
+                    p[0],
+                    p[1],
+                    p[2],
+                    n[0],
+                    n[1],
+                    n[2],
+                    v.tex[0].to_bits(),
+                    v.tex[2].to_bits(),
+                ];
                 let what = [v.light, v.sky, v.color[3]].map(f32::to_bits);
                 assert_eq!(*mine.entry(at).or_insert(what), what);
             }
@@ -1527,6 +1543,42 @@ mod tests {
             assert!((43.5..=44.5).contains(x), "the wall leans out to {x}");
         }
         assert!(wall.iter().any(|x| *x != wall[0]), "the wall has no ledges");
+    }
+
+    #[test]
+    fn creases_are_shaded() {
+        // level ground meets a cliff: the ground's corners along the foot
+        // are darkened and the lip on top is lit (open level ground stays
+        // as it is: `flat_ground_sits_on_the_grid`)
+        let mut world = World::empty([32, 32, 32]);
+        for z in 0..32 {
+            for x in 0..32 {
+                let h = if x < 16 { 10 } else { 14 };
+                for y in 0..=h {
+                    // rock: shaded at full strength, lit by its own faces
+                    world.set(x, y, z, w::STONE);
+                }
+            }
+        }
+        let p = &crate::shapes::pack().terrain;
+        let geos = all_sections(&world);
+        let tops: Vec<&Vertex> = geos
+            .iter()
+            .flat_map(|g| &g.ground)
+            .filter(|v| v.normal == [0.0, 1.0, 0.0] && (4.0..28.0).contains(&v.pos[2]))
+            .collect();
+        let foot = tops
+            .iter()
+            .filter(|v| (11.0..12.0).contains(&v.pos[1]) && (14.0..=16.0).contains(&v.pos[0]))
+            .map(|v| v.color[3])
+            .fold(f32::MAX, f32::min);
+        assert!(foot <= p.ao[1] + 1e-4, "the crease at the cliff's foot: {foot}");
+        let lip = tops
+            .iter()
+            .filter(|v| v.pos[1] > 14.5)
+            .map(|v| v.color[3])
+            .fold(f32::MIN, f32::max);
+        assert!(lip > 1.0, "the lip on top: {lip}");
     }
 
     #[test]
@@ -1670,6 +1722,7 @@ mod tests {
             let lod = Lod {
                 per_metre: r,
                 skirt: [0; 4],
+                shade: true,
             };
             let (mut verts, mut ground, mut busy) = (0usize, 0usize, 0);
             let mut hist = [(0u64, 0f64, 0u64); 3];

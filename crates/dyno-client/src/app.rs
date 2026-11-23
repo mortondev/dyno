@@ -5601,6 +5601,7 @@ impl ApplicationHandler for App {
                 eprintln!("graphics: {}", g.adapter_info);
                 g.cover.set_quality(self.settings.ground_cover);
                 crate::foliage::set_detail(self.settings.leaf_detail);
+                crate::fine::set_shading(self.settings.ground_shading);
                 crate::theme::apply(&self.egui_ctx);
                 self.egui_ctx.style_mut(|s| {
                     s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
