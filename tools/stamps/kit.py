@@ -232,7 +232,7 @@ def house(x0, z0, x1, z1, storeys=1, style="tile", ridge_x=None, door=("s", None
             v.col(x, z, 0, DOOR - 1, "air" if j == 0 else "wooden_door")
             v.set(x, DOOR, z, s["frame"])
             v.set(x + out[0], 0, z + out[1], "air")
-            v.set(x + out[0], -1, z + out[1], "flagstones")
+            v.set(x + out[0], -1, z + out[1], "cobble")
         for i in (pos - 1, pos + 2):
             x, z = cell(i)
             v.col(x, z, 0, DOOR, s["frame"])

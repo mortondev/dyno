@@ -518,6 +518,31 @@ impl<'a> Gen<'a> {
                         }
                     }
                 }
+                // the water's edge: shelving stone in stretches, mud between
+                let mut boulder = 0;
+                if let Some(b) = &l.terrain.banks
+                    && self.paint[i] == AIR
+                    && self.flags[i] & (SITE | ROAD) == 0
+                    && h >= sea - 1
+                    && h <= sea + 2
+                    && self.near_water(x, z)
+                {
+                    let stony = value_noise(
+                        x as f32 / b.scale,
+                        z as f32 / b.scale,
+                        l.seed.wrapping_add(97),
+                    ) > 1.0 - b.share;
+                    if stony {
+                        if let Some(k) = Layout::pick(&b.stone, r >> 5) {
+                            top = block_by_key(k).unwrap_or(STONE);
+                        }
+                        if !wet && b.boulder_every > 0 && (r >> 9).is_multiple_of(b.boulder_every) {
+                            boulder = 1 + ((r >> 14) & 1) as i32;
+                        }
+                    } else if h <= sea + 1 {
+                        top = block_by_key(&b.mud).unwrap_or(top);
+                    }
+                }
                 if matches!(top, STONE | SNOW) || steep >= 2 {
                     // rock shows in the steps of a steep slope
                     under = STONE;
@@ -540,6 +565,9 @@ impl<'a> Gen<'a> {
                         w.set(wx, y, wz, WATER);
                     }
                 }
+                for k in 1..=boulder {
+                    w.set(wx, h + k, wz, if k == boulder { 19 } else { STONE });
+                }
             }
         }
         for road in &mut self.built.roads {
@@ -551,8 +579,8 @@ impl<'a> Gen<'a> {
     }
 
     fn near_water(&self, x: i32, z: i32) -> bool {
-        (-2..=2).any(|dz| {
-            (-2..=2).any(|dx| {
+        (-3..=3).any(|dz| {
+            (-3..=3).any(|dx| {
                 self.idx(x + dx, z + dz)
                     .is_some_and(|i| self.flags[i] & WET != 0)
             })

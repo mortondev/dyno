@@ -110,6 +110,25 @@ pub struct Terrain {
     /// bare rock above this height over the open ground, snow above the second
     #[serde(default)]
     pub rock_line: Option<[f32; 2]>,
+    /// how the water's edge is made: stretches of shelving stone, and
+    /// muddy shallows between them where reeds can grow
+    #[serde(default)]
+    pub banks: Option<Banks>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Banks {
+    /// the stone of the stony stretches, with weights
+    pub stone: BTreeMap<String, u32>,
+    /// share of the shore that is stone (0 to 1), and the length of a stretch
+    pub share: f32,
+    pub scale: f32,
+    /// the block of the muddy margins, at and just under the waterline
+    pub mud: String,
+    /// one column in this many of a stony stretch carries a boulder
+    #[serde(default)]
+    pub boulder_every: u32,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -665,6 +684,12 @@ impl Layout {
                 .map(|_| ())
                 .ok_or(format!("layout: unknown block \"{k}\""))
         };
+        if let Some(b) = &self.terrain.banks {
+            block(&b.mud)?;
+            for k in b.stone.keys() {
+                block(k)?;
+            }
+        }
         if self.size.iter().any(|&s| s < 16) || self.design.iter().any(|&s| s < 16) {
             return Err("layout: the world is too small".into());
         }

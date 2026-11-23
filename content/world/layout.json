@@ -82,7 +82,14 @@
     "valley": 120
    }
   ],
-  "rock_line": [85, 135]
+  "rock_line": [85, 135],
+  "banks": {
+   "stone": {"cobble": 3, "mossy_cobble": 3, "stone": 2},
+   "share": 0.42,
+   "scale": 16,
+   "mud": "clay",
+   "boulder_every": 9
+  }
  },
  "zones": [
   {
@@ -346,14 +353,14 @@
  "ways": {
   "road": {
    "width": 7,
-   "surface": {"flagstones": 4, "cobble": 4, "mossy_cobble": 1, "dirt": 1},
+   "surface": {"cobble": 12, "mossy_cobble": 1},
    "kerb": "stone_bricks",
    "lamp": "lamp_post",
    "lamp_every": 36
   },
   "trail": {
    "width": 3,
-   "surface": {"dirt": 6, "cobble": 1},
+   "surface": {"dirt": 1},
    "lamp": "lamp_post",
    "lamp_every": 90,
    "ford": true
@@ -424,7 +431,7 @@
    },
    "plaza": {
     "radius": 15,
-    "surface": {"cobble": 3, "flagstones": 4, "mossy_cobble": 1, "stone_bricks": 1}
+    "surface": {"cobble": 14, "mossy_cobble": 1}
    },
    "stamps": [
     {"stamp": "great_hearth", "at": [0, 0]},

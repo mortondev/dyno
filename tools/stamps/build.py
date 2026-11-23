@@ -112,7 +112,7 @@ def smithy():
     # the lean-to on the east side
     for z in range(-4, 5):
         for x in range(5, 10):
-            v.set(x, -1, z, "flagstones")
+            v.set(x, -1, z, "cobble")
             v.set(x, 3 if x < 8 else 2, z, "slate_roof")
     for (x, z) in ((9, -4), (9, 4), (9, 0)):
         v.col(x, z, 0, 1, "timber_beam")
@@ -171,7 +171,7 @@ def tower(half, storeys, banner=None, beacon=True, style_wall=None):
             for z in range(-a, a + 1):
                 edge = abs(x) == a or abs(z) == a
                 if y == -1:
-                    v.set(x, y, z, "flagstones")
+                    v.set(x, y, z, "cobble")
                 elif edge:
                     v.set(x, y, z, pick(x, y, z, MASONRY))
                 elif y % STOREY == STOREY - 1:
@@ -191,8 +191,8 @@ def tower(half, storeys, banner=None, beacon=True, style_wall=None):
     # the door, south
     v.col(0, a, 0, DOOR - 1, "air")
     v.col(1, a, 0, DOOR - 1, "wooden_door")
-    v.set(0, -1, a + 1, "flagstones")
-    v.set(1, -1, a + 1, "flagstones")
+    v.set(0, -1, a + 1, "cobble")
+    v.set(1, -1, a + 1, "cobble")
     v.doors.append({"at": [0, 0, a], "height": DOOR})
     v.points["door"] = (0, 0, a + 2)
     # the fighting top: a parapet a block out, with merlons
@@ -245,24 +245,25 @@ def north_watch():
 
 @recipe
 def great_hearth():
-    """The Great Hearth: a ring of cold stones in the middle of the plaza."""
+    """The Great Hearth: the hearth on a round stone step in the middle of
+    the plaza, a low kerb round it, four benches facing the fire and four
+    lanterns. Open cobbles all about it."""
     v = Vol("landmark")
-    for x in range(-6, 7):
-        for z in range(-6, 7):
+    for x in range(-5, 6):
+        for z in range(-5, 6):
             d = math.hypot(x, z)
-            if d <= 6.3:
-                v.set(x, -1, z, pick(x, 0, z, ["cobble", "flagstones", "mossy_cobble", "flagstones"]))
-            if 2.6 <= d <= 3.4 and not (abs(x) <= 0 or abs(z) <= 0):
-                v.set(x, 0, z, pick(x, 1, z, ["stone_bricks", "cobble", "mossy_cobble"]))
+            if d <= 2.3:
+                v.set(x, -1, z, "stone_bricks")
+            elif d <= 5.2:
+                v.set(x, -1, z, "cobble")
+            if 4.4 <= d <= 5.2 and abs(x) > 1 and abs(z) > 1:
+                v.set(x, 0, z, "stone_bricks")
     v.set(0, 0, 0, "hearth")
     v.points["hearth"] = (0, 0, 0)
-    # broken pillars of the old hall
-    for i, (x, z) in enumerate(((-5, -5), (5, -5), (-5, 5), (5, 5))):
-        h = (5, 2, 3, 6)[i]
-        for y in range(h):
-            v.set(x, y, z, "mossy_cobble" if y == h - 1 and i % 2 == 0 else "stone_bricks")
-    for (x, z) in ((-2, 5), (-1, 5), (1, 5), (2, 5), (-2, -5), (-1, -5), (1, -5), (2, -5)):
+    for (x, z) in ((-1, 3), (0, 3), (1, 3), (-1, -3), (0, -3), (1, -3), (3, -1), (3, 0), (3, 1), (-3, -1), (-3, 0), (-3, 1)):
         v.set(x, 0, z, "planks")
+    for (x, z) in ((4, 4), (-4, 4), (4, -4), (-4, -4)):
+        lamp_post(v, x, 1, z, 3)
     return v
 
 
@@ -674,7 +675,7 @@ def bridge():
         rise = 1 if abs(x) <= 13 else 0
         for z in range(-4, 5):
             edge = abs(z) == 4
-            v.set(x, rise, z, pick(x, 0, z, ["flagstones", "cobble", "flagstones", "stone_bricks"]))
+            v.set(x, rise, z, pick(x, 0, z, ["cobble", "cobble", "cobble", "stone_bricks"]))
             if rise:
                 v.set(x, 0, z, "stone_bricks")
             v.col(x, z, rise + 1, rise + 5, "air")
@@ -968,7 +969,7 @@ def ruin_tower():
                 v.set(x, y, z, pick(x, y, z, MASONRY))
     v.col(0, 3, 0, 2, "air")
     v.doors.append({"at": [0, 0, 3], "height": 3})
-    v.fill((-2, -1, -2), (2, -1, 2), "flagstones")
+    v.fill((-2, -1, -2), (2, -1, 2), "cobble")
     for (x, y, z) in ((-5, 0, 1), (-4, 0, -2), (-5, 0, -1), (-4, 1, -2), (1, 0, 1), (-1, 0, -1)):
         v.set(x, y, z, "cobble" if (x + z) % 2 else "mossy_cobble")
     v.set(2, 0, -2, "chest")
@@ -998,7 +999,7 @@ def wayshrine():
     v = Vol("prop")
     for x in range(-1, 2):
         for z in range(-1, 2):
-            v.set(x, -1, z, "flagstones")
+            v.set(x, -1, z, "cobble")
     v.col(0, 0, 0, 1, "stone_bricks")
     v.set(0, 2, 0, "lantern")
     for (x, z) in ((-1, 0), (1, 0), (0, 1)):
@@ -1031,7 +1032,7 @@ def viewpoint():
     for x in range(-3, 4):
         for z in range(-3, 4):
             if math.hypot(x, z) <= 3.6:
-                v.set(x, 0, z, pick(x, 0, z, ["flagstones", "cobble", "stone_bricks"]))
+                v.set(x, 0, z, pick(x, 0, z, ["cobble", "cobble", "stone_bricks"]))
                 if math.hypot(x, z) > 2.7 and z < 2:
                     v.set(x, 1, z, "stone_bricks")
     v.col(0, -3, 2, 5, "timber_beam")
