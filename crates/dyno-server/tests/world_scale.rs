@@ -1,0 +1,816 @@
+//! The world the built-in pack makes, measured against the tables of
+//! docs/design/scale.md: doors, storeys, roads, trees, the plaza, how far
+//! apart places are in running time, and how often a road shows something.
+//!
+//! Everything is measured in the generated world (blocks and the roads as
+//! built), not read back from the layout. Sizes of things hold at any world
+//! size. Distances between places are written for the layout's design size
+//! (2048 m); a smaller world draws them in by `spread`, and the running
+//! times are checked against the targets drawn in by the same amount. The
+//! ignored test builds the design-size world and checks the real targets:
+//!
+//! ```sh
+//! cargo test --release -p dyno-server --test world_scale -- --ignored --nocapture
+//! ```
+
+use dyno_server::pack::Pack;
+use dyno_world::layout::Layout;
+use dyno_world::stamp::Stamps;
+use dyno_world::worldgen::{self, Built, ROAD, SITE, WET, measure};
+use dyno_world::{self as w, World};
+use std::collections::{BinaryHeap, HashMap};
+use std::sync::OnceLock;
+
+/// Running speed, m/s (docs/design/scale.md).
+const RUN: f32 = 4.4;
+
+struct Made {
+    layout: Layout,
+    stamps: Stamps,
+    world: World,
+    built: Built,
+}
+
+fn make(design: bool) -> Made {
+    let pack = Pack::builtin();
+    let mut layout = (**pack.layout.as_ref().expect("the pack has a layout")).clone();
+    if design {
+        layout.size = layout.design;
+    }
+    let stamps = (*pack.stamps).clone();
+    let (world, built) = worldgen::build(&layout, &stamps, layout.size).expect("the world builds");
+    Made {
+        layout,
+        stamps,
+        world,
+        built,
+    }
+}
+
+fn made() -> &'static Made {
+    static M: OnceLock<Made> = OnceLock::new();
+    M.get_or_init(|| make(false))
+}
+
+#[test]
+fn the_pack_has_a_valid_layout_and_stamps() {
+    let pack = Pack::builtin();
+    let layout = pack.layout.as_ref().expect("world/layout.json");
+    layout.check_stamps(&pack.stamps).unwrap();
+    assert!(
+        pack.stamps.0.len() >= 40,
+        "the buildings and props are stamps"
+    );
+    // the world's data stays on the server
+    assert!(
+        !pack
+            .manifest
+            .files
+            .iter()
+            .any(|f| f.path.starts_with("stamps/") || f.path.starts_with("world/")),
+        "clients are sent the world, not what it is built from"
+    );
+    // every stamp of a building keeps the heroic proportions
+    for (name, s) in &pack.stamps.0 {
+        if s.kind == "building" {
+            for d in &s.doors {
+                assert!(
+                    (2.8..=3.2).contains(&(d.height as f32)),
+                    "{name}: a door {} m high",
+                    d.height
+                );
+            }
+            for pair in s.storeys.windows(2) {
+                let h = (pair[1] - pair[0]) as f32;
+                assert!((4.0..=4.5).contains(&h), "{name}: a storey of {h} m");
+            }
+        }
+        assert!(!s.census().is_empty(), "{name} is empty");
+    }
+    // every place is used or stands for something
+    for p in &layout.places {
+        assert!(
+            !p.stamps.is_empty()
+                || !p.trees.is_empty()
+                || matches!(p.kind.as_str(), "zone" | "camp"),
+            "place {} has nothing in it",
+            p.key
+        );
+    }
+    // the rules stand on the layout: nothing in them is left unresolved
+    for a in &pack.content.areas {
+        assert!(a.radius > 0.0, "{}", a.key);
+    }
+    let hub = &pack.content.areas[0];
+    assert_eq!(hub.at, [0, 0], "the first area is the hub, at the hearth");
+}
+
+#[test]
+fn doors_and_storeys_are_heroic() {
+    let m = made();
+    let (mut doors, mut floors) = (0, 0);
+    for (place, name, at, rot) in &m.built.stamps {
+        let s = m.stamps.get(name).unwrap();
+        if s.kind != "building" {
+            continue;
+        }
+        for d in &s.doors {
+            let p = s.to_world(*at, *rot, d.at);
+            let h = measure::door_height(&m.world, p);
+            assert!(
+                (2.8..=3.2).contains(&(h as f32)),
+                "{place}/{name}: the door at {p:?} is {h} m high"
+            );
+            doors += 1;
+        }
+        let Some(probe) = s.points.get("floor") else {
+            continue;
+        };
+        let mut levels = Vec::new();
+        for st in &s.storeys {
+            let p = s.to_world(*at, *rot, [probe[0], *st, probe[2]]);
+            assert!(
+                w::is_solid(m.world.get(p[0], p[1] - 1, p[2]))
+                    && !w::is_solid(m.world.get(p[0], p[1], p[2])),
+                "{place}/{name}: no floor to stand on at {p:?}"
+            );
+            levels.push(p[1]);
+        }
+        for pair in levels.windows(2) {
+            let h = (pair[1] - pair[0]) as f32;
+            assert!(
+                (4.0..=4.5).contains(&h),
+                "{place}/{name}: a storey of {h} m"
+            );
+            floors += 1;
+        }
+    }
+    assert!(doors >= 15, "only {doors} doors measured");
+    assert!(floors >= 10, "only {floors} storeys measured");
+}
+
+#[test]
+fn roads_are_wide_and_trails_narrow() {
+    let m = made();
+    let size = m.world.size;
+    let mut seen = HashMap::new();
+    for road in &m.built.roads {
+        let range = if road.way == "road" { 6..=8 } else { 2..=3 };
+        let (mut ok, mut n) = (0, 0);
+        for i in (5..road.line.len().saturating_sub(5)).step_by(7) {
+            let p = road.line[i];
+            // open country only: not where it runs into a square, a yard
+            // or the water, or meets another road
+            let near = (-6..=6).any(|dz| {
+                (-6..=6).any(|dx| {
+                    let (x, z) = (p[0] + dx, p[2] + dz);
+                    m.built.flags[(z * size[0] as i32 + x) as usize] & (SITE | WET) != 0
+                })
+            });
+            let crossing = m.built.roads.iter().any(|o| {
+                o.key != road.key
+                    && o.line
+                        .iter()
+                        .any(|q| (q[0] - p[0]).abs() <= 8 && (q[2] - p[2]).abs() <= 8)
+            });
+            if near || crossing {
+                continue;
+            }
+            let wide = measure::road_width(&m.built, size, road, i);
+            n += 1;
+            if range.contains(&wide) {
+                ok += 1;
+            }
+            assert!(
+                (range.start() - 1..=range.end() + 1).contains(&wide),
+                "{} is {wide} m wide at {p:?}",
+                road.key
+            );
+        }
+        assert!(n >= 4, "{}: only {n} places to measure", road.key);
+        assert!(
+            ok * 10 >= n * 9,
+            "{}: {ok} of {n} widths are within {range:?} m",
+            road.key
+        );
+        *seen.entry(road.way.as_str()).or_insert(0) += n;
+    }
+    assert!(seen["road"] >= 30 && seen["trail"] >= 30, "{seen:?}");
+}
+
+/// Is there another tree within `r` metres?
+fn alone(m: &Made, at: [i32; 3], r: i32) -> bool {
+    !m.built
+        .trees
+        .iter()
+        .any(|(_, o)| *o != at && (o[0] - at[0]).abs() <= r && (o[2] - at[2]).abs() <= r)
+}
+
+#[test]
+fn trees_are_the_sizes_of_the_scale_table() {
+    let m = made();
+    // docs/design/scale.md: height, trunk, crown width (metres)
+    let table: [(&[&str], [i32; 2], [i32; 2], [i32; 2]); 3] = [
+        (&["oak", "birch", "dark_oak"], [11, 16], [1, 2], [8, 12]),
+        (&["hero_oak"], [18, 27], [2, 3], [14, 18]),
+        (&["pine"], [15, 21], [1, 2], [0, 12]),
+    ];
+    // every size rule is data, and the data says what the table says
+    for (names, height, girth, crown) in table {
+        for name in names {
+            let sp = &m.layout.flora.species[*name];
+            assert!(
+                sp.height[0] >= height[0] && sp.height[1] <= height[1],
+                "{name}: heights {:?}",
+                sp.height
+            );
+            assert!(
+                sp.girth[0] >= girth[0] && sp.girth[1] <= girth[1],
+                "{name}: trunks {:?}",
+                sp.girth
+            );
+            assert!(
+                sp.crown.width[0] >= crown[0] && sp.crown.width[1] <= crown[1],
+                "{name}: crowns {:?}",
+                sp.crown.width
+            );
+        }
+    }
+    // and the trees standing in the world are those sizes
+    let mut counted: HashMap<&str, usize> = HashMap::new();
+    for (species, at) in &m.built.trees {
+        let Some((_, height, girth, crown)) =
+            table.iter().find(|t| t.0.contains(&species.as_str()))
+        else {
+            continue;
+        };
+        if !alone(m, *at, 16) {
+            continue;
+        }
+        let wood = |b| matches!(b, w::LOG | w::BIRCH_LOG);
+        let tree = |b| wood(b) || w::is_leaves(b);
+        // the top: the highest block of the tree over its foot
+        let top = (1..40)
+            .rev()
+            .find(|dy| {
+                (-1..=2).any(|dz| {
+                    (-1..=2).any(|dx| tree(m.world.get(at[0] + dx, at[1] + dy, at[2] + dz)))
+                })
+            })
+            .unwrap_or(0);
+        assert!(
+            (height[0]..=height[1]).contains(&top),
+            "{species} at {at:?} is {top} m tall"
+        );
+        // the trunk at chest height
+        let thick = (0..4)
+            .take_while(|dx| wood(m.world.get(at[0] + dx, at[1] + 3, at[2])))
+            .count() as i32;
+        assert!(
+            (girth[0]..=girth[1]).contains(&thick),
+            "{species} at {at:?} has a trunk {thick} m thick"
+        );
+        // the crown at its widest, west to east
+        let wide = (1..=top)
+            .map(|dy| {
+                let xs: Vec<i32> = (-12..=13)
+                    .filter(|dx| {
+                        (-10..=11)
+                            .any(|dz| w::is_leaves(m.world.get(at[0] + dx, at[1] + dy, at[2] + dz)))
+                    })
+                    .collect();
+                xs.last().zip(xs.first()).map_or(0, |(a, b)| a - b + 1)
+            })
+            .max()
+            .unwrap_or(0);
+        if species != "dark_oak" {
+            assert!(
+                wide >= crown[0].max(6) - 2 && wide <= crown[1],
+                "{species} at {at:?} has a crown {wide} m wide"
+            );
+        }
+        *counted.entry(species.as_str()).or_default() += 1;
+    }
+    assert!(
+        counted.get("oak").copied().unwrap_or(0) >= 20,
+        "{counted:?}"
+    );
+    assert!(
+        counted.get("hero_oak").copied().unwrap_or(0) >= 3,
+        "{counted:?}"
+    );
+    assert!(
+        counted.get("pine").copied().unwrap_or(0) >= 5,
+        "{counted:?}"
+    );
+}
+
+#[test]
+fn woods_stand_in_clumps_with_open_meadow_between() {
+    let m = made();
+    // trees per hectare over the whole land, in cells of 32 m: woods are
+    // dense where they are woods, and much of the land has no tree at all
+    let cell = 32;
+    let (cx, cz) = (m.world.size[0] as i32 / cell, m.world.size[2] as i32 / cell);
+    let mut count = vec![0u32; (cx * cz) as usize];
+    for (_, at) in &m.built.trees {
+        count[((at[2] / cell).min(cz - 1) * cx + (at[0] / cell).min(cx - 1)) as usize] += 1;
+    }
+    let land: Vec<u32> = (0..cz)
+        .flat_map(|z| (0..cx).map(move |x| (x, z)))
+        .filter(|(x, z)| {
+            // not the mountains of the rim
+            let edge = 5;
+            *x >= edge && *z >= edge && *x < cx - edge && *z < cz - edge
+        })
+        .map(|(x, z)| count[(z * cx + x) as usize])
+        .collect();
+    let open = land.iter().filter(|n| **n == 0).count() as f32 / land.len() as f32;
+    let dense = land.iter().filter(|n| **n >= 6).count() as f32 / land.len() as f32;
+    assert!(
+        open > 0.35,
+        "only {:.0} % of the land is open",
+        open * 100.0
+    );
+    assert!(
+        dense > 0.08,
+        "only {:.0} % of the land is wood",
+        dense * 100.0
+    );
+}
+
+#[test]
+fn the_plaza_is_a_heroic_square() {
+    let m = made();
+    let h = m.built.hearth;
+    let sx = m.world.size[0] as i32;
+    let paved = |x: i32, z: i32| m.built.flags[(z * sx + x) as usize] & ROAD != 0;
+    // east to west through the hearth, between the roads that leave it
+    let across = |dz: i32| {
+        (1..60).take_while(|d| paved(h[0] + d, h[2] + dz)).count()
+            + (1..60).take_while(|d| paved(h[0] - d, h[2] + dz)).count()
+            + 1
+    };
+    let wide = across(9).max(across(-9));
+    assert!((25..=45).contains(&wide), "the plaza is {wide} m across");
+}
+
+/// The y a runner's feet are at in a column, near `y`.
+fn footing(world: &World, x: i32, y: i32, z: i32) -> Option<i32> {
+    (y - 3..=y + 8).rev().find(|yy| {
+        let below = world.get(x, yy - 1, z);
+        (w::is_solid(below) || below == w::WATER)
+            && !w::is_solid(world.get(x, *yy, z))
+            && !w::is_solid(world.get(x, yy + 1, z))
+    })
+}
+
+/// The road network as built: seconds of running between places.
+struct Network {
+    nodes: Vec<[i32; 3]>,
+    edges: Vec<Vec<(usize, f32)>>,
+}
+
+impl Network {
+    fn new(m: &Made) -> Network {
+        let mut nodes = Vec::new();
+        let mut edges: Vec<Vec<(usize, f32)>> = Vec::new();
+        let mut grid: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
+        for road in &m.built.roads {
+            let mut last: Option<usize> = None;
+            for p in &road.line {
+                let i = nodes.len();
+                nodes.push(*p);
+                edges.push(Vec::new());
+                if let Some(l) = last {
+                    let d = ((nodes[l][0] - p[0]) as f32).hypot((nodes[l][2] - p[2]) as f32);
+                    edges[l].push((i, d));
+                    edges[i].push((l, d));
+                }
+                // roads that meet are joined
+                for dz in -1..=1 {
+                    for dx in -1..=1 {
+                        for &j in grid
+                            .get(&(p[0] / 4 + dx, p[2] / 4 + dz))
+                            .into_iter()
+                            .flatten()
+                        {
+                            let d =
+                                ((nodes[j][0] - p[0]) as f32).hypot((nodes[j][2] - p[2]) as f32);
+                            if d <= 4.0 && last != Some(j) {
+                                edges[j].push((i, d));
+                                edges[i].push((j, d));
+                            }
+                        }
+                    }
+                }
+                grid.entry((p[0] / 4, p[2] / 4)).or_default().push(i);
+                last = Some(i);
+            }
+        }
+        Network { nodes, edges }
+    }
+
+    /// The node nearest a spot, and how far off the road the spot is.
+    fn nearest(&self, at: [i32; 3]) -> (usize, f32) {
+        self.nodes
+            .iter()
+            .enumerate()
+            .map(|(i, n)| (i, ((n[0] - at[0]) as f32).hypot((n[2] - at[2]) as f32)))
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .unwrap()
+    }
+
+    /// Metres by road from one spot to another (with the walk to and from the road).
+    fn metres(&self, a: [i32; 3], b: [i32; 3]) -> f32 {
+        let ((from, d0), (to, d1)) = (self.nearest(a), self.nearest(b));
+        let mut best = vec![f32::MAX; self.nodes.len()];
+        let mut heap = BinaryHeap::new();
+        best[from] = 0.0;
+        heap.push((std::cmp::Reverse(0u32), from));
+        while let Some((std::cmp::Reverse(d), i)) = heap.pop() {
+            let d = d as f32 / 100.0;
+            if d > best[i] + 0.01 {
+                continue;
+            }
+            if i == to {
+                break;
+            }
+            for &(j, len) in &self.edges[i] {
+                if d + len < best[j] {
+                    best[j] = d + len;
+                    heap.push((std::cmp::Reverse(((d + len) * 100.0) as u32), j));
+                }
+            }
+        }
+        assert!(best[to] < f32::MAX, "no road from {a:?} to {b:?}");
+        best[to] + d0 + d1
+    }
+}
+
+fn place(m: &Made, key: &str) -> [i32; 3] {
+    *m.built
+        .places
+        .get(key)
+        .unwrap_or_else(|| panic!("place {key} is not in the world"))
+}
+
+/// The trips of docs/design/scale.md, as (from, to, seconds at design size).
+const NEAR: [(&str, &str); 4] = [
+    ("hearthstead", "north_watch"),
+    ("hearthstead", "wrecked_caravan"),
+    ("fishers_landing", "shrine_shore"),
+    ("miners_rest", "hollow_mines"),
+];
+const HUBS: [(&str, &str); 2] = [
+    ("hearthstead", "miners_rest"),
+    ("hearthstead", "fishers_landing"),
+];
+
+fn running_times(m: &Made) -> Vec<(String, f32, [f32; 2])> {
+    let net = Network::new(m);
+    let s = m.layout.spread();
+    let mut out = Vec::new();
+    for (a, b) in NEAR {
+        let t = net.metres(place(m, a), place(m, b)) / RUN;
+        out.push((format!("{a} to {b}"), t, [30.0 * s, 60.0 * s]));
+    }
+    for (a, b) in HUBS {
+        let t = net.metres(place(m, a), place(m, b)) / RUN;
+        out.push((format!("{a} to {b}"), t, [120.0 * s, 180.0 * s]));
+    }
+    // across the zone: the longest trip by road between two named places
+    let named: Vec<&str> = m
+        .layout
+        .places
+        .iter()
+        .filter(|p| !p.name.is_empty() && p.kind != "zone" && m.built.places.contains_key(&p.key))
+        .map(|p| p.key.as_str())
+        .collect();
+    let mut far = (String::new(), 0.0f32);
+    for a in [
+        "north_pass",
+        "old_barrow",
+        "hollow_mines",
+        "shrine_shore",
+        "fishers_landing",
+    ] {
+        for b in &named {
+            let t = net.metres(place(m, a), place(m, b)) / RUN;
+            if t > far.1 {
+                far = (format!("{a} to {b}"), t);
+            }
+        }
+    }
+    out.push((
+        format!("across the zone ({})", far.0),
+        far.1,
+        [360.0 * s, 600.0 * s],
+    ));
+    out
+}
+
+#[test]
+fn places_are_minutes_of_running_apart() {
+    let m = made();
+    for (trip, t, [lo, hi]) in running_times(m) {
+        assert!(
+            (lo..=hi).contains(&t),
+            "{trip}: {t:.0} s of running, wanted {lo:.0} to {hi:.0} s (spread {})",
+            m.layout.spread()
+        );
+    }
+}
+
+#[test]
+fn roads_can_be_run() {
+    let m = made();
+    for road in &m.built.roads {
+        let mut last: Option<i32> = None;
+        for p in &road.line {
+            let y = footing(&m.world, p[0], last.unwrap_or(p[1] + 1), p[2])
+                .unwrap_or_else(|| panic!("{}: nowhere to stand at {p:?}", road.key));
+            if let Some(l) = last {
+                assert!(
+                    (y - l).abs() <= 1,
+                    "{}: a step of {} m at {p:?}",
+                    road.key,
+                    y - l
+                );
+            }
+            last = Some(y);
+        }
+    }
+}
+
+/// The longest stretch of each road with nothing to see, in metres.
+fn longest_gaps(m: &Made) -> Vec<(String, f32)> {
+    let s = m.layout.spread();
+    let reach = 40.0 * s + 12.0;
+    let sights: Vec<[i32; 3]> = m
+        .layout
+        .places
+        .iter()
+        .filter(|p| p.sight)
+        .filter_map(|p| m.built.places.get(&p.key).copied())
+        .collect();
+    m.built
+        .roads
+        .iter()
+        .map(|road| {
+            let (mut gap, mut worst) = (0.0f32, 0.0f32);
+            for pair in road.line.windows(2) {
+                let p = pair[1];
+                gap += ((p[0] - pair[0][0]) as f32).hypot((p[2] - pair[0][2]) as f32);
+                if sights
+                    .iter()
+                    .any(|q| ((q[0] - p[0]) as f32).hypot((q[2] - p[2]) as f32) <= reach)
+                {
+                    gap = 0.0;
+                }
+                worst = worst.max(gap);
+            }
+            (road.key.clone(), worst)
+        })
+        .collect()
+}
+
+#[test]
+fn there_is_something_every_150_m_of_road() {
+    let m = made();
+    let s = m.layout.spread();
+    for (road, gap) in longest_gaps(m) {
+        assert!(
+            gap <= 150.0 * s + 1.0,
+            "{road}: {gap:.0} m with nothing to see (at most {:.0} m at this size)",
+            150.0 * s
+        );
+    }
+}
+
+#[test]
+fn the_land_has_hills_and_a_wall_of_mountains() {
+    let m = made();
+    let ground = m.layout.terrain.ground;
+    let v = m.layout.rise();
+    let size = m.world.size;
+    let top = |x: i32, z: i32| m.world.ground(x, z) as f32;
+    // the rim: the highest ground along the edges
+    let mut rim = 0.0f32;
+    for i in (8..size[0] as i32 - 8).step_by(4) {
+        for e in [10, size[2] as i32 - 10] {
+            rim = rim.max(top(i, e)).max(top(e, i));
+        }
+    }
+    assert!(
+        rim - ground >= 90.0 * v && rim - ground <= 180.0,
+        "the rim rises {:.0} m (rise factor {v:.2})",
+        rim - ground
+    );
+    // the hills of the layout rise 15 to 35 m (drawn in with the sky)
+    for hill in m.layout.terrain.hills.iter().filter(|h| h.rise >= 15.0) {
+        let c = m.layout.pos(hill.at);
+        let (cx, cz) = (
+            size[0] as i32 / 2 + c[0] as i32,
+            size[2] as i32 / 2 + c[1] as i32,
+        );
+        let r = (hill.radius[0].min(hill.radius[1]) * m.layout.spread() * 0.8) as i32;
+        let mut high = 0.0f32;
+        for dz in (-r..=r).step_by(3) {
+            for dx in (-r..=r).step_by(3) {
+                if m.world.in_bounds([cx + dx, 1, cz + dz]) {
+                    high = high.max(top(cx + dx, cz + dz));
+                }
+            }
+        }
+        let rise = high - ground;
+        assert!(
+            (15.0 * v.max(0.6)..=40.0).contains(&rise),
+            "the hill at {:?} rises {rise:.0} m",
+            hill.at
+        );
+    }
+}
+
+/// The world at its design size (2048 × 256 × 2048), with the real targets
+/// of docs/design/scale.md, and what it costs to make. It holds a gigabyte
+/// of blocks in memory until the sparse server world lands.
+#[test]
+#[ignore]
+fn design_size_world_meets_the_running_times() {
+    let t = std::time::Instant::now();
+    let m = make(true);
+    println!(
+        "built {:?} in {:.1} s: {} places, {} stamps, {} trees",
+        m.world.size,
+        t.elapsed().as_secs_f32(),
+        m.built.places.len(),
+        m.built.stamps.len(),
+        m.built.trees.len()
+    );
+    assert_eq!(m.layout.spread(), 1.0);
+    let mut bad = Vec::new();
+    for (trip, t, [lo, hi]) in running_times(&m) {
+        println!(
+            "{trip}: {t:.0} s ({:.1} min), target {lo:.0}-{hi:.0} s",
+            t / 60.0
+        );
+        if !(lo..=hi).contains(&t) {
+            bad.push(trip);
+        }
+    }
+    for (road, gap) in longest_gaps(&m) {
+        println!("{road}: longest stretch with nothing to see {gap:.0} m");
+        if gap > 151.0 {
+            bad.push(road);
+        }
+    }
+    let size = m.world.size;
+    let mut high = 0;
+    for z in (0..size[2] as i32).step_by(8) {
+        for x in (0..size[0] as i32).step_by(8) {
+            high = high.max(m.world.ground(x, z));
+        }
+    }
+    println!(
+        "highest ground {high} of {} (the rim rises {} m over the meadow)",
+        size[1],
+        high - m.layout.terrain.ground as i32
+    );
+    assert!(high < size[1] as i32 - 30, "the mountains need their sky");
+    assert!(bad.is_empty(), "outside the targets: {bad:?}");
+}
+
+/// The one-time rebuild: a save from the world before layouts is moved
+/// onto the built world. Everyone stays at their place, with everything
+/// they had.
+#[test]
+fn a_rebuild_moves_everyone_to_their_place_and_keeps_what_they_have() {
+    use dyno_server::{migrate, store};
+    use serde_json::{Value, json};
+    let m = made();
+    let dir = std::env::temp_dir().join(format!("dyno-rebuild-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("world.dynw");
+    // the old world: 384 wide, its hearth off-centre as the live one's is
+    let old = World::generate([384, 96, 384], 7);
+    old.save(&path).unwrap();
+    let hearth = [195, old.surface(195, 193) + 1, 193];
+    let at = |dx: f64, dz: f64| {
+        let (x, z) = (hearth[0] as f64 + dx, hearth[2] as f64 + dz);
+        json!([
+            x + 0.5,
+            old.surface(x as i32, z as i32) as f64 + 1.0,
+            z + 0.5
+        ])
+    };
+    let kit = json!({"token": 77, "level": 9, "xp": 1234, "money": 4321, "class": "priest",
+        "pack": [["iron_sword", 1, 0], null, ["berries", 5, 0]], "equip": [null, ["worn_tunic", 1, 3]],
+        "quests": [["cold_hearth", [0]]], "done": ["meat_for_the_pot"], "bank": [["coal", 12, 0]],
+        "something_new": {"kept": true}});
+    let mut players = serde_json::Map::new();
+    let mut put = |name: &str, pos: Value, spawn: Value| {
+        let mut p = kit.clone();
+        p["pos"] = pos;
+        p["spawn"] = spawn;
+        players.insert(name.into(), p);
+    };
+    put("in_town", at(0.0, 10.0), Value::Null);
+    put("at_the_watch", at(2.0, -52.0), at(0.0, 5.0));
+    put("at_the_rest", at(131.0, 8.0), Value::Null);
+    // deep in the mine: far below the surface, north of the yard
+    put(
+        "in_the_mine",
+        json!([hearth[0] as f64 + 174.5, 6.0, hearth[2] as f64 - 105.5]),
+        Value::Null,
+    );
+    put("in_the_wild", at(-60.0, 100.0), Value::Null);
+    std::fs::write(
+        dir.join("players.json"),
+        serde_json::to_vec(&players).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(dir.join("chests.json"), b"{}").unwrap();
+    let meta = store::Meta {
+        day: 12,
+        clock: 0.4,
+        spawn_hearth: Some(hearth),
+        regrow: vec![([200, 30, 200], 5, 99)],
+        ..Default::default()
+    };
+    store::save_meta(&store::meta_path(&path), &meta).unwrap();
+
+    let done = migrate::rebuild(&path, &old, &meta, &m.world, &m.built, &m.layout).unwrap();
+    assert_eq!(done.players, 5);
+    assert_eq!(done.regrow_dropped, 1);
+
+    let after: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("players.json")).unwrap()).unwrap();
+    let pos = |name: &str, field: &str| -> [f32; 3] {
+        let a = after[name][field].as_array().unwrap();
+        [0, 1, 2].map(|i| a[i].as_f64().unwrap() as f32)
+    };
+    let near = |p: [f32; 3], key: &str| {
+        let q = place(m, key);
+        (p[0] - q[0] as f32).hypot(p[2] - q[2] as f32)
+    };
+    assert!(near(pos("in_town", "pos"), "hearthstead") < 40.0);
+    assert!(near(pos("at_the_watch", "pos"), "north_watch") < 20.0);
+    assert!(near(pos("at_the_watch", "spawn"), "hearthstead") < 40.0);
+    assert!(near(pos("at_the_rest", "pos"), "miners_rest") < 25.0);
+    assert!(near(pos("in_the_mine", "pos"), "hollow_mines") < 25.0);
+    // out in the country: the same direction, further by the map's growth
+    let wild = pos("in_the_wild", "pos");
+    let k = m.world.size[0] as f32 / 384.0;
+    let want = [
+        m.built.hearth[0] as f32 - 60.0 * k,
+        m.built.hearth[2] as f32 + 100.0 * k,
+    ];
+    assert!(
+        (wild[0] - want[0]).hypot(wild[2] - want[1]) < 50.0,
+        "{wild:?} {want:?}"
+    );
+    for (name, before) in &players {
+        // on open ground, under the sky
+        let p = pos(name, "pos");
+        let (x, y, z) = (
+            p[0].floor() as i32,
+            p[1].floor() as i32,
+            p[2].floor() as i32,
+        );
+        assert!(
+            w::is_solid(m.world.get(x, y - 1, z)),
+            "{name} stands on something"
+        );
+        assert!(!w::is_solid(m.world.get(x, y, z)) && !w::is_solid(m.world.get(x, y + 1, z)));
+        assert_eq!(m.world.surface(x, z), y - 1, "{name} is under the sky");
+        // nothing but the position changed
+        let mut a = after[name].clone();
+        let mut b = before.clone();
+        for v in [&mut a, &mut b] {
+            v.as_object_mut().unwrap().remove("pos");
+            v.as_object_mut().unwrap().remove("spawn");
+        }
+        assert_eq!(a, b, "{name} keeps everything");
+    }
+    let saved = store::load_meta(&store::meta_path(&path));
+    assert_eq!(saved.spawn_hearth, Some(m.built.hearth));
+    assert_eq!(saved.world_layout, Some(m.layout.version));
+    assert_eq!((saved.day, saved.clock), (12, 0.4), "the calendar is kept");
+    assert!(saved.regrow.is_empty());
+    // the old save is kept, and a second run never overwrites it
+    let backup = dir.join(format!("players.json.before-layout-{}", m.layout.version));
+    let kept = std::fs::read(&backup).unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Value>(&kept).unwrap(),
+        Value::Object(players.clone())
+    );
+    assert!(
+        dir.join(format!("world.dynw.before-layout-{}", m.layout.version))
+            .exists()
+    );
+    migrate::rebuild(&path, &old, &meta, &m.world, &m.built, &m.layout).unwrap();
+    assert_eq!(std::fs::read(&backup).unwrap(), kept);
+    let _ = std::fs::remove_dir_all(&dir);
+}

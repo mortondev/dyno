@@ -66,6 +66,10 @@ fn start_webhook(url: String) -> std::sync::mpsc::Sender<String> {
 pub struct Config {
     pub bind: SocketAddr,
     pub world_path: PathBuf,
+    /// the size of the world to make. Zeros: the size of the pack's layout
+    /// (384 × 96 × 384 for a world without one). With a layout, a smaller
+    /// size makes the window of that size round the spawn (tests), and the
+    /// height is always the layout's.
     pub world_size: [u32; 3],
     pub seed: u32,
     pub motd: String,
@@ -104,7 +108,7 @@ impl Default for Config {
         Config {
             bind: SocketAddr::from(([0, 0, 0, 0], proto::DEFAULT_PORT)),
             world_path: PathBuf::from("world/world.dynw"),
-            world_size: [384, 96, 384],
+            world_size: [0, 0, 0],
             seed: 20261122,
             motd: "Welcome to Ashfall Vale.".into(),
             max_players: 32,
@@ -183,6 +187,8 @@ pub struct Server {
     relay_opens: cluster::link::Waiters<Result<(), String>>,
     /// the base world, as served to instances that join
     base_bytes: Vec<u8>,
+    /// the layout version the saved world was built from
+    world_layout: Option<u32>,
     /// the content pack clients download (its rules are what the shards run)
     pack: RwLock<Arc<pack::Pack>>,
 }
@@ -224,6 +230,134 @@ fn content_identity(p: &pack::Pack) -> String {
     format!("{} v{} pack {}", p.content.name, p.content.version, p.id())
 }
 
+/// The size of the world a server makes: the layout's own, or the window
+/// of it that `world_size` asks for (tests, small stages).
+fn layout_size(cfg: &Config, l: &dyno_world::layout::Layout) -> [u32; 3] {
+    let want = |i: usize| match cfg.world_size[i] {
+        0 => l.size[i],
+        n => n.min(l.size[i]),
+    };
+    [want(0), l.size[1], want(2)]
+}
+
+/// The world of a pack with a layout: the saved one if it was built from
+/// this version of the layout, else a new one (an older saved world is
+/// rebuilt, and everything saved moves to its place in the new one).
+fn load_or_build(
+    cfg: &Config,
+    meta: &store::Meta,
+    l: &dyno_world::layout::Layout,
+    stamps: &dyno_world::stamp::Stamps,
+) -> std::io::Result<(World, [i32; 3])> {
+    let size = layout_size(cfg, l);
+    let old = World::load(&cfg.world_path).ok();
+    if let (Some(w), Some(h)) = (&old, meta.spawn_hearth)
+        && meta.world_layout == Some(l.version)
+        && w.size == size
+    {
+        log(format!(
+            "Loaded world {} ({:?}, layout v{})",
+            cfg.world_path.display(),
+            w.size,
+            l.version
+        ));
+        return Ok((old.unwrap_or_else(|| World::empty(size)), h));
+    }
+    let t = Instant::now();
+    let (w, built) = dyno_world::worldgen::build(l, stamps, size).map_err(std::io::Error::other)?;
+    log(format!(
+        "Built the world {:?} from layout v{} in {:.1} s: {} places, {} stamps, {} trees",
+        w.size,
+        l.version,
+        t.elapsed().as_secs_f32(),
+        built.places.len(),
+        built.stamps.len(),
+        built.trees.len()
+    ));
+    if let Some(old) = old {
+        // a world from another layout (or from before layouts): move what
+        // was saved in it to the new one
+        migrate::rebuild(&cfg.world_path, &old, meta, &w, &built, l)?;
+    }
+    if let Err(e) = w.save(&cfg.world_path) {
+        log(format!(
+            "Warning: cannot save world to {}: {e}",
+            cfg.world_path.display()
+        ));
+    }
+    // the hearth and the layout version go on disk with the world, so a
+    // stop before the first save cannot leave the two out of step
+    let mut m = store::load_meta(&store::meta_path(&cfg.world_path));
+    m.spawn_hearth = Some(built.hearth);
+    m.world_layout = Some(l.version);
+    store::save_meta(&store::meta_path(&cfg.world_path), &m)?;
+    Ok((w, built.hearth))
+}
+
+/// A world without a layout (builder worlds, other rules): terrain from
+/// the seed, with a spawn hearth and the quest beacons of its rules.
+fn load_or_generate(cfg: &Config, meta: &store::Meta, content: &Content) -> (World, [i32; 3]) {
+    let size = if cfg.world_size.contains(&0) {
+        [384, 96, 384]
+    } else {
+        cfg.world_size
+    };
+    let mut world = match World::load(&cfg.world_path) {
+        Ok(w) => {
+            log(format!(
+                "Loaded world {} ({:?})",
+                cfg.world_path.display(),
+                w.size
+            ));
+            // an older, smaller world grows to the current map size, keeping everything
+            if w.size[0] < size[0] && w.size[2] < size[2] && w.size[1] == size[1] {
+                let grown = migrate::expand(&cfg.world_path, w, size, cfg.seed);
+                if let Err(e) = grown.save(&cfg.world_path) {
+                    log(format!("Warning: cannot save the grown world: {e}"));
+                }
+                grown
+            } else {
+                w
+            }
+        }
+        Err(_) => {
+            log(format!(
+                "Generating a new world {size:?} with seed {}",
+                cfg.seed
+            ));
+            let w = World::generate(size, cfg.seed);
+            if let Err(e) = w.save(&cfg.world_path) {
+                log(format!(
+                    "Warning: cannot save world to {}: {e}",
+                    cfg.world_path.display()
+                ));
+            }
+            w
+        }
+    };
+    // growing moves the saved hearth: read it again
+    let meta_now = store::load_meta(&store::meta_path(&cfg.world_path));
+    let known = meta_now.spawn_hearth.or(meta.spawn_hearth);
+    let before = world.clone();
+    let spawn_hearth = world.ensure_spawn_hearth(known);
+    if world.get(spawn_hearth[0], spawn_hearth[1], spawn_hearth[2])
+        != before.get(spawn_hearth[0], spawn_hearth[1], spawn_hearth[2])
+    {
+        log(format!("Built the spawn hearth at {spawn_hearth:?}"));
+        if let Err(e) = world.save(&cfg.world_path) {
+            log(format!("Warning: cannot save world: {e}"));
+        }
+    }
+    drop(before);
+    if rpg::build_landmarks(&mut world, content, spawn_hearth) {
+        log("Built quest beacons");
+        if let Err(e) = world.save(&cfg.world_path) {
+            log(format!("Warning: cannot save world: {e}"));
+        }
+    }
+    (world, spawn_hearth)
+}
+
 /// Start the server in background threads and return at once.
 pub fn start(cfg: Config) -> std::io::Result<Handle> {
     let pack = pack::Pack::load(cfg.content_path.as_deref()).map_err(std::io::Error::other)?;
@@ -263,73 +397,19 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         }
         None => None,
     };
-    let mut world = match World::load(&cfg.world_path) {
-        Ok(w) => {
-            log(format!(
-                "Loaded world {} ({:?})",
-                cfg.world_path.display(),
-                w.size
-            ));
-            // an older, smaller world grows to the current map size, keeping everything
-            if w.size[0] < cfg.world_size[0]
-                && w.size[2] < cfg.world_size[2]
-                && w.size[1] == cfg.world_size[1]
-            {
-                let grown = migrate::expand(&cfg.world_path, w, cfg.world_size, cfg.seed);
-                if let Err(e) = grown.save(&cfg.world_path) {
-                    log(format!("Warning: cannot save the grown world: {e}"));
-                }
-                grown
-            } else {
-                w
-            }
-        }
-        Err(_) => {
-            log(format!(
-                "Generating a new world {:?} with seed {}",
-                cfg.world_size, cfg.seed
-            ));
-            let w = World::generate(cfg.world_size, cfg.seed);
-            if let Err(e) = w.save(&cfg.world_path) {
-                log(format!(
-                    "Warning: cannot save world to {}: {e}",
-                    cfg.world_path.display()
-                ));
-            }
-            w
-        }
-    };
     let meta = store::load_meta(&store::meta_path(&cfg.world_path));
-    let before = world.clone();
-    let spawn_hearth = world.ensure_spawn_hearth(meta.spawn_hearth);
-    if world.get(spawn_hearth[0], spawn_hearth[1], spawn_hearth[2])
-        != before.get(spawn_hearth[0], spawn_hearth[1], spawn_hearth[2])
-    {
-        log(format!("Built the spawn hearth at {spawn_hearth:?}"));
-        if let Err(e) = world.save(&cfg.world_path) {
-            log(format!("Warning: cannot save world: {e}"));
+    // a protected world with a layout in its pack is built from that data
+    let layout = pack.layout.clone().filter(|_| content.world.protected);
+    let (world, spawn_hearth) = match &layout {
+        Some(l) => {
+            let (w, hearth) = load_or_build(&cfg, &meta, l, &pack.stamps)?;
+            (w, hearth)
         }
-    }
-    drop(before);
-    if rpg::build_landmarks(&mut world, &content, spawn_hearth) {
-        log("Built quest beacons");
-        if let Err(e) = world.save(&cfg.world_path) {
-            log(format!("Warning: cannot save world: {e}"));
-        }
-    }
-    if content.world.protected && dyno_world::village::build_hearthstead(&mut world, spawn_hearth) {
-        log("Built Hearthstead");
-        if let Err(e) = world.save(&cfg.world_path) {
-            log(format!("Warning: cannot save world: {e}"));
-        }
-    }
-    if content.world.protected && dyno_world::zones::build_world_features(&mut world, spawn_hearth)
-    {
-        log("Built the zones");
-        if let Err(e) = world.save(&cfg.world_path) {
-            log(format!("Warning: cannot save world: {e}"));
-        }
-    }
+        None => load_or_generate(&cfg, &meta, &content),
+    };
+    let world_layout = layout.as_ref().map(|l| l.version);
+    // building or growing a world rewrites what is saved beside it
+    let meta = store::load_meta(&store::meta_path(&cfg.world_path));
     let hearths = creatures::find_hearths(&world);
     let light = dyno_world::light::Light::new(&world);
     let webhook = cfg
@@ -467,6 +547,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         relay_opens: Default::default(),
         base_bytes,
         pack: RwLock::new(Arc::new(pack)),
+        world_layout,
     });
     if server.cluster.is_some() {
         clustered::attach(&server);
@@ -1151,6 +1232,7 @@ impl Server {
                 events: st.events.iter().cloned().collect(),
                 spawn_hearth: Some(st.spawn_hearth),
                 regrow: st.regrow.clone(),
+                world_layout: self.world_layout,
             };
             (
                 world,

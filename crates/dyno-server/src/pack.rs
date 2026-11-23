@@ -8,6 +8,8 @@
 
 use dyno_protocol::{self as proto, AssetRef, Manifest};
 use dyno_world::content::Content;
+use dyno_world::layout::Layout;
+use dyno_world::stamp::Stamps;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap};
@@ -37,8 +39,16 @@ pub struct Pack {
     pub hash: [u8; 32],
     /// the parsed rules (files[0])
     pub content: Content,
+    /// the world's layout and stamps (`world/layout.json`, `stamps/`):
+    /// what the server builds its world from. They stay on the server;
+    /// clients are sent the world itself.
+    pub layout: Option<Arc<Layout>>,
+    pub stamps: Arc<Stamps>,
     files: HashMap<[u8; 32], Stored>,
 }
+
+/// The layout path when `pack.json` names none.
+pub const DEFAULT_LAYOUT: &str = "world/layout.json";
 
 /// A file as it is, and as it travels.
 struct Stored {
@@ -52,8 +62,49 @@ struct Stored {
 /// `anims/<skeleton>.clips`, thinned and quantised
 /// ([`dyno_protocol::clips`]); the source stays out of the manifest.
 pub fn compile(files: BTreeMap<String, Vec<u8>>) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    Ok(compile_world(files)?.0)
+}
+
+type Compiled = (BTreeMap<String, Vec<u8>>, Option<Layout>, Stamps);
+
+/// [`compile`], with the world data taken out: the layout and the stamps
+/// are parsed and checked against each other and stay on the server, and
+/// the rules' places (`"place": "miners_rest"`) become the offsets from the
+/// spawn hearth that the rules' readers work with.
+fn compile_world(mut files: BTreeMap<String, Vec<u8>>) -> Result<Compiled, String> {
+    let meta: Option<PackFile> = files
+        .get("pack.json")
+        .and_then(|b| serde_json::from_slice(b).ok());
+    let entry = |k: &str, default: &str| {
+        meta.as_ref()
+            .and_then(|m| m.entries.get(k).cloned())
+            .unwrap_or_else(|| default.into())
+    };
+    let stamps = Stamps::from_files(files.iter().map(|(p, b)| (p.as_str(), b.as_slice())))?;
+    let layout_path = entry("layout", DEFAULT_LAYOUT);
+    let layout = match files.get(&layout_path) {
+        Some(b) => {
+            let text = std::str::from_utf8(b).map_err(|e| format!("{layout_path}: {e}"))?;
+            let l = Layout::from_json(text).map_err(|e| format!("{layout_path}: {e}"))?;
+            l.check_stamps(&stamps)
+                .map_err(|e| format!("{layout_path}: {e}"))?;
+            Some(l)
+        }
+        None => None,
+    };
+    let rules_path = entry("rules", DEFAULT_RULES);
+    if let (Some(l), Some(rules)) = (&layout, files.get_mut(&rules_path)) {
+        let mut v: serde_json::Value =
+            serde_json::from_slice(rules).map_err(|e| format!("{rules_path}: {e}"))?;
+        l.resolve_rules(&mut v)
+            .map_err(|e| format!("{rules_path}: {e}"))?;
+        *rules = serde_json::to_vec(&v).map_err(|e| format!("{rules_path}: {e}"))?;
+    }
     let mut out = BTreeMap::new();
     for (path, bytes) in files {
+        if path.starts_with("stamps/") || path.starts_with("world/") {
+            continue;
+        }
         match path
             .strip_prefix("anims/")
             .and_then(|p| p.strip_suffix(".json"))
@@ -67,7 +118,7 @@ pub fn compile(files: BTreeMap<String, Vec<u8>>) -> Result<BTreeMap<String, Vec<
             }
         }
     }
-    Ok(out)
+    Ok((out, layout, stamps))
 }
 
 fn sha256(bytes: &[u8]) -> [u8; 32] {
@@ -131,7 +182,7 @@ impl Pack {
     /// Build a pack from its files (pack path to bytes). Sources are
     /// compiled first ([`compile`]).
     pub fn from_files(files: BTreeMap<String, Vec<u8>>) -> Result<Pack, String> {
-        let files = compile(files)?;
+        let (files, layout, stamps) = compile_world(files)?;
         let meta: PackFile = match files.get("pack.json") {
             Some(b) => serde_json::from_slice(b).map_err(|e| format!("pack.json: {e}"))?,
             None => return Err("the pack has no pack.json".into()),
@@ -187,6 +238,8 @@ impl Pack {
             manifest,
             hash,
             content,
+            layout: layout.map(Arc::new),
+            stamps: Arc::new(stamps),
             files: stored,
         })
     }
