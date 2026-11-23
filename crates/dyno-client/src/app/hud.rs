@@ -443,12 +443,12 @@ pub fn frames(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, map: R
     // combo points along the bottom of the target frame
     if p.combo.0 > 0 && p.combo.1.is_some() && p.combo.1 == picked {
         for k in 0..5u8 {
-            let c = target_at + Vec2::new(246.0, 9.0 + k as f32 * 9.5);
+            let c = target_at + Vec2::new(247.0, 5.0 + k as f32 * 11.0);
             let on = k < p.combo.0;
             theme::diamond(
                 painter,
                 c,
-                5.0,
+                6.0,
                 if on {
                     theme::EMBER
                 } else {

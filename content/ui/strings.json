@@ -590,5 +590,25 @@
    "value": "{n} ({percent}% less)",
    "text": "Reduces the physical damage you take from a creature of your level by the share shown."
   }
+ },
+ "names": {
+  "blocked": [
+   "admin",
+   "moderator",
+   "gamemaster",
+   "fuck",
+   "shit",
+   "cunt",
+   "bitch",
+   "nigg",
+   "fagg",
+  
+   "nazi",
+   "hitler",
+   "penis",
+   "vagina",
+   "whore",
+   "slut"
+  ]
  }
 }

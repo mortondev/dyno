@@ -366,3 +366,67 @@ mod tests {
         assert!(t.queue.is_empty());
     }
 }
+
+/// The pack's own tips and words, read from the source tree.
+#[cfg(test)]
+mod pack_tests {
+    use super::*;
+
+    fn strings() -> serde_json::Value {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../content/ui/strings.json");
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn every_tip_in_the_pack_is_whole_and_points_at_a_known_part() {
+        let list: Vec<Tip> = serde_json::from_value(strings()["tips"]["list"].clone()).unwrap();
+        assert!(list.len() >= 12, "the first half hour has its tips");
+        let anchors = [
+            "", "center", "frame", "target", "bar", "xp", "minimap", "tracker",
+        ];
+        let mut ids = HashSet::new();
+        for t in &list {
+            assert!(ids.insert(t.id.clone()), "tip id {} is used twice", t.id);
+            assert!(!t.on.is_empty() && !t.title.is_empty(), "tip {}", t.id);
+            assert!(anchors.contains(&t.anchor.as_str()), "tip {}", t.id);
+            // two sentences, not a manual
+            assert!(
+                t.text.len() >= 20 && t.text.len() <= 220,
+                "tip {} is {} long",
+                t.id,
+                t.text.len()
+            );
+        }
+    }
+
+    #[test]
+    fn the_words_the_hud_asks_for_are_in_the_pack() {
+        let all = strings();
+        for key in [
+            "hud.level_up",
+            "hud.new_ability_key",
+            "hud.quest_ready",
+            "hud.recall_text",
+            "death.release",
+            "menu.resume",
+            "options.tips_again",
+            "panels.sell_junk",
+            "item.compare",
+            "item.slot.mainhand",
+            "item.weapon.offhand",
+            "ability.cooldown_min",
+            "ability.resource.energy",
+            "sheet.armor.value",
+            "sheet.spell_crit.text",
+            "tips.dismiss",
+        ] {
+            let mut v = &all;
+            for part in key.split('.') {
+                v = &v[part];
+            }
+            assert!(v.is_string(), "{key} is missing from ui/strings.json");
+        }
+        assert_eq!(all["options"]["scales"].as_array().unwrap().len(), 5);
+        assert!(all["keys"]["rpg"].as_array().unwrap().len() >= 3);
+    }
+}

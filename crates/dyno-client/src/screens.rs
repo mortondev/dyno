@@ -8,6 +8,8 @@ use crate::uitext::{f as tf, t};
 use dyno_protocol::Stack;
 use dyno_sim::character::{self, Sheet};
 use dyno_sim::progression::money_text;
+#[cfg(test)]
+use dyno_world::content::Slot;
 use dyno_world::content::{Ability, Class, Content, EQUIP_PLACES, Gear, Resource};
 use egui::{Align2, Color32, CursorIcon, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 
@@ -891,4 +893,73 @@ pub fn sort_moves(c: &Content, pack: &[Option<Stack>]) -> Vec<(u8, u8)> {
         }
     }
     moves
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dyno_world::content::{Stats, Weapon, WeaponKind};
+
+    fn gear(armor: u16, str: i16, sta: i16, weapon: Option<(f32, f32, f32)>) -> Gear {
+        Gear {
+            slot: Slot::MainHand,
+            armor_type: None,
+            weapon: weapon.map(|(min, max, speed)| Weapon {
+                kind: WeaponKind::Sword,
+                min,
+                max,
+                speed,
+            }),
+            armor,
+            stats: Stats {
+                str,
+                sta,
+                ..Stats::default()
+            },
+        }
+    }
+
+    #[test]
+    fn comparison_lists_only_what_changes_with_its_sign() {
+        let new = gear(10, 3, 1, Some((4.0, 8.0, 2.0)));
+        let worn = gear(10, 1, 2, Some((2.0, 4.0, 2.0)));
+        let lines = compare(&new, Some(&worn));
+        // damage per second up, strength up, stamina down; armour the same
+        let signs: Vec<bool> = lines.iter().map(|(d, _)| *d > 0.0).collect();
+        assert_eq!(signs, vec![true, true, false]);
+        // against an empty place everything it has is a gain
+        assert!(compare(&new, None).iter().all(|(d, _)| *d > 0.0));
+        assert!(compare(&new, Some(&new)).is_empty());
+    }
+
+    #[test]
+    fn sorting_joins_stacks_and_puts_gear_first_and_junk_last() {
+        let c = Content::default_pack();
+        let pick = |f: &dyn Fn(&dyno_world::content::ItemView) -> bool| {
+            c.items
+                .iter()
+                .map(|i| c.item(i.id))
+                .find(|it| f(it))
+                .map(|it| it.id)
+                .expect("the pack has such an item")
+        };
+        let food = pick(&|it| it.food > 0 && it.stack >= 10 && it.gear.is_none());
+        let sword = pick(&|it| it.gear.is_some());
+        let junk = pick(&is_junk);
+        let mut pack = vec![None; 12];
+        pack[1] = Some(Stack::new(junk, 1));
+        pack[4] = Some(Stack::new(food, 2));
+        pack[7] = Some(Stack::new(sword, 1));
+        pack[9] = Some(Stack::new(food, 3));
+        // play the moves as the server would
+        for (from, to) in sort_moves(&c, &pack) {
+            dyno_sim::inventory::transfer_within(&c, &mut pack, from as usize, to as usize, 0);
+        }
+        assert_eq!(pack[0].map(|s| s.item), Some(sword));
+        assert_eq!(pack[1], Some(Stack::new(food, 5)));
+        assert_eq!(pack[2].map(|s| s.item), Some(junk));
+        assert!(pack[3..].iter().all(|s| s.is_none()));
+        // a tidy pack needs no moves
+        assert!(sort_moves(&c, &pack).is_empty());
+    }
 }

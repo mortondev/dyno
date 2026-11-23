@@ -5625,7 +5625,8 @@ pub fn shot_front(
     ctx.style_mut(|s| s.animation_time = 0.0);
     // the interface at the size the game gives it for this picture
     let zoom = crate::options::zoom_for(hgt, 1.0);
-    ctx.set_zoom_factor(zoom);
+    // (set directly: `set_zoom_factor` would rescale a screen size not yet known)
+    ctx.options_mut(|o| o.zoom_factor = zoom);
     let raw = || egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
@@ -5682,8 +5683,6 @@ pub fn shot_front(
             );
         }
     };
-    // (the pass in which a new zoom takes effect still has the old screen size)
-    let _ = ctx.run(raw(), |_| {});
     let first = ctx.run(raw(), |ctx| draw(ctx, &mut cmds));
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &[], &ctx, first);
     let second = ctx.run(raw(), |ctx| draw(ctx, &mut cmds));
@@ -6347,7 +6346,8 @@ pub fn shot_with_ui(
     });
     // the interface at the size the game gives it for this picture
     let zoom = crate::options::zoom_for(hgt, 1.0);
-    ctx.set_zoom_factor(zoom);
+    // (set directly: `set_zoom_factor` would rescale a screen size not yet known)
+    ctx.options_mut(|o| o.zoom_factor = zoom);
     let raw = || egui::RawInput {
         screen_rect: Some(Rect::from_min_size(
             Pos2::ZERO,
@@ -6358,8 +6358,6 @@ pub fn shot_with_ui(
     let mut host = None;
     let mut actions = Vec::new();
     // two passes so windows settle their size; the first pass loads the font atlas
-    // (the pass in which a new zoom takes effect still has the old screen size)
-    let _ = ctx.run(raw(), |_| {});
     let first = ctx.run(raw(), |ctx| {
         if !stand {
             hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
