@@ -73,6 +73,17 @@ for a in r["areas"]:
 # a second player at a seam found it mined out for four minutes
 r["blocks"]["coal_ore"]["respawn"] = 120
 
+# camps as big as the quests that send you to them: Ostrin's two quests ask
+# for 5 bandits and 6 sacks (55% a bandit) from a camp of three
+for a in r["areas"]:
+    for c in a.get("camps", []):
+        if c.get("place") == "mere_ashcloaks":
+            c["count"], c["respawn"] = 5, 90
+        if c.get("place") in ("road_scouts_1", "road_scouts_2"):
+            c["count"] = 3
+quests["stolen_grain"]["objectives"][0]["count"] = 4
+quests["stolen_grain"]["text"] = quests["stolen_grain"]["text"].replace("6 ", "4 ").replace("six", "four").replace("Six", "Four")
+
 json.dump(r, open(PATH, "w"), indent=1)
 open(PATH, "a").write("\n")
 print("applied")

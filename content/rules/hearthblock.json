@@ -8077,11 +8077,11 @@
    "title": "Stolen Grain",
    "level": 4,
    "giver": "ostrin",
-   "text": "They carried off my grain in sacks. Bring back six and Tilda gets her flour.",
+   "text": "They carried off my grain in sacks. Bring back four and Tilda gets her flour.",
    "objectives": [
     {
      "collect": "grain_sack",
-     "count": 6
+     "count": 4
     }
    ],
    "requires": [
@@ -10228,10 +10228,10 @@
     },
     {
      "creature": "ashcloak",
-     "count": 3,
+     "count": 5,
      "place": "mere_ashcloaks",
      "spread": 14,
-     "respawn": 120
+     "respawn": 90
     },
     {
      "creature": "grazer",
@@ -10329,7 +10329,7 @@
    "camps": [
     {
      "creature": "ashcloak",
-     "count": 2,
+     "count": 3,
      "place": "road_scouts_1",
      "spread": 9,
      "respawn": 120,
@@ -10402,7 +10402,7 @@
     },
     {
      "creature": "ashcloak",
-     "count": 2,
+     "count": 3,
      "place": "road_scouts_2",
      "spread": 9,
      "respawn": 120
