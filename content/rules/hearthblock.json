@@ -5595,6 +5595,52 @@
    "cap": 0,
    "attack_speed": 1.8,
    "burns_in_daylight": false
+  },
+  {
+   "key": "old_tusk",
+   "name": "Old Tusk",
+   "model": "quadruped",
+   "variant": 1,
+   "health": 150,
+   "damage": 9,
+   "levels": [
+    4,
+    4
+   ],
+   "color": [
+    0.38,
+    0.24,
+    0.16
+   ],
+   "drops": [
+    {
+     "item": "old_tusk_mantle",
+     "chance": 1.0
+    },
+    {
+     "item": "boar_tusk",
+     "min": 2,
+     "max": 3,
+     "chance": 1.0
+    },
+    {
+     "item": "thornhide_boots",
+     "chance": 0.5
+    }
+   ],
+   "hostile": true,
+   "scale": 1.5,
+   "speed": 3.2,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false,
+   "ability": {
+    "charge": {
+     "range": 10
+    }
+   },
+   "aggro": 4
   }
  ],
  "milestones": [
@@ -5705,6 +5751,10 @@
    [
     "wooden_axe",
     1
+   ],
+   [
+    "hearth_bread",
+    6
    ],
    [
     "berries",
@@ -7763,15 +7813,15 @@
    "money": 120,
    "choice": [
     [
-     "watchman_vest",
+     "shadowweave_gloves",
      1
     ],
     [
-     "ranger_jerkin",
+     "smith_gloves",
      1
     ],
     [
-     "hearthkeeper_robe",
+     "thornhide_boots",
      1
     ]
    ],
@@ -7785,7 +7835,7 @@
    "requires": [
     "coal_for_the_watch"
    ],
-   "text": "The Old Quarry has iron too: rust-red flecks beside the coal. You'll want a stone pickaxe (Old Brannoc gives one for kindling, or I sell them) and a little practice: dig coal until your Mining reaches 5. Bring me 6 raw iron and I'll show you what a forge can do.",
+   "text": "The Old Quarry has iron beside the coal. You need a stone pickaxe (Brannoc gives one for kindling) and Mining 5: dig coal until you have it. Bring me 6 raw iron.",
    "done": "Good ore. Here, a proper pick, from my own anvil.",
    "objectives": [
     {
@@ -7909,11 +7959,15 @@
    "done": "Road's clearer already. Take your pick from the armoury.",
    "choice": [
     [
-     "thornhide_boots",
+     "watchman_vest",
      1
     ],
     [
-     "woolen_cloak",
+     "ranger_jerkin",
+     1
+    ],
+    [
+     "hearthkeeper_robe",
      1
     ]
    ],
@@ -8464,7 +8518,7 @@
    "requires": [
     "broken_tower"
    ],
-   "text": "If you're to be any use to the Watch, learn the meadow. Three places: the Old Quarry to the north-west, the Trapper's Camp on the west trail, and the wreck of Hobb's wagon on the east road. Go and stand in each.",
+   "text": "If you're to be any use to the Watch, learn the meadow. Go and stand in three places: the Old Quarry north-west, the Trapper's Camp on the west trail, and the wreck of Hobb's wagon on the east road.",
    "progress": "Quarry, camp, caravan.",
    "done": "Now you know the ground better than half my men. Take these: you've walked enough to need them.",
    "objectives": [
@@ -8631,7 +8685,7 @@
    "requires": [
     "coal_for_the_watch"
    ],
-   "text": "The Great Hearth once lit the whole vale, pass to shore. Before we relight it, someone must see what it will shine on. Stand at the North Pass, at the Barrow Overlook in the west, on the shore before the Sunken Shrine in the south, and at the Ridge Cut in the east. It is a long road: take it as it comes, and take a friend past the bridge.",
+   "text": "The Great Hearth once lit the whole vale. Before we relight it, see what it will shine on. Stand at the North Pass, the Barrow Overlook, the Shrine Shore and the Ridge Cut. It is a long road: take a friend past the bridge.",
    "progress": "North, west, south, east. The vale is bigger than it looks from here.",
    "done": "Pass to shore, and back alive. Then wear something worthy of it.",
    "objectives": [
@@ -8693,6 +8747,40 @@
     ],
     [
      "apprentice_trousers",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "old_tusk",
+   "title": "Old Tusk (Group)",
+   "level": 4,
+   "giver": "holt",
+   "requires": [
+    "boar_trouble"
+   ],
+   "text": "The boars follow one old brute with tusks like scythes. He keeps to a hollow west of here. He has put two of my men in their beds: take a friend, and bring him down.",
+   "progress": "Old Tusk. West of the tower, past the first boar pack. Not alone.",
+   "done": "That is the herd broken. The Watch owes you, both of you.",
+   "objectives": [
+    {
+     "kill": "old_tusk",
+     "count": 1
+    }
+   ],
+   "xp": 500,
+   "money": 200,
+   "choice": [
+    [
+     "watchman_vest",
+     1
+    ],
+    [
+     "ranger_jerkin",
+     1
+    ],
+    [
+     "hearthkeeper_robe",
      1
     ]
    ]
@@ -10040,19 +10128,7 @@
      "count": 3,
      "place": "birchrise_boars_2",
      "spread": 16,
-     "respawn": 120,
-     "rare": {
-      "name": "Old Tusk",
-      "chance": 0.12,
-      "power": 2.2,
-      "levels": 1,
-      "drops": [
-       {
-        "item": "old_tusk_mantle",
-        "chance": 0.5
-       }
-      ]
-     }
+     "respawn": 120
     },
     {
      "creature": "thornboar",
@@ -10078,6 +10154,21 @@
      ],
      "spread": 16,
      "respawn": 120
+    },
+    {
+     "creature": "old_tusk",
+     "count": 1,
+     "place": "north_watch",
+     "at": [
+      -135,
+      -70
+     ],
+     "spread": 4,
+     "respawn": 150,
+     "levels": [
+      4,
+      4
+     ]
     }
    ]
   },
