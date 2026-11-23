@@ -10,8 +10,8 @@ use std::rc::Rc;
 
 #[path = "smooth.rs"]
 mod smooth;
-use smooth::face_normals;
 pub use smooth::Smooth;
+use smooth::face_normals;
 
 /// A palette index. 0 is empty space.
 pub type Ink = u8;
@@ -659,7 +659,14 @@ pub fn emit(out: &mut Vec<Vertex>, mesh: &Mesh, xf: &Affine3A, paint: Paint) {
         // when it faces away from both the camera and the light
         let nm = m.inverse().transpose();
         let light = paint.light;
-        for (tri, (vs, f)) in mesh.verts.chunks_exact(3).zip(&mesh.faces).enumerate() {
+        for (tri, (vs, f)) in mesh
+            .verts
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .zip(&mesh.faces)
+            .enumerate()
+        {
             if let Some((eye, sun)) = view {
                 let f = Vec3A::from(*f);
                 if (eye - Vec3A::from(vs[0].pos)).dot(f) < 0.0 && sun.dot(f) <= 0.0 {

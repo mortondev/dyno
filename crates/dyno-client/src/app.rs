@@ -3066,8 +3066,13 @@ impl App {
                         .map(|c| c.color)
                         .unwrap_or([0.5, 0.5, 0.6]),
                 );
-                let keys: Vec<String> = p.equip.iter().flatten().map(|s| p.content.item_key(s.item)).collect();
-        look.wear(keys.iter().map(String::as_str));
+                let keys: Vec<String> = p
+                    .equip
+                    .iter()
+                    .flatten()
+                    .map(|s| p.content.item_key(s.item))
+                    .collect();
+                look.wear(keys.iter().map(String::as_str));
                 look.weapon = models::weapon_look(&p.content, held_item.map(|s| s.item));
                 let mut book = std::mem::take(&mut p.anims);
                 let now = book.now();
@@ -6015,7 +6020,12 @@ pub fn shot_with_ui(
                 .map(|c| c.color)
                 .unwrap_or([0.5, 0.5, 0.6]),
         );
-        let keys: Vec<String> = p.equip.iter().flatten().map(|s| p.content.item_key(s.item)).collect();
+        let keys: Vec<String> = p
+            .equip
+            .iter()
+            .flatten()
+            .map(|s| p.content.item_key(s.item))
+            .collect();
         look.wear(keys.iter().map(String::as_str));
         look.weapon = models::weapon_look(&p.content, p.held().map(|s| s.item));
         let at = p.player.pos + Vec3::Y;

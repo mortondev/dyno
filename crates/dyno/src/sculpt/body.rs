@@ -110,7 +110,11 @@ impl Body {
         let delt = ellipsoid(
             m,
             self.shoulder + vec3(0.35, -0.6, 0.0),
-            if f { vec3(2.45, 3.0, 2.5) } else { vec3(3.05, 3.7, 3.1) },
+            if f {
+                vec3(2.45, 3.0, 2.5)
+            } else {
+                vec3(3.05, 3.7, 3.1)
+            },
         );
         let prof: &[(f32, f32, f32)] = if f {
             &[(0.0, 1.95, 2.1), (0.45, 1.8, 2.05), (1.0, 1.55, 1.65)]
@@ -156,37 +160,71 @@ impl Body {
         let curl = (q.y - 3.3).max(0.0) * 0.32;
         let qf = vec3(q.x + curl, q.y, q.z);
         let fingers = rbox(qf, vec3(-0.15, 4.35, 0.0), vec3(0.62, 1.15, 1.45), 0.55);
-        let thumb = cone(q, vec3(-0.45, 0.9, 1.25), vec3(-1.05, 3.1, 1.85), 0.62, 0.45);
+        let thumb = cone(
+            q,
+            vec3(-0.45, 0.9, 1.25),
+            vec3(-1.05, 3.1, 1.85),
+            0.62,
+            0.45,
+        );
         let d = smin(smin(palm, fingers, 0.5), thumb, 0.5);
         d * k
     }
 
     pub fn thigh(&self, m: Vec3) -> f32 {
         let prof: &[(f32, f32, f32)] = if self.female {
-            &[(0.0, 4.0, 4.1), (0.3, 3.5, 3.7), (0.8, 2.55, 2.7), (1.0, 2.3, 2.45)]
+            &[
+                (0.0, 4.0, 4.1),
+                (0.3, 3.5, 3.7),
+                (0.8, 2.55, 2.7),
+                (1.0, 2.3, 2.45),
+            ]
         } else {
-            &[(0.0, 3.9, 4.1), (0.3, 3.65, 3.95), (0.75, 2.85, 3.0), (1.0, 2.5, 2.65)]
+            &[
+                (0.0, 3.9, 4.1),
+                (0.3, 3.65, 3.95),
+                (0.75, 2.85, 3.0),
+                (1.0, 2.5, 2.65),
+            ]
         };
         let t = limb(m, self.hip, self.knee, Vec3::Z, prof);
         let quad = ellipsoid(
             m,
             self.hip + vec3(0.3, -6.0, 1.3),
-            if self.female { vec3(2.4, 4.6, 2.2) } else { vec3(2.8, 5.2, 2.5) },
+            if self.female {
+                vec3(2.4, 4.6, 2.2)
+            } else {
+                vec3(2.8, 5.2, 2.5)
+            },
         );
         smin(t, quad, 1.2)
     }
 
     pub fn shin(&self, m: Vec3) -> f32 {
         let prof: &[(f32, f32, f32)] = if self.female {
-            &[(0.0, 2.3, 2.4), (0.3, 2.2, 2.5), (0.8, 1.5, 1.55), (1.0, 1.35, 1.4)]
+            &[
+                (0.0, 2.3, 2.4),
+                (0.3, 2.2, 2.5),
+                (0.8, 1.5, 1.55),
+                (1.0, 1.35, 1.4),
+            ]
         } else {
-            &[(0.0, 2.6, 2.7), (0.28, 2.6, 2.9), (0.78, 1.85, 1.9), (1.0, 1.65, 1.7)]
+            &[
+                (0.0, 2.6, 2.7),
+                (0.28, 2.6, 2.9),
+                (0.78, 1.85, 1.9),
+                (1.0, 1.65, 1.7),
+            ]
         };
         let s = limb(m, self.knee, self.ankle, Vec3::Z, prof);
         let calf = ellipsoid(
             m,
             self.knee + vec3(0.1, -4.3, -1.0),
-            if self.female { vec3(1.9, 3.2, 1.8) } else { vec3(2.25, 3.6, 2.05) },
+            if self.female {
+                vec3(1.9, 3.2, 1.8)
+            } else {
+                vec3(2.25, 3.6, 2.05)
+            },
         );
         let d = smin(s, calf, 1.2);
         smin(d, self.foot(m), 0.8)
@@ -203,8 +241,16 @@ impl Body {
             vec3(1.3 * k, h * 0.55, 3.3 * k),
             0.9 * k,
         );
-        let heel = ellipsoid(m, vec3(a.x, bottom + 1.2, a.z - 1.2), vec3(1.25, 1.3, 1.3) * k);
-        smin(smin(foot, heel, 0.8), cone(m, a, vec3(a.x, bottom + 1.0, a.z + 0.6), 1.5 * k, 1.3 * k), 0.8)
+        let heel = ellipsoid(
+            m,
+            vec3(a.x, bottom + 1.2, a.z - 1.2),
+            vec3(1.25, 1.3, 1.3) * k,
+        );
+        smin(
+            smin(foot, heel, 0.8),
+            cone(m, a, vec3(a.x, bottom + 1.0, a.z + 0.6), 1.5 * k, 1.3 * k),
+            0.8,
+        )
     }
 
     /// Each part's distance at `p` (the side `p` is on).
@@ -300,9 +346,21 @@ impl Body {
             vec3(1.35, 1.0, 1.3) * s,
         );
         let brow = if f {
-            cone(m, vec3(0.3, y(57.75), 3.55), vec3(2.3, y(57.95), 3.1), 0.45, 0.35)
+            cone(
+                m,
+                vec3(0.3, y(57.75), 3.55),
+                vec3(2.3, y(57.95), 3.1),
+                0.45,
+                0.35,
+            )
         } else {
-            cone(m, vec3(0.2, y(57.55), 3.55), vec3(2.45, y(57.7), 3.25), 0.8, 0.6)
+            cone(
+                m,
+                vec3(0.2, y(57.55), 3.55),
+                vec3(2.45, y(57.7), 3.25),
+                0.8,
+                0.6,
+            )
         };
         let nose = smin(
             cone(
@@ -315,14 +373,22 @@ impl Body {
             ellipsoid(
                 p,
                 vec3(0.0, y(55.3), if f { 4.6 } else { 4.8 }),
-                if f { vec3(0.7, 0.4, 0.5) } else { vec3(0.88, 0.46, 0.55) },
+                if f {
+                    vec3(0.7, 0.4, 0.5)
+                } else {
+                    vec3(0.88, 0.46, 0.55)
+                },
             ),
             0.35,
         );
         let lips = ellipsoid(
             p,
             vec3(0.0, y(54.05), 3.8 * s),
-            if f { vec3(1.05, 0.55, 0.5) } else { vec3(1.1, 0.45, 0.42) },
+            if f {
+                vec3(1.05, 0.55, 0.5)
+            } else {
+                vec3(1.1, 0.45, 0.42)
+            },
         );
         d = smin(d, jaw, 1.6);
         d = smin(d, chin, 0.9);
@@ -331,7 +397,11 @@ impl Body {
         d = smin(d, nose, 0.5);
         d = smin(d, lips, 0.5);
         // the eye sockets
-        let socket = ellipsoid(m, vec3(1.55 * s, y(56.85), 4.2 * s), vec3(0.95, 0.62, 0.7) * s);
+        let socket = ellipsoid(
+            m,
+            vec3(1.6 * s, y(56.85), 4.2 * s),
+            vec3(1.05, 0.75, 0.75) * s,
+        );
         d = smax(d, -socket, 0.35);
         let neck = cone(
             p,
@@ -346,11 +416,11 @@ impl Body {
     /// The eyeballs (right one at +x).
     pub fn eye_centre(&self, right: bool) -> Vec3 {
         let s = if self.female { 0.95 } else { 1.0 };
-        vec3(if right { 1.55 } else { -1.55 } * s, self.hy(56.85), 3.5 * s)
+        vec3(if right { 1.6 } else { -1.6 } * s, self.hy(56.85), 3.42 * s)
     }
 
     pub fn eye_r(&self) -> f32 {
-        if self.female { 0.73 } else { 0.75 }
+        if self.female { 0.86 } else { 0.84 }
     }
 
     pub fn eyes(&self, p: Vec3) -> f32 {

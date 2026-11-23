@@ -1560,10 +1560,16 @@ pub fn showcase() -> Vec<(String, Vec<(String, Look)>)> {
         l
     };
     let all = |on: &Option<Vec<usize>>| -> Vec<usize> {
-        on.clone().unwrap_or_else(|| (0..s.showcase.people.len()).collect())
+        on.clone()
+            .unwrap_or_else(|| (0..s.showcase.people.len()).collect())
     };
     if s.showcase.sets.is_empty() {
-        let people = s.showcase.people.iter().map(|p| (p.name.clone(), person(p))).collect();
+        let people = s
+            .showcase
+            .people
+            .iter()
+            .map(|p| (p.name.clone(), person(p)))
+            .collect();
         return vec![("People".into(), people)];
     }
     s.showcase
@@ -1646,10 +1652,7 @@ impl Figure {
     pub fn derived(&self, look: &Look) -> Look {
         let mut l = look.clone();
         for d in &self.derive {
-            let on = d
-                .cond
-                .iter()
-                .all(|(f, vals)| vals.contains(&l.feature(f)));
+            let on = d.cond.iter().all(|(f, vals)| vals.contains(&l.feature(f)));
             if on {
                 for (f, v) in &d.set {
                     if !look.features.contains_key(f) {
@@ -1721,9 +1724,9 @@ impl Figure {
                     let i = match inks[ink as usize] {
                         Some(i) => i,
                         None => {
-                            let (rgb, glow, crisp) = self
-                                .color(ink, look)
-                                .unwrap_or(([1.0, 0.0, 1.0], false, false));
+                            let (rgb, glow, crisp) =
+                                self.color(ink, look)
+                                    .unwrap_or(([1.0, 0.0, 1.0], false, false));
                             let i = v.ink_as(rgb, glow, crisp);
                             inks[ink as usize] = Some(i);
                             i
@@ -1808,7 +1811,11 @@ fn build(fig: &Figure, look: &Look) -> Built {
             .iter()
             .flat_map(|r| r.bones.iter().map(|b| b.at.vec(look)))
             .collect(),
-        lods: fig.lods.iter().map(|_| std::cell::OnceCell::new()).collect(),
+        lods: fig
+            .lods
+            .iter()
+            .map(|_| std::cell::OnceCell::new())
+            .collect(),
     }
 }
 
@@ -2057,7 +2064,11 @@ pub fn draw(
                 .then(|| look.carry.get(socket))
                 .flatten()
                 .and_then(|(kind, c)| holding(kind, *c, 1, false, 0));
-            let h = if socket.is_empty() { held } else { other.as_ref() };
+            let h = if socket.is_empty() {
+                held
+            } else {
+                other.as_ref()
+            };
             if let Some(h) = h {
                 let fit = Mat3::from_rotation_y(h.carry_turn)
                     * Mat3::from_diagonal(Vec3::splat(h.unit * fig.per_block));
@@ -2112,7 +2123,10 @@ mod tests {
                 .filter(|(_, m)| !m.verts.is_empty())
                 .map(|(p, m)| format!("{}:{}", p.part, m.verts.len()))
                 .collect();
-            println!("lod {i}: {total} vertices in {took:?} ({})", parts.join(" "));
+            println!(
+                "lod {i}: {total} vertices in {took:?} ({})",
+                parts.join(" ")
+            );
         }
         println!("compose: {compose:?}");
     }

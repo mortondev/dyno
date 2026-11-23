@@ -22,7 +22,6 @@ use std::collections::BTreeMap;
 pub enum Mode {
     Set,
     Add,
-    Erase,
     Dye,
 }
 
@@ -31,7 +30,6 @@ impl Mode {
         match self {
             Mode::Set => "set",
             Mode::Add => "add",
-            Mode::Erase => "erase",
             Mode::Dye => "dye",
         }
     }
@@ -108,7 +106,14 @@ impl Grid {
     }
 
     /// A layer of the voxels in `lo..hi` (rig units) that `f` fills.
-    pub fn layer(&self, name: &str, when: When, lo: Vec3, hi: Vec3, f: impl Fn(Vec3) -> Cell) -> Layer {
+    pub fn layer(
+        &self,
+        name: &str,
+        when: When,
+        lo: Vec3,
+        hi: Vec3,
+        f: impl Fn(Vec3) -> Cell,
+    ) -> Layer {
         let mut cells = BTreeMap::new();
         let (gmin, gmax) = (self.vmin(), self.vmax());
         let a = (lo * self.detail).floor().as_ivec3().to_array();
@@ -130,11 +135,16 @@ impl Grid {
     }
 
     pub fn push(&mut self, group: &str, layer: Layer) {
-        let taken = self
-            .groups
-            .iter()
-            .any(|g| g.layers.iter().any(|l| l.name == layer.name && g.name == group));
-        assert!(!taken, "bake-figure: two layers named {group}/{}", layer.name);
+        let taken = self.groups.iter().any(|g| {
+            g.layers
+                .iter()
+                .any(|l| l.name == layer.name && g.name == group)
+        });
+        assert!(
+            !taken,
+            "bake-figure: two layers named {group}/{}",
+            layer.name
+        );
         if layer.cells.is_empty() {
             eprintln!("bake-figure: layer {group}/{} is empty", layer.name);
         }
@@ -203,7 +213,11 @@ impl Palette {
 }
 
 /// Write the grids' layers as a `.vox` file and return the grids' JSON.
-pub fn write(grids: &[Grid], palette: &Palette, vox_path: &std::path::Path) -> Result<Value, String> {
+pub fn write(
+    grids: &[Grid],
+    palette: &Palette,
+    vox_path: &std::path::Path,
+) -> Result<Value, String> {
     use dyno_client::vox;
     let mut file = vox::File::default();
     for (i, c) in palette.preview.iter().enumerate() {
@@ -216,13 +230,22 @@ pub fn write(grids: &[Grid], palette: &Palette, vox_path: &std::path::Path) -> R
             let mut layers = Vec::new();
             for l in &group.layers {
                 let name = format!("{}/{}", group.name, l.name);
-                let mut models: BTreeMap<(u8, Mode), Vec<([i32; 3], u8)>> = BTreeMap::new();
+                // (part, mode) → voxels
+                type Models = BTreeMap<(u8, Mode), Vec<([i32; 3], u8)>>;
+                let mut models: Models = BTreeMap::new();
                 for (p, (part, mode, ink)) in &l.cells {
                     // an erase needs no colour, but MagicaVoxel needs one
-                    models.entry((*part, *mode)).or_default().push((*p, (*ink).max(1)));
+                    models
+                        .entry((*part, *mode))
+                        .or_default()
+                        .push((*p, (*ink).max(1)));
                 }
                 for ((part, mode), voxels) in models {
-                    let pn = if part == 0 { "-".to_string() } else { g.parts[part as usize].clone() };
+                    let pn = if part == 0 {
+                        "-".to_string()
+                    } else {
+                        g.parts[part as usize].clone()
+                    };
                     file.models.push(vox::Model {
                         name: format!("{name}/{pn}/{}", mode.name()),
                         voxels,
@@ -257,7 +280,8 @@ pub fn write(grids: &[Grid], palette: &Palette, vox_path: &std::path::Path) -> R
 /// Read a JSON file, change it, and write it back pretty-printed.
 pub fn edit_json(path: &std::path::Path, f: impl FnOnce(&mut Value)) -> Result<(), String> {
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let mut v: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+    let mut v: Value =
+        serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
     f(&mut v);
     let mut out = String::new();
     pretty(&v, 0, &mut out);
@@ -270,7 +294,9 @@ pub fn edit_json(path: &std::path::Path, f: impl FnOnce(&mut Value)) -> Result<(
 pub fn pretty(v: &Value, depth: usize, out: &mut String) {
     let pad = |d: usize| "  ".repeat(d);
     let flat = |v: &Value| match v {
-        Value::Array(a) => a.iter().all(|x| x.is_number() || x.is_null() || x.is_boolean()),
+        Value::Array(a) => a
+            .iter()
+            .all(|x| x.is_number() || x.is_null() || x.is_boolean()),
         _ => true,
     };
     match v {
@@ -290,9 +316,9 @@ pub fn pretty(v: &Value, depth: usize, out: &mut String) {
             out.push('}');
         }
         Value::Array(a) if !a.is_empty() => {
-            let inline = a.iter().all(|x| {
-                x.is_number() || x.is_null() || x.is_boolean() || x.is_array() && flat(x)
-            });
+            let inline = a
+                .iter()
+                .all(|x| x.is_number() || x.is_null() || x.is_boolean() || x.is_array() && flat(x));
             if inline {
                 out.push('[');
                 for (i, x) in a.iter().enumerate() {

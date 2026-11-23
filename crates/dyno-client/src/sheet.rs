@@ -495,7 +495,10 @@ pub fn outfit_sheet(out: &Path) -> Result<String, String> {
         .unwrap_or(Path::new("."))
         .to_path_buf();
     let tmp = dir.join("outfit-sheet-cell.ppm");
-    let stem = out.file_stem().and_then(|s| s.to_str()).unwrap_or("outfits");
+    let stem = out
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("outfits");
     let ext = out.extension().and_then(|s| s.to_str()).unwrap_or("ppm");
     let body = |az: f32| Cam::orbit(Vec3::new(0.0, 0.93, 0.0), 4.3, az, 6.0, 28.0);
     let face = |az: f32| Cam::orbit(Vec3::new(0.0, 1.6, 0.0), 1.25, az, 3.0, 28.0);
@@ -515,9 +518,17 @@ pub fn outfit_sheet(out: &Path) -> Result<String, String> {
                 ("three-quarter".to_string(), idle.clone(), body(38.0)),
                 ("back".to_string(), idle.clone(), body(160.0)),
                 ("ready".to_string(), pose(l, Anim::Ready, 1.0), body(30.0)),
-                (format!("{attack:?}"), pose(l, attack, moment(attack)), body(55.0)),
+                (
+                    format!("{attack:?}"),
+                    pose(l, attack, moment(attack)),
+                    body(55.0),
+                ),
                 ("portrait".to_string(), idle.clone(), face(0.0)),
-                ("portrait three-quarter".to_string(), idle.clone(), face(32.0)),
+                (
+                    "portrait three-quarter".to_string(),
+                    idle.clone(),
+                    face(32.0),
+                ),
             ];
             for (i, (label, verts, cam)) in shots.into_iter().enumerate() {
                 let px = shoot(&mut g, &verts, cam, size, &label, &tmp)?;
@@ -529,7 +540,13 @@ pub fn outfit_sheet(out: &Path) -> Result<String, String> {
         }
         let slug: String = set
             .chars()
-            .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+            .map(|c| {
+                if c.is_alphanumeric() {
+                    c.to_ascii_lowercase()
+                } else {
+                    '-'
+                }
+            })
             .collect::<String>()
             .split('-')
             .filter(|s| !s.is_empty())

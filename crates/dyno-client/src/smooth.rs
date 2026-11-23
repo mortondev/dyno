@@ -81,7 +81,9 @@ fn corners(k: [i32; 3]) -> [[i32; 3]; 8] {
 /// Each triangle's normal.
 pub(super) fn face_normals(verts: &[MeshVert]) -> Vec<[f32; 3]> {
     verts
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .map(|t| {
             let a = Vec3::from(t[0].pos);
             let b = Vec3::from(t[1].pos);
@@ -140,7 +142,8 @@ impl Vox {
                         let mut base = a;
                         base[d] += i32::from(e[d] > 0);
                         let mut v = [0u32; 4];
-                        for (n, (du, dw)) in [(0, 0), (1, 0), (1, 1), (0, 1)].into_iter().enumerate()
+                        for (n, (du, dw)) in
+                            [(0, 0), (1, 0), (1, 1), (0, 1)].into_iter().enumerate()
                         {
                             let mut k = base;
                             k[u] += du;
@@ -274,9 +277,7 @@ impl Vox {
                         *s = (t.part, t.ink, true);
                     } else if s.0 != t.part
                         || s.1 != t.ink
-                            && (special
-                                || self.crisp[s.1 as usize]
-                                || self.palette[s.1 as usize].1)
+                            && (special || self.crisp[s.1 as usize] || self.palette[s.1 as usize].1)
                     {
                         locked[i as usize] = true;
                     }
@@ -332,7 +333,11 @@ impl Vox {
                 // caps where the part meets another, in shadow: those
                 // touching the surface follow it, the rest are flat and
                 // merged into rectangles
-                let quad = |c: [Vec3; 4], n: [f32; 3], ink: Ink, verts: &mut Vec<MeshVert>, normals: &mut Vec<[f32; 3]>| {
+                let quad = |c: [Vec3; 4],
+                            n: [f32; 3],
+                            ink: Ink,
+                            verts: &mut Vec<MeshVert>,
+                            normals: &mut Vec<[f32; 3]>| {
                     let rgb = lin[ink as usize] * 0.55;
                     for o in [0, 1, 2, 0, 2, 3] {
                         verts.push(MeshVert {
@@ -342,8 +347,10 @@ impl Vox {
                         normals.push(n);
                     }
                 };
-                let mut flat: std::collections::HashMap<(usize, i32, Ink), std::collections::HashSet<(i32, i32)>> =
-                    std::collections::HashMap::new();
+                let mut flat: std::collections::HashMap<
+                    (usize, i32, Ink),
+                    std::collections::HashSet<(i32, i32)>,
+                > = std::collections::HashMap::new();
                 let (lo, hi) = bounds[part as usize];
                 for y in lo[1]..=hi[1] {
                     for z in lo[2]..=hi[2] {
@@ -372,7 +379,9 @@ impl Vox {
                                     k
                                 });
                                 if ks.iter().all(|k| vid[cid(*k)] == u32::MAX) {
-                                    flat.entry((dir, base[d], self.cells[i])).or_default().insert((base[u], base[w]));
+                                    flat.entry((dir, base[d], self.cells[i]))
+                                        .or_default()
+                                        .insert((base[u], base[w]));
                                     continue;
                                 }
                                 let mut c = ks.map(|k| match vid[cid(k)] {
@@ -382,7 +391,13 @@ impl Vox {
                                 if e[d] < 0 {
                                     c.swap(1, 3);
                                 }
-                                quad(c, e.map(|v| v as f32), self.cells[i], &mut verts, &mut normals);
+                                quad(
+                                    c,
+                                    e.map(|v| v as f32),
+                                    self.cells[i],
+                                    &mut verts,
+                                    &mut normals,
+                                );
                             }
                         }
                     }
@@ -556,7 +571,10 @@ impl Quadric {
     fn error(&self, p: Vec3) -> f64 {
         let q = &self.0;
         let (x, y, z) = (p.x as f64, p.y as f64, p.z as f64);
-        q[0] * x * x + 2.0 * q[1] * x * y + 2.0 * q[2] * x * z + 2.0 * q[3] * x
+        q[0] * x * x
+            + 2.0 * q[1] * x * y
+            + 2.0 * q[2] * x * z
+            + 2.0 * q[3] * x
             + q[4] * y * y
             + 2.0 * q[5] * y * z
             + 2.0 * q[6] * y
@@ -612,10 +630,17 @@ fn decimate(pos: &mut [Vec3], tris: &mut Vec<Tri>, locked: &[bool], max_err: f32
             .map(|p| (qq.error(*p).max(0.0), *p))
             .min_by(|a, b| a.0.total_cmp(&b.0))
     };
-    let mut heap: BinaryHeap<Reverse<(u64, u32, u32, u32, u32)>> = BinaryHeap::new();
+    // (cost, collapsed vertex, kept vertex, their versions)
+    type Entry = Reverse<(u64, u32, u32, u32, u32)>;
+    let mut heap: BinaryHeap<Entry> = BinaryHeap::new();
     let key = |c: f64| (c * 1e9) as u64;
     // an edge goes on the heap once, the cheaper way round
-    let push = |heap: &mut BinaryHeap<_>, a: usize, b: usize, pos: &[Vec3], q: &[Quadric], version: &[u32]| {
+    let push = |heap: &mut BinaryHeap<_>,
+                a: usize,
+                b: usize,
+                pos: &[Vec3],
+                q: &[Quadric],
+                version: &[u32]| {
         let ab = cost(a, b, pos, q).map(|c| c.0);
         let ba = cost(b, a, pos, q).map(|c| c.0);
         let (c, u, v) = match (ab, ba) {
@@ -625,7 +650,13 @@ fn decimate(pos: &mut [Vec3], tris: &mut Vec<Tri>, locked: &[bool], max_err: f32
             (None, None) => return,
         };
         if c <= limit {
-            heap.push(Reverse((key(c), u as u32, v as u32, version[u], version[v])));
+            heap.push(Reverse((
+                key(c),
+                u as u32,
+                v as u32,
+                version[u],
+                version[v],
+            )));
         }
     };
     for tri in tris.iter() {

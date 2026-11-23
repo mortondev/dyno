@@ -96,10 +96,18 @@ impl Inks {
 }
 
 /// Pick a shade from a few by a smooth noise, for a painted look.
+/// Mostly the middle shade, with a few broad patches of the others: clean
+/// colours, as the voxel style wants (and big faces merge into few quads).
 pub fn mottle(shades: &[u8], p: Vec3, freq: f32, seed: f32) -> u8 {
-    let n = noise(p * freq + Vec3::splat(seed));
-    let i = ((n * 1.35 - 0.175).clamp(0.0, 0.999) * shades.len() as f32) as usize;
-    shades[i]
+    let n = noise(p * freq * 0.3 + Vec3::splat(seed));
+    let mid = shades[shades.len() / 2];
+    if n < 0.14 {
+        shades[0]
+    } else if n > 0.86 {
+        shades[shades.len() - 1]
+    } else {
+        mid
+    }
 }
 
 /// The look features of the two bodies.
@@ -118,8 +126,20 @@ pub fn body_when(bi: usize, more: &[(&str, &[u8])]) -> super::When {
 pub fn sculpt() -> (Vec<Grid>, Palette) {
     let mut pal = Palette::default();
     let ink = Inks::new(&mut pal);
-    let mut main = Grid::new("main", 2.0, vec3(-18.0, 0.0, -14.0), vec3(18.0, 57.0, 14.0), &PARTS);
-    let mut head = Grid::new("head", 4.0, vec3(-7.5, 43.5, -8.5), vec3(7.5, 66.0, 8.5), &["head"]);
+    let mut main = Grid::new(
+        "main",
+        2.0,
+        vec3(-18.0, 0.0, -14.0),
+        vec3(18.0, 57.0, 14.0),
+        &PARTS,
+    );
+    let mut head = Grid::new(
+        "head",
+        2.5,
+        vec3(-7.5, 43.5, -8.5),
+        vec3(7.5, 66.0, 8.5),
+        &["head"],
+    );
     let bodies = bodies();
     // the bare body and head
     for (bi, b) in bodies.iter().enumerate() {
@@ -184,11 +204,11 @@ fn bare_head(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> super::Layer {
                 // the eye: white, iris, pupil, a glint
                 let q = m - b.eye_centre(true);
                 let r = (q.x * q.x + q.y * q.y).sqrt();
-                let c = if q.z > 0.2 && r < 0.17 {
+                let c = if q.z > 0.2 && r < 0.22 {
                     ink.pupil
-                } else if q.z > 0.15 && (q.x + 0.18).abs() < 0.1 && (q.y - 0.2).abs() < 0.1 {
+                } else if q.z > 0.15 && (q.x + 0.22).abs() < 0.14 && (q.y - 0.24).abs() < 0.14 {
                     ink.glint
-                } else if q.z > 0.1 && r < 0.43 {
+                } else if q.z > 0.1 && r < 0.52 {
                     ink.iris
                 } else {
                     ink.eye_white
@@ -268,8 +288,8 @@ pub fn rig(bodies: &[Body; 2]) -> Value {
         {"name": "head", "parent": "spine", "at": by_body(&|b| b.head - pel(b)), "ops": ["pose", {"rx": "-pitch*0.55"}]},
         // sockets: where equipment and carried things attach
         {"name": "socket.offhand", "parent": "forearm.l", "at": by_body(&|b| flip(hand(b) - b.elbow)), "ops": [{"rx": 1.25}, {"rz": 0.22}]},
-        {"name": "socket.shield", "parent": "forearm.l", "at": by_body(&|b| flip((b.wrist - b.elbow) * 0.55 + vec3(1.6, 0.0, 0.0))), "ops": [{"ry": -1.5708}]},
-        {"name": "socket.back", "parent": "spine", "at": by_body(&|b| vec3(0.0, 41.0, -6.2) - pel(b) + vec3(0.0, b.head.y - 51.8, 0.0)), "ops": [{"rz": 0.6}, {"rx": 3.1416}]},
+        {"name": "socket.shield", "parent": "forearm.l", "at": by_body(&|b| flip((b.wrist - b.elbow) * 0.55 + vec3(1.6, 0.0, 0.0))), "ops": [{"ry": -std::f32::consts::FRAC_PI_2}]},
+        {"name": "socket.back", "parent": "spine", "at": by_body(&|b| vec3(0.0, 41.0, -6.2) - pel(b) + vec3(0.0, b.head.y - 51.8, 0.0)), "ops": [{"rz": 0.6}, {"rx": std::f32::consts::PI}]},
         {"name": "socket.helm", "parent": "head", "at": by_body(&|b| vec3(0.0, b.hy(61.0), -0.6) - b.head)},
         {"name": "socket.shoulder.r", "parent": "upper_arm.r", "at": [0.4, 1.2, 0]},
         {"name": "socket.shoulder.l", "parent": "upper_arm.l", "at": [-0.4, 1.2, 0]},
@@ -324,7 +344,10 @@ pub fn bake(content: &Path) -> Result<String, String> {
     let vox = content.join("models/person.vox");
     let gj = write(&grids, &pal, &vox)?;
     let size = std::fs::metadata(&vox).map(|m| m.len()).unwrap_or(0);
-    let layers: usize = grids.iter().map(|g| g.groups.iter().map(|x| x.layers.len()).sum::<usize>()).sum();
+    let layers: usize = grids
+        .iter()
+        .map(|g| g.groups.iter().map(|x| x.layers.len()).sum::<usize>())
+        .sum();
     edit_json(&content.join("figures.json"), |v| {
         let f = &mut v["figures"]["person"];
         f["file"] = json!("models/person.vox");
@@ -333,12 +356,18 @@ pub fn bake(content: &Path) -> Result<String, String> {
         f["clips"] = json!({"features": ["robe"]});
         f["per_block"] = json!(34.19);
         f["detail"] = json!(2.0);
-        // voxels with crisp edges and a gentle bevel, softly lit
-        f["smooth"] = json!({"bevel": 0.22, "soft": 0.35, "relax": 0, "blend": false, "occlusion": 0.8});
+        // crisp voxels (the art direction: every surface reads as voxels),
+        // fine up close and coarser with distance; the shaped mesher's
+        // gentle bevel (`"smooth": true` with `"smooth": {"bevel": 0.2,
+        // "relax": 0, "blend": false}`) is there for figures that can
+        // afford it
+        if let Some(o) = f.as_object_mut() {
+            o.remove("smooth");
+        }
         f["lods"] = json!([
-            {"smooth": true, "until": 4.5, "simplify": 0.12},
-            {"half": 1, "smooth": true, "until": 12.0, "simplify": 0.15},
-            {"half": 2, "smooth": true, "until": 36.0, "simplify": 0.2},
+            {"until": 3.5},
+            {"half": 1, "until": 11.0},
+            {"half": 2, "until": 40.0},
             {"half": 3}
         ]);
         f["grids"] = gj;

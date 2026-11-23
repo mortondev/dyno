@@ -3627,6 +3627,30 @@
       },
       "derive": [
         {
+          "colors": {
+            "chest.accent": {
+              "from": "tunic",
+              "scale": 0.6
+            },
+            "chest.gem": {
+              "from": "trim"
+            },
+            "chest.main": {
+              "from": "tunic"
+            },
+            "chest.trim": {
+              "from": "trim"
+            }
+          },
+          "if": {
+            "chest": [0],
+            "robe": [1]
+          },
+          "set": {
+            "chest": 1
+          }
+        },
+        {
           "if": {
             "chest": [1]
           },
@@ -3883,46 +3907,6 @@
                     {
                       "body": [1],
                       "chest": [0]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/robe,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [0],
-                      "robe": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/skirt/robe,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [0],
-                      "robe": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/robe,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [0],
-                      "robe": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/skirt/robe,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [0],
-                      "robe": [1]
                     }
                   ]
                 },
@@ -4698,7 +4682,7 @@
           ]
         },
         {
-          "detail": 4.0,
+          "detail": 2.5,
           "groups": [
             {
               "layers": [
@@ -4975,7 +4959,8 @@
                   "when": [
                     {
                       "body": [0],
-                      "hair_style": [1]
+                      "hair_style": [1],
+                      "helm": [0,1]
                     }
                   ]
                 },
@@ -4984,7 +4969,8 @@
                   "when": [
                     {
                       "body": [0],
-                      "hair_style": [2]
+                      "hair_style": [2],
+                      "helm": [0,1]
                     }
                   ]
                 },
@@ -4993,7 +4979,8 @@
                   "when": [
                     {
                       "body": [0],
-                      "hair_style": [3]
+                      "hair_style": [3],
+                      "helm": [0,1]
                     }
                   ]
                 },
@@ -5002,7 +4989,8 @@
                   "when": [
                     {
                       "body": [0],
-                      "hair_style": [4]
+                      "hair_style": [4],
+                      "helm": [0,1]
                     }
                   ]
                 },
@@ -5011,7 +4999,8 @@
                   "when": [
                     {
                       "body": [1],
-                      "hair_style": [1]
+                      "hair_style": [1],
+                      "helm": [0,1]
                     }
                   ]
                 },
@@ -5020,7 +5009,8 @@
                   "when": [
                     {
                       "body": [1],
-                      "hair_style": [2]
+                      "hair_style": [2],
+                      "helm": [0,1]
                     }
                   ]
                 },
@@ -5029,7 +5019,8 @@
                   "when": [
                     {
                       "body": [1],
-                      "hair_style": [3]
+                      "hair_style": [3],
+                      "helm": [0,1]
                     }
                   ]
                 },
@@ -5038,7 +5029,8 @@
                   "when": [
                     {
                       "body": [1],
-                      "hair_style": [4]
+                      "hair_style": [4],
+                      "helm": [0,1]
                     }
                   ]
                 },
@@ -5153,8 +5145,8 @@
               ]
             }
           ],
-          "max": [30,264,34],
-          "min": [-30,174,-34],
+          "max": [19,165,22],
+          "min": [-19,108,-22],
           "name": "head",
           "parts": [
             "",
@@ -5164,21 +5156,15 @@
       ],
       "lods": [
         {
-          "simplify": 0.12,
-          "smooth": true,
-          "until": 4.5
+          "until": 3.5
         },
         {
           "half": 1,
-          "simplify": 0.15,
-          "smooth": true,
-          "until": 12.0
+          "until": 11.0
         },
         {
           "half": 2,
-          "simplify": 0.2,
-          "smooth": true,
-          "until": 36.0
+          "until": 40.0
         },
         {
           "half": 3
@@ -5779,14 +5765,7 @@
       ],
       "per_block": 34.19,
       "rig": "person",
-      "skeleton": "biped",
-      "smooth": {
-        "bevel": 0.22,
-        "blend": false,
-        "occlusion": 0.8,
-        "relax": 0,
-        "soft": 0.35
-      }
+      "skeleton": "biped"
     },
     "shade": {
       "clips": "shade",
