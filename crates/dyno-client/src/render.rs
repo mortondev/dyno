@@ -13,6 +13,22 @@ use std::sync::Arc;
 
 pub const SECTION: i32 = 16;
 
+/// A vertex of the far view (farview.rs): a third the size of `Vertex`,
+/// since there may be a million of them and they need only a place, a
+/// colour, a normal and where they fade in.
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable, Debug)]
+pub struct FarVertex {
+    pub pos: [f32; 3],
+    /// linear colour, 0-255
+    pub color: [u8; 4],
+    /// the normal (-127..127); w: 1 for what stands on the ground (faded in
+    /// past `fade`), 0 for the ground
+    pub normal: [i8; 4],
+    /// distance from the camera where a standing column starts to show
+    pub fade: f32,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Vertex {
@@ -130,7 +146,9 @@ struct Look { leaf_under: vec4<f32>, leaf_over: vec4<f32>, tone_low: vec4<f32>, 
 @group(0) @binding(5) var<uniform> look: Look;
 
 // What a vertex is, from tex.z (see the KIND constants in render.rs):
-//   below 0: untextured (-1 plain, -2 ground cover (cover.rs), -3 ground decal, -4 halo)
+//   below 0: untextured (-1 plain, -2 ground cover (cover.rs) and the far
+//   view's ground, -3 ground decal, -4 halo, -5 the far view's columns,
+//   dithered in from tex.x over tex.y metres)
 //   0..: textured with its own UVs
 //   8192..: foliage, textured by world position, swaying
 //   12288..: water surface
@@ -251,6 +269,29 @@ struct VOut {
   return o;
 }
 
+// The far view (farview.rs): compact vertices, drawn by the same fragment
+// shader as the land; the ground on the ground's path (-2), what stands on
+// it dithered in from `fade` over 32 m (farview::FADE) (-5)
+struct FarIn {
+  @location(0) pos: vec3<f32>,
+  @location(1) color: vec4<f32>,
+  @location(2) normal: vec4<f32>,
+  @location(3) fade: f32,
+};
+
+@vertex fn vs_far(v: FarIn) -> VOut {
+  var o: VOut;
+  o.clip = u.view_proj * vec4<f32>(v.pos, 1.0);
+  o.wpos = v.pos;
+  o.normal = normalize(v.normal.xyz);
+  o.color = vec4<f32>(v.color.rgb, 1.0);
+  o.light = 0.0;
+  o.sky = 1.0;
+  o.tex = vec4<f32>(v.fade, 32.0, select(-2.0, -5.0, v.normal.w > 0.5), 0.0);
+  o.tone = world_tone(v.pos.xz);
+  return o;
+}
+
 // The layer to show now: animated layers step through their frames.
 fn anim_layer(layer: f32, anim: f32) -> i32 {
   var l = layer;
@@ -307,6 +348,12 @@ fn ground_tone(m: f32) -> vec3<f32> {
   }
   let tx0 = textureSample(tex_array, tex_samp, uv0, l0);
   let d = distance(i.wpos, u.cam.xyz);
+  // the far view's standing columns fade in past the near view: a fine
+  // dither (world-space, so it holds still), from tex.x over tex.y metres
+  if (kz < -4.5 && kz > -5.5) {
+    let k = clamp((d - i.tex.x) / max(i.tex.y, 1.0), 0.0, 1.0);
+    if (hash3(floor(i.wpos * 3.0)) > k) { discard; }
+  }
   let has_n = dot(i.normal, i.normal) > 0.25;
   var n = vec3<f32>(0.0, 1.0, 0.0);
   if (has_n) { n = normalize(i.normal); }
@@ -386,7 +433,8 @@ fn ground_tone(m: f32) -> vec3<f32> {
     // darker underneath and inside
     dim = dim * (0.74 + 0.26 * smoothstep(-0.6, 0.5, n.y));
     wrap = 0.55;
-  } else if (kz < -1.5 && kz > -2.5) {
+  } else if ((kz < -1.5 && kz > -2.5) || (kz < -4.5 && kz > -5.5)) {
+    // ground cover, and the far view: toned like the land
     base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
     if (tx0.a < 0.5) { discard; }
@@ -1071,6 +1119,8 @@ pub struct Gfx {
     pub egui: egui_wgpu::Renderer,
     depth: wgpu::TextureView,
     opaque_pipe: wgpu::RenderPipeline,
+    /// the far view: its own compact vertices, the land's fragment shader
+    far_pipe: wgpu::RenderPipeline,
     trans_pipe: wgpu::RenderPipeline,
     line_pipe: wgpu::RenderPipeline,
     glow_pipe: wgpu::RenderPipeline,
@@ -1435,6 +1485,46 @@ impl Gfx {
             })
         };
         let opaque_pipe = make("fs", wgpu::PrimitiveTopology::TriangleList, None, true);
+        let far_layout = wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<FarVertex>() as u64,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Unorm8x4, 2 => Snorm8x4, 3 => Float32],
+        };
+        let far_pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("far"),
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_far"),
+                compilation_options: Default::default(),
+                buffers: std::slice::from_ref(&far_layout),
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                cull_mode: None,
+                ..Default::default()
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: Default::default(),
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: post.format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview: None,
+            cache: None,
+        });
         let mut cover = crate::cover::Gpu::new(&device, &shader, &layout, post.format, DEPTH);
         cover.set_quality(1.0);
         let trans_pipe = make(
@@ -1539,6 +1629,7 @@ impl Gfx {
             egui,
             depth,
             opaque_pipe,
+            far_pipe,
             trans_pipe,
             line_pipe,
             glow_pipe,
@@ -1677,6 +1768,21 @@ impl Gfx {
         self.depth = depth_view(&self.device, w, h);
         self.post.resize(&self.device, w, h, &self.depth);
         self.water.resize(&self.device, &self.depth, w, h);
+    }
+
+    fn upload_far(&self, v: &[FarVertex]) -> Option<(wgpu::Buffer, u32)> {
+        if v.is_empty() {
+            return None;
+        }
+        let bytes: &[u8] = bytemuck::cast_slice(v);
+        let buf = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("far"),
+            size: bytes.len() as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(&buf, 0, bytes);
+        Some((buf, v.len() as u32))
     }
 
     fn upload(&self, v: &[Vertex]) -> Option<(wgpu::Buffer, u32)> {
@@ -1871,8 +1977,8 @@ impl Gfx {
     }
 
     /// Store (upload) a far tile's mesh (an empty mesh removes it).
-    pub fn put_far(&mut self, at: [i32; 2], verts: &[Vertex]) {
-        match self.upload(verts) {
+    pub fn put_far(&mut self, at: [i32; 2], verts: &[FarVertex]) {
+        match self.upload_far(verts) {
             Some(b) => {
                 self.far.insert(at, b);
             }
@@ -2184,6 +2290,7 @@ impl Gfx {
                     }
                 }
                 // the far view, round and beyond the near
+                rp.set_pipeline(&self.far_pipe);
                 for (at, (b, n)) in &self.far {
                     if self.far_visible(*at, vp, dist) {
                         rp.set_vertex_buffer(0, b.slice(..));
