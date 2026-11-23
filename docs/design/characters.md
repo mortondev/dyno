@@ -175,3 +175,47 @@ crisp cubes.
   clients will not join a new server.
 - Held items and shields are still the old models; the shield socket is
   ready for an off-hand item in the paper doll (`carry`).
+
+## 9. The read from the play camera (visual gauntlet, round 1)
+
+The gauntlet's judge sees the figure from the play camera: 9 m behind and
+15° down, where it is about 90 pixels tall and drawn at the 40-block level
+(6 cm voxels). The concepts show a hero there whose class reads at a glance.
+What changed, all of it data or the sculpt tool:
+
+| What | Where |
+|---|---|
+| **Pauldrons a third bigger** (each wider than the head), with rims thick enough to survive the far levels; bigger leather caps and fuller mantles. | `gear.rs` `shoulders` |
+| **A tabard over anything**: panels on chest and back and skirts to the knees, in its own colours, with a broad border. Feature `tabard`, colours `tabard.main` and `tabard.trim`. | `gear.rs` `tabard` |
+| **Big devices** (sword or cross, sun, chevron, diamond) on the tabard, on the back of a cloth robe and on a cape, chosen by the `emblem` feature. | `gear.rs` `device`, `robe_device`; `clothes.rs` `cape` |
+| **A thicker cape with a broad border**, so it holds together at a distance. | `clothes.rs` `cape` |
+| **A slightly large head** (1.14, the rig's `shape` on the head part) and **bigger hands**. | `person.rs` `rig`, `body.rs` `hand` |
+| **Hats**: `helm` 5 is a wide straw hat, 6 a miner's hard hat with a lit lamp. | `gear.rs` `helm` |
+| **Carried weapons 1.2 to 1.45 times life size** (the first-person size is unchanged). | `figures.json` `held.kinds.*.unit`, `fp` |
+| **Starter kits per class**: two garments each, in place of the worn tunic. Warrior: red tabard over mail, iron pauldrons. Paladin: blue tabard with a golden sun, bright pauldrons. Hunter: green tabard over a jerkin, a hood and a quiver. Rogue: dark jerkin, red cowl and scarf. Priest: white and gold robe and hood. Mage: blue and gold robe and mantle. | `rules/hearthblock.json` items and `classes[].starter`; `figures.json` `equip` |
+| **Townsfolk dressed for their trades**: the Watch (Holt, Ansel) in mail, blue tabards and helms with spears; Captain Maren in plate with a cape; Hollis in a leather apron with a hammer; Ostrin and Wenna in straw hats; Dunmore in a hard hat with a lamp and a pickaxe; Garrick with a felling axe; Bree with a ledger; Brannoc with a staff. | `figures.json` `npcs` |
+| **A hero per class** for the stand shots: a showcase set named by the class key (`dyno shot --stand --hero KEY`; the landmark list names each place's hero, as its concept shows). | `figures.json` `showcase`; `tools/concepts/landmarks.json` `hero` |
+
+`tools/figures/dress.py` holds the kits, the heroes and the townsfolk as
+tables and writes them into the pack; `dyno bake-figure` then lays
+`figures.json` out again.
+
+Engine (generic, small):
+- a look's `light` feature (0 to 15) is a floor under the light on its
+  figure, so someone carrying a light is lit at night; `weapon_glow` shows
+  the held weapon's glowing layer (models.rs);
+- when voxels are halved for a far level, a crisp ink wins a tie against a
+  plain one, so trim and devices keep their width (voxmodel.rs);
+- `--hero` on `dyno shot --stand`, carried through `dyno scout`;
+- the outfit sheet's level-of-detail strip also shows the last six sets
+  (the heroes) from behind.
+
+Cost: at the play camera's level the four tier-8 sets measure 3 to 9% more
+vertices than before (the outfit sheet's strip); the heroes 10 to 16
+thousand. `bake-figure` now writes each model's voxels in runs along x,
+which compresses a third better: `person.vox` is 749 KB on the wire (942 KB
+before this work, with 30 more layers in it).
+
+Not done: the character creator still previews the bare look (the class
+list sent before joining does not carry the starter kit); a carried light
+lights the figure only, not the ground round it (the lighting lane's).
