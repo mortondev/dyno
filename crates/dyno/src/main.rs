@@ -471,9 +471,27 @@ fn main() {
             // baked once from the world builders into the pack
             let pack = args.get(1).cloned().unwrap_or_else(|| "content".into());
             let out = std::path::Path::new(&pack).join("stage/title.dynw");
-            let mut world = dyno_world::World::generate([128, 64, 128], 20261122);
-            let hearth = world.ensure_spawn_hearth(None);
-            dyno_world::village::build_hearthstead(&mut world, hearth);
+            // the middle of the pack's world: the starting town and the
+            // land round it, cut to the heights the title camera sees
+            let files = dyno_server::pack::Pack::read_dir(std::path::Path::new(&pack))
+                .unwrap_or_else(|e| fail(&e));
+            let loaded = dyno_server::pack::Pack::from_files(files).unwrap_or_else(|e| fail(&e));
+            let Some(layout) = loaded.layout.as_deref() else {
+                fail("the pack has no world/layout.json")
+            };
+            let (whole, built) =
+                dyno_world::worldgen::build(layout, &loaded.stamps, [160, layout.size[1], 160])
+                    .unwrap_or_else(|e| fail(&e));
+            let (low, tall) = (built.hearth[1] - 24, 72);
+            let mut world = dyno_world::World::empty([160, tall, 160]);
+            for y in 0..tall as i32 {
+                for z in 0..160 {
+                    for x in 0..160 {
+                        world.set(x, y, z, whole.get(x, y + low, z));
+                    }
+                }
+            }
+            let hearth = [built.hearth[0], built.hearth[1] - low, built.hearth[2]];
             world
                 .save(&out)
                 .unwrap_or_else(|e| fail(&format!("cannot write {}: {e}", out.display())));
@@ -524,6 +542,72 @@ fn main() {
                 eprintln!("dyno could not start the game: {e}");
                 std::process::exit(1);
             }
+        }
+        "map" => {
+            // build the world of a pack's layout in memory and draw it from above
+            let mut content = None;
+            let mut out = std::path::PathBuf::from("map.ppm");
+            let (mut full, mut size) = (false, None::<u32>);
+            let mut i = 1;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--content" => {
+                        content = args.get(i + 1).map(std::path::PathBuf::from);
+                        i += 1;
+                    }
+                    "--out" => {
+                        out = args.get(i + 1).map(Into::into).unwrap_or(out);
+                        i += 1;
+                    }
+                    "--size" => {
+                        size = args.get(i + 1).and_then(|v| v.parse().ok());
+                        i += 1;
+                    }
+                    "--design" => full = true,
+                    _ => fail(
+                        "usage: dyno map [--content pack] [--design] [--size N] [--out map.ppm]",
+                    ),
+                }
+                i += 1;
+            }
+            let pack =
+                dyno_server::pack::Pack::load(content.as_deref()).unwrap_or_else(|e| fail(&e));
+            let Some(layout) = pack.layout.as_deref() else {
+                fail("the pack has no world/layout.json")
+            };
+            let mut layout = layout.clone();
+            if full {
+                layout.size = layout.design;
+            }
+            let size = size.map_or(layout.size, |n| [n, layout.size[1], n]);
+            let t = std::time::Instant::now();
+            let (world, built) = dyno_world::worldgen::build(&layout, &pack.stamps, size)
+                .unwrap_or_else(|e| fail(&e));
+            let secs = t.elapsed().as_secs_f32();
+            let rgb = dyno_world::worldgen::map(&world);
+            let mut file = format!("P6\n{} {}\n255\n", world.size[0], world.size[2]).into_bytes();
+            file.extend_from_slice(&rgb);
+            std::fs::write(&out, file)
+                .unwrap_or_else(|e| fail(&format!("cannot write {}: {e}", out.display())));
+            // where everything is, for cameras and other tools
+            let places: std::collections::BTreeMap<&String, &[i32; 3]> =
+                built.places.iter().collect();
+            let listing =
+                serde_json::json!({ "size": world.size, "hearth": built.hearth, "places": places });
+            let _ = std::fs::write(
+                out.with_extension("places.json"),
+                serde_json::to_vec_pretty(&listing).unwrap_or_default(),
+            );
+            println!(
+                "Built {:?} in {secs:.1} s: {} places, {} stamps, {} trees, {} roads; hearth {:?}; map {}",
+                world.size,
+                built.places.len(),
+                built.stamps.len(),
+                built.trees.len(),
+                built.roads.len(),
+                built.hearth,
+                out.display()
+            );
         }
         other => {
             eprintln!("unknown command '{other}'\n");
