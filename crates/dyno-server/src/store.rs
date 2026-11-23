@@ -85,6 +85,10 @@ pub struct Meta {
     /// harvested nodes waiting to grow back
     #[serde(default)]
     pub regrow: Vec<([i32; 3], u8, u64)>,
+    /// the version of the pack's layout the saved world was built from
+    /// (absent: a world from before layouts, or one that has none)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub world_layout: Option<u32>,
 }
 
 pub fn meta_path(world: &Path) -> PathBuf {
@@ -200,7 +204,7 @@ pub fn load_chests(c: &Content, path: &Path) -> HashMap<[i32; 3], Vec<Option<Sta
         .collect()
 }
 
-fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let tmp = path.with_extension("tmp");
     std::fs::write(&tmp, bytes)?;
     std::fs::rename(&tmp, path)

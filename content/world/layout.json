@@ -1,0 +1,1316 @@
+{
+ "version": 1,
+ "size": [2048, 256, 2048],
+ "design": [2048, 256, 2048],
+ "seed": 20261123,
+ "terrain": {
+  "sea": 40,
+  "ground": 50,
+  "rolling": [
+   {"scale": 180, "amp": 5},
+   {"scale": 70, "amp": 2.5},
+   {"scale": 24, "amp": 0.8}
+  ],
+  "hills": [
+   {
+    "at": [-150, -480],
+    "radius": [320, 230],
+    "rise": 17,
+    "rough": 0.6
+   },
+   {
+    "at": [-640, -120],
+    "radius": [260, 340],
+    "rise": 16,
+    "rough": 0.5
+   },
+   {
+    "at": [520, 560],
+    "radius": [270, 230],
+    "rise": 16,
+    "rough": 0.7
+   },
+   {
+    "at": [400, -560],
+    "radius": [240, 220],
+    "rise": 17,
+    "rough": 0.6
+   },
+   {
+    "at": [-200, 200],
+    "radius": [130, 110],
+    "rise": 9,
+    "rough": 0.3
+   },
+   {
+    "at": [180, -320],
+    "radius": [120, 110],
+    "rise": 12,
+    "rough": 0.4
+   },
+   {
+    "at": [-420, 520],
+    "radius": [230, 220],
+    "rise": 17,
+    "rough": 0.6
+   }
+  ],
+  "ridges": [
+   {
+    "key": "east_ridge",
+    "path": [[850, -1000], [820, -420], [830, -100], [840, 150], [800, 520], [840, 1000]],
+    "width": 110,
+    "rise": 125
+   }
+  ],
+  "rim": {"width": 220, "rise": 125},
+  "lakes": [
+   {
+    "key": "mirrormere",
+    "at": [10, 670],
+    "radius": [150, 110],
+    "depth": 8
+   }
+  ],
+  "rivers": [
+   {
+    "key": "emberrun",
+    "path": [[560, -1000], [520, -600], [480, -250], [475, 0], [430, 220], [345, 430], [230, 580], [100, 660]],
+    "width": 14,
+    "depth": 4,
+    "valley": 45
+   }
+  ],
+  "rock_line": [85, 135]
+ },
+ "zones": [
+  {
+   "key": "hearthmeadow",
+   "at": [0, 0],
+   "radius": [380, 380],
+   "flora": "meadow"
+  },
+  {
+   "key": "birchrise",
+   "at": [-150, -480],
+   "radius": [340, 260],
+   "flora": "birchwood"
+  },
+  {
+   "key": "barrowwood",
+   "at": [-620, -75],
+   "radius": [290, 410],
+   "flora": "barrowwood"
+  },
+  {
+   "key": "mirrormere",
+   "at": [0, 670],
+   "radius": [320, 250],
+   "flora": "lakeside"
+  },
+  {
+   "key": "ridge",
+   "at": [830, -130],
+   "radius": [190, 520],
+   "flora": "ridge"
+  },
+  {
+   "key": "east_road",
+   "at": [460, 75],
+   "radius": [300, 310],
+   "flora": "roadside"
+  }
+ ],
+ "flora": {
+  "species": {
+   "oak": {
+    "trunk": "log",
+    "leaves": "leaves",
+    "height": [11, 16],
+    "girth": [1, 2],
+    "crown": {
+     "shape": "round",
+     "width": [8, 12]
+    },
+    "skirt": 0.45,
+    "limbs": 3,
+    "roots": true
+   },
+   "birch": {
+    "trunk": "birch_log",
+    "leaves": "birch_leaves",
+    "height": [11, 15],
+    "girth": [1, 1],
+    "crown": {
+     "shape": "round",
+     "width": [8, 9]
+    },
+    "skirt": 0.5,
+    "limbs": 2
+   },
+   "willow": {
+    "trunk": "log",
+    "leaves": "birch_leaves",
+    "height": [11, 14],
+    "girth": [1, 2],
+    "crown": {
+     "shape": "round",
+     "width": [10, 12]
+    },
+    "skirt": 0.22,
+    "limbs": 4,
+    "roots": true
+   },
+   "pine": {
+    "trunk": "log",
+    "leaves": "pine_leaves",
+    "height": [15, 21],
+    "girth": [1, 2],
+    "crown": {
+     "shape": "cone",
+     "width": [7, 9]
+    },
+    "skirt": 0.22
+   },
+   "dark_oak": {
+    "trunk": "log",
+    "leaves": "pine_leaves",
+    "height": [11, 15],
+    "girth": [1, 2],
+    "crown": {
+     "shape": "round",
+     "width": [8, 11]
+    },
+    "skirt": 0.5,
+    "limbs": 4,
+    "roots": true,
+    "thin": 0.12
+   },
+   "snag": {
+    "trunk": "log",
+    "height": [8, 11],
+    "girth": [1, 1],
+    "crown": {"shape": "none"}
+   },
+   "hero_oak": {
+    "trunk": "log",
+    "leaves": "leaves",
+    "height": [18, 27],
+    "girth": [2, 3],
+    "crown": {
+     "shape": "round",
+     "width": [14, 18]
+    },
+    "skirt": 0.42,
+    "limbs": 5,
+    "roots": true
+   }
+  },
+  "mixes": {
+   "meadow": {
+    "cover": 0.14,
+    "clump": 70,
+    "spacing": 11,
+    "trees": {"oak": 3, "birch": 1},
+    "lone": 0.5,
+    "ground": [
+     
+     {"block": "berry_bush", "per_ha": 6, "on": "wood"}
+    ]
+   },
+   "birchwood": {
+    "cover": 0.48,
+    "clump": 80,
+    "spacing": 9,
+    "trees": {"birch": 6, "oak": 1},
+    "lone": 1.5,
+    "ground": [
+     {"block": "berry_bush", "per_ha": 14, "on": "wood"}
+    ]
+   },
+   "barrowwood": {
+    "cover": 0.5,
+    "clump": 75,
+    "spacing": 10,
+    "trees": {"dark_oak": 5, "snag": 1},
+    "lone": 3,
+    "ground": [
+     {"block": "mossy_cobble", "per_ha": 10}
+    ],
+    "patches": {"block": "dirt", "share": 0.3, "scale": 9}
+   },
+   "lakeside": {
+    "cover": 0.2,
+    "clump": 60,
+    "spacing": 11,
+    "trees": {"oak": 2, "birch": 2, "willow": 3},
+    "lone": 0.8,
+    "ground": [
+     {"block": "berry_bush", "per_ha": 8, "on": "wood"}
+    ]
+   },
+   "roadside": {
+    "cover": 0.26,
+    "clump": 85,
+    "spacing": 11,
+    "trees": {"oak": 4, "birch": 1, "pine": 1},
+    "lone": 0.8,
+    "ground": [
+     {"block": "berry_bush", "per_ha": 8, "on": "wood"}
+    ]
+   },
+   "ridge": {
+    "cover": 0.3,
+    "clump": 60,
+    "spacing": 10,
+    "trees": {"pine": 5, "dark_oak": 1},
+    "lone": 1.5,
+    "ground": [
+    ],
+    "patches": {"block": "stone", "share": 0.32, "scale": 8}
+   },
+   "wilds": {
+    "cover": 0.38,
+    "clump": 95,
+    "spacing": 10,
+    "trees": {"oak": 3, "birch": 2, "pine": 3},
+    "lone": 1,
+    "ground": [
+     {"block": "berry_bush", "per_ha": 10, "on": "wood"}
+    ]
+   }
+  },
+  "default": "wilds"
+ },
+ "ways": {
+  "road": {
+   "width": 7,
+   "surface": {"flagstones": 4, "cobble": 4, "mossy_cobble": 1, "dirt": 1},
+   "kerb": "stone_bricks",
+   "lamp": "lamp_post",
+   "lamp_every": 36
+  },
+  "trail": {
+   "width": 3,
+   "surface": {"dirt": 6, "cobble": 1},
+   "lamp": "lamp_post",
+   "lamp_every": 90,
+   "ford": true
+  }
+ },
+ "roads": [
+  {
+   "key": "north_road",
+   "way": "road",
+   "path": ["hearthstead", "north_road_glade_1", "north_watch", "north_road_view_2", [-20, -420], "north_road_milestone_3", [-60, -600], "north_road_hay_4", "north_pass"]
+  },
+  {
+   "key": "east_road",
+   "way": "road",
+   "path": ["hearthstead", "east_road_wood_5", "east_road_glade_6", "wrecked_caravan", [345, -35], "emberford_toll_hut", [432, 0], "emberford_bridge", [518, 0], [570, 22], "miners_rest"]
+  },
+  {
+   "key": "south_road",
+   "way": "road",
+   "path": ["hearthstead", "south_road_tower_7", "south_road_ruin_8", [30, 320], "south_road_stones_9", [38, 470], "south_road_wayshrine_10", [-50, 560], [-125, 620], "fishers_landing"]
+  },
+  {
+   "key": "west_trail",
+   "way": "trail",
+   "path": ["hearthstead", "west_trail_camp_11", "west_trail_wood_12", [-300, -20], "west_trail_glade_13", [-470, 10], "west_trail_cairn", [-604, 50]]
+  },
+  {
+   "key": "logging_trail",
+   "way": "trail",
+   "path": ["north_watch", "logging_trail_well_14", [-110, -340], "logging_trail_cairn_15", "logging_camp"]
+  },
+  {
+   "key": "oak_trail",
+   "way": "trail",
+   "path": ["logging_camp", "oak_trail_camp_16", [-360, -370], "oak_trail_wood_17", [-462, -270], "oak_trail_glade_18", "barrowwood_graves", "oak_trail_view_19", [-470, 10]]
+  },
+  {
+   "key": "ford_trail",
+   "way": "trail",
+   "path": [[38, 470], [47, 500], [96, 505], "ford_trail_ruin_20", [200, 455], "ford_trail_stones_21", "emberrun_ford", [430, 370], "ford_trail_wayshrine_22", [540, 230], "ford_trail_camp_23", "miners_rest"]
+  },
+  {
+   "key": "stockade_trail",
+   "way": "trail",
+   "path": [[250, 452], [290, 390], [310, 322]]
+  },
+  {
+   "key": "mine_trail",
+   "way": "trail",
+   "path": ["miners_rest", "ridge_cut", [716, -84]]
+  },
+  {
+   "key": "shore_trail",
+   "way": "trail",
+   "path": ["fishers_landing", [-115, 755], "shore_trail_well_24", [-40, 797], "shrine_shore"]
+  }
+ ],
+ "places": [
+  {
+   "key": "hearthstead",
+   "kind": "hub",
+   "at": [0, 0],
+   "name": "Hearthstead",
+   "radius": 75,
+   "pad": {
+    "radius": [72, 72],
+    "blend": 18
+   },
+   "plaza": {
+    "radius": 19,
+    "surface": {"cobble": 3, "flagstones": 4, "mossy_cobble": 1, "stone_bricks": 1}
+   },
+   "stamps": [
+    {"stamp": "great_hearth", "at": [0, 0]},
+    {"stamp": "watch_tower", "at": [-24, -26]},
+    {"stamp": "inn", "at": [36, 24], "rot": 1},
+    {"stamp": "smithy", "at": [30, -24]},
+    {"stamp": "library", "at": [-32, 22], "rot": 3},
+    {"stamp": "stall_red", "at": [11, -13]},
+    {"stamp": "stall_blue", "at": [-13, 11], "rot": 2},
+    {"stamp": "stall_yellow", "at": [13, 13], "rot": 1},
+    {"stamp": "well", "at": [-13, -11]},
+    {"stamp": "cottage_tile", "at": [-15, -46], "rot": 3},
+    {"stamp": "cottage_thatch", "at": [15, -52], "rot": 1},
+    {"stamp": "cottage_slate", "at": [15, 44], "rot": 1},
+    {"stamp": "cottage_thatch", "at": [-15, 50], "rot": 3},
+    {"stamp": "cottage_tile", "at": [52, -15]},
+    {"stamp": "barn", "at": [54, 27], "rot": 2},
+    {"stamp": "cottage_thatch", "at": [-52, 15], "rot": 2},
+    {"stamp": "cottage_slate", "at": [-52, -15]},
+    {"stamp": "cottage_tile", "at": [15, -32], "rot": 1},
+    {"stamp": "cottage_slate", "at": [-15, 31], "rot": 3},
+    {"stamp": "cottage_thatch", "at": [-38, -13]},
+    {"stamp": "haystack", "at": [-30, -44]},
+    {"stamp": "log_pile", "at": [44, -30], "rot": 1},
+    {"stamp": "gate", "at": [0, -66]},
+    {"stamp": "gate", "at": [0, 66]},
+    {"stamp": "gate", "at": [66, 0], "rot": 1},
+    {"stamp": "signpost", "at": [-60, 5]},
+    {"stamp": "field", "at": [-42, 50]},
+    {"stamp": "pasture", "at": [-46, -44]},
+    {"stamp": "pond", "at": [46, -46]},
+    {"stamp": "haystack", "at": [40, 40]},
+    {"stamp": "cart", "at": [44, 12]},
+    {"stamp": "bench_lamp", "at": [17, -6]},
+    {"stamp": "bench_lamp", "at": [-17, 6], "rot": 2},
+    {"stamp": "bench_lamp", "at": [6, 17], "rot": 1},
+    {"stamp": "bench_lamp", "at": [-6, -17], "rot": 3},
+    {"stamp": "flower_garden", "at": [-22, -6]},
+    {"stamp": "flower_garden", "at": [22, 8]},
+    {"stamp": "flower_garden", "at": [8, -24], "rot": 1},
+    {"stamp": "lamp_post", "at": [5, -34]},
+    {"stamp": "lamp_post", "at": [-5, 34]},
+    {"stamp": "lamp_post", "at": [34, 5]},
+    {"stamp": "lamp_post", "at": [-34, -5]},
+    {"stamp": "lamp_post", "at": [5, -56]},
+    {"stamp": "lamp_post", "at": [-5, 56]},
+    {"stamp": "lamp_post", "at": [56, -5]}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [-20, -36]},
+    {"species": "oak", "at": [24, -40]},
+    {"species": "birch", "at": [-36, 36]},
+    {"species": "oak", "at": [28, 44]},
+    {"species": "birch", "at": [40, -30]},
+    {"species": "oak", "at": [-60, -32]},
+    {"species": "birch", "at": [62, 40]},
+    {"species": "oak", "at": [-30, 62]},
+    {"species": "birch", "at": [-62, 44]},
+    {"species": "oak", "at": [60, -52]},
+    {"species": "birch", "at": [-8, -30]},
+    {"species": "oak", "at": [-40, 6]}
+   ],
+   "was": {
+    "at": [0, 0],
+    "radius": 40
+   }
+  },
+  {
+   "key": "hearthmeadow",
+   "kind": "zone",
+   "at": [0, 0],
+   "name": "Hearthmeadow",
+   "radius": 400,
+   "wide": true,
+   "sight": false
+  },
+  {
+   "key": "north_watch",
+   "kind": "site",
+   "at": [0, -255],
+   "name": "The North Watch",
+   "radius": 18,
+   "pad": {
+    "radius": [15, 15]
+   },
+   "stamps": [
+    {"stamp": "north_watch", "at": [13, -5], "rot": 1},
+    {"stamp": "boulders", "at": [22, 6], "fit": "ground"},
+    {"stamp": "campfire", "at": [-5, 5]},
+    {"stamp": "tent_blue", "at": [-12, 9], "rot": 3},
+    {"stamp": "signpost", "at": [6, 11]},
+    {"stamp": "log_pile", "at": [12, 8]}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [-22, 2]}
+   ],
+   "was": {
+    "at": [0, -54],
+    "radius": 12
+   }
+  },
+  {
+   "key": "north_pass",
+   "kind": "view",
+   "at": [-70, -800],
+   "name": "The North Pass",
+   "radius": 16,
+   "stamps": [
+    {"stamp": "ruin_tower", "at": [12, -4], "fit": "ground"},
+    {"stamp": "gate", "at": [0, -10], "fit": "ground"},
+    {"stamp": "boulders", "at": [-2, -14], "fit": "ground"},
+    {"stamp": "boulders", "at": [4, -17], "rot": 1, "fit": "ground"}
+   ]
+  },
+  {
+   "key": "birchrise",
+   "kind": "zone",
+   "at": [-150, -460],
+   "name": "Birchrise",
+   "radius": 230,
+   "wide": true,
+   "sight": false
+  },
+  {
+   "key": "logging_camp",
+   "kind": "site",
+   "at": [-225, -430],
+   "name": "The Logging Camp",
+   "radius": 24,
+   "pad": {
+    "radius": [19, 16]
+   },
+   "stamps": [
+    {"stamp": "hut", "at": [-9, -5]},
+    {"stamp": "boulders", "at": [-22, 4], "fit": "ground"},
+    {"stamp": "saw_pit", "at": [4, -8]},
+    {"stamp": "log_pile", "at": [9, 5]},
+    {"stamp": "birch_pile", "at": [-3, 8]},
+    {"stamp": "tent_white", "at": [-15, -14], "rot": 1},
+    {"stamp": "stumps", "at": [12, -10]},
+    {"stamp": "campfire", "at": [4, 5]},
+    {"stamp": "log_pile", "at": [-2, -12], "rot": 1},
+    {"stamp": "cart", "at": [12, 11]}
+   ],
+   "was": {
+    "at": [-45, -87],
+    "radius": 14
+   }
+  },
+  {
+   "key": "hollow_oak",
+   "kind": "site",
+   "at": [-480, -270],
+   "name": "The Hollow Oak",
+   "radius": 70,
+   "pad": {
+    "radius": [14, 14],
+    "wooded": true
+   },
+   "stamps": [
+    {"stamp": "hollow_oak", "at": [0, 0]},
+    {"stamp": "pond", "at": [15, 13], "fit": "ground"},
+    {"stamp": "boulders", "at": [-13, 10], "fit": "ground"}
+   ],
+   "was": {
+    "at": [-95, -54],
+    "radius": 22
+   }
+  },
+  {
+   "key": "barrowwood",
+   "kind": "zone",
+   "at": [-550, -25],
+   "name": "Barrowwood",
+   "radius": 260,
+   "wide": true,
+   "sight": false
+  },
+  {
+   "key": "old_barrow",
+   "kind": "site",
+   "at": [-650, 50],
+   "name": "The Old Barrow",
+   "radius": 30,
+   "pad": {
+    "radius": [19, 17]
+   },
+   "stamps": [
+    {"stamp": "old_barrow", "at": [0, 0]},
+    {"stamp": "boulders", "at": [24, 12], "fit": "ground"},
+    {"stamp": "boulders", "at": [-6, -22], "rot": 1, "fit": "ground"},
+    {"stamp": "standing_stones", "at": [26, -14], "fit": "ground"}
+   ],
+   "was": {
+    "at": [-128, 10],
+    "radius": 18
+   }
+  },
+  {
+   "key": "barrowwood_graves",
+   "kind": "site",
+   "at": [-540, -120],
+   "name": "The Barrowwood Graves",
+   "radius": 20,
+   "pad": {
+    "radius": [12, 10],
+    "wooded": true
+   },
+   "stamps": [
+    {"stamp": "graves", "at": [-14, 1]},
+    {"stamp": "graves", "at": [11, 0], "rot": 1},
+    {"stamp": "ruin_wall", "at": [12, -10]}
+   ],
+   "was": {
+    "at": [-107, -23],
+    "radius": 8
+   }
+  },
+  {
+   "key": "mirrormere",
+   "kind": "zone",
+   "at": [0, 650],
+   "name": "Mirrormere",
+   "radius": 290,
+   "wide": true,
+   "sight": false
+  },
+  {
+   "key": "windmill_farm",
+   "kind": "site",
+   "at": [70, 480],
+   "name": "The Windmill",
+   "radius": 26,
+   "pad": {
+    "radius": [26, 20]
+   },
+   "stamps": [
+    {"stamp": "windmill", "at": [-10, -3]},
+    {"stamp": "farmhouse", "at": [13, -9]},
+    {"stamp": "field", "at": [12, 9]},
+    {"stamp": "haystack", "at": [-4, 12]},
+    {"stamp": "cart", "at": [-16, 10]},
+    {"stamp": "signpost", "at": [-28, -6], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [27, -20]}
+   ],
+   "was": {
+    "at": [18, 95],
+    "radius": 20
+   }
+  },
+  {
+   "key": "fishers_landing",
+   "kind": "hub",
+   "at": [-150, 680],
+   "name": "Fisher's Landing",
+   "radius": 26,
+   "level": "water",
+   "pad": {
+    "radius": [17, 19],
+    "blend": 14,
+    "surface": {"sand": 1}
+   },
+   "stamps": [
+    {"stamp": "fisher_hut", "at": [-9, -8]},
+    {"stamp": "fisher_hut", "at": [-10, 7], "rot": 3},
+    {"stamp": "dock", "at": [9, 0], "rot": 3},
+    {"stamp": "boat", "at": [16, 9], "dy": -1},
+    {"stamp": "drying_rack", "at": [0, -13]},
+    {"stamp": "campfire", "at": [-5, 6]},
+    {"stamp": "drying_rack", "at": [2, 12], "rot": 1},
+    {"stamp": "lamp_post", "at": [6, -4]}
+   ],
+   "was": {
+    "at": [-29, 136],
+    "radius": 12
+   }
+  },
+  {
+   "key": "sunken_shrine",
+   "kind": "site",
+   "at": [30, 762],
+   "name": "The Sunken Shrine",
+   "radius": 30,
+   "level": "water",
+   "stamps": [
+    {"stamp": "sunken_shrine", "at": [0, 0], "dy": -1, "fit": "pad"}
+   ],
+   "was": {
+    "at": [20, 155],
+    "radius": 9
+   }
+  },
+  {
+   "key": "shrine_shore",
+   "kind": "view",
+   "at": [30, 790],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "wayshrine", "at": [-6, -2], "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [8, -3], "fit": "ground"}
+   ],
+   "was": {
+    "at": [8, 159],
+    "radius": 6
+   }
+  },
+  {
+   "key": "east_road",
+   "kind": "zone",
+   "at": [430, 25],
+   "name": "The East Road",
+   "radius": 260,
+   "wide": true,
+   "sight": false
+  },
+  {
+   "key": "wrecked_caravan",
+   "kind": "site",
+   "at": [220, -42],
+   "name": "The Wrecked Caravan",
+   "radius": 14,
+   "stamps": [
+    {"stamp": "wrecked_caravan", "at": [0, -8], "fit": "ground"}
+   ],
+   "was": {
+    "at": [50, -11],
+    "radius": 8
+   }
+  },
+  {
+   "key": "ashcloak_stockade",
+   "kind": "site",
+   "at": [310, 300],
+   "name": "The Ashcloak Stockade",
+   "radius": 30,
+   "pad": {
+    "radius": [19, 20]
+   },
+   "stamps": [
+    {"stamp": "stockade", "at": [0, 0]}
+   ,{"stamp": "boulders", "at": [-22, 18], "fit": "ground"},
+    {"stamp": "boulders", "at": [24, -8], "rot": 2, "fit": "ground"}
+   ],
+   "was": {
+    "at": [62, 62],
+    "radius": 16
+   }
+  },
+  {
+   "key": "emberford_toll_hut",
+   "kind": "site",
+   "at": [415, -8],
+   "name": "The Toll Hut",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "toll_hut", "at": [0, -9], "fit": "ground"}
+   ],
+   "was": {
+    "at": [81, -6],
+    "radius": 6
+   }
+  },
+  {
+   "key": "emberford_bridge",
+   "kind": "site",
+   "at": [475, 0],
+   "name": "Emberford Bridge",
+   "radius": 20,
+   "level": "water",
+   "stamps": [
+    {"stamp": "bridge", "at": [0, 0], "fit": "pad"}
+   ],
+   "was": {
+    "at": [95, 0],
+    "radius": 10
+   }
+  },
+  {
+   "key": "emberrun_ford",
+   "kind": "site",
+   "at": [345, 430],
+   "name": "The Emberrun Ford",
+   "radius": 14,
+   "stamps": [
+    {"stamp": "signpost", "at": [-16, 4], "fit": "ground"},
+    {"stamp": "cairn", "at": [14, -5], "fit": "ground"}
+   ],
+   "was": {
+    "at": [66, 86],
+    "radius": 8
+   }
+  },
+  {
+   "key": "miners_rest",
+   "kind": "hub",
+   "at": [640, 45],
+   "name": "Miner's Rest",
+   "radius": 26,
+   "pad": {
+    "radius": [22, 18]
+   },
+   "stamps": [
+    {"stamp": "miners_lodge", "at": [-11, -15]},
+    {"stamp": "hut", "at": [-13, 7]},
+    {"stamp": "tent_white", "at": [11, 6], "rot": 2},
+    {"stamp": "ore_cart", "at": [14, -6]},
+    {"stamp": "pond", "at": [14, 14]},
+    {"stamp": "boulders", "at": [6, -17]},
+    {"stamp": "campfire", "at": [2, 7]},
+    {"stamp": "signpost", "at": [-6, 5]},
+    {"stamp": "lamp_post", "at": [6, 3]},
+    {"stamp": "log_pile", "at": [16, -4], "rot": 1}
+   ],
+   "was": {
+    "at": [129, 9],
+    "radius": 14
+   }
+  },
+  {
+   "key": "ridge_cut",
+   "kind": "view",
+   "at": [690, -20],
+   "name": "The Ridge Cut",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "signpost", "at": [5, 6], "fit": "ground"},
+    {"stamp": "ore_outcrop", "at": [-7, -7], "fit": "ground"}
+   ],
+   "was": {
+    "at": [145, -5],
+    "radius": 6
+   }
+  },
+  {
+   "key": "hollow_mines",
+   "kind": "site",
+   "at": [730, -90],
+   "name": "The Hollow Mines",
+   "radius": 75,
+   "pad": {
+    "radius": [11, 11],
+    "blend": 5,
+    "surface": {"cobble": 2, "dirt": 3, "stone": 2}
+   },
+   "stamps": [
+    {"stamp": "hollow_mines", "at": [11, -3]},
+    {"stamp": "mine_portal", "at": [12, -3]},
+    {"stamp": "mine_head", "at": [19, -3], "fit": "ground"},
+    {"stamp": "ore_cart", "at": [-3, 5]},
+    {"stamp": "ore_outcrop", "at": [-6, -6]},
+    {"stamp": "lamp_post", "at": [6, 4]}
+   ],
+   "was": {
+    "at": [155, -17],
+    "radius": 12
+   }
+  },
+  {
+   "key": "meadow_farm_1",
+   "kind": "farm",
+   "at": [-270, 120],
+   "radius": 20,
+   "pad": {
+    "radius": [21, 19]
+   },
+   "stamps": [
+    {"stamp": "farmhouse", "at": [-7, -8]},
+    {"stamp": "field", "at": [8, 8]},
+    {"stamp": "haystack", "at": [-12, 7]},
+    {"stamp": "cart", "at": [10, -10]}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-18, -14]}
+   ],
+   "was": {
+    "at": [-54, 24],
+    "radius": 10
+   }
+  },
+  {
+   "key": "meadow_farm_2",
+   "kind": "farm",
+   "at": [270, -170],
+   "radius": 20,
+   "pad": {
+    "radius": [21, 19]
+   },
+   "stamps": [
+    {"stamp": "farmhouse", "at": [-7, -8]},
+    {"stamp": "field", "at": [8, 8]},
+    {"stamp": "haystack", "at": [-12, 7]},
+    {"stamp": "cart", "at": [10, -10]}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-18, -14]}
+   ],
+   "was": {
+    "at": [54, -34],
+    "radius": 10
+   }
+  },
+  {
+   "key": "meadow_farm_3",
+   "kind": "farm",
+   "at": [-130, 300],
+   "radius": 20,
+   "pad": {
+    "radius": [21, 19]
+   },
+   "stamps": [
+    {"stamp": "farmhouse", "at": [-7, -8]},
+    {"stamp": "field", "at": [8, 8]},
+    {"stamp": "haystack", "at": [-12, 7]},
+    {"stamp": "cart", "at": [10, -10]}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-18, -14]}
+   ],
+   "was": {
+    "at": [-26, 60],
+    "radius": 10
+   }
+  },
+  {
+   "key": "meadow_pasture_1",
+   "kind": "farm",
+   "at": [265, -272],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "meadow_pasture_2",
+   "kind": "farm",
+   "at": [247, 145],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "meadow_pasture_3",
+   "kind": "farm",
+   "at": [-272, 247],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "meadow_pasture_4",
+   "kind": "farm",
+   "at": [-267, -245],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "meadow_pasture_5",
+   "kind": "farm",
+   "at": [-315, -10],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "meadow_flock_1",
+   "kind": "camp",
+   "at": [240, 110],
+   "radius": 20
+  },
+  {
+   "key": "meadow_flock_2",
+   "kind": "camp",
+   "at": [-260, 150],
+   "radius": 20
+  },
+  {
+   "key": "meadow_flock_3",
+   "kind": "camp",
+   "at": [150, -260],
+   "radius": 20
+  },
+  {
+   "key": "meadow_flock_4",
+   "kind": "camp",
+   "at": [-220, -230],
+   "radius": 20
+  },
+  {
+   "key": "meadow_flock_5",
+   "kind": "camp",
+   "at": [290, -150],
+   "radius": 20
+  },
+  {
+   "key": "meadow_flock_6",
+   "kind": "camp",
+   "at": [-100, 300],
+   "radius": 20
+  },
+  {
+   "key": "birchrise_boars_1",
+   "kind": "camp",
+   "at": [-90, -380],
+   "radius": 20
+  },
+  {
+   "key": "birchrise_boars_2",
+   "kind": "camp",
+   "at": [-290, -520],
+   "radius": 20
+  },
+  {
+   "key": "birchrise_boars_3",
+   "kind": "camp",
+   "at": [-40, -590],
+   "radius": 20
+  },
+  {
+   "key": "birchrise_flock",
+   "kind": "camp",
+   "at": [50, -475],
+   "radius": 20
+  },
+  {
+   "key": "oak_webs",
+   "kind": "camp",
+   "at": [-490, -185],
+   "radius": 20
+  },
+  {
+   "key": "barrow_webs",
+   "kind": "camp",
+   "at": [-550, -130],
+   "radius": 20
+  },
+  {
+   "key": "barrow_boars",
+   "kind": "camp",
+   "at": [-525, 150],
+   "radius": 20
+  },
+  {
+   "key": "mere_pinchers_1",
+   "kind": "camp",
+   "at": [-110, 590],
+   "radius": 20
+  },
+  {
+   "key": "mere_pinchers_2",
+   "kind": "camp",
+   "at": [140, 690],
+   "radius": 20
+  },
+  {
+   "key": "mere_pinchers_3",
+   "kind": "camp",
+   "at": [-200, 750],
+   "radius": 20
+  },
+  {
+   "key": "mere_ashcloaks",
+   "kind": "camp",
+   "at": [230, 495],
+   "radius": 20
+  },
+  {
+   "key": "mere_flock",
+   "kind": "camp",
+   "at": [25, 440],
+   "radius": 20
+  },
+  {
+   "key": "road_scouts_1",
+   "kind": "camp",
+   "at": [420, -80],
+   "radius": 20
+  },
+  {
+   "key": "road_scouts_2",
+   "kind": "camp",
+   "at": [475, 40],
+   "radius": 20
+  },
+  {
+   "key": "road_boars",
+   "kind": "camp",
+   "at": [550, -150],
+   "radius": 20
+  },
+  {
+   "key": "north_road_glade_1",
+   "kind": "wayside",
+   "at": [-4, -180],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "flower_garden", "at": [10, 0], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [-13, 0]}
+   ]
+  },
+  {
+   "key": "north_road_view_2",
+   "kind": "wayside",
+   "at": [-12, -337],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "viewpoint", "at": [-11, 1], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "north_road_milestone_3",
+   "kind": "wayside",
+   "at": [-39, -510],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "milestone", "at": [7, -2], "fit": "ground"},
+    {"stamp": "bench_lamp", "at": [-9, -5], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "north_road_hay_4",
+   "kind": "wayside",
+   "at": [-60, -700],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "cart", "at": [-9, 0], "fit": "ground"},
+    {"stamp": "haystack", "at": [9, -7], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "east_road_wood_5",
+   "kind": "wayside",
+   "at": [180, -12],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "log_pile", "at": [1, 10], "fit": "ground"},
+    {"stamp": "stumps", "at": [5, -14], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "east_road_glade_6",
+   "kind": "wayside",
+   "at": [187, -43],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "flower_garden", "at": [-3, -10], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [4, 12]}
+   ]
+  },
+  {
+   "key": "south_road_tower_7",
+   "kind": "wayside",
+   "at": [10, 180],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ruin_tower", "at": [-13, 1], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "south_road_ruin_8",
+   "kind": "wayside",
+   "at": [21, 235],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [13, -2], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "south_road_stones_9",
+   "kind": "wayside",
+   "at": [32, 395],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "standing_stones", "at": [-15, 1], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "south_road_wayshrine_10",
+   "kind": "wayside",
+   "at": [-10, 511],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "wayshrine", "at": [6, 6], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "west_trail_camp_11",
+   "kind": "wayside",
+   "at": [-180, 6],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "hunter_camp", "at": [-1, -11], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "west_trail_wood_12",
+   "kind": "wayside",
+   "at": [-221, 2],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "log_pile", "at": [-2, 8], "fit": "ground"},
+    {"stamp": "stumps", "at": [-5, -13], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "west_trail_glade_13",
+   "kind": "wayside",
+   "at": [-384, -1],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "flower_garden", "at": [-1, -8], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [2, 13]}
+   ]
+  },
+  {
+   "key": "logging_trail_well_14",
+   "kind": "wayside",
+   "at": [-55, -298],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "well", "at": [-5, 6], "fit": "ground"},
+    {"stamp": "bench_lamp", "at": [-2, -9], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "logging_trail_cairn_15",
+   "kind": "wayside",
+   "at": [-165, -388],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "cairn", "at": [4, -5], "fit": "ground"},
+    {"stamp": "boulders", "at": [-12, 4], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "oak_trail_camp_16",
+   "kind": "wayside",
+   "at": [-295, -407],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "hunter_camp", "at": [5, 11], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "oak_trail_wood_17",
+   "kind": "wayside",
+   "at": [-404, -313],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "log_pile", "at": [-6, -6], "fit": "ground"},
+    {"stamp": "stumps", "at": [3, 13], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "oak_trail_glade_18",
+   "kind": "wayside",
+   "at": [-496, -192],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "flower_garden", "at": [8, 4], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [-12, -6]}
+   ]
+  },
+  {
+   "key": "oak_trail_view_19",
+   "kind": "wayside",
+   "at": [-503, -56],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "viewpoint", "at": [-8, 5], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ford_trail_ruin_20",
+   "kind": "wayside",
+   "at": [135, 469],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [-2, -11], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ford_trail_stones_21",
+   "kind": "wayside",
+   "at": [273, 447],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "standing_stones", "at": [2, 13], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ford_trail_wayshrine_22",
+   "kind": "wayside",
+   "at": [492, 305],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "wayshrine", "at": [-5, -4], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ford_trail_camp_23",
+   "kind": "wayside",
+   "at": [583, 134],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "hunter_camp", "at": [10, 5], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "shore_trail_well_24",
+   "kind": "wayside",
+   "at": [-80, 778],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "well", "at": [-1, -7], "fit": "ground"},
+    {"stamp": "bench_lamp", "at": [8, 6], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "west_trail_cairn",
+   "kind": "wayside",
+   "at": [-552, 38],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "cairn", "at": [2, -6], "fit": "ground"},
+    {"stamp": "boulders", "at": [-5, 8], "fit": "ground"}
+   ]
+  }
+ ],
+ "migrate": {"from_size": 384},
+ "water": [
+  {"kind": "shrine", "place": "sunken_shrine", "radius": [26, 18], "feather": 0.4},
+  {"kind": "barrow", "place": "old_barrow", "radius": [34, 40]},
+  {"kind": "oak", "place": "hollow_oak", "at": [15, 13], "radius": [16, 14]}
+ ]
+}

@@ -24,7 +24,7 @@ This document is the contract every part of the migration builds to.
 | The content pack (`include_str!` of hearthblock.json) | Sent by the server only |
 | Title-screen stage (client calls `World::generate` and `build_hearthstead`) | A small baked stage scene streamed like any other asset |
 | Block table (`dyno-world/src/lib.rs`) | `blocks.json` |
-| World builders (`village.rs`, `poi.rs`, `zones.rs`, worldgen trees) | Stamps (block volumes) and a layout file; terrain shaping as data operations |
+| World builders (`village.rs`, `poi.rs`, `zones.rs`, worldgen trees) | Stamps (block volumes) and a layout file; terrain shaping as data operations (**done**, §5) |
 
 Size floor: a stripped, size-optimised program with only wgpu, egui, winit,
 rodio and TLS WebSockets is **5.7 MB**. Today's `dyno` is 20.6 MB with the
@@ -531,17 +531,26 @@ with other builds, load average 30–50 on 16 cores):
 
 ## 5. World building as data
 
-The live world contains migrated player builds, so it is never regenerated.
-For new worlds and rebuilds:
+**Status: built** (docs/design/world-layout.md is the reference).
 
-- `World::generate` (terrain from a seed) stays code: it is an engine
-  generator driven by parameters in `layout.json`.
-- Every building, site and town is a **stamp**, placed by `layout.json`
-  with position, rotation and a ground-fitting rule.
-- Today's builders are run once by a bake tool to produce the stamps, and
-  are then deleted.
-- Vegetation comes from species tables (size ranges and crown shapes) in
-  `layout.json`.
+- The world is built from `world/layout.json` (size, land, river and lake,
+  zones, tree species and vegetation rules, roads, places) and
+  `stamps/*.dstamp` (every building, prop, ruin and dug-out place), by
+  `dyno_world::worldgen::build`. The engine keeps only general abilities:
+  shaping land from the layout's primitives, laying roads, placing stamps,
+  scattering vegetation by rules.
+- The old builders (`village.rs`, `poi.rs`, `zones.rs`) are gone. The
+  Hollow Mines, the Old Barrow and the Sunken Shrine were baked from them
+  into stamps; every building was drawn again at heroic proportions
+  (docs/design/scale.md) by the recipes in `tools/stamps/`.
+- The rules place areas, camps, NPCs and objectives at places of the
+  layout; the pack build resolves them into hearth offsets.
+- Layout and stamps stay on the server: they are not in the manifest.
+- A saved world records the layout version it was built from. A new
+  version (or a world from before layouts) is rebuilt once, with backups,
+  and every character is moved to its place (`migrate::rebuild`).
+- `World::generate` (terrain from a seed) stays for worlds without a
+  layout (builder worlds, tests).
 
 ## 6. Authoritative movement (last)
 
@@ -626,7 +635,7 @@ For new worlds and rebuilds:
    image diff (`dyno shot`, the animation sheet) matches:
    - textures, sounds, fonts and render settings;
    - models, rigs, clips and detail shapes.
-3. World streaming and area of interest **(done)**; stamps and layout.
+3. World streaming and area of interest **(done)**; stamps and layout **(done)**.
 4. Authoritative movement.
 
 Every step keeps `dyno shot`, the bots and the protocol tests working.

@@ -38,9 +38,10 @@ impl State {
 
     fn players_near_town(&self) -> usize {
         let t = self.town();
+        let near = self.content.areas.first().map_or(36.0, |a| a.radius) + 104.0;
         self.players
             .values()
-            .filter(|p| !p.dead && !p.away() && dist(p.pose.pos, t) < 140.0)
+            .filter(|p| !p.dead && !p.away() && dist(p.pose.pos, t) < near)
             .count()
     }
 
@@ -83,7 +84,9 @@ impl State {
             inc.next_wave = now + WAVE_GAP;
             let (_, gx, gz) = GATES[inc.gate];
             let t = self.town();
-            let at = [t[0] + gx * 44.0, t[1], t[2] + gz * 44.0];
+            // just outside the town: its area's reach, and a little more
+            let out = self.content.areas.first().map_or(36.0, |a| a.radius) + 8.0;
+            let at = [t[0] + gx * out, t[1], t[2] + gz * out];
             let n = 2 + inc.wave as usize + self.players_near_town().min(4);
             let shade = self
                 .content

@@ -471,9 +471,9 @@ fn quests_give_xp_and_rewards() {
         world_path: dir.join("world.dynw"),
         world_size: [96, 48, 96],
         trust_movement: true,
-        // the whole (small) world is of interest: every NPC is met at once
+        // everything is of interest, however far: every NPC is met at once
         stream: dyno_server::stream::StreamConfig {
-            aoi: 200.0,
+            aoi: 4000.0,
             ..Default::default()
         },
         ..Default::default()
@@ -733,7 +733,7 @@ fn quests_give_xp_and_rewards() {
                 if dx.abs() != r && dz.abs() != r {
                     continue;
                 }
-                for y in 1..47 {
+                for y in 1..j.world.size[1] as i32 {
                     if j.world.get(cx + dx, y, cz + dz) == dyno_world::LOG {
                         node = Some([cx + dx, y, cz + dz]);
                         break 'find;
@@ -785,7 +785,8 @@ fn nightfall_incursion() {
     let cfg = dyno_server::Config {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
-        world_size: [128, 48, 128],
+        // wide enough for the town and the ground outside its gates
+        world_size: [224, 48, 224],
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
@@ -1068,6 +1069,11 @@ fn phasing_shows_each_player_their_own_world() {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [96, 48, 96],
+        // the stockade is minutes away: everything is of interest
+        stream: dyno_server::stream::StreamConfig {
+            aoi: 4000.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
