@@ -2633,7 +2633,7 @@
    "health": 44,
    "speed": 3.8,
    "hostile": true,
-   "damage": 5,
+   "damage": 4,
    "drops": [
     {
      "item": "shade_dust",
@@ -2715,10 +2715,10 @@
    "burns_in_daylight": false,
    "ability": {
     "charge": {
-     "range": 14
+     "range": 10
     }
    },
-   "aggro": 6
+   "aggro": 4
   },
   {
    "key": "mirepincher",
