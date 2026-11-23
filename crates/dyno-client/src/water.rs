@@ -57,6 +57,8 @@ struct Kind {
     fog: [f32; 4],
     /// reflect, ripple, sparkle, flow
     surf: [f32; 4],
+    /// lilies
+    life: [f32; 4],
 }
 
 /// The shader's `WaterU`.
@@ -74,6 +76,9 @@ pub struct WaterUniform {
     counts: [f32; 4],
     /// width, height, the surface over a sunken eye, 0
     screen: [f32; 4],
+    /// the colours of a lily pad and of its flower
+    lily: [f32; 4],
+    lily_flower: [f32; 4],
 }
 
 fn kind_of(b: &look::Water, k: Option<&look::WaterKind>) -> Kind {
@@ -100,6 +105,7 @@ fn kind_of(b: &look::Water, k: Option<&look::WaterKind>) -> Kind {
             k.sparkle.unwrap_or(b.sparkle),
             k.flow.unwrap_or(b.flow),
         ],
+        life: [k.lilies.unwrap_or(b.lilies), 0.0, 0.0, 0.0],
     }
 }
 
@@ -170,6 +176,8 @@ pub fn uniform(l: &look::Water, v: &View) -> WaterUniform {
         v.sunk.unwrap_or(0.0),
         0.0,
     ];
+    u.lily = [l.lily[0], l.lily[1], l.lily[2], 0.0];
+    u.lily_flower = [l.lily_flower[0], l.lily_flower[1], l.lily_flower[2], 0.0];
     u
 }
 
@@ -529,7 +537,7 @@ pub(crate) fn bank(
 /// Follows the head of the world shader (the uniforms, the look, the sun's
 /// shadow, the grade, the noise and the swell).
 const SHADER: &str = r#"
-struct WKind { deep: vec4<f32>, shallow: vec4<f32>, foam: vec4<f32>, fog: vec4<f32>, surf: vec4<f32> };
+struct WKind { deep: vec4<f32>, shallow: vec4<f32>, foam: vec4<f32>, fog: vec4<f32>, surf: vec4<f32>, life: vec4<f32> };
 struct WaterU {
   kinds: array<WKind, 8>,
   areas: array<vec4<f32>, 8>,
@@ -537,6 +545,8 @@ struct WaterU {
   course: array<vec4<f32>, 32>,
   counts: vec4<f32>,
   screen: vec4<f32>,
+  lily: vec4<f32>,
+  lily_flower: vec4<f32>,
 };
 @group(1) @binding(0) var<uniform> wu: WaterU;
 @group(1) @binding(1) var scene_tex: texture_2d<f32>;
@@ -550,6 +560,7 @@ fn mix_kind(a: WKind, b: WKind, k: f32) -> WKind {
   o.foam = mix(a.foam, b.foam, k);
   o.fog = mix(a.fog, b.fog, k);
   o.surf = mix(a.surf, b.surf, k);
+  o.life = mix(a.life, b.life, k);
   return o;
 }
 
@@ -818,7 +829,7 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   }
 
   // the body of the water: clear, then the shallow colour, then the deep
-  let cover_sh = 1.0 - exp(-through / max(K.shallow.w, 0.05));
+  let cover_sh = 1.0 - exp(-(through + 0.3 * smoothstep(0.0, 0.25, dv)) / max(K.shallow.w, 0.05));
   let cover_dp = 1.0 - exp(-3.0 * dv / max(K.deep.w, 0.05));
   var body = mix(K.shallow.rgb, K.deep.rgb, cover_dp) * lit;
   body = body * (1.0 + 0.16 * (h0 - 0.5) + 0.55 * crest - 0.12 * trough) + crest * lit * 0.03;
@@ -918,8 +929,8 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   var foam = 0.0;
   if (have) {
     foam = 1.0 - smoothstep(fw * (0.30 + 0.5 * lap * fn1), fw * (0.42 + 0.62 * lap * fn1), dvq);
-    let ring = smoothstep(fw * 1.5, fw * 1.7, dvq) * (1.0 - smoothstep(fw * 2.1, fw * 2.3, dvq)) * step(0.52, fn1);
-    foam = max(foam, ring * 0.85);
+    let ring = smoothstep(fw * 1.5, fw * 1.7, dvq) * (1.0 - smoothstep(fw * 2.1, fw * 2.3, dvq)) * step(0.58, fn1);
+    foam = max(foam, ring * 0.6);
     foam = max(foam, smoothstep(0.80, 0.86, sh.x + (fn1 - 0.5) * 0.3 + 0.05 * lap));
   } else {
     foam = smoothstep(0.62, 0.68, sh.x + (fn1 - 0.5) * 0.38 + 0.06 * lap);
@@ -929,6 +940,35 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   let foam_c = grade(mix(K.foam.rgb * (lit * 0.94 + u.light.rgb * 0.06), u.fog.rgb, fogk));
   col = mix(col, foam_c, foam);
   alpha = max(alpha, foam);
+
+  // lily pads on calm shallows, in clumps: a disc of cells with a notch,
+  // some with a flower
+  let calm = (1.0 - smoothstep(0.02, 0.2, length(flow))) * (1.0 - smoothstep(0.0, 0.15, white));
+  let shallows = 1.0 - smoothstep(1.2, 2.2, max(dvq, baked * 0.6));
+  let lilies = K.life.x * calm * shallows * (1.0 - foam) * smoothstep(0.2, 0.4, max(dvq, baked));
+  if (lilies > 0.001 && g < 0.6) {
+    {
+      {
+        let spot = floor(q / 0.9);
+        let hs = hash2(spot);
+        let clump = smoothstep(0.45, 0.7, vnoise(spot * 0.23 + vec2<f32>(4.0, 9.0)));
+        if (hs < lilies * clump) {
+          let mid = (spot + 0.42 + 0.16 * vec2<f32>(hash2(spot + vec2<f32>(7.0, 1.0)), hash2(spot + vec2<f32>(2.0, 5.0)))) * 0.9;
+          let r = q - mid + vec2<f32>(0.01 * sin(t * 0.7 + hs * 40.0), 0.0);
+          let rad = 0.20 + 0.15 * hash2(spot + vec2<f32>(3.0, 3.0));
+          let turn = hs * 251.0;
+          let notch = dot(normalize(r + vec2<f32>(0.0001)), vec2<f32>(cos(turn), sin(turn))) > 0.86 && length(r) > 0.07;
+          if (length(r) < rad && !notch) {
+            var pad = wu.lily.rgb * (0.82 + 0.36 * hash2(cell + vec2<f32>(9.0, 4.0)));
+            if (length(r) > rad - g * 1.1) { pad = pad * 0.72; }
+            if (hash2(spot + vec2<f32>(8.0, 8.0)) < 0.35 && max(abs(r.x), abs(r.y)) < 0.095) { pad = wu.lily_flower.rgb; }
+            col = grade(mix(pad * (lit * 0.95 + u.light.rgb * 0.05), u.fog.rgb, fogk));
+            alpha = 1.0;
+          }
+        }
+      }
+    }
+  }
 
   // the very edge thins to nothing
   if (have) { return vec4<f32>(mix(behind, col, edge), 1.0); }
@@ -1295,6 +1335,7 @@ mod tests {
         );
         // the kinds in name order after the base: bog, brook
         assert_eq!(u.kinds[0].deep, [0.1, 0.2, 0.3, 3.0]);
+        assert_eq!(u.kinds[0].life[0], 0.0);
         assert_eq!(u.kinds[1].deep, [0.0, 0.1, 0.0, 3.0]);
         assert_eq!(u.kinds[1].shallow[3], 2.0);
         assert_eq!(u.kinds[2].surf[3], 1.5);
@@ -1315,10 +1356,10 @@ mod tests {
 
     #[test]
     fn the_uniform_is_laid_out_as_the_shader_has_it() {
-        assert_eq!(std::mem::size_of::<Kind>(), 80);
+        assert_eq!(std::mem::size_of::<Kind>(), 96);
         assert_eq!(
             std::mem::size_of::<WaterUniform>(),
-            80 * 8 + 16 * 8 + 16 * 8 + 16 * 32 + 32
+            96 * 8 + 16 * 8 + 16 * 8 + 16 * 32 + 64
         );
     }
 

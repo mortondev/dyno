@@ -89,6 +89,11 @@ pub struct Water {
     /// to, and how fast (per metre)
     pub fog: [f32; 3],
     pub fog_density: f32,
+    /// lily pads on calm shallows: how thick they lie, 0..1
+    pub lilies: f32,
+    /// the colours of a pad and of its flower
+    pub lily: [f32; 3],
+    pub lily_flower: [f32; 3],
     /// kinds of water by name: each changes what it names of the above
     pub kinds: std::collections::BTreeMap<String, WaterKind>,
     /// still water of a kind: an ellipse around a place
@@ -113,6 +118,7 @@ pub struct WaterKind {
     pub flow: Option<f32>,
     pub fog: Option<[f32; 3]>,
     pub fog_density: Option<f32>,
+    pub lilies: Option<f32>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -222,6 +228,9 @@ impl Default for Water {
             flow: 0.0,
             fog: [0.1, 0.2, 0.3],
             fog_density: 0.12,
+            lilies: 0.0,
+            lily: [0.1, 0.3, 0.08],
+            lily_flower: [0.9, 0.6, 0.7],
             kinds: Default::default(),
             areas: Vec::new(),
             courses: Vec::new(),
