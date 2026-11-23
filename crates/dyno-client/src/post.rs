@@ -128,6 +128,10 @@ impl Quality {
     /// not a slideshow: high on a discrete card, medium on integrated
     /// graphics, low on a software renderer or the GL fallback.
     pub fn tier(saved: u8, adapter: &wgpu::AdapterInfo) -> u8 {
+        let forced = FORCED.load(std::sync::atomic::Ordering::Relaxed);
+        if forced != u8::MAX {
+            return forced;
+        }
         if let Some(i) = std::env::var("DYNO_GRAPHICS")
             .ok()
             .and_then(|v| Self::NAMES.iter().position(|n| *n == v.trim()))
@@ -143,7 +147,18 @@ impl Quality {
             _ => 1,
         }
     }
+
+    /// Renderers made from now on use this level whatever the settings and
+    /// the environment say (measurements at each tier; None: as before).
+    pub fn force(level: Option<u8>) {
+        FORCED.store(
+            level.unwrap_or(u8::MAX),
+            std::sync::atomic::Ordering::Relaxed,
+        );
+    }
 }
+
+static FORCED: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(u8::MAX);
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -560,6 +575,18 @@ impl Post {
         }
     }
 
+    /// Bytes of the pictures this chain keeps on the card: the picture,
+    /// the occlusion at half size and the bloom levels (for measurements).
+    pub fn target_bytes(&self) -> u64 {
+        let [w, h] = self.size;
+        let bytes = crate::bench::texture_bytes;
+        bytes(self.format, w, h, 1, 1)
+            + bytes(AO_FORMAT, w.div_ceil(2), h.div_ceil(2), 1, 1)
+            + (0..BLOOM_LEVELS)
+                .map(|i| bytes(self.format, w / (2u32 << i), h / (2u32 << i), 1, 1))
+                .sum::<u64>()
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn targets(
         device: &wgpu::Device,
@@ -756,18 +783,23 @@ impl Post {
     }
 
     /// Darken the creases of what has been drawn so far (the solid world):
-    /// between the solid pass and the sky, water and lights.
-    pub fn occlude(&self, enc: &mut wgpu::CommandEncoder) {
+    /// between the solid pass and the sky, water and lights. Returns how
+    /// many passes it drew (for measurements).
+    pub fn occlude(&self, enc: &mut wgpu::CommandEncoder) -> u32 {
         if !self.ao_on {
-            return;
+            return 0;
         }
         Self::pass(enc, &self.ao, true, &self.ao_pipe, &self.from_mip[0]);
         Self::pass(enc, &self.hdr, false, &self.ao_apply_pipe, &self.from_ao);
+        2
     }
 
-    /// Bloom, then the graded picture into `out`.
-    pub fn finish(&self, enc: &mut wgpu::CommandEncoder, out: &wgpu::TextureView) {
+    /// Bloom, then the graded picture into `out`. Returns how many passes
+    /// it drew (for measurements).
+    pub fn finish(&self, enc: &mut wgpu::CommandEncoder, out: &wgpu::TextureView) -> u32 {
+        let mut passes = 1;
         if self.bloom_on {
+            passes += 2 * self.mips.len() as u32 - 1;
             Self::pass(
                 enc,
                 &self.mips[0],
@@ -795,5 +827,6 @@ impl Post {
             }
         }
         Self::pass(enc, out, true, &self.composite_pipe, &self.from_hdr);
+        passes
     }
 }

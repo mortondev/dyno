@@ -100,6 +100,9 @@ pub struct Glow {
 
 #[derive(Default)]
 pub struct SectionGeo {
+    /// the ground and the other solid faces as the card will hold them
+    /// (`pack.rs`), once packed: `ground` and `opaque` are empty then
+    pub packed: Option<crate::pack::Geo>,
     pub opaque: Vec<Vertex>,
     /// fine voxel ground: four corners a quad, drawn with the shared quad
     /// index (triangles 0 1 2 and 0 2 3)
@@ -1297,8 +1300,9 @@ mod tests {
                 let hi = [0, 1, 2].map(|a| p.iter().map(|c| c[a]).max().unwrap());
                 let axis = (0..3).find(|a| lo[*a] == hi[*a]).expect("a flat face");
                 // which way the face looks (the normal may be bent towards
-                // the slope): tex.x is voxels a metre plus 32 times it
-                let dir = (q[0].tex[0] / 32.0).floor() as usize;
+                // the slope): tex.x is voxels a metre plus 32 times it,
+                // plus 256 times the colour cells a metre
+                let dir = ((q[0].tex[0] % 256.0) / 32.0).floor() as usize;
                 assert_eq!(dir / 2, axis, "direction and plane agree");
                 let mut n = [0f32; 3];
                 n[axis] = if dir.is_multiple_of(2) { 1.0 } else { -1.0 };
@@ -1565,7 +1569,11 @@ mod tests {
         let tops: Vec<&Vertex> = geos
             .iter()
             .flat_map(|g| &g.ground)
-            .filter(|v| v.normal == [0.0, 1.0, 0.0] && (4.0..28.0).contains(&v.pos[2]))
+            // up-facing faces (from the face's direction: the normal may be
+            // bent towards the slope)
+            .filter(|v| {
+                ((v.tex[0] % 256.0) / 32.0).floor() == 2.0 && (4.0..28.0).contains(&v.pos[2])
+            })
             .collect();
         let foot = tops
             .iter()
