@@ -46,7 +46,7 @@ WoW paces a starting zone in minutes of running, not metres. Targets:
 |---|---|---|---|
 | Hub to its nearby quest spots (camps, farms, ruins) | 30–60 s | 130–260 m | 38–58 s (Hearthstead to the North Watch 58 s) |
 | Hub to the next hub | 2–3 min | 530–800 m | Hearthstead to Miner's Rest 2.6 min, to Fisher's Landing 2.9 min |
-| Across the starting zone | 6–10 min | 1.6–2.6 km | 2048 m map; the longest trip by road is 6 to 10 min |
+| Across the starting zone | 6–10 min | 1.6–2.6 km | 2048 m map; the North Pass to the Sunken Shrine by road is 7.0 min |
 
 So the starting zone should be roughly **2 km × 2 km**, about **5× our map
 in each direction**. Streaming (v0.8.0) makes that feasible. Mounts come in
