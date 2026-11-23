@@ -18,6 +18,7 @@ pub mod life;
 pub mod look;
 pub mod minimap;
 pub use dyno_world::light;
+pub(crate) mod fine;
 pub mod models;
 pub mod net;
 pub mod particles;

@@ -1,18 +1,19 @@
 //! Section meshing. The world stays a 1 m block grid; this turns it into a
-//! softer picture:
+//! finer picture:
 //!
-//! - natural ground is a smooth surface (surface nets with the topology of the
-//!   cube mesh: every exposed block face becomes one quad whose corners sit at
-//!   positions computed per grid corner);
-//! - leaf blocks get the same treatment on their own field, puffed up;
-//! - everything else stays a cube;
+//! - natural ground is fine voxels, shaped by the blocks around it
+//!   (`fine.rs`);
+//! - leaf blocks are a smooth, puffed-up surface (surface nets with the
+//!   topology of the cube mesh);
+//! - shaped blocks are drawn by `shapes.rs`; everything else stays a cube;
 //! - water gets a lowered surface that tucks under the shore.
 //!
-//! A corner position depends only on the blocks around that corner, so two
+//! What is drawn at a place depends only on the blocks near it, so two
 //! neighbouring sections always agree and the borders are seamless.
 
+use crate::fine::{self, Lod};
 use crate::light::Light;
-use crate::render::{self, KIND_FOLIAGE, KIND_TERRAIN, SECTION, Vertex};
+use crate::render::{self, KIND_FOLIAGE, SECTION, Vertex};
 use dyno_world::{self as w, BlockId, World};
 use glam::Vec3;
 
@@ -42,18 +43,13 @@ pub(crate) const F_DARK: u8 = 32;
 /// Drawn by the detail mesher (see `detail.rs`), not as a plain cube.
 pub(crate) const F_DETAIL: u8 = 64;
 
-/// Smallest density magnitude of a ground cell. Keeps one-block features
-/// from thinning to nothing.
-const MARGIN: f32 = 0.15;
 /// Leaf canopies: the surface sits where the blurred leaf field crosses this.
 const LEAF_ISO: f32 = 0.37;
 const LEAF_IN: f32 = 0.2;
 const LEAF_OUT: f32 = 0.08;
-/// How much of its smoothing a corner keeps on a cliff.
-const CLIFF_KEEP: f32 = 0.55;
 /// How far the water surface sits below the top of its block.
 pub const WATER_DROP: f32 = 0.2;
-/// Natural ground: drawn smooth (the pack's `terrain` tag).
+/// Natural ground: drawn as fine voxels (the pack's `terrain` tag).
 pub fn is_terrain(b: BlockId) -> bool {
     crate::shapes::has(b, crate::shapes::tag::TERRAIN)
 }
@@ -105,13 +101,24 @@ pub struct Glow {
 #[derive(Default)]
 pub struct SectionGeo {
     pub opaque: Vec<Vertex>,
+    /// fine voxel ground: four corners a quad, drawn with the shared quad
+    /// index (triangles 0 1 2 and 0 2 3)
+    pub ground: Vec<Vertex>,
     pub trans: Vec<Vertex>,
     /// the open tops of the ground, for the cover to grow on (emptied once
     /// it has)
     pub tops: Vec<crate::cover::Top>,
     /// plants and stones standing on the ground (`cover.rs`)
     pub cover: Vec<crate::cover::Spot>,
+    /// leaves drawn as cubes: in clumps (true) or a cube a block (false);
+    /// None with no leaves, or smooth ones
+    pub leaves_fine: Option<bool>,
     pub glows: Vec<Glow>,
+    /// the level of detail its ground was meshed at
+    pub lod: Lod,
+    /// the drawn ground under each open top: (cell, voxels a metre, the
+    /// height of each fine column's top), for seating the cover
+    pub seats: Vec<([i8; 3], u8, Vec<f32>)>,
 }
 
 #[inline]
@@ -126,35 +133,14 @@ pub fn hash3(x: i32, y: i32, z: i32) -> u32 {
     h ^ (h >> 15)
 }
 
-/// The texture layer a ground block shows on steep faces: earth under grass,
-/// rock under snow, its own side otherwise.
-fn steep_layer(b: BlockId) -> u16 {
-    let t = render::textures();
-    match b {
-        w::GRASS => t.face(w::DIRT, 1),
-        w::SNOW => t.face(w::STONE, 1),
-        _ => t.face(b, 1),
-    }
-}
-
-/// What a ground block is painted as. Earth just under grass counts as
-/// grass, and rock just under snow as snow: on a slope the cover runs on
-/// down over it, and only a steep face shows what is underneath.
-#[inline]
-fn material(g: &Grid, c: usize) -> BlockId {
-    match (g.ids[c], g.ids[c + DY]) {
-        (w::DIRT, w::GRASS) => w::GRASS,
-        (w::STONE, w::SNOW) => w::SNOW,
-        (b, _) => b,
-    }
-}
-
 /// The blocks of one section and a border around it, in section-local cells.
 pub(crate) struct Grid {
     pub(crate) ids: Vec<BlockId>,
     pub(crate) fl: Vec<u8>,
     /// world position of local cell (0, 0, 0)
     pub(crate) o: [i32; 3],
+    /// the world's size in blocks
+    pub(crate) size: [i32; 3],
     /// light (block, sky) for detail blocks that stop light, borrowed from
     /// their open neighbours; empty when there are none
     patch: Vec<[u8; 2]>,
@@ -163,8 +149,8 @@ pub(crate) struct Grid {
     pub(crate) cls: Vec<u16>,
 }
 
-/// Blocks that pave the ground: drawn as part of the smooth ground where
-/// they lie flush with it.
+/// Blocks that pave the ground: drawn as part of the fine voxel ground
+/// where they lie flush with it.
 pub(crate) fn is_paving(b: BlockId) -> bool {
     crate::shapes::has(b, crate::shapes::tag::PAVING)
 }
@@ -187,6 +173,7 @@ impl Grid {
             ids: vec![0; G * G * G],
             fl: vec![0; G * G * G],
             o,
+            size: world.size.map(|v| v as i32),
             patch: Vec::new(),
             cls: Vec::new(),
         };
@@ -219,8 +206,8 @@ impl Grid {
         g
     }
 
-    /// Paving that lies flush with the ground becomes ground: it follows
-    /// the smooth surface and blends into the grass along a ragged edge.
+    /// Paving that lies flush with the ground becomes ground: it is drawn
+    /// as fine voxels and meets the grass along a ragged edge.
     /// A cell counts when it has solid ground under it, nothing built on
     /// top, other ground beside it and at most one open side (so low walls
     /// and the tops of pillars stay built). Reads one cell round each cell
@@ -357,10 +344,12 @@ fn di(x: i32, y: i32, z: i32) -> usize {
 /// bit 0 is +x, bit 1 is +z, bit 2 is +y.
 const CELL8: [usize; 8] = [0, DX, DZ, DZ + DX, DY, DY + DX, DY + DZ, DY + DZ + DX];
 
-/// One smooth surface over the grid: the ground, or the leaves.
+/// Leaf canopies: one smooth, puffed-up surface over the leaf blocks
+/// (surface nets with the topology of the cube mesh: every exposed leaf
+/// face becomes one quad whose corners sit at positions computed per grid
+/// corner).
 struct Nets<'a> {
     g: &'a Grid,
-    leaves: bool,
     pos: Vec<[f32; 3]>,
     nrm: Vec<[f32; 3]>,
     /// bit 0: position known; bit 1: light known
@@ -374,16 +363,13 @@ struct Quad {
     dir: u8,
     /// grid corners, in order around the face
     c: [[i8; 3]; 4],
-    /// cell of the block, local
-    cell: [i8; 3],
 }
 
 impl<'a> Nets<'a> {
-    fn new(g: &'a Grid, leaves: bool) -> Self {
+    fn new(g: &'a Grid) -> Self {
         let n = LV * LV * LV;
         Nets {
             g,
-            leaves,
             pos: vec![[0.0; 3]; n],
             nrm: vec![[0.0; 3]; n],
             state: vec![0; n],
@@ -392,8 +378,9 @@ impl<'a> Nets<'a> {
         }
     }
 
-    /// Smoothed field at a cell: positive inside, negative outside, never
-    /// the wrong sign for the cell.
+    /// Blurred leaf field at a cell: positive inside, negative outside,
+    /// never the wrong sign for the cell. Blurred in all directions, so
+    /// canopies come out round.
     fn density(&mut self, x: i32, y: i32, z: i32) -> f32 {
         let k = di(x, y, z);
         let d = self.dens[k];
@@ -402,68 +389,22 @@ impl<'a> Nets<'a> {
         }
         let g = self.g;
         let c = at(x, y, z);
-        let d = if self.leaves {
-            // leaves: blur in all directions, so canopies come out round
-            let mut s = 0u32;
-            for oy in [c - DY, c, c + DY] {
-                for oz in [oy - DZ, oy, oy + DZ] {
-                    for q in [oz - DX, oz, oz + DX] {
-                        s += (g.fl[q] & F_LEAVES != 0) as u32;
-                    }
-                }
-            }
-            let d = s as f32 / 27.0 - LEAF_ISO;
-            if g.fl[c] & F_LEAVES != 0 {
-                d.max(LEAF_IN)
-            } else {
-                d.min(-LEAF_OUT)
-            }
-        } else {
-            // ground: blur each layer on its own, so flat ground stays at the
-            // block top and walls stay upright; built blocks do not count
-            let (mut s, mut n) = (0u32, 0u32);
-            for oz in [c - DZ, c, c + DZ] {
+        let mut s = 0u32;
+        for oy in [c - DY, c, c + DY] {
+            for oz in [oy - DZ, oy, oy + DZ] {
                 for q in [oz - DX, oz, oz + DX] {
-                    let f = g.fl[q];
-                    if f & F_PIN == 0 {
-                        n += 1;
-                        s += (f & F_TERRAIN != 0) as u32;
-                    }
+                    s += (g.fl[q] & F_LEAVES != 0) as u32;
                 }
             }
-            let d = s as f32 / n.max(1) as f32 - 0.5;
-            if g.fl[c] & F_TERRAIN != 0 {
-                d.max(MARGIN)
-            } else {
-                d.min(-MARGIN)
-            }
+        }
+        let d = s as f32 / 27.0 - LEAF_ISO;
+        let d = if g.fl[c] & F_LEAVES != 0 {
+            d.max(LEAF_IN)
+        } else {
+            d.min(-LEAF_OUT)
         };
         self.dens[k] = d;
         d
-    }
-
-    /// True when a grid corner lies on a wall of ground at least two blocks
-    /// high: two side-by-side columns differ the same way in two layers
-    /// running up or down from the corner.
-    fn on_cliff(&self, i: i32, j: i32, k: i32) -> bool {
-        let g = self.g;
-        let solid = |c: usize| (g.fl[c] & F_TERRAIN != 0) as i8;
-        let base = at(i - 1, j - 1, k - 1);
-        // the four pairs of neighbouring columns round the corner
-        for (a, b) in [(0, DX), (DZ, DZ + DX), (0, DZ), (DX, DX + DZ)] {
-            // the layer just below the corner, the one below that, and the two above
-            let below = solid(base + a) - solid(base + b);
-            let above = solid(base + DY + a) - solid(base + DY + b);
-            if below != 0
-                && (below == solid(base - DY + a) - solid(base - DY + b) || below == above)
-            {
-                return true;
-            }
-            if above != 0 && above == solid(base + 2 * DY + a) - solid(base + 2 * DY + b) {
-                return true;
-            }
-        }
-        false
     }
 
     /// World position of a grid corner. It is the whole-number corner plus an
@@ -476,16 +417,12 @@ impl<'a> Nets<'a> {
         }
         let mut p = [0f32; 3];
         let g = self.g;
-        let want = if self.leaves { F_LEAVES } else { F_TERRAIN };
         let base = at(i - 1, j - 1, k - 1);
-        let (mut cnt, mut any) = (0u32, 0u8);
-        for o in CELL8 {
-            let f = g.fl[base + o];
-            cnt += (f & want != 0) as u32;
-            any |= f;
-        }
-        let pinned = !self.leaves && any & F_PIN != 0;
-        if !pinned && cnt != 0 && cnt != 8 {
+        let cnt = CELL8
+            .iter()
+            .filter(|o| g.fl[base + **o] & F_LEAVES != 0)
+            .count();
+        if cnt != 0 && cnt != 8 {
             let mut d = [0f32; 8];
             for (c, d) in d.iter_mut().enumerate() {
                 *d = self.density(
@@ -519,25 +456,16 @@ impl<'a> Nets<'a> {
                 }
             }
             if n > 0 {
-                // on a wall two or more blocks high, stay close to the grid:
-                // cliffs keep their edge, single steps melt into slopes
-                let keep = if !self.leaves && self.on_cliff(i, j, k) {
-                    CLIFF_KEEP
-                } else {
-                    1.0
-                } / n as f32;
-                p[0] += sum[0] * keep;
-                p[1] += sum[1] * keep;
-                p[2] += sum[2] * keep;
+                for a in 0..3 {
+                    p[a] += sum[a] / n as f32;
+                }
             }
-            if self.leaves {
-                // a little disorder, the same from whichever section looks
-                let h = hash3(g.o[0] + i, g.o[1] + j, g.o[2] + k);
-                let r = |s: u32| ((h >> s) & 255) as f32 / 255.0 - 0.5;
-                p[0] += r(0) * 0.22;
-                p[1] += r(8) * 0.22;
-                p[2] += r(16) * 0.22;
-            }
+            // a little disorder, the same from whichever section looks
+            let h = hash3(g.o[0] + i, g.o[1] + j, g.o[2] + k);
+            let r = |s: u32| ((h >> s) & 255) as f32 / 255.0 - 0.5;
+            p[0] += r(0) * 0.22;
+            p[1] += r(8) * 0.22;
+            p[2] += r(16) * 0.22;
         }
         let p = [
             (g.o[0] + i) as f32 + p[0],
@@ -549,8 +477,8 @@ impl<'a> Nets<'a> {
         p
     }
 
-    /// Block light, sky light and ambient occlusion at a grid corner.
-    fn light(&mut self, light: &Light, c: [i8; 3], n: Vec3) -> [f32; 3] {
+    /// Block light, sky light and occlusion at a grid corner.
+    fn light(&mut self, light: &Light, c: [i8; 3]) -> [f32; 3] {
         let (i, j, k) = (c[0] as i32, c[1] as i32, c[2] as i32);
         let idx = li(i, j, k);
         if self.state[idx] & 2 != 0 {
@@ -573,74 +501,29 @@ impl<'a> Nets<'a> {
             open += 1;
         }
         let k15 = 1.0 / (open.max(1) as f32 * 15.0);
-        // occlusion: how closed in the corner is, one step out along the normal
-        // (so an even slope shades evenly, and the foot of a wall goes darker)
-        let ao = if self.leaves {
-            // canopies: darker in the folds between the puffs, lighter on them
-            let leafy = CELL8
-                .iter()
-                .filter(|o| g.fl[base + **o] & F_LEAVES != 0)
-                .count();
-            (1.12 - 0.075 * leafy as f32).min(1.0)
-        } else {
-            let q = [
-                i + (n.x * 0.9).round() as i32,
-                j + (n.y * 0.9).round() as i32,
-                k + (n.z * 0.9).round() as i32,
-            ];
-            let base = at(q[0] - 1, q[1] - 1, q[2] - 1);
-            let solid = CELL8
-                .iter()
-                .filter(|o| g.fl[base + **o] & F_OPAQUE != 0)
-                .count();
-            (1.0 - 0.07 * solid as f32).max(0.58)
-        };
+        // darker in the folds between the puffs, lighter on them
+        let leafy = CELL8
+            .iter()
+            .filter(|o| g.fl[base + **o] & F_LEAVES != 0)
+            .count();
+        let ao = (1.12 - 0.075 * leafy as f32).min(1.0);
         let v = [bl as f32 * k15, sl as f32 * k15, ao];
         self.lit[idx] = v;
         self.state[idx] |= 2;
         v
     }
 
-    /// The kinds of ground that meet at a grid corner: (block, how many) over
-    /// the exposed ground blocks round it.
-    fn census(&self, c: [i8; 3]) -> [(BlockId, u8); 4] {
-        let g = self.g;
-        let base = at(c[0] as i32 - 1, c[1] as i32 - 1, c[2] as i32 - 1);
-        let mut out = [(0u8, 0u8); 4];
-        for o in CELL8 {
-            let q = base + o;
-            if g.fl[q] & F_TERRAIN == 0 {
-                continue;
-            }
-            let open = [q - DX, q + DX, q - DZ, q + DZ, q - DY, q + DY]
-                .iter()
-                .any(|n| g.fl[*n] & F_OPAQUE == 0);
-            if !open {
-                continue;
-            }
-            let id = material(g, q);
-            if let Some(e) = out.iter_mut().find(|e| e.1 == 0 || e.0 == id) {
-                *e = (id, e.1 + 1);
-            }
-        }
-        out
-    }
-
     /// Mesh the surface: quads for the section's own blocks, with normals
     /// that also take in the faces just outside it.
     fn run(&mut self, light: &Light, geo: &mut SectionGeo) {
         let g = self.g;
-        let (want, hide) = if self.leaves {
-            (F_LEAVES, F_OPAQUE | F_LEAVES)
-        } else {
-            (F_TERRAIN, F_OPAQUE)
-        };
+        let hide = F_OPAQUE | F_LEAVES;
         let mut quads: Vec<Quad> = Vec::new();
         for y in -1..=N {
             for z in -1..=N {
                 for x in -1..=N {
                     let c = at(x, y, z);
-                    if g.fl[c] & want == 0 {
+                    if g.fl[c] & F_LEAVES == 0 {
                         continue;
                     }
                     let own = (0..N).contains(&x) && (0..N).contains(&y) && (0..N).contains(&z);
@@ -673,14 +556,9 @@ impl<'a> Nets<'a> {
                         }
                         if own {
                             quads.push(Quad {
-                                block: if self.leaves {
-                                    g.ids[c]
-                                } else {
-                                    material(g, c)
-                                },
+                                block: g.ids[c],
                                 dir: dir as u8,
                                 c: cs,
-                                cell: [x as i8, y as i8, z as i8],
                             });
                         }
                     }
@@ -690,7 +568,6 @@ impl<'a> Nets<'a> {
         let t = render::textures();
         geo.opaque.reserve(quads.len() * 6);
         for q in &quads {
-            let b = q.block;
             let n = FACES[q.dir as usize].0;
             let nf = Vec3::new(n[0] as f32, n[1] as f32, n[2] as f32);
             let mut ps = [Vec3::ZERO; 4];
@@ -702,7 +579,7 @@ impl<'a> Nets<'a> {
                 ps[i] = Vec3::from(self.pos[idx]);
                 let nn = Vec3::from(self.nrm[idx]).normalize_or_zero();
                 ns[i] = if nn == Vec3::ZERO { nf } else { nn };
-                ls[i] = self.light(light, c, ns[i]);
+                ls[i] = self.light(light, c);
             }
             // wind the corners anticlockwise seen from outside
             let mut order = [0usize, 1, 2, 3];
@@ -716,121 +593,17 @@ impl<'a> Nets<'a> {
             } else {
                 [b1, c, d, b1, d, a]
             };
-            let top = t.face(b, 0);
-            if self.leaves {
-                let tex = [0.0, 0.0, KIND_FOLIAGE + top as f32, render::layer_anim(top)];
-                for i in tris {
-                    geo.opaque.push(Vertex {
-                        pos: ps[i].into(),
-                        normal: ns[i].into(),
-                        color: [1.0, 1.0, 1.0, ls[i][2]],
-                        light: ls[i][0],
-                        sky: ls[i][1],
-                        tex,
-                    });
-                }
-                continue;
-            }
-            let glow = w::emission(b) > 0;
-            let anim = render::layer_anim(top);
-            // glowing and animated ground keeps a clean edge, both ways
-            let blends =
-                |id: BlockId| w::emission(id) == 0 && render::layer_anim(t.face(id, 0)) == 0.0;
-            // a neighbouring kind of ground to fade into, and how much of it
-            // there is at each corner
-            let mut mix = [0f32; 4];
-            let mut other = None;
-            // ore keeps its whole face, so a single block of it is easy to
-            // spot; the rock around it still fades towards it
-            if blends(b) && !matches!(b, w::COAL_ORE | w::IRON_ORE) {
-                let cs = q.c.map(|c| self.census(c));
-                let mut best = 0u32;
-                for (id, _) in cs
-                    .iter()
-                    .flatten()
-                    .filter(|(id, n)| *n > 0 && *id != b && blends(*id))
-                {
-                    let total: u32 = cs
-                        .iter()
-                        .flatten()
-                        .filter(|(i, _)| i == id)
-                        .map(|(_, n)| *n as u32)
-                        .sum();
-                    if total > best || (total == best && Some(*id) < other) {
-                        best = total;
-                        other = Some(*id);
-                    }
-                }
-                if let Some(o) = other {
-                    for (m, c) in mix.iter_mut().zip(&cs) {
-                        let count = |id: BlockId| {
-                            c.iter()
-                                .find(|(i, n)| *i == id && *n > 0)
-                                .map_or(0.0, |(_, n)| *n as f32)
-                        };
-                        let (mine, theirs) = (count(b), count(o));
-                        *m = theirs / (mine + theirs).max(1.0);
-                    }
-                }
-            }
-            let (ob_top, ob_steep) = match other {
-                Some(o) => (t.face(o, 0) as f32, steep_layer(o) as f32),
-                None => (0.0, 0.0),
-            };
-            let tex = [
-                ob_top,
-                steep_layer(b) as f32,
-                KIND_TERRAIN + top as f32,
-                anim,
-            ];
-            // ore and glowing rock keep their tile as drawn: no broad strokes
-            let crisp = if glow || matches!(b, w::COAL_ORE | w::IRON_ORE) {
-                1.0
-            } else {
-                0.0
-            };
-            let mut put = |p: Vec3, n: Vec3, l: [f32; 3], m: f32| {
+            let top = t.face(q.block, 0);
+            let tex = [0.0, 0.0, KIND_FOLIAGE + top as f32, render::layer_anim(top)];
+            for i in tris {
                 geo.opaque.push(Vertex {
-                    pos: p.into(),
-                    normal: n.into(),
-                    color: [m, ob_steep, crisp, if glow { 2.0 } else { l[2] }],
-                    light: l[0],
-                    sky: l[1],
+                    pos: ps[i].into(),
+                    normal: ns[i].into(),
+                    color: [1.0, 1.0, 1.0, ls[i][2]],
+                    light: ls[i][0],
+                    sky: ls[i][1],
                     tex,
                 });
-            };
-            if other.is_some() {
-                // a fan round the middle, which is all this block's own ground
-                let pm = (ps[0] + ps[1] + ps[2] + ps[3]) * 0.25;
-                let nm = (ns[0] + ns[1] + ns[2] + ns[3]).normalize_or(nf);
-                let lm = [0, 1, 2].map(|k| (ls[0][k] + ls[1][k] + ls[2][k] + ls[3][k]) * 0.25);
-                for e in 0..4 {
-                    let (i0, i1) = (order[e], order[(e + 1) % 4]);
-                    put(ps[i0], ns[i0], ls[i0], mix[i0]);
-                    put(ps[i1], ns[i1], ls[i1], mix[i1]);
-                    put(pm, nm, lm, 0.0);
-                }
-            } else {
-                for i in tris {
-                    put(ps[i], ns[i], ls[i], 0.0);
-                }
-            }
-            // the open, fairly level tops of the ground: cover grows there
-            if q.dir == 2 {
-                // (earth painted as grass never gets here: its top is covered)
-                let [x, y, z] = [q.cell[0] as i32, q.cell[1] as i32, q.cell[2] as i32];
-                let up = (ns[0] + ns[1] + ns[2] + ns[3]).normalize_or_zero();
-                if g.ids[at(x, y + 1, z)] == w::AIR && up.y > 0.8 {
-                    let (wx, wy, wz) = (g.o[0] + x, g.o[1] + y, g.o[2] + z);
-                    // QUAD order on the top face: (x, z), (x+1, z), (x+1, z+1), (x, z+1)
-                    geo.tops.push(crate::cover::Top {
-                        cell: q.cell,
-                        block: g.ids[at(x, y, z)],
-                        corners: ps.map(|p| p.into()),
-                        light: light.get(wx, wy + 1, wz) as f32 / 15.0,
-                        sky: light.sky(wx, wy + 1, wz) as f32 / 15.0,
-                    });
-                }
             }
         }
     }
@@ -1177,9 +950,32 @@ fn face_index(n: [i32; 3]) -> usize {
     }
 }
 
-/// Build everything drawn for one 16³ section.
+/// Build everything drawn for one 16³ section, its ground at the finest
+/// level of detail.
 pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionGeo {
-    let mut geo = SectionGeo::default();
+    mesh_lod(world, light, sx, sy, sz, Lod::finest())
+}
+
+/// Build everything drawn for one 16³ section, its ground at `lod`.
+pub fn mesh_lod(world: &World, light: &Light, sx: i32, sy: i32, sz: i32, lod: Lod) -> SectionGeo {
+    mesh_at(world, light, [sx, sy, sz], None, None, lod)
+}
+
+/// Build a section as seen from a camera at `focus`: leaves far from it are
+/// drawn coarser (`foliage.rs`; `was` is how its leaves are drawn now), and
+/// its ground at the level of detail `lod` (`fine.rs`).
+pub fn mesh_at(
+    world: &World,
+    light: &Light,
+    [sx, sy, sz]: [i32; 3],
+    focus: Option<[f32; 3]>,
+    was: Option<bool>,
+    lod: Lod,
+) -> SectionGeo {
+    let mut geo = SectionGeo {
+        lod,
+        ..SectionGeo::default()
+    };
     let g = Grid::load(world, light, [sx * N, sy * N, sz * N]);
     let (mut own, mut all, mut every) = (0u8, 0u8, 0xffu8);
     let mut i = 0;
@@ -1199,17 +995,21 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
         }
     }
     // nothing here, or nothing but rock all round: nothing to draw
-    if own == 0 || every & F_OPAQUE != 0 {
+    if (own == 0 && all & F_TERRAIN == 0) || every & F_OPAQUE != 0 {
         return geo;
     }
-    if own & F_TERRAIN != 0 {
-        Nets::new(&g, false).run(light, &mut geo);
+    // ground next door may grow into this section's air
+    if all & F_TERRAIN != 0 {
+        fine::mesh(&g, light, lod, &mut geo);
     }
     if own & F_LEAVES != 0 {
         // as clumps of cubes when the pack says so (`foliage.rs`), else smooth
         match crate::foliage::current().filter(|f| f.voxels()) {
-            Some(f) => crate::foliage::mesh(&f, &g, light, &mut geo),
-            None => Nets::new(&g, true).run(light, &mut geo),
+            Some(f) => {
+                let fine = f.fine(focus, [sx, sy, sz], was);
+                crate::foliage::mesh(&f, &g, light, &mut geo, fine)
+            }
+            None => Nets::new(&g).run(light, &mut geo),
         }
     }
     let has_water = all & F_WATER != 0;
@@ -1221,28 +1021,62 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
     }
     let tops = std::mem::take(&mut geo.tops);
     crate::cover::scatter(&g, &tops, &mut geo.cover);
+    // plants and stones stand on the top of the fine column under them,
+    // not on a slope between the block's corners
+    let seats = std::mem::take(&mut geo.seats);
+    if !seats.is_empty() {
+        let by_cell: std::collections::HashMap<[i8; 3], (u8, &[f32])> = seats
+            .iter()
+            .map(|(c, r, h)| (*c, (*r, h.as_slice())))
+            .collect();
+        for s in &mut geo.cover {
+            let p = s.pos();
+            let cell = [
+                p[0].floor() as i32 - g.o[0],
+                (p[1] - 0.5).floor() as i32 - g.o[1],
+                p[2].floor() as i32 - g.o[2],
+            ];
+            // the top it grew on: its own cell, or the one below when the
+            // ground there rose into the cell above
+            for dy in [0, -1, 1] {
+                let key = [cell[0] as i8, (cell[1] + dy) as i8, cell[2] as i8];
+                if let Some((r, h)) = by_cell.get(&key) {
+                    let r = *r as usize;
+                    let i = ((p[0] - p[0].floor()) * r as f32) as usize;
+                    let k = ((p[2] - p[2].floor()) * r as f32) as usize;
+                    let y = h[k.min(r - 1) * r + i.min(r - 1)];
+                    if !y.is_nan() {
+                        s.set_height(y);
+                    }
+                    break;
+                }
+            }
+        }
+    }
     geo
 }
 
-/// Heights of the drawn ground, so feet stand on the smooth surface rather
-/// than on the block grid it was made from. Cached per block; clear it when
-/// blocks change.
+/// Heights of the drawn ground, so feet stand on the fine voxels rather
+/// than on the block grid they were made from: on the top of the fine
+/// column under them. Cached per block; clear it when blocks change.
 #[derive(Default)]
 pub struct Ground {
-    cache: std::cell::RefCell<std::collections::HashMap<[i32; 3], Option<[f32; 4]>>>,
+    cache: std::cell::RefCell<std::collections::HashMap<[i32; 3], Option<Tops>>>,
 }
+
+/// The tops of a block's fine columns: voxels a metre, and the heights.
+type Tops = (u8, std::rc::Rc<[f32]>);
 
 impl Ground {
     pub fn clear(&self) {
         self.cache.borrow_mut().clear();
     }
 
-    /// Height of the drawn top of the ground block `b`, at its four corners
-    /// (x0z0, x1z0, x0z1, x1z1). None when `b` is not smooth ground with open
-    /// air above it.
-    fn corners(&self, world: &World, b: [i32; 3]) -> Option<[f32; 4]> {
+    /// The drawn tops of the fine columns of ground block `b`. None when
+    /// `b` is not ground with open air above it.
+    fn tops(&self, world: &World, b: [i32; 3]) -> Option<Tops> {
         if let Some(c) = self.cache.borrow().get(&b) {
-            return *c;
+            return c.clone();
         }
         let lut = flags();
         let id = world.get(b[0], b[1], b[2]);
@@ -1257,31 +1091,22 @@ impl Ground {
             let o = [b[0] - N / 2, b[1] - N / 2, b[2] - N / 2];
             let g = Grid::load_shape(world, o);
             if g.fl[at(N / 2, N / 2, N / 2)] & F_TERRAIN == 0 {
-                return self.remember(b, None);
+                None
+            } else {
+                let (r, t) = fine::tops(&g);
+                Some((r, t.into()))
             }
-            let mut nets = Nets::new(&g, false);
-            let (i, j, k) = (N / 2, N / 2 + 1, N / 2);
-            Some([
-                nets.vertex(i, j, k)[1],
-                nets.vertex(i + 1, j, k)[1],
-                nets.vertex(i, j, k + 1)[1],
-                nets.vertex(i + 1, j, k + 1)[1],
-            ])
         };
-        self.remember(b, out)
-    }
-
-    fn remember(&self, b: [i32; 3], out: Option<[f32; 4]>) -> Option<[f32; 4]> {
         let mut c = self.cache.borrow_mut();
         if c.len() > 4096 {
             c.clear();
         }
-        c.insert(b, out);
+        c.insert(b, out.clone());
         out
     }
 
-    /// Where feet at `pos` should be drawn: on the smooth surface when they
-    /// stand on smooth ground, otherwise where they are.
+    /// Where feet at `pos` should be drawn: on the top of the fine column
+    /// under them when they stand on ground, otherwise where they are.
     pub fn feet(&self, world: &World, pos: Vec3) -> Vec3 {
         let by = (pos.y - 0.01).floor();
         // only when standing (on the block top), not in the air
@@ -1289,13 +1114,31 @@ impl Ground {
             return pos;
         }
         let b = [pos.x.floor() as i32, by as i32, pos.z.floor() as i32];
-        let Some(c) = self.corners(world, b) else {
+        let Some((r, t)) = self.tops(world, b) else {
             return pos;
         };
-        let (fx, fz) = (pos.x - pos.x.floor(), pos.z - pos.z.floor());
-        let y = (c[0] * (1.0 - fx) + c[1] * fx) * (1.0 - fz) + (c[2] * (1.0 - fx) + c[3] * fx) * fz;
+        let rf = r as f32;
+        let i = (((pos.x - pos.x.floor()) * rf) as usize).min(r as usize - 1);
+        let k = (((pos.z - pos.z.floor()) * rf) as usize).min(r as usize - 1);
+        let y = t[k * r as usize + i];
+        if y.is_nan() {
+            return pos;
+        }
         let dy = (y - (by + 1.0)).clamp(-0.7, 0.7);
         Vec3::new(pos.x, pos.y + dy, pos.z)
+    }
+
+    /// Height of the drawn ground at (x, z), on the topmost block near
+    /// height `y`.
+    pub fn height(&self, world: &World, x: f32, z: f32, y: f32) -> f32 {
+        let (bx, bz) = (x.floor() as i32, z.floor() as i32);
+        let y0 = y.round() as i32 + 2;
+        let Some(top) = (y0 - 5..=y0).rev().find(|y| {
+            w::is_solid(world.get(bx, *y, bz)) && !w::is_solid(world.get(bx, *y + 1, bz))
+        }) else {
+            return y;
+        };
+        self.feet(world, Vec3::new(x, (top + 1) as f32, z)).y
     }
 }
 
@@ -1373,10 +1216,10 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
-    /// Ground, built blocks and air in lumps, with caves and overhangs. All
-    /// of it opaque, so the mesh should be a closed skin. The bottom layer
-    /// is air: nothing touches the rock under the world.
-    fn lumpy() -> World {
+    /// Ground and air in lumps, with caves and overhangs, and (unless
+    /// `bare`) built blocks among it. The bottom layer is air: nothing
+    /// touches the rock under the world.
+    fn lumpy_with(bare: bool) -> World {
         let mut world = World::empty([48, 48, 48]);
         for z in 0..48 {
             for x in 0..48 {
@@ -1387,7 +1230,7 @@ mod tests {
                     let b = if y < hill {
                         if lump < 12 {
                             w::AIR
-                        } else if fine < 3 {
+                        } else if fine < 3 && !bare {
                             w::COBBLE
                         } else if lump < 40 {
                             w::STONE
@@ -1400,7 +1243,7 @@ mod tests {
                         }
                     } else if lump < 6 {
                         w::STONE
-                    } else if fine < 1 {
+                    } else if fine < 1 && !bare {
                         w::PLANKS
                     } else {
                         w::AIR
@@ -1412,14 +1255,64 @@ mod tests {
         world
     }
 
+    fn lumpy() -> World {
+        lumpy_with(false)
+    }
+
     fn all_sections(world: &World) -> Vec<SectionGeo> {
+        all_sections_at(world, Lod::finest())
+    }
+
+    fn all_sections_at(world: &World, lod: Lod) -> Vec<SectionGeo> {
         let light = Light::new(world);
         let d = world.size.map(|v| v as i32 / N);
         let mut out = Vec::new();
         for sy in 0..d[1] {
             for sz in 0..d[2] {
                 for sx in 0..d[0] {
-                    out.push(mesh(world, &light, sx, sy, sz));
+                    out.push(mesh_lod(world, &light, sx, sy, sz, lod));
+                }
+            }
+        }
+        out
+    }
+
+    /// The fine voxel ground's faces, cut into single voxel faces: (the
+    /// face's lowest corner in voxels, its axis and which way it faces).
+    fn unit_faces(geos: &[SectionGeo], r: f32) -> Vec<([i32; 3], usize, bool)> {
+        let mut out = Vec::new();
+        for geo in geos {
+            for q in geo.ground.as_chunks::<4>().0 {
+                let p: Vec<[i32; 3]> = q
+                    .iter()
+                    .map(|v| {
+                        v.pos.map(|c| {
+                            let k = c * r;
+                            assert_eq!(k, k.round(), "a corner off the voxel grid");
+                            k as i32
+                        })
+                    })
+                    .collect();
+                let lo = [0, 1, 2].map(|a| p.iter().map(|c| c[a]).min().unwrap());
+                let hi = [0, 1, 2].map(|a| p.iter().map(|c| c[a]).max().unwrap());
+                let axis = (0..3).find(|a| lo[*a] == hi[*a]).expect("a flat face");
+                let n = q[0].normal;
+                let out_way = n[axis] > 0.0;
+                // the winding agrees with the normal
+                let e1 = Vec3::from(q[1].pos) - Vec3::from(q[0].pos);
+                let e2 = Vec3::from(q[2].pos) - Vec3::from(q[0].pos);
+                assert!(
+                    e1.cross(e2).dot(Vec3::from(n)) > 0.0,
+                    "a face wound inside out"
+                );
+                let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+                for a in lo[u]..hi[u] {
+                    for b in lo[v]..hi[v] {
+                        let mut c = lo;
+                        c[u] = a;
+                        c[v] = b;
+                        out.push((c, axis, out_way));
+                    }
                 }
             }
         }
@@ -1427,51 +1320,152 @@ mod tests {
     }
 
     #[test]
-    fn the_skin_has_no_holes() {
-        NO_BEVEL.with(|n| n.set(true));
-        let geos = all_sections(&lumpy());
-        NO_BEVEL.with(|n| n.set(false));
-        let mut edges: HashMap<([u32; 3], [u32; 3]), u32> = HashMap::new();
-        let mut triangles = 0;
-        for geo in &geos {
-            assert!(geo.trans.is_empty());
-            for tri in geo.opaque.as_chunks::<3>().0 {
-                triangles += 1;
-                for e in 0..3 {
-                    let a = tri[e].pos.map(f32::to_bits);
-                    let b = tri[(e + 1) % 3].pos.map(f32::to_bits);
-                    assert_ne!(a, b, "a triangle has collapsed");
-                    *edges.entry((a.min(b), a.max(b))).or_default() += 1;
+    fn the_ground_is_a_closed_skin() {
+        // ground alone must be a closed surface of voxel faces: each face
+        // drawn once, and each voxel edge met by an even number of faces,
+        // inside a section, across section borders, and at every level of
+        // detail
+        let world = lumpy_with(true);
+        for r in [8u8, 4, 1] {
+            let geos = all_sections_at(
+                &world,
+                Lod {
+                    per_metre: r,
+                    skirt: [0; 4],
+                },
+            );
+            let faces = unit_faces(&geos, r as f32);
+            assert!(faces.len() > 20_000, "{} faces", faces.len());
+            let mut seen = std::collections::HashSet::new();
+            let mut edges: HashMap<([i32; 3], usize), u32> = HashMap::new();
+            for (c, axis, way) in &faces {
+                assert!(
+                    seen.insert((*c, *axis, *way)),
+                    "a face drawn twice at {c:?}"
+                );
+                let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+                let (mut cu, mut cv) = (*c, *c);
+                cu[u] += 1;
+                cv[v] += 1;
+                for e in [(*c, u), (*c, v), (cv, u), (cu, v)] {
+                    *edges.entry(e).or_default() += 1;
+                }
+            }
+            let open = edges.values().filter(|n| *n % 2 == 1).count();
+            let mut odd: Vec<_> = edges
+                .iter()
+                .filter(|(_, n)| *n % 2 == 1)
+                .map(|(k, _)| *k)
+                .collect();
+            odd.sort();
+            for e in odd.iter().take(12) {
+                eprintln!("open edge at {:?} along {} (r {r})", e.0, e.1);
+            }
+            assert_eq!(open, 0, "{r} a metre: {open} open edges of {}", edges.len());
+        }
+    }
+
+    #[test]
+    fn neighbours_decide_shared_voxels_alike() {
+        // each section decides the cells one beyond its own; where two
+        // sections both decide a voxel, they must agree
+        let world = lumpy();
+        let p = &crate::shapes::pack().terrain;
+        let r = p.per_metre as i32;
+        let (mut compared, mut solid) = (0u32, 0u32);
+        for (a, b) in [
+            ([0, 0, 0], [1, 0, 0]),
+            ([1, 0, 1], [1, 1, 1]),
+            ([0, 1, 0], [0, 1, 1]),
+        ] {
+            let ga = Grid::load_shape(&world, a.map(|v| v * N));
+            let gb = Grid::load_shape(&world, b.map(|v| v * N));
+            let mut fa = fine::Fine::new(&ga, p, r as u8);
+            let mut fb = fine::Fine::new(&gb, p, r as u8);
+            let d = [0, 1, 2].map(|i| (b[i] - a[i]) * N * r);
+            for y in -r..(N + 1) * r {
+                for z in -r..(N + 1) * r {
+                    for x in -r..(N + 1) * r {
+                        let (bx, by, bz) = (x - d[0], y - d[1], z - d[2]);
+                        let inside = |v: i32| (-r..(N + 1) * r).contains(&v);
+                        if !inside(bx) || !inside(by) || !inside(bz) {
+                            continue;
+                        }
+                        let s = fa.solid(x, y, z);
+                        assert_eq!(s, fb.solid(bx, by, bz), "voxel {x} {y} {z} of {a:?}");
+                        compared += 1;
+                        solid += s as u32;
+                    }
                 }
             }
         }
-        assert!(triangles > 10_000);
-        // every edge is shared by an even number of triangles, bit for bit:
-        // no cracks inside a section, between sections, or where ground
-        // meets built blocks
-        let open = edges.values().filter(|n| *n % 2 == 1).count();
-        assert_eq!(open, 0, "{open} open edges of {}", edges.len());
+        assert!(compared > 100_000 && solid > 10_000, "{compared} {solid}");
+    }
+
+    #[test]
+    fn ground_keeps_its_side_against_built_blocks() {
+        // a wall stands on the ground and against a bank: the ground's
+        // voxels that touch it are all there, so its hidden faces never show
+        let mut world = World::empty([32, 32, 32]);
+        for z in 0..32 {
+            for x in 0..32 {
+                let h = if x < 16 { 10 } else { 12 };
+                for y in 0..=h {
+                    world.set(x, y, z, if y == h { w::GRASS } else { w::DIRT });
+                }
+            }
+        }
+        for z in 4..28 {
+            for y in 11..15 {
+                world.set(15, y, z, w::PLANKS);
+            }
+        }
+        let p = &crate::shapes::pack().terrain;
+        let r = p.per_metre as i32;
+        let g = Grid::load_shape(&world, [8, 4, 8]);
+        let mut f = fine::Fine::new(&g, p, r as u8);
+        // the bank (x = 16, local 8) against the wall (x = 15, local 7), y 11..=12
+        let mut checked = 0;
+        for y in 11 - 4..=12 - 4 {
+            for z in 0..N {
+                for j in 0..r {
+                    for k in 0..r {
+                        assert!(
+                            f.solid(8 * r, y * r + j, z * r + k),
+                            "a hole against the wall"
+                        );
+                        checked += 1;
+                    }
+                }
+            }
+        }
+        // and the ground under the wall (x = 15, y = 10)
+        for z in 0..N {
+            for i in 0..r {
+                for k in 0..r {
+                    assert!(
+                        f.solid(7 * r + i, 6 * r + r - 1, z * r + k),
+                        "a hole under the wall"
+                    );
+                }
+            }
+        }
+        assert!(checked > 1000);
     }
 
     #[test]
     fn sections_agree_at_their_borders() {
         let geos = all_sections(&lumpy());
-        // same corner, same normal and light, whichever section drew it
-        let mut seen: HashMap<[u32; 3], [u32; 6]> = HashMap::new();
+        // same corner and facing, same light, whichever section drew it
+        let mut seen: HashMap<[u32; 6], [u32; 3]> = HashMap::new();
         let mut shared = 0;
         for geo in &geos {
-            let mut mine: HashMap<[u32; 3], [u32; 6]> = HashMap::new();
-            for v in geo.opaque.iter().filter(|v| v.tex[2] >= KIND_TERRAIN) {
-                let at = v.pos.map(f32::to_bits);
-                let what = [
-                    v.normal[0],
-                    v.normal[1],
-                    v.normal[2],
-                    v.light,
-                    v.sky,
-                    v.color[3],
-                ]
-                .map(f32::to_bits);
+            let mut mine: HashMap<[u32; 6], [u32; 3]> = HashMap::new();
+            for v in &geo.ground {
+                let p = v.pos.map(f32::to_bits);
+                let n = v.normal.map(f32::to_bits);
+                let at = [p[0], p[1], p[2], n[0], n[1], n[2]];
+                let what = [v.light, v.sky, v.color[3]].map(f32::to_bits);
                 assert_eq!(*mine.entry(at).or_insert(what), what);
             }
             for (at, what) in mine {
@@ -1505,7 +1499,7 @@ mod tests {
         }
         let geos = all_sections(&world);
         let mut tops = 0;
-        for v in geos.iter().flat_map(|g| &g.opaque) {
+        for v in geos.iter().flat_map(|g| g.opaque.iter().chain(&g.ground)) {
             if v.pos[0] < 4.0 || v.pos[0] > 36.0 || v.pos[2] < 4.0 || v.pos[2] > 44.0 {
                 continue;
             }
@@ -1514,19 +1508,25 @@ mod tests {
             assert_eq!(v.color[3], 1.0);
             tops += 1;
         }
-        assert!(tops > 1000);
-        // the cliff face stays upright: its middle corners keep their x
-        let wall = geos
+        assert!(tops >= 6, "{tops}");
+        // the cliff face stays upright: within a few voxels of the grid
+        // line all the way up, with ledges
+        let wall: Vec<f32> = geos
             .iter()
-            .flat_map(|g| &g.opaque)
+            .flat_map(|g| &g.ground)
             .filter(|v| {
-                (11.9..12.1).contains(&v.pos[1])
-                    && (43.5..44.5).contains(&v.pos[0])
+                (11.0..13.0).contains(&v.pos[1])
+                    && (42.0..46.0).contains(&v.pos[0])
                     && (4.0..44.0).contains(&v.pos[2])
+                    && v.normal == [-1.0, 0.0, 0.0]
             })
-            .inspect(|v| assert_eq!(v.pos[0], 44.0))
-            .count();
-        assert!(wall > 20);
+            .map(|v| v.pos[0])
+            .collect();
+        assert!(wall.len() > 20);
+        for x in &wall {
+            assert!((43.5..=44.5).contains(x), "the wall leans out to {x}");
+        }
+        assert!(wall.iter().any(|x| *x != wall[0]), "the wall has no ledges");
     }
 
     #[test]
@@ -1544,15 +1544,20 @@ mod tests {
         // far from the step: flat, on the block top
         let flat = g.feet(&world, Vec3::new(5.5, 11.0, 16.5));
         assert!((flat.y - 11.0).abs() < 1e-4, "{flat}");
-        // next to a one-block step up: the ground rises towards it
+        // next to a one-block step up: the ground rises towards it in steps
         let low = g.feet(&world, Vec3::new(15.9, 11.0, 16.5));
         assert!(low.y > 11.05, "{low}");
         let high = g.feet(&world, Vec3::new(16.1, 12.0, 16.5));
         assert!(high.y < 11.95, "{high}");
         assert!(
             (high.y - low.y).abs() < 0.6,
-            "the step is a ramp: {low} {high}"
+            "the step is a stair of fine voxels: {low} {high}"
         );
+        // on the top of a fine voxel column: a whole number of voxels
+        let r = crate::shapes::pack().terrain.per_metre as f32;
+        for y in [low.y, high.y] {
+            assert!(((y * r) - (y * r).round()).abs() < 1e-3, "{y}");
+        }
         // in the air: untouched
         let air = Vec3::new(15.9, 11.5, 16.5);
         assert_eq!(g.feet(&world, air), air);
@@ -1616,6 +1621,112 @@ mod tests {
             compared > 10_000 && detail > 200,
             "{compared} cells, {detail} detail"
         );
+    }
+
+    #[test]
+    fn a_thin_roof_has_no_holes() {
+        // grass one block thick over a cave, with ragged steps and air on
+        // its own layer all round, where the noise is at work: every fine
+        // column of the roof keeps ground
+        let mut world = World::empty([32, 32, 32]);
+        for z in 0..32 {
+            for x in 0..32 {
+                let h = 10 + (hash3(x / 2, 0, z / 3) % 2) as i32;
+                for y in 0..=h {
+                    world.set(x, y, z, if y == h { w::GRASS } else { w::DIRT });
+                }
+                // the cave, under the roof at y = 10
+                if (8..24).contains(&x) && (8..24).contains(&z) {
+                    for y in 6..10 {
+                        world.set(x, y, z, w::AIR);
+                    }
+                }
+            }
+        }
+        let p = &crate::shapes::pack().terrain;
+        let r = p.per_metre as i32;
+        let g = Grid::load_shape(&world, [8, 0, 8]);
+        let mut f = fine::Fine::new(&g, p, r as u8);
+        let mut checked = 0;
+        for z in 0..N * r {
+            for x in 0..N * r {
+                let any = (10 * r..11 * r).any(|y| f.solid(x, y, z));
+                assert!(any, "a hole in the roof at fine {x}, {z}");
+                checked += 1;
+            }
+        }
+        assert!(checked > 10_000);
+    }
+
+    /// Cost and vertices of the fine voxel ground at each level of detail,
+    /// on the made-up landscape:
+    /// `cargo test -p dyno-client --release ground_levels_cost -- --ignored --nocapture`
+    #[test]
+    #[ignore = "a measurement"]
+    fn ground_levels_cost() {
+        let world = test_world([256, 96, 256]);
+        let light = Light::new(&world);
+        for r in [8u8, 4, 2, 1] {
+            let lod = Lod {
+                per_metre: r,
+                skirt: [0; 4],
+            };
+            let (mut verts, mut ground, mut busy) = (0usize, 0usize, 0);
+            let mut hist = [(0u64, 0f64, 0u64); 3];
+            let t = std::time::Instant::now();
+            for sy in 0..6 {
+                for sz in 0..16 {
+                    for sx in 0..16 {
+                        let geo = mesh_lod(&world, &light, sx, sy, sz, lod);
+                        verts += geo.opaque.len() + geo.ground.len();
+                        ground += geo.ground.len();
+                        busy += (!geo.opaque.is_empty()) as u32;
+                        for q in geo.ground.as_chunks::<4>().0 {
+                            let n = q[0].normal;
+                            let d = if n[1] > 0.5 {
+                                0
+                            } else if n[1] < -0.5 {
+                                1
+                            } else {
+                                2
+                            };
+                            let lo = [0, 1, 2]
+                                .map(|a| q.iter().map(|v| v.pos[a]).fold(f32::MAX, f32::min));
+                            let hi = [0, 1, 2]
+                                .map(|a| q.iter().map(|v| v.pos[a]).fold(f32::MIN, f32::max));
+                            let ext: Vec<f32> = (0..3)
+                                .map(|a| (hi[a] - lo[a]) * r as f32)
+                                .filter(|e| *e > 0.0)
+                                .collect();
+                            let area = ext.iter().product::<f32>();
+                            hist[d].0 += 1;
+                            hist[d].1 += area as f64;
+                            if area <= 1.0 {
+                                hist[d].2 += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            let ms = t.elapsed().as_secs_f64() * 1e3;
+            let pr = fine::PROF.with(|p| p.replace([0.0; 6]));
+            for (name, h) in ["up", "down", "side"].iter().zip(hist) {
+                println!(
+                    "  {name}: {} quads, {:.1} voxel faces each, {} single",
+                    h.0,
+                    h.1 / h.0.max(1) as f64,
+                    h.2
+                );
+            }
+            println!(
+                "  decide {:.0} ms ({} cells), paint {:.0} ms ({} voxels), emit {:.0} ms ({} quads)",
+                pr[0], pr[3], pr[1], pr[4], pr[2], pr[5]
+            );
+            println!(
+                "{r} a metre: {busy} sections, {:.3} ms each, {verts} vertices ({ground} ground)",
+                ms / busy.max(1) as f64
+            );
+        }
     }
 
     /// Remesh cost of the town's sections (best of nine runs each) and the

@@ -250,7 +250,11 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
     }
     let light = Light::new(&j.world);
     let mut g = Gfx::new_headless(o.width, o.height)?;
+    let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
+    let load_start = Instant::now();
+    g.set_focus(Vec3::from(o.pos.unwrap_or(j.spawn)));
     g.load_world(&j.world, &light);
+    let load_ms = load_start.elapsed().as_secs_f64() * 1e3;
     let t = o.time.unwrap_or(server_time);
     let sky = crate::app::sky(t);
     let mut player = Player::new(o.pos.unwrap_or(j.spawn));
@@ -280,9 +284,27 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
     }
     g.water.look_from(&j.world, player.eye().into(), j.hearth);
     g.screenshot = Some(o.out.clone());
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     let out = ctx.run(egui::RawInput::default(), |_| {});
     g.frame(Some((vp, player.eye(), far)), &sky, &boxes, &[], &ctx, out);
+    if stats {
+        // frame time on the headless path: the world only, GPU waited on
+        g.wait_idle();
+        let n = 30;
+        let t0 = Instant::now();
+        for _ in 0..n {
+            let o = ctx.run(egui::RawInput::default(), |_| {});
+            g.frame(Some((vp, player.eye(), far)), &sky, &boxes, &[], &ctx, o);
+            g.wait_idle();
+        }
+        let frame_ms = t0.elapsed().as_secs_f64() * 1e3 / n as f64;
+        let (vo, vt) = g.world_vertices();
+        eprintln!(
+            "stats: load_world {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
+        );
+        let (gv, levels) = g.ground_stats();
+        eprintln!("ground: {gv} vertices; sections by voxels a metre {levels:?}");
+    }
     Ok(format!(
         "rendered {}x{} at {:?} yaw {} pitch {} time {:.2} with {} other players to {}",
         o.width,
