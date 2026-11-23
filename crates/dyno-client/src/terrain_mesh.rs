@@ -1301,7 +1301,7 @@ mod tests {
                 let dir = (q[0].tex[0] / 32.0).floor() as usize;
                 assert_eq!(dir / 2, axis, "direction and plane agree");
                 let mut n = [0f32; 3];
-                n[axis] = if dir % 2 == 0 { 1.0 } else { -1.0 };
+                n[axis] = if dir.is_multiple_of(2) { 1.0 } else { -1.0 };
                 let out_way = n[axis] > 0.0;
                 // the winding agrees with the facing
                 let e1 = Vec3::from(q[1].pos) - Vec3::from(q[0].pos);
