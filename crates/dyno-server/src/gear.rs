@@ -220,6 +220,8 @@ impl State {
             if crit {
                 amount *= 2.0;
             }
+            // a seal on the weapon adds to every blow
+            amount += self.buff_amount(id, dyno_world::content::BuffKind::Strike);
             self.broadcast(
                 &ServerMsg::Act {
                     actor: dyno_protocol::Actor::Player(id),
@@ -238,6 +240,7 @@ impl State {
                 let to = [e.pos[0], e.pos[1] + 1.0, e.pos[2]];
                 self.broadcast(
                     &ServerMsg::Effect {
+                        ability: None,
                         color: [0.9, 0.8, 0.6],
                         from,
                         to,

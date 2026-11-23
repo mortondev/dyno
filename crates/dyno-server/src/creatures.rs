@@ -42,6 +42,9 @@ pub struct Mob {
     pub max_health: f32,
     pub stunned_until: Instant,
     pub rooted_until: Instant,
+    /// slowed until then, by this share of its speed
+    pub slowed_until: Instant,
+    pub slow: f32,
     pub dots: Vec<crate::abilities::Dot>,
     /// where it was spawned; pulled too far away it returns here
     pub home: [f32; 3],
@@ -94,6 +97,8 @@ impl Mob {
             max_health: health,
             stunned_until: now,
             rooted_until: now,
+            slowed_until: now,
+            slow: 0.0,
             dots: Vec::new(),
             home: pos,
             evading: false,
@@ -512,6 +517,13 @@ impl State {
         let mut attacks: Vec<(PlayerId, f32, [f32; 3], u16)> = Vec::new();
         let levels: std::collections::HashMap<PlayerId, u8> =
             self.players.iter().map(|(i, p)| (*i, p.level)).collect();
+        // the hidden: creatures notice them from less far
+        let hidden: std::collections::HashMap<PlayerId, f32> = self
+            .players
+            .keys()
+            .map(|i| (*i, self.buff_amount(*i, dyno_world::content::BuffKind::Stealth)))
+            .filter(|(_, s)| *s > 0.0)
+            .collect();
         // phasing: a creature only hunts the players who can see it
         let phases: std::collections::HashMap<PlayerId, u64> =
             self.players.iter().map(|(i, p)| (*i, p.phases)).collect();
@@ -553,6 +565,9 @@ impl State {
                 .max(self.light.get(feet[0], feet[1], feet[2]));
             let sky = self.light.sky(head[0], head[1], head[2]);
             let mut speed = c.speed;
+            if mob.slowed_until > now {
+                speed *= 1.0 - mob.slow;
+            }
             mob.attack_cd -= dt;
             mob.stun -= dt;
             mob.think -= dt;
@@ -648,6 +663,10 @@ impl State {
                                     .clamp(4.0, 20.0)
                             } else {
                                 AGGRO
+                            };
+                            let r = match hidden.get(pid) {
+                                Some(s) => (r * (1.0 - s / 100.0)).max(1.5),
+                                None => r,
                             };
                             !away && hdist(*p, e.pos) < r && (p[1] - e.pos[1]).abs() < 12.0
                         })
@@ -868,6 +887,7 @@ impl State {
         for (pid, dmg, from, to, color, cid) in bolts {
             self.broadcast(
                 &ServerMsg::Effect {
+                    ability: None,
                     color,
                     from,
                     to,

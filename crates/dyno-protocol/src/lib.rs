@@ -260,7 +260,7 @@ pub const MAX_WANT: usize = 1024;
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 23;
+pub const PROTOCOL_VERSION: u32 = 24;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -719,10 +719,16 @@ pub enum ServerMsg {
     },
     /// Draw a spell: from a point to a point (a bolt), or a burst of `radius` at `to`.
     Effect {
+        /// the ability that made it (its sound and look are in the content)
+        ability: Option<u16>,
         color: [f32; 3],
         from: [f32; 3],
         to: [f32; 3],
         radius: f32,
+    },
+    /// You were healed by this much (floating text).
+    Healed {
+        amount: f32,
     },
     /// You have no class yet: choose one.
     ChooseClass,

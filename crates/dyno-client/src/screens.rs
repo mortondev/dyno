@@ -550,9 +550,7 @@ fn spellbook_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
                     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(40.0), Sense::hover());
                     let p = ui.painter();
                     p.rect_filled(rect, 4.0, Color32::from_black_alpha(160));
-                    if let Some(item) = c.item_by_key(&a.icon) {
-                        survival::item_icon(p, rect.shrink(4.0), c, item);
-                    }
+                    survival::ability_icon(p, rect.shrink(4.0), c, a);
                     if !known {
                         p.rect_filled(rect, 4.0, Color32::from_black_alpha(170));
                     }

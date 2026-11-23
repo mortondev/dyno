@@ -519,6 +519,21 @@ pub struct Ability {
     pub charge: bool,
     /// rage or energy given (Onrush)
     pub gives: f32,
+    /// damage multiplier against a creature that is not yet fighting you
+    /// (an ambush, an aimed first shot); 0 or 1: none
+    #[serde(default)]
+    pub opener: f32,
+    /// slows the target: percent of its speed taken, and seconds
+    #[serde(default)]
+    pub slow: [f32; 2],
+    /// its picture in the pack ("icons/abilities/onrush.png"); without one
+    /// the `icon` item's sprite is shown
+    #[serde(default)]
+    pub image: Option<String>,
+    /// the pack sound it makes when it goes off ("sounds/<name>_<n>.wav");
+    /// empty: the plain bolt or burst sound
+    #[serde(default)]
+    pub sound: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -534,6 +549,13 @@ pub enum BuffKind {
     Agility,
     Intellect,
     Stamina,
+    /// a shield that soaks up this much damage, then breaks
+    Absorb,
+    /// each auto-attack does this much more damage (a seal on the weapon)
+    Strike,
+    /// creatures notice you from this percent less far; ends when you deal
+    /// or take damage
+    Stealth,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -544,6 +566,9 @@ pub struct Buff {
     /// extra seconds per combo point spent
     #[serde(default)]
     pub per_combo: f32,
+    /// extra amount per level above 1 (absorb and strike)
+    #[serde(default)]
+    pub per_level: f32,
 }
 
 /// World rules.
@@ -793,6 +818,10 @@ struct AAbility {
     combo: i8,
     charge: bool,
     gives: f32,
+    opener: f32,
+    slow: [f32; 2],
+    image: Option<String>,
+    sound: String,
 }
 
 #[derive(Deserialize)]
@@ -1365,6 +1394,10 @@ impl Content {
                 combo: a.combo,
                 charge: a.charge,
                 gives: a.gives,
+                opener: a.opener,
+                slow: a.slow,
+                image: a.image.clone(),
+                sound: a.sound.clone(),
             });
         }
         let mut areas = Vec::new();
