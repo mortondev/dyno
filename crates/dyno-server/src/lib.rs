@@ -155,8 +155,10 @@ pub struct Server {
     /// names being joined right now (one character, one place)
     joining: Mutex<std::collections::HashSet<String>>,
     parties: Mutex<party::Parties>,
-    /// the world as built at start: every new shard is a copy of it
+    /// the world as built at start: every new shard is a copy of it (and
+    /// of its light), sharing every section until it changes one
     base: World,
+    base_light: dyno_world::light::Light,
     next_shard: AtomicU32,
     /// the latest view of every player, for the balancer and party frames
     snaps: Mutex<Vec<shard::Snap>>,
@@ -331,6 +333,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
             log(format!("Warning: cannot save world: {e}"));
         }
     }
+    // built: every section in its smallest form (shards share them)
+    world.compact();
     let hearths = creatures::find_hearths(&world);
     let light = dyno_world::light::Light::new(&world);
     let webhook = cfg
@@ -395,12 +399,13 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         encoded: HashMap::new(),
         routines: HashMap::new(),
         routine_cost: Default::default(),
+        far_encoded: HashMap::new(),
     };
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
     state.spawn_npcs();
     let rpg = state.content.world.protected;
     // the base world every shard copies; in a cluster it is fixed at founding
-    let (base, base_bytes) = match (&cluster, &cfg.cluster) {
+    let (base, base_light, base_bytes) = match (&cluster, &cfg.cluster) {
         (Some(c), Some(cc)) => {
             let file = cc.dir.join("base.dynw");
             let bytes = match std::fs::read(&file) {
@@ -437,9 +442,10 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
                 ));
             }
             let w = World::decode(&bytes).map_err(std::io::Error::other)?;
-            (w, bytes)
+            let light = dyno_world::light::Light::new(&w);
+            (w, light, bytes)
         }
-        _ => (state.world.clone(), Vec::new()),
+        _ => (state.world.clone(), state.light.clone(), Vec::new()),
     };
     let server = Arc::new(Server {
         cfg,
@@ -453,6 +459,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         joining: Mutex::new(Default::default()),
         parties: Mutex::new(Default::default()),
         base,
+        base_light,
         next_shard: AtomicU32::new(1),
         snaps: Mutex::new(Vec::new()),
         channel_at: Mutex::new(HashMap::new()),
@@ -628,7 +635,7 @@ impl Server {
         }
         let id = self.next_shard.fetch_add(1, Ordering::SeqCst);
         let seed = self.main_shard().state.lock().unwrap().fork_seed();
-        let st = State::fork(seed, id, self.base.clone());
+        let st = State::fork(seed, id, self.base.clone(), self.base_light.clone());
         let sh = Arc::new(ShardHost {
             id,
             state: Mutex::new(st),

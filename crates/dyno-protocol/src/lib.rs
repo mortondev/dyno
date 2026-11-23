@@ -260,7 +260,7 @@ pub const MAX_WANT: usize = 1024;
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 21;
+pub const PROTOCOL_VERSION: u32 = 22;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -562,6 +562,11 @@ pub enum ServerMsg {
     Sections(Vec<([i32; 3], Vec<u8>)>),
     /// Sections now out of your view: forget them.
     SectionsGone(Vec<[i32; 3]>),
+    /// Tiles of the far view (64 m of a coarse heightmap each, see
+    /// `dyno_world::far`), nearest first, once the near view is complete.
+    Far(Vec<([i32; 2], Vec<u8>)>),
+    /// Far tiles now out of range: forget them.
+    FarGone(Vec<[i32; 2]>),
     /// Players out of your area of interest: stop drawing them until a pose
     /// of theirs comes again (they are still online).
     PlayersFar(Vec<PlayerId>),

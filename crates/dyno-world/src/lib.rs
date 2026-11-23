@@ -9,6 +9,7 @@
 //! that has not arrived yet).
 
 pub mod content;
+pub mod far;
 pub mod light;
 pub mod poi;
 pub mod village;
@@ -16,6 +17,7 @@ pub mod zones;
 
 use std::io::Write;
 use std::path::Path;
+use std::sync::Arc;
 
 pub type BlockId = u8;
 
@@ -545,7 +547,39 @@ pub fn tree_height(blocks: &[TreeBlock]) -> i32 {
     blocks.iter().map(|b| b.at[1]).max().unwrap_or(0)
 }
 
+/// The older save format: one run-length stream of every cell.
 const MAGIC: &[u8; 5] = b"DYNW1";
+/// Saves since the 2 km world: section by section.
+const MAGIC2: &[u8; 5] = b"DYNW2";
+
+fn varint(mut v: u64, out: &mut Vec<u8>) {
+    loop {
+        let byte = (v & 0x7f) as u8;
+        v >>= 7;
+        if v == 0 {
+            out.push(byte);
+            return;
+        }
+        out.push(byte | 0x80);
+    }
+}
+
+fn read_varint(data: &[u8], p: &mut usize) -> Result<u64, String> {
+    let mut n: u64 = 0;
+    let mut shift = 0;
+    loop {
+        let byte = *data.get(*p).ok_or("truncated world data")?;
+        *p += 1;
+        n |= ((byte & 0x7f) as u64) << shift;
+        if byte & 0x80 == 0 {
+            return Ok(n);
+        }
+        shift += 7;
+        if shift > 49 {
+            return Err("bad run length".into());
+        }
+    }
+}
 
 /// Edge of a section in cells: the world is streamed in sections of 16³.
 pub const SECTION: i32 = 16;
@@ -574,39 +608,165 @@ fn local_index(x: i32, y: i32, z: i32) -> usize {
     ((ly * SECTION + lz) * SECTION + lx) as usize
 }
 
-/// One section of a sparse world.
+/// Widest world (blocks, east-west and north-south).
+pub const MAX_SIDE: u32 = 4096;
+/// Tallest world (blocks).
+pub const MAX_HEIGHT: u32 = 512;
+
+/// A section's cells packed: a palette and 1, 2 or 4 bits a cell.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Packed {
+    palette: Vec<BlockId>,
+    /// bits a cell: 1, 2 or 4
+    bits: u8,
+    data: Box<[u8]>,
+}
+
+impl Packed {
+    /// None if the section holds more than 16 kinds of block.
+    pub(crate) fn pack(cells: &[BlockId; SECTION_CELLS]) -> Option<Packed> {
+        let mut palette: Vec<BlockId> = Vec::new();
+        let mut slot = [u8::MAX; 256];
+        for &b in cells.iter() {
+            if slot[b as usize] == u8::MAX {
+                if palette.len() == 16 {
+                    return None;
+                }
+                slot[b as usize] = palette.len() as u8;
+                palette.push(b);
+            }
+        }
+        let bits: u8 = match palette.len() {
+            0..=2 => 1,
+            3..=4 => 2,
+            _ => 4,
+        };
+        let per = (8 / bits) as usize;
+        let mut data = vec![0u8; SECTION_CELLS / per].into_boxed_slice();
+        for (i, &b) in cells.iter().enumerate() {
+            data[i / per] |= slot[b as usize] << ((i % per) as u8 * bits);
+        }
+        Some(Packed {
+            palette,
+            bits,
+            data,
+        })
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, i: usize) -> BlockId {
+        let per = (8 / self.bits) as usize;
+        let mask = (1u8 << self.bits) - 1;
+        let v = (self.data[i / per] >> ((i % per) as u8 * self.bits)) & mask;
+        self.palette[v as usize]
+    }
+
+    pub(crate) fn bytes(&self) -> usize {
+        self.data.len() + self.palette.len()
+    }
+
+    pub(crate) fn unpack(&self) -> [BlockId; SECTION_CELLS] {
+        let mut out = [AIR; SECTION_CELLS];
+        for (i, c) in out.iter_mut().enumerate() {
+            *c = self.get(i);
+        }
+        out
+    }
+}
+
+/// One section of the world. Sections are shared between copies of the
+/// world (shards) until one of them changes (copy on write).
 #[derive(Clone)]
 enum Sect {
-    /// not arrived (or dropped)
+    /// streamed worlds: not arrived (or dropped)
     Unknown,
     /// every cell the same block (open air, solid rock): costs nothing
     Uniform(BlockId),
-    Cells(Box<[BlockId; SECTION_CELLS]>),
+    /// a byte a cell: being built or edited
+    Raw(Arc<[BlockId; SECTION_CELLS]>),
+    /// at rest (`World::compact`): a palette and a few bits a cell
+    Packed(Arc<Packed>),
 }
 
-/// The sections a client holds.
+impl Sect {
+    #[inline]
+    fn get(&self, i: usize) -> BlockId {
+        match self {
+            Sect::Unknown => AIR,
+            Sect::Uniform(b) => *b,
+            Sect::Raw(c) => c[i],
+            Sect::Packed(p) => p.get(i),
+        }
+    }
+
+    fn cells(&self) -> [BlockId; SECTION_CELLS] {
+        match self {
+            Sect::Unknown => [AIR; SECTION_CELLS],
+            Sect::Uniform(b) => [*b; SECTION_CELLS],
+            Sect::Raw(c) => **c,
+            Sect::Packed(p) => p.unpack(),
+        }
+    }
+
+    /// The smallest form of these cells.
+    fn compacted(cells: &[BlockId; SECTION_CELLS]) -> Sect {
+        let first = cells[0];
+        if cells.iter().all(|&b| b == first) {
+            return Sect::Uniform(first);
+        }
+        match Packed::pack(cells) {
+            Some(p) => Sect::Packed(Arc::new(p)),
+            None => Sect::Raw(Arc::new(*cells)),
+        }
+    }
+
+    /// Bytes of cells held.
+    fn bytes(&self) -> usize {
+        match self {
+            Sect::Unknown | Sect::Uniform(_) => 0,
+            Sect::Raw(_) => SECTION_CELLS,
+            Sect::Packed(p) => p.bytes(),
+        }
+    }
+
+    /// The same storage as another (shared, or the same uniform block).
+    fn same(&self, other: &Sect) -> bool {
+        match (self, other) {
+            (Sect::Uniform(a), Sect::Uniform(b)) => a == b,
+            (Sect::Raw(a), Sect::Raw(b)) => Arc::ptr_eq(a, b),
+            (Sect::Packed(a), Sect::Packed(b)) => Arc::ptr_eq(a, b),
+            (Sect::Unknown, Sect::Unknown) => true,
+            _ => false,
+        }
+    }
+}
+
+/// A section decoded and packed, ready to store (`World::prepare_section`);
+/// cheap to clone (copies share it).
 #[derive(Clone)]
-struct Sparse {
-    dims: [i32; 3],
-    secs: Vec<Sect>,
-    /// bumped whenever a section arrives or leaves
-    rev: u64,
-}
+pub struct SectionData(Sect);
 
+/// The block world: 1 m cells in sections of 16³. A section that is all one
+/// block (the sky, solid rock) costs nothing; others are packed with a
+/// palette once built (`compact`), and copies of the world (shards) share
+/// every section until they change it. Clients hold a streamed world: only
+/// the sections that arrived (see the crate docs).
 #[derive(Clone)]
 pub struct World {
     pub size: [u32; 3],
-    /// every cell (dense worlds: the server, tools, the title stage)
-    cells: Vec<BlockId>,
-    /// streamed worlds (clients): only the sections that have arrived
-    sparse: Option<Box<Sparse>>,
-    /// dense worlds: a count per section, bumped by every change in it (so
-    /// the server can keep sections encoded until they change)
+    dims: [i32; 3],
+    secs: Vec<Sect>,
+    /// a streamed world (clients): sections start unknown
+    streamed: bool,
+    /// bumped whenever a section arrives or leaves (streamed worlds)
+    rev: u64,
+    /// a count per section, bumped by every change in it (so the server can
+    /// keep sections encoded until they change)
     revs: Vec<u32>,
 }
 
 /// Run-length encode cells: (block, varint count) pairs.
-fn rle(cells: impl Iterator<Item = BlockId>, out: &mut Vec<u8>) {
+pub(crate) fn rle(cells: impl Iterator<Item = BlockId>, out: &mut Vec<u8>) {
     let mut run: Option<(BlockId, u64)> = None;
     let flush = |out: &mut Vec<u8>, b: BlockId, n: u64| {
         out.push(b);
@@ -637,7 +797,7 @@ fn rle(cells: impl Iterator<Item = BlockId>, out: &mut Vec<u8>) {
 }
 
 /// Decode (block, varint count) pairs into `out`, which must come out exactly full.
-fn unrle(data: &[u8], out: &mut Vec<BlockId>, total: usize) -> Result<(), String> {
+pub(crate) fn unrle(data: &[u8], out: &mut Vec<BlockId>, total: usize) -> Result<(), String> {
     let mut p = 0;
     while p < data.len() {
         let b = data[p];
@@ -671,31 +831,28 @@ fn unrle(data: &[u8], out: &mut Vec<BlockId>, total: usize) -> Result<(), String
 }
 
 impl World {
-    pub fn empty(size: [u32; 3]) -> Self {
-        let n = size[0] as usize * size[1] as usize * size[2] as usize;
-        let d = Self::dims_of(size);
+    fn with(size: [u32; 3], fill: Sect, streamed: bool) -> Self {
+        let dims = Self::dims_of(size);
+        let n = (dims[0] * dims[1] * dims[2]) as usize;
         World {
             size,
-            cells: vec![AIR; n],
-            sparse: None,
-            revs: vec![0; (d[0] * d[1] * d[2]) as usize],
+            dims,
+            secs: vec![fill; n],
+            streamed,
+            rev: 0,
+            revs: vec![0; n],
         }
+    }
+
+    /// A world of air.
+    pub fn empty(size: [u32; 3]) -> Self {
+        Self::with(size, Sect::Uniform(AIR), false)
     }
 
     /// A streamed world with nothing in it yet: every cell is unknown until
     /// its section arrives (`put_section`).
     pub fn sparse(size: [u32; 3]) -> Self {
-        let dims = Self::dims_of(size);
-        World {
-            size,
-            cells: Vec::new(),
-            sparse: Some(Box::new(Sparse {
-                dims,
-                secs: vec![Sect::Unknown; (dims[0] * dims[1] * dims[2]) as usize],
-                rev: 0,
-            })),
-            revs: Vec::new(),
-        }
+        Self::with(size, Sect::Unknown, true)
     }
 
     fn dims_of(size: [u32; 3]) -> [i32; 3] {
@@ -708,47 +865,49 @@ impl World {
 
     /// How many sections the world has along each axis.
     pub fn section_dims(&self) -> [i32; 3] {
-        Self::dims_of(self.size)
+        self.dims
     }
 
     /// A streamed (sparse) world, as clients hold it.
     pub fn is_sparse(&self) -> bool {
-        self.sparse.is_some()
+        self.streamed
     }
 
     #[inline]
     fn sect_index(&self, s: SectionPos) -> Option<usize> {
-        let d = Self::dims_of(self.size);
+        let d = self.dims;
         if s[0] < 0 || s[1] < 0 || s[2] < 0 || s[0] >= d[0] || s[1] >= d[1] || s[2] >= d[2] {
             return None;
         }
         Some(((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize)
     }
 
+    /// The section holding a cell inside the world, and the cell's place in it.
+    #[inline]
+    fn locate(&self, x: i32, y: i32, z: i32) -> Option<(usize, usize)> {
+        let [sx, sy, sz] = self.size;
+        if x < 0 || y < 0 || z < 0 || x >= sx as i32 || y >= sy as i32 || z >= sz as i32 {
+            return None;
+        }
+        let d = self.dims;
+        let i = (((y / SECTION) * d[2] + z / SECTION) * d[0] + x / SECTION) as usize;
+        Some((i, local_index(x, y, z)))
+    }
+
     /// Whether a section is in the world (and, for a streamed world, has arrived).
     pub fn has_section(&self, s: SectionPos) -> bool {
-        match (&self.sparse, self.sect_index(s)) {
-            (_, None) => false,
-            (None, Some(_)) => true,
-            (Some(sp), Some(i)) => !matches!(sp.secs[i], Sect::Unknown),
-        }
+        self.sect_index(s)
+            .is_some_and(|i| !matches!(self.secs[i], Sect::Unknown))
     }
 
     /// Whether a cell's content is known. Outside the world it is (air
     /// above, stone below); in a streamed world, only once its section is here.
     #[inline]
     pub fn known(&self, x: i32, y: i32, z: i32) -> bool {
-        match &self.sparse {
-            None => true,
-            Some(_) => {
-                self.index(x, y, z).is_none()
-                    || self.has_section([
-                        x.div_euclid(SECTION),
-                        y.div_euclid(SECTION),
-                        z.div_euclid(SECTION),
-                    ])
-            }
-        }
+        !self.streamed
+            || self
+                .locate(x, y, z)
+                .is_none_or(|(i, _)| !matches!(self.secs[i], Sect::Unknown))
     }
 
     /// Solid for movement: a solid block, or a cell that has not arrived
@@ -758,135 +917,213 @@ impl World {
         is_solid(self.get(x, y, z)) || !self.known(x, y, z)
     }
 
-    /// The sections that have arrived (every section, for a dense world).
+    fn pos_of(&self, i: usize) -> SectionPos {
+        let d = self.dims;
+        let i = i as i32;
+        [i % d[0], i / (d[0] * d[2]), (i / d[0]) % d[2]]
+    }
+
+    /// The sections that have arrived (every section, for a whole world).
     pub fn held_list(&self) -> Vec<SectionPos> {
-        let d = self.section_dims();
-        let mut out = Vec::new();
-        for sy in 0..d[1] {
-            for sz in 0..d[2] {
-                for sx in 0..d[0] {
-                    if self.has_section([sx, sy, sz]) {
-                        out.push([sx, sy, sz]);
-                    }
-                }
-            }
-        }
-        out
+        (0..self.secs.len())
+            .filter(|&i| !matches!(self.secs[i], Sect::Unknown))
+            .map(|i| self.pos_of(i))
+            .collect()
     }
 
     /// Changes whenever a section arrives or is dropped (for views that
     /// redraw when the world fills in, like the minimap).
     pub fn revision(&self) -> u64 {
-        self.sparse.as_ref().map_or(0, |s| s.rev)
+        self.rev
     }
 
-    /// Sections that have arrived (streamed worlds), with their bytes in memory.
+    /// Sections held, and the bytes of cells they take.
     pub fn held_sections(&self) -> (usize, usize) {
-        match &self.sparse {
-            None => {
-                let d = self.section_dims();
-                ((d[0] * d[1] * d[2]) as usize, self.cells.len())
+        self.secs.iter().fold((0, 0), |(n, b), s| match s {
+            Sect::Unknown => (n, b),
+            s => (n + 1, b + s.bytes()),
+        })
+    }
+
+    /// Bytes this world takes in memory: its cells and its table of
+    /// sections (sections shared with another copy are counted in each).
+    pub fn memory_bytes(&self) -> usize {
+        self.held_sections().1
+            + self.secs.len() * (std::mem::size_of::<Sect>() + std::mem::size_of::<u32>())
+    }
+
+    /// Pack every section built or edited since the last call into its
+    /// smallest form (all one block: nothing; few kinds: a palette and 1-4
+    /// bits a cell). Call it after building a world; edits unpack the
+    /// sections they touch.
+    pub fn compact(&mut self) {
+        for s in &mut self.secs {
+            if let Sect::Raw(c) = s {
+                *s = Sect::compacted(c);
             }
-            Some(sp) => sp.secs.iter().fold((0, 0), |(n, b), s| match s {
-                Sect::Unknown => (n, b),
-                Sect::Uniform(_) => (n + 1, b),
-                Sect::Cells(_) => (n + 1, b + SECTION_CELLS),
-            }),
         }
     }
 
-    /// How many times a section of a dense world has changed (for caches
-    /// of encoded sections). Streamed worlds answer 0.
-    pub fn section_rev(&self, s: SectionPos) -> u32 {
-        match (self.sparse.is_none(), self.sect_index(s)) {
-            (true, Some(i)) => self.revs[i],
-            _ => 0,
+    /// The highest block in a column that is not air, and its height, or
+    /// None (open air down to the bottom, or not arrived). Sections of open
+    /// air are skipped whole.
+    pub fn column_top(&self, x: i32, z: i32) -> Option<(i32, BlockId)> {
+        if !self.in_bounds([x, 0, z]) {
+            return None;
         }
+        let d = self.dims;
+        let (sx, sz) = (x / SECTION, z / SECTION);
+        for sy in (0..d[1]).rev() {
+            let i = ((sy * d[2] + sz) * d[0] + sx) as usize;
+            match &self.secs[i] {
+                Sect::Unknown | Sect::Uniform(AIR) => continue,
+                s => {
+                    let top = (sy * SECTION + SECTION - 1).min(self.size[1] as i32 - 1);
+                    for y in (sy * SECTION..=top).rev() {
+                        let b = s.get(local_index(x, y, z));
+                        if b != AIR {
+                            return Some((y, b));
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Every cell holding this block (fast: sections without it are skipped).
+    pub fn positions_of(&self, b: BlockId) -> Vec<[i32; 3]> {
+        let mut out = Vec::new();
+        for (i, s) in self.secs.iter().enumerate() {
+            let maybe = match s {
+                Sect::Unknown => false,
+                Sect::Uniform(u) => *u == b,
+                Sect::Raw(_) => true,
+                Sect::Packed(p) => p.palette.contains(&b),
+            };
+            if !maybe {
+                continue;
+            }
+            let [sx, sy, sz] = self.pos_of(i);
+            for k in 0..SECTION_CELLS {
+                if s.get(k) == b {
+                    let k = k as i32;
+                    let p = [
+                        sx * SECTION + k % SECTION,
+                        sy * SECTION + k / (SECTION * SECTION),
+                        sz * SECTION + (k / SECTION) % SECTION,
+                    ];
+                    if self.in_bounds(p) {
+                        out.push(p);
+                    }
+                }
+            }
+        }
+        out.sort_by_key(|p| (p[0], p[2], p[1]));
+        out
+    }
+
+    /// The block a section is made of, if it is all one (the sky, solid
+    /// rock); None for a mixed section, or one not arrived.
+    pub fn section_uniform(&self, s: SectionPos) -> Option<BlockId> {
+        match self.sect_index(s).map(|i| &self.secs[i]) {
+            Some(Sect::Uniform(b)) => Some(*b),
+            _ => None,
+        }
+    }
+
+    /// How many times a section has changed (for caches of encoded sections).
+    pub fn section_rev(&self, s: SectionPos) -> u32 {
+        self.sect_index(s).map_or(0, |i| self.revs[i])
+    }
+
+    /// A section's cells, those past the edge of the world as air.
+    fn section_cells(&self, s: SectionPos) -> [BlockId; SECTION_CELLS] {
+        let Some(i) = self.sect_index(s) else {
+            return [AIR; SECTION_CELLS];
+        };
+        let mut c = self.secs[i].cells();
+        let [wx, wy, wz] = self.size.map(|v| v as i32);
+        let (x0, y0, z0) = (s[0] * SECTION, s[1] * SECTION, s[2] * SECTION);
+        if x0 + SECTION > wx || y0 + SECTION > wy || z0 + SECTION > wz {
+            for (k, v) in c.iter_mut().enumerate() {
+                let k = k as i32;
+                let (x, y, z) = (
+                    x0 + k % SECTION,
+                    y0 + k / (SECTION * SECTION),
+                    z0 + (k / SECTION) % SECTION,
+                );
+                if x >= wx || y >= wy || z >= wz {
+                    *v = AIR;
+                }
+            }
+        }
+        c
     }
 
     /// The section's cells, run-length encoded (for streaming). Cells past
     /// the edge of the world are air.
     pub fn encode_section(&self, s: SectionPos) -> Vec<u8> {
         let mut out = Vec::new();
-        let [wx, wy, wz] = self.size.map(|v| v as i32);
-        let (x0, y0, z0) = (s[0] * SECTION, s[1] * SECTION, s[2] * SECTION);
-        if self.sparse.is_none()
-            && self.sect_index(s).is_some()
-            && x0 + SECTION <= wx
-            && y0 + SECTION <= wy
-            && z0 + SECTION <= wz
-        {
-            // a whole section of a dense world: its rows straight from the grid
-            let rows = (0..SECTION).flat_map(move |ly| (0..SECTION).map(move |lz| (ly, lz)));
-            rle(
-                rows.flat_map(|(ly, lz)| {
-                    let i = (((y0 + ly) * wz + z0 + lz) * wx + x0) as usize;
-                    self.cells[i..i + SECTION as usize].iter().copied()
-                }),
-                &mut out,
-            );
-            return out;
+        match self.sect_index(s).map(|i| &self.secs[i]) {
+            Some(Sect::Uniform(b)) if self.whole_section(s) => {
+                rle(std::iter::repeat_n(*b, SECTION_CELLS), &mut out)
+            }
+            _ => rle(self.section_cells(s).into_iter(), &mut out),
         }
-        let (x0, y0, z0) = (s[0] * SECTION, s[1] * SECTION, s[2] * SECTION);
-        let cells = (0..SECTION).flat_map(move |ly| {
-            (0..SECTION).flat_map(move |lz| (0..SECTION).map(move |lx| (lx, ly, lz)))
-        });
-        rle(
-            cells.map(|(lx, ly, lz)| {
-                let (x, y, z) = (x0 + lx, y0 + ly, z0 + lz);
-                if self.index(x, y, z).is_some() {
-                    self.get(x, y, z)
-                } else {
-                    AIR
-                }
-            }),
-            &mut out,
-        );
         out
     }
 
-    /// Store a section that arrived (from `encode_section`).
+    fn whole_section(&self, s: SectionPos) -> bool {
+        let [wx, wy, wz] = self.size.map(|v| v as i32);
+        (s[0] + 1) * SECTION <= wx && (s[1] + 1) * SECTION <= wy && (s[2] + 1) * SECTION <= wz
+    }
+
+    /// Store a section (from `encode_section`).
     pub fn put_section(&mut self, s: SectionPos, data: &[u8]) -> Result<(), String> {
+        let prepared = Self::prepare_section(data)?;
+        self.put_prepared(s, prepared)
+    }
+
+    /// Decode and pack a section (from `encode_section`) ahead of storing
+    /// it: on another thread, and once for several copies of the world (the
+    /// copies share it).
+    pub fn prepare_section(data: &[u8]) -> Result<SectionData, String> {
+        // all one block (the sky, solid rock: most of a tall world): one run
+        let mut p = 1;
+        if data.len() > 1
+            && data[0] < BLOCK_COUNT
+            && read_varint(data, &mut p) == Ok(SECTION_CELLS as u64)
+            && p == data.len()
+        {
+            return Ok(SectionData(Sect::Uniform(data[0])));
+        }
+        let mut cells = Vec::with_capacity(SECTION_CELLS);
+        unrle(data, &mut cells, SECTION_CELLS)?;
+        let mut c = [AIR; SECTION_CELLS];
+        c.copy_from_slice(&cells);
+        Ok(SectionData(Sect::compacted(&c)))
+    }
+
+    /// Store a section prepared by `prepare_section`.
+    pub fn put_prepared(&mut self, s: SectionPos, data: SectionData) -> Result<(), String> {
         let i = self
             .sect_index(s)
             .ok_or_else(|| format!("section {s:?} is outside the world"))?;
-        let mut cells = Vec::with_capacity(SECTION_CELLS);
-        unrle(data, &mut cells, SECTION_CELLS)?;
-        match &mut self.sparse {
-            Some(sp) => {
-                let first = cells[0];
-                sp.secs[i] = if cells.iter().all(|&b| b == first) {
-                    Sect::Uniform(first)
-                } else {
-                    let mut b = Box::new([AIR; SECTION_CELLS]);
-                    b.copy_from_slice(&cells);
-                    Sect::Cells(b)
-                };
-                sp.rev += 1;
-            }
-            None => {
-                let (x0, y0, z0) = (s[0] * SECTION, s[1] * SECTION, s[2] * SECTION);
-                for (k, b) in cells.into_iter().enumerate() {
-                    let k = k as i32;
-                    let (lx, lz, ly) = (
-                        k % SECTION,
-                        (k / SECTION) % SECTION,
-                        k / (SECTION * SECTION),
-                    );
-                    self.set(x0 + lx, y0 + ly, z0 + lz, b);
-                }
-            }
-        }
+        self.secs[i] = data.0;
+        self.revs[i] = self.revs[i].wrapping_add(1);
+        self.rev += 1;
         Ok(())
     }
 
     /// Forget a section (streamed worlds): its cells become unknown again.
     pub fn drop_section(&mut self, s: SectionPos) {
-        if let (Some(i), Some(sp)) = (self.sect_index(s), self.sparse.as_mut())
-            && !matches!(sp.secs[i], Sect::Unknown)
+        if self.streamed
+            && let Some(i) = self.sect_index(s)
+            && !matches!(self.secs[i], Sect::Unknown)
         {
-            sp.secs[i] = Sect::Unknown;
-            sp.rev += 1;
+            self.secs[i] = Sect::Unknown;
+            self.rev += 1;
         }
     }
 
@@ -911,66 +1148,32 @@ impl World {
         out
     }
 
-    #[inline]
-    fn index(&self, x: i32, y: i32, z: i32) -> Option<usize> {
-        let [sx, sy, sz] = self.size;
-        if x < 0 || y < 0 || z < 0 || x >= sx as i32 || y >= sy as i32 || z >= sz as i32 {
-            return None;
-        }
-        Some((y as usize * sz as usize + z as usize) * sx as usize + x as usize)
-    }
-
     pub fn in_bounds(&self, p: [i32; 3]) -> bool {
-        self.index(p[0], p[1], p[2]).is_some()
+        self.locate(p[0], p[1], p[2]).is_some()
     }
 
-    /// Block at a position. Outside the world: air above, stone below.
-    #[inline]
     /// Blocks where `other` (the same size) differs from this world, with
-    /// `other`'s value. Fast when the two are nearly the same.
+    /// `other`'s value. Fast when one is a copy of the other: sections they
+    /// still share are skipped.
     pub fn diff(&self, other: &World) -> Vec<([i32; 3], BlockId)> {
         let mut out = Vec::new();
         if self.size != other.size {
             return out;
         }
-        let (w, d) = (self.size[0] as usize, self.size[2] as usize);
-        const RUN: usize = 4096;
-        for (k, (a, b)) in self
-            .cells
-            .chunks(RUN)
-            .zip(other.cells.chunks(RUN))
-            .enumerate()
-        {
-            if a == b {
-                continue;
-            }
-            for (j, (x, y)) in a.iter().zip(b).enumerate() {
-                if x != y {
-                    let i = k * RUN + j;
-                    // cells are laid out x fastest, then z, then y
-                    let (px, rest) = (i % w, i / w);
-                    let (pz, py) = (rest % d, rest / d);
-                    out.push(([px as i32, py as i32, pz as i32], *y));
-                }
+        for (i, (a, b)) in self.secs.iter().zip(&other.secs).enumerate() {
+            if !a.same(b) {
+                out.extend(self.diff_section(other, self.pos_of(i)));
             }
         }
+        out.sort_by_key(|(p, _)| (p[1], p[2], p[0]));
         out
     }
 
+    /// Block at a position. Outside the world: air above, stone below.
+    #[inline]
     pub fn get(&self, x: i32, y: i32, z: i32) -> BlockId {
-        match self.index(x, y, z) {
-            Some(i) => match &self.sparse {
-                None => self.cells[i],
-                Some(sp) => {
-                    let d = sp.dims;
-                    let (sx, sy, sz) = (x / SECTION, y / SECTION, z / SECTION);
-                    match &sp.secs[((sy * d[2] + sz) * d[0] + sx) as usize] {
-                        Sect::Unknown => AIR,
-                        Sect::Uniform(b) => *b,
-                        Sect::Cells(c) => c[local_index(x, y, z)],
-                    }
-                }
-            },
+        match self.locate(x, y, z) {
+            Some((i, l)) => self.secs[i].get(l),
             None => {
                 if y < 0 {
                     STONE
@@ -985,33 +1188,63 @@ impl World {
     /// In a streamed world, a cell whose section has not arrived is not
     /// set (the section brings the cell when it comes).
     pub fn set(&mut self, x: i32, y: i32, z: i32, b: BlockId) -> bool {
-        let Some(i) = self.index(x, y, z) else {
+        let Some((i, l)) = self.locate(x, y, z) else {
             return false;
         };
-        let Some(sp) = self.sparse.as_mut() else {
-            if self.cells[i] != b {
-                self.cells[i] = b;
-                let d = Self::dims_of(self.size);
-                let (sx, sy, sz) = (x / SECTION, y / SECTION, z / SECTION);
-                let r = &mut self.revs[((sy * d[2] + sz) * d[0] + sx) as usize];
-                *r = r.wrapping_add(1);
-            }
-            return true;
-        };
-        let d = sp.dims;
-        let (sx, sy, sz) = (x / SECTION, y / SECTION, z / SECTION);
-        let sect = &mut sp.secs[((sy * d[2] + sz) * d[0] + sx) as usize];
-        match sect {
+        let sect = &mut self.secs[i];
+        let changed = match sect {
             Sect::Unknown => return false,
-            Sect::Uniform(u) if *u == b => {}
+            Sect::Uniform(u) if *u == b => false,
             Sect::Uniform(u) => {
-                let mut c = Box::new([*u; SECTION_CELLS]);
-                c[local_index(x, y, z)] = b;
-                *sect = Sect::Cells(c);
+                let mut c = [*u; SECTION_CELLS];
+                c[l] = b;
+                *sect = Sect::Raw(Arc::new(c));
+                true
             }
-            Sect::Cells(c) => c[local_index(x, y, z)] = b,
+            Sect::Raw(c) => {
+                if c[l] == b {
+                    false
+                } else {
+                    Arc::make_mut(c)[l] = b;
+                    true
+                }
+            }
+            Sect::Packed(p) => {
+                if p.get(l) == b {
+                    false
+                } else {
+                    let mut c = p.unpack();
+                    c[l] = b;
+                    *sect = Sect::Raw(Arc::new(c));
+                    true
+                }
+            }
+        };
+        if changed {
+            self.revs[i] = self.revs[i].wrapping_add(1);
         }
         true
+    }
+
+    /// Fill a row of cells (x0..x1, one y and z) with a block: loading.
+    fn fill_row(&mut self, y: i32, z: i32, x0: i32, x1: i32, b: BlockId) {
+        let mut x = x0;
+        while x < x1 {
+            let end = ((x / SECTION + 1) * SECTION).min(x1);
+            let Some((i, l)) = self.locate(x, y, z) else {
+                return;
+            };
+            let sect = &mut self.secs[i];
+            if !matches!(sect, Sect::Uniform(u) if *u == b) {
+                if !matches!(sect, Sect::Raw(_)) {
+                    *sect = Sect::Raw(Arc::new(sect.cells()));
+                }
+                if let Sect::Raw(c) = sect {
+                    Arc::make_mut(c)[l..l + (end - x) as usize].fill(b);
+                }
+            }
+            x = end;
+        }
     }
 
     /// Generate the default terrain: meadows, forests of oak and birch, pine on
@@ -1110,6 +1343,7 @@ impl World {
                 }
             }
         }
+        w.compact();
         w
     }
 
@@ -1425,45 +1659,119 @@ impl World {
         -1
     }
 
-    /// Run-length encode the world: header, then (block, varint count) pairs.
-    /// Unknown cells of a streamed world are written as air.
+    /// Encode the world for saving (`DYNW2`): the size, then each section
+    /// in turn: all one block (tag 0, the block), or its cells run-length
+    /// encoded (tag 1, a varint length, (block, varint count) pairs).
+    /// Unknown sections of a streamed world are written as air.
     pub fn encode(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(64 * 1024);
-        out.extend_from_slice(MAGIC);
+        out.extend_from_slice(MAGIC2);
         for s in self.size {
             out.extend_from_slice(&s.to_le_bytes());
         }
-        if self.sparse.is_none() {
-            rle(self.cells.iter().copied(), &mut out);
-        } else {
-            let [sx, sy, sz] = self.size.map(|v| v as i32);
-            let cells = (0..sy)
-                .flat_map(move |y| (0..sz).flat_map(move |z| (0..sx).map(move |x| (x, y, z))));
-            rle(cells.map(|(x, y, z)| self.get(x, y, z)), &mut out);
+        let mut cells = Vec::new();
+        for i in 0..self.secs.len() {
+            let pos = self.pos_of(i);
+            match &self.secs[i] {
+                Sect::Unknown => out.extend_from_slice(&[0, AIR]),
+                Sect::Uniform(b) if self.whole_section(pos) => out.extend_from_slice(&[0, *b]),
+                _ => {
+                    cells.clear();
+                    rle(self.section_cells(pos).into_iter(), &mut cells);
+                    out.push(1);
+                    varint(cells.len() as u64, &mut out);
+                    out.extend_from_slice(&cells);
+                }
+            }
         }
         out
     }
 
-    /// Decode data from `encode`. Rejects malformed or oversized input.
+    /// Decode a saved world: `DYNW2` (sections), or the older `DYNW1` (every
+    /// cell in one run-length stream), so old saves load. Rejects malformed
+    /// or oversized input. The world comes back packed (`compact`).
     pub fn decode(data: &[u8]) -> Result<Self, String> {
-        if data.len() < 17 || &data[..5] != MAGIC {
+        if data.len() < 17 || (&data[..5] != MAGIC && &data[..5] != MAGIC2) {
             return Err("not a Dyno world".into());
         }
         let rd = |o: usize| u32::from_le_bytes([data[o], data[o + 1], data[o + 2], data[o + 3]]);
         let size = [rd(5), rd(9), rd(13)];
-        if size.iter().any(|&s| s == 0 || s > 1024) || size[1] > 256 {
+        if size.contains(&0) || size[0] > MAX_SIDE || size[2] > MAX_SIDE || size[1] > MAX_HEIGHT {
             return Err(format!("world size {size:?} is not supported"));
         }
-        let total = size[0] as usize * size[1] as usize * size[2] as usize;
-        let mut cells = Vec::with_capacity(total);
-        unrle(&data[17..], &mut cells, total)?;
-        let d = Self::dims_of(size);
-        Ok(World {
-            size,
-            cells,
-            sparse: None,
-            revs: vec![0; (d[0] * d[1] * d[2]) as usize],
-        })
+        let mut w = World::empty(size);
+        let body = &data[17..];
+        if &data[..5] == MAGIC {
+            w.decode_v1(body)?;
+        } else {
+            let mut p = 0;
+            let mut cells = Vec::with_capacity(SECTION_CELLS);
+            for i in 0..w.secs.len() {
+                let tag = *body.get(p).ok_or("truncated world data")?;
+                p += 1;
+                w.secs[i] = match tag {
+                    0 => {
+                        let b = *body.get(p).ok_or("truncated world data")?;
+                        p += 1;
+                        if b >= BLOCK_COUNT {
+                            return Err(format!("unknown block id {b}"));
+                        }
+                        Sect::Uniform(b)
+                    }
+                    1 => {
+                        let n = read_varint(body, &mut p)? as usize;
+                        let run = body.get(p..p + n).ok_or("truncated world data")?;
+                        p += n;
+                        cells.clear();
+                        unrle(run, &mut cells, SECTION_CELLS)?;
+                        let mut c = [AIR; SECTION_CELLS];
+                        c.copy_from_slice(&cells);
+                        Sect::compacted(&c)
+                    }
+                    _ => return Err(format!("bad section tag {tag}")),
+                };
+            }
+            if p != body.len() {
+                return Err("world data is longer than the world".into());
+            }
+        }
+        w.compact();
+        Ok(w)
+    }
+
+    /// The older format: every cell, y then z then x, in one run-length stream.
+    fn decode_v1(&mut self, data: &[u8]) -> Result<(), String> {
+        let [sx, sy, sz] = self.size.map(|v| v as u64);
+        let total = sx * sy * sz;
+        let (mut p, mut at) = (0usize, 0u64);
+        while p < data.len() {
+            let b = data[p];
+            if b >= BLOCK_COUNT {
+                return Err(format!("unknown block id {b}"));
+            }
+            p += 1;
+            let n = read_varint(data, &mut p)?;
+            if at + n > total {
+                return Err("world data is longer than the world".into());
+            }
+            // the run, a row at a time
+            let mut left = n;
+            while left > 0 {
+                let x = at % sx;
+                let z = (at / sx) % sz;
+                let y = at / (sx * sz);
+                let len = left.min(sx - x);
+                if b != AIR {
+                    self.fill_row(y as i32, z as i32, x as i32, (x + len) as i32, b);
+                }
+                at += len;
+                left -= len;
+            }
+        }
+        if at != total {
+            return Err("world data is shorter than the world".into());
+        }
+        Ok(())
     }
 
     /// Save atomically: write a temporary file, then rename it.
@@ -1548,13 +1856,136 @@ fn forest(x: i32, z: i32, seed: u32) -> f32 {
 mod tests {
     use super::*;
 
+    /// Every cell, as the older `DYNW1` saves held them.
+    fn encode_v1(w: &World) -> Vec<u8> {
+        let mut out = MAGIC.to_vec();
+        for s in w.size {
+            out.extend_from_slice(&s.to_le_bytes());
+        }
+        let [sx, sy, sz] = w.size.map(|v| v as i32);
+        let cells =
+            (0..sy).flat_map(|y| (0..sz).flat_map(move |z| (0..sx).map(move |x| (x, y, z))));
+        rle(cells.map(|(x, y, z)| w.get(x, y, z)), &mut out);
+        out
+    }
+
+    fn same_cells(a: &World, b: &World) -> bool {
+        let [sx, sy, sz] = a.size.map(|v| v as i32);
+        a.size == b.size
+            && (0..sy).all(|y| (0..sz).all(|z| (0..sx).all(|x| a.get(x, y, z) == b.get(x, y, z))))
+    }
+
     #[test]
     fn encode_roundtrip() {
         let w = World::generate([64, 48, 64], 7);
         let d = w.encode();
+        assert_eq!(&d[..5], MAGIC2);
         let w2 = World::decode(&d).unwrap();
-        assert_eq!(w.cells, w2.cells);
-        assert!(d.len() < w.cells.len() / 4, "compression should work");
+        assert!(same_cells(&w, &w2));
+        assert!(d.len() < 64 * 48 * 64 / 4, "compression should work");
+        // a size that is not a whole number of sections
+        let mut odd = World::empty([20, 18, 37]);
+        odd.set(19, 17, 36, BRICK);
+        odd.set(0, 0, 0, STONE);
+        let back = World::decode(&odd.encode()).unwrap();
+        assert!(same_cells(&odd, &back));
+    }
+
+    #[test]
+    fn old_saves_still_load() {
+        let w = World::generate([64, 48, 64], 7);
+        let old = encode_v1(&w);
+        assert_eq!(&old[..5], MAGIC);
+        let back = World::decode(&old).unwrap();
+        assert!(same_cells(&w, &back), "a DYNW1 save loads cell for cell");
+        // and saves again in the new form
+        assert!(same_cells(&w, &World::decode(&back.encode()).unwrap()));
+        let mut short = old.clone();
+        short.truncate(old.len() - 2);
+        assert!(World::decode(&short).is_err());
+    }
+
+    #[test]
+    fn big_worlds_are_allowed_and_cheap_when_empty() {
+        let w = World::empty([2048, 256, 2048]);
+        assert_eq!(w.section_dims(), [128, 16, 128]);
+        // the sky costs nothing: only the table of sections
+        assert!(w.memory_bytes() < 8 * 1024 * 1024, "{}", w.memory_bytes());
+        let back = World::decode(&w.encode()).unwrap();
+        assert_eq!(back.size, [2048, 256, 2048]);
+        assert!(World::decode(&World::empty([MAX_SIDE + 16, 16, 16]).encode()).is_err());
+        assert!(World::decode(&World::empty([16, MAX_HEIGHT + 16, 16]).encode()).is_err());
+    }
+
+    /// The 2 km world in memory (docs/design/scale.md):
+    /// cargo test --release -p dyno-world two_km -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn two_km_world_memory() {
+        let t = std::time::Instant::now();
+        let w = World::generate([2048, 256, 2048], 20261122);
+        let made = t.elapsed();
+        let (n, cells) = w.held_sections();
+        let kinds = w.secs.iter().fold([0usize; 3], |mut k, s| {
+            match s {
+                Sect::Uniform(_) => k[0] += 1,
+                Sect::Packed(_) => k[1] += 1,
+                _ => k[2] += 1,
+            }
+            k
+        });
+        let t = std::time::Instant::now();
+        let light = crate::light::Light::new(&w);
+        let lit = t.elapsed();
+        let t = std::time::Instant::now();
+        let saved = w.encode();
+        let enc = t.elapsed();
+        let t = std::time::Instant::now();
+        let back = World::decode(&saved).unwrap();
+        let dec = t.elapsed();
+        assert_eq!(back.size, w.size);
+        // a shard: a copy sharing every section, with its own light
+        let shard = w.clone();
+        eprintln!(
+            "2048x256x2048: generated in {:.1} s; {n} sections: {} uniform, {} packed, {} raw; \
+             cells {:.1} MB, world in memory {:.1} MB; light {:.1} MB (lit in {:.1} s); \
+             save {:.1} MB (encoded in {:.1} s, loaded in {:.1} s); \
+             a shard copy adds {:.1} MB of table (and its own light)",
+            made.as_secs_f32(),
+            kinds[0],
+            kinds[1],
+            kinds[2],
+            cells as f64 / 1048576.0,
+            w.memory_bytes() as f64 / 1048576.0,
+            light.bytes() as f64 / 1048576.0,
+            lit.as_secs_f32(),
+            saved.len() as f64 / 1048576.0,
+            enc.as_secs_f32(),
+            dec.as_secs_f32(),
+            (shard.memory_bytes() - shard.held_sections().1) as f64 / 1048576.0
+        );
+    }
+
+    #[test]
+    fn sections_pack_and_copies_share_them() {
+        let mut w = World::generate([64, 48, 64], 7);
+        let (_, packed) = w.held_sections();
+        assert!(packed < 64 * 48 * 64 / 2, "packed: {packed} bytes");
+        // a copy (a shard) shares every section until it changes one
+        let mut copy = w.clone();
+        assert!(w.diff(&copy).is_empty());
+        copy.set(10, 40, 10, BRICK);
+        copy.set(50, 1, 50, AIR);
+        let d = w.diff(&copy);
+        assert_eq!(d.len(), 2, "{d:?}");
+        assert!(d.contains(&([10, 40, 10], BRICK)));
+        assert_eq!(w.get(10, 40, 10), AIR, "the original is untouched");
+        // an edit unpacks one section; compact packs it again
+        w.set(20, 20, 20, LANTERN);
+        assert_eq!(w.get(20, 20, 20), LANTERN);
+        w.compact();
+        assert_eq!(w.get(20, 20, 20), LANTERN);
+        assert_eq!(w.positions_of(LANTERN), vec![[20, 20, 20]]);
     }
 
     #[test]

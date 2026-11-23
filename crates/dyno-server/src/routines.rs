@@ -43,6 +43,8 @@ pub struct Routine {
     emote_in: f32,
     /// seconds without getting nearer the next spot
     stuck: f32,
+    /// this NPC's own run of random numbers
+    dice: u32,
 }
 
 /// Whether someone can stand with their feet in this cell.
@@ -142,6 +144,7 @@ impl Routine {
             hold: None,
             emote_in: 3.0 + (seed % 5) as f32,
             stuck: 0.0,
+            dice: seed.wrapping_mul(2_654_435_761) | 1,
         })
     }
 }
@@ -177,7 +180,6 @@ impl State {
             routines,
             entities,
             world,
-            rng,
             ..
         } = self;
         for (id, r) in routines.iter_mut() {
@@ -185,7 +187,11 @@ impl State {
                 gone.push(*id);
                 continue;
             };
-            step(r, e, world, dt, rng.f32(), &mut |a| acts.push((*id, a)));
+            // their own throws: the world's dice stay as they were, so
+            // what the world rolls does not depend on who is sweeping
+            r.dice = r.dice.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            let roll = (r.dice >> 8) as f32 / 16_777_216.0;
+            step(r, e, world, dt, roll, &mut |a| acts.push((*id, a)));
         }
         for id in gone {
             self.routines.remove(&id);

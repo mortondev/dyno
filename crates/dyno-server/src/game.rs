@@ -236,6 +236,8 @@ pub struct State {
     pub routines: HashMap<u32, crate::routines::Routine>,
     /// time spent walking them, and over how many ticks
     pub routine_cost: (std::time::Duration, u32),
+    /// far tiles encoded for streaming, with the tile's revision then
+    pub far_encoded: HashMap<dyno_world::far::TilePos, (u64, Vec<u8>)>,
 }
 
 pub fn now_secs() -> u64 {
