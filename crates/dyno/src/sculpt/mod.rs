@@ -259,11 +259,63 @@ pub fn edit_json(path: &std::path::Path, f: impl FnOnce(&mut Value)) -> Result<(
     let text = std::fs::read_to_string(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut v: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
     f(&mut v);
-    // as the pack's other JSON: one space per level
-    let mut out = Vec::new();
-    let fmt = serde_json::ser::PrettyFormatter::with_indent(b" ");
-    let mut ser = serde_json::Serializer::with_formatter(&mut out, fmt);
-    serde::Serialize::serialize(&v, &mut ser).map_err(|e| e.to_string())?;
-    out.push(b'\n');
+    let mut out = String::new();
+    pretty(&v, 0, &mut out);
+    out.push('\n');
     std::fs::write(path, out).map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// The pack's JSON layout: two spaces a level, numbers (and lists of
+/// numbers) on one line.
+pub fn pretty(v: &Value, depth: usize, out: &mut String) {
+    let pad = |d: usize| "  ".repeat(d);
+    let flat = |v: &Value| match v {
+        Value::Array(a) => a.iter().all(|x| x.is_number() || x.is_null() || x.is_boolean()),
+        _ => true,
+    };
+    match v {
+        Value::Object(m) if !m.is_empty() => {
+            out.push_str("{\n");
+            for (i, (k, x)) in m.iter().enumerate() {
+                out.push_str(&pad(depth + 1));
+                out.push_str(&Value::String(k.clone()).to_string());
+                out.push_str(": ");
+                pretty(x, depth + 1, out);
+                if i + 1 < m.len() {
+                    out.push(',');
+                }
+                out.push('\n');
+            }
+            out.push_str(&pad(depth));
+            out.push('}');
+        }
+        Value::Array(a) if !a.is_empty() => {
+            let inline = a.iter().all(|x| {
+                x.is_number() || x.is_null() || x.is_boolean() || x.is_array() && flat(x)
+            });
+            if inline {
+                out.push('[');
+                for (i, x) in a.iter().enumerate() {
+                    if i > 0 {
+                        out.push(',');
+                    }
+                    pretty(x, depth, out);
+                }
+                out.push(']');
+            } else {
+                out.push_str("[\n");
+                for (i, x) in a.iter().enumerate() {
+                    out.push_str(&pad(depth + 1));
+                    pretty(x, depth + 1, out);
+                    if i + 1 < a.len() {
+                        out.push(',');
+                    }
+                    out.push('\n');
+                }
+                out.push_str(&pad(depth));
+                out.push(']');
+            }
+        }
+        other => out.push_str(&other.to_string()),
+    }
 }

@@ -1,5 +1,7 @@
-//! Smooth meshing for voxel models: surface nets over the whole model,
-//! relaxed, with normals per vertex, painted colour and ambient occlusion.
+//! Shaped meshing for voxel models: surface nets over the whole model,
+//! from crisp cubes (`bevel` 0: every corner on the voxel lattice, as the
+//! blocky mesher) through a gentle bevel to smooth (`bevel` 1, relaxed),
+//! with soft normals, painted colour, ambient occlusion and simplification.
 //!
 //! The voxels stay the source: every face of the blocky mesh becomes one
 //! quad here, but its corners sit on the dual grid (one vertex per cell of
@@ -14,6 +16,11 @@ use glam::Vec3;
 /// How a model is meshed smooth.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Smooth {
+    /// how far corners move from the voxel lattice towards the smooth
+    /// surface: 0 crisp cubes, a little a bevel, 1 surface nets
+    pub bevel: f32,
+    /// shading: 0 flat per face, 1 smooth normals across faces
+    pub soft: f32,
     /// relaxation passes: 0 keeps the voxel steps' corners, more rounds
     /// them off (never further than half a voxel from the voxels)
     pub relax: u8,
@@ -30,6 +37,8 @@ pub struct Smooth {
 impl Default for Smooth {
     fn default() -> Self {
         Smooth {
+            bevel: 1.0,
+            soft: 1.0,
             relax: 4,
             blend: true,
             occlusion: 1.0,
@@ -139,7 +148,8 @@ impl Vox {
                             let at = cid(k);
                             if vid[at] == u32::MAX {
                                 vid[at] = pos.len() as u32;
-                                pos.push(self.net_point(k));
+                                let lattice = Vec3::from(k.map(|x| x as f32));
+                                pos.push(lattice + (self.net_point(k) - lattice) * opts.bevel);
                                 cell.push(k);
                             }
                             v[n] = vid[at];
@@ -303,6 +313,8 @@ impl Vox {
                     let ink = t.ink as usize;
                     let glow = self.palette[ink].1;
                     let flat = glow || self.crisp[ink] || blend.is_empty();
+                    let [a, b, c] = t.v.map(|i| pos[i as usize]);
+                    let face = (b - a).cross(c - a).normalize_or_zero();
                     for i in t.v {
                         let i = i as usize;
                         let rgb = match blend.get(i).copied().flatten() {
@@ -313,7 +325,8 @@ impl Vox {
                             pos: place(pos[i], pivot),
                             color: [rgb.x, rgb.y, rgb.z, if glow { 2.0 } else { ao[i] }],
                         });
-                        normals.push(nrm[i].into());
+                        let n = (face * (1.0 - opts.soft) + nrm[i] * opts.soft).normalize_or(face);
+                        normals.push(n.into());
                     }
                 }
                 // caps where the part meets another, in shadow: those

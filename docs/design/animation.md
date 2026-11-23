@@ -230,6 +230,32 @@ carries no figure content; everything below comes through the asset store.
   Channels are `<bone>.rx|ry|rz` (degrees), `<bone>.ox|oy|oz` (voxels),
   `flow|shape|spread`; a number or linear `[t, v]` keys. `seed` is the
   figure seed the loops were sampled at; other seeds start further in.
+  - **Compact form.** The pack build compiles each file into
+    `anims/<skeleton>.clips` (`dyno_protocol::clips`), which is what the
+    server streams: the JSON tree in binary with a string table, and each
+    channel thinned (keys that linear interpolation reproduces within 0.1°,
+    0.02 voxels or 0.002 of a shape key are dropped), quantised (times on a
+    1/1920 s or 1/4096-of-a-stride grid, values in 0.01°, 0.002 voxel or
+    0.0005 steps, delta coded) and shared (a channel equal to one already
+    written is a reference). 4.0 MB of JSON becomes 178 KB (106 KB
+    deflated on the wire; the biped's 34 KB). A test plays every channel
+    back against its source within tolerance; edit the JSON and the
+    change flows through the next server start or `/reload`.
+  - **Loops** are 6 to 16 s. The baked ones ran 20 to 36 s (periods that
+    did not divide); they were cut once, keeping each clip's most
+    distinctive moment (the fidget), at the window whose ends match best in
+    value and speed, and the last 1.5 s blend into the start so the seam is
+    exact (the biped's idle: 26.2 s to 12.0 s, ends 0.09° apart before the
+    blend). A test checks every loop meets itself.
+  - **Mirroring.** `mirror_pairs` names the left and right bones; a clip
+    with `"mirror": true` may play mirrored (bones swap, turns about y and
+    z and moves along x change sign). The animator picks the side each
+    time an action starts, from the figure's seed and its count of plays,
+    so the same history poses the same. `HitReact` flinches either way on
+    bipeds, wraiths and quadrupeds.
+  - **Hover** is explicit in the wraith rig: the body bone sits at the
+    waist (`at` `[0,20,0]`, where its mesh pivots) and a `move` op lifts it
+    4 voxels before the pose, rather than a pivot 4 voxels above its mesh.
 - **Engine** (`figure.rs`, `clip.rs`, `expr.rs`, `vox.rs`, `voxmodel.rs`,
   `anim.rs`): reads it all, caches meshes per look, blends, layers and
   crossfades as before; a grey stand-in is drawn until a figure's files

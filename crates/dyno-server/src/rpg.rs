@@ -308,6 +308,50 @@ impl State {
         out
     }
 
+    /// Items this player still needs for a collect objective.
+    pub fn quest_items_needed(&self, id: PlayerId) -> Vec<u16> {
+        let Some(p) = self.players.get(&id) else {
+            return Vec::new();
+        };
+        let mut out = Vec::new();
+        for q in &p.quests {
+            let Some(quest) = self.content.quest(q.quest) else {
+                continue;
+            };
+            for o in &quest.objectives {
+                if let Objective::Collect { item, count } = o
+                    && p.pack.count(*item) < *count as u32
+                {
+                    out.push(*item);
+                }
+            }
+        }
+        out
+    }
+
+    /// Put a quest drop straight into a player's bags (or at their feet if full).
+    pub fn give_loot(&mut self, id: PlayerId, st: Stack) {
+        let Some(p) = self.players.get_mut(&id) else {
+            return;
+        };
+        let rest = p.pack.add(&self.content, st);
+        let pos = p.pose.pos;
+        p.send(&ServerMsg::Pack(p.pack.slots.clone()));
+        let name = self.content.item(st.item).name.to_string();
+        let text = if st.count > 1 {
+            format!("You receive loot: {name} ×{}", st.count)
+        } else {
+            format!("You receive loot: {name}")
+        };
+        p.send(&ServerMsg::System { text });
+        if let Some(r) = rest {
+            self.spawn_item([pos[0], pos[1] + 1.0, pos[2]], r, 0.1);
+        }
+        if self.update_quests(id) {
+            self.send_quests(id);
+        }
+    }
+
     pub fn credit_kill(&mut self, id: PlayerId, creature: u16, level: u8, share: f32) {
         if !self.rpg() {
             return;

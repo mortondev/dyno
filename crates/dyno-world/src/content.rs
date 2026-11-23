@@ -530,6 +530,19 @@ pub struct WorldRules {
     /// item keys and counts a new character starts with
     #[serde(default)]
     pub starter: Vec<(String, u8)>,
+    /// party kill XP: the XP of a kill is multiplied by 1 + this for each
+    /// member past the first, then split between those who share it
+    /// (default 0.15)
+    #[serde(default)]
+    pub group_bonus: Option<f32>,
+}
+
+impl WorldRules {
+    /// The share of a kill's XP each of `n` members sharing it gets.
+    pub fn kill_share(&self, n: usize) -> f32 {
+        let n = n.max(1) as f32;
+        (1.0 + self.group_bonus.unwrap_or(0.15).max(0.0) * (n - 1.0)) / n
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -1517,6 +1530,16 @@ pub fn default_quest_xp(level: u8) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn group_bonus_is_data() {
+        let mut w = WorldRules::default();
+        assert!((w.kill_share(1) - 1.0).abs() < 1e-6);
+        assert!((w.kill_share(2) - 0.575).abs() < 1e-6, "default 15%");
+        w.group_bonus = Some(0.6);
+        assert!((w.kill_share(2) - 0.8).abs() < 1e-6);
+        assert!((w.kill_share(0) - 1.0).abs() < 1e-6);
+    }
 
     #[test]
     fn default_pack_loads() {

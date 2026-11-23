@@ -37,16 +37,101 @@ pub struct Pack {
     pub hash: [u8; 32],
     /// the parsed rules (files[0])
     pub content: Content,
-    files: HashMap<[u8; 32], Arc<[u8]>>,
+    files: HashMap<[u8; 32], Stored>,
+}
+
+/// A file as it is, and as it travels.
+struct Stored {
+    raw: Arc<[u8]>,
+    codec: u8,
+    wire: Arc<[u8]>,
+}
+
+/// The pack build: source files become what is streamed. Each
+/// `anims/<skeleton>.json` (clips as artists edit them) becomes
+/// `anims/<skeleton>.clips`, thinned and quantised
+/// ([`dyno_protocol::clips`]); the source stays out of the manifest.
+pub fn compile(files: BTreeMap<String, Vec<u8>>) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    let mut out = BTreeMap::new();
+    for (path, bytes) in files {
+        match path
+            .strip_prefix("anims/")
+            .and_then(|p| p.strip_suffix(".json"))
+        {
+            Some(name) if !name.contains('/') => {
+                let baked = proto::clips::encode(&bytes).map_err(|e| format!("{path}: {e}"))?;
+                out.insert(format!("anims/{name}.clips"), baked);
+            }
+            _ => {
+                out.insert(path, bytes);
+            }
+        }
+    }
+    Ok(out)
 }
 
 fn sha256(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
 }
 
+type Encoded = (u8, Arc<[u8]>);
+
+/// Every file's wire encoding, by hash, made once per process: packs are
+/// built again on `/reload` and in tests, and most files stay the same.
+fn encode_all(files: &[([u8; 32], &[u8])]) -> HashMap<[u8; 32], Encoded> {
+    type Memo = std::sync::Mutex<HashMap<[u8; 32], Encoded>>;
+    static MEMO: std::sync::OnceLock<Memo> = std::sync::OnceLock::new();
+    let memo = MEMO.get_or_init(Default::default);
+    let mut todo: Vec<([u8; 32], &[u8])> = {
+        let m = memo.lock().unwrap_or_else(|e| e.into_inner());
+        files
+            .iter()
+            .filter(|(h, _)| !m.contains_key(h))
+            .copied()
+            .collect()
+    };
+    todo.sort_by_key(|(h, _)| *h);
+    todo.dedup_by_key(|(h, _)| *h);
+    // the largest first, spread over the cores
+    todo.sort_by_key(|(_, b)| std::cmp::Reverse(b.len()));
+    let threads = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+        .clamp(1, 16);
+    let next = std::sync::atomic::AtomicUsize::new(0);
+    let done: Vec<([u8; 32], Encoded)> = std::thread::scope(|s| {
+        let workers: Vec<_> = (0..threads)
+            .map(|_| {
+                s.spawn(|| {
+                    let mut out = Vec::new();
+                    loop {
+                        let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let Some((h, b)) = todo.get(i) else { break };
+                        let (codec, wire) = proto::wire::encode(b);
+                        out.push((*h, (codec, Arc::from(wire))));
+                    }
+                    out
+                })
+            })
+            .collect();
+        workers
+            .into_iter()
+            .flat_map(|w| w.join().expect("encoding a pack file"))
+            .collect()
+    });
+    let mut m = memo.lock().unwrap_or_else(|e| e.into_inner());
+    m.extend(done);
+    files
+        .iter()
+        .filter_map(|(h, _)| Some((*h, m.get(h)?.clone())))
+        .collect()
+}
+
 impl Pack {
-    /// Build a pack from its files (pack path to bytes).
+    /// Build a pack from its files (pack path to bytes). Sources are
+    /// compiled first ([`compile`]).
     pub fn from_files(files: BTreeMap<String, Vec<u8>>) -> Result<Pack, String> {
+        let files = compile(files)?;
         let meta: PackFile = match files.get("pack.json") {
             Some(b) => serde_json::from_slice(b).map_err(|e| format!("pack.json: {e}"))?,
             None => return Err("the pack has no pack.json".into()),
@@ -64,17 +149,32 @@ impl Pack {
         let mut refs = Vec::with_capacity(files.len());
         let mut stored = HashMap::with_capacity(files.len());
         // the rules first; the rest in path order
-        let order = std::iter::once(&rules_path).chain(files.keys().filter(|p| **p != rules_path));
-        for path in order {
-            let bytes = &files[path];
+        let order: Vec<&String> = std::iter::once(&rules_path)
+            .chain(files.keys().filter(|p| **p != rules_path))
+            .collect();
+        let hashes: Vec<([u8; 32], &[u8])> = order
+            .iter()
+            .map(|p| (sha256(&files[*p]), files[*p].as_slice()))
+            .collect();
+        let encoded = encode_all(&hashes);
+        for (path, (hash, bytes)) in order.into_iter().zip(&hashes) {
             let size = u32::try_from(bytes.len()).map_err(|_| format!("{path} is too large"))?;
-            let hash = sha256(bytes);
+            let (codec, wire) = encoded[hash].clone();
             refs.push(AssetRef {
                 path: path.clone(),
-                hash,
+                hash: *hash,
                 size,
+                codec,
+                wire: wire.len() as u32,
             });
-            stored.insert(hash, Arc::from(bytes.as_slice()));
+            stored.insert(
+                *hash,
+                Stored {
+                    raw: Arc::from(*bytes),
+                    codec,
+                    wire,
+                },
+            );
         }
         let manifest = Manifest {
             pack: meta.name,
@@ -178,7 +278,12 @@ impl Pack {
 
     /// A file by hash.
     pub fn get(&self, hash: &[u8; 32]) -> Option<Arc<[u8]>> {
-        self.files.get(hash).cloned()
+        self.files.get(hash).map(|f| f.raw.clone())
+    }
+
+    /// A file by hash as it travels: its codec and encoded bytes.
+    pub fn wire(&self, hash: &[u8; 32]) -> Option<(u8, Arc<[u8]>)> {
+        self.files.get(hash).map(|f| (f.codec, f.wire.clone()))
     }
 
     /// A short, printable identity (the first 16 hex digits of the hash).
@@ -198,6 +303,11 @@ impl Pack {
     /// Total bytes of every file.
     pub fn bytes(&self) -> u64 {
         self.manifest.files.iter().map(|f| f.size as u64).sum()
+    }
+
+    /// Total bytes of every file on the wire.
+    pub fn wire_bytes(&self) -> u64 {
+        self.manifest.files.iter().map(|f| f.wire as u64).sum()
     }
 }
 
@@ -234,7 +344,7 @@ impl Outbox {
             if self.queue.len() >= proto::MAX_WANT {
                 break;
             }
-            if pack.get(h).is_some() && !self.queue.iter().any(|(q, _)| q == h) {
+            if pack.wire(h).is_some() && !self.queue.iter().any(|(q, _)| q == h) {
                 self.queue.push_back((*h, 0));
             }
         }
@@ -260,7 +370,7 @@ impl Outbox {
         self.budget = (self.budget + self.rate * dt).min(cap);
         let mut out = Vec::new();
         while let Some(&(hash, offset)) = self.queue.front() {
-            let Some(bytes) = pack.get(&hash) else {
+            let Some((_, bytes)) = pack.wire(&hash) else {
                 // gone after a reload
                 self.queue.pop_front();
                 continue;
@@ -298,7 +408,15 @@ mod tests {
     #[test]
     fn outbox_keeps_to_its_budget() {
         let mut files = Pack::builtin_files();
-        let big: Vec<u8> = (0..600_000u32).map(|i| (i * 7 % 251) as u8).collect();
+        // noise, which travels as it is
+        let big: Vec<u8> = (0..600_000u32)
+            .scan(0x9E37_79B9u32, |x, _| {
+                *x ^= *x << 13;
+                *x ^= *x >> 17;
+                *x ^= *x << 5;
+                Some((*x >> 24) as u8)
+            })
+            .collect();
         files.insert("textures/big.bin".into(), big);
         let p = Pack::from_files(files).unwrap();
         let rules = p.manifest.file("textures/big.bin").unwrap().clone();
@@ -333,6 +451,8 @@ mod tests {
                 }
             }
         }
+        assert_eq!(rules.codec, proto::wire::RAW);
+        assert_eq!(rules.wire, rules.size);
         assert_eq!(sha256(&got), rules.hash);
         // about 256 KB/s after the first 64 KB burst
         let secs = t0.elapsed().as_secs_f64();
@@ -351,9 +471,27 @@ mod tests {
             let b = p.get(&f.hash).unwrap();
             assert_eq!(b.len() as u32, f.size);
             assert_eq!(sha256(&b), f.hash);
+            // what travels decodes to the file
+            let (codec, wire) = p.wire(&f.hash).unwrap();
+            assert_eq!((codec, wire.len() as u32), (f.codec, f.wire));
+            assert!(f.wire <= f.size);
+            let back = proto::wire::decode(codec, &wire, f.size as usize).unwrap();
+            assert_eq!(&back[..], &b[..], "{}", f.path);
         }
         // the same files give the same hash
         assert_eq!(Pack::builtin().hash, p.hash);
+        // a first join stays small (docs/design/data-and-streaming.md §1)
+        let first = p.manifest.download_bytes();
+        eprintln!(
+            "built-in pack: {} files, {} bytes, {} on the wire, a first join downloads {first}",
+            p.manifest.files.len(),
+            p.bytes(),
+            p.wire_bytes()
+        );
+        assert!(first < 4_000_000, "a first join downloads {first} bytes");
+        // the clips are compiled, and their source is not streamed
+        assert!(p.manifest.file("anims/biped.clips").is_some());
+        assert!(p.manifest.file("anims/biped.json").is_none());
     }
 
     #[test]

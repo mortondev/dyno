@@ -333,11 +333,12 @@ pub fn bake(content: &Path) -> Result<String, String> {
         f["clips"] = json!({"features": ["robe"]});
         f["per_block"] = json!(34.19);
         f["detail"] = json!(2.0);
-        f["smooth"] = json!({"relax": 4, "blend": true, "occlusion": 1.0});
+        // voxels with crisp edges and a gentle bevel, softly lit
+        f["smooth"] = json!({"bevel": 0.22, "soft": 0.35, "relax": 0, "blend": false, "occlusion": 0.8});
         f["lods"] = json!([
-            {"smooth": true, "until": 4.5, "simplify": 0.5},
-            {"half": 1, "smooth": true, "until": 8.0, "simplify": 0.85},
-            {"half": 2, "smooth": true, "until": 30.0, "simplify": 0.8},
+            {"smooth": true, "until": 4.5, "simplify": 0.12},
+            {"half": 1, "smooth": true, "until": 12.0, "simplify": 0.15},
+            {"half": 2, "smooth": true, "until": 36.0, "simplify": 0.2},
             {"half": 3}
         ]);
         f["grids"] = gj;

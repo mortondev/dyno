@@ -1230,7 +1230,16 @@ impl Session {
                     for dx in -3..=3 {
                         let g = crate::body::ground(&b.world, x + dx, z + dz) - b.hearth[1];
                         let top = b.world.surface(x + dx, z + dz) - b.hearth[1];
-                        t += &format!("{g:>4}{}", if top != g { "^" } else { " " });
+                        let wet =
+                            b.world.get(x + dx, g + b.hearth[1] + 1, z + dz) == dyno_world::WATER;
+                        let mark = if wet {
+                            "~"
+                        } else if top != g {
+                            "^"
+                        } else {
+                            " "
+                        };
+                        t += &format!("{g:>4}{mark}");
                     }
                     t += "\n";
                 }
@@ -1245,7 +1254,7 @@ impl Session {
                     )
                 });
                 t += &format!(
-                    "ground heights from the hearth (^: canopy above); path from {:?}: {}",
+                    "ground heights from the hearth (^: canopy above, ~: under water); path from {:?}: {}",
                     start,
                     match p {
                         Some(p) => format!(

@@ -1742,13 +1742,10 @@ mod tests {
             times.len()
         );
         crate::shapes::STATS.with(|s| {
-            let mut v: Vec<_> = s
-                .borrow()
-                .iter()
-                .map(|(k, v)| (v.1, v.0, k.clone()))
-                .collect();
+            let mut v: Vec<_> = s.borrow().iter().map(|(k, v)| (v.1, v.0, *k)).collect();
             v.sort_by(|a, b| b.cmp(a));
             for (verts, cells, (b, class)) in v.iter().take(12) {
+                let class = &crate::shapes::pack().class_name(*class);
                 println!("  block {b} {class}: {cells} cells, {verts} vertices");
             }
         });

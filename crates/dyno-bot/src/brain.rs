@@ -950,19 +950,22 @@ impl Scripted {
         }
         let b = &a.body;
         // none alive in sight: go to their camp and wait for them
-        let camps: Vec<Vec3> = b
+        let me = b.pos();
+        // like a player reading the zone levels: a camp in a zone for our
+        // level beats a nearer one among stronger creatures
+        let camps: Vec<(Vec3, f32)> = b
             .content
             .areas
             .iter()
             .flat_map(|ar| ar.camps.iter())
             .filter(|cp| cp.creature == creature)
-            .map(|cp| b.rel2(cp.at))
+            .map(|cp| {
+                let p = b.rel2(cp.at);
+                let cost = p.distance(me) + if dangerous(b, p) { 400.0 } else { 0.0 };
+                (p, cost)
+            })
             .collect();
-        let me = b.pos();
-        if let Some(p) = camps
-            .iter()
-            .min_by(|x, y| x.distance(me).partial_cmp(&y.distance(me)).unwrap())
-        {
+        if let Some((p, _)) = camps.iter().min_by(|x, y| x.1.partial_cmp(&y.1).unwrap()) {
             let d = b.dist(*p);
             if d > 10.0 {
                 return Some((
@@ -1029,7 +1032,9 @@ impl Scripted {
                     && e.health < e.max;
                 // creatures that stand on tree tops cannot be reached (or looted)
                 !theirs
-                    && e.level <= b.level + 3
+                    && e.level <= b.level + 2
+                    && !e.elite
+                    && !dangerous(b, e.pos)
                     && b.dist(e.pos) < 140.0
                     && !crate::body::on_canopy(&b.world, e.pos)
             })
@@ -1330,6 +1335,25 @@ impl Scripted {
             why: format!("explore {name}"),
         })
     }
+}
+
+/// Is this place near a camp of creatures well above our level (a zone
+/// for later)? Players see the levels and look for yellow ones: the top of
+/// the zone's band counts (or a named creature's own level).
+pub fn dangerous(b: &crate::body::Body, p: Vec3) -> bool {
+    b.content.areas.iter().any(|ar| {
+        ar.camps.iter().any(|cp| {
+            // camps spawn at the zone's levels; a named elite's own level counts
+            let lvl = match b.content.creature(cp.creature) {
+                Some(c) if cp.rare.is_none() && c.levels[0] == c.levels[1] => {
+                    c.levels[0].max(ar.levels[1])
+                }
+                _ => ar.levels[1],
+            };
+            let hostile = b.content.creature(cp.creature).is_some_and(|c| c.hostile);
+            hostile && lvl > b.level + 1 && b.rel2(cp.at).distance(p) < cp.spread + 22.0
+        })
+    })
 }
 
 /// Does an open quest ask us to talk to this NPC?
