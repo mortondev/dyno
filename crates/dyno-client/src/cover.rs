@@ -1030,13 +1030,20 @@ impl Gpu {
         (self.scratch.len() as u32, tris)
     }
 
+    /// Bytes on the card: the models and the instances (for measurements).
+    pub fn memory(&self) -> u64 {
+        self.models.as_ref().map_or(0, |(v, i)| v.size() + i.size())
+            + self.instances.as_ref().map_or(0, |b| b.size())
+    }
+
     /// Draw the cover. The world's bind group must be set.
-    pub fn draw(&self, rp: &mut wgpu::RenderPass<'_>) {
+    /// Returns the draw calls, instances and triangles (for measurements).
+    pub fn draw(&self, rp: &mut wgpu::RenderPass<'_>) -> (u32, u32, u64) {
         let (Some((verts, indices)), Some(instances)) = (&self.models, &self.instances) else {
-            return;
+            return (0, 0, 0);
         };
         if self.draws.is_empty() {
-            return;
+            return (0, 0, 0);
         }
         rp.set_pipeline(&self.pipe);
         rp.set_vertex_buffer(0, verts.slice(..));
@@ -1046,6 +1053,8 @@ impl Gpu {
             let (first, count, base) = self.ranges[*m as usize];
             rp.draw_indexed(first..first + count, base, *a..*b);
         }
+        let (instances, tris) = self.drawn();
+        (self.draws.len() as u32, instances, tris)
     }
 }
 

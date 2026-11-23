@@ -1,0 +1,20 @@
+{
+ "note": "The fixed scenes of the performance budget (docs/design/performance.md), measured by `dyno bench`. cameras: names in tools/concepts/cameras.json (the gauntlet's gameplay cameras). flight: straight runs between points, metres from the world's hearth (x east, z south), a few metres over the ground. tiers: the player's settings each tier pins (crates/dyno-client/src/settings.rs); default_tier is what a new player gets and what the budgets hold. world: the size and seed of the world `--local` builds.",
+ "world": {"size": [384, 96, 384], "seed": 20261122},
+ "size": [1920, 1080],
+ "frames": 120,
+ "cameras": ["hearthstead_plaza", "logging_camp", "hollow_oak", "windmill_farm", "mirrormere", "miners_rest"],
+ "flight": {
+  "name": "flight",
+  "points": [[0, -20], [-120, -60], [-110, 100], [40, 130], [120, 10], [30, -80]],
+  "speed": 8,
+  "seconds": 60
+ },
+ "default_tier": "high",
+ "tiers": [
+  {"name": "low", "graphics": 0, "ground_cover": 0.5, "leaf_detail": 0.5, "life": 1, "water_quality": 0},
+  {"name": "medium", "graphics": 1, "ground_cover": 0.75, "leaf_detail": 1.0, "life": 2, "water_quality": 1},
+  {"name": "high", "graphics": 2, "ground_cover": 1.0, "leaf_detail": 1.0, "life": 2, "water_quality": 2},
+  {"name": "ultra", "graphics": 3, "ground_cover": 2.0, "leaf_detail": 2.0, "life": 2, "water_quality": 2}
+ ]
+}

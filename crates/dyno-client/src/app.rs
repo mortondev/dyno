@@ -6086,9 +6086,35 @@ pub fn shot_with_ui(
     // the camera: where asked (the server streams the world round it), else
     // the character; DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]" flies it across
     // the map to measure frames while the land streams in
-    let run = shot_run();
+    // a measurement (`dyno bench`): its tier's settings, and maybe a flight
+    let bench = crate::bench::request();
+    if let Some(b) = &bench {
+        gfx.cover.set_quality(b.tier.ground_cover);
+        crate::foliage::set_detail(b.tier.leaf_detail);
+        gfx.water.quality = b.tier.water_quality;
+    }
+    let mut collect = crate::bench::Collector::default();
+    let hearth = p.hearth.unwrap_or_default();
+    let run: Option<(crate::bench::Flight, [f32; 2])> =
+        match bench.as_ref().and_then(|b| b.flight.clone()) {
+            Some(f) => Some((f, [hearth[0] as f32, hearth[2] as f32])),
+            None => shot_run().map(|(from, to, speed)| {
+                let len = (to[0] - from[0]).hypot(to[1] - from[1]).max(1.0);
+                let f = crate::bench::Flight {
+                    name: "run".into(),
+                    points: vec![from, to],
+                    speed,
+                    seconds: len / speed.max(0.01),
+                };
+                (f, [0.0; 2])
+            }),
+        };
     let start_cam = run
-        .map(|r| [r.0[0], p.player.pos.y + 40.0, r.0[1]])
+        .as_ref()
+        .map(|(f, o)| {
+            let at = f.at(0.0, *o).0;
+            [at[0], p.player.pos.y + 40.0, at[1]]
+        })
         .or(pos)
         .unwrap_or(p.player.pos.into());
     if run.is_some() || pos.is_some() {
@@ -6108,6 +6134,7 @@ pub fn shot_with_ui(
     let mut last_view = Instant::now();
     loop {
         let frame_t0 = Instant::now();
+        let frame_sw = crate::bench::Stopwatch::start();
         let mut world_t = Duration::ZERO;
         loop {
             let ev = p.conn.rx.try_recv();
@@ -6269,13 +6296,8 @@ pub fn shot_with_ui(
         world_t += a + b;
         // the camera, flying or still
         let t = started.elapsed().as_secs_f32();
-        let flying = if let Some((from, to, speed)) = run {
-            let len = (to[0] - from[0]).hypot(to[1] - from[1]).max(1.0);
-            let k = (t * speed / len).min(1.0);
-            let (x, z) = (
-                from[0] + (to[0] - from[0]) * k,
-                from[1] + (to[1] - from[1]) * k,
-            );
+        let flying = if let Some((flight, origin)) = &run {
+            let ([x, z], head, over) = flight.at(t, *origin);
             let ground = p.world.surface(x as i32, z as i32);
             let y = if ground > 0 {
                 ground as f32 + 3.0
@@ -6283,7 +6305,7 @@ pub fn shot_with_ui(
                 p.player.pos.y
             };
             p.player.pos = Vec3::new(x, y, z);
-            p.player.yaw = (-(to[0] - from[0])).atan2(-(to[1] - from[1]));
+            p.player.yaw = (-head[0]).atan2(-head[1]);
             p.player.pitch = -0.1;
             if last_view.elapsed() > Duration::from_millis(100) {
                 last_view = Instant::now();
@@ -6291,7 +6313,7 @@ pub fn shot_with_ui(
                     pos: p.player.pos.into(),
                 });
             }
-            k < 1.0
+            !over
         } else {
             false
         };
@@ -6312,14 +6334,44 @@ pub fn shot_with_ui(
             );
             let sky_now = crate::sky::sky_at(p.time, Some(p.player.eye()));
             let out = fctx.run(egui::RawInput::default(), |_| {});
+            // a measured flight draws what play would: creatures and the
+            // ambient life as well as the land
+            let mut boxes = Vec::new();
+            let mut life_ms = 0.0;
+            if let Some(b) = bench.as_ref().filter(|_| flying) {
+                let (eye, dir) = (p.player.eye(), p.player.look_dir());
+                models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
+                let mut book = std::mem::take(&mut p.anims);
+                push_creatures(&mut boxes, &p, &mut book, 1.3);
+                p.anims = book;
+                let t1 = Instant::now();
+                let time = p.time;
+                push_life(
+                    &mut p,
+                    gfx,
+                    &mut boxes,
+                    eye,
+                    dir,
+                    time,
+                    0.016,
+                    crate::life::quality(b.tier.life),
+                    false,
+                );
+                life_ms = t1.elapsed().as_secs_f64() * 1e3;
+            }
+            let before = frame_sw.ms();
             gfx.frame(
                 Some((vp, p.player.eye(), see)),
                 &sky_now,
-                &[],
+                &boxes,
                 &[],
                 &fctx,
                 out,
             );
+            if bench.is_some() && flying {
+                let bytes = gfx.memory().world_vertices;
+                collect.frame(gfx.last, before, life_ms, bytes);
+            }
             if stats_gpu {
                 gfx.wait_idle();
             }
@@ -6331,8 +6383,8 @@ pub fn shot_with_ui(
         let quiet = started.elapsed() > Duration::from_millis(700)
             && last_section.elapsed() > Duration::from_millis(250)
             && p.work.idle();
-        let limit = if run.is_some() {
-            120
+        let limit = if let Some((f, _)) = &run {
+            f.seconds as u64 + 60
         } else if stand {
             40
         } else {
@@ -6604,23 +6656,33 @@ pub fn shot_with_ui(
         );
     }
     let before_creatures = boxes.len();
-    let mut book = std::mem::take(&mut p.anims);
-    push_creatures(&mut boxes, &p, &mut book, 1.3);
-    p.anims = book;
+    // a measurement's picture must come out the same twice: nothing that
+    // moves is in it (creatures, ambient life), and the shaders' clock is held
+    let still = bench.is_some();
+    if still {
+        gfx.clock = Some(0.0);
+    }
+    if !still {
+        let mut book = std::mem::take(&mut p.anims);
+        push_creatures(&mut boxes, &p, &mut book, 1.3);
+        p.anims = book;
+    }
     // ambient life, as play draws it (DYNO_LIFE=0 leaves it out)
-    let life_quality = crate::life::quality(2);
+    let life_quality = crate::life::quality(bench.as_ref().map_or(2, |b| b.tier.life));
     let figures = boxes.len();
-    push_life(
-        &mut p,
-        gfx,
-        &mut boxes,
-        eye,
-        dir,
-        t,
-        0.0,
-        life_quality,
-        true,
-    );
+    if !still {
+        push_life(
+            &mut p,
+            gfx,
+            &mut boxes,
+            eye,
+            dir,
+            t,
+            0.0,
+            life_quality,
+            true,
+        );
+    }
     let (fx, fx_glow) = (gfx.fx.clone(), gfx.fx_glow.clone());
     for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let pose = r.current();
@@ -6770,6 +6832,64 @@ pub fn shot_with_ui(
         let stem = out.with_extension("");
         gfx.screenshot = Some(format!("{}-{i:02}.ppm", stem.display()).into());
         gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
+    }
+    if let Some(b) = &bench {
+        // the scene as play draws it, frame after frame: the figures, the
+        // creatures, the ambient life made anew each frame, the clock running
+        gfx.clock = None;
+        if run.is_none() {
+            let mut boxes = boxes[..before_creatures].to_vec();
+            let mut book = std::mem::take(&mut p.anims);
+            push_creatures(&mut boxes, &p, &mut book, 1.3);
+            p.anims = book;
+            let figures = boxes.len();
+            push_life(
+                &mut p,
+                gfx,
+                &mut boxes,
+                eye,
+                dir,
+                t,
+                0.0,
+                life_quality,
+                true,
+            );
+            gfx.wait_idle();
+            // the first frames warm the card up and are not counted
+            let warm = 10;
+            for i in 0..b.frames + warm {
+                let sw = crate::bench::Stopwatch::start();
+                let o = ctx.run(raw(), |_| {});
+                boxes.truncate(figures);
+                let t1 = Instant::now();
+                push_life(
+                    &mut p,
+                    gfx,
+                    &mut boxes,
+                    eye,
+                    dir,
+                    t,
+                    0.016,
+                    life_quality,
+                    false,
+                );
+                let life_ms = t1.elapsed().as_secs_f64() * 1e3;
+                let before = sw.ms();
+                gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
+                gfx.wait_idle();
+                if i >= warm {
+                    collect.frame(gfx.last, before, life_ms, 0);
+                }
+            }
+        }
+        let (vo, vt) = gfx.world_vertices();
+        crate::bench::put_result(collect.finish(
+            &b.name,
+            &b.tier.name,
+            if run.is_some() { "flight" } else { "still" },
+            vo + vt,
+            gfx.memory(),
+        ));
     }
     if stats {
         // frame time on the headless path: the world, the figures and the

@@ -819,6 +819,7 @@ dependencies = [
  "egui-winit",
  "epaint_default_fonts",
  "glam",
+ "libc",
  "png",
  "pollster",
  "rodio",

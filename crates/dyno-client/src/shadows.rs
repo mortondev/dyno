@@ -206,13 +206,14 @@ impl Shadows {
     }
 
     /// Draw the cascades. `draw` is called once for each with its render
-    /// pass, to draw whatever casts into it.
+    /// pass, to draw whatever casts into it; `done` after each pass ends.
     pub fn render(
         &self,
         queue: &wgpu::Queue,
         enc: &mut wgpu::CommandEncoder,
         cascades: &[Cascade; CASCADES],
         mut draw: impl FnMut(&mut wgpu::RenderPass, &Cascade),
+        mut done: impl FnMut(&mut wgpu::CommandEncoder, usize),
     ) {
         for (i, c) in cascades.iter().enumerate() {
             queue.write_buffer(
@@ -237,6 +238,8 @@ impl Shadows {
             rp.set_pipeline(&self.pipe);
             rp.set_bind_group(0, &self.binds[i], &[]);
             draw(&mut rp, c);
+            drop(rp);
+            done(enc, i);
         }
     }
 }

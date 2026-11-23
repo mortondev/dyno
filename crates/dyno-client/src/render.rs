@@ -502,6 +502,13 @@ pub fn section_ready(world: &World, s: [i32; 3]) -> bool {
     true
 }
 
+static ADAPTER: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+/// The graphics adapter of the renderer made last (for reports).
+pub fn last_adapter() -> String {
+    ADAPTER.lock().unwrap().clone()
+}
+
 static MESH_NANOS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 static MESH_COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 use std::sync::atomic::Ordering;
@@ -538,8 +545,14 @@ pub(crate) fn mesh_many_at(
         .min(16);
     let one = |s: &([i32; 3], Option<bool>, Lod)| {
         let t = std::time::Instant::now();
+        let cpu = crate::bench::thread_cpu_nanos();
         let geo = terrain_mesh::mesh_at(world, light, s.0, focus, s.1, s.2);
-        MESH_NANOS.fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+        let wall = t.elapsed().as_nanos() as u64;
+        let cpu = cpu
+            .zip(crate::bench::thread_cpu_nanos())
+            .map_or(0, |(a, b)| b.saturating_sub(a));
+        crate::bench::mesh_sample(wall, cpu);
+        MESH_NANOS.fetch_add(wall, Ordering::Relaxed);
         MESH_COUNT.fetch_add(1, Ordering::Relaxed);
         geo
     };
@@ -1119,6 +1132,12 @@ pub struct Gfx {
     /// that casts no shadow, and halos added over the picture
     pub fx: Vec<Vertex>,
     pub fx_glow: Vec<Vertex>,
+    /// what the last frame drew and cost (bench.rs)
+    pub last: crate::bench::FrameStats,
+    timer: Option<crate::bench::GpuTimer>,
+    /// the shaders' clock held at this many seconds (pictures that must
+    /// come out the same twice); None: it runs
+    pub clock: Option<f32>,
 }
 
 use egui_winit::winit;
@@ -1184,13 +1203,22 @@ impl Gfx {
         .map_err(|e| format!("No graphics adapter found: {e}"))?;
         let info = adapter.get_info();
         let adapter_info = format!("{} ({:?})", info.name, info.backend);
+        *ADAPTER.lock().unwrap() = adapter_info.clone();
         let limits = if info.backend == wgpu::Backend::Gl {
             wgpu::Limits::downlevel_webgl2_defaults()
         } else {
             wgpu::Limits::default()
         };
+        // measurements stamp the GPU's clock between passes, where it can
+        let timing = crate::bench::timing_features();
+        let required_features = if crate::bench::timing() && adapter.features().contains(timing) {
+            timing
+        } else {
+            wgpu::Features::empty()
+        };
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: Some("dyno"),
+            required_features,
             required_limits: wgpu::Limits {
                 max_texture_dimension_2d: 8192,
                 ..limits
@@ -1522,7 +1550,11 @@ impl Gfx {
             },
             &depth,
         );
+        let timer = crate::bench::GpuTimer::new(&device, &queue);
         Ok(Gfx {
+            timer,
+            last: Default::default(),
+            clock: None,
             water,
             window,
             surface,
@@ -1842,6 +1874,45 @@ impl Gfx {
         let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
     }
 
+    /// What the renderer holds on the card, in bytes (for measurements).
+    pub fn memory(&self) -> crate::bench::Memory {
+        let tex = textures();
+        let tile = crate::textures::TILE as u32;
+        let size = |b: &Option<wgpu::Buffer>| b.as_ref().map_or(0, |b| b.size());
+        let bytes = crate::bench::texture_bytes;
+        crate::bench::Memory {
+            world_vertices: self
+                .sections
+                .values()
+                .map(|s| size(&s.buf) + s.ground.as_ref().map_or(0, |g| g.0.size()))
+                .sum(),
+            far_vertices: self.far.values().map(|(b, _)| b.size()).sum(),
+            cover: self.cover.memory(),
+            index: self.quad_index.size(),
+            textures: bytes(
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+                tile,
+                tile,
+                tex.layers.len().max(1) as u32,
+                tile.trailing_zeros() + 1,
+            ),
+            shadow_maps: bytes(
+                DEPTH,
+                self.shadows.size,
+                self.shadows.size,
+                crate::shadows::CASCADES as u32,
+                1,
+            ),
+            targets: bytes(DEPTH, self.config.width, self.config.height, 1, 1)
+                + self.post.target_bytes()
+                + self.water.target_bytes()
+                + self
+                    .offscreen
+                    .as_ref()
+                    .map_or(0, |t| bytes(t.format(), t.width(), t.height(), 1, 1)),
+        }
+    }
+
     /// Opaque and translucent vertices held by the world meshes (for stats).
     pub fn world_vertices(&self) -> (u64, u64) {
         self.sections.values().fold((0, 0), |a, s| {
@@ -1941,6 +2012,9 @@ impl Gfx {
         egui_ctx: &egui::Context,
         egui_out: egui::FullOutput,
     ) {
+        use crate::bench as bn;
+        let frame_start = bn::Stopwatch::start();
+        let mut st = bn::FrameStats::default();
         self.refresh_textures();
         let settings = crate::look::settings();
         let look = settings.uniform();
@@ -1982,7 +2056,8 @@ impl Gfx {
                     cam.x,
                     cam.y,
                     cam.z,
-                    self.started.elapsed().as_secs_f32() % 100_000.0,
+                    self.clock
+                        .unwrap_or_else(|| self.started.elapsed().as_secs_f32() % 100_000.0),
                 ],
                 fog: [fog[0], fog[1], fog[2], dist],
                 sky_top: [top[0], top[1], top[2], sky.cover],
@@ -2017,12 +2092,21 @@ impl Gfx {
         let mut enc = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+        let mut timer = self.timer.take();
+        if let Some(t) = &mut timer {
+            t.begin(&mut enc);
+        }
         if let Some(cascades) = &cascades
             && sky.env.shadow > 0.0
         {
             let r = SECTION as f32 * 0.87;
-            self.shadows
-                .render(&self.queue, &mut enc, cascades, |rp, cascade| {
+            let mut pass = bn::SHADOW;
+            let (st, mut timer) = (&mut st, timer.as_mut());
+            self.shadows.render(
+                &self.queue,
+                &mut enc,
+                cascades,
+                |rp, cascade| {
                     rp.set_index_buffer(self.quad_index.slice(..), wgpu::IndexFormat::Uint32);
                     for (at, s) in &self.sections {
                         let c = Vec3::new(
@@ -2038,17 +2122,27 @@ impl Gfx {
                         {
                             rp.set_vertex_buffer(0, b.slice(..));
                             rp.draw(0..s.opaque, 0..1);
+                            st.draw(pass, s.opaque as u64 / 3);
                         }
                         if let Some((b, q)) = &s.ground {
                             rp.set_vertex_buffer(0, b.slice(..));
                             rp.draw_indexed(0..*q * 6, 0, 0..1);
+                            st.draw(pass, *q as u64 * 2);
                         }
                     }
                     if let Some((b, n)) = &box_buf {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(0..*n, 0..1);
+                        st.draw(pass, *n as u64 / 3);
                     }
-                });
+                    pass += 1;
+                },
+                |enc, i| {
+                    if let Some(t) = timer.as_mut() {
+                        t.end(enc, bn::SHADOW + i);
+                    }
+                },
+            );
         }
         // The world is drawn into the post chain's picture (brighter than
         // white allowed), in two passes: the solid world, whose creases the
@@ -2063,6 +2157,8 @@ impl Gfx {
                 })
                 .map(|(_, m)| m)
                 .collect();
+            st.sections = self.sections.len() as u32;
+            st.sections_shown = shown.len() as u32;
             let color = |load| {
                 Some(wgpu::RenderPassColorAttachment {
                     view: &self.post.hdr,
@@ -2106,10 +2202,12 @@ impl Gfx {
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(0..s.opaque, 0..1);
+                        st.draw(bn::WORLD, s.opaque as u64 / 3);
                     }
                     if let Some((b, q)) = &s.ground {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw_indexed(0..*q * 6, 0, 0..1);
+                        st.draw(bn::WORLD, *q as u64 * 2);
                     }
                 }
                 // the far view, round and beyond the near
@@ -2117,20 +2215,36 @@ impl Gfx {
                     if self.far_visible(*at, vp, dist) {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(0..*n, 0..1);
+                        st.draw(bn::WORLD, *n as u64 / 3);
                     }
                 }
-                self.cover.draw(&mut rp);
+                let (draws, instances, tris) = self.cover.draw(&mut rp);
+                st.draws[bn::WORLD] += draws;
+                st.triangles[bn::WORLD] += tris;
+                st.cover_triangles = tris;
+                st.cover_instances = instances;
                 rp.set_pipeline(&self.opaque_pipe);
                 if let Some((b, n)) = &box_buf {
                     rp.set_vertex_buffer(0, b.slice(..));
                     rp.draw(0..*n, 0..1);
+                    st.draw(bn::WORLD, *n as u64 / 3);
                 }
                 if let Some((b, n)) = &fx_buf {
                     rp.set_vertex_buffer(0, b.slice(..));
                     rp.draw(0..*n, 0..1);
+                    st.draw(bn::WORLD, *n as u64 / 3);
                 }
             }
-            self.post.occlude(&mut enc);
+            let mut stamp = |enc: &mut wgpu::CommandEncoder, pass: usize| {
+                if let Some(t) = &mut timer {
+                    t.end(enc, pass);
+                }
+            };
+            stamp(&mut enc, bn::WORLD);
+            let passes = self.post.occlude(&mut enc);
+            st.draws[bn::OCCLUSION] += passes;
+            st.triangles[bn::OCCLUSION] += passes as u64;
+            stamp(&mut enc, bn::OCCLUSION);
             // the sky, where nothing stands in front
             {
                 let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -2143,7 +2257,9 @@ impl Gfx {
                 rp.set_bind_group(0, &self.bind, &[]);
                 rp.set_pipeline(&self.sky_pipe);
                 rp.draw(0..3, 0..1);
+                st.draw(bn::SKY, 1);
             }
+            stamp(&mut enc, bn::SKY);
             // the water, over the solid world and the sky (it reads a copy
             // of that picture and its depth); it lies with the glass in the
             // translucent part of each mesh
@@ -2163,10 +2279,12 @@ impl Gfx {
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(s.opaque..s.opaque + s.trans, 0..1);
+                        st.draw(bn::WATER, s.trans as u64 / 3);
                     }
                 }
                 w.finish(&mut rp);
             }
+            stamp(&mut enc, bn::WATER);
             // glass, halos and lines, over both
             {
                 let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -2184,6 +2302,7 @@ impl Gfx {
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(s.opaque..s.opaque + s.trans, 0..1);
+                        st.draw(bn::TRANSLUCENT, s.trans as u64 / 3);
                     }
                 }
                 rp.set_pipeline(&self.glow_pipe);
@@ -2194,20 +2313,27 @@ impl Gfx {
                         let start = s.opaque + s.trans;
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(start..start + s.glow, 0..1);
+                        st.draw(bn::TRANSLUCENT, s.glow as u64 / 3);
                     }
                 }
                 if let Some((b, n)) = &fx_glow_buf {
                     rp.set_vertex_buffer(0, b.slice(..));
                     rp.draw(0..*n, 0..1);
+                    st.draw(bn::TRANSLUCENT, *n as u64 / 3);
                 }
                 if let Some((b, n)) = &line_buf {
                     rp.set_pipeline(&self.line_pipe);
                     rp.set_vertex_buffer(0, b.slice(..));
                     rp.draw(0..*n, 0..1);
+                    st.draw(bn::TRANSLUCENT, 0);
                 }
             }
+            stamp(&mut enc, bn::TRANSLUCENT);
             // bloom and the grade, into the screen
-            self.post.finish(&mut enc, &view);
+            let passes = self.post.finish(&mut enc, &view);
+            st.draws[bn::POST] += passes;
+            st.triangles[bn::POST] += passes as u64;
+            stamp(&mut enc, bn::POST);
         } else {
             // no world: a plain backdrop for the interface
             enc.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -2267,6 +2393,9 @@ impl Gfx {
         for id in &egui_out.textures_delta.free {
             self.egui.free_texture(id);
         }
+        if let Some(t) = &mut timer {
+            t.end(&mut enc, bn::INTERFACE);
+        }
         // optional screenshot: copy the frame into a buffer before presenting
         let shot = match self.screenshot.take() {
             Some(path) if self.config.usage.contains(wgpu::TextureUsages::COPY_SRC) => {
@@ -2303,8 +2432,17 @@ impl Gfx {
             }
             _ => None,
         };
+        if let Some(t) = &mut timer {
+            t.resolve(&mut enc);
+        }
         self.queue
             .submit(extra.into_iter().chain(std::iter::once(enc.finish())));
+        (st.cpu_ms, st.cpu_own_ms) = frame_start.ms();
+        if let Some(t) = &mut timer {
+            t.read(&self.device, &mut st);
+        }
+        self.timer = timer;
+        self.last = st;
         if let Some((path, buf, padded, w, h)) = shot {
             buf.slice(..).map_async(wgpu::MapMode::Read, |_| {});
             let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
@@ -2313,7 +2451,13 @@ impl Gfx {
                 self.config.format,
                 wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
             );
-            let mut out = format!("P6\n{w} {h}\n255\n").into_bytes();
+            // a PNG when the name asks for one, else a PPM
+            let png = path.extension().is_some_and(|e| e == "png");
+            let mut out = if png {
+                Vec::new()
+            } else {
+                format!("P6\n{w} {h}\n255\n").into_bytes()
+            };
             for y in 0..h {
                 let row = &data[(y * padded) as usize..(y * padded + w * 4) as usize];
                 for px in row.as_chunks::<4>().0 {
@@ -2326,6 +2470,19 @@ impl Gfx {
             }
             drop(data);
             buf.unmap();
+            if png {
+                let mut file = Vec::new();
+                let mut e = png::Encoder::new(&mut file, w, h);
+                e.set_color(png::ColorType::Rgb);
+                e.set_depth(png::BitDepth::Eight);
+                let done = e
+                    .write_header()
+                    .and_then(|mut w| w.write_image_data(&out).and_then(|_| w.finish()));
+                if let Err(e) = done {
+                    eprintln!("screenshot failed: {e}");
+                }
+                out = file;
+            }
             match std::fs::write(&path, out) {
                 Ok(()) => eprintln!("screenshot saved: {}", path.display()),
                 Err(e) => eprintln!("screenshot failed: {e}"),
