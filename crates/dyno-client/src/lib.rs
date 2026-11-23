@@ -20,6 +20,7 @@ pub mod net;
 pub mod post;
 pub mod render;
 pub mod rpg_ui;
+pub mod scout;
 pub mod screens;
 pub mod settings;
 pub mod shadows;

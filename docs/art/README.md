@@ -44,7 +44,9 @@ plan" page (also `.tracker/visual-plan.html`).
 ## Using the concepts for new content
 
 1. Render reference shots with `tools/concepts/shots.py` (a running server and
-   `dyno shot`); edit its list of cameras.
+   `dyno shot --stand`). The cameras are data in `tools/concepts/cameras.json`,
+   chosen by `dyno scout` from the locations in `tools/concepts/landmarks.json`:
+   add or change a location there and run the scout again.
 2. Generate concepts with `tools/concepts/generate.sh` (Codex CLI image
    generation; the art direction is `tools/concepts/style.txt`). The prompt
    must come before `-i` (that flag takes several files).
