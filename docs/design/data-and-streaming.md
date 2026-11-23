@@ -227,7 +227,7 @@ when one of them is replaced.
     A particle is a pure function of its emitter, its number and the
     clock: nothing is stored, any moment can be drawn.
   - `emitters`: block rules (`block`, `above`, `below`, `alone`, `near`,
-    `chance`, areas): a brazier, the top of a lone stone column by a roof
+    `chance`, and a `where`: areas, ground, cover, time of day): a brazier, the top of a lone stone column by a roof
     (a chimney), birch leaves over open air in the autumn woods.
   - `ambient`: effects scattered over the land by area, ground, cover and
     time (fireflies, wisps, pollen, dust).

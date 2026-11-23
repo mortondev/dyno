@@ -109,7 +109,8 @@ pub struct BlockRule {
     pub offset: [f32; 3],
     /// the share of matching blocks that get one
     pub chance: f32,
-    #[serde(flatten)]
+    /// where it may be: areas, ground, time of day
+    #[serde(rename = "where")]
     pub place: Where,
 }
 
@@ -142,7 +143,8 @@ pub struct Scatter {
     pub chance: f32,
     /// metres above the ground: lowest and highest
     pub height: [f32; 2],
-    #[serde(flatten)]
+    /// where it may be: areas, ground, time of day
+    #[serde(rename = "where")]
     pub place: Where,
 }
 

@@ -95,7 +95,8 @@ pub struct Spawn {
     pub group: [u8; 2],
     /// how far apart a group stands, metres
     pub spread: f32,
-    #[serde(flatten)]
+    /// where it may be: areas, ground, time of day
+    #[serde(rename = "where")]
     pub place: Where,
 }
 
