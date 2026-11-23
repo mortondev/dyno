@@ -830,6 +830,26 @@ pub fn weigh<'a>(
     (n, sum)
 }
 
+/// The instances of one mesh in one part of the land round the camera:
+/// near it (always drawn), or in one of `SECTORS` directions from it.
+struct Batch {
+    /// its place in `ranges`
+    mesh: u32,
+    /// first instance, one past the last
+    first: u32,
+    end: u32,
+    /// a ball round all of them, their height and sway included
+    centre: Vec3,
+    radius: f32,
+}
+
+/// Directions round the camera the instances are sorted into.
+const SECTORS: u32 = 8;
+/// Instances this near the camera (metres) are drawn whichever way it looks.
+const ALWAYS: f32 = 8.0;
+/// A plant reaches at most this far from its root (metres), sway included.
+const PLANT_REACH: f32 = 6.0;
+
 /// The models on the graphics card and the instances near the camera.
 pub struct Gpu {
     pipe: wgpu::RenderPipeline,
@@ -841,8 +861,9 @@ pub struct Gpu {
     ranges: Vec<(u32, u32, i32)>,
     instances: Option<wgpu::Buffer>,
     capacity: u64,
-    /// per mesh drawn: its place in `ranges`, first instance, one past the last
-    draws: Vec<(u32, u32, u32)>,
+    /// what is drawn: the instances of one mesh in one direction from where
+    /// the camera was, so that those out of view are left out
+    draws: Vec<Batch>,
     /// where the camera was when the instances were made
     at: Option<Vec3>,
     /// 0: none; 1: the pack's density and range
@@ -1008,7 +1029,9 @@ impl Gpu {
             return;
         }
         // count the instances of each model, then lay them out model by model
-        let mut starts = vec![0u32; self.ranges.len() + 1];
+        // (a mesh's batches: near, then each direction)
+        let per = SECTORS as usize + 1;
+        let mut starts = vec![0u32; self.ranges.len() * per + 1];
         let mut picked: Vec<(u32, Instance)> = Vec::new();
         pick(
             &cover,
@@ -1017,6 +1040,14 @@ impl Gpu {
             cam,
             sections,
             |mesh, s, reach| {
+                let (dx, dz) = (s.pos[0] - cam.x, s.pos[2] - cam.z);
+                let part = if dx * dx + dz * dz < ALWAYS * ALWAYS {
+                    0
+                } else {
+                    let turn = dz.atan2(dx) / std::f32::consts::TAU + 0.5;
+                    1 + ((turn * SECTORS as f32) as u32).min(SECTORS - 1)
+                };
+                let mesh = mesh * per as u32 + part;
                 starts[mesh as usize + 1] += 1;
                 picked.push((
                     mesh,
@@ -1039,10 +1070,23 @@ impl Gpu {
             self.scratch[*slot as usize] = inst;
             *slot += 1;
         }
-        for m in 0..self.ranges.len() {
-            if starts[m + 1] > starts[m] {
-                self.draws.push((m as u32, starts[m], starts[m + 1]));
+        for m in 0..self.ranges.len() * per {
+            let (first, end) = (starts[m], starts[m + 1]);
+            if end == first {
+                continue;
             }
+            let (mut lo, mut hi) = (Vec3::MAX, Vec3::MIN);
+            for i in &self.scratch[first as usize..end as usize] {
+                let p = Vec3::new(i.root[0], i.root[1], i.root[2]);
+                (lo, hi) = (lo.min(p), hi.max(p));
+            }
+            self.draws.push(Batch {
+                mesh: (m / per) as u32,
+                first,
+                end,
+                centre: (lo + hi) * 0.5,
+                radius: (hi - lo).length() * 0.5 + PLANT_REACH,
+            });
         }
         if self.scratch.is_empty() {
             return;
@@ -1061,7 +1105,7 @@ impl Gpu {
             queue.write_buffer(b, 0, bytes);
         }
         if std::env::var_os("DYNO_SHOT_STATS").is_some() {
-            let (n, tris) = self.drawn();
+            let (n, tris) = self.made();
             eprintln!(
                 "cover: {n} instances, {tris} triangles, made in {:.2} ms",
                 t0.elapsed().as_secs_f64() * 1e3
@@ -1069,11 +1113,12 @@ impl Gpu {
         }
     }
 
-    /// Instances and triangles drawn a frame (for measurements).
-    pub fn drawn(&self) -> (u32, u64) {
+    /// Instances made for where the camera is, and their triangles: all
+    /// round it, in view or not (for measurements).
+    pub fn made(&self) -> (u32, u64) {
         let mut tris = 0u64;
-        for (m, a, b) in &self.draws {
-            tris += (self.ranges[*m as usize].1 / 3) as u64 * (*b - *a) as u64;
+        for b in &self.draws {
+            tris += (self.ranges[b.mesh as usize].1 / 3) as u64 * (b.end - b.first) as u64;
         }
         (self.scratch.len() as u32, tris)
     }
@@ -1086,7 +1131,9 @@ impl Gpu {
 
     /// Draw the cover. The world's bind group must be set.
     /// Returns the draw calls, instances and triangles (for measurements).
-    pub fn draw(&self, rp: &mut wgpu::RenderPass<'_>) -> (u32, u32, u64) {
+    /// `planes`: the sides of the view (`render::view_planes`); what lies
+    /// wholly outside one is not drawn.
+    pub fn draw(&self, rp: &mut wgpu::RenderPass<'_>, planes: &[glam::Vec4]) -> (u32, u32, u64) {
         let (Some((verts, indices)), Some(instances)) = (&self.models, &self.instances) else {
             return (0, 0, 0);
         };
@@ -1097,12 +1144,21 @@ impl Gpu {
         rp.set_vertex_buffer(0, verts.slice(..));
         rp.set_vertex_buffer(1, instances.slice(..));
         rp.set_index_buffer(indices.slice(..), wgpu::IndexFormat::Uint32);
-        for (m, a, b) in &self.draws {
-            let (first, count, base) = self.ranges[*m as usize];
-            rp.draw_indexed(first..first + count, base, *a..*b);
+        let (mut draws, mut instances, mut tris) = (0u32, 0u32, 0u64);
+        for b in &self.draws {
+            if planes
+                .iter()
+                .any(|p| p.truncate().dot(b.centre) + p.w < -b.radius)
+            {
+                continue;
+            }
+            let (first, count, base) = self.ranges[b.mesh as usize];
+            rp.draw_indexed(first..first + count, base, b.first..b.end);
+            draws += 1;
+            instances += b.end - b.first;
+            tris += (count / 3) as u64 * (b.end - b.first) as u64;
         }
-        let (instances, tris) = self.drawn();
-        (self.draws.len() as u32, instances, tris)
+        (draws, instances, tris)
     }
 }
 

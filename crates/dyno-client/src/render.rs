@@ -1266,6 +1266,23 @@ use egui_winit::winit;
 
 const DEPTH: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
+/// The sides of a view and its near plane, facing inward: a point is in
+/// view when `plane.xyz · point + plane.w` is positive for each.
+pub fn view_planes(vp: Mat4) -> [glam::Vec4; 5] {
+    let (x, y, z, w) = (vp.row(0), vp.row(1), vp.row(2), vp.row(3));
+    [w + x, w - x, w + y, w - y, z].map(|p| p / p.truncate().length().max(1e-9))
+}
+
+/// Whether something within `r` of `c` can cast a shadow into a view with
+/// these sides, lit from `to_light`: not when it lies outside one of them
+/// and its shadow, falling away from the light, only goes further out.
+pub fn casts_into(planes: &[glam::Vec4], c: Vec3, r: f32, to_light: Vec3) -> bool {
+    planes.iter().all(|p| {
+        let n = p.truncate();
+        n.dot(c) + p.w >= -r || n.dot(to_light) < 0.0
+    })
+}
+
 /// Upload what is made anew every frame (figures, effects, lines) into a
 /// buffer kept from frame to frame (`kept`), made again only to grow: a
 /// new buffer of some megabytes a frame costs more than filling it.
@@ -2494,6 +2511,7 @@ impl Gfx {
             && sky.env.shadow > 0.0
         {
             let r = SECTION as f32 * 0.87;
+            let planes = view_proj.map(|(vp, _, _)| view_planes(vp));
             let mut pass = bn::SHADOW;
             let (st, mut timer) = (&mut st, timer.as_mut());
             self.shadows.render(
@@ -2511,6 +2529,10 @@ impl Gfx {
                             (at[2] * SECTION + SECTION / 2) as f32,
                         );
                         if s.solid.is_none() || !cascade.reaches(c, r) {
+                            continue;
+                        }
+                        // its shadow would fall wholly out of view
+                        if planes.is_some_and(|p| !casts_into(&p, c, r, cascade.to_light)) {
                             continue;
                         }
                         s.draw_solid(rp, st, pass);
@@ -2535,16 +2557,29 @@ impl Gfx {
         // The world is drawn into the post chain's picture (brighter than
         // white allowed), in two passes: the solid world, whose creases the
         // occlusion pass then darkens; then the sky behind it, water, halos.
-        if let Some((vp, _, dist)) = view_proj {
+        if let Some((vp, cam, dist)) = view_proj {
             // the resident sections in view, culled once for all three passes
-            let shown: Vec<&SectionMesh> = self
+            // nearest first, so what is hidden is not shaded (and a picture
+            // comes out the same every time); the translucent, drawn over
+            // one another, farthest first
+            let mut shown: Vec<(f32, &SectionMesh)> = self
                 .sections
                 .iter()
                 .filter(|(at, m)| {
                     (m.buf.is_some() || m.solid.is_some()) && self.section_visible(**at, vp, dist)
                 })
-                .map(|(_, m)| m)
+                .map(|(at, m)| {
+                    let c = Vec3::new(
+                        (at[0] * SECTION + SECTION / 2) as f32,
+                        (at[1] * SECTION + SECTION / 2) as f32,
+                        (at[2] * SECTION + SECTION / 2) as f32,
+                    );
+                    (c.distance_squared(cam), m)
+                })
                 .collect();
+            shown.sort_unstable_by(|a, b| a.0.total_cmp(&b.0));
+            let shown: Vec<&SectionMesh> = shown.into_iter().map(|(_, m)| m).collect();
+            let planes = view_planes(vp);
             st.sections = self.sections.len() as u32;
             st.sections_shown = shown.len() as u32;
             let color = |load| {
@@ -2597,7 +2632,7 @@ impl Gfx {
                         st.draw(bn::WORLD, *n as u64 / 3);
                     }
                 }
-                let (draws, instances, tris) = self.cover.draw(&mut rp);
+                let (draws, instances, tris) = self.cover.draw(&mut rp, &planes);
                 st.draws[bn::WORLD] += draws;
                 st.triangles[bn::WORLD] += tris;
                 st.cover_triangles = tris;
@@ -2677,7 +2712,7 @@ impl Gfx {
                 });
                 rp.set_bind_group(0, &self.bind, &[]);
                 rp.set_pipeline(&self.trans_pipe);
-                for s in &shown {
+                for s in shown.iter().rev() {
                     if let Some(b) = &s.buf
                         && s.trans > 0
                     {

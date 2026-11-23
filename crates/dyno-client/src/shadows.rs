@@ -39,6 +39,8 @@ pub struct Cascade {
     pub vp: Mat4,
     /// world size of one texel
     pub texel: f32,
+    /// the direction towards the light the map is drawn from
+    pub to_light: Vec3,
     /// the light's view, its centre there and its half width: for culling
     view: Mat4,
     centre: Vec3,
@@ -81,6 +83,7 @@ pub fn cascades(cam: Vec3, forward: Vec3, light_dir: [f32; 3], size: u32) -> [Ca
         );
         Cascade {
             vp: proj * view,
+            to_light: dir,
             texel,
             view,
             centre: c,
