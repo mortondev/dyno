@@ -2141,6 +2141,7 @@ impl App {
                                 p.dig = None;
                                 let _ = p.conn.tx.send(ClientMsg::Dig { pos });
                                 p.world.set(pos[0], pos[1], pos[2], w::AIR);
+                                p.minimap.block_changed(pos);
                                 p.light.changed(&p.world, pos);
                                 gfx.block_changed(&p.world, &p.light, pos, 15);
                                 spawn_particles(
@@ -3105,6 +3106,7 @@ impl App {
                 let pos = tb;
                 let old = p.world.get(pos[0], pos[1], pos[2]);
                 p.world.set(pos[0], pos[1], pos[2], w::AIR);
+                p.minimap.block_changed(pos);
                 p.light.changed(&p.world, pos);
                 gfx.block_changed(&p.world, &p.light, pos, 15);
                 spawn_particles(
@@ -3158,6 +3160,7 @@ impl App {
                     && (!w::is_solid(block) || !p.player.overlaps_block(pos))
                 {
                     p.world.set(pos[0], pos[1], pos[2], block);
+                    p.minimap.block_changed(pos);
                     p.light.changed(&p.world, pos);
                     gfx.block_changed(&p.world, &p.light, pos, 15);
                     self.audio.play(Sfx::Place(material_of(block)), 0.9);
