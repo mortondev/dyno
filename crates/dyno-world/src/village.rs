@@ -456,9 +456,8 @@ impl Town<'_> {
                 if r2 > 45 {
                     continue;
                 }
-                let b = if r2 > 36 {
-                    COBBLE
-                } else if hash(x, z, 17).is_multiple_of(11) {
+                // a cobbled rim, flagstones with a scatter of cobbles inside
+                let b = if r2 > 36 || hash(x, z, 17).is_multiple_of(11) {
                     COBBLE
                 } else {
                     FLAGSTONES

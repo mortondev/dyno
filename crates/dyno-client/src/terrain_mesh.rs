@@ -987,7 +987,14 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                             };
                             [0.55, 0.7, 0.85, 1.0][ao as usize]
                         };
-                        corners[i] = (p, shade_ao, bl, sl, ku * 2.0 * su as f32, kv * 2.0 * sv as f32);
+                        corners[i] = (
+                            p,
+                            shade_ao,
+                            bl,
+                            sl,
+                            ku * 2.0 * su as f32,
+                            kv * 2.0 * sv as f32,
+                        );
                     }
                     let nf = [n[0] as f32, n[1] as f32, n[2] as f32];
                     // textured: the texture carries the colour
@@ -1017,14 +1024,17 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                             [tile((su + 1.0) * 0.5), tile((sv + 1.0) * 0.5)]
                         }
                     };
-                    let vert = |p: [f32; 3], nrm: [f32; 3], l: f32, bl: f32, sl: f32, t: [f32; 2]| Vertex {
-                        pos: p,
-                        normal: nrm,
-                        color: [col, col, col, l],
-                        light: bl,
-                        sky: sl,
-                        tex: [t[0], t[1], layer[2], layer[3]],
-                    };
+                    let vert =
+                        |p: [f32; 3], nrm: [f32; 3], l: f32, bl: f32, sl: f32, t: [f32; 2]| {
+                            Vertex {
+                                pos: p,
+                                normal: nrm,
+                                color: [col, col, col, l],
+                                light: bl,
+                                sky: sl,
+                                tex: [t[0], t[1], layer[2], layer[3]],
+                            }
+                        };
                     for i in order {
                         let (p, l, bl, sl, au, av) = corners[i];
                         out.push(vert(p, nf, l, bl, sl, uv(au, av)));
@@ -1039,7 +1049,9 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                             ]
                         };
                         // strips along the four edges: (corner, corner, edge direction)
-                        for (i, j, eu_side) in [(0, 1, false), (1, 2, true), (2, 3, false), (3, 0, true)] {
+                        for (i, j, eu_side) in
+                            [(0, 1, false), (1, 2, true), (2, 3, false), (3, 0, true)]
+                        {
                             let (su, sv) = QUAD[i];
                             let e = if eu_side {
                                 [su * u[0], su * u[1], su * u[2]]
@@ -1049,9 +1061,13 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                             if !convex(e) || face_index(e) < fi {
                                 continue;
                             }
-                            let nrm = Vec3::new((n[0] + e[0]) as f32, (n[1] + e[1]) as f32, (n[2] + e[2]) as f32)
-                                .normalize()
-                                .to_array();
+                            let nrm = Vec3::new(
+                                (n[0] + e[0]) as f32,
+                                (n[1] + e[1]) as f32,
+                                (n[2] + e[2]) as f32,
+                            )
+                            .normalize()
+                            .to_array();
                             let (pi, li, bli, sli, ui, vi) = corners[i];
                             let (pj, lj, blj, slj, uj, vj) = corners[j];
                             // texture runs on over the edge
@@ -1074,7 +1090,10 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                             out.extend([q[0], q[1], q[2], q[0], q[2], q[3]]);
                             // where the chamfer stops against a solid block that
                             // does not carry it on, close the notch it leaves
-                            for (k, p, l, bl, sl, t) in [(i, pi, li, bli, sli, uv(ui, vi)), (j, pj, lj, blj, slj, uv(uj, vj))] {
+                            for (k, p, l, bl, sl, t) in [
+                                (i, pi, li, bli, sli, uv(ui, vi)),
+                                (j, pj, lj, blj, slj, uv(uj, vj)),
+                            ] {
                                 let (su, sv) = QUAD[k];
                                 let end = if eu_side {
                                     [sv * v[0], sv * v[1], sv * v[2]]
@@ -1108,7 +1127,11 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                         for (i, (su, sv)) in QUAD.into_iter().enumerate() {
                             let eu = [su * u[0], su * u[1], su * u[2]];
                             let ev = [sv * v[0], sv * v[1], sv * v[2]];
-                            if !convex(eu) || !convex(ev) || face_index(eu) < fi || face_index(ev) < fi {
+                            if !convex(eu)
+                                || !convex(ev)
+                                || face_index(eu) < fi
+                                || face_index(ev) < fi
+                            {
                                 continue;
                             }
                             let nrm = Vec3::new(
@@ -1302,8 +1325,7 @@ impl Ground {
         let id = world.get(b[0], b[1], b[2]);
         let top = lut[id as usize];
         let above = lut[world.get(b[0], b[1] + 1, b[2]) as usize];
-        let out = if (top & F_TERRAIN == 0 && !is_paving(id))
-            || above & (F_TERRAIN | F_OPAQUE) != 0
+        let out = if (top & F_TERRAIN == 0 && !is_paving(id)) || above & (F_TERRAIN | F_OPAQUE) != 0
         {
             None
         } else {
@@ -1667,7 +1689,10 @@ mod tests {
                 }
             }
         }
-        assert!(compared > 10_000 && detail > 200, "{compared} cells, {detail} detail");
+        assert!(
+            compared > 10_000 && detail > 200,
+            "{compared} cells, {detail} detail"
+        );
     }
 
     #[test]

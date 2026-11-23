@@ -187,10 +187,8 @@ fn shape(g: &Grid, c: usize) -> Shape {
         let wood_x = wood(0) || wood(1);
         let wood_z = wood(2) || wood(3);
         let wall_v = wallish(id(-(DY as isize))) || wallish(id(DY as isize));
-        let corner = wood_x
-            && wood_z
-            && is_wood(id(-(DY as isize)))
-            && w::is_solid(id(DY as isize));
+        let corner =
+            wood_x && wood_z && is_wood(id(-(DY as isize))) && w::is_solid(id(DY as isize));
         if wall_h || (wall_v && (wood_x || wood_z)) || corner {
             return Shape::Beam;
         }
@@ -335,8 +333,6 @@ impl Mat {
 enum Uv {
     Cell,
     Fit,
-    /// by position, scaled
-    Scale(f32),
 }
 
 /// Light and occlusion of a cell, worked out when first wanted and kept
@@ -464,7 +460,11 @@ impl Kit<'_> {
 
     fn vertex(&self, p: Vec3, n: Vec3, uv: [f32; 2], m: Mat) -> Vertex {
         let (wp, wn) = (self.pos(p), self.dir(n).normalize_or_zero());
-        let lit = if m.glow { (0.0, 0.0, 1.0) } else { self.shade(wp, wn) };
+        let lit = if m.glow {
+            (0.0, 0.0, 1.0)
+        } else {
+            self.shade(wp, wn)
+        };
         Self::finish(wp, wn, uv, m, lit)
     }
 
@@ -487,11 +487,7 @@ impl Kit<'_> {
     }
 
     fn out(&mut self) -> &mut Vec<Vertex> {
-        if self.clear {
-            self.trans
-        } else {
-            self.opaque
-        }
+        if self.clear { self.trans } else { self.opaque }
     }
 
     /// A flat polygon (convex, corners in order) with one normal.
@@ -515,7 +511,11 @@ impl Kit<'_> {
         };
         for i in 0..k {
             let wp = self.pos(ps[i]);
-            let l = if one || m.glow { lit } else { self.shade(wp, wn) };
+            let l = if one || m.glow {
+                lit
+            } else {
+                self.shade(wp, wn)
+            };
             vs[i] = Self::finish(wp, wn, uvs[i], m, l);
         }
         let out = self.out();
@@ -524,7 +524,7 @@ impl Kit<'_> {
         }
     }
 
-    /// A polygon mapped by position (`Uv::Cell` or `Uv::Scale`).
+    /// A polygon mapped by its position in the cell.
     fn poly_at(&mut self, ps: &[Vec3], n: Vec3, uv: Uv, m: Mat) {
         let mut uvs = [[0.0; 2]; MAX_POLY];
         for (i, p) in ps.iter().take(MAX_POLY).enumerate() {
@@ -551,7 +551,7 @@ impl Kit<'_> {
             let (n, a, b) = (*n, *a, *b);
             let ax = |v: Vec3| v.abs().max_position();
             let (ia, ib, inn) = (ax(a), ax(b), ax(n));
-            let mut corner = |sa: f32, sb: f32| {
+            let corner = |sa: f32, sb: f32| {
                 let mut p = Vec3::ZERO;
                 p[inn] = if n[inn] > 0.0 { hi[inn] } else { lo[inn] };
                 p[ia] = if sa > 0.0 { hi[ia] - e } else { lo[ia] + e };
@@ -731,7 +731,11 @@ impl Kit<'_> {
                     ];
                     let wn = self.dir(n).normalize_or_zero();
                     let mid = self.pos((ps[0] + ps[2]) * 0.5);
-                    let lit = if m.glow { (0.0, 0.0, 1.0) } else { self.shade(mid, wn) };
+                    let lit = if m.glow {
+                        (0.0, 0.0, 1.0)
+                    } else {
+                        self.shade(mid, wn)
+                    };
                     let v = ps.map(|p| self.pos(p));
                     let q = [0, 1, 2, 3].map(|i| Self::finish(v[i], wn, uvs[i], m, lit));
                     let out = self.out();
@@ -810,7 +814,6 @@ const SKIP_NZ: u8 = 32;
 fn map_uv(p: Vec3, n: Vec3, uv: Uv, fit: Option<(Vec3, Vec3)>) -> [f32; 2] {
     let q = match (uv, fit) {
         (Uv::Fit, Some((lo, hi))) => (p - lo) / (hi - lo).max(Vec3::splat(1e-4)),
-        (Uv::Scale(s), _) => p * s,
         _ => p,
     };
     let a = n.abs();
@@ -972,13 +975,14 @@ fn slope_part(
         ];
         let dyds = (ye - ya) / h;
         let n = Vec3::new(0.0, 1.0, -dyds).normalize();
-        let uvs: Vec<[f32; 2]> = ps
-            .iter()
-            .map(|p| [u_of(k, *p), -(cell_y + p.z)])
-            .collect();
+        let uvs: Vec<[f32; 2]> = ps.iter().map(|p| [u_of(k, *p), -(cell_y + p.z)]).collect();
         k.poly(&ps, n, &uvs, top_m);
         // the lower edge of the course, standing on the one below
-        let lo = if i == 0 { ya - lip - thick * 0.6 } else { a + lift };
+        let lo = if i == 0 {
+            ya - lip - thick * 0.6
+        } else {
+            a + lift
+        };
         if i > 0 || eave {
             let ps = [
                 Vec3::new(x0, lo, a),
@@ -990,7 +994,12 @@ fn slope_part(
                 .iter()
                 .map(|p| [u_of(k, *p), -(cell_y + a) + (p.y - ya) * 0.5])
                 .collect();
-            k.poly(&ps, Vec3::new(0.0, -0.2, -1.0).normalize(), &uvs, top_m.tint(0.8));
+            k.poly(
+                &ps,
+                Vec3::new(0.0, -0.2, -1.0).normalize(),
+                &uvs,
+                top_m.tint(0.8),
+            );
         }
     }
     // underside
@@ -1134,12 +1143,13 @@ fn wedge_open(k: &Kit, side: usize) -> bool {
     ];
     let c = at(l[0], l[1], l[2]);
     let b = g.ids[c];
-    !(sheet_group(k.g.ids[at(
-        (k.base.x as i32) - g.o[0],
-        (k.base.y as i32) - g.o[1],
-        (k.base.z as i32) - g.o[2],
-    )])(b)
-        && wedge_below(b, g.ids[c - DY]).is_some())
+    !(sheet_group(
+        k.g.ids[at(
+            (k.base.x as i32) - g.o[0],
+            (k.base.y as i32) - g.o[1],
+            (k.base.z as i32) - g.o[2],
+        )],
+    )(b) && wedge_below(b, g.ids[c - DY]).is_some())
 }
 
 fn roof_slope(k: &mut Kit, c: usize, d: u8) {
@@ -1389,13 +1399,15 @@ fn stick(k: &mut Kit, c: usize) {
             (
                 Vec3::new(lo_end, 0.5 - t, 0.5 - t),
                 Vec3::new(hi_end, 0.5 + t, 0.5 + t),
-                (if lo_end == 0.0 { SKIP_NX } else { 0 }) | (if hi_end == 1.0 { SKIP_PX } else { 0 }),
+                (if lo_end == 0.0 { SKIP_NX } else { 0 })
+                    | (if hi_end == 1.0 { SKIP_PX } else { 0 }),
             )
         } else {
             (
                 Vec3::new(0.5 - t, 0.5 - t, lo_end),
                 Vec3::new(0.5 + t, 0.5 + t, hi_end),
-                (if lo_end == 0.0 { SKIP_NZ } else { 0 }) | (if hi_end == 1.0 { SKIP_PZ } else { 0 }),
+                (if lo_end == 0.0 { SKIP_NZ } else { 0 })
+                    | (if hi_end == 1.0 { SKIP_PZ } else { 0 }),
             )
         };
         k.cuboid(lo, hi, [side, side, side], Uv::Cell, skip);
@@ -1451,7 +1463,10 @@ fn trunk(k: &mut Kit, c: usize) {
         false,
         2.0,
         mat(b, 1),
-        [None, (!w::is_leaves(above) && above != b).then_some(mat(b, 0))],
+        [
+            None,
+            (!w::is_leaves(above) && above != b).then_some(mat(b, 0)),
+        ],
     );
 }
 
@@ -1594,7 +1609,6 @@ fn sheet(k: &mut Kit, c: usize) {
 fn prop(k: &mut Kit, c: usize, b: BlockId, wp: [i32; 3]) -> Option<Glow> {
     let g = k.g;
     let dy = DY as isize;
-    let below = g.ids[nb(c, -dy)];
     let above = g.ids[nb(c, dy)];
     // a small turn per column, the same for a stack
     let h = hash3(wp[0], 11, wp[2]);
@@ -1965,12 +1979,7 @@ fn banner(k: &mut Kit, c: usize) {
         let uvs: Vec<[f32; 2]> = ps.iter().map(|p| fit(*p)).collect();
         if bottom_end {
             // concave: draw as two halves
-            k.poly(
-                &[ps[0], ps[3], ps[4]],
-                n,
-                &[uvs[0], uvs[3], uvs[4]],
-                m,
-            );
+            k.poly(&[ps[0], ps[3], ps[4]], n, &[uvs[0], uvs[3], uvs[4]], m);
             k.poly(
                 &[ps[0], ps[1], ps[2], ps[3]],
                 n,
@@ -2096,19 +2105,43 @@ fn pane(k: &mut Kit, c: usize) {
     let t = 0.1;
     if left != b {
         let m = frame_of(left);
-        k.cuboid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(t, 1.0, 1.0), [m; 3], Uv::Cell, SKIP_NX);
+        k.cuboid(
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(t, 1.0, 1.0),
+            [m; 3],
+            Uv::Cell,
+            SKIP_NX,
+        );
     }
     if right != b {
         let m = frame_of(right);
-        k.cuboid(Vec3::new(1.0 - t, 0.0, 0.0), Vec3::new(1.0, 1.0, 1.0), [m; 3], Uv::Cell, SKIP_PX);
+        k.cuboid(
+            Vec3::new(1.0 - t, 0.0, 0.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            [m; 3],
+            Uv::Cell,
+            SKIP_PX,
+        );
     }
     if above != b {
         let m = frame_of(above);
-        k.cuboid(Vec3::new(0.0, 1.0 - t, 0.0), Vec3::new(1.0, 1.0, 1.0), [m; 3], Uv::Cell, SKIP_PY);
+        k.cuboid(
+            Vec3::new(0.0, 1.0 - t, 0.0),
+            Vec3::new(1.0, 1.0, 1.0),
+            [m; 3],
+            Uv::Cell,
+            SKIP_PY,
+        );
     }
     if below != b {
         let m = frame_of(below);
-        k.cuboid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(1.0, t, 1.0), [m; 3], Uv::Cell, SKIP_NY);
+        k.cuboid(
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(1.0, t, 1.0),
+            [m; 3],
+            Uv::Cell,
+            SKIP_NY,
+        );
         // a sill on both faces
         let sill = wood_mat().tint(0.9);
         for (za, zb, skip) in [(-0.1f32, 0.0f32, SKIP_PZ), (1.0, 1.1, SKIP_NZ)] {
@@ -2123,8 +2156,20 @@ fn pane(k: &mut Kit, c: usize) {
     }
     // mullion and transom
     let wood = wood_mat().tint(0.8);
-    k.cuboid(Vec3::new(0.47, 0.0, 0.42), Vec3::new(0.53, 1.0, 0.58), [wood; 3], Uv::Cell, SKIP_NY | SKIP_PY);
-    k.cuboid(Vec3::new(0.0, 0.47, 0.42), Vec3::new(1.0, 0.53, 0.58), [wood; 3], Uv::Cell, SKIP_NX | SKIP_PX);
+    k.cuboid(
+        Vec3::new(0.47, 0.0, 0.42),
+        Vec3::new(0.53, 1.0, 0.58),
+        [wood; 3],
+        Uv::Cell,
+        SKIP_NY | SKIP_PY,
+    );
+    k.cuboid(
+        Vec3::new(0.0, 0.47, 0.42),
+        Vec3::new(1.0, 0.53, 0.58),
+        [wood; 3],
+        Uv::Cell,
+        SKIP_NX | SKIP_PX,
+    );
     // the glass, both faces
     k.clear = true;
     let glass = mat(b, 1);
