@@ -253,6 +253,17 @@ pre.plain{white-space:pre}
   <ol><li><a href="#s1">1. Purpose, scope and releases</a></li><li><a href="#s2">2. Glossary</a></li><li><a href="#s3">3. Goals and non-goals</a></li><li><a href="#s4">4. Targets and measurement</a></li><li><a href="#s5">5. System overview</a></li><li><a href="#s6">6. Engine and Luau boundary</a></li><li><a href="#s7">7. Content store</a></li><li><a href="#s8">8. Hot reload and activation</a></li><li><a href="#s9">9. Luau API</a></li><li><a href="#s10">10. Entity component system</a></li><li><a href="#s11">11. Voxel world</a></li><li><a href="#s12">12. Scene world</a></li><li><a href="#s13">13. Server tick and threading</a></li><li><a href="#s14">14. Network protocol</a></li><li><a href="#s15">15. Rendering</a></li><li><a href="#s16">16. Physics, animation, audio, input, UI and chat</a></li><li><a href="#s17">17. Assets and persistence</a></li><li><a href="#s18">18. Tools</a></li><li><a href="#s19">19. Security, roles and sandbox</a></li><li><a href="#s20">20. Configuration, operations and releases</a></li><li><a href="#s21">21. Error model</a></li><li><a href="#s22">22. Test strategy</a></li><li><a href="#s23">23. Benchmark: Hearthblock</a></li><li><a href="#s24">24. Milestones</a></li><li><a href="#s25">25. Risks</a></li><li><a href="#s26">26. Open decisions</a></li><li><a href="#s27">27. Agent-first development</a></li><li><a href="#appA">Appendix A. Comparison with Bevy, Unity, Unreal and Roblox</a></li><li><a href="#appB">Appendix B. Mockups</a></li><li><a href="#appC">Appendix C. Review record</a></li><li><a href="#appD">Appendix D. Requirements by milestone</a></li></ol>
 </nav>
 <main>
+<aside style="border:2px solid currentColor;border-radius:8px;padding:14px 18px;margin:16px auto;max-width:980px;font-size:15px;line-height:1.55" aria-label="Build status">
+<strong>Build status (v0.7.2, 23 Nov 2026).</strong> This is the original engine specification. The engine has since been built to run <em>Hearthblock Online</em>, a classic fantasy MMORPG, and some parts were built differently:
+<ul style="margin:8px 0 0 18px;padding:0">
+<li><strong>Content as data:</strong> all content (rules, textures, sounds, fonts, models, rigs, animation, shapes, UI words) is a data pack the server streams; the player client <code>hearthblock</code> carries none. Luau scripting is not built yet; game rules are Rust.</li>
+<li><strong>One world:</strong> no realms; the world shards itself per area, keeps parties together, phases content per player, and runs across a cluster of instances joined by a Raft quorum.</li>
+<li><strong>Transport:</strong> WebSocket over TCP (not QUIC), so it works through HTTPS tunnels.</li>
+<li><strong>Movement:</strong> the client moves and the server checks it; server-simulated movement is planned after world streaming, which is in progress.</li>
+<li><strong>Releases:</strong> one signing key, two programs (<code>dyno</code> and <code>hearthblock</code>), self-updating.</li>
+</ul>
+How it is actually built: <a href="https://claude.ai/artifact/7R3LwYuuZmkH5V63FYCXJw">Hearthblock Online architecture</a> (also docs/architecture.md in the repository).
+</aside>
 <header class="hero">
   <span class="eyebrow">Engine specification · draft 4 · 22 November 2026</span>
   <h1>Dyno: a live, script-defined multiplayer 3D engine</h1>

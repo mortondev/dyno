@@ -1,275 +1,576 @@
 {
-  "bones": [
-    "pelvis",
-    "spine",
-    "head",
-    "upper_arm.r",
-    "upper_arm.l",
-    "forearm.r",
-    "forearm.l",
-    "thigh.r",
-    "thigh.l",
-    "shin.r",
-    "shin.l",
-    "grip",
-    "cape"
-  ],
-  "rigs": {
-    "person": {
-      "bones": [
-        {
-          "at": [0,26,0],
-          "name": "pelvis"
-        },
-        {
-          "at": [5,0,0],
-          "name": "thigh.r",
-          "parent": "pelvis"
-        },
-        {
-          "at": [0,-13,0],
-          "name": "shin.r",
-          "parent": "thigh.r"
-        },
-        {
-          "at": [-5,0,0],
-          "name": "thigh.l",
-          "parent": "pelvis"
-        },
-        {
-          "at": [0,-13,0],
-          "name": "shin.l",
-          "parent": "thigh.l"
-        },
-        {
-          "at": [0,2,0],
-          "name": "flap.f",
-          "ops": [
-            {
-              "rx": "-shape"
-            }
-          ],
-          "parent": "pelvis"
-        },
-        {
-          "at": [0,2,0],
-          "name": "flap.b",
-          "ops": [
-            {
-              "rx": "shape"
-            }
-          ],
-          "parent": "pelvis"
-        },
-        {
-          "at": [0,0,0],
-          "name": "spine",
-          "parent": "pelvis"
-        },
-        {
-          "at": [0,21,-6.5],
-          "name": "cape",
-          "parent": "spine"
-        },
-        {
-          "at": [0,0,0],
-          "name": "cape.0",
-          "ops": [
-            {
-              "rx": "0.07 + flow*0.26 + sin(clock*4.5 - 0)*0.025*(1 + flow)"
-            }
-          ],
-          "parent": "cape"
-        },
-        {
-          "at": [0,-13,0],
-          "name": "cape.1",
-          "ops": [
-            {
-              "rx": "0.05 + flow*0.16 + sin(clock*4.5 - 0.9)*0.045*(1 + flow)"
-            }
-          ],
-          "parent": "cape.0"
-        },
-        {
-          "at": [0,-13,0],
-          "name": "cape.2",
-          "ops": [
-            {
-              "rx": "0.06 + flow*0.12 + sin(clock*4.5 - 1.8)*0.065*(1 + flow)"
-            }
-          ],
-          "parent": "cape.1"
-        },
-        {
-          "at": {
-            "by": "build",
-            "values": [[13,19,0],[14,19,0],[15,19,0]]
-          },
-          "name": "upper_arm.r",
-          "parent": "spine"
-        },
-        {
-          "at": [0,-11,0],
-          "name": "forearm.r",
-          "parent": "upper_arm.r"
-        },
-        {
-          "at": {
-            "by": "build",
-            "values": [[-13,19,0],[-14,19,0],[-15,19,0]]
-          },
-          "name": "upper_arm.l",
-          "parent": "spine"
-        },
-        {
-          "at": [0,-11,0],
-          "name": "forearm.l",
-          "parent": "upper_arm.l"
-        },
-        {
-          "at": [0,-13.5,0.5],
-          "name": "grip",
-          "ops": [
-            {
-              "rx": 1.25
-            },
-            {
-              "rz": -0.22
-            },
-            "pose"
-          ],
-          "parent": "forearm.r"
-        },
-        {
-          "at": [0,22,0],
-          "name": "head",
-          "ops": [
-            "pose",
-            {
-              "rx": "-pitch*0.55"
-            },
-            {
-              "scale": 0.550000011920929
-            }
-          ],
-          "parent": "spine"
-        }
-      ],
-      "parts": [
-        {
-          "bone": "thigh.r",
-          "part": "thigh.r",
-          "pivot": [5,26,0]
-        },
-        {
-          "bone": "shin.r",
-          "part": "shin.r",
-          "pivot": [5,13,0]
-        },
-        {
-          "bone": "thigh.l",
-          "part": "thigh.l",
-          "pivot": [-5,26,0]
-        },
-        {
-          "bone": "shin.l",
-          "part": "shin.l",
-          "pivot": [-5,13,0]
-        },
-        {
-          "bone": "pelvis",
-          "part": "skirt",
-          "pivot": [0,26,0]
-        },
-        {
-          "bone": "flap.f",
-          "part": "flap.f",
-          "pivot": [0,28,0]
-        },
-        {
-          "bone": "flap.b",
-          "part": "flap.b",
-          "pivot": [0,28,0]
-        },
-        {
-          "bone": "spine",
-          "part": "torso",
-          "pivot": [0,26,0]
-        },
-        {
-          "bone": "cape.0",
-          "part": "cape.0",
-          "pivot": [0,47,-6.5]
-        },
-        {
-          "bone": "cape.1",
-          "part": "cape.1",
-          "pivot": [0,34,-6.5]
-        },
-        {
-          "bone": "cape.2",
-          "part": "cape.2",
-          "pivot": [0,21,-6.5]
-        },
-        {
-          "bone": "upper_arm.r",
-          "part": "arm_u.r",
-          "pivot": {
-            "by": "build",
-            "values": [[13,45,0],[14,45,0],[15,45,0]]
-          }
-        },
-        {
-          "bone": "forearm.r",
-          "part": "arm_l.r",
-          "pivot": {
-            "by": "build",
-            "values": [[13,34,0],[14,34,0],[15,34,0]]
-          }
-        },
-        {
-          "bone": "grip",
-          "held": true
-        },
-        {
-          "bone": "upper_arm.l",
-          "part": "arm_u.l",
-          "pivot": {
-            "by": "build",
-            "values": [[-13,45,0],[-14,45,0],[-15,45,0]]
-          }
-        },
-        {
-          "bone": "forearm.l",
-          "part": "arm_l.l",
-          "pivot": {
-            "by": "build",
-            "values": [[-13,34,0],[-14,34,0],[-15,34,0]]
-          }
-        },
-        {
-          "bone": "head",
-          "part": "head",
-          "pivot": [0,48,0]
-        }
+ "bones": [
+  "pelvis",
+  "spine",
+  "head",
+  "upper_arm.r",
+  "upper_arm.l",
+  "forearm.r",
+  "forearm.l",
+  "thigh.r",
+  "thigh.l",
+  "shin.r",
+  "shin.l",
+  "grip",
+  "cape"
+ ],
+ "rigs": {
+  "person": {
+   "bones": [
+    {
+     "at": [
+      0,
+      29.9,
+      0
+     ],
+     "name": "pelvis"
+    },
+    {
+     "at": [
+      5,
+      0,
+      0
+     ],
+     "name": "thigh.r",
+     "parent": "pelvis"
+    },
+    {
+     "at": [
+      0,
+      -14.95,
+      0
+     ],
+     "name": "shin.r",
+     "parent": "thigh.r"
+    },
+    {
+     "at": [
+      -5,
+      0,
+      0
+     ],
+     "name": "thigh.l",
+     "parent": "pelvis"
+    },
+    {
+     "at": [
+      0,
+      -14.95,
+      0
+     ],
+     "name": "shin.l",
+     "parent": "thigh.l"
+    },
+    {
+     "at": [
+      0,
+      2,
+      0
+     ],
+     "name": "flap.f",
+     "ops": [
+      {
+       "rx": "-shape"
+      }
+     ],
+     "parent": "pelvis"
+    },
+    {
+     "at": [
+      0,
+      2,
+      0
+     ],
+     "name": "flap.b",
+     "ops": [
+      {
+       "rx": "shape"
+      }
+     ],
+     "parent": "pelvis"
+    },
+    {
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "name": "spine",
+     "parent": "pelvis"
+    },
+    {
+     "at": [
+      0,
+      21,
+      -6.5
+     ],
+     "name": "cape",
+     "parent": "spine"
+    },
+    {
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "name": "cape.0",
+     "ops": [
+      {
+       "rx": "0.07 + flow*0.26 + sin(clock*4.5 - 0)*0.025*(1 + flow)"
+      }
+     ],
+     "parent": "cape"
+    },
+    {
+     "at": [
+      0,
+      -13,
+      0
+     ],
+     "name": "cape.1",
+     "ops": [
+      {
+       "rx": "0.05 + flow*0.16 + sin(clock*4.5 - 0.9)*0.045*(1 + flow)"
+      }
+     ],
+     "parent": "cape.0"
+    },
+    {
+     "at": [
+      0,
+      -13,
+      0
+     ],
+     "name": "cape.2",
+     "ops": [
+      {
+       "rx": "0.06 + flow*0.12 + sin(clock*4.5 - 1.8)*0.065*(1 + flow)"
+      }
+     ],
+     "parent": "cape.1"
+    },
+    {
+     "at": {
+      "by": "build",
+      "values": [
+       [
+        12.5,
+        19,
+        0
+       ],
+       [
+        13.5,
+        19,
+        0
+       ],
+       [
+        14.5,
+        19,
+        0
+       ]
       ]
+     },
+     "name": "upper_arm.r",
+     "parent": "spine"
+    },
+    {
+     "at": [
+      0,
+      -11,
+      0
+     ],
+     "name": "forearm.r",
+     "parent": "upper_arm.r"
+    },
+    {
+     "at": {
+      "by": "build",
+      "values": [
+       [
+        -12.5,
+        19,
+        0
+       ],
+       [
+        -13.5,
+        19,
+        0
+       ],
+       [
+        -14.5,
+        19,
+        0
+       ]
+      ]
+     },
+     "name": "upper_arm.l",
+     "parent": "spine"
+    },
+    {
+     "at": [
+      0,
+      -11,
+      0
+     ],
+     "name": "forearm.l",
+     "parent": "upper_arm.l"
+    },
+    {
+     "at": [
+      0,
+      -13.5,
+      0.5
+     ],
+     "name": "grip",
+     "ops": [
+      {
+       "rx": 1.25
+      },
+      {
+       "rz": -0.22
+      },
+      "pose"
+     ],
+     "parent": "forearm.r"
+    },
+    {
+     "at": [
+      0,
+      22,
+      0
+     ],
+     "name": "head",
+     "ops": [
+      "pose",
+      {
+       "rx": "-pitch*0.55"
+      },
+      {
+       "scale": [
+        0.47,
+        0.52,
+        0.5
+       ]
+      }
+     ],
+     "parent": "spine"
     }
-  },
-  "skeleton": "biped",
-  "step": {
-    "base": 0.55,
-    "max": 1.45,
-    "min": 0.8,
-    "per_speed": 0.2
-  },
-  "upper": [
-    "spine",
-    "head",
-    "upper_arm.r",
-    "upper_arm.l",
-    "forearm.r",
-    "forearm.l",
-    "grip"
-  ]
+   ],
+   "parts": [
+    {
+     "bone": "thigh.r",
+     "part": "thigh.r",
+     "pivot": [
+      5,
+      26,
+      0
+     ],
+     "shape": {
+      "scale": [
+       1,
+       1.15,
+       1
+      ],
+      "taper": [
+       0.8,
+       0.62
+      ]
+     }
+    },
+    {
+     "bone": "shin.r",
+     "part": "shin.r",
+     "pivot": [
+      5,
+      13,
+      0
+     ],
+     "shape": {
+      "scale": [
+       1,
+       1.15,
+       1
+      ],
+      "taper": [
+       0.64,
+       0.58
+      ],
+      "taper_depth": false
+     }
+    },
+    {
+     "bone": "thigh.l",
+     "part": "thigh.l",
+     "pivot": [
+      -5,
+      26,
+      0
+     ],
+     "shape": {
+      "scale": [
+       1,
+       1.15,
+       1
+      ],
+      "taper": [
+       0.8,
+       0.62
+      ]
+     }
+    },
+    {
+     "bone": "shin.l",
+     "part": "shin.l",
+     "pivot": [
+      -5,
+      13,
+      0
+     ],
+     "shape": {
+      "scale": [
+       1,
+       1.15,
+       1
+      ],
+      "taper": [
+       0.64,
+       0.58
+      ],
+      "taper_depth": false
+     }
+    },
+    {
+     "bone": "pelvis",
+     "part": "skirt",
+     "pivot": [
+      0,
+      26,
+      0
+     ],
+     "shape": {
+      "scale": [
+       0.86,
+       1,
+       0.9
+      ]
+     }
+    },
+    {
+     "bone": "flap.f",
+     "part": "flap.f",
+     "pivot": [
+      0,
+      28,
+      0
+     ]
+    },
+    {
+     "bone": "flap.b",
+     "part": "flap.b",
+     "pivot": [
+      0,
+      28,
+      0
+     ]
+    },
+    {
+     "bone": "spine",
+     "part": "torso",
+     "pivot": [
+      0,
+      26,
+      0
+     ],
+     "shape": {
+      "scale": [
+       1,
+       1,
+       0.86
+      ],
+      "taper": [
+       1.0,
+       0.72
+      ],
+      "taper_depth": false
+     }
+    },
+    {
+     "bone": "cape.0",
+     "part": "cape.0",
+     "pivot": [
+      0,
+      47,
+      -6.5
+     ]
+    },
+    {
+     "bone": "cape.1",
+     "part": "cape.1",
+     "pivot": [
+      0,
+      34,
+      -6.5
+     ]
+    },
+    {
+     "bone": "cape.2",
+     "part": "cape.2",
+     "pivot": [
+      0,
+      21,
+      -6.5
+     ]
+    },
+    {
+     "bone": "upper_arm.r",
+     "part": "arm_u.r",
+     "pivot": {
+      "by": "build",
+      "values": [
+       [
+        13,
+        45,
+        0
+       ],
+       [
+        14,
+        45,
+        0
+       ],
+       [
+        15,
+        45,
+        0
+       ]
+      ]
+     },
+     "shape": {
+      "taper": [
+       0.64,
+       0.54
+      ]
+     }
+    },
+    {
+     "bone": "forearm.r",
+     "part": "arm_l.r",
+     "pivot": {
+      "by": "build",
+      "values": [
+       [
+        13,
+        34,
+        0
+       ],
+       [
+        14,
+        34,
+        0
+       ],
+       [
+        15,
+        34,
+        0
+       ]
+      ]
+     },
+     "shape": {
+      "taper": [
+       0.54,
+       0.44
+      ]
+     }
+    },
+    {
+     "bone": "grip",
+     "held": true
+    },
+    {
+     "bone": "upper_arm.l",
+     "part": "arm_u.l",
+     "pivot": {
+      "by": "build",
+      "values": [
+       [
+        -13,
+        45,
+        0
+       ],
+       [
+        -14,
+        45,
+        0
+       ],
+       [
+        -15,
+        45,
+        0
+       ]
+      ]
+     },
+     "shape": {
+      "taper": [
+       0.64,
+       0.54
+      ]
+     }
+    },
+    {
+     "bone": "forearm.l",
+     "part": "arm_l.l",
+     "pivot": {
+      "by": "build",
+      "values": [
+       [
+        -13,
+        34,
+        0
+       ],
+       [
+        -14,
+        34,
+        0
+       ],
+       [
+        -15,
+        34,
+        0
+       ]
+      ]
+     },
+     "shape": {
+      "taper": [
+       0.54,
+       0.44
+      ]
+     }
+    },
+    {
+     "bone": "head",
+     "part": "head",
+     "pivot": [
+      0,
+      48,
+      0
+     ]
+    }
+   ]
+  }
+ },
+ "skeleton": "biped",
+ "step": {
+  "base": 0.55,
+  "max": 1.45,
+  "min": 0.8,
+  "per_speed": 0.2
+ },
+ "upper": [
+  "spine",
+  "head",
+  "upper_arm.r",
+  "upper_arm.l",
+  "forearm.r",
+  "forearm.l",
+  "grip"
+ ]
 }
