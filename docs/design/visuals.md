@@ -103,4 +103,91 @@ edges.
 
 ## Results
 
-See the end of this file (filled in after the pass).
+Before (left) and after (right), same cameras, fresh worlds from the same
+seed:
+
+![The inn from the plaza](visuals/east.jpg)
+![Main street](visuals/street.jpg)
+![Over the rooftops](visuals/overhead.jpg)
+![Main street at night](visuals/night.jpg)
+![Looking up at the smithy eaves](visuals/lookup.jpg)
+![The logging camp](visuals/camp.jpg)
+
+### What was built
+
+- **Detail mesher** (`crates/dyno-client/src/detail.rs`). A small kit of
+  boxes, bevelled boxes, solids of revolution and free polygons, in a
+  per-block frame that can be turned, with light and occlusion blended
+  from the cells round each vertex. Shapes:
+  - roofs: straight slopes, four shingle courses a block (two for thatch),
+    eaves reaching a third of a block past the wall with fascia boards and
+    rafter ends, ridge caps or a ridge roll, barge boards and closed ends
+    at the gables, a planked underside, and the gable wall carried up under
+    the slope;
+  - timber: proud beams in walls (the wall stays closed), slim chamfered
+    posts on stone footings with caps, fence rails, beams over gates;
+  - round tree trunks with root flare that thin into the canopy;
+  - stone pillars with plinth, swelling shaft and capital (also the quest
+    beacons);
+  - barrels, crates, hay bales with twine, an anvil on a stump, a brazier
+    on legs with glowing coals, flower boxes, lanterns (on posts, hanging,
+    or on wall brackets), thin banners with rods and swallowtails, windows
+    with jambs, mullions, sills and glass, plank doors with iron straps;
+  - cloth: awnings sag between their posts with scalloped flaps; tents
+    slope like roofs.
+- **Paving as ground.** Cobble, mossy cobble and flagstones lying flush
+  with the ground join the smooth surface, so paths and the plaza blend
+  into grass along a ragged painted edge.
+- **Chamfered cubes.** Built cubes have their convex edges chamfered
+  (5 cm), with the ends closed where a chamfer stops against a block.
+- **Shading.** Texture brightness becomes painted relief (mortar and
+  cracks sink, stones stand out) near the camera; built blocks get the
+  same slow drift of tone as the ground, so a wall is not one stamped
+  tile; softer block-corner occlusion.
+- **Sky.** The noise behind the clouds uses an integer hash; the shards
+  and streaks are gone.
+- **Foliage and grass.** Larger leaf clumps, cool shaded undersides and
+  warm crowns, slightly smaller canopies; a deeper, less yellow lawn;
+  global saturation down a touch.
+- **Builders.** The watchtower is dressed stone with moss only near the
+  ground (no random cobble patches); the plaza rim is cobble; ruin
+  masonry has no random cobble blocks.
+
+### Rules that keep it seamless
+
+Each section reads its blocks with a 4-block border and decides paving and
+detail shapes for every cell the meshers read (-3..N+3), reading one cell
+beyond. Two tests hold this: `detail_shapes_agree_across_sections` (every
+shared cell is decided the same by neighbouring sections) and the existing
+`sections_agree_at_their_borders` and `the_skin_has_no_holes` (run without
+chamfers, which meet unchamfered blocks in T-junctions).
+
+### Performance
+
+Measured on a busy shared machine; the meshing numbers are per-section
+best of nine runs, frame and load are medians over six shots per camera.
+
+| | before | after |
+|---|---|---|
+| town section remesh, average | 0.16–0.20 ms | 0.25–0.26 ms |
+| town section remesh, worst | 0.6–0.7 ms | 1.3 ms |
+| whole world on all cores | 0.08–0.10 s | 0.10–0.12 s |
+| `load_world` (headless shot) | 345–384 ms | 391–418 ms |
+| frame (headless, 1280x720) | 3.8–4.3 ms | 4.7–5.3 ms |
+| world vertices | 6.31 M | 7.80 M |
+
+The town's sections cost about 30–50% more to mesh than before: that is
+the detail geometry (about twice the town's vertices). Load and frame
+time are within about 25%.
+
+### Still to do
+
+- Flat wall faces are still one 1 m tile; a finer, less regular stone
+  pattern (or per-face stone relief geometry) would help most now.
+- Tower battlements and other wall tops are plain cubes.
+- Forest canopies still merge into one hedge from above; trees need
+  separate crowns and some branches.
+- Tables are a plank cube on a torch; counters, shelves, beds and chests
+  are still cubes.
+- Characters and creatures are being reworked separately.
+- Collision stays on the 1 m grid (see above).
