@@ -133,6 +133,8 @@ pub struct Server {
     next_shard: AtomicU32,
     /// the latest view of every player, for the balancer and party frames
     snaps: Mutex<Vec<shard::Snap>>,
+    /// when each player last spoke in a world channel (one line a second)
+    channel_at: Mutex<HashMap<PlayerId, Instant>>,
     rpg: bool,
 }
 
@@ -303,6 +305,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         base,
         next_shard: AtomicU32::new(1),
         snaps: Mutex::new(Vec::new()),
+        channel_at: Mutex::new(HashMap::new()),
         rpg,
     });
     log(format!(
@@ -805,6 +808,41 @@ impl Server {
                             },
                         );
                     }
+                }
+            }
+            // world channels reach everyone in every shard
+            "/1" | "/g" | "/general" | "/2" | "/t" | "/trade" => {
+                let channel = if matches!(cmd.as_str(), "/2" | "/t" | "/trade") {
+                    "Trade"
+                } else {
+                    "General"
+                };
+                let text: String = rest
+                    .chars()
+                    .filter(|c| !c.is_control())
+                    .take(proto::MAX_CHAT)
+                    .collect();
+                if text.trim().is_empty() {
+                    return true;
+                }
+                {
+                    let mut at = self.channel_at.lock().unwrap();
+                    if at
+                        .get(&id)
+                        .is_some_and(|t| t.elapsed() < Duration::from_millis(1000))
+                    {
+                        tell("You are speaking too quickly.".into());
+                        return true;
+                    }
+                    at.insert(id, Instant::now());
+                }
+                log(format!("[{channel}] <{me}> {text}"));
+                let bytes = Arc::new(proto::encode(&ServerMsg::Chat {
+                    from: format!("[{channel}] {me}"),
+                    text,
+                }));
+                for r in self.routes.lock().unwrap().values() {
+                    let _ = r.tx.send(bytes.clone());
                 }
             }
             "/w" | "/whisper" | "/tell" => {
@@ -1331,7 +1369,7 @@ impl Server {
         log(format!("{me} ran {line}"));
         let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(id, "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
+            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
             "/who" => {
                 let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));

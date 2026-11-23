@@ -136,6 +136,10 @@ struct Play {
     chat: Vec<Chat>,
     chat_open: bool,
     chat_text: String,
+    /// the chat panel shows the combat log instead
+    chat_tab_combat: bool,
+    /// what happened in fights: newest last
+    combat_log: Vec<(Instant, String, Color32)>,
     focus_chat: bool,
     menu_open: bool,
     captured: bool,
@@ -1349,6 +1353,8 @@ fn new_play(j: Joined) -> Play {
         hover: None,
         world_event: None,
         intro: None,
+        chat_tab_combat: false,
+        combat_log: Vec::new(),
         show_info: false,
         party: Vec::new(),
         invite: None,
@@ -1962,6 +1968,34 @@ impl App {
                             amount,
                             crit,
                         } => {
+                            let who = entity.and_then(|e| p.entities.get(&e)).and_then(|e| match e
+                                .kind
+                            {
+                                EntityKind::Creature(c) => e
+                                    .name
+                                    .clone()
+                                    .or_else(|| p.content.creature(c).map(|c| c.name.clone())),
+                                _ => None,
+                            });
+                            let line = match (entity.is_some(), who) {
+                                (true, Some(w)) => (
+                                    format!(
+                                        "You hit {w} for {}{}.",
+                                        amount.round(),
+                                        if crit { " (critical)" } else { "" }
+                                    ),
+                                    Color32::from_rgb(235, 225, 200),
+                                ),
+                                (true, None) => (
+                                    format!("You hit for {}.", amount.round()),
+                                    Color32::from_rgb(235, 225, 200),
+                                ),
+                                (false, _) => (
+                                    format!("You take {} damage.", amount.round()),
+                                    Color32::from_rgb(235, 120, 100),
+                                ),
+                            };
+                            p.combat_log.push((Instant::now(), line.0, line.1));
                             // a blow on your auto-attack target is your swing
                             // (not a damage-over-time tick: those come slower)
                             let now = p.anims.now();
@@ -2007,6 +2041,23 @@ impl App {
                             p.max_health = max_health;
                         }
                         ServerMsg::Gain { xp, money } => {
+                            if xp > 0 {
+                                p.combat_log.push((
+                                    Instant::now(),
+                                    format!("You gain {xp} experience."),
+                                    Color32::from_rgb(190, 140, 250),
+                                ));
+                            }
+                            if money > 0 {
+                                p.combat_log.push((
+                                    Instant::now(),
+                                    format!(
+                                        "You receive {}.",
+                                        dyno_sim::progression::money_text(money)
+                                    ),
+                                    Color32::from_rgb(240, 200, 90),
+                                ));
+                            }
                             if xp > 0 {
                                 p.floaters.push((
                                     Instant::now(),
@@ -2127,6 +2178,9 @@ impl App {
                         _ => {}
                     },
                 }
+            }
+            if p.combat_log.len() > 300 {
+                p.combat_log.drain(..150);
             }
             if p.chat.len() > 200 {
                 p.chat.drain(..100);
@@ -4265,11 +4319,42 @@ fn hud(
         .take(10)
         .collect();
     let mut y = chat_bottom;
-    for m in visible {
-        let (txt, col) = match &m.from {
-            Some(f) => (format!("<{f}> {}", m.text), Color32::WHITE),
-            None => (m.text.clone(), Color32::from_rgb(232, 200, 110)),
-        };
+    // the combat log takes the panel's place while its tab is chosen
+    let combat: Vec<(String, Color32)> = if p.chat_tab_combat {
+        p.combat_log
+            .iter()
+            .rev()
+            .take(12)
+            .map(|(_, t, c)| (t.clone(), *c))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let lines: Vec<(String, Color32)> = if p.chat_tab_combat {
+        combat
+    } else {
+        visible
+            .iter()
+            .map(|m| match &m.from {
+                // channel colours, as players expect them
+                Some(f) if f.starts_with("[Party]") => {
+                    (format!("{f}: {}", m.text), Color32::from_rgb(140, 190, 255))
+                }
+                Some(f) if f.starts_with("[From]") || f.starts_with("[To") => {
+                    (format!("{f}: {}", m.text), Color32::from_rgb(240, 150, 230))
+                }
+                Some(f) if f.starts_with("[General]") => {
+                    (format!("{f}: {}", m.text), Color32::from_rgb(250, 210, 170))
+                }
+                Some(f) if f.starts_with("[Trade]") => {
+                    (format!("{f}: {}", m.text), Color32::from_rgb(250, 190, 140))
+                }
+                Some(f) => (format!("{f} says: {}", m.text), Color32::WHITE),
+                None => (m.text.clone(), Color32::from_rgb(232, 200, 110)),
+            })
+            .collect()
+    };
+    for (txt, col) in lines {
         let galley = painter.layout(txt, FontId::proportional(14.0), col, 520.0);
         y -= galley.size().y + 4.0;
         let r = Rect::from_min_size(
@@ -4279,6 +4364,34 @@ fn hud(
         painter.rect_filled(r, 3.0, Color32::from_black_alpha(120));
         painter.galley(Pos2::new(screen.left() + 15.0, y), galley, col);
     }
+    // tabs: Chat and Combat
+    egui::Area::new(egui::Id::new("chat_tabs"))
+        .fixed_pos(Pos2::new(
+            screen.left() + 10.0,
+            y.min(chat_bottom - 20.0) - 28.0,
+        ))
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                for (label, combat) in [("Chat", false), ("Combat", true)] {
+                    let on = p.chat_tab_combat == combat;
+                    let t = RichText::new(label).size(12.0).color(if on {
+                        crate::theme::GOLD_BRIGHT
+                    } else {
+                        crate::theme::TEXT_DIM
+                    });
+                    if ui
+                        .add(egui::Button::new(t).fill(Color32::from_black_alpha(if on {
+                            170
+                        } else {
+                            90
+                        })))
+                        .clicked()
+                    {
+                        p.chat_tab_combat = combat;
+                    }
+                }
+            });
+        });
     if p.chat_open {
         egui::Area::new(egui::Id::new("chat_in"))
             .fixed_pos(Pos2::new(screen.left() + 10.0, chat_bottom + 6.0))
