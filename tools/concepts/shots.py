@@ -4,7 +4,9 @@ Renders the cameras of tools/concepts/cameras.json with `dyno shot --stand`:
 a stand-in player on the ground facing each landmark, seen through the game's
 own third-person camera (docs/design/scale.md), with no interface. The
 cameras are data, chosen by `dyno scout` from tools/concepts/landmarks.json;
-run that again when the world changes.
+run that again when the world changes. The stand-in is the pack's hero of
+the camera's "hero" class (a showcase set of figures.json), as the concept
+of that place shows; a camera without one takes the next class in turn.
 
 usage: python3 tools/concepts/shots.py OUT_DIR [ADDRESS] [name ...]
 
@@ -27,12 +29,17 @@ def csv(v):
     return ','.join(f'{x:g}' for x in v)
 
 
-def shoot(exe, addr, cam, out_dir, size):
+# the classes, for cameras that name no hero
+TURN = ['mage', 'hunter', 'priest', 'rogue', 'paladin', 'warrior']
+
+
+def shoot(exe, addr, cam, out_dir, size, turn=0):
     ppm = os.path.join(out_dir, cam['name'] + '.ppm')
     jpg = ppm[:-4] + '.jpg'
     r = subprocess.run(
         [exe, 'shot', addr, '--from-hearth',
          '--stand', csv(cam['stand']), '--face', csv(cam['face']),
+         '--hero', cam.get('hero') or TURN[turn % len(TURN)],
          '--zoom', f"{cam['zoom']:g}", '--pitch', f"{cam['pitch']:g}",
          '--time', f"{cam['time']:g}", '--size', size, '--out', ppm],
         capture_output=True, text=True, timeout=600)
@@ -72,10 +79,10 @@ if __name__ == '__main__':
     exe = os.environ.get('DYNO', './target/debug/dyno')
     size = os.environ.get('SHOT_SIZE', '1280x720')
     failed = []
-    for cam in cams:
+    for i, cam in enumerate(cams):
         if cam['name'] not in names:
             continue
-        ok, what = shoot(exe, addr, cam, out_dir, size)
+        ok, what = shoot(exe, addr, cam, out_dir, size, i)
         print(cam['name'], what if ok else f'FAILED: {what}', flush=True)
         if not ok:
             failed.append(cam['name'])

@@ -30,7 +30,14 @@ pub fn grip(look: &Look) -> Grip {
 
 fn holding_of(look: &Look) -> Option<Holding> {
     let (_, color) = look.weapon?;
-    figure::holding(&held_of(look)?, color, 1, false, 0)
+    let glows = look.feature("weapon_glow") > 0;
+    figure::holding(&held_of(look)?, color, 1, glows, 0)
+}
+
+/// The light on a figure: what falls on it where it stands, or the light
+/// it carries itself (the look's `light`, 0 to 15) when that is brighter.
+fn lit(look: &Look, light: f32) -> Paint {
+    Paint::lit(light.max(look.feature("light") as f32 / 15.0))
 }
 
 /// The player figure, its name and its clips for `look`.
@@ -144,7 +151,7 @@ pub fn push_person(
         feet,
         yaw,
         pitch,
-        Paint::lit(light),
+        lit(look, light),
         &pose,
         held.as_ref(),
         1.0,
@@ -177,7 +184,7 @@ pub fn push_person_anim(
         feet,
         yaw,
         pitch,
-        Paint::lit(light),
+        lit(look, light),
         &pose,
         held.as_ref(),
         1.0,

@@ -118,6 +118,7 @@ pub struct Slots {
     pub legs: Si,
     pub feet: Si,
     pub back: Si,
+    pub tabard: Si,
 }
 
 impl Slots {
@@ -130,6 +131,7 @@ impl Slots {
             legs: Si::new(p, "legs"),
             feet: Si::new(p, "feet"),
             back: Si::new(p, "back"),
+            tabard: Si::new(p, "tabard"),
         }
     }
 }
@@ -164,6 +166,114 @@ pub fn all(main: &mut Grid, _head: &mut Grid, bodies: &[Body; 2], ink: &Inks, pa
         }
         main.push("body", quiver(main, b, bi, &s.back, ink));
     }
+    // a tabard over whatever is worn, and the device on it, on a robe's
+    // back and on a cape
+    for (bi, b) in bodies.iter().enumerate() {
+        for l in tabard(main, b, bi, &s.tabard) {
+            main.push("body", l);
+        }
+        for e in 1..=4u8 {
+            main.push("body", robe_device(main, b, bi, &s.chest, e));
+        }
+    }
+}
+
+/// A device big enough to read from the play camera, about (0, 39.5): a
+/// sword, a sun, a chevron, a diamond.
+pub fn device(e: u8, x: f32, y: f32) -> bool {
+    let x = x.abs();
+    match e {
+        1 => x < 1.0 && (34.0..45.0).contains(&y) || x < 3.0 && (40.2..42.2).contains(&y),
+        2 => x * x + (y - 39.5).powi(2) < 3.0 * 3.0,
+        3 => x < 3.2 && ((y - 37.6) - (2.9 - x)).abs() < 1.1,
+        4 => x * 0.9 + (y - 39.5).abs() * 0.62 < 2.9,
+        _ => false,
+    }
+}
+
+/// The tabard's cloth at `p`: its part and whether it is the border.
+fn tabard_cell(b: &Body, p: Vec3) -> Option<(u8, bool)> {
+    let m = mirror(p);
+    let w = 4.3;
+    if p.y > 32.8 {
+        // the panels on the chest and the back
+        let top = 46.4;
+        if p.y > top || m.x > w || p.z.abs() < 1.0 || b.part_of(p) != Bp::Torso {
+            return None;
+        }
+        let d = b.body(p);
+        if !(1.0..2.1).contains(&d) {
+            return None;
+        }
+        return Some((part_index("torso"), m.x > w - 1.0 || p.y > top - 1.0));
+    }
+    // the skirts, to the knees, with a pointed hem
+    let top = 32.8;
+    let drop = top - p.y;
+    let w = w + drop * 0.04;
+    if p.y < 15.0 || m.x > w {
+        return None;
+    }
+    let lift = if b.female { 0.2 } else { 0.0 };
+    let fz = 6.1 + drop * 0.13 - 0.03 * p.x * p.x + lift;
+    let bz = -(6.6 + drop * 0.1 - 0.03 * p.x * p.x + lift);
+    let (part, z0) = if p.z > 0.0 {
+        ("flap.f", fz)
+    } else {
+        ("flap.b", bz)
+    };
+    let hem = 15.0 + (m.x / w) * 2.4;
+    if (p.z - z0).abs() > 0.6 || p.y < hem {
+        return None;
+    }
+    Some((part_index(part), m.x > w - 1.0 || p.y < hem + 1.1))
+}
+
+fn tabard(g: &Grid, b: &Body, bi: usize, s: &Si) -> Vec<Layer> {
+    let s = *s;
+    let bb = b.clone();
+    let mut out = vec![layer(g, "tabard", bi, &[("tabard", &[1])], move |p| {
+        let (part, border) = tabard_cell(&bb, p)?;
+        let c = if border { s.trim[1] } else { s.cloth(p) };
+        Some((part, Mode::Set, c))
+    })];
+    for e in 1..=4u8 {
+        let bb = b.clone();
+        out.push(layer(
+            g,
+            &format!("tabard/device={e}"),
+            bi,
+            &[("tabard", &[1]), ("emblem", &[e])],
+            move |p| {
+                let (part, border) = tabard_cell(&bb, p)?;
+                (!border && p.y > 32.8 && device(e, p.x, p.y)).then_some((
+                    part,
+                    Mode::Set,
+                    s.trim[2],
+                ))
+            },
+        ));
+    }
+    out
+}
+
+/// The device on the back of a cloth robe.
+fn robe_device(g: &Grid, b: &Body, bi: usize, s: &Si, e: u8) -> Layer {
+    let s = *s;
+    let b = b.clone();
+    layer(
+        g,
+        &format!("chest/robe-device={e}"),
+        bi,
+        &[("chest", &[1]), ("emblem", &[e]), ("tabard", &[0])],
+        move |p| {
+            (p.z < -1.5
+                && b.part_of(p) == Bp::Torso
+                && device(e, p.x, p.y + 0.6)
+                && shell(&b, p, 0.48, 1.6))
+            .then_some((part_index("torso"), Mode::Set, s.trim[1]))
+        },
+    )
 }
 
 // ------------------------------------------------------------------- legs
@@ -1016,7 +1126,7 @@ fn shoulders(g: &Grid, b: &Body, bi: usize, s: &Si, k: u8) -> Layer {
                     return None;
                 }
                 let theta = p.x.atan2(p.z);
-                let hem = if k == 1 { 45.0 } else { 44.2 }
+                let hem = if k == 1 { 44.2 } else { 43.6 }
                     + 0.9 * (theta * if k == 1 { 6.0 } else { 9.0 }).sin().abs()
                     - (m.x - 6.0).max(0.0) * 0.45;
                 if p.y < hem {
@@ -1028,7 +1138,7 @@ fn shoulders(g: &Grid, b: &Body, bi: usize, s: &Si, k: u8) -> Layer {
                     0.0
                 };
                 let d = b.body(p).min(b.arm_u(m) + 0.2);
-                let off = if k == 1 { 0.8 } else { 1.05 } + scale + (p.y - 47.0).max(0.0) * 0.1;
+                let off = if k == 1 { 1.5 } else { 1.45 } + scale + (p.y - 47.0).max(0.0) * 0.1;
                 if d > off || d < 0.25 {
                     return None;
                 }
@@ -1037,7 +1147,7 @@ fn shoulders(g: &Grid, b: &Body, bi: usize, s: &Si, k: u8) -> Layer {
                 } else {
                     "torso"
                 };
-                let c = if p.y < hem + 0.6 {
+                let c = if p.y < hem + 1.1 {
                     if k == 1 { s.trim[1] } else { s.main[0] }
                 } else if k == 3 {
                     if scale > 0.29 {
@@ -1059,15 +1169,15 @@ fn shoulders(g: &Grid, b: &Body, bi: usize, s: &Si, k: u8) -> Layer {
                 if b.part_of(p) != Bp::ArmU && b.arm_u(m) > 2.0 {
                     return None;
                 }
-                let c0 = sh + vec3(0.6, 0.6, 0.0);
-                let d1 = ellipsoid(m, c0, vec3(3.6, 3.0, 3.7) * f);
-                let d2 = ellipsoid(m, c0 + vec3(0.5, -2.2, 0.0), vec3(3.4, 2.2, 3.5) * f);
+                let c0 = sh + vec3(0.9, 1.1, 0.0);
+                let d1 = ellipsoid(m, c0, vec3(4.7, 3.8, 4.7) * f);
+                let d2 = ellipsoid(m, c0 + vec3(0.7, -2.8, 0.0), vec3(4.4, 2.9, 4.5) * f);
                 let inner = b.arm_u(m);
-                let d = if p.y > c0.y - 1.0 { d1 } else { d2 };
-                if d > 0.0 || inner < -0.1 || m.x < sh.x - 2.4 * f || p.y < c0.y - 3.6 {
+                let d = if p.y > c0.y - 1.3 { d1 } else { d2 };
+                if d > 0.0 || inner < -0.1 || m.x < sh.x - 3.0 * f || p.y < c0.y - 4.7 {
                     return None;
                 }
-                let rim = d > -0.45 && (p.y < c0.y - 0.6 && p.y > c0.y - 1.3 || p.y < c0.y - 3.0);
+                let rim = p.y < c0.y - 0.6 && p.y > c0.y - 1.6 || p.y < c0.y - 3.8;
                 Some((
                     part_index(side),
                     Mode::Set,
@@ -1076,38 +1186,40 @@ fn shoulders(g: &Grid, b: &Body, bi: usize, s: &Si, k: u8) -> Layer {
             }
             _ => {
                 // big plate pauldrons: a dome and two lames, rimmed, with a ridge
-                let c0 = sh + vec3(0.9, 1.1, 0.0);
-                let r = vec3(4.6, 3.4, 4.5) * f;
+                // (oversized, as the play camera wants: each one is wider
+                // than the head, and its rims are thick enough to read
+                // from that distance)
+                let c0 = sh + vec3(1.3, 1.9, 0.0);
+                let r = vec3(6.1, 4.5, 5.9) * f;
                 let dome = ellipsoid(m, c0, r);
-                let l1 = ellipsoid(m, c0 + vec3(0.6, -2.1, 0.0), r * vec3(0.95, 0.8, 0.97));
-                let l2 = ellipsoid(m, c0 + vec3(1.1, -3.9, 0.0), r * vec3(0.85, 0.7, 0.92));
+                let l1 = ellipsoid(m, c0 + vec3(0.8, -2.8, 0.0), r * vec3(0.95, 0.8, 0.97));
+                let l2 = ellipsoid(m, c0 + vec3(1.4, -5.2, 0.0), r * vec3(0.85, 0.7, 0.92));
                 let ridge = cone(
                     m,
-                    c0 + vec3(-1.4, 3.0, 0.0),
-                    c0 + vec3(2.6, 1.6, 0.0),
-                    0.55,
-                    0.3,
+                    c0 + vec3(-1.8, 4.0, 0.0),
+                    c0 + vec3(3.6, 2.2, 0.0),
+                    0.9,
+                    0.5,
                 );
-                let band = if p.y > c0.y - 0.9 {
+                let band = if p.y > c0.y - 1.2 {
                     dome
-                } else if p.y > c0.y - 2.9 {
+                } else if p.y > c0.y - 3.9 {
                     l1
                 } else {
                     l2
                 };
                 let d = band.min(ridge);
                 let inner = b.body(p);
-                if d > 0.0 || inner < 0.4 || m.x < sh.x - 3.6 * f || p.y < c0.y - 5.6 {
+                if d > 0.0 || inner < 0.4 || m.x < sh.x - 4.4 * f || p.y < c0.y - 7.4 {
                     return None;
                 }
-                let shell_d = -d;
                 let c = if ridge < 0.0
-                    || shell_d < 0.5 && (p.y - (c0.y - 0.9)).abs() < 0.45
-                    || (p.y - (c0.y - 2.9)).abs() < 0.4
-                    || p.y < c0.y - 5.0
+                    || (p.y - (c0.y - 1.7)).abs() < 0.5
+                    || (p.y - (c0.y - 4.4)).abs() < 0.5
+                    || p.y < c0.y - 6.4
                 {
                     s.trim[1]
-                } else if (m - (c0 + vec3(1.6, 0.6, 3.4) * f)).length() < 0.55 {
+                } else if (m - (c0 + vec3(2.0, 0.8, 4.4) * f)).length() < 1.0 {
                     s.gem
                 } else {
                     s.metal(&b, p + vec3(0.0, 1.0, 0.0))
@@ -1151,24 +1263,32 @@ fn quiver(g: &Grid, b: &Body, bi: usize, s: &Si, ink: &Inks) -> Layer {
 
 // ------------------------------------------------------------------- head
 
-pub fn helms(head: &mut Grid, bodies: &[Body; 2], _ink: &Inks, pal: &mut Palette) {
+pub fn helms(head: &mut Grid, bodies: &[Body; 2], ink: &Inks, pal: &mut Palette) {
     let s = Si::new(pal, "head");
     for (bi, b) in bodies.iter().enumerate() {
-        for k in 1..=4u8 {
-            head.push("head", helm(head, b, bi, &s, k));
+        for k in 1..=6u8 {
+            head.push("head", helm(head, b, bi, &s, ink.flame[1], k));
         }
     }
 }
 
-fn helm(g: &Grid, b: &Body, bi: usize, s: &Si, k: u8) -> Layer {
+fn helm(g: &Grid, b: &Body, bi: usize, s: &Si, lamp: u8, k: u8) -> Layer {
     let b = b.clone();
     let s = *s;
-    let name = ["", "helm/circlet", "helm/cowl", "helm/hood", "helm/helm"][k as usize];
+    let name = [
+        "",
+        "helm/circlet",
+        "helm/cowl",
+        "helm/hood",
+        "helm/helm",
+        "helm/straw-hat",
+        "helm/miner",
+    ][k as usize];
     g.layer(
         &format!("{name},body={bi}"),
         body_when(bi, &[("helm", &[k])]),
-        vec3(-7.5, b.head.y - 8.5, -8.5),
-        vec3(7.5, b.head.y + 14.0, 8.5),
+        vec3(-10.0, b.head.y - 8.5, -10.5),
+        vec3(10.0, b.head.y + 14.0, 9.5),
         move |p| -> Cell {
             let m = mirror(p);
             let y = |v: f32| b.hy(v);
@@ -1233,6 +1353,50 @@ fn helm(g: &Grid, b: &Body, bi: usize, s: &Si, k: u8) -> Layer {
                         return Some((1, Mode::Set, c));
                     }
                     None
+                }
+                5 => {
+                    // a wide straw hat: a low crown with a band, a drooping brim
+                    let r = (p.x * p.x + (p.z + 0.6).powi(2)).sqrt();
+                    let brim_y = y(59.2) - r * 0.12;
+                    let brim = r < 9.0 && (p.y - brim_y).abs() < 0.45 && cran > 0.3;
+                    let crown = cran < 2.1 && cran > 0.2 && p.y > y(58.9);
+                    if !(brim || crown) {
+                        return None;
+                    }
+                    let c = if crown && !brim && p.y < y(60.4) {
+                        s.trim[1]
+                    } else if brim && r > 8.1 {
+                        s.main[1]
+                    } else if (r * 0.9).floor() as i32 % 3 == 0 {
+                        s.main[3]
+                    } else {
+                        s.main[2]
+                    };
+                    Some((1, Mode::Set, c))
+                }
+                6 => {
+                    // a miner's hard hat: a dome with a rim, a lamp at the brow
+                    let r = (p.x * p.x + (p.z + 0.6).powi(2)).sqrt();
+                    let lamp_at = vec3(0.0, y(59.7), 4.6);
+                    if (p - lamp_at).length() < 1.05 && p.z > 4.1 {
+                        return Some((1, Mode::Set, lamp));
+                    }
+                    if (p - lamp_at).length() < 1.5 && cran > 0.2 {
+                        return Some((1, Mode::Set, s.trim[1]));
+                    }
+                    let rim = r < 5.7 && (p.y - y(58.5)).abs() < 0.45 && cran > 0.3;
+                    let dome = cran < 1.25 && cran > 0.1 && p.y > y(58.5);
+                    if !(rim || dome) {
+                        return None;
+                    }
+                    let c = if rim || m.x < 0.5 {
+                        s.main[1]
+                    } else if p.y > y(60.6) {
+                        s.main[3]
+                    } else {
+                        s.main[2]
+                    };
+                    Some((1, Mode::Set, c))
                 }
                 _ => {
                     // an open helm: dome, crest, cheek guards and a nasal

@@ -556,18 +556,27 @@ pub fn outfit_sheet(out: &Path) -> Result<String, String> {
         written.push(save(&path, paste(&cells, 7, size))?.display().to_string());
     }
     // levels of detail: the first person of each of the first sets, as
-    // drawn from 2, 5, 9, 18 and 45 blocks away (seen from up close)
+    // drawn from 2, 5, 9, 18 and 45 blocks away (seen from up close); and
+    // of the last sets (the heroes of the stand shots) from behind, as the
+    // play camera sees them
     let mut lods = Vec::new();
-    for (set, people) in sets.iter().take(4) {
+    let tail = sets.len().saturating_sub(6).max(4);
+    let strip = sets
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i < 4 || *i >= tail);
+    for (i, (set, people)) in strip {
         let Some((_, l)) = people.first() else {
             continue;
         };
         for d in [2.0f32, 5.0, 9.0, 18.0, 45.0] {
-            models::set_view(Some((Vec3::new(0.0, 1.6, -d), Vec3::new(0.4, 0.8, -0.3))));
+            let z = if i < 4 { -d } else { d };
+            models::set_view(Some((Vec3::new(0.0, 1.6, z), Vec3::new(0.4, 0.8, -0.3))));
             let verts = pose(l, Anim::Idle, 0.4);
             models::set_view(None);
             let label = format!("{set}\nas from {d} blocks: {} vertices", verts.len());
-            lods.push(shoot(&mut g, &verts, body(20.0), size, &label, &tmp)?);
+            let az = if i < 4 { 20.0 } else { 165.0 };
+            lods.push(shoot(&mut g, &verts, body(az), size, &label, &tmp)?);
         }
     }
     let path = out.with_file_name(format!("{stem}-lods.{ext}"));

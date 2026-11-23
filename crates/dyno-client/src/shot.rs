@@ -117,10 +117,25 @@ pub fn chase(world: &World, feet: Vec3, yaw: f32, pitch: f32, zoom: f32) -> Chas
     Chase { eye, dir, reached }
 }
 
-/// The stand-in's look: the default body in the first class's colour and
-/// starter kit, all from the content the server sent.
+/// The stand-in is the hero of this class (`dyno shot --stand --hero KEY`).
+pub static STAND_HERO: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// The stand-in's look: the pack's showcase set named by the hero's class
+/// key when there is one; else the default body in that class's (or the
+/// first class's) colour and starter kit, all from the content the server
+/// sent.
 pub fn stand_in_look(c: &dyno_world::content::Content) -> models::Look {
-    let class = c.classes.first();
+    let hero = STAND_HERO.get();
+    if let Some(look) = hero.and_then(|h| {
+        let sets = crate::figure::showcase();
+        let set = sets.into_iter().find(|(name, _)| name == h)?;
+        set.1.into_iter().next().map(|p| p.1)
+    }) {
+        return look;
+    }
+    let class = hero
+        .and_then(|h| c.classes.iter().find(|c| &c.key == h))
+        .or(c.classes.first());
     let mut look = models::Look::from_appearance(
         &Default::default(),
         class.map(|c| c.color).unwrap_or([0.5, 0.5, 0.6]),

@@ -3609,6 +3609,258 @@
     }
    },
    "image": "icons/magister_slippers.png"
+  },
+  {
+   "key": "recruits_tabard",
+   "name": "Recruit's Tabard",
+   "color": [
+    0.74,
+    0.12,
+    0.1
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "recruits_pauldrons",
+   "name": "Recruit's Pauldrons",
+   "color": [
+    0.5,
+    0.51,
+    0.54
+   ],
+   "icon": "lump",
+   "image": "icons/ironbound_pauldrons.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "initiates_tabard",
+   "name": "Initiate's Tabard",
+   "color": [
+    0.14,
+    0.27,
+    0.68
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "initiates_pauldrons",
+   "name": "Initiate's Pauldrons",
+   "color": [
+    0.74,
+    0.76,
+    0.82
+   ],
+   "icon": "lump",
+   "image": "icons/stormguard_pauldrons.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "trackers_jerkin",
+   "name": "Tracker's Jerkin",
+   "color": [
+    0.22,
+    0.52,
+    0.2
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "trackers_hood",
+   "name": "Tracker's Hood",
+   "color": [
+    0.22,
+    0.52,
+    0.2
+   ],
+   "icon": "lump",
+   "image": "icons/wildstalker_hood.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "footpads_jerkin",
+   "name": "Footpad's Jerkin",
+   "color": [
+    0.3,
+    0.22,
+    0.2
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "footpads_cowl",
+   "name": "Footpad's Cowl",
+   "color": [
+    0.6,
+    0.15,
+    0.12
+   ],
+   "icon": "lump",
+   "image": "icons/nightstalker_cowl.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "acolytes_robe",
+   "name": "Acolyte's Robe",
+   "color": [
+    0.94,
+    0.92,
+    0.86
+   ],
+   "icon": "lump",
+   "image": "icons/worn_tunic.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "acolytes_hood",
+   "name": "Acolyte's Hood",
+   "color": [
+    0.94,
+    0.92,
+    0.86
+   ],
+   "icon": "lump",
+   "image": "icons/wildstalker_hood.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "head",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
+  },
+  {
+   "key": "novices_robe",
+   "name": "Novice's Robe",
+   "color": [
+    0.14,
+    0.27,
+    0.68
+   ],
+   "icon": "lump",
+   "image": "icons/apprentice_robe.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 27,
+   "gear": {
+    "slot": "chest",
+    "armor_type": "cloth",
+    "armor": 3,
+    "stats": {}
+   }
+  },
+  {
+   "key": "novices_mantle",
+   "name": "Novice's Mantle",
+   "color": [
+    0.14,
+    0.27,
+    0.68
+   ],
+   "icon": "lump",
+   "image": "icons/apprentice_mantle.png",
+   "stack": 1,
+   "quality": 1,
+   "level": 1,
+   "value": 18,
+   "gear": {
+    "slot": "shoulders",
+    "armor_type": "cloth",
+    "armor": 1,
+    "stats": {}
+   }
   }
  ],
  "blocks": {
@@ -6341,7 +6593,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "recruits_tabard",
+     1
+    ],
+    [
+     "recruits_pauldrons",
      1
     ],
     [
@@ -6390,7 +6646,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "initiates_tabard",
+     1
+    ],
+    [
+     "initiates_pauldrons",
      1
     ],
     [
@@ -6444,7 +6704,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "trackers_jerkin",
+     1
+    ],
+    [
+     "trackers_hood",
      1
     ],
     [
@@ -6492,7 +6756,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "footpads_jerkin",
+     1
+    ],
+    [
+     "footpads_cowl",
      1
     ],
     [
@@ -6541,7 +6809,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "acolytes_robe",
+     1
+    ],
+    [
+     "acolytes_hood",
      1
     ],
     [
@@ -6590,7 +6862,11 @@
      1
     ],
     [
-     "worn_tunic",
+     "novices_robe",
+     1
+    ],
+    [
+     "novices_mantle",
      1
     ],
     [
