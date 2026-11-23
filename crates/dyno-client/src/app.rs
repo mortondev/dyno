@@ -3,7 +3,7 @@
 use crate::anim::{self, Anim, Book as Anims, Skeleton};
 use crate::audio::{Audio, Sfx};
 use crate::front::{self, Front, FrontCmd};
-use crate::game::{self, Input, Player, Remote, Remotes, Target};
+use crate::game::{self, Input, Player, PlayerPose, Remote, Remotes, Target};
 use crate::light::Light;
 use crate::models;
 use crate::net::{self, Joined, NetEvent};

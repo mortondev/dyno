@@ -841,6 +841,7 @@ name = "dyno-sim"
 version = "0.6.0"
 dependencies = [
  "dyno-world",
+ "glam",
  "serde",
 ]
 

@@ -7,6 +7,7 @@ pub mod character;
 pub mod crafting;
 pub mod inventory;
 pub mod mining;
+pub mod movement;
 pub mod progression;
 pub mod rng;
 

@@ -28,7 +28,10 @@ pub fn text(path: &str) -> Option<String> {
 
 /// Add or replace a file (from the network, or a local pack).
 pub fn insert(path: &str, bytes: impl Into<Arc<[u8]>>) {
-    store().write().unwrap().insert(path.to_string(), bytes.into());
+    store()
+        .write()
+        .unwrap()
+        .insert(path.to_string(), bytes.into());
 }
 
 /// Every path under a directory prefix ("models/").
