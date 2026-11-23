@@ -4584,6 +4584,35 @@ mod anim_tests {
     use super::*;
     use dyno_world::content::{Content, Model};
 
+    /// Prints every figure's standing size in metres (1 block = 1 m), for
+    /// the scale review: `cargo test -p dyno-client measure_figures -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn measure_figures() {
+        let c = Content::default_pack();
+        let size = |v: &[Vertex]| {
+            let (mut lo, mut hi) = (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN));
+            for x in v {
+                let p = Vec3::from(x.pos);
+                lo = lo.min(p);
+                hi = hi.max(p);
+            }
+            hi - lo
+        };
+        let mut v = Vec::new();
+        let look = Look::from_appearance(&Default::default(), [0.5, 0.5, 0.6]);
+        push_person(&mut v, Vec3::ZERO, 0.0, 0.0, &look, 1.0, 0.0, 0.0);
+        let d = size(&v);
+        println!("person: {:.2} tall, {:.2} wide, {:.2} deep", d.y, d.x, d.z);
+        for cr in &c.creatures {
+            let mut v = Vec::new();
+            let mut a = Animator::new(1, 0.0);
+            push_creature(&mut v, cr.model, cr.variant, Vec3::ZERO, 0.0, cr.color, 1.0, 0.0, cr.scale, &mut a, 0.0);
+            let d = size(&v);
+            println!("{}: {:.2} tall, {:.2} wide, {:.2} long (scale {})", cr.key, d.y, d.x, d.z, cr.scale);
+        }
+    }
+
     /// When to sample an animation: through a one-shot and well past its
     /// end, or across several seconds of a loop.
     fn times(a: Anim) -> Vec<f32> {
