@@ -560,7 +560,8 @@ light and mesh time):
 | | old 384 m | 2 km, Hearthstead | 2 km, Miner's Rest (640 m out) | 2 km, Fisher's Landing (700 m out) |
 |---|---|---|---|---|
 | World before play | 102 KB (235 sections) | 94 KB (2,280) | 96 KB (1,840) | 95 KB (1,970) |
-| The whole near view | 727 KB (1,890 sections) | 141 KB (5,040; 4,780 all one block) | 220 KB (5,024) | 168 KB (4,992) |
+| The whole near view | 727 KB (1,890 sections) | 141 KB (5,040) | 220 KB (5,024) | 168 KB (4,992) |
+| ... of which all one block | 47% | 83% | 82% | 84% |
 | Far view | 28 KB (36 tiles) | 313 KB (486 tiles) | 251 KB (388) | 234 KB (378) |
 | Join, then land drawn, before | 528 (347) ms | 1,138 (564) ms | 1,052 (741) ms | 700 (617) ms |
 | ... after lighting only up to the open sky | 565 (308) ms | 480 (378) ms | 597 (392) ms | 428 (308) ms |
@@ -574,8 +575,11 @@ in them (over every column the light could come from); above it is open
 sky, stored as one level (`Light::compute`; the same light as worked out
 cell by cell, `the_open_sky_is_lit_as_if_worked_out`). Now 3.3 ms a
 column at the spawn and 4.1 ms at Miner's Rest (`light_round_a_point`,
-the best of five), and the server lights the whole world at start in
-about half the time. The far view (a quarter of a megabyte on the 2 km
+the best of five). (Lighting the whole world at server start is about
+the same: its tiles of 128 × 128 columns nearly always reach a high
+point somewhere.) Section and far tile bytes are as sent: they are their
+own encoding (a section all one block is 3 bytes) and are not compressed
+again. The far view (a quarter of a megabyte on the 2 km
 world, against 28 KB) comes after the near view at the play rate, so it
 fills in over about a second after play starts.
 

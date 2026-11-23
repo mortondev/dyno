@@ -690,6 +690,28 @@ mod tests {
             d[1],
             best / cols.len() as f64
         );
+        // the sections a client's view holds (160 m), and the share all one block
+        for r in [40.0f32, 160.0] {
+            let (mut n, mut one) = (0, 0);
+            for z in 0..d[2] {
+                for x in 0..d[0] {
+                    let dx = (x * SECTION + SECTION / 2) as f32 - at[0];
+                    let dz = (z * SECTION + SECTION / 2) as f32 - at[1];
+                    if dx.hypot(dz) <= r {
+                        for y in 0..d[1] {
+                            n += 1;
+                            one += world.section_uniform([x, y, z]).is_some() as usize;
+                        }
+                    }
+                }
+            }
+            eprintln!("within {r} m: {n} sections, {one} all one block");
+        }
+        if std::env::var_os("DYNO_BENCH_WHOLE").is_some() {
+            let t = std::time::Instant::now();
+            let _ = Light::new(&world);
+            eprintln!("the whole world lit in {:.1} s", t.elapsed().as_secs_f64());
+        }
     }
 
     /// The open sky over the land is not worked out cell by cell, and the
