@@ -44,6 +44,8 @@ struct FoliageFile {
     top: f32,
     /// how much each cube's brightness strays from its colour
     vary: f32,
+    /// cubes along the side of a clump of one colour (1: every cube its own)
+    clump: u8,
     /// crowns are drawn in clumps within this many metres of the camera;
     /// beyond it, a block of leaves is one cube (a quarter of the faces)
     near: f32,
@@ -70,6 +72,7 @@ impl Default for FoliageFile {
             depth: 4.0,
             top: 1.0,
             vary: 0.1,
+            clump: 1,
             near: 48.0,
             grain: 0,
             grain_vary: 0.0,
@@ -117,6 +120,7 @@ pub struct Foliage {
     depth: f32,
     top: f32,
     vary: f32,
+    clump: i32,
     near: f32,
     grain: f32,
     grain_vary: f32,
@@ -178,6 +182,7 @@ impl Foliage {
             depth: f.depth.max(1.0),
             top: f.top.clamp(0.5, 2.0),
             vary: f.vary.clamp(0.0, 0.5),
+            clump: (f.clump as i32).clamp(1, 8),
             near: f.near.max(0.0),
             grain: f.grain.min(8) as f32,
             grain_vary: f.grain_vary.clamp(0.0, 0.9),
@@ -440,7 +445,11 @@ pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo, f
                             let rgb = if palette.is_empty() {
                                 [1.0; 3]
                             } else {
-                                palette[(h >> 10) as usize % palette.len()]
+                                // one colour to a clump of cubes
+                                let c = if fine { f.clump } else { 1 };
+                                let hc =
+                                    hash(cx.div_euclid(c), cy.div_euclid(c), cz.div_euclid(c), 5);
+                                palette[(hc >> 10) as usize % palette.len()]
                             };
                             let depth = over as f32 + (n - 1 - j) as f32 * s;
                             let deep = (depth / f.depth).min(1.0);
