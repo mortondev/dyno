@@ -2502,11 +2502,10 @@ impl App {
                             }
                         }
                         ServerMsg::Quests { log, done } => {
-                            let first = p.quest_log.is_empty() && p.quests_done.is_empty();
                             let old = std::mem::replace(&mut p.quest_log, log);
                             let old_done =
                                 std::mem::replace(&mut p.quests_done, done.into_iter().collect());
-                            if hud::quests_changed(p, &old, &old_done, first) {
+                            if hud::quests_changed(p, &old, &old_done) {
                                 self.audio.play(Sfx::Join, 0.7);
                             }
                         }
@@ -3535,7 +3534,7 @@ impl App {
                     }
                 }
                 if save_interface {
-                    self.act(Action::Graphics);
+                    self.act(Action::Interface);
                 }
                 if close {
                     self.set_capture(true);
@@ -3661,6 +3660,11 @@ impl App {
                 }
             }
             Action::CancelJoin => self.screen = Screen::Menu,
+            Action::Interface => {
+                // what the interface remembers (tips seen, action bars): save
+                crate::options::interface().into(&mut self.settings);
+                let _ = self.settings.save();
+            }
             Action::Graphics => {
                 // the options panel changed something: apply and save
                 crate::options::interface().into(&mut self.settings);
@@ -4039,6 +4043,8 @@ impl App {
 }
 
 enum Action {
+    /// the interface's own memory changed: save the settings
+    Interface,
     Pack(Vec<PackCmd>),
     Rpg(Vec<rpg_ui::RpgCmd>),
     ChooseClass(u16),

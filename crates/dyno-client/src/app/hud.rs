@@ -50,6 +50,8 @@ pub struct HudState {
     fired: HashSet<&'static str>,
     /// the bar was loaded from the settings (or made) for this character
     pub bar_ready: bool,
+    /// the quest log has arrived once (what it held then is not news)
+    quests_known: bool,
     /// tooltips held open for a screenshot: an item, an ability
     pinned: (Option<Stack>, Option<u16>),
 }
@@ -70,6 +72,7 @@ impl HudState {
             anchors: HashMap::new(),
             fired: HashSet::new(),
             bar_ready: false,
+            quests_known: false,
             pinned: (None, None),
         }
     }
@@ -170,7 +173,7 @@ pub fn save_bar(p: &Play, actions: &mut Vec<Action>) {
     if crate::options::change_interface(|o| {
         o.bars.insert(name, keys);
     }) {
-        actions.push(Action::Graphics);
+        actions.push(Action::Interface);
     }
 }
 
@@ -220,9 +223,9 @@ pub fn quests_changed(
     p: &mut Play,
     old: &[dyno_protocol::QuestProgress],
     old_done: &HashSet<u16>,
-    first: bool,
 ) -> bool {
-    if first {
+    // what the log holds when it first arrives (at a join) is not news
+    if !std::mem::replace(&mut p.ui.quests_known, true) {
         return false;
     }
     let me = rpg_ui::Me {
@@ -703,7 +706,7 @@ pub fn action_bar(
         )
     };
     let dragging = egui::DragAndDrop::payload::<screens::BarDrag>(ctx).map(|d| *d);
-    for i in 0..12 {
+    for (i, key) in BAR_KEYS.iter().enumerate() {
         let r = slot_rect(i);
         let look = slot_look(p, i);
         theme::slot_well(painter, r);
@@ -718,7 +721,7 @@ pub fn action_bar(
         theme::action_slot(
             painter,
             r,
-            BAR_KEYS[i],
+            key,
             look.cooldown,
             look.active,
             look.usable || look.icon.is_none(),
@@ -1573,7 +1576,7 @@ pub fn tips(
     if let Some(seen) = p.ui.tips.take_seen()
         && crate::options::change_interface(|o| o.tips_seen = seen)
     {
-        actions.push(Action::Graphics);
+        actions.push(Action::Interface);
     }
 }
 
