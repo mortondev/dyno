@@ -24,7 +24,9 @@ pub struct Settings {
     pub hotbar: Vec<u8>,
     pub volume: f32,
     /// what the costly parts of the picture may spend (shadow detail,
-    /// ambient occlusion, bloom): 0 low, 1 medium, 2 high, 3 ultra
+    /// ambient occlusion, bloom): 0 low, 1 medium, 2 high, 3 ultra; anything
+    /// higher means not chosen yet: the first run picks a tier for the
+    /// machine's graphics adapter (post.rs)
     pub graphics: u8,
     /// 0 plain water; 1 the bed seen through it and the far land mirrored;
     /// 2 everything on screen mirrored (water.rs)
@@ -46,7 +48,7 @@ impl Default for Settings {
             leaf_detail: 1.0,
             hotbar: dyno_world::HOTBAR.to_vec(),
             volume: 0.8,
-            graphics: 2,
+            graphics: u8::MAX,
             water_quality: 2,
             token: 0,
         }

@@ -1056,6 +1056,8 @@ struct SectionMesh {
     cover: Vec<crate::cover::Spot>,
     /// meshed (possibly to nothing) since the section last arrived
     built: bool,
+    /// the lamps standing here: the nearest light the picture (atmos.rs)
+    lamps: Vec<Glow>,
 }
 
 pub struct Gfx {
@@ -1112,6 +1114,8 @@ pub struct Gfx {
     /// ground cover: grass, flowers and stones near the camera
     pub cover: crate::cover::Gpu,
     pub adapter_info: String,
+    /// the quality tier in use: the saved one, or the one picked for the adapter
+    pub graphics_tier: u8,
     /// When set, the next frame is saved to this path as a PPM image.
     pub screenshot: Option<std::path::PathBuf>,
     started: std::time::Instant,
@@ -1264,7 +1268,9 @@ impl Gfx {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        let quality = crate::post::Quality::from_env(crate::settings::Settings::peek().graphics);
+        let graphics_tier =
+            crate::post::Quality::tier(crate::settings::Settings::peek().graphics, &info);
+        let quality = crate::post::Quality::level(graphics_tier);
         let vlayout = crate::shadows::vertex_layout();
         let shadows = crate::shadows::Shadows::new(&device, quality.shadow_size, &vlayout);
         let depth = depth_view(&device, config.width, config.height);
@@ -1554,6 +1560,7 @@ impl Gfx {
             far: Default::default(),
             cover,
             adapter_info,
+            graphics_tier,
             screenshot: None,
             started: std::time::Instant::now(),
         })
@@ -1588,6 +1595,68 @@ impl Gfx {
             },
         );
         self.cover.changed();
+    }
+
+    /// The lamps nearest the camera, at most `most`, fading out towards
+    /// the edge of their range so none pops in or out.
+    fn lamps_near(&self, cam: Vec3, most: usize) -> Vec<crate::atmos::Lamp> {
+        const RANGE: f32 = 48.0;
+        if most == 0 {
+            return Vec::new();
+        }
+        let reach = RANGE + SECTION as f32;
+        let mut near: Vec<(f32, &Glow)> = Vec::new();
+        for (at, s) in &self.sections {
+            if s.lamps.is_empty() {
+                continue;
+            }
+            let c = Vec3::new(
+                (at[0] * SECTION + SECTION / 2) as f32,
+                (at[1] * SECTION + SECTION / 2) as f32,
+                (at[2] * SECTION + SECTION / 2) as f32,
+            );
+            if (c - cam).abs().max_element() > reach {
+                continue;
+            }
+            for g in &s.lamps {
+                let d = Vec3::from(g.pos).distance(cam);
+                if d < RANGE {
+                    near.push((d, g));
+                }
+            }
+        }
+        near.sort_by(|a, b| a.0.total_cmp(&b.0));
+        near.truncate(most);
+        // the farthest kept sets the edge: lamps fade to nothing there
+        let edge = if near.len() == most {
+            near.last().map_or(RANGE, |l| l.0).max(8.0)
+        } else {
+            RANGE
+        };
+        near.iter()
+            .map(|(d, g)| crate::atmos::Lamp {
+                pos: g.pos,
+                color: g.color,
+                weight: ((edge - d) / (edge * 0.25)).clamp(0.0, 1.0),
+            })
+            .collect()
+    }
+
+    /// Change the quality tier (0 low .. 3 ultra) of the costly passes.
+    pub fn set_graphics(&mut self, tier: u8) {
+        let q = crate::post::Quality::level(tier);
+        self.graphics_tier = tier.min(3);
+        self.post.set_quality(q);
+        if q.shadow_size != self.shadows.size {
+            self.shadows = crate::shadows::Shadows::new(
+                &self.device,
+                q.shadow_size,
+                &crate::shadows::vertex_layout(),
+            );
+            // the world's bindings hold the shadow maps: made again with
+            // the textures on the next frame
+            self.tex_gen = u64::MAX;
+        }
     }
 
     pub fn resize(&mut self, w: u32, h: u32) {
@@ -1673,6 +1742,7 @@ impl Gfx {
                 lod,
                 cover,
                 built: true,
+                lamps: glows,
             },
         );
     }
@@ -1990,6 +2060,7 @@ impl Gfx {
                 sky,
                 &cascades.map(|c| (c.vp, c.texel)),
                 self.shadows.size,
+                &self.lamps_near(cam, self.post.quality.lights),
             );
             self.queue
                 .write_buffer(&self.env_buf, 0, bytemuck::bytes_of(&env));
