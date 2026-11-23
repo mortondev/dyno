@@ -171,6 +171,7 @@ impl State {
         shard: u32,
         world: dyno_world::World,
         light: dyno_world::light::Light,
+        far_encoded: dyno_world::far::Encoded,
     ) -> State {
         let mut world = world;
         world.log_changes(true);
@@ -215,7 +216,7 @@ impl State {
             encoded: Default::default(),
             routines: Default::default(),
             routine_cost: Default::default(),
-            far_encoded: Default::default(),
+            far_encoded,
         };
         st.spawn_points = crate::camps::plan_spawn_points(&st.world, &st.content, st.spawn_hearth);
         st.spawn_npcs();

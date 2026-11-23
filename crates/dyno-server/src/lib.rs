@@ -163,6 +163,8 @@ pub struct Server {
     /// of its light), sharing every section until it changes one
     base: World,
     base_light: dyno_world::light::Light,
+    /// the base world's far tiles, encoded (a new shard starts with them)
+    base_far: dyno_world::far::Encoded,
     next_shard: AtomicU32,
     /// the latest view of every player, for the balancer and party frames
     snaps: Mutex<Vec<shard::Snap>>,
@@ -533,6 +535,26 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         }
         _ => (state.world.clone(), state.light.clone(), Vec::new()),
     };
+    // every far tile built now, so no tick builds them (a join's first far
+    // view comes in a burst); a new shard starts with the base world's
+    let t = Instant::now();
+    state.far_encoded = dyno_world::far::encode_all(&state.world);
+    let base_far = if base_bytes.is_empty() {
+        state.far_encoded.clone()
+    } else {
+        dyno_world::far::encode_all(&base)
+    };
+    log(format!(
+        "Far view: {} tiles, {} KB, made in {} ms",
+        state.far_encoded.len(),
+        state
+            .far_encoded
+            .values()
+            .map(|(_, d)| d.len())
+            .sum::<usize>()
+            / 1024,
+        t.elapsed().as_millis()
+    ));
     let server = Arc::new(Server {
         cfg,
         stop: AtomicBool::new(false),
@@ -546,6 +568,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         parties: Mutex::new(Default::default()),
         base,
         base_light,
+        base_far,
         next_shard: AtomicU32::new(1),
         snaps: Mutex::new(Vec::new()),
         channel_at: Mutex::new(HashMap::new()),
@@ -722,7 +745,13 @@ impl Server {
         }
         let id = self.next_shard.fetch_add(1, Ordering::SeqCst);
         let seed = self.main_shard().state.lock().unwrap().fork_seed();
-        let st = State::fork(seed, id, self.base.clone(), self.base_light.clone());
+        let st = State::fork(
+            seed,
+            id,
+            self.base.clone(),
+            self.base_light.clone(),
+            self.base_far.clone(),
+        );
         let sh = Arc::new(ShardHost {
             id,
             state: Mutex::new(st),

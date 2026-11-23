@@ -45,7 +45,7 @@ size; north is −z, east is +x.
 | `terrain` | `sea` (water level), `ground` (open ground), `rolling` (noise layers), `hills` (ovals that rise), `ridges` (mountain lines), `rim` (the mountains that close the zone), `lakes`, `rivers` (a path, width, depth and valley), `rock_line` (bare rock and snow heights) |
 | `zones` | Ovals with a vegetation mix; the first that holds a column wins |
 | `flora.species` | Every tree: trunk and leaf blocks, `height`, `girth` (trunk thickness) and `crown` width as ranges in metres, crown shape (`round`, `cone`, `none`), limbs, roots |
-| `flora.mixes` | What grows in a zone: `cover` (share of the land that is wood), `clump` (size of the woods), `spacing`, species weights, lone trees per hectare, small plants per hectare, patches of other ground |
+| `flora.mixes` | What grows in a zone: `cover` (share of the land that is wood), `clump` (size of the woods), `spacing`, species weights, lone trees per hectare, small plants and bushes per hectare (`ground`), patches of other ground, and `scatter`: stamps strewn per hectare (boulders, crags, fallen logs, hedges, cairns) |
 | `ways` | Road kinds: `width`, surface blocks with weights, lamp stamp and spacing, `ford` |
 | `roads` | A way and a path of stops: a place key, or `[x, z]` |
 | `places` | `key`, `name`, `kind` (`hub`, `site`, `wayside`, `camp`, `farm`, `view`, `zone`), `at`, `radius`, `pad` (levelled ground), `plaza` (paving), `level` (`water` for landings), `stamps`, `trees` (planted by hand: hero trees), `was` (where it was before this layout, for the rebuild) |
