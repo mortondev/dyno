@@ -93,6 +93,10 @@ pub(crate) struct BlockJson {
     under: Option<String>,
     /// brightness jitter per voxel
     jitter: Option<f32>,
+    /// a tint on its colours (warmer, cooler)
+    tint: Option<[f32; 3]>,
+    /// colour saturation (1: as painted)
+    saturation: Option<f32>,
     /// how far it reaches into other ground and they into it (0: a crisp
     /// block edge), as a multiple of `edge`
     edge: Option<f32>,
@@ -142,6 +146,8 @@ pub(crate) struct Params {
     cover_depth: f32,
     under: [BlockId; 256],
     jitter: [f32; 256],
+    tint: [[f32; 3]; 256],
+    saturation: [f32; 256],
     edge_of: [f32; 256],
     inset: [f32; 256],
 }
@@ -161,6 +167,8 @@ impl Params {
             cover_depth: j.cover_depth.max(0.0),
             under: [0; 256],
             jitter: [j.jitter; 256],
+            tint: [[1.0; 3]; 256],
+            saturation: [1.0; 256],
             edge_of: [1.0; 256],
             inset: [0.0; 256],
         };
@@ -181,7 +189,13 @@ impl Params {
                 p.under[id] = names.get(u).copied().unwrap_or(0);
             }
             if let Some(v) = b.jitter {
-                p.jitter[id] = v;
+                p.jitter[id] = v.clamp(0.0, 0.5);
+            }
+            if let Some(v) = b.tint {
+                p.tint[id] = v;
+            }
+            if let Some(v) = b.saturation {
+                p.saturation[id] = v.clamp(0.0, 3.0);
             }
             if let Some(v) = b.edge {
                 p.edge_of[id] = v.max(0.0);
@@ -1285,13 +1299,14 @@ impl<'a> Fine<'a> {
             }
         };
         let glow = w::emission(b) > 0;
+        // saturation (in hundredths) and jitter, packed
         let tex = [
             r as f32,
-            0.0,
+            (p.saturation[b as usize] * 100.0).round() + p.jitter[b as usize],
             KIND_VOXEL + layer as f32,
             render::layer_anim(layer),
         ];
-        let jit = p.jitter[b as usize];
+        let tint = p.tint[b as usize];
         // a face in cells of one light has it at every corner
         let class = q.key >> 8;
         let ls = if (1..0x8000).contains(&class) {
@@ -1319,7 +1334,7 @@ impl<'a> Fine<'a> {
             geo.ground.push(Vertex {
                 pos: pos[i],
                 normal: nf,
-                color: [jit, 0.0, 0.0, if glow { 2.0 } else { ls[i][2] }],
+                color: [tint[0], tint[1], tint[2], if glow { 2.0 } else { ls[i][2] }],
                 light: ls[i][0],
                 sky: ls[i][1],
                 tex,
@@ -1327,13 +1342,46 @@ impl<'a> Fine<'a> {
         }
     }
 
+    /// The tops of a cell's fine columns (row-major by z), at most a cell
+    /// above it: the topmost filled voxel of each, from the rows of voxels.
+    /// NaN where a column holds none.
+    fn column_tops(&mut self, x: i32, y: i32, z: i32) -> Vec<f32> {
+        let r = self.r;
+        let here = self.cell(x, y, z);
+        let above = self.cell(x, y + 1, z);
+        let base = (self.g.o[1] + y) * r;
+        let mut out = vec![f32::NAN; (r * r) as usize];
+        for k in 0..r {
+            let mut found = 0u16;
+            for jj in (0..2 * r).rev() {
+                let row = if jj >= r {
+                    self.row(above, jj - r, k)
+                } else {
+                    self.row(here, jj, k)
+                };
+                let new = row & !found;
+                if new != 0 {
+                    for i in 0..r {
+                        if new >> i & 1 != 0 {
+                            out[(k * r + i) as usize] = (base + jj + 1) as f32 / r as f32;
+                        }
+                    }
+                    found |= row;
+                    if found == self.full {
+                        break;
+                    }
+                }
+            }
+        }
+        out
+    }
+
     /// The open, fairly level tops of the section's ground, for the cover
     /// (`cover.rs`) to grow on: corners at the tops of the fine columns in
-    /// the cell's corners.
+    /// the cell's corners; and those tops, to seat the cover on.
     fn tops(&mut self, light: &Light, geo: &mut SectionGeo) {
         let g = self.g;
-        let r = self.r;
-        let rf = r as f32;
+        let r = self.r as usize;
         for y in 0..N {
             for z in 0..N {
                 for x in 0..N {
@@ -1341,31 +1389,22 @@ impl<'a> Fine<'a> {
                     if g.fl[c] & F_TERRAIN == 0 || g.ids[c + DY] != w::AIR {
                         continue;
                     }
-                    let mut hs = [0f32; 4];
-                    let mut ok = true;
-                    for (n, (i, k)) in [(0, 0), (r - 1, 0), (r - 1, r - 1), (0, r - 1)]
-                        .into_iter()
-                        .enumerate()
-                    {
-                        let (vx, vz) = (x * r + i, z * r + k);
-                        match (y * r..(y + 2) * r)
-                            .rev()
-                            .find(|vy| self.solid(vx, *vy, vz) && !self.solid(vx, vy + 1, vz))
-                        {
-                            Some(top) => hs[n] = (g.o[1] * r + top + 1) as f32 / rf,
-                            None => ok = false,
-                        }
+                    let tops = self.column_tops(x, y, z);
+                    let hs = [0, r - 1, r * r - 1, (r - 1) * r].map(|i| tops[i]);
+                    if hs.iter().any(|h| h.is_nan()) {
+                        continue;
                     }
                     let (lo, hi) = hs
                         .iter()
                         .fold((f32::MAX, f32::MIN), |a, h| (a.0.min(*h), a.1.max(*h)));
-                    if !ok || hi - lo > 0.5 {
+                    if hi - lo > 0.5 {
                         continue;
                     }
                     let (wx, wy, wz) = (g.o[0] + x, g.o[1] + y, g.o[2] + z);
                     let (x0, z0) = (wx as f32, wz as f32);
+                    let cell = [x as i8, y as i8, z as i8];
                     geo.tops.push(crate::cover::Top {
-                        cell: [x as i8, y as i8, z as i8],
+                        cell,
                         block: g.ids[c],
                         corners: [
                             [x0, hs[0], z0],
@@ -1376,6 +1415,7 @@ impl<'a> Fine<'a> {
                         light: light.get(wx, wy + 1, wz) as f32 / 15.0,
                         sky: light.sky(wx, wy + 1, wz) as f32 / 15.0,
                     });
+                    geo.seats.push((cell, r as u8, tops));
                 }
             }
         }

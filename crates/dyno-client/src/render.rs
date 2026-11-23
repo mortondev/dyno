@@ -40,7 +40,8 @@ pub const KIND_FOLIAGE: f32 = 8192.0;
 /// The water surface: waves, shore foam (`normal[0]` is how near the shore is).
 pub const KIND_WATER: f32 = 12288.0;
 /// Fine voxel ground: one colour per voxel, from the layer at the voxel's
-/// centre. `tex[0]` is voxels a metre, `color[0]` the brightness jitter.
+/// centre. `tex[0]` is voxels a metre; `tex[1]` the saturation in
+/// hundredths plus the brightness jitter (below 1); `color.rgb` a tint.
 pub const KIND_VOXEL: f32 = 16384.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
 const KIND_DECAL: f32 = -3.0;
@@ -376,8 +377,11 @@ fn ground_tone(m: f32) -> vec3<f32> {
     var col = textureSampleLevel(tex_array, tex_samp, uv, l0, log2(max(size / r, 1.0))).rgb;
     let h1 = hash3(vox);
     let h2 = hash3(vox + vec3<f32>(17.0, 31.0, 47.0));
-    let jit = i.color.r;
+    let jit = fract(i.tex.y);
+    let sat = floor(i.tex.y) / 100.0;
     col = col * (1.0 + jit * (h1 - 0.5) * 2.0) * (vec3<f32>(1.0) + vec3<f32>(0.5, -0.1, -0.45) * jit * (h2 - 0.5));
+    let grey = dot(col, vec3<f32>(0.2126, 0.7152, 0.0722));
+    col = mix(vec3<f32>(grey), col, sat) * i.color.rgb;
     base = max(col, vec3<f32>(0.0)) * ground_tone(i.tone);
   } else if (kz >= K_FOLIAGE) {
     // tex.x from 1: leaves as cubes in their own colours (foliage.rs), no

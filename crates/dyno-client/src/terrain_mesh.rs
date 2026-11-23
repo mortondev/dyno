@@ -116,6 +116,9 @@ pub struct SectionGeo {
     pub glows: Vec<Glow>,
     /// the level of detail its ground was meshed at
     pub lod: Lod,
+    /// the drawn ground under each open top: (cell, voxels a metre, the
+    /// height of each fine column's top), for seating the cover
+    pub seats: Vec<([i8; 3], u8, Vec<f32>)>,
 }
 
 #[inline]
@@ -1018,6 +1021,38 @@ pub fn mesh_at(
     }
     let tops = std::mem::take(&mut geo.tops);
     crate::cover::scatter(&g, &tops, &mut geo.cover);
+    // plants and stones stand on the top of the fine column under them,
+    // not on a slope between the block's corners
+    let seats = std::mem::take(&mut geo.seats);
+    if !seats.is_empty() {
+        let by_cell: std::collections::HashMap<[i8; 3], (u8, &[f32])> = seats
+            .iter()
+            .map(|(c, r, h)| (*c, (*r, h.as_slice())))
+            .collect();
+        for s in &mut geo.cover {
+            let p = s.pos();
+            let cell = [
+                p[0].floor() as i32 - g.o[0],
+                (p[1] - 0.5).floor() as i32 - g.o[1],
+                p[2].floor() as i32 - g.o[2],
+            ];
+            // the top it grew on: its own cell, or the one below when the
+            // ground there rose into the cell above
+            for dy in [0, -1, 1] {
+                let key = [cell[0] as i8, (cell[1] + dy) as i8, cell[2] as i8];
+                if let Some((r, h)) = by_cell.get(&key) {
+                    let r = *r as usize;
+                    let i = ((p[0] - p[0].floor()) * r as f32) as usize;
+                    let k = ((p[2] - p[2].floor()) * r as f32) as usize;
+                    let y = h[k.min(r - 1) * r + i.min(r - 1)];
+                    if !y.is_nan() {
+                        s.set_height(y);
+                    }
+                    break;
+                }
+            }
+        }
+    }
     geo
 }
 
