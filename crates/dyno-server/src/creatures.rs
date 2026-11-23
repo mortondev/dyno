@@ -294,7 +294,10 @@ impl State {
             // Shades); outside any area, deeper into the wild is stronger
             match self.area_levels(pos) {
                 Some([lo, hi]) => lo + self.rng.range(0, hi.saturating_sub(lo) as u32) as u8,
-                None => (1 + (far / 28.0) as u8 + (self.rng.f32() < 0.3) as u8)
+                // (a level every 28 m on the 384 m map; in proportion on others)
+                None => (1
+                    + (far / (28.0 * self.world.size[0] as f32 / 384.0)) as u8
+                    + (self.rng.f32() < 0.3) as u8)
                     .clamp(levels[0], levels[1]),
             }
         } else {
