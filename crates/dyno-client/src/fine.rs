@@ -1247,7 +1247,11 @@ impl<'a> Fine<'a> {
             let s1 = self.solid(p1[0], p1[1], p1[2]) as u32;
             let s2 = self.solid(p2[0], p2[1], p2[2]) as u32;
             let s3 = self.solid(p3[0], p3[1], p3[2]) as u32;
-            let open = if s1 == 1 && s2 == 1 { 0 } else { 3 - (s1 + s2 + s3) };
+            let open = if s1 == 1 && s2 == 1 {
+                0
+            } else {
+                3 - (s1 + s2 + s3)
+            };
             // stored as how closed, so 0 is open all round
             let mut bits = 3 - open;
             // a lip: an open top whose corner lies on a convex edge, told

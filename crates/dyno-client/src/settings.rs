@@ -30,7 +30,8 @@ pub struct Settings {
     /// 2 everything on screen mirrored (water.rs)
     pub water_quality: u8,
     /// the ground's voxel shading: 0 none, 1 creases where voxels meet,
-    /// 2 also the lips of steps and ledges (fine.rs)
+    /// 2 also the lips of steps and ledges (fine.rs); no more than
+    /// `graphics` allows (low none, medium creases)
     pub ground_shading: u8,
     /// random ID of this install; servers bind your name to it
     pub token: u64,

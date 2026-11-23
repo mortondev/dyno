@@ -1572,7 +1572,10 @@ mod tests {
             .filter(|v| (11.0..12.0).contains(&v.pos[1]) && (14.0..=16.0).contains(&v.pos[0]))
             .map(|v| v.color[3])
             .fold(f32::MAX, f32::min);
-        assert!(foot <= p.ao[1] + 1e-4, "the crease at the cliff's foot: {foot}");
+        assert!(
+            foot <= p.ao[1] + 1e-4,
+            "the crease at the cliff's foot: {foot}"
+        );
         let lip = tops
             .iter()
             .filter(|v| v.pos[1] > 14.5)
