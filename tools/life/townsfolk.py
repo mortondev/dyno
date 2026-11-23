@@ -37,8 +37,8 @@ NAMED = {
     'dunmore': [stop((20, 40), emotes=['Cheer', 'Point'])],
 }
 
-# key, name, title, colour, at (from the hearth), greeting, what they hold,
-# routine
+# key, name, title, colour, at (from the hearth; written to the rules as an
+# offset from the area they are in), greeting, what they hold, routine
 TOWNSFOLK = [
     ('nell', 'Nell', 'Street Sweeper', [0.5, 0.42, 0.6], [3, 0, -7],
      "Mind the dust. And the boots. Especially the boots.",
@@ -116,7 +116,7 @@ TOWNSFOLK = [
      [stop((5, 9), emotes=['Point']),
       stop((5, 9), at=(-5, 3)),
       stop((5, 9), at=(-2, -5), emotes=['Wave'])]),
-    ('rysa', 'Rysa', 'Hunter', [0.3, 0.5, 0.3], [-125, -8, -55],
+    ('rysa', 'Rysa', 'Hunter', [0.3, 0.5, 0.3], [-108, -8, -56],
      "Webs between the roots, thick as rope. Don't touch them.",
      None,
      [stop((10, 18), anim='Kneel'),
@@ -165,9 +165,19 @@ def rules():
     for n in data['npcs']:
         if n['key'] in NAMED:
             n['routine'] = NAMED[n['key']]
+    areas = {a['key']: a for a in data['areas']}
     for key, name, title, color, at, greeting, _, routine in TOWNSFOLK:
-        data['npcs'].append({'key': key, 'name': name, 'title': title, 'color': color, 'at': at,
-                             'greeting': greeting, 'routine': routine})
+        # measured from the smallest area that holds them, so they move
+        # with their place when the world is laid out again
+        inside = [a for a in areas.values()
+                  if (at[0] - a['at'][0]) ** 2 + (at[2] - a['at'][1]) ** 2 <= a['radius'] ** 2]
+        npc = {'key': key, 'name': name, 'title': title, 'color': color, 'at': at,
+               'greeting': greeting, 'routine': routine}
+        if inside:
+            a = min(inside, key=lambda a: a['radius'])
+            npc['area'] = a['key']
+            npc['at'] = [at[0] - a['at'][0], at[1], at[2] - a['at'][1]]
+        data['npcs'].append(npc)
     open(path, 'w').write(json.dumps(data, indent=1))
 
 

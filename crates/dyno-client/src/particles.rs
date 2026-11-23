@@ -214,7 +214,7 @@ pub struct Particles {
 
 /// Sections looked at per frame, and during the first pass after joining.
 const SCAN_PER_FRAME: usize = 1;
-const SCAN_AT_FIRST: usize = 24;
+const SCAN_AT_FIRST: usize = 8;
 
 impl Particles {
     pub fn new(d: &LifeData) -> Particles {

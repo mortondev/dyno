@@ -412,7 +412,7 @@ impl Life {
                 fx: &mut sink.1,
                 glow: &mut sink.2,
             };
-            self.particles.scan_all = true;
+            self.particles.scan_all = i == 0;
             self.critters.settle_now = true;
             self.frame(s, clock - (40 - i) as f64 * 0.1, 0.1, quality, &mut out);
             sink.0.clear();

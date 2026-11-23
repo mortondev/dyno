@@ -6472,6 +6472,7 @@ pub fn shot_with_ui(
             0.0,
         );
     }
+    let before_creatures = boxes.len();
     let mut book = std::mem::take(&mut p.anims);
     push_creatures(&mut boxes, &p, &mut book, 1.3);
     p.anims = book;
@@ -6594,7 +6595,35 @@ pub fn shot_with_ui(
         .unwrap_or(0);
     for i in 1..=more {
         std::thread::sleep(Duration::from_millis(100));
-        let mut boxes = boxes[..figures].to_vec();
+        // what moved meanwhile
+        while let Ok(ev) = p.conn.rx.try_recv() {
+            match ev {
+                NetEvent::Msg(ServerMsg::EntityMoves(list)) => {
+                    for (id, pos, yaw) in list {
+                        if let Some(e) = p.entities.get_mut(&id) {
+                            e.from = e.pos().into();
+                            e.to = pos;
+                            e.yaw = yaw;
+                            e.at = Instant::now();
+                        }
+                    }
+                }
+                NetEvent::Msg(ServerMsg::Act {
+                    actor: dyno_protocol::Actor::Entity(id),
+                    act: dyno_protocol::Act::Emote(n),
+                }) => {
+                    if let Some(a) = entity_emote(&mut p, id, n) {
+                        let now = p.anims.now();
+                        p.anims.play_entity(id, now, a);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut boxes = boxes[..before_creatures].to_vec();
+        let mut book = std::mem::take(&mut p.anims);
+        push_creatures(&mut boxes, &p, &mut book, 1.3);
+        p.anims = book;
         push_life(
             &mut p,
             gfx,

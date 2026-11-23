@@ -247,6 +247,7 @@
       "areas": ["birchrise", "hollow_oak", "barrowwood", "east_road"],
       "not_areas": ["hearthstead", "logging_camp", "miners_rest"] },
     { "critter": "sheep", "cell": 8, "chance": 0.7, "group": [1, 2], "spread": 2.5,
-      "ground": ["grass"], "open": true, "beside": ["hay_bale"], "beside_r": 6 }
+      "ground": ["grass"], "open": true, "beside": ["hay_bale"], "beside_r": 6,
+      "not_areas": ["hearthstead"] }
   ]
 }
