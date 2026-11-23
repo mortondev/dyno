@@ -4,7 +4,7 @@
 
 use crate::light::Light;
 use crate::fine::Lod;
-use crate::terrain_mesh::{self, Glow, SectionGeo, Tuft};
+use crate::terrain_mesh::{self, Glow, SectionGeo};
 use bytemuck::{Pod, Zeroable};
 use dyno_world::{self as w, BlockId, World};
 use egui_wgpu::wgpu;
@@ -42,8 +42,6 @@ pub const KIND_WATER: f32 = 12288.0;
 /// Fine voxel ground: one colour per voxel, from the layer at the voxel's
 /// centre. `tex[0]` is voxels a metre, `color[0]` the brightness jitter.
 pub const KIND_VOXEL: f32 = 16384.0;
-/// Ground clutter: `normal` is the offset from the root, `tex[0]` the sway.
-const KIND_CLUTTER: f32 = -2.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
 const KIND_DECAL: f32 = -3.0;
 /// A halo: a camera-facing square, added to the picture.
@@ -136,7 +134,7 @@ struct Look { leaf_under: vec4<f32>, leaf_over: vec4<f32>, tone_low: vec4<f32>, 
 @group(0) @binding(5) var<uniform> look: Look;
 
 // What a vertex is, from tex.z (see the KIND constants in render.rs):
-//   below 0: untextured (-1 plain, -2 ground clutter, -3 ground decal, -4 halo)
+//   below 0: untextured (-1 plain, -2 ground cover (cover.rs), -3 ground decal, -4 halo)
 //   0..: textured with its own UVs
 //   8192..: foliage, textured by world position, swaying
 //   12288..: water surface
@@ -244,15 +242,6 @@ struct VOut {
     pos.x = pos.x + sin(t * 1.2 + ph) * 0.045 + sin(t * 2.7 + ph * 2.3) * 0.015;
     pos.z = pos.z + cos(t * 1.0 + ph * 1.3) * 0.045;
     pos.y = pos.y + sin(t * 1.6 + ph * 1.7) * 0.02;
-  } else if (kz < -1.5 && kz > -2.5) {
-    // ground clutter: `normal` is the offset from the root, tex.x how much
-    // the vertex sways, tex.y its phase; it shrinks away with distance
-    let root = pos - v.normal;
-    let fade = 1.0 - smoothstep(30.0, 42.0, distance(root, u.cam.xyz));
-    let s = v.tex.x * (sin(t * 1.7 + v.tex.y + root.x * 0.6) * 0.07 + sin(t * 3.1 + v.tex.y * 1.7 + root.z * 0.8) * 0.03);
-    pos = root + (v.normal + vec3<f32>(s, 0.0, s * 0.6)) * fade;
-    normal = vec3<f32>(0.0, 1.0, 0.0);
-    tone = world_tone(root.xz);
   } else if (kz >= 0.0) {
     // built blocks: the same slow drift of tone, so a wall is not one tile
     // stamped over and over
@@ -386,13 +375,17 @@ fn ground_tone(m: f32) -> vec3<f32> {
     col = col * (1.0 + jit * (h1 - 0.5) * 2.0) * (vec3<f32>(1.0) + vec3<f32>(0.5, -0.1, -0.45) * jit * (h2 - 0.5));
     base = max(col, vec3<f32>(0.0)) * ground_tone(i.tone);
   } else if (kz >= K_FOLIAGE) {
-    let w3 = tri_weights(n);
-    var tx = w3.y * tx0;
-    if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos * leaf_scale, dpx * leaf_scale, dpy * leaf_scale); }
-    if (w3.z > 0.001) { tx += w3.z * side_z(l0, i.wpos * leaf_scale, dpx * leaf_scale, dpy * leaf_scale); }
-    // gaps between the leaves close up with distance, where they would only flicker
-    let cut = mix(0.5, 0.06, smoothstep(18.0, 44.0, d));
-    if (tx.a < cut) { discard; }
+    // tex.x 1: leaves as cubes in their own colours (foliage.rs), no texture
+    var tx = vec4<f32>(1.0);
+    if (i.tex.x < 0.5) {
+      let w3 = tri_weights(n);
+      tx = w3.y * tx0;
+      if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos * leaf_scale, dpx * leaf_scale, dpy * leaf_scale); }
+      if (w3.z > 0.001) { tx += w3.z * side_z(l0, i.wpos * leaf_scale, dpx * leaf_scale, dpy * leaf_scale); }
+      // gaps between the leaves close up with distance, where they would only flicker
+      let cut = mix(0.5, 0.06, smoothstep(18.0, 44.0, d));
+      if (tx.a < cut) { discard; }
+    }
     // big soft patches of light and dark over the canopy
     // big soft patches of light and dark; cool, deep shade underneath and
     // warm sunlit crowns, so each canopy reads as one painted form
@@ -567,6 +560,10 @@ const FACES: [Face; 6] = [
     ([0, 0, 1], [1, 0, 0], [0, 1, 0], 0.68),
     ([0, 0, -1], [1, 0, 0], [0, 1, 0], 0.68),
 ];
+
+/// How many sections a frame are meshed again for a new level of detail
+/// (a whole world; a streamed world's worker does its own).
+const LOD_REMESH_PER_FRAME: usize = 12;
 
 /// Build the opaque and translucent meshes of one 16³ section.
 pub fn mesh_section(
@@ -995,165 +992,6 @@ fn bleed(img: &mut [u8], size: usize) {
     }
 }
 
-/// Mean colour of a texture layer, in linear light.
-fn layer_mean(layer: u16) -> [f32; 3] {
-    let t = textures();
-    let Some(img) = t.layers.get(layer as usize) else {
-        return [0.5; 3];
-    };
-    let (mut acc, mut n) = ([0f32; 3], 0f32);
-    for p in img.as_chunks::<4>().0.iter().filter(|p| p[3] > 0) {
-        for (a, c) in acc.iter_mut().zip(p) {
-            *a += (*c as f32 / 255.0).powf(2.2);
-        }
-        n += 1.0;
-    }
-    acc.map(|a| a / n.max(1.0))
-}
-
-/// Draw grass tufts and flowers this far from the camera, in sections.
-const CLUTTER_SECTIONS: i32 = 3;
-/// How many sections a frame are meshed again for a new level of detail.
-const LOD_REMESH_PER_FRAME: usize = 12;
-
-/// Turn one tuft into blades of grass (and maybe a flower) built of fine
-/// voxels, as the pack's `terrain.tufts` describes.
-fn push_tuft(out: &mut Vec<Vertex>, t: &Tuft, grass: [f32; 3]) {
-    let tufts = &crate::shapes::pack().terrain.tufts;
-    let total: u32 = tufts.kinds.iter().map(|k| k.weight).sum();
-    if total == 0 {
-        return;
-    }
-    let mut h = t.seed | 1;
-    let mut rnd = move || {
-        h ^= h << 13;
-        h ^= h >> 17;
-        h ^= h << 5;
-        (h >> 8) as f32 / 16_777_216.0
-    };
-    let mut pick = (rnd() * total as f32) as u32;
-    let Some(kind) = tufts.kinds.iter().find(|k| {
-        if pick < k.weight {
-            return true;
-        }
-        pick -= k.weight;
-        false
-    }) else {
-        return;
-    };
-    let root = Vec3::from(t.pos);
-    let tone = 0.85 + 0.3 * rnd();
-    let warm = rnd();
-    // the blades match the painted grass under them
-    let tint = [
-        grass[0] * tone * (1.0 + 0.25 * warm),
-        grass[1] * tone,
-        grass[2] * tone * (1.0 - 0.3 * warm),
-    ];
-    let phase = rnd() * std::f32::consts::TAU;
-    let v = kind.voxel.max(0.01);
-    let span = |r: [u8; 2], k: f32| r[0] as f32 + ((r[1].max(r[0]) - r[0]) as f32 + 1.0) * k;
-    let blades = span(kind.blades, rnd()).floor().max(1.0) as usize;
-    let spread = kind.spread as i32;
-    let mut tallest = (0.0f32, Vec3::ZERO);
-    // a box of voxels from `lo` up `tall` voxels: its four sides and top,
-    // shaded by facing (the shader lights clutter as if it faced up)
-    let mut push_box = |lo: Vec3, size: Vec3, foot: [f32; 3], tip: [f32; 3]| {
-        let hi = lo + size;
-        let sway = |p: Vec3| ((p.y - root.y) / 0.5).clamp(0.0, 1.0);
-        let col = |p: Vec3, shade: f32| {
-            let k = ((p.y - lo.y) / size.y.max(1e-4)).clamp(0.0, 1.0);
-            [0, 1, 2].map(|i| (foot[i] + (tip[i] - foot[i]) * k) * shade)
-        };
-        let faces: [([Vec3; 4], f32); 5] = [
-            (
-                [
-                    Vec3::new(lo.x, hi.y, lo.z),
-                    Vec3::new(lo.x, hi.y, hi.z),
-                    Vec3::new(hi.x, hi.y, hi.z),
-                    Vec3::new(hi.x, hi.y, lo.z),
-                ],
-                1.0,
-            ),
-            (
-                [
-                    Vec3::new(lo.x, lo.y, lo.z),
-                    Vec3::new(lo.x, hi.y, lo.z),
-                    Vec3::new(hi.x, hi.y, lo.z),
-                    Vec3::new(hi.x, lo.y, lo.z),
-                ],
-                0.72,
-            ),
-            (
-                [
-                    Vec3::new(hi.x, lo.y, hi.z),
-                    Vec3::new(hi.x, hi.y, hi.z),
-                    Vec3::new(lo.x, hi.y, hi.z),
-                    Vec3::new(lo.x, lo.y, hi.z),
-                ],
-                0.72,
-            ),
-            (
-                [
-                    Vec3::new(lo.x, lo.y, hi.z),
-                    Vec3::new(lo.x, hi.y, hi.z),
-                    Vec3::new(lo.x, hi.y, lo.z),
-                    Vec3::new(lo.x, lo.y, lo.z),
-                ],
-                0.84,
-            ),
-            (
-                [
-                    Vec3::new(hi.x, lo.y, lo.z),
-                    Vec3::new(hi.x, hi.y, lo.z),
-                    Vec3::new(hi.x, hi.y, hi.z),
-                    Vec3::new(hi.x, lo.y, hi.z),
-                ],
-                0.84,
-            ),
-        ];
-        for (q, shade) in faces {
-            for i in [0, 1, 2, 0, 2, 3] {
-                let p = q[i];
-                let c = col(p, shade);
-                out.push(Vertex {
-                    pos: p.into(),
-                    normal: (p - root).into(),
-                    color: [c[0], c[1], c[2], 1.0],
-                    light: t.light,
-                    sky: t.sky,
-                    tex: [sway(p), phase, KIND_CLUTTER, 0.0],
-                });
-            }
-        }
-    };
-    let foot = [0, 1, 2].map(|i| tint[i] * kind.foot[i]);
-    let tip = [0, 1, 2].map(|i| tint[i] * kind.tip[i]);
-    for _ in 0..blades {
-        let ox = (rnd() * (2 * spread + 1) as f32).floor() as i32 - spread;
-        let oz = (rnd() * (2 * spread + 1) as f32).floor() as i32 - spread;
-        let tall = span(kind.height, rnd()).floor().max(1.0);
-        // sunk a little, so no gap shows where the ground steps
-        let lo = root + Vec3::new(ox as f32 * v - v * 0.5, -v * 0.5, oz as f32 * v - v * 0.5);
-        let size = Vec3::new(v, v * (tall + 0.5), v);
-        push_box(lo, size, foot, tip);
-        if tall > tallest.0 {
-            tallest = (tall, lo + Vec3::new(0.0, size.y, 0.0));
-        }
-    }
-    if !kind.heads.is_empty() {
-        let c = kind.heads[(rnd() * kind.heads.len() as f32) as usize % kind.heads.len()];
-        let petal = c.map(|c: f32| c.powf(2.2));
-        let at = tallest.1;
-        // a cross of petals round the stem's top, and a heart over it
-        for (dx, dz) in [(-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0)] {
-            push_box(at + Vec3::new(dx * v, 0.0, dz * v), Vec3::splat(v), petal, petal);
-        }
-        let heart = kind.heart.unwrap_or(c).map(|c: f32| c.powf(2.2));
-        push_box(at, Vec3::splat(v), heart, heart);
-    }
-}
-
 /// The six vertices of a halo. The vertex shader turns them to the camera.
 fn push_glow(out: &mut Vec<Vertex>, g: &Glow) {
     let c = srgb(g.color);
@@ -1273,8 +1111,8 @@ struct SectionMesh {
     ground: Option<(wgpu::Buffer, u32)>,
     /// the level of detail its ground was meshed at
     lod: Lod,
-    /// where grass grows; turned into blades when the camera is near
-    tufts: Vec<Tuft>,
+    /// the plants and stones standing here; instanced when the camera is near
+    cover: Vec<crate::cover::Spot>,
     /// meshed (possibly to nothing) since the section last arrived
     built: bool,
 }
@@ -1321,9 +1159,8 @@ pub struct Gfx {
     /// sections waiting to be meshed at a new level of detail
     lod_queue: Vec<[i32; 3]>,
     /// grass and flowers around the camera, and the section column they were built for
-    clutter: Option<(wgpu::Buffer, u32)>,
-    clutter_at: Option<[i32; 2]>,
-    grass_tint: [f32; 3],
+    /// ground cover: grass, flowers and stones near the camera
+    pub cover: crate::cover::Gpu,
     pub adapter_info: String,
     /// When set, the next frame is saved to this path as a PPM image.
     pub screenshot: Option<std::path::PathBuf>,
@@ -1454,7 +1291,9 @@ impl Gfx {
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("voxel"),
-            source: wgpu::ShaderSource::Wgsl(SHADER.into()),
+            source: wgpu::ShaderSource::Wgsl(
+                format!("{SHADER}{}", crate::cover::VERTEX_SHADER).into(),
+            ),
         });
         let ubuf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("uniforms"),
@@ -1644,6 +1483,8 @@ impl Gfx {
             })
         };
         let opaque_pipe = make("fs", wgpu::PrimitiveTopology::TriangleList, None, true);
+        let mut cover = crate::cover::Gpu::new(&device, &shader, &layout, config.format, DEPTH);
+        cover.set_quality(1.0);
         let trans_pipe = make(
             "fs_translucent",
             wgpu::PrimitiveTopology::TriangleList,
@@ -1778,9 +1619,7 @@ impl Gfx {
             lods: crate::fine::Lods::default(),
             focus: None,
             lod_queue: Vec::new(),
-            clutter: None,
-            clutter_at: None,
-            grass_tint: layer_mean(textures().face(w::GRASS, 0)),
+            cover,
             adapter_info,
             screenshot: None,
             started: std::time::Instant::now(),
@@ -1814,8 +1653,7 @@ impl Gfx {
                 look_buf: &self.look_buf,
             },
         );
-        self.grass_tint = layer_mean(textures().face(w::GRASS, 0));
-        self.clutter_at = None;
+        self.cover.changed();
     }
 
     pub fn resize(&mut self, w: u32, h: u32) {
@@ -1875,8 +1713,9 @@ impl Gfx {
             ground,
             trans,
             glows,
-            tufts,
+            cover,
             lod,
+            ..
         } = geo;
         let (o, t) = (opaque.len() as u32, trans.len() as u32);
         opaque.extend(trans);
@@ -1893,7 +1732,7 @@ impl Gfx {
             glow,
             ground: self.upload(&ground).map(|(b, _)| (b, quads)),
             lod,
-            tufts,
+            cover,
             built: true,
         };
     }
@@ -1920,7 +1759,7 @@ impl Gfx {
             }
         }
         // grass near the camera may have changed
-        self.clutter_at = None;
+        self.cover.changed();
     }
 
     /// Where the camera will be when the world is next loaded: the ground
@@ -2008,7 +1847,7 @@ impl Gfx {
         self.sections.clear();
         self.sections
             .resize_with((d[0] * d[1] * d[2]) as usize, SectionMesh::default);
-        self.clutter_at = None;
+        self.cover.changed();
     }
 
     /// Store (upload) a section's mesh made elsewhere.
@@ -2018,13 +1857,8 @@ impl Gfx {
             return;
         }
         self.store(((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize, geo);
-        // grass near the camera may have changed
-        if let Some(at) = self.clutter_at
-            && (s[0] - at[0]).abs() <= CLUTTER_SECTIONS
-            && (s[2] - at[1]).abs() <= CLUTTER_SECTIONS
-        {
-            self.clutter_at = None;
-        }
+        // the cover near the camera may have changed
+        self.cover.changed_in(s);
     }
 
     /// Whether a section has been meshed since it last arrived.
@@ -2040,7 +1874,7 @@ impl Gfx {
         if (0..3).all(|i| s[i] >= 0 && s[i] < d[i]) {
             let i = ((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize;
             self.sections[i] = SectionMesh::default();
-            self.clutter_at = None;
+            self.cover.changed_in(s);
         }
     }
 
@@ -2115,30 +1949,29 @@ impl Gfx {
         self.region_changed(world, light, p, p, radius);
     }
 
-    /// Rebuild the grass and flowers when the camera enters a new section
-    /// column, or the ground near it changed.
-    fn update_clutter(&mut self, cam: Vec3) {
+    /// Make the cover's instances again when the camera has moved on, or
+    /// the ground near it changed.
+    fn update_cover(&mut self, cam: Vec3) {
+        if !self.cover.stale(cam) {
+            return;
+        }
+        let d = self.dims;
+        let reach = (self.cover.range() / SECTION as f32).ceil() as i32 + 1;
         let at = [
             (cam.x.floor() as i32).div_euclid(SECTION),
             (cam.z.floor() as i32).div_euclid(SECTION),
         ];
-        if self.clutter_at == Some(at) {
-            return;
-        }
-        self.clutter_at = Some(at);
-        let d = self.dims;
-        let mut verts = Vec::new();
-        for sz in (at[1] - CLUTTER_SECTIONS).max(0)..=(at[1] + CLUTTER_SECTIONS).min(d[2] - 1) {
-            for sx in (at[0] - CLUTTER_SECTIONS).max(0)..=(at[0] + CLUTTER_SECTIONS).min(d[0] - 1) {
-                for sy in 0..d[1] {
-                    let i = ((sy * d[2] + sz) * d[0] + sx) as usize;
-                    for t in &self.sections[i].tufts {
-                        push_tuft(&mut verts, t, self.grass_tint);
-                    }
-                }
-            }
-        }
-        self.clutter = self.upload(&verts);
+        let sections = &self.sections;
+        let near = ((at[1] - reach).max(0)..=(at[1] + reach).min(d[2] - 1)).flat_map(|sz| {
+            ((at[0] - reach).max(0)..=(at[0] + reach).min(d[0] - 1)).flat_map(move |sx| {
+                (0..d[1]).map(move |sy| {
+                    sections[((sy * d[2] + sz) * d[0] + sx) as usize]
+                        .cover
+                        .as_slice()
+                })
+            })
+        });
+        self.cover.rebuild(&self.device, &self.queue, cam, near);
     }
 
     /// Draw one frame: the world (if any), extra boxes, lines, then egui.
@@ -2157,7 +1990,7 @@ impl Gfx {
         self.queue
             .write_buffer(&self.look_buf, 0, bytemuck::bytes_of(&look));
         if let Some((_, cam, _)) = view_proj {
-            self.update_clutter(cam);
+            self.update_cover(cam);
         }
         let surface_tex = match &self.surface {
             Some(surface) => match surface.get_current_texture() {
@@ -2297,10 +2130,8 @@ impl Gfx {
                         rp.draw_indexed(0..*q * 6, 0, 0..1);
                     }
                 }
-                if let Some((b, n)) = &self.clutter {
-                    rp.set_vertex_buffer(0, b.slice(..));
-                    rp.draw(0..*n, 0..1);
-                }
+                self.cover.draw(&mut rp);
+                rp.set_pipeline(&self.opaque_pipe);
                 if let Some((b, n)) = &box_buf {
                     rp.set_vertex_buffer(0, b.slice(..));
                     rp.draw(0..*n, 0..1);

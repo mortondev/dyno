@@ -1817,7 +1817,12 @@ impl App {
                 match ev {
                     NetEvent::Closed(r) => closed = Some(r),
                     // new rules from the pack (after /reload)
-                    NetEvent::Content(c) => p.content = *c,
+                    NetEvent::Content(c) => {
+                        if let Some(h) = p.hearth {
+                            crate::cover::set_areas_from(&c, h);
+                        }
+                        p.content = *c
+                    }
                     NetEvent::Msg(m) => match m {
                         ServerMsg::Poses(list) => {
                             for (id, pose) in list {
@@ -5487,8 +5492,9 @@ impl ApplicationHandler for App {
             }
         };
         match Gfx::new(window.clone()) {
-            Ok(g) => {
+            Ok(mut g) => {
                 eprintln!("graphics: {}", g.adapter_info);
+                g.cover.set_quality(self.settings.ground_cover);
                 crate::theme::apply(&self.egui_ctx);
                 self.egui_ctx.style_mut(|s| {
                     s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);

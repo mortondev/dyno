@@ -222,6 +222,35 @@ when one of them is replaced.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.
+- **Ground cover** (`cover.json`, `cover/*.vox`; `dyno-client/src/cover.rs`):
+  grass tufts, flowers, ferns, reeds, bushes, pebbles and small rocks.
+  - `kinds`: a `.vox` file each, every model in it a variant; `voxel`
+    (metres per voxel), `sway` (wind) and `soft` (0 lit as a solid, 1 lit
+    evenly like the ground).
+  - `layers`: scatter rules. Each names its `kinds`, the blocks it stands
+    `on`, `per_block` (how many per block top), and what thins or gathers
+    it: `patch` (noise: none below `from`, all above `to`), `near` and
+    `away` (blocks within 1–3 blocks: water, paving, trunks), `sky` (a range
+    of sky light), `tint`, and `areas` (density and tint per area key of the
+    rules, `elsewhere` for the rest of the map).
+  - `range`, `near`, `far` (per layer) and `detail`: everything grows within
+    `near` metres of the camera; beyond it each layer thins to its `far`
+    share at `range`; beyond `detail` a model is drawn column by column.
+  - The mesher hands over each open top of the ground; the scatter runs on
+    the world thread; the renderer draws the spots near the camera
+    instanced, sorted by model. The player's `ground_cover` setting (0–2;
+    `DYNO_COVER` for tools) scales density and range.
+  - The models are made by `tools/cover/make.py` and may be edited in
+    MagicaVoxel. `boulder.vox` and `stepping_stone.vox` are in the pack for
+    the world builders: cover has no collision, so anything a player should
+    stand on or walk round belongs in the world as blocks.
+- **Foliage** (`foliage.json`; `dyno-client/src/foliage.rs`): leaf crowns as
+  clumps of cubes. `cells` cubes along a block (0: the smooth canopy), `erode`
+  (how much of a crown's outside is worn away), `crease`, `under`, `depth`
+  and `vary` (shading), `leaves` (colours per leaf block key), `trunks` (the
+  blocks trees are made of) and `areas` (per area key: the `blocks` that
+  turn, and `tones` with the `share` of trees each takes: autumn, blossom).
+  Which cells hold leaves stays the world's business.
 
 ## 4. World streaming
 

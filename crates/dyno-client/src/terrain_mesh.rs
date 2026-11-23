@@ -49,7 +49,6 @@ const LEAF_IN: f32 = 0.2;
 const LEAF_OUT: f32 = 0.08;
 /// How far the water surface sits below the top of its block.
 pub const WATER_DROP: f32 = 0.2;
-
 /// Natural ground: drawn as fine voxels (the pack's `terrain` tag).
 pub fn is_terrain(b: BlockId) -> bool {
     crate::shapes::has(b, crate::shapes::tag::TERRAIN)
@@ -91,15 +90,6 @@ pub(crate) fn flags_with(
     }
 }
 
-/// A tuft of grass (or a flower) to draw near the camera.
-#[derive(Clone, Copy)]
-pub struct Tuft {
-    pub pos: [f32; 3],
-    pub light: f32,
-    pub sky: f32,
-    pub seed: u32,
-}
-
 /// A soft halo around a lamp.
 #[derive(Clone, Copy)]
 pub struct Glow {
@@ -115,7 +105,11 @@ pub struct SectionGeo {
     /// index (triangles 0 1 2 and 0 2 3)
     pub ground: Vec<Vertex>,
     pub trans: Vec<Vertex>,
-    pub tufts: Vec<Tuft>,
+    /// the open tops of the ground, for the cover to grow on (emptied once
+    /// it has)
+    pub tops: Vec<crate::cover::Top>,
+    /// plants and stones standing on the ground (`cover.rs`)
+    pub cover: Vec<crate::cover::Spot>,
     pub glows: Vec<Glow>,
     /// the level of detail its ground was meshed at
     pub lod: Lod,
@@ -1063,7 +1057,11 @@ pub fn mesh_lod(world: &World, light: &Light, sx: i32, sy: i32, sz: i32, lod: Lo
         fine::mesh(&g, light, lod, &mut geo);
     }
     if own & F_LEAVES != 0 {
-        Nets::new(&g).run(light, &mut geo);
+        // as clumps of cubes when the pack says so (`foliage.rs`), else smooth
+        match crate::foliage::current().filter(|f| f.voxels()) {
+            Some(f) => crate::foliage::mesh(&f, &g, light, &mut geo),
+            None => Nets::new(&g).run(light, &mut geo),
+        }
     }
     let has_water = all & F_WATER != 0;
     if own & (F_PIN | F_WATER) != 0 || (has_water && own & F_TERRAIN != 0) {
@@ -1072,6 +1070,8 @@ pub fn mesh_lod(world: &World, light: &Light, sx: i32, sy: i32, sz: i32, lod: Lo
     if own & F_DETAIL != 0 {
         crate::shapes::mesh(&g, light, &mut geo);
     }
+    let tops = std::mem::take(&mut geo.tops);
+    crate::cover::scatter(&g, &tops, &mut geo.cover);
     geo
 }
 

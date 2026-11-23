@@ -29,7 +29,7 @@
 use crate::light::Light;
 use crate::render::{self, KIND_VOXEL, SECTION, Vertex};
 use crate::terrain_mesh::{
-    DX, DY, DZ, F_DARK, F_LEAVES, F_OPAQUE, F_PIN, F_TERRAIN, F_WATER, Grid, SectionGeo, Tuft, at,
+    DX, DY, DZ, F_DARK, F_LEAVES, F_OPAQUE, F_PIN, F_TERRAIN, F_WATER, Grid, SectionGeo, at,
     hash3,
 };
 use dyno_world::{self as w, BlockId};
@@ -77,7 +77,6 @@ pub(crate) struct TerrainJson {
     pub jitter: f32,
     /// per block (by key)
     pub blocks: BTreeMap<String, BlockJson>,
-    pub tufts: TuftsJson,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -103,54 +102,6 @@ pub(crate) struct BlockJson {
     inset: Option<f32>,
 }
 
-/// Grass and flowers near the camera, as fine voxels.
-#[derive(Deserialize, Clone, Debug, Default)]
-#[serde(default, deny_unknown_fields)]
-pub(crate) struct TuftsJson {
-    /// blocks (by key) whose open tops grow tufts
-    pub on: Vec<String>,
-    /// per cent of those blocks with a tuft
-    pub per_cent: u32,
-    pub kinds: Vec<TuftKind>,
-}
-
-#[derive(Deserialize, Clone, Debug)]
-#[serde(default, deny_unknown_fields)]
-pub(crate) struct TuftKind {
-    pub weight: u32,
-    /// size of a voxel, metres
-    pub voxel: f32,
-    /// blades: at least and at most
-    pub blades: [u8; 2],
-    /// height of a blade in voxels: at least and at most
-    pub height: [u8; 2],
-    /// how far from the root a blade stands, in voxels
-    pub spread: u8,
-    /// colour of a blade's foot and tip, times the ground's colour
-    pub foot: [f32; 3],
-    pub tip: [f32; 3],
-    /// a flower head on the tallest blade, picked from these colours (sRGB)
-    pub heads: Vec<[f32; 3]>,
-    /// the head's middle (sRGB), drawn on top of it
-    pub heart: Option<[f32; 3]>,
-}
-
-impl Default for TuftKind {
-    fn default() -> Self {
-        TuftKind {
-            weight: 1,
-            voxel: 0.125,
-            blades: [3, 5],
-            height: [1, 3],
-            spread: 2,
-            foot: [0.7; 3],
-            tip: [1.1; 3],
-            heads: Vec::new(),
-            heart: None,
-        }
-    }
-}
-
 impl Default for TerrainJson {
     fn default() -> Self {
         TerrainJson {
@@ -174,7 +125,6 @@ impl Default for TerrainJson {
             cover_depth: 0.25,
             jitter: 0.08,
             blocks: BTreeMap::new(),
-            tufts: TuftsJson::default(),
         }
     }
 }
@@ -195,8 +145,6 @@ pub(crate) struct Params {
     jitter: [f32; 256],
     edge_of: [f32; 256],
     inset: [f32; 256],
-    pub tufts: TuftsJson,
-    pub tuft_on: [bool; 256],
 }
 
 impl Params {
@@ -216,8 +164,6 @@ impl Params {
             jitter: [j.jitter; 256],
             edge_of: [1.0; 256],
             inset: [0.0; 256],
-            tufts: j.tufts.clone(),
-            tuft_on: [false; 256],
         };
         let mut lod: Vec<(f32, u8)> = j
             .lod
@@ -243,11 +189,6 @@ impl Params {
             }
             if let Some(v) = b.inset {
                 p.inset[id] = v.clamp(0.0, 0.5);
-            }
-        }
-        for key in &j.tufts.on {
-            if let Some(&id) = names.get(key) {
-                p.tuft_on[id as usize] = true;
             }
         }
         p
@@ -1304,7 +1245,7 @@ impl<'a> Fine<'a> {
         }
         #[cfg(test)]
         prof(2, t0.elapsed().as_secs_f64() * 1e3, rects.len() as f64);
-        self.tufts(light, geo);
+        self.tops(light, geo);
     }
 
     /// Two triangles for a merged face.
@@ -1384,15 +1325,13 @@ impl<'a> Fine<'a> {
         }
     }
 
-    /// Tufts of grass and flowers on open ground that grows them, drawn as
-    /// fine voxels near the camera.
-    fn tufts(&mut self, light: &Light, geo: &mut SectionGeo) {
-        let p = self.p;
-        if p.tufts.per_cent == 0 || p.tufts.kinds.is_empty() {
-            return;
-        }
+    /// The open, fairly level tops of the section's ground, for the cover
+    /// (`cover.rs`) to grow on: corners at the tops of the fine columns in
+    /// the cell's corners.
+    fn tops(&mut self, light: &Light, geo: &mut SectionGeo) {
         let g = self.g;
         let r = self.r;
+        let rf = r as f32;
         for y in 0..N {
             for z in 0..N {
                 for x in 0..N {
@@ -1400,33 +1339,38 @@ impl<'a> Fine<'a> {
                     if g.fl[c] & F_TERRAIN == 0 || g.ids[c + DY] != w::AIR {
                         continue;
                     }
-                    if !p.tuft_on[self.material(c) as usize] {
+                    let mut hs = [0f32; 4];
+                    let mut ok = true;
+                    for (n, (i, k)) in [(0, 0), (r - 1, 0), (r - 1, r - 1), (0, r - 1)]
+                        .into_iter()
+                        .enumerate()
+                    {
+                        let (vx, vz) = (x * r + i, z * r + k);
+                        match (y * r..(y + 2) * r)
+                            .rev()
+                            .find(|vy| self.solid(vx, *vy, vz) && !self.solid(vx, vy + 1, vz))
+                        {
+                            Some(top) => hs[n] = (g.o[1] * r + top + 1) as f32 / rf,
+                            None => ok = false,
+                        }
+                    }
+                    let (lo, hi) = hs.iter().fold((f32::MAX, f32::MIN), |a, h| (a.0.min(*h), a.1.max(*h)));
+                    if !ok || hi - lo > 0.5 {
                         continue;
                     }
                     let (wx, wy, wz) = (g.o[0] + x, g.o[1] + y, g.o[2] + z);
-                    let h = hash3(wx, wy, wz);
-                    if h % 100 >= p.tufts.per_cent {
-                        continue;
-                    }
-                    let (fx, fz) = ((h >> 8) as i32 % r, (h >> 16) as i32 % r);
-                    // the top of that fine column
-                    let (vx, vz) = (x * r + fx, z * r + fz);
-                    let Some(top) = (y * r..(y + 2) * r)
-                        .rev()
-                        .find(|vy| self.solid(vx, *vy, vz) && !self.solid(vx, vy + 1, vz))
-                    else {
-                        continue;
-                    };
-                    let rf = r as f32;
-                    geo.tufts.push(Tuft {
-                        pos: [
-                            (g.o[0] * r + vx) as f32 / rf + 0.5 / rf,
-                            (g.o[1] * r + top + 1) as f32 / rf,
-                            (g.o[2] * r + vz) as f32 / rf + 0.5 / rf,
+                    let (x0, z0) = (wx as f32, wz as f32);
+                    geo.tops.push(crate::cover::Top {
+                        cell: [x as i8, y as i8, z as i8],
+                        block: g.ids[c],
+                        corners: [
+                            [x0, hs[0], z0],
+                            [x0 + 1.0, hs[1], z0],
+                            [x0 + 1.0, hs[2], z0 + 1.0],
+                            [x0, hs[3], z0 + 1.0],
                         ],
                         light: light.get(wx, wy + 1, wz) as f32 / 15.0,
                         sky: light.sky(wx, wy + 1, wz) as f32 / 15.0,
-                        seed: h,
                     });
                 }
             }
