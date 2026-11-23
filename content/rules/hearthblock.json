@@ -2581,7 +2581,7 @@
   {
    "key": "grazer",
    "name": "Grazer",
-   "health": 25,
+   "health": 32,
    "speed": 1.6,
    "hostile": false,
    "drops": [
@@ -2630,10 +2630,10 @@
   {
    "key": "shade",
    "name": "Shade",
-   "health": 40,
+   "health": 44,
    "speed": 3.8,
    "hostile": true,
-   "damage": 6,
+   "damage": 5,
    "drops": [
     {
      "item": "shade_dust",
@@ -2669,8 +2669,8 @@
    "name": "Thornboar",
    "model": "quadruped",
    "variant": 1,
-   "health": 40,
-   "damage": 6,
+   "health": 48,
+   "damage": 5,
    "levels": [
     3,
     4
@@ -2725,8 +2725,8 @@
    "name": "Mirepincher",
    "model": "quadruped",
    "variant": 2,
-   "health": 48,
-   "damage": 6,
+   "health": 55,
+   "damage": 5,
    "levels": [
     3,
     5
@@ -2769,8 +2769,8 @@
    "name": "Websnare",
    "model": "quadruped",
    "variant": 3,
-   "health": 35,
-   "damage": 6,
+   "health": 40,
+   "damage": 5,
    "levels": [
     4,
     5
@@ -2801,15 +2801,15 @@
    "cap": 0,
    "attack_speed": 1.8,
    "burns_in_daylight": false,
-   "aggro": 10
+   "aggro": 8
   },
   {
    "key": "ashcloak",
    "name": "Ashcloak Bandit",
    "model": "humanoid",
    "variant": 1,
-   "health": 45,
-   "damage": 7,
+   "health": 50,
+   "damage": 6,
    "levels": [
     4,
     6
@@ -2837,12 +2837,6 @@
      "min": 1,
      "max": 1,
      "chance": 0.012
-    },
-    {
-     "item": "raw_iron",
-     "min": 1,
-     "max": 1,
-     "chance": 0.35
     }
    ],
    "hostile": true,
@@ -3219,7 +3213,8 @@
     "berries",
     5
    ]
-  ]
+  ],
+  "group_bonus": 0.5
  },
  "npcs": [
   {
@@ -3662,7 +3657,7 @@
    "requires": [
     "coal_for_the_watch"
    ],
-   "text": "The iron seams run deeper than coal: rust-red flecks in cave walls and cut hillsides. You'll want a stone pickaxe (Old Brannoc gives one for kindling, or I sell them) and a little practice: dig coal until your Mining reaches 5. Or take it back from the Ashcloak bandits on the East Road, who rob the miners' carts. Bring me 6 raw iron and I'll show you what a forge can do.",
+   "text": "The iron seams run deeper than coal: rust-red flecks in cave walls and cut hillsides. You'll want a stone pickaxe (Old Brannoc gives one for kindling, or I sell them) and a little practice: dig coal until your Mining reaches 5. Bring me 6 raw iron and I'll show you what a forge can do.",
    "done": "Good ore. Here, a proper pick, from my own anvil.",
    "objectives": [
     {
@@ -4597,7 +4592,7 @@
    "key": "rending_cut",
    "name": "Rending Cut",
    "class": "warrior",
-   "level": 6,
+   "level": 3,
    "text": "Open a wound that bleeds for 15 seconds.",
    "icon": "watch_longsword",
    "color": [
@@ -4716,7 +4711,7 @@
    "key": "rebuke",
    "name": "Rebuke",
    "class": "paladin",
-   "level": 6,
+   "level": 3,
    "text": "Stun your target for 4 seconds.",
    "icon": "shadowbane_mace",
    "color": [
@@ -4798,7 +4793,7 @@
    "key": "barbed_arrow",
    "name": "Barbed Arrow",
    "class": "hunter",
-   "level": 4,
+   "level": 2,
    "text": "An arrow that keeps cutting for 15 seconds.",
    "icon": "ashwood_longbow",
    "color": [
@@ -4921,7 +4916,7 @@
    "key": "low_blow",
    "name": "Low Blow",
    "class": "rogue",
-   "level": 4,
+   "level": 3,
    "text": "Stun your target for 3 seconds. Adds a combo point.",
    "icon": "rusty_dagger",
    "color": [
@@ -5044,7 +5039,7 @@
    "key": "withering_word",
    "name": "Withering Word",
    "class": "priest",
-   "level": 4,
+   "level": 2,
    "text": "Shadow eats at your target for 18 seconds.",
    "icon": "shade_dust",
    "color": [
@@ -5166,7 +5161,7 @@
    "key": "fire_blast",
    "name": "Fire Blast",
    "class": "mage",
-   "level": 4,
+   "level": 2,
    "text": "An instant burst of flame.",
    "icon": "torch",
    "color": [
@@ -5461,7 +5456,7 @@
    "camps": [
     {
      "creature": "websnare",
-     "count": 5,
+     "count": 4,
      "at": [
       -87,
       -53
@@ -5544,7 +5539,7 @@
    "radius": 58,
    "levels": [
     3,
-    5
+    4
    ],
    "camps": [
     {
@@ -5668,7 +5663,7 @@
    "radius": 52,
    "levels": [
     4,
-    6
+    5
    ],
    "camps": [
     {
