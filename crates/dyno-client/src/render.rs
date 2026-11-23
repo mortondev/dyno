@@ -11,7 +11,6 @@ use glam::{Mat4, Vec3};
 use std::sync::Arc;
 
 pub const SECTION: i32 = 16;
-pub const SKY: [f32; 3] = [0.62, 0.78, 0.96];
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
