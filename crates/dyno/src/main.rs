@@ -2,6 +2,8 @@
 
 use std::time::Duration;
 
+mod sculpt;
+
 const HELP: &str = "\
 dyno - live multiplayer block world (bootstrap build)
 
@@ -35,6 +37,9 @@ USAGE:
   dyno fill <address> x,y,z x,y,z <block>
                                Fill a box with a block (Air clears it)
   dyno bake-stage [PACK_DIR]   Bake the title-screen stage into the pack (default content/)
+  dyno shot --outfit-sheet OUT.png
+                               Render the showcase item sets in figures.json (no server needed)
+  dyno bake-figure [PACK_DIR]  Sculpt the person figure (layers, figure entry, rig) into the pack
   dyno update                  Check for a new release and install it
   dyno version                 Print version, target and protocol
   dyno verify-manifest <manifest.json> <manifest.json.sig>
@@ -114,6 +119,17 @@ fn main() {
                         }
                     }
                 }
+                Err(e) => {
+                    eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "shot" if args.get(1).is_some_and(|a| a == "--outfit-sheet") => {
+            // no server needed: every item set in the showcase, on its people
+            let out = args.get(2).cloned().unwrap_or_else(|| "outfits.png".into());
+            match dyno_client::sheet::outfit_sheet(std::path::Path::new(&out)) {
+                Ok(msg) => println!("{msg}"),
                 Err(e) => {
                     eprintln!("FAILED: {e}");
                     std::process::exit(1);
@@ -309,6 +325,13 @@ fn main() {
                     })) => println!("{text}"),
                     _ => {}
                 }
+            }
+        }
+        "bake-figure" => {
+            let pack = args.get(1).cloned().unwrap_or_else(|| "content".into());
+            match sculpt::person::bake(std::path::Path::new(&pack)) {
+                Ok(msg) => println!("{msg}"),
+                Err(e) => fail(&e),
             }
         }
         "bake-stage" => {
