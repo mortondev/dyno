@@ -19,7 +19,7 @@ def rel(dx, y, dz): return (OLD[0] + dx, y, OLD[2] + dz)
 # name: (target, camera offset (dx, dy, dz), time of day)
 spots = {
     'hearthstead_plaza': ((194, 38, 195), (-4, 20, 30), 0.30),
-    'hearthstead_street': ((194, 38, 189), (10, 6, 16), 0.32),
+    'hearthstead_street': ((194, 38, 186), (-3, 5, 18), 0.32),
     'hearthstead_dusk': ((194, 38, 195), (24, 26, 34), 0.73),
     'watch_tower': ((200, 40, 180), (-28, 16, 10), 0.32),
     'north_watch': ((194, 30, 144), (24, 22, 26), 0.30),
@@ -33,7 +33,7 @@ spots = {
     'sunken_shrine': (rel(8, 26, 159), (-22, 14, -18), 0.33),
     'wrecked_caravan': ((244, 31, 186), (20, 18, 22), 0.30),
     'ashcloak_stockade': (rel(62, 28, 66), (-22, 18, -16), 0.80),
-    'emberford_bridge': (rel(95, 28, 0), (-18, 12, 20), 0.31),
+    'emberford_bridge': (rel(95, 28, 0), (16, 14, -22), 0.31),
     'miners_rest': ((322, 33, 205), (-24, 20, 22), 0.31),
     'hollow_mines': ((351, 30, 176), (-26, 26, 26), 0.34),
 }

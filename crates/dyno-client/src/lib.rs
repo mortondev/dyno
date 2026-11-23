@@ -19,6 +19,7 @@ pub mod render;
 pub mod rpg_ui;
 pub mod screens;
 pub mod settings;
+pub(crate) mod fine;
 pub(crate) mod shapes;
 pub mod sheet;
 pub mod shot;

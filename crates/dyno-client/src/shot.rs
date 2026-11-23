@@ -74,6 +74,7 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
     let mut g = Gfx::new_headless(o.width, o.height)?;
     let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
     let load_start = Instant::now();
+    g.set_focus(Vec3::from(o.pos.unwrap_or(j.spawn)));
     g.load_world(&j.world, &light);
     let load_ms = load_start.elapsed().as_secs_f64() * 1e3;
     let t = o.time.unwrap_or(server_time);

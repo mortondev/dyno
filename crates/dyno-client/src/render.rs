@@ -3,6 +3,7 @@
 //! highlight and boxes for everything that moves.
 
 use crate::light::Light;
+use crate::fine::Lod;
 use crate::terrain_mesh::{self, Glow, SectionGeo, Tuft};
 use bytemuck::{Pod, Zeroable};
 use dyno_world::{self as w, BlockId, World};
@@ -35,14 +36,13 @@ pub const NO_TEX: [f32; 4] = [0.0, 0.0, -1.0, 0.0];
 
 // What a vertex is, told by `tex[2]`. From 0 up it is a texture layer plus
 // one of these bands; below 0 it is untextured.
-/// Smooth ground: textured by world position. `tex[1]` is the layer for steep
-/// faces; `tex[0]`, `color[1]` and `color[0]` are a neighbouring ground's
-/// layers and how much of it shows; `color[2]` is 1 to keep the tile crisp.
-pub const KIND_TERRAIN: f32 = 4096.0;
 /// Leaves: textured by world position, alpha-tested, swaying in the wind.
 pub const KIND_FOLIAGE: f32 = 8192.0;
 /// The water surface: waves, shore foam (`normal[0]` is how near the shore is).
 pub const KIND_WATER: f32 = 12288.0;
+/// Fine voxel ground: one colour per voxel, from the layer at the voxel's
+/// centre. `tex[0]` is voxels a metre, `color[0]` the brightness jitter.
+pub const KIND_VOXEL: f32 = 16384.0;
 /// Ground clutter: `normal` is the offset from the root, `tex[0]` the sway.
 const KIND_CLUTTER: f32 = -2.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
@@ -139,12 +139,12 @@ struct Look { leaf_under: vec4<f32>, leaf_over: vec4<f32>, tone_low: vec4<f32>, 
 // What a vertex is, from tex.z (see the KIND constants in render.rs):
 //   below 0: untextured (-1 plain, -2 ground clutter, -3 ground decal, -4 halo)
 //   0..: textured with its own UVs
-//   4096..: smooth ground, textured by world position
 //   8192..: foliage, textured by world position, swaying
 //   12288..: water surface
-const K_TERRAIN: f32 = 4096.0;
+//   16384..: fine voxel ground, a colour a voxel
 const K_FOLIAGE: f32 = 8192.0;
 const K_WATER: f32 = 12288.0;
+const K_VOXEL: f32 = 16384.0;
 
 // 1 in sunlight, 0 in shadow; soft-edged. Four taps: the sampler compares
 // and blends 2 x 2 texels at each, so together they cover the same patch a
@@ -234,7 +234,9 @@ struct VOut {
   var tone = 0.5;
   let t = u.cam.w;
   let kz = v.tex.z;
-  if (kz >= K_WATER) {
+  if (kz >= K_VOXEL) {
+    tone = world_tone(pos.xz);
+  } else if (kz >= K_WATER) {
     pos.y = pos.y + swell(pos.xz, t);
   } else if (kz >= K_FOLIAGE) {
     tone = vnoise(pos.xz * 0.35 + pos.y * 0.21);
@@ -252,8 +254,6 @@ struct VOut {
     pos = root + (v.normal + vec3<f32>(s, 0.0, s * 0.6)) * fade;
     normal = vec3<f32>(0.0, 1.0, 0.0);
     tone = world_tone(root.xz);
-  } else if (kz >= K_TERRAIN) {
-    tone = world_tone(pos.xz);
   } else if (kz >= 0.0) {
     // built blocks: the same slow drift of tone, so a wall is not one tile
     // stamped over and over
@@ -312,48 +312,6 @@ fn side_z(layer: i32, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>) -> vec4<f32> {
   return textureSampleGrad(tex_array, tex_samp, vec2<f32>(p.x, -p.y), layer, vec2<f32>(dx.x, -dx.y), vec2<f32>(dy.x, -dy.y));
 }
 
-// A ground tile, and a larger, turned copy of it under that: broad strokes
-// that hide the repeat.
-fn broad(layer: i32, uv: vec2<f32>, dx: vec2<f32>, dy: vec2<f32>) -> vec3<f32> {
-  let m = mat2x2<f32>(0.27, 0.09, -0.09, 0.27);
-  // soft and magnified, so a plain mip level will do (cheaper than gradients);
-  // 9.1 is 32 texels across a tile, times the copy's scale of 0.285
-  let lod = log2(max(max(length(dx), length(dy)) * 9.1, 1.0));
-  return textureSampleLevel(tex_array, tex_samp, m * uv, layer, lod).rgb;
-}
-fn paint(layer: i32, uv: vec2<f32>, dx: vec2<f32>, dy: vec2<f32>, soft: f32) -> vec3<f32> {
-  var c = textureSampleGrad(tex_array, tex_samp, uv, layer, dx, dy).rgb;
-  if (soft > 0.001) { c = mix(c, broad(layer, uv, dx, dy), soft); }
-  return c;
-}
-
-// One kind of ground: its top layer where it lies level, its steep layer on
-// slopes, walls and ceilings. `near` is the top layer seen from above, if
-// the caller has sampled it already (`have`). `soft` is how much of the
-// broad copy goes in: none for ore and the like, whose detail matters.
-fn ground(top: i32, steep: i32, level0: f32, w3: vec3<f32>, p: vec3<f32>, dx: vec3<f32>, dy: vec3<f32>, near: vec3<f32>, have: bool, soft: f32) -> vec3<f32> {
-  var level = level0;
-  if (top == steep) { level = 1.0; }
-  var c = vec3<f32>(0.0);
-  if (w3.y > 0.001) {
-    var cy = vec3<f32>(0.0);
-    if (level > 0.001) {
-      if (!have) {
-        cy += level * paint(top, p.xz, dx.xz, dy.xz, soft);
-      } else if (soft > 0.001) {
-        cy += level * mix(near, broad(top, p.xz, dx.xz, dy.xz), soft);
-      } else {
-        cy += level * near;
-      }
-    }
-    if (level < 0.999) { cy += (1.0 - level) * paint(steep, p.xz, dx.xz, dy.xz, soft); }
-    c += w3.y * cy;
-  }
-  if (w3.x > 0.001) { c += w3.x * paint(steep, vec2<f32>(p.z, -p.y), vec2<f32>(dx.z, -dx.y), vec2<f32>(dy.z, -dy.y), soft); }
-  if (w3.z > 0.001) { c += w3.z * paint(steep, vec2<f32>(p.x, -p.y), vec2<f32>(dx.x, -dx.y), vec2<f32>(dy.x, -dy.y), soft); }
-  return c;
-}
-
 // Broad, slow changes of tone, so the ground is not one repeated tile.
 // The amount comes from the vertex shader.
 fn ground_tone(m: f32) -> vec3<f32> {
@@ -371,13 +329,13 @@ fn ground_tone(m: f32) -> vec3<f32> {
   // UVs, or for ground and leaves the view from above.
   var uv0 = i.tex.xy;
   var l0 = 0;
-  if (kz >= K_FOLIAGE) {
+  if (kz >= K_VOXEL) {
+    uv0 = i.wpos.xz;
+    l0 = anim_layer(kz - K_VOXEL, i.tex.w);
+  } else if (kz >= K_FOLIAGE) {
     // leaves: larger painted clumps than one tile a block
     uv0 = i.wpos.xz * leaf_scale;
     l0 = anim_layer(kz - K_FOLIAGE, i.tex.w);
-  } else if (kz >= K_TERRAIN) {
-    uv0 = i.wpos.xz;
-    l0 = anim_layer(kz - K_TERRAIN, i.tex.w);
   } else if (kz >= 0.0) {
     l0 = anim_layer(kz, i.tex.w);
   }
@@ -398,8 +356,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
     let r2 = cross(n, dpx);
     let det = dot(dpx, r1);
     let g = sign(det) * (dhx * r1 + dhy * r2);
-    // smooth ground: only on its level tops, which show the texture seen from above
-    let k = look.grade.w * (1.0 - smoothstep(18.0, 40.0, d)) * select(1.0, smoothstep(0.6, 0.9, n.y), kz >= K_TERRAIN);
+    let k = look.grade.w * (1.0 - smoothstep(18.0, 40.0, d));
     bent = normalize(abs(det) * n - g * k);
   }
   var base = i.color.rgb;
@@ -407,7 +364,29 @@ fn ground_tone(m: f32) -> vec3<f32> {
   // 0: hard sunlight; towards 1: light wraps round the form (foliage)
   var wrap = 0.0;
   var dim = 1.0;
-  if (kz >= K_FOLIAGE) {
+  if (kz >= K_VOXEL) {
+    // fine voxel ground: one colour a voxel, the layer's texel at the
+    // voxel's centre on the mip level with a texel a voxel, jittered
+    let r = i.tex.x;
+    let an = abs(n);
+    var ax = vec3<f32>(0.0, sign(n.y), 0.0);
+    if (an.x > an.y && an.x > an.z) {
+      ax = vec3<f32>(sign(n.x), 0.0, 0.0);
+    } else if (an.z > an.y) {
+      ax = vec3<f32>(0.0, 0.0, sign(n.z));
+    }
+    let vox = floor(i.wpos * r - ax * 0.5);
+    let ctr = (vox + 0.5) / r;
+    var uv = ctr.xz;
+    if (abs(ax.x) > 0.5) { uv = vec2<f32>(ctr.z, -ctr.y); } else if (abs(ax.z) > 0.5) { uv = vec2<f32>(ctr.x, -ctr.y); }
+    let size = f32(textureDimensions(tex_array, 0).x);
+    var col = textureSampleLevel(tex_array, tex_samp, uv, l0, log2(max(size / r, 1.0))).rgb;
+    let h1 = hash3(vox);
+    let h2 = hash3(vox + vec3<f32>(17.0, 31.0, 47.0));
+    let jit = i.color.r;
+    col = col * (1.0 + jit * (h1 - 0.5) * 2.0) * (vec3<f32>(1.0) + vec3<f32>(0.5, -0.1, -0.45) * jit * (h2 - 0.5));
+    base = max(col, vec3<f32>(0.0)) * ground_tone(i.tone);
+  } else if (kz >= K_FOLIAGE) {
     let w3 = tri_weights(n);
     var tx = w3.y * tx0;
     if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos * leaf_scale, dpx * leaf_scale, dpy * leaf_scale); }
@@ -424,31 +403,6 @@ fn ground_tone(m: f32) -> vec3<f32> {
     // darker underneath and inside
     dim = dim * (0.74 + 0.26 * smoothstep(-0.6, 0.5, n.y));
     wrap = 0.55;
-  } else if (kz >= K_TERRAIN) {
-    let w3 = tri_weights(n);
-    // the top layer on level ground, giving way to the steep layer on
-    // slopes, along a ragged line
-    var level = smoothstep(0.40, 0.62, n.y);
-    if (n.y > 0.3 && n.y < 0.72) {
-      level = smoothstep(0.40, 0.62, n.y + (vnoise(i.wpos.xz * 1.3 + i.wpos.y * 0.7) - 0.5) * 0.16);
-    }
-    var lc = i32(i.tex.y + 0.5);
-    // a block with one animated texture all round: its steep faces move too
-    if (lc == i32(kz - K_TERRAIN + 0.5)) { lc = l0; }
-    // color.b: 1 on ground whose own detail must stay crisp (ore, emberstone)
-    var c = ground(l0, lc, level, w3, i.wpos, dpx, dpy, tx0.rgb, true, 0.42 * (1.0 - i.color.b));
-    // fade into the neighbouring kind of ground along a ragged, painted edge
-    let wb = i.color.r;
-    if (wb > 0.002) {
-      let nb = vnoise(i.wpos.xz * 2.1 + i.wpos.y * 1.3) * 0.6 + vnoise(i.wpos.xz * 0.63 + vec2<f32>(3.1, 7.7)) * 0.4;
-      // both sides of the edge must draw the same line: one adds the noise, the other takes it away
-      let s = select(-1.0, 1.0, kz - K_TERRAIN < i.tex.x);
-      let k = smoothstep(0.38, 0.62, wb + s * (nb - 0.5) * 0.5);
-      if (k > 0.001) {
-        c = mix(c, ground(i32(i.tex.x + 0.5), i32(i.color.g + 0.5), level, w3, i.wpos, dpx, dpy, c, false, 0.42), k);
-      }
-    }
-    base = c * ground_tone(i.tone);
   } else if (kz < -1.5 && kz > -2.5) {
     base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
@@ -532,7 +486,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
 @fragment fn fs_translucent(i: VOut) -> @location(0) vec4<f32> {
   let kz = i.tex.z;
   var l0 = 0;
-  if (kz >= 0.0 && kz < K_TERRAIN) { l0 = anim_layer(kz, i.tex.w); }
+  if (kz >= 0.0 && kz < K_FOLIAGE) { l0 = anim_layer(kz, i.tex.w); }
   let tx0 = textureSample(tex_array, tex_samp, i.tex.xy, l0);
   let d = distance(i.wpos, u.cam.xyz);
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
@@ -627,14 +581,14 @@ pub fn mesh_section(
     (geo.opaque, geo.trans)
 }
 
-/// Mesh many sections at once, on every core.
-fn mesh_many(world: &World, light: &Light, list: &[[i32; 3]]) -> Vec<SectionGeo> {
+/// Mesh many sections at once, on every core, each at its level of detail.
+fn mesh_many(world: &World, light: &Light, list: &[([i32; 3], Lod)]) -> Vec<SectionGeo> {
     let threads = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1)
         .min(list.len().div_ceil(2))
         .min(16);
-    let one = |s: &[i32; 3]| terrain_mesh::mesh(world, light, s[0], s[1], s[2]);
+    let one = |(s, lod): &([i32; 3], Lod)| terrain_mesh::mesh_lod(world, light, s[0], s[1], s[2], *lod);
     if threads <= 1 {
         return list.iter().map(one).collect();
     }
@@ -1036,86 +990,144 @@ fn layer_mean(layer: u16) -> [f32; 3] {
 
 /// Draw grass tufts and flowers this far from the camera, in sections.
 const CLUTTER_SECTIONS: i32 = 3;
+/// How many sections a frame are meshed again for a new level of detail.
+const LOD_REMESH_PER_FRAME: usize = 12;
 
-/// Turn one tuft into blades of grass, or a small flower.
+/// Turn one tuft into blades of grass (and maybe a flower) built of fine
+/// voxels, as the pack's `terrain.tufts` describes.
 fn push_tuft(out: &mut Vec<Vertex>, t: &Tuft, grass: [f32; 3]) {
-    let mut h = t.seed;
+    let tufts = &crate::shapes::pack().terrain.tufts;
+    let total: u32 = tufts.kinds.iter().map(|k| k.weight).sum();
+    if total == 0 {
+        return;
+    }
+    let mut h = t.seed | 1;
     let mut rnd = move || {
         h ^= h << 13;
         h ^= h >> 17;
         h ^= h << 5;
         (h >> 8) as f32 / 16_777_216.0
     };
+    let mut pick = (rnd() * total as f32) as u32;
+    let Some(kind) = tufts.kinds.iter().find(|k| {
+        if pick < k.weight {
+            return true;
+        }
+        pick -= k.weight;
+        false
+    }) else {
+        return;
+    };
     let root = Vec3::from(t.pos);
     let tone = 0.85 + 0.3 * rnd();
     let warm = rnd();
-    // the blades match the painted grass under them, darker at the foot
+    // the blades match the painted grass under them
     let tint = [
         grass[0] * tone * (1.0 + 0.25 * warm),
         grass[1] * tone,
         grass[2] * tone * (1.0 - 0.3 * warm),
     ];
-    let mut vert = |pos: Vec3, off: Vec3, rgb: [f32; 3], sway: f32, phase: f32| {
-        out.push(Vertex {
-            pos: (pos + off).into(),
-            normal: off.into(),
-            color: [rgb[0], rgb[1], rgb[2], 1.0],
-            light: t.light,
-            sky: t.sky,
-            tex: [sway, phase, KIND_CLUTTER, 0.0],
-        });
-    };
     let phase = rnd() * std::f32::consts::TAU;
-    let flower = t.seed.is_multiple_of(13);
-    let blades = if flower {
-        3
-    } else {
-        5 + (t.seed >> 28) as usize % 4
-    };
-    let height = 0.7 + 0.6 * rnd();
-    for _ in 0..blades {
-        let a = rnd() * std::f32::consts::TAU;
-        let r = rnd() * 0.3;
-        let base = root + Vec3::new(a.cos() * r, -0.04, a.sin() * r);
-        let facing = rnd() * std::f32::consts::TAU;
-        let side = Vec3::new(facing.cos(), 0.0, facing.sin()) * (0.03 + 0.03 * rnd());
-        let lean = Vec3::new(a.cos(), 0.0, a.sin()) * (0.04 + 0.14 * rnd());
-        let tall = (0.2 + 0.25 * rnd()) * height;
-        let foot = tint.map(|c| c * 0.7);
-        let tip = [tint[0] * 1.18, tint[1] * 1.12, tint[2] * 0.95];
-        vert(base, -side, foot, 0.0, phase);
-        vert(base, side, foot, 0.0, phase);
-        vert(base, lean + Vec3::Y * tall, tip, 1.0, phase);
-    }
-    if flower {
-        // a stem and a small four-petalled head
-        let petals = [
-            [0.95, 0.90, 0.80],
-            [0.95, 0.72, 0.12],
-            [0.80, 0.15, 0.20],
-            [0.55, 0.35, 0.85],
-            [0.95, 0.55, 0.70],
-        ][(t.seed >> 20) as usize % 5]
-            .map(|c: f32| c.powf(2.2));
-        let stem = tint.map(|c| c * 0.7);
-        let tall = 0.3 + 0.14 * rnd();
-        let top = Vec3::Y * tall;
-        let base = root - Vec3::Y * 0.03;
-        vert(base, Vec3::new(-0.018, 0.0, 0.0), stem, 0.0, phase);
-        vert(base, Vec3::new(0.018, 0.0, 0.0), stem, 0.0, phase);
-        vert(base, top, stem, 1.0, phase);
-        let s = 0.075 + 0.03 * rnd();
-        let turn = rnd() * std::f32::consts::TAU;
-        let (ax, az) = (
-            Vec3::new(turn.cos(), 0.25, turn.sin()) * s,
-            Vec3::new(-turn.sin(), 0.25, turn.cos()) * s,
-        );
-        let heart = [1.0, 0.85, 0.25f32].map(|c| c.powf(2.2));
-        for (p, q) in [(ax, az), (az, -ax), (-ax, -az), (-az, ax)] {
-            vert(base, top, heart, 1.0, phase);
-            vert(base, top + p, petals, 1.0, phase);
-            vert(base, top + q, petals, 1.0, phase);
+    let v = kind.voxel.max(0.01);
+    let span = |r: [u8; 2], k: f32| r[0] as f32 + ((r[1].max(r[0]) - r[0]) as f32 + 1.0) * k;
+    let blades = span(kind.blades, rnd()).floor().max(1.0) as usize;
+    let spread = kind.spread as i32;
+    let mut tallest = (0.0f32, Vec3::ZERO);
+    // a box of voxels from `lo` up `tall` voxels: its four sides and top,
+    // shaded by facing (the shader lights clutter as if it faced up)
+    let mut push_box = |lo: Vec3, size: Vec3, foot: [f32; 3], tip: [f32; 3]| {
+        let hi = lo + size;
+        let sway = |p: Vec3| ((p.y - root.y) / 0.5).clamp(0.0, 1.0);
+        let col = |p: Vec3, shade: f32| {
+            let k = ((p.y - lo.y) / size.y.max(1e-4)).clamp(0.0, 1.0);
+            [0, 1, 2].map(|i| (foot[i] + (tip[i] - foot[i]) * k) * shade)
+        };
+        let faces: [([Vec3; 4], f32); 5] = [
+            (
+                [
+                    Vec3::new(lo.x, hi.y, lo.z),
+                    Vec3::new(lo.x, hi.y, hi.z),
+                    Vec3::new(hi.x, hi.y, hi.z),
+                    Vec3::new(hi.x, hi.y, lo.z),
+                ],
+                1.0,
+            ),
+            (
+                [
+                    Vec3::new(lo.x, lo.y, lo.z),
+                    Vec3::new(lo.x, hi.y, lo.z),
+                    Vec3::new(hi.x, hi.y, lo.z),
+                    Vec3::new(hi.x, lo.y, lo.z),
+                ],
+                0.72,
+            ),
+            (
+                [
+                    Vec3::new(hi.x, lo.y, hi.z),
+                    Vec3::new(hi.x, hi.y, hi.z),
+                    Vec3::new(lo.x, hi.y, hi.z),
+                    Vec3::new(lo.x, lo.y, hi.z),
+                ],
+                0.72,
+            ),
+            (
+                [
+                    Vec3::new(lo.x, lo.y, hi.z),
+                    Vec3::new(lo.x, hi.y, hi.z),
+                    Vec3::new(lo.x, hi.y, lo.z),
+                    Vec3::new(lo.x, lo.y, lo.z),
+                ],
+                0.84,
+            ),
+            (
+                [
+                    Vec3::new(hi.x, lo.y, lo.z),
+                    Vec3::new(hi.x, hi.y, lo.z),
+                    Vec3::new(hi.x, hi.y, hi.z),
+                    Vec3::new(hi.x, lo.y, hi.z),
+                ],
+                0.84,
+            ),
+        ];
+        for (q, shade) in faces {
+            for i in [0, 1, 2, 0, 2, 3] {
+                let p = q[i];
+                let c = col(p, shade);
+                out.push(Vertex {
+                    pos: p.into(),
+                    normal: (p - root).into(),
+                    color: [c[0], c[1], c[2], 1.0],
+                    light: t.light,
+                    sky: t.sky,
+                    tex: [sway(p), phase, KIND_CLUTTER, 0.0],
+                });
+            }
         }
+    };
+    let foot = [0, 1, 2].map(|i| tint[i] * kind.foot[i]);
+    let tip = [0, 1, 2].map(|i| tint[i] * kind.tip[i]);
+    for _ in 0..blades {
+        let ox = (rnd() * (2 * spread + 1) as f32).floor() as i32 - spread;
+        let oz = (rnd() * (2 * spread + 1) as f32).floor() as i32 - spread;
+        let tall = span(kind.height, rnd()).floor().max(1.0);
+        // sunk a little, so no gap shows where the ground steps
+        let lo = root + Vec3::new(ox as f32 * v - v * 0.5, -v * 0.5, oz as f32 * v - v * 0.5);
+        let size = Vec3::new(v, v * (tall + 0.5), v);
+        push_box(lo, size, foot, tip);
+        if tall > tallest.0 {
+            tallest = (tall, lo + Vec3::new(0.0, size.y, 0.0));
+        }
+    }
+    if !kind.heads.is_empty() {
+        let c = kind.heads[(rnd() * kind.heads.len() as f32) as usize % kind.heads.len()];
+        let petal = c.map(|c: f32| c.powf(2.2));
+        let at = tallest.1;
+        // a cross of petals round the stem's top, and a heart over it
+        for (dx, dz) in [(-1.0, 0.0), (1.0, 0.0), (0.0, -1.0), (0.0, 1.0)] {
+            push_box(at + Vec3::new(dx * v, 0.0, dz * v), Vec3::splat(v), petal, petal);
+        }
+        let heart = kind.heart.unwrap_or(c).map(|c: f32| c.powf(2.2));
+        push_box(at, Vec3::splat(v), heart, heart);
     }
 }
 
@@ -1151,46 +1163,16 @@ pub fn push_ground_ring(out: &mut Vec<Vertex>, center: Vec3, radius: f32, color:
 }
 
 /// The same ring, laid over the ground: each point of it takes the height
-/// of the (smoothed) ground under it, looked up in the world.
+/// of the drawn ground under it (the top of its fine voxel column).
 pub fn push_ground_ring_on(
     out: &mut Vec<Vertex>,
     world: &World,
+    ground: &terrain_mesh::Ground,
     center: Vec3,
     radius: f32,
     color: [f32; 3],
 ) {
-    // top of the ground in a column, near the height of the target's feet
-    let top = |x: i32, z: i32| {
-        let y0 = center.y.round() as i32 + 2;
-        (y0 - 5..=y0)
-            .rev()
-            .find(|y| w::is_solid(world.get(x, *y, z)) && !w::is_solid(world.get(x, *y + 1, z)))
-            .map_or(center.y, |y| (y + 1) as f32)
-    };
-    // much as the mesh does it: a column's height leans towards its neighbours'
-    let soft = |x: i32, z: i32| {
-        let h = top(x, z);
-        if !terrain_mesh::is_terrain(world.get(x, h as i32 - 1, z)) {
-            return h;
-        }
-        let mut sum = 0.0;
-        for dz in -1..=1 {
-            for dx in -1..=1 {
-                sum += top(x + dx, z + dz).clamp(h - 1.0, h + 1.0);
-            }
-        }
-        h + (sum / 9.0 - h).clamp(-0.4, 0.4)
-    };
-    ring(out, center, radius, color, |x, z| {
-        // between the four nearest column centres
-        let (fx, fz) = (x - 0.5, z - 0.5);
-        let (x0, z0) = (fx.floor(), fz.floor());
-        let (tx, tz) = (fx - x0, fz - z0);
-        let (x0, z0) = (x0 as i32, z0 as i32);
-        let a = soft(x0, z0) + (soft(x0 + 1, z0) - soft(x0, z0)) * tx;
-        let b = soft(x0, z0 + 1) + (soft(x0 + 1, z0 + 1) - soft(x0, z0 + 1)) * tx;
-        a + (b - a) * tz
-    });
+    ring(out, center, radius, color, |x, z| ground.height(world, x, z, center.y));
 }
 
 fn ring(
@@ -1295,6 +1277,16 @@ pub struct Gfx {
     assets_gen: u64,
     sections: Vec<SectionMesh>,
     dims: [i32; 3],
+    /// the level of detail each section's ground was meshed at
+    lods: Vec<Lod>,
+    /// voxels a metre per section column (x, z), as last decided
+    col_lod: Vec<u8>,
+    /// where the levels of detail were last decided from
+    lod_from: Option<Vec3>,
+    /// where the camera will be when the world is next loaded
+    focus: Option<Vec3>,
+    /// sections waiting to be meshed at a new level of detail, and how far off
+    lod_queue: Vec<([i32; 3], f32)>,
     /// grass and flowers around the camera, and the section column they were built for
     clutter: Option<(wgpu::Buffer, u32)>,
     clutter_at: Option<[i32; 2]>,
@@ -1742,6 +1734,11 @@ impl Gfx {
             assets_gen: crate::assets::generation(),
             sections: Vec::new(),
             dims: [0; 3],
+            lods: Vec::new(),
+            col_lod: Vec::new(),
+            lod_from: None,
+            focus: None,
+            lod_queue: Vec::new(),
             clutter: None,
             clutter_at: None,
             grass_tint: layer_mean(textures().face(w::GRASS, 0)),
@@ -1822,17 +1819,134 @@ impl Gfx {
         };
     }
 
-    /// Mesh a list of sections and upload them.
+    fn section_index(&self, s: [i32; 3]) -> usize {
+        ((s[1] * self.dims[2] + s[2]) * self.dims[0] + s[0]) as usize
+    }
+
+    /// Mesh a list of sections at their levels of detail and upload them.
     fn remesh(&mut self, world: &World, light: &Light, list: &[[i32; 3]]) {
+        let list: Vec<([i32; 3], Lod)> = list
+            .iter()
+            .map(|s| (*s, self.lods[self.section_index(*s)]))
+            .collect();
         // in batches, so a whole world's vertices are never all in memory at once
         for batch in list.chunks(256) {
-            for (s, geo) in batch.iter().zip(mesh_many(world, light, batch)) {
-                let i = ((s[1] * self.dims[2] + s[2]) * self.dims[0] + s[0]) as usize;
+            for ((s, _), geo) in batch.iter().zip(mesh_many(world, light, batch)) {
+                let i = self.section_index(*s);
                 self.store(i, geo);
             }
         }
         // grass near the camera may have changed
         self.clutter_at = None;
+    }
+
+    /// Where the camera will be when the world is next loaded: the ground
+    /// near it is meshed finest.
+    pub fn set_focus(&mut self, at: Vec3) {
+        self.focus = Some(at);
+    }
+
+    /// Decide each section column's voxels a metre from where the camera
+    /// is, and the level of detail of every section (with skirts where a
+    /// neighbour differs). Returns the sections whose level changed.
+    fn decide_lods(&mut self, cam: Vec3) -> Vec<([i32; 3], f32)> {
+        let p = &crate::shapes::pack().terrain;
+        let d = self.dims;
+        let cols = (d[0] * d[2]) as usize;
+        if self.col_lod.len() != cols {
+            self.col_lod = vec![0; cols];
+        }
+        let dist = |sx: i32, sz: i32| {
+            let (x0, z0) = ((sx * SECTION) as f32, (sz * SECTION) as f32);
+            let s = SECTION as f32;
+            let dx = (x0 - cam.x).max(cam.x - (x0 + s)).max(0.0);
+            let dz = (z0 - cam.z).max(cam.z - (z0 + s)).max(0.0);
+            (dx * dx + dz * dz).sqrt()
+        };
+        for sz in 0..d[2] {
+            for sx in 0..d[0] {
+                let i = (sz * d[0] + sx) as usize;
+                self.col_lod[i] = p.per_metre_at(dist(sx, sz), self.col_lod[i]);
+            }
+        }
+        let col = |sx: i32, sz: i32| -> u8 {
+            if sx < 0 || sz < 0 || sx >= d[0] || sz >= d[2] {
+                return 0;
+            }
+            self.col_lod[(sz * d[0] + sx) as usize]
+        };
+        let mut want = vec![Lod::default(); cols];
+        for sz in 0..d[2] {
+            for sx in 0..d[0] {
+                let r = col(sx, sz);
+                let mut skirt = [0u8; 4];
+                for (k, (nx, nz)) in [(sx - 1, sz), (sx + 1, sz), (sx, sz - 1), (sx, sz + 1)]
+                    .into_iter()
+                    .enumerate()
+                {
+                    let n = col(nx, nz);
+                    if n != 0 && n != r {
+                        skirt[k] = n;
+                    }
+                }
+                want[(sz * d[0] + sx) as usize] = Lod {
+                    per_metre: r,
+                    skirt,
+                };
+            }
+        }
+        if self.lods.len() != self.sections.len() {
+            self.lods = vec![Lod::default(); self.sections.len()];
+        }
+        let mut changed = Vec::new();
+        for sy in 0..d[1] {
+            for sz in 0..d[2] {
+                for sx in 0..d[0] {
+                    let w = want[(sz * d[0] + sx) as usize];
+                    let i = self.section_index([sx, sy, sz]);
+                    if self.lods[i] != w {
+                        self.lods[i] = w;
+                        changed.push(([sx, sy, sz], dist(sx, sz)));
+                    }
+                }
+            }
+        }
+        changed
+    }
+
+    /// Re-mesh the ground at the level of detail the camera now calls for,
+    /// a few sections a frame, nearest first.
+    pub fn update_lod(&mut self, world: &World, light: &Light, cam: Vec3) {
+        if self.sections.is_empty() {
+            return;
+        }
+        if let Some(from) = self.lod_from
+            && from.distance_squared(cam) < 4.0 * 4.0
+            && self.lod_queue.is_empty()
+        {
+            return;
+        }
+        self.lod_from = Some(cam);
+        let changed = self.decide_lods(cam);
+        for (s, d) in changed {
+            if !self.lod_queue.iter().any(|(q, _)| *q == s) {
+                self.lod_queue.push((s, d));
+            }
+        }
+        if self.lod_queue.is_empty() {
+            return;
+        }
+        // nearest last, so they come off the end first
+        self.lod_queue
+            .sort_by(|a, b| b.1.total_cmp(&a.1));
+        let n = self.lod_queue.len().min(LOD_REMESH_PER_FRAME);
+        let take: Vec<[i32; 3]> = self
+            .lod_queue
+            .split_off(self.lod_queue.len() - n)
+            .into_iter()
+            .map(|(s, _)| s)
+            .collect();
+        self.remesh(world, light, &take);
     }
 
     /// Mesh the whole world.
@@ -1846,6 +1960,18 @@ impl Gfx {
         self.sections.clear();
         self.sections
             .resize_with((d[0] * d[1] * d[2]) as usize, SectionMesh::default);
+        // levels of detail from where the camera will be (the middle of
+        // the world when nobody said)
+        let cam = self.focus.take().unwrap_or(Vec3::new(
+            world.size[0] as f32 * 0.5,
+            0.0,
+            world.size[2] as f32 * 0.5,
+        ));
+        self.col_lod.clear();
+        self.lods.clear();
+        self.lod_queue.clear();
+        self.decide_lods(cam);
+        self.lod_from = Some(cam);
         let mut list = Vec::with_capacity(self.sections.len());
         for sy in 0..d[1] {
             for sz in 0..d[2] {
@@ -2313,7 +2439,10 @@ mod tests {
         let start = std::time::Instant::now();
         let n: usize = all
             .chunks(256)
-            .map(|b| mesh_many(&world, &light, b).len())
+            .map(|b| {
+                let b: Vec<_> = b.iter().map(|s| (*s, Lod::finest())).collect();
+                mesh_many(&world, &light, &b).len()
+            })
             .sum();
         let many = start.elapsed().as_secs_f64();
         eprintln!(
@@ -2358,7 +2487,10 @@ mod tests {
         let start = std::time::Instant::now();
         let all: usize = list
             .chunks(256)
-            .map(|b| mesh_many(&world, &light, b).len())
+            .map(|b| {
+                let b: Vec<_> = b.iter().map(|s| (*s, Lod::finest())).collect();
+                mesh_many(&world, &light, &b).len()
+            })
             .sum();
         let many = start.elapsed().as_secs_f64();
         eprintln!(

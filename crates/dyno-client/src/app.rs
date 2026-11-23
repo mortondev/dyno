@@ -1707,6 +1707,7 @@ impl App {
                     // layers in before its meshes are built
                     crate::textures::reload();
                     if let Some(g) = self.gfx.as_mut() {
+                        g.set_focus(p.player.eye());
                         g.load_world(&p.world, &p.light);
                     }
                     self.screen = Screen::Playing(Box::new(p));
@@ -2450,6 +2451,11 @@ impl App {
             && let Some(st) = &self.stage
         {
             if !self.stage_loaded {
+                gfx.set_focus(Vec3::new(
+                    st.hearth[0] as f32,
+                    st.hearth[1] as f32,
+                    st.hearth[2] as f32,
+                ));
                 gfx.load_world(&st.world, &st.light);
                 self.stage_loaded = true;
             }
@@ -2508,6 +2514,7 @@ impl App {
             let proj = glam::Mat4::from_translation(Vec3::new(shift, 0.0, 0.0))
                 * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt.max(1.0), 0.05, far);
             view = Some((proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y), eye, far));
+            gfx.update_lod(&st.world, &st.light, eye);
         }
         if let Screen::Playing(p) = &mut self.screen {
             let k = |c: KeyCode| p.keys.contains(&c);
@@ -3104,7 +3111,7 @@ impl App {
                     },
                     _ => ([0.3, 0.9, 0.35], 0.7),
                 };
-                render::push_ground_ring_on(&mut boxes, &p.world, e.pos(), r, col);
+                render::push_ground_ring_on(&mut boxes, &p.world, &p.ground, e.pos(), r, col);
             }
             // creatures
             let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
@@ -3170,6 +3177,7 @@ impl App {
                 }
             }
             view = Some((vp, eye, far));
+            gfx.update_lod(&p.world, &p.light, eye);
             p.inv_vp = Some(vp.inverse());
             p.screen_px = (wdt, hgt);
             p.fps.1 += 1;
@@ -5579,6 +5587,11 @@ pub fn shot_front(
         light,
         hearth,
     } = pack_stage().ok_or("the pack has no title stage (content/stage)")?;
+    gfx.set_focus(Vec3::new(
+        hearth[0] as f32,
+        hearth[1] as f32,
+        hearth[2] as f32,
+    ));
     gfx.load_world(&world, &light);
     let recent = if addr.is_empty() {
         Vec::new()
@@ -5958,6 +5971,7 @@ pub fn shot_with_ui(
     let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
     let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
     let load_start = Instant::now();
+    gfx.set_focus(p.player.eye());
     gfx.load_world(&p.world, &p.light);
     let load_ms = load_start.elapsed().as_secs_f64() * 1e3;
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
