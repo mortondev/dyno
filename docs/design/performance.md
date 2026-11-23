@@ -251,7 +251,8 @@ Tried, measured and left alone:
 
 ## The pictures: the same to the eye, nearly to the pixel
 
-`dyno bench --diff`, before against after, the six cameras. The floor is
+`dyno bench --diff`, before against after (the packing as it now is, on
+the main the tables were measured on), the six cameras. The floor is
 the "before" build against itself: its pictures repeat (0.000–0.001% of
 pixels more than 2 of 255 apart, a mean difference of 0.000). Against it,
 with the occlusion pass off (low) the pictures differ in at most 0.11% of
@@ -263,23 +264,23 @@ High (the default tier: shadows, occlusion, bloom, lamps as lights):
 
 | picture | largest | mean | pixels over 2 | pixels over 8 |
 |---|---|---|---|---|
-| hearthstead_plaza | 226 | 0.228 | 3.716% | 0.438% |
+| hearthstead_plaza | 226 | 0.232 | 3.715% | 0.438% |
 | hollow_oak | 190 | 0.122 | 2.163% | 0.208% |
-| logging_camp | 203 | 0.075 | 0.910% | 0.053% |
-| miners_rest | 217 | 0.302 | 5.407% | 0.971% |
+| logging_camp | 203 | 0.075 | 0.909% | 0.053% |
+| miners_rest | 217 | 0.302 | 5.408% | 0.971% |
 | mirrormere | 220 | 0.022 | 0.262% | 0.020% |
-| windmill_farm | 160 | 0.046 | 0.589% | 0.046% |
+| windmill_farm | 160 | 0.047 | 0.590% | 0.046% |
 
 Low (no occlusion or bloom):
 
 | picture | largest | mean | pixels over 2 | pixels over 8 |
 |---|---|---|---|---|
-| hearthstead_plaza | 235 | 0.042 | 0.111% | 0.078% |
+| hearthstead_plaza | 235 | 0.046 | 0.111% | 0.078% |
 | hollow_oak | 244 | 0.029 | 0.063% | 0.032% |
 | logging_camp | 248 | 0.030 | 0.043% | 0.030% |
-| miners_rest | 232 | 0.033 | 0.085% | 0.042% |
+| miners_rest | 232 | 0.034 | 0.086% | 0.042% |
 | mirrormere | 236 | 0.013 | 0.007% | 0.004% |
-| windmill_farm | 174 | 0.016 | 0.029% | 0.017% |
+| windmill_farm | 174 | 0.017 | 0.029% | 0.017% |
 
 The largest differences (over 150) are single pixels on edges. Where the
 pictures differ:
