@@ -26,6 +26,12 @@ USAGE:
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
                                [--ui hud|pack|dig|dead|talk|log|char|bags|spells|skills] [--as NAME]
                                Join, render one frame off-screen to an image, leave
+  dyno shot <address> --stand x,z|x,y,z --face x,y,z [--from-hearth] [--zoom 9] [--pitch 15] [--time 0-1] [--size WxH] [--out f.ppm]
+                               The view of a player standing there and facing that point: a stand-in figure on
+                               the ground, the play camera behind it (--pitch: degrees down), no interface.
+                               --from-hearth: the positions are metres from the world's hearth
+  dyno scout <address> [--landmarks tools/concepts/landmarks.json] [--out tools/concepts/cameras.json] [name ...]
+                               Choose where the stand shot of each landmark stands; write the camera data
   dyno shot --anim-sheet <out.ppm|out.png>
                                Render animation contact sheets (no server needed)
   dyno bot <address> [name] [seconds]
@@ -151,6 +157,44 @@ fn main() {
                 }
             }
         }
+        "scout" => {
+            let usage = "usage: dyno scout <address> --landmarks landmarks.json --out cameras.json [name ...]";
+            let Some(addr) = args.get(1) else {
+                eprintln!("{usage}");
+                std::process::exit(2);
+            };
+            let mut o = dyno_client::scout::ScoutOptions {
+                addr: addr.clone(),
+                landmarks: "tools/concepts/landmarks.json".into(),
+                out: "tools/concepts/cameras.json".into(),
+                only: Vec::new(),
+            };
+            let mut i = 2;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--landmarks" | "--out" => {
+                        let Some(v) = args.get(i + 1) else {
+                            fail(usage)
+                        };
+                        if args[i] == "--out" {
+                            o.out = v.into();
+                        } else {
+                            o.landmarks = v.into();
+                        }
+                        i += 1;
+                    }
+                    name => o.only.push(name.to_string()),
+                }
+                i += 1;
+            }
+            match dyno_client::scout::scout(o) {
+                Ok(msg) => println!("{msg}"),
+                Err(e) => {
+                    eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
         "shot" => {
             let Some(addr) = args.get(1) else {
                 eprintln!(
@@ -172,7 +216,13 @@ fn main() {
                 player: None,
                 zoom: None,
                 front: None,
+                stand: None,
             };
+            // --stand: the figure's place, what it faces, and the camera's pitch
+            let mut stand: Option<Vec<f32>> = None;
+            let mut face: Option<[f32; 3]> = None;
+            let mut pitch_down = dyno_client::shot::STAND_PITCH;
+            let mut from_hearth = false;
             let nums = |v: &str| -> Vec<f32> {
                 v.split(',').filter_map(|x| x.trim().parse().ok()).collect()
             };
@@ -180,6 +230,14 @@ fn main() {
             while i < args.len() {
                 let v = args.get(i + 1).cloned().unwrap_or_default();
                 match args[i].as_str() {
+                    "--from-hearth" => {
+                        from_hearth = true;
+                        i += 1;
+                        continue;
+                    }
+                    "--stand" => stand = Some(nums(&v)),
+                    "--face" => face = nums(&v).try_into().ok(),
+                    "--pitch" => pitch_down = v.parse().unwrap_or(pitch_down),
                     "--pos" => o.pos = nums(&v).try_into().ok(),
                     "--front" => o.front = Some(v.clone()),
                     "--look" => {
@@ -208,6 +266,23 @@ fn main() {
                     other => fail(&format!("unknown shot option {other}")),
                 }
                 i += 2;
+            }
+            if let Some(s) = stand {
+                let (at, near_y) = match s[..] {
+                    [x, z] => ([x, z], None),
+                    [x, y, z] => ([x, z], Some(y)),
+                    _ => fail("--stand takes x,z or x,y,z"),
+                };
+                let Some(face) = face else {
+                    fail("--stand needs --face x,y,z: the point the figure looks toward")
+                };
+                o.stand = Some(dyno_client::shot::Stand {
+                    at,
+                    near_y,
+                    face,
+                    pitch: pitch_down.clamp(-89.0, 89.0),
+                    from_hearth,
+                });
             }
             match dyno_client::shot::shot(o) {
                 Ok(msg) => println!("{msg}"),

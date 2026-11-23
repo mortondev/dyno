@@ -654,6 +654,8 @@ pub fn connect_with(
         std::str::from_utf8(rules).map_err(|e| format!("the server's rules: {e}"))?,
     )
     .map_err(|e| format!("the server's rules: {e}"))?;
+    // where the areas of the map lie, before any of the land is meshed
+    crate::cover::set_areas_from(&content, hearth);
     fetch.rules_changed = false;
     fetch.cache.save_manifest(&manifest);
     let downloaded = fetch.progress.downloaded.load(Ordering::Relaxed);
