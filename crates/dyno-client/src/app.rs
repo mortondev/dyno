@@ -444,6 +444,19 @@ fn use_action(p: &mut Play, i: usize) {
     if let Some(t) = target {
         p.focus = Some(t);
     }
+    // instant abilities: a weapon strike or a flick of the hands, at once
+    if let ClientMsg::Cast { ability, .. } = &msg
+        && let Some(a) = p.content.ability(*ability)
+        && a.cast <= 0.0
+    {
+        let now = p.anims.now();
+        let act = if a.weapon > 0.0 {
+            anim::attack_for(p.anims.grip)
+        } else {
+            Anim::CastRelease
+        };
+        p.anims.me(now).play_fresh(now, act);
+    }
     let _ = p.conn.tx.send(msg);
 }
 
@@ -663,9 +676,10 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         let scale = c.scale * if e.name.is_some() { 1.25 } else { 1.0 };
         let skeleton = Skeleton::of(c.model, c.variant);
         // in a fight: hit lately, or a hostile that has you targeted
-        let fighting = e
-            .hurt_at
-            .is_some_and(|t| t.elapsed() < Duration::from_secs(8))
+        let hurt = e.info.is_some_and(|(_, h, max)| h < max);
+        let fighting = (hurt
+            && e.hurt_at
+                .is_some_and(|t| t.elapsed() < Duration::from_secs(8)))
             || (c.hostile && p.attacking == Some(*id));
         let base = anim::locomotion(vel, e.yaw, c.speed.max(0.5)).unwrap_or(if fighting {
             Anim::Ready
@@ -763,6 +777,8 @@ fn my_anim(p: &Play, book: &mut Anims, look: &models::Look, now: f32) -> Anim {
         ) == w::WATER
     };
     let swimming = wet(0.9) && wet(0.3);
+    book.casts
+        .retain(|_, (_, at, secs)| now - *at < *secs + 0.5);
     let airborne = !pl.on_ground && !pl.flying && !swimming;
     // the moment of leaving the ground, and of landing
     if airborne && book.grounded {
@@ -788,12 +804,14 @@ fn my_anim(p: &Play, book: &mut Anims, look: &models::Look, now: f32) -> Anim {
         } else {
             Anim::JumpAir
         }
-    } else if let Some((a, _, _)) = p.my_cast {
+    } else if let Some(m) = moving {
+        m
+    } else if let Some((a, at, secs)) = p.my_cast
+        && at.elapsed().as_secs_f32() < secs + 0.5
+    {
         cast_anim(&p.content, a)
     } else if p.loot.is_some() {
         Anim::Kneel
-    } else if let Some(m) = moving {
-        m
     } else if let Some(h) = book.hold {
         h
     } else if p.attacking.is_some() {
@@ -819,14 +837,20 @@ fn cast_anim(content: &dyno_world::content::Content, ability: u16) -> Anim {
 
 /// Another player's state, from their motion and what they are casting or
 /// breaking.
-fn remote_anim(p: &Play, book: &mut Anims, id: u32, r: &Remote, feet: Vec3, now: f32) -> Anim {
+fn remote_anim(p: &Play, book: &mut Anims, id: u32, r: &Remote, now: f32) -> Anim {
     let pose = r.current();
     let vel = r.velocity();
-    let high = pose.pos[1] - feet.y > 0.45;
-    if let Some(since) = book.digging.get(&id).copied() {
-        // a swing every 0.7 s while they break a block
+    // in the air: nothing under the feet, and rising or falling
+    let under = p.world.get(
+        pose.pos[0].floor() as i32,
+        (pose.pos[1] - 0.3).floor() as i32,
+        pose.pos[2].floor() as i32,
+    );
+    let high = under == w::AIR && vel.y.abs() > 0.5;
+    if book.digging.contains_key(&id) {
+        // swing after swing while they break a block
         let a = book.player(id, now);
-        if (now - since).rem_euclid(0.7) < 0.05 && a.action(now).is_none() {
+        if a.action(now).is_none() {
             a.play(now, Anim::Attack1H);
         }
     }
@@ -836,25 +860,38 @@ fn remote_anim(p: &Play, book: &mut Anims, id: u32, r: &Remote, feet: Vec3, now:
         } else {
             Anim::JumpAir
         }
-    } else if let Some(&(a, _)) = book.casts.get(&id) {
+    } else if let Some(m) = anim::locomotion(vel, pose.yaw, 4.4) {
+        m
+    } else if let Some(a) = book.casting(id, now) {
         cast_anim(&p.content, a)
     } else {
-        anim::locomotion(vel, pose.yaw, 4.4).unwrap_or(Anim::Idle)
+        Anim::Idle
     }
 }
 
-/// A spell left `from`: whoever stands there plays its release (a creature,
-/// its attack).
-fn animate_caster(p: &mut Play, from: Vec3) {
+/// The colour of a ranged auto-attack's shot (`dyno-server` gear.rs).
+const AUTO_SHOT: [f32; 3] = [0.9, 0.8, 0.6];
+
+/// A spell or shot left `from`: whoever stands there plays its release, or
+/// its shot (a creature, its attack).
+fn animate_caster(p: &mut Play, from: Vec3, color: [f32; 3]) {
     let now = p.anims.now();
+    let shot = color == AUTO_SHOT;
     if from.distance(p.player.eye()) < 1.6 {
-        p.anims.me(now).play_fresh(now, Anim::CastRelease);
+        let a = if shot {
+            anim::attack_for(p.anims.grip)
+        } else {
+            Anim::CastRelease
+        };
+        p.anims.me(now).play_fresh(now, a);
+        p.anims.last_swing = now;
         return;
     }
     for (id, r) in &p.remotes {
         let at = Vec3::from(r.current().pos);
         if from.distance(at + Vec3::Y * 1.4) < 1.6 {
-            p.anims.player(*id, now).play_fresh(now, Anim::CastRelease);
+            let a = if shot { Anim::Shoot } else { Anim::CastRelease };
+            p.anims.player(*id, now).play_fresh(now, a);
             return;
         }
     }
@@ -1780,7 +1817,7 @@ impl App {
                             let now = p.anims.now();
                             match ability {
                                 Some(a) => {
-                                    p.anims.casts.insert(player, (a, now));
+                                    p.anims.casts.insert(player, (a, now, secs));
                                 }
                                 None => {
                                     p.anims.casts.remove(&player);
@@ -1802,7 +1839,7 @@ impl App {
                             radius,
                         } => {
                             let (a, b) = (Vec3::from(from), Vec3::from(to));
-                            animate_caster(p, a);
+                            animate_caster(p, a, color);
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
                                 self.audio.play(Sfx::Dissolve, 0.5);
@@ -1866,10 +1903,16 @@ impl App {
                             amount,
                             crit,
                         } => {
-                            if entity.is_some() {
-                                let now = p.anims.now();
+                            // a blow on your auto-attack target is your swing
+                            // (not a damage-over-time tick: those come slower)
+                            let now = p.anims.now();
+                            if entity.is_some()
+                                && entity == p.attacking
+                                && now - p.anims.last_swing > 0.75
+                            {
                                 let swing = anim::attack_for(p.anims.grip);
                                 p.anims.me(now).play_fresh(now, swing);
+                                p.anims.last_swing = now;
                             }
                             let (text, col) = match entity {
                                 Some(_) if crit => {
@@ -2418,7 +2461,7 @@ impl App {
                 let pose = r.current();
                 let base = p.ground.feet(&p.world, Vec3::from(pose.pos));
                 let bl = light_at(&p.light, base + Vec3::Y);
-                let state = remote_anim(p, &mut book, *id, r, base, now);
+                let state = remote_anim(p, &mut book, *id, r, now);
                 let step = Skeleton::Biped.step(r.speed(), 1.0);
                 let a = book.player(*id, now);
                 a.drive_at(now, state, base, step);

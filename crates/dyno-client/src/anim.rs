@@ -1166,7 +1166,8 @@ pub fn biped(a: Anim, at: &At, rig: &BipedRig) -> Pose {
             b.arm[1] = [-0.75, 0.0, 0.25];
             b.fore[1] = [-0.9, 0.0, 0.0];
             b.grip[0] = -1.1;
-            b.cape = 0.7;
+            // the cape hangs straight down from the stooped shoulders
+            b.cape = -0.25;
             if rig.robe {
                 b.tilt(-0.8);
             }
@@ -2005,6 +2006,11 @@ pub fn multileg(a: Anim, at: &At, rig: &MultiRig) -> Pose {
             *l += sink;
         }
     }
+    // a crab that stops turns to face its foe after a moment (not on every
+    // pause in a chase); for a strike it turns at once
+    if a.duration().is_none() && a != Anim::Dead {
+        face *= smooth((t - 0.35) / 0.4);
+    }
     p.off[BODY] = off;
     p.rot[BODY] = Quat::from_rotation_y(-FRAC_PI_2 * face) * euler(pitch, 0.0, roll);
     for (i, l) in rig.legs.iter().take(n).enumerate() {
@@ -2322,8 +2328,10 @@ pub struct Book {
     pub me: Option<Animator>,
     pub players: HashMap<u32, Animator>,
     pub entities: HashMap<u32, Animator>,
-    /// what each player is casting (ability) and since when
-    pub casts: HashMap<u32, (u16, f32)>,
+    /// what each player is casting (ability), since when, and for how long
+    pub casts: HashMap<u32, (u16, f32, f32)>,
+    /// when you last swung at your auto-attack target
+    pub last_swing: f32,
     /// players breaking or gathering a block
     pub digging: HashMap<u32, f32>,
     /// where creatures vanished lately: a corpse there has just died
@@ -2345,6 +2353,7 @@ impl Default for Book {
             players: HashMap::new(),
             entities: HashMap::new(),
             casts: HashMap::new(),
+            last_swing: 0.0,
             digging: HashMap::new(),
             gone: Vec::new(),
             grounded: true,
@@ -2386,6 +2395,14 @@ impl Book {
     pub fn play_entity(&mut self, id: u32, now: f32, action: Anim) {
         let (a, _) = self.entity(id, now);
         a.play_fresh(now, action);
+    }
+
+    /// The ability a player is casting, if the cast bar has not run out.
+    pub fn casting(&self, player: u32, now: f32) -> Option<u16> {
+        self.casts
+            .get(&player)
+            .filter(|(_, at, secs)| now - at < secs + 0.5)
+            .map(|(a, _, _)| *a)
     }
 
     /// A creature vanished at `pos` (it died, or wandered off).
