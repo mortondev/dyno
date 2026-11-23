@@ -57,6 +57,9 @@ STANCE = {
 }
 
 
+BIG = {'spine.rx': 1.7, 'pelvis.oz': 1.5, 'head.rx': 1.3, 'shin.l.rx': 1.3, 'shin.r.rx': 1.3}
+
+
 def chop(default):
     """The two-handed swing, slowed a little, with a breath between blows."""
     src = default['Attack2H']['time']
@@ -64,7 +67,11 @@ def chop(default):
     time = {}
     for name, ch in src.items():
         if isinstance(ch, list):
-            keys = [[round(t * pace, 4), v] for t, v in ch]
+            # a deeper bend and a longer reach than the fighting swing,
+            # so it reads from across a clearing
+            k = BIG.get(name, 1.0)
+            v0 = ch[0][1]
+            keys = [[round(t * pace, 4), round(v0 + (v - v0) * k, 4)] for t, v in ch]
             time[name] = keys + [[loop, keys[0][1]]]
         else:
             time[name] = ch
@@ -77,11 +84,11 @@ def hammer():
         'upper_arm.l.rx': -38.0, 'upper_arm.l.rz': -10.0, 'forearm.l.rx': -80.0,
         'head.rx': 14.0,
     }, {
-        'upper_arm.r.rx': [(0, -55), (0.36, -102), (0.5, -38), (0.64, -48), (1.0, -55)],
+        'upper_arm.r.rx': [(0, -60), (0.36, -150), (0.5, -30), (0.64, -44), (1.0, -60)],
         'forearm.r.rx': [(0, -75), (0.36, -106), (0.5, -30), (0.64, -52), (1.0, -75)],
         'grip.rx': [(0, -10), (0.36, 16), (0.5, -30), (1.0, -10)],
-        'spine.rx': [(0, 14), (0.36, 9), (0.5, 20), (1.0, 14)],
-        'pelvis.oy': [(0, 0), (0.36, 0.2), (0.5, -0.5), (1.0, 0)],
+        'spine.rx': [(0, 14), (0.36, 0), (0.5, 30), (1.0, 14)],
+        'pelvis.oy': [(0, 0), (0.36, 0.4), (0.5, -1.2), (1.0, 0)],
     })
 
 
@@ -93,8 +100,8 @@ def fish():
         'upper_arm.l.rx': -32.0, 'upper_arm.l.rz': -14.0, 'forearm.l.rx': -88.0,
     }, {
         # a long wait, then a tug on the line
-        'grip.rx': [(0, -35), (3.5, -39), (5.0, -35), (5.3, -62), (5.7, -30), (6.4, -37), (8.0, -35)],
-        'spine.rx': [(0, 2), (5.0, 2), (5.3, -7), (6.0, 3), (8.0, 2)],
+        'grip.rx': [(0, -35), (3.5, -39), (5.0, -35), (5.3, -80), (5.7, -24), (6.4, -37), (8.0, -35)],
+        'spine.rx': [(0, 2), (5.0, 2), (5.3, -16), (6.0, 4), (8.0, 2)],
         'head.rx': [(0, 6), (4.0, 9), (8.0, 6)],
         'head.ry': [(0, 0), (2.0, 10), (4.0, -4), (8.0, 0)],
         'pelvis.ox': [(0, 0.5), (4.0, -0.5), (8.0, 0.5)],
@@ -108,12 +115,12 @@ def sweep():
         'thigh.r.rx': -6.0, 'thigh.r.rz': 5.0, 'shin.r.rx': 20.0,
         'upper_arm.l.rz': -18.0,
     }, {
-        'spine.ry': [(0, -20), (1.0, 20), (2.0, -20)],
+        'spine.ry': [(0, -34), (1.0, 34), (2.0, -34)],
         'pelvis.ry': [(0, -8), (1.0, 8), (2.0, -8)],
-        'pelvis.ox': [(0, -1), (1.0, 1), (2.0, -1)],
-        'upper_arm.r.rx': [(0, -20), (1.0, -58), (2.0, -20)],
+        'pelvis.ox': [(0, -2), (1.0, 2), (2.0, -2)],
+        'upper_arm.r.rx': [(0, -10), (1.0, -72), (2.0, -10)],
         'forearm.r.rx': [(0, -70), (1.0, -40), (2.0, -70)],
-        'upper_arm.l.rx': [(0, -58), (1.0, -24), (2.0, -58)],
+        'upper_arm.l.rx': [(0, -70), (1.0, -16), (2.0, -70)],
         'forearm.l.rx': [(0, -95), (1.0, -75), (2.0, -95)],
         'grip.rx': [(0, -15), (1.0, 25), (2.0, -15)],
     })
