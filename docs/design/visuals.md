@@ -28,7 +28,7 @@ a look up at the eaves and the inside of the inn.
 | 10 | Paths and the plaza | medium | Cobble and flagstones are cubes level with the ground: the grass meets them on hard, straight block edges, and the smooth ground is pinned to the grid wherever a path touches it. |
 | 11 | Clouds | medium | The painted clouds break into hard-edged shards and streaks near the zenith (the noise lookup wraps), which looks like a glitch, not like paint. |
 | 12 | Leaf canopies | low-medium | Already smooth and puffy (good), but the leaf texture is a big repeated scale pattern in a very yellow lime, so canopies read like topiary hedges. |
-| 13 | Terrain | low | Surface nets give soft hills. Remaining tells: terrace lines on cliffs, sand and dirt patches in squares where the blend is weak. |
+| 13 | Terrain | low | Surface nets gave soft hills (since replaced by fine voxel terrain: see "Fine voxel terrain" below). |
 | 14 | Water | low | Lowered surface, foam and swell are good. The flat plane and the shore edge are fine at a distance. |
 | 15 | Lighting | low | Sun shadows, sky ambient and a warm grade work. The cube mesher's vertex AO gives the classic four-step Minecraft corner darkening on built blocks; there is no ambient occlusion on anything finer than a block. |
 | 16 | Fog and sky colour | low | Good aerial perspective; the horizon haze is a little bright and flat at midday. |
@@ -210,3 +210,136 @@ drawn, one quad per run of steps, were 0.84 ms average, 8.9 ms worst and
   are still cubes.
 - Characters and creatures are being reworked separately.
 - Collision stays on the 1 m grid (see above).
+
+## Fine voxel terrain
+
+The art direction is voxel (Cube World × World of Warcraft, `docs/art/README.md`),
+so natural ground is no longer a smooth surface: each terrain block is drawn
+as a sub-grid of fine voxels, 8 a metre near the camera. The world keeps its
+1 m blocks for storage, light, physics, picking, saves and the server.
+
+Before (left, main) and after (right), the 18 gauntlet cameras
+(`tools/concepts/shots.py`, `dyno shot --stand`), same server and world:
+
+![Hearthstead plaza](visuals/terrain/hearthstead_plaza.jpg)
+![Hearthstead street](visuals/terrain/hearthstead_street.jpg)
+![Hearthstead at dusk](visuals/terrain/hearthstead_dusk.jpg)
+![The watch tower](visuals/terrain/watch_tower.jpg)
+![North watch](visuals/terrain/north_watch.jpg)
+![Logging camp](visuals/terrain/logging_camp.jpg)
+![Hollow oak](visuals/terrain/hollow_oak.jpg)
+![Old barrow](visuals/terrain/old_barrow.jpg)
+![Barrow crypt](visuals/terrain/barrow_crypt.jpg)
+![Wrecked caravan](visuals/terrain/wrecked_caravan.jpg)
+![Emberford bridge](visuals/terrain/emberford_bridge.jpg)
+![Windmill farm](visuals/terrain/windmill_farm.jpg)
+![Fisher's landing](visuals/terrain/fishers_landing.jpg)
+![Mirrormere](visuals/terrain/mirrormere.jpg)
+![Sunken shrine](visuals/terrain/sunken_shrine.jpg)
+![Ashcloak stockade](visuals/terrain/ashcloak_stockade.jpg)
+![Miner's rest](visuals/terrain/miners_rest.jpg)
+![Hollow mines](visuals/terrain/hollow_mines.jpg)
+
+### How it works (`fine.rs`)
+
+- **Shape.** Each ground layer is blurred over its 3 × 3 neighbourhood
+  (built blocks do not count) into a field per block, positive in ground
+  and negative in air. A fine voxel is solid where the field, read between
+  block centres at the voxel's centre, is above zero. Level ground stays
+  exactly on the block top; a one-block step becomes a stair of fine voxels
+  about three blocks long; a wall two or more blocks high stays upright on
+  the grid line, so cliffs keep sharp edges.
+- **Raggedness.** Where a layer is mixed (ground beside air), value noise
+  and horizontal strata nudge the field: banks, shorelines and slopes get
+  irregular edges, cliffs get ledges. Noise stays inside a margin, so a
+  block with ground all round is solid and one with none is empty; it never
+  carves a slab one block thick (a roof over a cave).
+- **Kinds of ground.** Where two kinds meet, each voxel takes its kind
+  from a point nudged by noise, so grass meets sand and paths along a
+  ragged fine-voxel edge, not a 1 m line. A block with `under` (grass over
+  dirt, snow over stone) paints the voxels within `cover_depth` of open air
+  and shows the other below: a grass lip over an earth bank. Paving with
+  `inset` sits a voxel below the grass, column by column, so a path has a
+  hard stepped edge that follows its ragged outline.
+- **Colour per voxel**, in the shader: the block's texture at the voxel's
+  centre on the mip level with one texel a voxel, times a hashed brightness
+  and hue jitter (`jitter`), times the slow world tone. Geometry only knows
+  the kind of ground.
+- **Meshing.** Faces are culled against filled voxels (ground, or built
+  blocks: ground touching anything another mesher draws keeps that side
+  whole, so the other side's hidden face never shows), merged greedily
+  within a block, then across blocks where the kind and the light are the
+  same (light is blended between block corners, so faces in cells of one
+  light merge exactly). Ground quads are four vertices on one shared index
+  buffer. Built blocks that culled against ground still meet it cleanly;
+  paving lying flush with the ground is ground.
+- **Level of detail.** 8 voxels a metre within 40 m of the camera, 4 to
+  64 m, 2 to 104 m, then 1 (data: `lod`). A column turns coarser only a
+  little past its line. Where neighbouring columns differ, the outermost
+  voxels near the surface show their sides (a skirt) so no crack opens.
+  The world worker chooses the levels from its camera and remeshes columns
+  that change; a whole (not streamed) world does the same in `Gfx`.
+- **Feet** stand on the top of the fine column under them
+  (`terrain_mesh::Ground`); the target ring follows it too. Picking and the
+  block highlight stay per block.
+- **Water** is unchanged; its surface still runs on under the shore block,
+  so it meets eroded banks without a gap.
+- **Cover** (`cover.rs`) grows on the open, fairly level ground tops the
+  mesher reports, with corners at the tops of the fine columns.
+
+All of it is data in `blocks.json` (`terrain`): voxels a metre, the levels
+of detail, noise and strata strength and size, edge reach and size, cover
+depth, jitter, and per block `under`, `jitter`, `edge` and `inset`. The
+mesher is generic.
+
+### Rules that keep it seamless
+
+Every voxel is decided only from the blocks within two cells of it and its
+world position, inside the section's 4-block border, so neighbouring
+sections agree. Tests: `the_ground_is_a_closed_skin` (ground alone is a
+closed surface of voxel faces, each drawn once, at 8, 4 and 1 a metre,
+across section borders), `neighbours_decide_shared_voxels_alike`,
+`sections_agree_at_their_borders` (same corner and facing, same light),
+`ground_keeps_its_side_against_built_blocks`, `a_thin_roof_has_no_holes`,
+`flat_ground_sits_on_the_grid`, `feet_follow_the_drawn_ground` and the
+world worker's test (its meshes cover the same ground as meshing the whole
+world at once).
+
+### Performance
+
+The 18 cameras, back to back against main on the same server and world,
+headless 1280×720 debug build, on a heavily loaded 16-core machine (load
+average 17–45, so times are noisy; medians):
+
+| | main | fine voxels | ratio |
+|---|---|---|---|
+| world vertices (median of 18) | 6.44 M | 8.27 M | 1.28× (per shot 1.25×, worst 1.53×) |
+| world complete (streamed view), two runs | 7.2 s | 6.5–7.2 s | 0.9–1.0× |
+| frame, two runs | 10.8 ms | 6.7–10.2 ms | 0.6–1.0× (noise) |
+
+Contact sheets: `visuals/terrain/contact-before.jpg`, `contact-after.jpg`.
+
+The ground is 2.9–3.9 M of those vertices; about 60% of it is the finest
+ring. Measured before the vegetation pass landed (so main's own count was
+lower), three cameras came to 1.41–1.67× main's vertices.
+
+What it took: merging across cells with uniform light (buried grid corners
+borrow the light of their open neighbours, so surface cells qualify), four
+vertices a quad on a shared index (a third fewer than triangle lists),
+per-cell material when a cell has one kind round it, and the finest ring at
+40 m (the coarse rings at 64 and 104 m). The stepped shape itself is the
+cost: noise adds about 10%, ragged material edges about 1%, light classes
+about 3%. Further savings if needed: an indexed or packed vertex format for
+all world geometry (60 bytes a vertex today), or merging whole section
+planes rather than block by block.
+
+### Still to do
+
+- Fine ambient occlusion: ground is lit by its facing, sun shadows and
+  occlusion from built blocks only; per-voxel corner occlusion would read
+  more like Cube World but defeats merging.
+- Leaves are not part of this (the vegetation pass draws voxel clumps).
+- Cover on stepped ground is placed by the cell's four corner heights, so
+  a plant can sit up to a step off the voxel top.
+- Collision stays on the 1 m grid: feet are drawn on the fine surface, up
+  to 0.7 m from where the body stands.
