@@ -75,8 +75,9 @@ def lupins(seed, spikes):
     purple = [(96, 60, 168), (128, 82, 200), (158, 112, 226), (196, 164, 240)]
     m = {}
     for _ in range(spikes):
-        x, z = rnd.randint(-4, 4), rnd.randint(-4, 4)
-        foot, tall = rnd.randint(2, 4), rnd.randint(5, 8)
+        reach = 4 if spikes <= 5 else 7
+        x, z = rnd.randint(-reach, reach), rnd.randint(-reach, reach)
+        foot, tall = rnd.randint(2, 4), rnd.randint(5, 8 if spikes <= 5 else 11)
         stem(m, x, z, foot)
         for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             if rnd.random() < 0.6:
@@ -254,31 +255,37 @@ def rock(seed, cells, moss=0.3):
 
 
 def bush(seed, cells, bloom=None):
-    """A low bush of quarter-metre leaf clumps (two voxels a side), lighter on
-    top, with gaps; `bloom` dots it with flowers or berries."""
+    """A round leafy bush: a ball of leaves sat a little into the ground,
+    its surface in quarter-metre clumps (two voxels) that stand out or sink
+    in by a voxel, dark underneath and in the hollows, bright on top;
+    `bloom` dots it with flowers or berries. `cells` is its size in quarter
+    metres: (wide, high, deep)."""
     rnd = random.Random(seed)
-    greens = [(44, 104, 36), (58, 124, 40), (76, 146, 46), (98, 168, 54), (124, 188, 62)]
-    w, h, d = cells
-    solid = set()
+    greens = [(34, 88, 34), (46, 108, 38), (60, 130, 42), (80, 152, 48), (104, 172, 54), (132, 192, 62)]
+    w, h, d = (c * 2 for c in cells)
+    # how far each clump stands out from the ball
+    puff = {}
+    solid = {}
     for x in range(w):
         for z in range(d):
-            fx, fz = (x + 0.5) / w * 2 - 1, (z + 0.5) / d * 2 - 1
-            top = h * (1 - 0.7 * (fx * fx + fz * fz)) + rnd.uniform(-0.7, 0.5)
-            for y in range(max(0, round(top))):
-                # ragged: clumps missing all over, more of them at the top
-                if y < h and rnd.random() > 0.14 + 0.2 * (y + 1) / h:
-                    solid.add((x, y, z))
+            for y in range(h):
+                cell = (x // 2, y // 2, z // 2)
+                if cell not in puff:
+                    puff[cell] = rnd.choice([-0.16, -0.06, 0.0, 0.06, 0.14])
+                fx, fz = (x + 0.5) / w * 2 - 1, (z + 0.5) / d * 2 - 1
+                fy = (y + 0.5) / h * 1.45 - 0.45
+                if fx * fx + fy * fy + fz * fz < 1.0 + puff[cell]:
+                    solid[(x, y, z)] = cell
     m = {}
-    for (x, y, z) in solid:
-        k = y / max(h - 1, 1)
-        base = greens[min(4, max(0, int(k * 2.2 + rnd.uniform(0, 2.6))))]
-        if bloom and (x, y + 1, z) not in solid and rnd.random() < 0.3:
-            base = bloom[rnd.randrange(len(bloom))]
-        for i in range(2):
-            for j in range(2):
-                for q in range(2):
-                    v = rnd.randint(-6, 6)
-                    m[(x * 2 + i, y * 2 + j, z * 2 + q)] = tuple(max(0, min(255, c + v)) for c in base)
+    tone = {}
+    for (x, y, z), cell in solid.items():
+        if cell not in tone:
+            k = cell[1] / max(cells[1] - 1, 1) * 3.4 + puff[cell] * 8 + rnd.uniform(-0.5, 0.9)
+            tone[cell] = greens[min(5, max(0, int(k + 0.6)))]
+            if bloom and cell[1] >= cells[1] // 2 and rnd.random() < 0.22:
+                tone[cell] = bloom[rnd.randrange(len(bloom))]
+        v = rnd.randint(-6, 6)
+        m[(x, y, z)] = tuple(max(0, min(255, c + v)) for c in tone[cell])
     return m
 
 
@@ -316,6 +323,13 @@ KINDS = {
     'grass_short': [grass(s, 5, 2, 4, 3) for s in range(11, 15)],
     'grass': [grass(s, 6, 3, 7, 3) for s in range(21, 27)],
     'grass_tall': [grass(s, 6, 6, 11, 2, seeds=True) for s in range(31, 35)],
+    'grass_lush': [grass(s, 9, 5, 10, 4) for s in range(231, 236)],
+    'lupin_drift': [lupins(s, n) for s, n in ((241, 7), (242, 9), (243, 6))],
+    'daisy_drift': [heads(s, n, [(244, 244, 236), (232, 236, 244)], (240, 196, 40), 2, 5, 6) for s, n in ((251, 8), (252, 10))],
+    'buttercup_drift': [heads(s, n, [(246, 208, 48), (250, 224, 80)], (232, 150, 30), 2, 5, 6) for s, n in ((261, 8), (262, 10))],
+    'poppy_drift': [heads(s, n, [(214, 44, 38), (232, 70, 48)], (50, 30, 34), 3, 7, 6, cup=True) for s, n in ((271, 7), (272, 9))],
+    'fern_big': [fern(s, n) for s, n in ((281, 8), (282, 7))],
+    'reeds_thick': [reeds(s, n) for s, n in ((291, 11), (292, 14))],
     'lupin': [lupins(s, n) for s, n in ((41, 3), (42, 4), (43, 5), (44, 2))],
     'daisy': [heads(s, n, [(244, 244, 236), (232, 236, 244)], (240, 196, 40)) for s, n in ((51, 3), (52, 5), (53, 4))],
     'buttercup': [heads(s, n, [(246, 208, 48), (250, 224, 80)], (232, 150, 30), 2, 4) for s, n in ((61, 3), (62, 5), (63, 4))],
@@ -330,8 +344,8 @@ KINDS = {
     'rock': [rock(s, c, 0.4) for s, c in ((151, (5, 3, 4)), (152, (4, 4, 5)), (153, (6, 3, 4)), (154, (5, 4, 5)))],
     'boulder': [rock(s, c, 0.45) for s, c in ((161, (6, 4, 5)), (162, (5, 5, 6)), (163, (7, 4, 6)))],
     'stepping_stone': [rock(s, c, 0.25) for s, c in ((171, (4, 1, 4)), (172, (5, 1, 4)), (173, (4, 1, 3)))],
-    'bush': [bush(s, c) for s, c in ((211, (4, 3, 4)), (212, (5, 3, 4)), (213, (3, 2, 3)), (214, (5, 4, 5)))],
-    'bush_bloom': [bush(s, c, b) for s, c, b in ((221, (4, 3, 4), [(214, 44, 38), (232, 70, 48)]), (222, (4, 2, 3), [(244, 244, 236)]), (223, (5, 3, 4), [(240, 150, 190), (248, 186, 214)]))],
+    'bush': [bush(s, c) for s, c in ((211, (4, 3, 4)), (212, (5, 4, 5)), (213, (3, 3, 3)), (214, (6, 5, 6)), (215, (5, 4, 4)), (216, (4, 4, 5)))],
+    'bush_bloom': [bush(s, c, b) for s, c, b in ((221, (4, 3, 4), [(214, 44, 38), (232, 70, 48)]), (222, (5, 4, 5), [(244, 244, 236)]), (223, (5, 4, 4), [(240, 150, 190), (248, 186, 214)]), (224, (4, 3, 4), [(150, 100, 220), (180, 140, 236)]))],
     'leaf_litter': [litter(s, n) for s, n in ((181, 5), (182, 7), (183, 4))],
     'mushroom_red': [mushrooms(s, n, (196, 48, 40), (240, 236, 226)) for s, n in ((191, 2), (192, 3))],
     'mushroom_brown': [mushrooms(s, n, (150, 104, 66), (176, 132, 90)) for s, n in ((201, 3), (202, 2))],

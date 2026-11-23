@@ -314,8 +314,9 @@ when one of them is replaced.
     stand on or walk round belongs in the world as blocks.
 - **Foliage** (`foliage.json`; `dyno-client/src/foliage.rs`): leaf crowns as
   clumps of cubes. `cells` cubes along a block (0: the smooth canopy), `erode`
-  (how much of a crown's outside is worn away), `crease`, `under`, `depth`
-  and `vary` (shading), `leaves` (colours per leaf block key), `trunks` (the
+  (how much of a crown's outside is worn away), `crease`, `under`, `depth`,
+  `top`, `vary` and `clump` (cubes along a clump of one colour; shading: the brightness of the topmost clumps, falling
+  to `under` at `depth` blocks down), `leaves` (colours per leaf block key), `trunks` (the
   blocks trees are made of) and `areas` (per area key: the `blocks` that
   turn, and `tones` with the `share` of trees each takes: autumn, blossom).
   Which cells hold leaves stays the world's business.
