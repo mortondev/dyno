@@ -49,6 +49,24 @@ pub struct Layout {
     /// how a world saved before this layout maps onto it
     #[serde(default)]
     pub migrate: Option<Migrate>,
+    /// where the pack's kinds of water (`render.json`, `water.kinds`) are
+    /// seen: still water round places. Rivers carry their own kind.
+    #[serde(default)]
+    pub water: Vec<WaterAt>,
+}
+
+/// A kind of water round a place.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WaterAt {
+    pub kind: String,
+    pub place: String,
+    /// offset from the place, in metres
+    #[serde(default)]
+    pub at: [i32; 2],
+    pub radius: [f32; 2],
+    #[serde(default)]
+    pub feather: Option<f32>,
 }
 
 /// The world this layout replaces: its width, for positions out in the
@@ -144,6 +162,9 @@ pub struct Lake {
 #[serde(deny_unknown_fields)]
 pub struct River {
     pub key: String,
+    /// the kind of water it runs with (`render.json`, `water.kinds`)
+    #[serde(default = "river_look")]
+    pub look: String,
     pub path: Vec<[f32; 2]>,
     pub width: f32,
     pub depth: f32,
@@ -392,6 +413,10 @@ pub struct Planted {
     pub at: [i32; 2],
 }
 
+fn river_look() -> String {
+    "river".into()
+}
+
 fn smooth(t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
@@ -509,6 +534,52 @@ impl Layout {
                 (r.key.as_str(), r.width, spline(&pts, 6.0))
             })
             .collect()
+    }
+
+    /// Put the water where this layout has it, in a pack's render settings:
+    /// `water.courses` (the rivers, as points with half-widths) and
+    /// `water.areas` (kinds of still water round places), both from the
+    /// spawn hearth. The layout is the one source of where water is; the
+    /// render settings say how each kind looks.
+    pub fn place_water(&self, render: &mut Value) -> Result<(), String> {
+        let Some(water) = render.get_mut("water").and_then(|w| w.as_object_mut()) else {
+            return Ok(());
+        };
+        let courses: Vec<Value> = self
+            .terrain
+            .rivers
+            .iter()
+            .zip(self.river_courses())
+            .map(|(r, (_, width, line))| {
+                // a point about every 24 m follows the bends closely enough
+                let points: Vec<Value> = line
+                    .iter()
+                    .step_by(4)
+                    .chain(line.last())
+                    .map(|p| serde_json::json!([p[0].round(), p[1].round(), width / 2.0]))
+                    .collect();
+                serde_json::json!({ "kind": r.look, "points": points })
+            })
+            .collect();
+        let mut areas = Vec::new();
+        for a in &self.water {
+            let p = self
+                .place(&a.place)
+                .ok_or(format!("layout: water at unknown place \"{}\"", a.place))?;
+            let c = self.place_at(p);
+            let mut v = serde_json::json!({
+                "kind": a.kind,
+                "at": [c[0] + a.at[0], c[1] + a.at[1]],
+                "radius": a.radius,
+            });
+            if let Some(f) = a.feather {
+                v["feather"] = serde_json::json!(f);
+            }
+            areas.push(v);
+        }
+        water.insert("courses".into(), Value::Array(courses));
+        water.insert("areas".into(), Value::Array(areas));
+        Ok(())
     }
 
     /// The points of a road as offsets in this world.

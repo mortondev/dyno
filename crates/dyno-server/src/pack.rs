@@ -109,6 +109,15 @@ fn compile_world(mut files: BTreeMap<String, Vec<u8>>) -> Result<Compiled, Strin
             .map_err(|e| format!("{rules_path}: {e}"))?;
         *rules = serde_json::to_vec(&v).map_err(|e| format!("{rules_path}: {e}"))?;
     }
+    // the water is where the layout has it
+    let render_path = entry("render", "render.json");
+    if let (Some(l), Some(render)) = (&layout, files.get_mut(&render_path)) {
+        let mut v: serde_json::Value =
+            serde_json::from_slice(render).map_err(|e| format!("{render_path}: {e}"))?;
+        l.place_water(&mut v)
+            .map_err(|e| format!("{render_path}: {e}"))?;
+        *render = serde_json::to_vec(&v).map_err(|e| format!("{render_path}: {e}"))?;
+    }
     let mut out = BTreeMap::new();
     for (path, bytes) in files {
         if path.starts_with("stamps/") || path.starts_with("world/") {

@@ -451,6 +451,7 @@
    },
    "stamps": [
     {"stamp": "north_watch", "at": [13, -5], "rot": 1},
+    {"stamp": "boulders", "at": [22, 6], "fit": "ground"},
     {"stamp": "campfire", "at": [-5, 5]},
     {"stamp": "tent_blue", "at": [-12, 9], "rot": 3},
     {"stamp": "signpost", "at": [6, 11]},
@@ -497,6 +498,7 @@
    },
    "stamps": [
     {"stamp": "hut", "at": [-9, -5]},
+    {"stamp": "boulders", "at": [-22, 4], "fit": "ground"},
     {"stamp": "saw_pit", "at": [4, -8]},
     {"stamp": "log_pile", "at": [9, 5]},
     {"stamp": "birch_pile", "at": [-3, 8]},
@@ -551,6 +553,8 @@
    },
    "stamps": [
     {"stamp": "old_barrow", "at": [0, 0]},
+    {"stamp": "boulders", "at": [24, 12], "fit": "ground"},
+    {"stamp": "boulders", "at": [-6, -22], "rot": 1, "fit": "ground"},
     {"stamp": "standing_stones", "at": [26, -14], "fit": "ground"}
    ],
    "was": {
@@ -702,6 +706,8 @@
    },
    "stamps": [
     {"stamp": "stockade", "at": [0, 0]}
+   ,{"stamp": "boulders", "at": [-22, 18], "fit": "ground"},
+    {"stamp": "boulders", "at": [24, -8], "rot": 2, "fit": "ground"}
    ],
    "was": {
     "at": [62, 62],
@@ -1301,5 +1307,10 @@
    ]
   }
  ],
- "migrate": {"from_size": 384}
+ "migrate": {"from_size": 384},
+ "water": [
+  {"kind": "shrine", "place": "sunken_shrine", "radius": [26, 18], "feather": 0.4},
+  {"kind": "barrow", "place": "old_barrow", "radius": [34, 40]},
+  {"kind": "oak", "place": "hollow_oak", "at": [15, 13], "radius": [16, 14]}
+ ]
 }
