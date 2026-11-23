@@ -354,7 +354,8 @@ pub fn bake(content: &Path) -> Result<String, String> {
         f["skeleton"] = json!("biped");
         f["rig"] = json!("person");
         f["clips"] = json!({"features": ["robe"]});
-        f["per_block"] = json!(34.19);
+        // the man stands 1.78 m to the crown, the woman a little less
+        f["per_block"] = json!(34.63);
         f["detail"] = json!(2.0);
         // crisp voxels (the art direction: every surface reads as voxels),
         // fine up close and coarser with distance; the shaped mesher's
@@ -365,10 +366,13 @@ pub fn bake(content: &Path) -> Result<String, String> {
             o.remove("smooth");
         }
         f["lods"] = json!([
+            // close-ups and the creator
             {"until": 3.5},
-            {"half": 1, "until": 11.0},
-            {"half": 2, "until": 40.0},
-            {"half": 3}
+            // your own figure at the default zoom: the head stays fine
+            {"half": [1, 0], "until": 5.5},
+            {"half": 1, "until": 8.0},
+            {"half": [2, 1], "until": 40.0},
+            {"half": [3, 2]}
         ]);
         f["grids"] = gj;
         f["palette"] = pal.json();

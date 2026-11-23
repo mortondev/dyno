@@ -412,7 +412,7 @@ impl Default for LodsSpec {
 
 /// `{"if": {"armor": [2]}, "set": {"chest": 3}}`: when every feature in
 /// `if` has one of its values, the features in `set` take these values
-/// unless the look sets them itself.
+/// unless the look, or an earlier rule, already set them.
 #[derive(Clone, Debug, Deserialize)]
 struct DeriveSpec {
     #[serde(rename = "if")]
@@ -424,12 +424,36 @@ struct DeriveSpec {
     colors: BTreeMap<String, Gen<[f32; 3]>>,
 }
 
+/// How many times a level halves the voxels: the same for every grid, or
+/// per grid (a level can keep the head fine while the body coarsens).
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+enum Halves {
+    All(u8),
+    Grids(Vec<u8>),
+}
+
+impl Default for Halves {
+    fn default() -> Self {
+        Halves::All(0)
+    }
+}
+
+impl Halves {
+    fn of(&self, grid: usize) -> u8 {
+        match self {
+            Halves::All(n) => *n,
+            Halves::Grids(v) => v.get(grid).or(v.last()).copied().unwrap_or(0),
+        }
+    }
+}
+
 /// One level of detail.
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 struct LodSpec {
     /// how many times the voxels are halved
     #[serde(default)]
-    half: u8,
+    half: Halves,
     /// meshed smooth (surface nets) or as blocks
     #[serde(default)]
     smooth: bool,
@@ -447,7 +471,7 @@ impl LodsSpec {
         match self {
             LodsSpec::List(l) if !l.is_empty() => l.clone(),
             LodsSpec::List(_) => vec![LodSpec {
-                half: 0,
+                half: Halves::All(0),
                 smooth: false,
                 until: None,
                 simplify: 0.0,
@@ -457,7 +481,7 @@ impl LodsSpec {
                 let n = (*n).clamp(1, 3);
                 (0..n)
                     .map(|i| LodSpec {
-                        half: i as u8,
+                        half: Halves::All(i as u8),
                         smooth: false,
                         until: if i + 1 == n { None } else { until[i] },
                         simplify: 0.0,
@@ -535,6 +559,9 @@ struct ShowAppearance {
 #[derive(Clone, Debug, Deserialize)]
 struct ShowPerson {
     name: String,
+    /// a named townsperson's look instead (by NPC key)
+    #[serde(default)]
+    npc: Option<String>,
     #[serde(default)]
     appearance: ShowAppearance,
     /// the class colour
@@ -1542,6 +1569,9 @@ pub fn showcase() -> Vec<(String, Vec<(String, Look)>)> {
         return Vec::new();
     };
     let person = |p: &ShowPerson| -> Look {
+        if let Some(key) = &p.npc {
+            return Look::npc(key, p.color);
+        }
         let a = p.appearance;
         let mut l = Look::from_appearance(
             &dyno_protocol::Appearance {
@@ -1655,12 +1685,12 @@ impl Figure {
             let on = d.cond.iter().all(|(f, vals)| vals.contains(&l.feature(f)));
             if on {
                 for (f, v) in &d.set {
-                    if !look.features.contains_key(f) {
+                    if !l.features.contains_key(f) {
                         l.set(f, *v);
                     }
                 }
                 for (name, g) in &d.colors {
-                    if !look.colors.contains_key(name) {
+                    if !l.colors.contains_key(name) {
                         let base = l.colors.clone();
                         let c = look.color("color").unwrap_or([0.5; 3]);
                         if let Some(c) = gen_color(g, 0, &base, c, &l) {
@@ -1798,7 +1828,7 @@ struct Built {
 impl Built {
     fn level(&self, fig: &Figure, look: &Look, i: usize) -> &[Mesh] {
         let i = i.min(self.lods.len() - 1);
-        self.lods[i].get_or_init(|| mesh_level(fig, look, &self.grids, fig.lods[i]))
+        self.lods[i].get_or_init(|| mesh_level(fig, look, &self.grids, &fig.lods[i]))
     }
 }
 
@@ -1821,14 +1851,15 @@ fn build(fig: &Figure, look: &Look) -> Built {
 
 /// Mesh one level of detail: halve the voxels, then mesh each rig part
 /// (smooth parts together, so they meet without seams) and reshape it.
-fn mesh_level(fig: &Figure, look: &Look, full: &[Vox], lod: LodSpec) -> Vec<Mesh> {
+fn mesh_level(fig: &Figure, look: &Look, full: &[Vox], lod: &LodSpec) -> Vec<Mesh> {
     let mut halved: Vec<Vox> = Vec::new();
-    let grids: &[Vox] = if lod.half == 0 {
+    let grids: &[Vox] = if (0..full.len()).all(|g| lod.half.of(g) == 0) {
         full
     } else {
-        for g in full {
-            let mut v = g.half();
-            for _ in 1..lod.half {
+        for (gi, g) in full.iter().enumerate() {
+            let n = lod.half.of(gi);
+            let mut v = if n == 0 { g.copy() } else { g.half() };
+            for _ in 1..n {
                 v = v.half();
             }
             halved.push(v);
@@ -2098,12 +2129,73 @@ pub fn placeholder(out: &mut Vec<Vertex>, feet: Vec3, scale: f32, light: f32) {
 mod tests {
     use super::*;
 
+    fn pack() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+        crate::assets::load_dir(&dir).expect("the content pack");
+    }
+
+    /// Wearing an item changes the look as `equip` says, and the figure
+    /// composes with it.
+    #[test]
+    fn wearing_items_changes_the_figure() {
+        pack();
+        let mut l = Look::from_appearance(&Default::default(), [0.5; 3]);
+        let bare = l.clone();
+        l.wear(["ironbound_cuirass", "ironbound_pauldrons", "no_such_item"]);
+        assert_eq!(l.feature("chest"), 4);
+        assert_eq!(l.feature("shoulders"), 4);
+        assert!(l.color("chest.main").is_some());
+        let fig = figure(&player_figure().unwrap()).unwrap();
+        let count = |l: &Look| -> usize {
+            fig.compose(&fig.derived(l))
+                .iter()
+                .map(|v| {
+                    let (lo, hi) = v.bounds();
+                    let mut n = 0;
+                    for x in lo[0]..hi[0] {
+                        for y in lo[1]..hi[1] {
+                            for z in lo[2]..hi[2] {
+                                n += usize::from(v.solid(x, y, z));
+                            }
+                        }
+                    }
+                    n
+                })
+                .sum()
+        };
+        assert!(count(&l) > count(&bare), "armour adds voxels");
+        // old looks keep composing through the derived features
+        let maren = Look::npc("maren", [0.4, 0.5, 0.6]);
+        assert_eq!(fig.derived(&maren).feature("chest"), 3);
+    }
+
+    /// Both bodies stand about 1.78 m (bald, bare-headed).
+    #[test]
+    fn people_are_life_size() {
+        pack();
+        for body in [0u8, 1] {
+            let mut l = Look::from_appearance(&Default::default(), [0.5; 3]);
+            l.set("body", body);
+            l.set("hair_style", 0);
+            let mut out = Vec::new();
+            crate::models::push_person(&mut out, Vec3::ZERO, 0.0, 0.0, &l, 0.8, 0.0, 0.0);
+            let (lo, hi) = out.iter().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
+                (lo.min(v.pos[1]), hi.max(v.pos[1]))
+            });
+            println!("body {body}: {lo:.3} to {hi:.3} m");
+            assert!(
+                lo > -0.05 && lo < 0.05,
+                "body {body} stands on the ground ({lo})"
+            );
+            assert!((1.72..1.84).contains(&hi), "body {body} is {hi} m tall");
+        }
+    }
+
     /// Prints how many vertices each level of detail of a player costs,
     /// part by part. `cargo test -p dyno-client --release figure_budget -- --nocapture`
     #[test]
     fn figure_budget() {
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
-        crate::assets::load_dir(&dir).expect("the content pack");
+        pack();
         let name = player_figure().expect("a player figure");
         let fig = figure(&name).expect("the player figure loads");
         let look = Look::player(3, [0.6, 0.2, 0.2]);

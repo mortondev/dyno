@@ -2,9 +2,7 @@
   "appearance": {
     "base": {
       "colors": {
-        "cape": null,
-        "trim": [0.42,0.34,0.24],
-        "tunic": [0.6,0.55,0.45]
+        "cape": null
       },
       "features": {
         "armor": 0,
@@ -3924,7 +3922,8 @@
                   "when": [
                     {
                       "apron": [1],
-                      "body": [0]
+                      "body": [0],
+                      "chest": [0,2,3,4]
                     }
                   ]
                 },
@@ -3982,7 +3981,8 @@
                   "when": [
                     {
                       "apron": [1],
-                      "body": [1]
+                      "body": [1],
+                      "chest": [0,2,3,4]
                     }
                   ]
                 },
@@ -4621,6 +4621,26 @@
                   ]
                 },
                 {
+                  "layer": "body/skirt/apron,body=0",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [0],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/apron,body=1",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
                   "layer": "body/back/cape,body=0",
                   "when": [
                     {
@@ -5159,15 +5179,19 @@
           "until": 3.5
         },
         {
-          "half": 1,
-          "until": 11.0
+          "half": [1,0],
+          "until": 5.5
         },
         {
-          "half": 2,
+          "half": 1,
+          "until": 8.0
+        },
+        {
+          "half": [2,1],
           "until": 40.0
         },
         {
-          "half": 3
+          "half": [3,2]
         }
       ],
       "palette": [
@@ -5763,7 +5787,7 @@
           "slot": "head.gem"
         }
       ],
-      "per_block": 34.19,
+      "per_block": 34.63,
       "rig": "person",
       "skeleton": "biped"
     },
@@ -6459,6 +6483,26 @@
           "body": 1
         },
         "name": "Female, average"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Brannoc",
+        "npc": "brannoc"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Maren",
+        "npc": "maren"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Hollis",
+        "npc": "hollis"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Tilda",
+        "npc": "tilda"
       }
     ],
     "sets": [
@@ -6696,6 +6740,10 @@
       {
         "name": "Townsfolk",
         "on": [0,1,2,3]
+      },
+      {
+        "name": "Named townsfolk",
+        "on": [4,5,6,7]
       }
     ]
   }

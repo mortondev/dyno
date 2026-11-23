@@ -287,8 +287,8 @@ rig carries no tapers. What remains in the rig:
   shoulder and hip `at` change with body and build;
 - `body` (masculine, feminine) picks each bone's `at` and each part's `pivot`;
 - the head is drawn at true size (no `scale` op);
-- `per_block` (34.19) keeps the overall height at 1.78 m;
-- the figure is modelled at twice its rig's density (`detail` 2, and 4 for
+- `per_block` (34.63) makes the man 1.78 m to the crown (the woman 1.76 m);
+- the figure is modelled at twice its rig's density (`detail` 2, and 2.5 for
   the head grid), so the rig and clip numbers are unchanged;
 - sockets (`socket.offhand`, `socket.shield`, `socket.back`,
   `socket.helm`, `socket.shoulder.r/l`, `socket.cloak`, `socket.buckle`)

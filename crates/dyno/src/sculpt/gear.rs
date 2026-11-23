@@ -429,12 +429,7 @@ fn chest(g: &Grid, b: &Body, bi: usize, s: &Si, ink: &Inks) -> Vec<Layer> {
             if p.y > 34.0 || p.y < 1.2 {
                 return None;
             }
-            let hip = smooth(34.0, 27.0, p.y);
-            let low = smooth(27.0, 1.2, p.y);
-            let w = if female { 0.4 } else { 0.0 };
-            let rx = 6.7 + w + 2.6 * hip + 2.3 * low;
-            let rf = 5.1 + 1.0 * hip + 2.0 * low;
-            let rb = 5.5 + 1.1 * hip + 1.7 * low;
+            let (rx, rf, rb, low) = robe_skirt(p.y, female);
             // a scalloped hem
             let theta = p.x.atan2(p.z);
             let hem = 1.2 + 0.7 * (theta * 9.0).sin().abs();
@@ -692,6 +687,20 @@ fn chest(g: &Grid, b: &Body, bi: usize, s: &Si, ink: &Inks) -> Vec<Layer> {
         25.6,
     ));
     out
+}
+
+/// The cloth robe's skirt at height `y`: half width, front and back
+/// depth, and how far down the legs it is (0 at the hips, 1 at the hem).
+pub fn robe_skirt(y: f32, female: bool) -> (f32, f32, f32, f32) {
+    let hip = smooth(34.0, 27.0, y);
+    let low = smooth(27.0, 1.2, y);
+    let w = if female { 0.4 } else { 0.0 };
+    (
+        6.7 + w + 2.6 * hip + 2.3 * low,
+        5.1 + 1.0 * hip + 2.0 * low,
+        5.5 + 1.1 * hip + 1.7 * low,
+        low,
+    )
 }
 
 /// The tabard's emblem: a sword (one design for every plate set; tiers

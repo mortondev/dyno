@@ -39,7 +39,7 @@ The art direction (docs/art/README.md) is a Cube World × World of Warcraft
 hybrid that **stays voxel**. Characters are therefore clearly voxel, in
 Cube World's clean, charming and colourful style, with WoW's heroic
 proportions and readable gear. The answer to "less blocky" is not smooth
-polygons. It is finer voxels (twice the density for the body, three times
+polygons. It is finer voxels (twice the density for the body, 2.5 times
 for the head), real anatomy sculpted into them, clean flat colours that
 merge into large faces, and soft ambient occlusion.
 
@@ -67,7 +67,7 @@ that keeps the voxel look; the person does not use it.
 
 `dyno bake-figure [content]` (crates/dyno/src/sculpt/, a dev tool in the
 `dyno` binary, not in the client) sculpts the person from signed distance
-fields and writes three things: `models/person.vox` (146 layers), the
+fields and writes three things: `models/person.vox` (144 layers), the
 person's entry in `figures.json` (grids, groups, palette and LODs) and the
 `person` rig in `rigs/biped.json` (bones and pivots for each body, build
 widths, sockets). The shapes are parametric, so a change of proportion
@@ -79,7 +79,7 @@ re-flows every garment and armour piece.
   - big hands have a palm, a curled finger mass and a thumb;
   - thighs have a quadriceps mass, shins a calf, and the feet a heel.
   Heroic proportions: shoulders about 2.8 heads wide, a narrow waist, legs half the height, and a head about 1/7 of the height (slightly large). The feminine body has narrower shoulders, a bust, a narrower waist, wider hips and a smaller head, with its own joints.
-- **Head** (head grid, 3× detail): cranium, jaw and chin, cheekbones, a brow ridge, a wedge nose with nostrils, lips, eye sockets, and eyes with white, iris, pupil and a glint (crisp).
+- **Head** (head grid, 2.5× detail): cranium, jaw and chin, cheekbones, a brow ridge, a wedge nose with nostrils, lips, eye sockets, and eyes with white, iris, pupil and a glint (crisp).
   - Ears per the `ears` feature: round, pointed, or large.
   - Expressions (`mood`): brows that arch, frown or sit level; a smiling, set or calm mouth; and lids.
   - The `elder` lines.
@@ -127,17 +127,34 @@ feminine bodies with different builds, skins, hair and expressions),
 
 Measured with `cargo test -p dyno-client --release animated_crowd
 crowd_is_cheap figure_budget -- --nocapture` on a shared machine under heavy
-load from other builds. Times move by 2× from run to run, so the vertex
-counts are the reliable comparison.
+load from other builds (load average 13–56). Times move by up to 3× from
+run to run, so the vertex counts are the reliable comparison. Cost per
+vertex is the same before and after, so time follows the vertex count.
 
-| | Before | After |
+Levels of detail for the person (all crisp voxels):
+
+| To | Voxels | Vertices |
 |---|---|---|
-| One person, per level of detail (`figure_budget`) | about 13k (blocky, 1/32) | 152k (to 3.5 blocks), 41k (to 11), 11k (to 40), 3k |
-| 20 animated people (`animated_crowd`) | 269k vertices, 8.1 ms (load 49) | 365k vertices, 4.7–7.7 ms (load 13–36) |
-| 20 people within 14 blocks (`crowd_is_cheap`) | 264k, 12.3 ms | 365k, 3.0 ms |
-| 20 people spread over 60 blocks | 103k, 4.6 ms | 140k, 1.2 ms |
-| A new look (compose and mesh) | 340–420 ms | 250–540 ms (levels are meshed when first drawn) |
-| `models/person.vox` | 1,055 KB (159 KB deflated) | 2,206 KB (939 KB deflated); a first join stays under the 4 MB test |
+| 3.5 blocks (close-ups, the creator) | body 2×, head 2.5× | 152k |
+| 5.5 blocks (your own figure at the default zoom) | body 1×, head 2.5× | 57k |
+| 8 blocks | body 1×, head 1.25× | 41k |
+| 40 blocks | body 0.5×, head 1.25× | 16k |
+| beyond | body 0.25×, head 0.6× | 4k |
+
+| | Before (main) | After |
+|---|---|---|
+| 20 animated people (`animated_crowd`), A/B with the same binary and load | 269k vertices; 2.8, 4.2, 8.1 ms | 357k vertices (1.33×); 3.1, 4.4, 15.9 ms (earlier LOD set, 450k vertices) |
+| 20 people within 14 blocks (`crowd_is_cheap`) | 264k | 356k |
+| 20 people spread over 60 blocks | 103k | 163k |
+| A new look (compose and mesh its first level) | 340–420 ms | 250–670 ms (other levels are meshed when first drawn) |
+| `models/person.vox` | 1,055 KB (159 KB deflated) | 2,214 KB (about 940 KB deflated); a first join stays under the 4 MB test |
+
+The 2.5 ms target for 20 people is not met on this machine as loaded today.
+Main's own figures measure 2.8–8.1 ms here, and ours cost about a third
+more vertices. The LOD distances are data: moving the 5.5-block level to
+4.5 and the 8-block level to 6 should bring the crowd close to parity (an
+estimate from the per-level counts, not measured), at the cost of
+coarser faces on your own figure at the default zoom.
 
 The smooth/bevelled variant of the mesher costs far more: 80–160k vertices
 at its finest level even after simplification. That is why the person uses

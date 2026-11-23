@@ -556,13 +556,13 @@ pub fn outfit_sheet(out: &Path) -> Result<String, String> {
         written.push(save(&path, paste(&cells, 7, size))?.display().to_string());
     }
     // levels of detail: the first person of each of the first sets, as
-    // drawn from 2, 7, 18 and 45 blocks away (seen from up close)
+    // drawn from 2, 5, 9, 18 and 45 blocks away (seen from up close)
     let mut lods = Vec::new();
     for (set, people) in sets.iter().take(4) {
         let Some((_, l)) = people.first() else {
             continue;
         };
-        for d in [2.0f32, 7.0, 18.0, 45.0] {
+        for d in [2.0f32, 5.0, 9.0, 18.0, 45.0] {
             models::set_view(Some((Vec3::new(0.0, 1.6, -d), Vec3::new(0.4, 0.8, -0.3))));
             let verts = pose(l, Anim::Idle, 0.4);
             models::set_view(None);
@@ -571,7 +571,7 @@ pub fn outfit_sheet(out: &Path) -> Result<String, String> {
         }
     }
     let path = out.with_file_name(format!("{stem}-lods.{ext}"));
-    written.push(save(&path, paste(&lods, 4, size))?.display().to_string());
+    written.push(save(&path, paste(&lods, 5, size))?.display().to_string());
     let main = save(out, paste(&overview, 8, size))?;
     let _ = std::fs::remove_file(&tmp);
     written.insert(0, main.display().to_string());

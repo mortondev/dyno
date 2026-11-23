@@ -75,6 +75,39 @@ pub fn all(main: &mut Grid, head: &mut Grid, bodies: &[Body; 2], ink: &Inks, pal
         main.push("body", sash(main, b, bi, ink));
     }
     super::gear::all(main, head, bodies, ink, pal);
+    // over a robe, the apron hangs on its skirt
+    for (bi, b) in bodies.iter().enumerate() {
+        let female = b.female;
+        main.push(
+            "body",
+            layer(
+                main,
+                "skirt/apron",
+                bi,
+                &[("apron", &[1]), ("chest", &[1])],
+                move |p| {
+                    if p.y > 32.8
+                        || p.y < 16.0
+                        || p.z < 0.0
+                        || p.x.abs() > 4.8 + (32.8 - p.y) * 0.05
+                    {
+                        return None;
+                    }
+                    let (rx, rf, rb, _) = super::gear::robe_skirt(p.y, female);
+                    let d = skirt_ring(p, rx + 0.55, rf + 0.55, rb, 0.0);
+                    if d.abs() > 0.35 {
+                        return None;
+                    }
+                    let c = if p.y < 16.8 {
+                        ink.apron[0]
+                    } else {
+                        ink.apron[1]
+                    };
+                    Some((part_index("skirt"), Mode::Set, c))
+                },
+            ),
+        );
+    }
     for (bi, b) in bodies.iter().enumerate() {
         for l in cape(main, b, bi, ink) {
             main.push("body", l);
@@ -306,22 +339,28 @@ fn apron(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         ))
     })];
     let female = b.female;
-    out.push(layer(g, "flap/apron", bi, &[("apron", &[1])], move |p| {
-        let top = 32.8;
-        if p.y > top || p.y < 16.0 || p.x.abs() > 5.3 + (top - p.y) * 0.05 {
-            return None;
-        }
-        let fz = 5.5 + (top - p.y) * 0.13 - 0.03 * p.x * p.x + if female { 0.2 } else { 0.0 };
-        if (p.z - fz).abs() > 0.4 {
-            return None;
-        }
-        let c = if p.y < 16.8 {
-            ink.apron[0]
-        } else {
-            mottle(&ink.apron, p, 0.6, 5.0)
-        };
-        Some((part_index("flap.f"), Mode::Set, c))
-    }));
+    out.push(layer(
+        g,
+        "flap/apron",
+        bi,
+        &[("apron", &[1]), ("chest", &[0, 2, 3, 4])],
+        move |p| {
+            let top = 32.8;
+            if p.y > top || p.y < 16.0 || p.x.abs() > 5.3 + (top - p.y) * 0.05 {
+                return None;
+            }
+            let fz = 5.5 + (top - p.y) * 0.13 - 0.03 * p.x * p.x + if female { 0.2 } else { 0.0 };
+            if (p.z - fz).abs() > 0.4 {
+                return None;
+            }
+            let c = if p.y < 16.8 {
+                ink.apron[0]
+            } else {
+                mottle(&ink.apron, p, 0.6, 5.0)
+            };
+            Some((part_index("flap.f"), Mode::Set, c))
+        },
+    ));
     out
 }
 

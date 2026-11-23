@@ -91,6 +91,22 @@ impl Vox {
         out
     }
 
+    /// A copy of the model (without its cached inside).
+    pub fn copy(&self) -> Vox {
+        Vox {
+            min: self.min,
+            size: self.size,
+            cells: self.cells.clone(),
+            parts: self.parts.clone(),
+            palette: self.palette.clone(),
+            crisp: self.crisp.clone(),
+            lookup: self.lookup.clone(),
+            part: self.part,
+            unit: self.unit,
+            core: OnceCell::new(),
+        }
+    }
+
     /// The same model at half the detail, for drawing far away: each 2 x 2 x 2
     /// block becomes one voxel, of the commonest ink on its surface. Meshes
     /// of the result come out the same size as the original's.
