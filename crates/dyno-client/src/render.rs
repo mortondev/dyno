@@ -1723,6 +1723,21 @@ impl Gfx {
         self.remesh(world, light, &list);
     }
 
+    /// Wait until the GPU has finished all submitted work (for timing).
+    pub fn wait_idle(&self) {
+        let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
+    }
+
+    /// Opaque and translucent vertices held by the world meshes (for stats).
+    pub fn world_vertices(&self) -> (u64, u64) {
+        self.sections.iter().fold((0, 0), |a, s| {
+            (
+                a.0 + s.opaque.as_ref().map_or(0, |b| b.1 as u64),
+                a.1 + s.trans.as_ref().map_or(0, |b| b.1 as u64),
+            )
+        })
+    }
+
     /// Re-mesh every section that touches the box [lo - margin, hi + margin].
     pub fn region_changed(
         &mut self,
@@ -2115,6 +2130,56 @@ fn shadow_matrix(cam: Vec3, sun_dir: [f32; 3]) -> Mat4 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Timing on the real starting world: Hearthstead and the zones, as a
+    /// fresh server builds them. Run with:
+    /// `cargo test --release -p dyno-client town_meshing_speed -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn town_meshing_speed() {
+        let mut world = World::generate([384, 96, 384], 20261122);
+        let hearth = world.ensure_spawn_hearth(None);
+        w::village::build_hearthstead(&mut world, hearth);
+        w::zones::build_world_features(&mut world, hearth);
+        let light = Light::new(&world);
+        let _ = textures();
+        // the sections of the town: 64 blocks round the hearth
+        let mut town = Vec::new();
+        let mut all = Vec::new();
+        for sy in 0..6 {
+            for sz in 0..24 {
+                for sx in 0..24 {
+                    all.push([sx, sy, sz]);
+                    let c = [sx * SECTION + 8, sz * SECTION + 8];
+                    if (c[0] - hearth[0]).abs() <= 40 && (c[1] - hearth[2]).abs() <= 40 {
+                        town.push([sx, sy, sz]);
+                    }
+                }
+            }
+        }
+        let (mut worst, mut sum, mut verts) = (0.0f64, 0.0f64, 0usize);
+        for s in &town {
+            let t = std::time::Instant::now();
+            let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
+            let ms = t.elapsed().as_secs_f64() * 1e3;
+            worst = worst.max(ms);
+            sum += ms;
+            verts += geo.opaque.len() + geo.trans.len();
+        }
+        let start = std::time::Instant::now();
+        let n: usize = all
+            .chunks(256)
+            .map(|b| mesh_many(&world, &light, b).len())
+            .sum();
+        let many = start.elapsed().as_secs_f64();
+        eprintln!(
+            "town: {} sections, {:.3} ms each on average, worst {worst:.2} ms, {verts} vertices; \
+             whole world ({n} sections) on all cores {:.2} s",
+            town.len(),
+            sum / town.len() as f64,
+            many
+        );
+    }
 
     /// Timing. Run with:
     /// `cargo test --release -p dyno-client meshing_speed -- --ignored --nocapture`
