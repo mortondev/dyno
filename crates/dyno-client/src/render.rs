@@ -1819,8 +1819,8 @@ impl Gfx {
             return;
         }
         self.store(((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize, geo);
-        // (the cover near the camera may have changed)
-        self.cover.changed();
+        // the cover near the camera may have changed
+        self.cover.changed_in(s);
     }
 
     /// Whether a section has been meshed since it last arrived.
@@ -1836,7 +1836,7 @@ impl Gfx {
         if (0..3).all(|i| s[i] >= 0 && s[i] < d[i]) {
             let i = ((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize;
             self.sections[i] = SectionMesh::default();
-            self.cover.changed();
+            self.cover.changed_in(s);
         }
     }
 

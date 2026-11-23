@@ -866,6 +866,19 @@ impl Gpu {
         self.at = None;
     }
 
+    /// A section's ground changed: make the instances again if any of them
+    /// could stand in it.
+    pub fn changed_in(&mut self, section: [i32; 3]) {
+        let n = crate::render::SECTION as f32;
+        let reach = self.range() + STEP + n;
+        if let Some(at) = self.at {
+            let mid = [(section[0] as f32 + 0.5) * n, (section[2] as f32 + 0.5) * n];
+            if (mid[0] - at.x).abs() < reach && (mid[1] - at.z).abs() < reach {
+                self.at = None;
+            }
+        }
+    }
+
     /// How far from the camera cover is drawn, in metres.
     pub fn range(&self) -> f32 {
         current().range * self.quality.clamp(0.0, 2.0).sqrt()

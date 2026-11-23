@@ -230,12 +230,13 @@ def bush(seed, cells, bloom=None):
             fx, fz = (x + 0.5) / w * 2 - 1, (z + 0.5) / d * 2 - 1
             top = h * (1 - 0.7 * (fx * fx + fz * fz)) + rnd.uniform(-0.7, 0.5)
             for y in range(max(0, round(top))):
-                if y < h and rnd.random() > 0.12:
+                # ragged: clumps missing all over, more of them at the top
+                if y < h and rnd.random() > 0.14 + 0.2 * (y + 1) / h:
                     solid.add((x, y, z))
     m = {}
     for (x, y, z) in solid:
         k = y / max(h - 1, 1)
-        base = greens[min(4, max(0, int(k * 3 + rnd.uniform(0, 1.6))))]
+        base = greens[min(4, max(0, int(k * 2.2 + rnd.uniform(0, 2.6))))]
         if bloom and (x, y + 1, z) not in solid and rnd.random() < 0.3:
             base = bloom[rnd.randrange(len(bloom))]
         for i in range(2):
