@@ -35,6 +35,7 @@ pub struct ShotOptions {
 
 /// Returns a one-line description of what was rendered.
 pub fn shot(o: ShotOptions) -> Result<String, String> {
+    crate::assets::load_local_pack();
     if let Some(page) = &o.front {
         let mut g = Gfx::new_headless(o.width, o.height)?;
         return crate::app::shot_front(&mut g, page, &o.addr, o.player.as_deref(), &o.out);

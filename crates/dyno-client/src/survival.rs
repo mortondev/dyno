@@ -30,7 +30,8 @@ struct Atlas {
 const ATLAS_COLS: usize = 16;
 
 fn atlas(ctx: &egui::Context) -> Atlas {
-    let id = egui::Id::new("dyno-block-atlas");
+    // built again when the block textures change (more of the pack arrived)
+    let id = egui::Id::new(("dyno-block-atlas", crate::textures::generation()));
     if let Some(a) = ctx.data(|d| d.get_temp::<Atlas>(id)) {
         return a;
     }
@@ -65,23 +66,20 @@ impl Atlas {
     }
 }
 
-/// A pixel sprite for an item that is not a block, made once per item.
-fn item_texture(ctx: &egui::Context, c: &Content, item: ItemId) -> egui::TextureHandle {
-    let it = c.item(item);
-    let id = egui::Id::new((
-        "dyno-item",
-        c.item_key(item).to_string(),
-        it.name.to_string(),
-    ));
+/// An item's picture from the pack, loaded once it has arrived. None while
+/// it is missing (the caller draws a plain swatch).
+fn item_texture(ctx: &egui::Context, path: &str) -> Option<egui::TextureHandle> {
+    let bytes = crate::assets::get(path)?;
+    // keyed by the bytes too, so a replaced file shows
+    let id = egui::Id::new(("dyno-item", path, bytes.as_ptr() as usize));
     if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) {
-        return t;
+        return Some(t);
     }
-    let px = crate::textures::item_sprite(&it);
-    let n = crate::textures::TILE;
-    let img = egui::ColorImage::from_rgba_unmultiplied([n, n], &px);
-    let t = ctx.load_texture(format!("item-{item}"), img, egui::TextureOptions::NEAREST);
+    let (w, h, px) = crate::textures::decode_png(&bytes)?;
+    let img = egui::ColorImage::from_rgba_unmultiplied([w, h], &px);
+    let t = ctx.load_texture(path, img, egui::TextureOptions::NEAREST);
     ctx.data_mut(|d| d.insert_temp(id, t.clone()));
-    t
+    Some(t)
 }
 
 pub fn block_icon(painter: &egui::Painter, r: Rect, b: w::BlockId) {
@@ -141,13 +139,20 @@ pub fn item_icon(painter: &egui::Painter, r: Rect, c: &Content, item: ItemId) {
         return block_icon(painter, r.shrink(r.width() * 0.08), b);
     }
     if it.block.is_none() {
-        let t = item_texture(painter.ctx(), c, item);
-        painter.image(
-            t.id(),
-            r.shrink(r.width() * 0.02),
-            Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
-            Color32::WHITE,
-        );
+        match it.image.and_then(|p| item_texture(painter.ctx(), p)) {
+            Some(t) => {
+                painter.image(
+                    t.id(),
+                    r.shrink(r.width() * 0.02),
+                    Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+                    Color32::WHITE,
+                );
+            }
+            // not arrived yet: a plain swatch of the item's colour
+            None => {
+                painter.rect_filled(r.shrink(r.width() * 0.25), 3.0, col(it.color, 1.0));
+            }
+        }
         return;
     }
     let rgb = it.color;

@@ -50,10 +50,9 @@ const KIND_DECAL: f32 = -3.0;
 /// A halo: a camera-facing square, added to the picture.
 const KIND_GLOW: f32 = -4.0;
 
-/// The block textures, built once.
+/// The block textures from the pack.
 pub fn textures() -> &'static crate::textures::Textures {
-    static T: std::sync::OnceLock<crate::textures::Textures> = std::sync::OnceLock::new();
-    T.get_or_init(crate::textures::Textures::blocks)
+    crate::textures::current()
 }
 
 /// How a layer animates, as the shader wants it: frame count plus seconds
@@ -133,6 +132,9 @@ struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, f
 @group(0) @binding(2) var tex_samp: sampler;
 @group(0) @binding(3) var shadow_map: texture_depth_2d;
 @group(0) @binding(4) var shadow_samp: sampler_comparison;
+// the render settings from the pack (look.rs)
+struct Look { leaf_under: vec4<f32>, leaf_over: vec4<f32>, tone_low: vec4<f32>, tone_high: vec4<f32>, grade_tint: vec4<f32>, grade: vec4<f32>, water_deep: vec4<f32>, water_shallow: vec4<f32>, foam: vec4<f32>, misc: vec4<f32> };
+@group(0) @binding(5) var<uniform> look: Look;
 
 // What a vertex is, from tex.z (see the KIND constants in render.rs):
 //   below 0: untextured (-1 plain, -2 ground clutter, -3 ground decal, -4 halo)
@@ -143,8 +145,6 @@ struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, f
 const K_TERRAIN: f32 = 4096.0;
 const K_FOLIAGE: f32 = 8192.0;
 const K_WATER: f32 = 12288.0;
-// leaf texture repeats per metre
-const LEAF_SCALE: f32 = 0.6;
 
 // 1 in sunlight, 0 in shadow; soft-edged. Four taps: the sampler compares
 // and blends 2 x 2 texels at each, so together they cover the same patch a
@@ -162,16 +162,16 @@ fn sun_visible(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
     + textureSampleCompareLevel(shadow_map, shadow_samp, uv + vec2<f32>(o, o), z));
 }
 
-// A warm, painterly grade: richer colour, warm light, soft highlight roll-off.
+// The colour grade: tint, saturation, contrast round mid grey, and a soft
+// roll-off of highlights instead of clipping.
 fn grade(c0: vec3<f32>) -> vec3<f32> {
-  var c = c0 * vec3<f32>(1.04, 1.0, 0.94);
+  var c = c0 * look.grade_tint.rgb;
   let l = dot(c, vec3<f32>(0.2126, 0.7152, 0.0722));
-  c = mix(vec3<f32>(l), c, 1.1);
-  // gentle contrast around mid grey
-  c = (c - 0.18) * 1.06 + 0.18;
-  // roll off highlights instead of clipping
-  let k = max(c - vec3<f32>(0.75), vec3<f32>(0.0));
-  c = min(c, vec3<f32>(0.75)) + k / (vec3<f32>(1.0) + k * 1.8);
+  c = mix(vec3<f32>(l), c, look.grade_tint.w);
+  c = (c - 0.18) * look.grade.x + 0.18;
+  let knee = vec3<f32>(look.grade.y);
+  let k = max(c - knee, vec3<f32>(0.0));
+  c = min(c, knee) + k / (vec3<f32>(1.0) + k * look.grade.z);
   return max(c, vec3<f32>(0.0));
 }
 
@@ -357,13 +357,15 @@ fn ground(top: i32, steep: i32, level0: f32, w3: vec3<f32>, p: vec3<f32>, dx: ve
 // Broad, slow changes of tone, so the ground is not one repeated tile.
 // The amount comes from the vertex shader.
 fn ground_tone(m: f32) -> vec3<f32> {
-  return mix(vec3<f32>(0.84, 0.87, 0.80), vec3<f32>(1.10, 1.08, 1.02), m);
+  return mix(look.tone_low.rgb, look.tone_high.rgb, m);
 }
 
 @fragment fn fs(i: VOut, @builtin(front_facing) front: bool) -> @location(0) vec4<f32> {
   let dpx = dpdx(i.wpos);
   let dpy = dpdy(i.wpos);
   let kz = i.tex.z;
+  // leaf texture repeats per metre
+  let leaf_scale = look.misc.x;
   // One plain sample for every pixel, taken before any branch, so the
   // hardware finds the mip level itself (the cheap path): the face's own
   // UVs, or for ground and leaves the view from above.
@@ -371,7 +373,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
   var l0 = 0;
   if (kz >= K_FOLIAGE) {
     // leaves: larger painted clumps than one tile a block
-    uv0 = i.wpos.xz * LEAF_SCALE;
+    uv0 = i.wpos.xz * leaf_scale;
     l0 = anim_layer(kz - K_FOLIAGE, i.tex.w);
   } else if (kz >= K_TERRAIN) {
     uv0 = i.wpos.xz;
@@ -397,7 +399,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
     let det = dot(dpx, r1);
     let g = sign(det) * (dhx * r1 + dhy * r2);
     // smooth ground: only on its level tops, which show the texture seen from above
-    let k = 0.022 * (1.0 - smoothstep(18.0, 40.0, d)) * select(1.0, smoothstep(0.6, 0.9, n.y), kz >= K_TERRAIN);
+    let k = look.grade.w * (1.0 - smoothstep(18.0, 40.0, d)) * select(1.0, smoothstep(0.6, 0.9, n.y), kz >= K_TERRAIN);
     bent = normalize(abs(det) * n - g * k);
   }
   var base = i.color.rgb;
@@ -408,16 +410,16 @@ fn ground_tone(m: f32) -> vec3<f32> {
   if (kz >= K_FOLIAGE) {
     let w3 = tri_weights(n);
     var tx = w3.y * tx0;
-    if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos * LEAF_SCALE, dpx * LEAF_SCALE, dpy * LEAF_SCALE); }
-    if (w3.z > 0.001) { tx += w3.z * side_z(l0, i.wpos * LEAF_SCALE, dpx * LEAF_SCALE, dpy * LEAF_SCALE); }
+    if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos * leaf_scale, dpx * leaf_scale, dpy * leaf_scale); }
+    if (w3.z > 0.001) { tx += w3.z * side_z(l0, i.wpos * leaf_scale, dpx * leaf_scale, dpy * leaf_scale); }
     // gaps between the leaves close up with distance, where they would only flicker
     let cut = mix(0.5, 0.06, smoothstep(18.0, 44.0, d));
     if (tx.a < cut) { discard; }
     // big soft patches of light and dark over the canopy
     // big soft patches of light and dark; cool, deep shade underneath and
     // warm sunlit crowns, so each canopy reads as one painted form
-    base = base * tx.rgb * (0.78 + 0.4 * i.tone);
-    base = base * mix(vec3<f32>(0.5, 0.64, 0.68), vec3<f32>(0.92, 0.94, 0.8), smoothstep(-0.4, 0.85, n.y));
+    base = base * tx.rgb * (look.leaf_under.w + look.leaf_over.w * i.tone);
+    base = base * mix(look.leaf_under.rgb, look.leaf_over.rgb, smoothstep(-0.4, 0.85, n.y));
     if (!front) { n = -n; dim = 0.72; }
     // darker underneath and inside
     dim = dim * (0.74 + 0.26 * smoothstep(-0.6, 0.5, n.y));
@@ -451,7 +453,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
     base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
     if (tx0.a < 0.5) { discard; }
-    base = base * tx0.rgb * mix(0.88, 1.08, i.tone);
+    base = base * tx0.rgb * mix(look.tone_low.w, look.tone_high.w, i.tone);
   } else if (kz > -1.5) {
     // 16 x 16 texel grain on untextured boxes so they read as pixel art
     let t = floor(i.wpos * 16.0 - i.normal * 0.01);
@@ -475,7 +477,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
   if (i.color.a > 1.9) { c = base * grain * 1.1; }
   let f = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
   // height haze in low valleys, then distance fog
-  let haze = clamp((26.0 - i.wpos.y) / 26.0, 0.0, 1.0) * clamp(d / 110.0, 0.0, 1.0) * 0.18;
+  let haze = clamp((26.0 - i.wpos.y) / 26.0, 0.0, 1.0) * clamp(d / 110.0, 0.0, 1.0) * look.misc.y;
   c = mix(c, u.fog.rgb, max(f, haze));
   return vec4<f32>(grade(c), 1.0);
 }
@@ -544,7 +546,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
     let p = i.wpos.xz;
     let shore = clamp(i.normal.x, 0.0, 1.0);
     let shallow = smoothstep(0.0, 0.85, shore);
-    var wc = mix(vec3<f32>(0.022, 0.135, 0.34), vec3<f32>(0.06, 0.36, 0.42), shallow);
+    var wc = mix(look.water_deep.rgb, look.water_shallow.rgb, shallow);
     let s1 = vnoise(p * 0.55 + vec2<f32>(t * 0.22, t * 0.13));
     let s2 = vnoise(p * 1.7 - vec2<f32>(t * 0.25, t * 0.31));
     // long brush strokes of lighter water, drifting
@@ -567,7 +569,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
       let band = smoothstep(0.42, 0.66, shore + (fz - 0.5) * 0.38 + lap);
       let streak = 0.5 + 0.5 * smoothstep(0.3, 0.7, vnoise(p * 6.0 - vec2<f32>(t * 0.25, t * 0.4)));
       let foam = band * streak * 0.75;
-      c = mix(c, vec3<f32>(0.90, 0.95, 0.97) * (lit * 0.9 + u.light.rgb * 0.1), foam);
+      c = mix(c, look.foam.rgb * (lit * 0.9 + u.light.rgb * 0.1), foam);
       a = mix(a, 0.92, foam);
     }
   } else if (kz >= 0.0) {
@@ -820,9 +822,9 @@ pub fn push_block_cube(
 fn upload_textures(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-) -> (wgpu::TextureView, wgpu::Sampler) {
+    t: &crate::textures::Textures,
+) -> wgpu::TextureView {
     use crate::textures::TILE;
-    let t = textures();
     let layers = t.layers.len().max(1) as u32;
     let mips = TILE.trailing_zeros() + 1; // 16 px: 16, 8, 4, 2, 1
     let tex = device.create_texture(&wgpu::TextureDescriptor {
@@ -909,13 +911,16 @@ fn upload_textures(
             size = half;
         }
     }
-    let view = tex.create_view(&wgpu::TextureViewDescriptor {
+    tex.create_view(&wgpu::TextureViewDescriptor {
         dimension: Some(wgpu::TextureViewDimension::D2Array),
         ..Default::default()
-    });
-    // smooth filtering, so the small painted tiles read as paint, not pixels;
-    // anisotropy keeps the ground crisp towards the horizon
-    let samp = device.create_sampler(&wgpu::SamplerDescriptor {
+    })
+}
+
+/// Smooth filtering, so the small painted tiles read as paint, not pixels;
+/// anisotropy keeps the ground crisp towards the horizon.
+fn texture_sampler(device: &wgpu::Device) -> wgpu::Sampler {
+    device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some("painted"),
         address_mode_u: wgpu::AddressMode::Repeat,
         address_mode_v: wgpu::AddressMode::Repeat,
@@ -924,8 +929,51 @@ fn upload_textures(
         mipmap_filter: wgpu::FilterMode::Linear,
         anisotropy_clamp: 4,
         ..Default::default()
-    });
-    (view, samp)
+    })
+}
+
+/// What the main shaders see: the resources behind the bind group.
+struct Bindings<'a> {
+    layout: &'a wgpu::BindGroupLayout,
+    ubuf: &'a wgpu::Buffer,
+    tex_view: &'a wgpu::TextureView,
+    tex_samp: &'a wgpu::Sampler,
+    shadow_view: &'a wgpu::TextureView,
+    shadow_samp: &'a wgpu::Sampler,
+    look_buf: &'a wgpu::Buffer,
+}
+
+fn make_bind(device: &wgpu::Device, b: Bindings) -> wgpu::BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: None,
+        layout: b.layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: b.ubuf.as_entire_binding(),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::TextureView(b.tex_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::Sampler(b.tex_samp),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: wgpu::BindingResource::TextureView(b.shadow_view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::Sampler(b.shadow_samp),
+            },
+            wgpu::BindGroupEntry {
+                binding: 5,
+                resource: b.look_buf.as_entire_binding(),
+            },
+        ],
+    })
 }
 
 /// Spread colour into fully transparent texels from their solid neighbours
@@ -1236,6 +1284,15 @@ pub struct Gfx {
     shadow_view: wgpu::TextureView,
     ubuf: wgpu::Buffer,
     bind: wgpu::BindGroup,
+    bgl: wgpu::BindGroupLayout,
+    tex_samp: wgpu::Sampler,
+    shadow_samp: wgpu::Sampler,
+    /// the render settings (look.rs), written every frame
+    look_buf: wgpu::Buffer,
+    /// the generation of the block textures on the GPU
+    tex_gen: u64,
+    /// the asset store's generation when last checked for new textures
+    assets_gen: u64,
     sections: Vec<SectionMesh>,
     dims: [i32; 3],
     /// grass and flowers around the camera, and the section column they were built for
@@ -1378,7 +1435,15 @@ impl Gfx {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        let (tex_view, tex_samp) = upload_textures(&device, &queue);
+        let look_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("look"),
+            size: std::mem::size_of::<crate::look::LookUniform>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let tex_gen = crate::textures::generation();
+        let tex_view = upload_textures(&device, &queue, textures());
+        let tex_samp = texture_sampler(&device);
         let shadow_tex = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("shadow"),
             size: wgpu::Extent3d {
@@ -1446,34 +1511,30 @@ impl Gfx {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Comparison),
                     count: None,
                 },
-            ],
-        });
-        let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: None,
-            layout: &bgl,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: ubuf.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&tex_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Sampler(&tex_samp),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: wgpu::BindingResource::TextureView(&shadow_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 4,
-                    resource: wgpu::BindingResource::Sampler(&shadow_samp),
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
                 },
             ],
         });
+        let bind = make_bind(
+            &device,
+            Bindings {
+                layout: &bgl,
+                ubuf: &ubuf,
+                tex_view: &tex_view,
+                tex_samp: &tex_samp,
+                shadow_view: &shadow_view,
+                shadow_samp: &shadow_samp,
+                look_buf: &look_buf,
+            },
+        );
         // the shadow pass only needs the uniforms
         let shadow_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("shadow"),
@@ -1671,6 +1732,12 @@ impl Gfx {
             shadow_view,
             ubuf,
             bind,
+            bgl,
+            tex_samp,
+            shadow_samp,
+            look_buf,
+            tex_gen,
+            assets_gen: crate::assets::generation(),
             sections: Vec::new(),
             dims: [0; 3],
             clutter: None,
@@ -1680,6 +1747,37 @@ impl Gfx {
             screenshot: None,
             started: std::time::Instant::now(),
         })
+    }
+
+    /// Upload the block textures again if they changed (more of the pack
+    /// arrived and [`crate::textures::reload`] took it in). Layer numbers
+    /// stay the same while `blocks.json` does, so the meshes stay right.
+    fn refresh_textures(&mut self) {
+        let ag = crate::assets::generation();
+        if ag != self.assets_gen {
+            self.assets_gen = ag;
+            crate::textures::reload();
+        }
+        let tg = crate::textures::generation();
+        if tg == self.tex_gen {
+            return;
+        }
+        self.tex_gen = tg;
+        let tex_view = upload_textures(&self.device, &self.queue, textures());
+        self.bind = make_bind(
+            &self.device,
+            Bindings {
+                layout: &self.bgl,
+                ubuf: &self.ubuf,
+                tex_view: &tex_view,
+                tex_samp: &self.tex_samp,
+                shadow_view: &self.shadow_view,
+                shadow_samp: &self.shadow_samp,
+                look_buf: &self.look_buf,
+            },
+        );
+        self.grass_tint = layer_mean(textures().face(w::GRASS, 0));
+        self.clutter_at = None;
     }
 
     pub fn resize(&mut self, w: u32, h: u32) {
@@ -1841,6 +1939,10 @@ impl Gfx {
         egui_ctx: &egui::Context,
         egui_out: egui::FullOutput,
     ) {
+        self.refresh_textures();
+        let look = crate::look::settings().uniform();
+        self.queue
+            .write_buffer(&self.look_buf, 0, bytemuck::bytes_of(&look));
         if let Some((_, cam, _)) = view_proj {
             self.update_clutter(cam);
         }
