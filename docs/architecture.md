@@ -359,8 +359,14 @@ flowchart TD
 
 - **Rendering** (`render.rs`, `terrain_mesh.rs`): natural ground is a smooth
   surface (surface nets with cube topology), built blocks are cubes (moving
-  to fine "detail blocks"), leaves are puffy canopies, water has a lowered
-  surface with foam, lamps have halos, sun shadows and a colour grade.
+  to fine "detail blocks"), leaves are puffy canopies, lamps have halos, sun shadows and a colour grade.
+- **Water** (`water.rs`): its own pass after the solid world, which it
+  reads (picture and depth): colour by depth with the bed showing at the
+  shore, the sky, land and lights mirrored, foam at shores and obstacles,
+  ripples and glints in voxel squares, falls where the level steps down, and
+  a fog with the eyes under water. The look, per kind of water and place, is
+  in `render.json`; the setting `water_quality` (0–2) drops the mirror rays,
+  then the reading of the picture.
   Feet stand on the drawn surface (`terrain_mesh::Ground`).
 - **Models** (`models.rs`, `voxmodel.rs`): procedural 1/32-block voxel
   characters and creatures, rebuilt each frame. A shared animation contract
