@@ -794,6 +794,11 @@ impl<T> Default for Cache<T> {
 }
 
 impl<T> Cache<T> {
+    /// Forget everything built.
+    pub fn clear(&self) {
+        self.map.borrow_mut().clear();
+    }
+
     /// The model for `key`, built on first use.
     pub fn get(&self, key: u64, build: impl FnOnce() -> T) -> Rc<T> {
         if let Some(m) = self.map.borrow().get(&key) {

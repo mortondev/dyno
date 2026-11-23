@@ -1,0 +1,202 @@
+{
+  "bones": [
+    "body",
+    "hood",
+    "upper_arm.r",
+    "upper_arm.l",
+    "forearm.r",
+    "forearm.l"
+  ],
+  "rigs": {
+    "shade": {
+      "bones": [
+        {
+          "at": [0,24,0],
+          "name": "body"
+        },
+        {
+          "at": [-7,0,0],
+          "name": "tatter.0",
+          "ops": [
+            {
+              "rx": "flow + sin(clock*2.3 + 0)*0.1"
+            },
+            {
+              "rz": "sin(clock*3 + 0)*0.14"
+            }
+          ],
+          "parent": "body"
+        },
+        {
+          "at": [-3.5,0,0],
+          "name": "tatter.1",
+          "ops": [
+            {
+              "rx": "flow + sin(clock*2.3 + 1.3)*0.1"
+            },
+            {
+              "rz": "sin(clock*3 + 2.1)*0.14"
+            }
+          ],
+          "parent": "body"
+        },
+        {
+          "at": [0,0,0],
+          "name": "tatter.2",
+          "ops": [
+            {
+              "rx": "flow + sin(clock*2.3 + 2.6)*0.1"
+            },
+            {
+              "rz": "sin(clock*3 + 4.2)*0.14"
+            }
+          ],
+          "parent": "body"
+        },
+        {
+          "at": [3.5,0,0],
+          "name": "tatter.3",
+          "ops": [
+            {
+              "rx": "flow + sin(clock*2.3 + 3.8999999)*0.1"
+            },
+            {
+              "rz": "sin(clock*3 + 6.2999997)*0.14"
+            }
+          ],
+          "parent": "body"
+        },
+        {
+          "at": [7,0,0],
+          "name": "tatter.4",
+          "ops": [
+            {
+              "rx": "flow + sin(clock*2.3 + 5.2)*0.1"
+            },
+            {
+              "rz": "sin(clock*3 + 8.4)*0.14"
+            }
+          ],
+          "parent": "body"
+        },
+        {
+          "at": [0,26,0],
+          "name": "hood",
+          "parent": "body"
+        },
+        {
+          "at": [0,8,4],
+          "name": "eyes",
+          "ops": [
+            {
+              "scale": [
+                1,
+                "clamp(shape, 0.1, 1.5)",
+                1
+              ]
+            }
+          ],
+          "parent": "hood"
+        },
+        {
+          "at": [11.5,23,0],
+          "name": "upper_arm.r",
+          "parent": "body"
+        },
+        {
+          "at": [0,-13,0],
+          "name": "forearm.r",
+          "parent": "upper_arm.r"
+        },
+        {
+          "at": [-11.5,23,0],
+          "name": "upper_arm.l",
+          "parent": "body"
+        },
+        {
+          "at": [0,-13,0],
+          "name": "forearm.l",
+          "parent": "upper_arm.l"
+        }
+      ],
+      "parts": [
+        {
+          "bone": "body",
+          "part": "body",
+          "pivot": [0,20,0]
+        },
+        {
+          "bone": "tatter.0",
+          "part": "tatter.0",
+          "pivot": [-7,20,0]
+        },
+        {
+          "bone": "tatter.1",
+          "part": "tatter.1",
+          "pivot": [-3.5,20,0]
+        },
+        {
+          "bone": "tatter.2",
+          "part": "tatter.2",
+          "pivot": [0,20,0]
+        },
+        {
+          "bone": "tatter.3",
+          "part": "tatter.3",
+          "pivot": [3.5,20,0]
+        },
+        {
+          "bone": "tatter.4",
+          "part": "tatter.4",
+          "pivot": [7,20,0]
+        },
+        {
+          "bone": "hood",
+          "part": "hood",
+          "pivot": [0,46,0]
+        },
+        {
+          "bone": "eyes",
+          "glow": true,
+          "light": 1.0,
+          "part": "eyes",
+          "pivot": [0,54,4]
+        },
+        {
+          "bone": "upper_arm.r",
+          "part": "arm_u.r",
+          "pivot": [11.5,43,0]
+        },
+        {
+          "bone": "forearm.r",
+          "part": "arm_l.r",
+          "pivot": [11.5,30,0]
+        },
+        {
+          "bone": "upper_arm.l",
+          "part": "arm_u.l",
+          "pivot": [-11.5,43,0]
+        },
+        {
+          "bone": "forearm.l",
+          "part": "arm_l.l",
+          "pivot": [-11.5,30,0]
+        }
+      ]
+    }
+  },
+  "skeleton": "wraith",
+  "step": {
+    "base": 1.2,
+    "max": 1.2,
+    "min": 1.2,
+    "per_speed": 0.0
+  },
+  "upper": [
+    "hood",
+    "upper_arm.r",
+    "upper_arm.l",
+    "forearm.r",
+    "forearm.l"
+  ]
+}

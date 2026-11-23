@@ -1,0 +1,152 @@
+{
+  "bones": [
+    "body",
+    "head",
+    "leg.fr",
+    "leg.fl",
+    "leg.br",
+    "leg.bl"
+  ],
+  "rigs": {
+    "grazer": {
+      "bones": [
+        {
+          "at": [0,17,0],
+          "name": "body"
+        },
+        {
+          "at": [6.5,0,9.5],
+          "name": "leg.fr",
+          "parent": "body"
+        },
+        {
+          "at": [-6.5,0,9.5],
+          "name": "leg.fl",
+          "parent": "body"
+        },
+        {
+          "at": [6.5,0,-9.5],
+          "name": "leg.br",
+          "parent": "body"
+        },
+        {
+          "at": [-6.5,0,-9.5],
+          "name": "leg.bl",
+          "parent": "body"
+        },
+        {
+          "at": [0,13,13],
+          "name": "head",
+          "parent": "body"
+        }
+      ],
+      "parts": [
+        {
+          "bone": "leg.fr",
+          "part": "leg.fr",
+          "pivot": [6.5,17,9.5]
+        },
+        {
+          "bone": "leg.fl",
+          "part": "leg.fl",
+          "pivot": [-6.5,17,9.5]
+        },
+        {
+          "bone": "leg.br",
+          "part": "leg.br",
+          "pivot": [6.5,17,-9.5]
+        },
+        {
+          "bone": "leg.bl",
+          "part": "leg.bl",
+          "pivot": [-6.5,17,-9.5]
+        },
+        {
+          "bone": "body",
+          "part": "body",
+          "pivot": [0,17,0]
+        },
+        {
+          "bone": "head",
+          "part": "head",
+          "pivot": [0,30,13]
+        }
+      ]
+    },
+    "thornboar": {
+      "bones": [
+        {
+          "at": [0,11,0],
+          "name": "body"
+        },
+        {
+          "at": [5.5,0,8.5],
+          "name": "leg.fr",
+          "parent": "body"
+        },
+        {
+          "at": [-5.5,0,8.5],
+          "name": "leg.fl",
+          "parent": "body"
+        },
+        {
+          "at": [5.5,0,-9.5],
+          "name": "leg.br",
+          "parent": "body"
+        },
+        {
+          "at": [-5.5,0,-9.5],
+          "name": "leg.bl",
+          "parent": "body"
+        },
+        {
+          "at": [0,8,11],
+          "name": "head",
+          "parent": "body"
+        }
+      ],
+      "parts": [
+        {
+          "bone": "leg.fr",
+          "part": "leg.fr",
+          "pivot": [5.5,11,8.5]
+        },
+        {
+          "bone": "leg.fl",
+          "part": "leg.fl",
+          "pivot": [-5.5,11,8.5]
+        },
+        {
+          "bone": "leg.br",
+          "part": "leg.br",
+          "pivot": [5.5,11,-9.5]
+        },
+        {
+          "bone": "leg.bl",
+          "part": "leg.bl",
+          "pivot": [-5.5,11,-9.5]
+        },
+        {
+          "bone": "body",
+          "part": "body",
+          "pivot": [0,11,0]
+        },
+        {
+          "bone": "head",
+          "part": "head",
+          "pivot": [0,19,11]
+        }
+      ]
+    }
+  },
+  "skeleton": "quadruped",
+  "step": {
+    "base": 0.4,
+    "max": 0.95,
+    "min": 0.5,
+    "per_speed": 0.1
+  },
+  "upper": [
+    "head"
+  ]
+}

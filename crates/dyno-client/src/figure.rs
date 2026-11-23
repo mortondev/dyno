@@ -823,6 +823,8 @@ struct Lib {
     clips: HashMap<String, Sets>,
     /// problems already reported
     told: Vec<String>,
+    /// the asset store's generation when this was loaded
+    generation: u64,
 }
 
 thread_local! {
@@ -846,6 +848,17 @@ pub fn reset() {
 }
 
 fn spec() -> Option<Rc<FiguresSpec>> {
+    // files arrived or changed: look again
+    let generation = assets::generation();
+    if LIB.with(|l| l.borrow().generation != generation) {
+        LIB.with(|l| {
+            *l.borrow_mut() = Lib {
+                generation,
+                ..Lib::default()
+            }
+        });
+        BUILT.with(|b| b.clear());
+    }
     if let Some(s) = LIB.with(|l| l.borrow().spec.clone()) {
         return Some(s);
     }
