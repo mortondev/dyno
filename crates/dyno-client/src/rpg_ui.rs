@@ -600,7 +600,7 @@ pub fn log_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<RpgCmd
 }
 
 /// Objectives of the quests in the log, at the right of the screen.
-pub fn tracker(painter: &egui::Painter, screen: Rect, me: &Me) {
+pub fn tracker(painter: &egui::Painter, screen: Rect, me: &Me, top: f32) {
     let shown = || {
         me.log
             .iter()
@@ -622,7 +622,6 @@ pub fn tracker(painter: &egui::Painter, screen: Rect, me: &Me) {
     }
     let width = 250.0;
     let x = screen.right() - 22.0;
-    let top = screen.top() + 150.0;
     let back = Rect::from_min_max(
         Pos2::new(x - width, top),
         Pos2::new(screen.right() - 8.0, top + height + 30.0),

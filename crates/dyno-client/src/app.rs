@@ -245,6 +245,7 @@ struct Play {
     undo: Vec<([i32; 3], w::BlockId, w::BlockId)>,
     /// fill selection corners
     sel: (Option<[i32; 3]>, Option<[i32; 3]>),
+    minimap: crate::minimap::Minimap,
 }
 
 struct ClientEntity {
@@ -1026,6 +1027,7 @@ fn new_play(j: Joined) -> Play {
         next_cricket: 3.0,
         undo: Vec::new(),
         sel: (None, None),
+        minimap: crate::minimap::Minimap::new(),
         content: j.content,
         mode: j.mode,
         pack: vec![None; dyno_sim::SLOTS],
@@ -1349,6 +1351,7 @@ impl App {
                             let old = p.world.get(pos[0], pos[1], pos[2]);
                             if old != block {
                                 p.world.set(pos[0], pos[1], pos[2], block);
+                                p.minimap.block_changed(pos);
                                 p.light.changed(&p.world, pos);
                                 let r = if w::emission(old) > 0
                                     || w::emission(block) > 0
@@ -1406,6 +1409,7 @@ impl App {
                                 }
                             }
                             p.light.changed_box(&p.world, a, b);
+                            p.minimap.region_changed(a, b);
                             if let Some(g) = self.gfx.as_mut() {
                                 g.region_changed(&p.world, &p.light, a, b, 15);
                             }
@@ -3418,6 +3422,29 @@ fn hud(
             }
         }
     }
+    let map = p.minimap.show(
+        ctx,
+        &painter,
+        &crate::minimap::View {
+            world: &p.world,
+            content: &p.content,
+            me: &me,
+            pos: p.player.pos,
+            yaw: p.player.yaw,
+            zone: &p.zone,
+            time: (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract(),
+            remotes: &p.remotes,
+            entities: p
+                .entities
+                .values()
+                .map(|e| (e.kind, e.pos(), e.name.as_deref()))
+                .collect(),
+            captured: p.captured,
+        },
+    );
+    // the world event box and the quest tracker stack under the minimap
+    let event_top = map.bottom() + 10.0;
+    let tracker_top = event_top + if p.world_event.is_some() { 68.0 } else { 0.0 };
     if p.content.world.protected {
         // player frame, target frame, quest tracker, XP bar
         rpg_ui::unit_frame(
@@ -3471,12 +3498,12 @@ fn hud(
                 );
             }
         }
-        rpg_ui::tracker(&painter, screen, &me);
+        rpg_ui::tracker(&painter, screen, &me, tracker_top);
     }
     // a world event in progress: an orange tracker box at the right
     if let Some((title, text, prog)) = &p.world_event {
         let r = Rect::from_min_size(
-            Pos2::new(screen.right() - 300.0, screen.top() + 120.0),
+            Pos2::new(screen.right() - 300.0, event_top),
             Vec2::new(284.0, 58.0),
         );
         painter.rect_filled(r, 6.0, Color32::from_black_alpha(170));
@@ -3924,10 +3951,7 @@ fn hud(
                 continue;
             };
             let r = Rect::from_min_size(
-                Pos2::new(
-                    screen.right() - 220.0 - k as f32 * 40.0,
-                    screen.top() + 12.0,
-                ),
+                Pos2::new(map.left() - 44.0 - k as f32 * 40.0, screen.top() + 12.0),
                 Vec2::splat(34.0),
             );
             painter.rect_filled(r, 4.0, Color32::from_black_alpha(160));
@@ -4722,6 +4746,7 @@ pub fn shot_with_ui(
                     p.weather_mix = strength;
                 }
                 ServerMsg::Equipment(e) => p.equip = e,
+                ServerMsg::Zone { name, .. } => p.zone = name,
                 ServerMsg::Skills(sk) => p.skills = sk,
                 ServerMsg::Power { value, max } => {
                     p.power = value;
@@ -4810,6 +4835,7 @@ pub fn shot_with_ui(
         p.dead = Some("You fell from a high place.".into());
     }
     let t = time.unwrap_or(p.time);
+    p.time = t;
     let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
     gfx.load_world(&p.world, &p.light);
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);

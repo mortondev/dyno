@@ -4,6 +4,7 @@ pub mod app;
 pub mod audio;
 pub mod front;
 pub mod game;
+pub mod minimap;
 pub use dyno_world::light;
 pub mod models;
 pub mod net;
