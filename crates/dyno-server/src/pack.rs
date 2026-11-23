@@ -93,6 +93,15 @@ fn compile_world(mut files: BTreeMap<String, Vec<u8>>) -> Result<Compiled, Strin
         None => None,
     };
     let rules_path = entry("rules", DEFAULT_RULES);
+    if layout.is_none()
+        && files
+            .get(&rules_path)
+            .is_some_and(|r| r.windows(8).any(|w| w == b"\"place\":"))
+    {
+        return Err(format!(
+            "{rules_path} places things at places of a layout, but the pack has no {layout_path}"
+        ));
+    }
     if let (Some(l), Some(rules)) = (&layout, files.get_mut(&rules_path)) {
         let mut v: serde_json::Value =
             serde_json::from_slice(rules).map_err(|e| format!("{rules_path}: {e}"))?;
@@ -573,7 +582,17 @@ mod tests {
         )
         .unwrap();
         std::fs::write(dir.join("extra.txt"), b"hello").unwrap();
+        // the rules stand on the layout's places: the world's data comes along
+        // (and stays out of the manifest)
+        for (path, bytes) in EMBEDDED {
+            if path.starts_with("world/") || path.starts_with("stamps/") {
+                let to = dir.join(path);
+                std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+                std::fs::write(to, bytes).unwrap();
+            }
+        }
         let p = Pack::load(Some(&dir)).unwrap();
+        assert!(p.layout.is_some() && p.stamps.get("inn").is_some());
         assert_eq!(p.manifest.pack, "t");
         assert_eq!(p.manifest.version, 3);
         assert_eq!(p.manifest.files.len(), 3);
