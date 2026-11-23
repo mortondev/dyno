@@ -9,7 +9,7 @@ rust-version.workspace = true
 [features]
 # Host a local world from the game (the `dyno` dev binary). Off in the
 # `hearthblock` player client, which carries no server and no content.
-host = ["dep:dyno-server"]
+host = ["dep:dyno-server", "egui-winit/clipboard"]
 
 [dependencies]
 bytemuck = { version = "1.25.2", features = ["derive"] }
@@ -18,13 +18,16 @@ dyno-protocol = { path = "../dyno-protocol" }
 dyno-server = { path = "../dyno-server", optional = true }
 dyno-sim = { path = "../dyno-sim" }
 dyno-world = { path = "../dyno-world" }
-# no built-in fonts: the pack brings the game's; two of egui's own stand in
-# before the first join (theme::base_fonts), not all four (1 MB of emoji)
+# no built-in fonts: the pack brings the game's; one of egui's own stands
+# in before the first join (theme::base_fonts), not all four (1.4 MB)
 egui = { version = "0.33.3", default-features = false }
 epaint_default_fonts = "0.33.3"
 egui-wgpu = "0.33.3"
 # no `links` (webbrowser): the game never opens a browser
-egui-winit = { version = "0.33.3", default-features = false, features = ["clipboard", "wayland", "x11"] }
+# the clipboard (arboard, smithay-clipboard, a second Wayland toolkit, the
+# image crate: about 200 KB) only with `host`: the dev binary copies a
+# hosted world's address; the player client copies nothing
+egui-winit = { version = "0.33.3", default-features = false, features = ["wayland", "x11"] }
 glam = { version = "0.30", features = ["bytemuck"] }
 png = "0.18.1"
 pollster = "1.0.3"

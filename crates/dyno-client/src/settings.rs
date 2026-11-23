@@ -17,9 +17,15 @@ pub struct Settings {
     /// How much ground cover (grass, flowers, stones) is drawn: 0 none,
     /// 1 the pack's density and range, up to 2.
     pub ground_cover: f32,
+    /// How far leaf crowns are drawn in full detail: 0 nowhere, 1 the
+    /// pack's distance, up to 4.
+    pub leaf_detail: f32,
     /// Block IDs in the 9 hotbar slots.
     pub hotbar: Vec<u8>,
     pub volume: f32,
+    /// 0 plain water; 1 the bed seen through it and the far land mirrored;
+    /// 2 everything on screen mirrored (water.rs)
+    pub water_quality: u8,
     /// random ID of this install; servers bind your name to it
     pub token: u64,
 }
@@ -34,8 +40,10 @@ impl Default for Settings {
             fov_degrees: 75.0,
             view_distance: 160.0,
             ground_cover: 1.0,
+            leaf_detail: 1.0,
             hotbar: dyno_world::HOTBAR.to_vec(),
             volume: 0.8,
+            water_quality: 2,
             token: 0,
         }
     }

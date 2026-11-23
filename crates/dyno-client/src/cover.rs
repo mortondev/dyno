@@ -549,6 +549,18 @@ pub struct Spot {
     pad: u8,
 }
 
+impl Spot {
+    /// Where it stands.
+    pub(crate) fn pos(&self) -> [f32; 3] {
+        self.pos
+    }
+
+    /// Stand it at another height (the mesher seats it on the drawn ground).
+    pub(crate) fn set_height(&mut self, y: f32) {
+        self.pos[1] = y;
+    }
+}
+
 #[inline]
 fn hash(mut h: u32) -> u32 {
     h ^= h >> 16;

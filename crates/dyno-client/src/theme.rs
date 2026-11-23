@@ -87,30 +87,22 @@ fn one() -> f32 {
     1.0
 }
 
-/// The fonts that stand in before the pack's arrive, and stay as fallbacks:
-/// two of egui's own (text, and arrows and other symbols), not its emoji.
+/// The font that stands in before the pack's arrive, and stays as the
+/// fallback: one of egui's own (its others, symbols and emoji, are 1 MB the
+/// game does not need; the client carries no content).
 pub fn base_fonts() -> FontDefinitions {
     let mut fonts = FontDefinitions::empty();
-    for (name, bytes) in [
-        ("Ubuntu-Light", epaint_default_fonts::UBUNTU_LIGHT),
-        ("Hack", epaint_default_fonts::HACK_REGULAR),
-    ] {
-        fonts
-            .font_data
-            .insert(name.into(), Arc::new(FontData::from_static(bytes)));
+    fonts.font_data.insert(
+        "Ubuntu-Light".into(),
+        Arc::new(FontData::from_static(epaint_default_fonts::UBUNTU_LIGHT)),
+    );
+    for family in [FontFamily::Proportional, FontFamily::Monospace] {
+        fonts.families.insert(family, vec!["Ubuntu-Light".into()]);
     }
-    fonts.families.insert(
-        FontFamily::Proportional,
-        vec!["Ubuntu-Light".into(), "Hack".into()],
-    );
-    fonts.families.insert(
-        FontFamily::Monospace,
-        vec!["Hack".into(), "Ubuntu-Light".into()],
-    );
     fonts
 }
 
-/// A new egui context with the stand-in fonts (egui has none of its own here).
+/// A new egui context with the stand-in font (egui has none of its own here).
 pub fn new_context() -> egui::Context {
     let ctx = egui::Context::default();
     ctx.set_fonts(base_fonts());

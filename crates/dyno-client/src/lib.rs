@@ -16,6 +16,7 @@ pub mod game;
 pub mod look;
 pub mod minimap;
 pub use dyno_world::light;
+pub(crate) mod fine;
 pub mod models;
 pub mod net;
 pub mod render;
@@ -32,6 +33,7 @@ pub mod textures;
 pub mod theme;
 pub mod vox;
 pub mod voxmodel;
+pub mod water;
 pub mod worldwork;
 
 /// Open the game window. `prefill` sets the server address field.

@@ -222,6 +222,23 @@ when one of them is replaced.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.
+- **Water** (`render.json`, `water`; drawn by `water.rs`):
+  - the base look: `deep`, `shallow` and `foam` colours, `depth` (metres of
+    water at which the colour is fully deep), `clarity` (metres you see
+    through), `foam_width`, `reflect`, `ripple`, `sparkle`, `flow` (metres a
+    second along a course), `fog` with `fog_density` for eyes under water,
+    and `lilies` (how thick lily pads lie on calm shallows) with the `lily`
+    and `lily_flower` colours;
+  - `kinds`: named kinds of water, each changing what it names of the base
+    (the river, the shrine's turquoise, Barrowwood's dark water);
+  - `areas`: still water of a kind, an ellipse `at` a place with a `radius`,
+    from the spawn hearth;
+  - `courses`: running water of a kind along `points` (x, z, half width, from
+    the spawn hearth); it flows in the order of the points.
+
+  The shader holds the base look and seven kinds, eight areas and 32 course
+  points. The courses repeat the river layout that the world builder still
+  has in code; they move to the world layout file with it (§5).
 - **Ground cover** (`cover.json`, `cover/*.vox`; `dyno-client/src/cover.rs`):
   grass tufts, flowers, ferns, reeds, bushes, pebbles and small rocks.
   - `kinds`: a `.vox` file each, every model in it a variant; `voxel`
@@ -251,6 +268,15 @@ when one of them is replaced.
   blocks trees are made of) and `areas` (per area key: the `blocks` that
   turn, and `tones` with the `share` of trees each takes: autumn, blossom).
   Which cells hold leaves stays the world's business.
+  - `near`: crowns are drawn in clumps within this many metres of the
+    camera; beyond it a block of leaves is one cube (a quarter of the
+    faces or fewer). The world thread remeshes a section when the camera
+    brings it across the line (with 8 m of slack either way). The player's
+    `leaf_detail` setting (0–4; `DYNO_LEAVES` for tools) scales the
+    distance; 0 draws every crown coarse.
+  - `grain`, `grain_vary`: seen close (under 36 m), each face of a cube
+    breaks into `grain` squares a side of slightly different brightness, so
+    a crown at the edge of the frame keeps its detail.
 
 ## 4. World streaming
 
@@ -506,7 +532,20 @@ For new worlds and rebuilds:
   `thornboar`, `Hearthstead` or `Brannoc`, or is 10 MB or more (a ceiling
   against regressions). CI runs it, with `cargo clippy -p hearthblock`,
   because `--workspace` turns `host` on everywhere.
-- **Size: 9.32 MB** (Linux x86-64, 0.6.2 with the textures and sounds
+- **Size: 8.57 MB** (Linux x86-64, 0.9 with water: 8,989,888 bytes, from
+  10,403,304). egui's four built-in fonts (1.4 MB) gave way to one,
+  Ubuntu-Light, which stands in before the pack's fonts arrive
+  (`theme::base_fonts`; the UI's few symbols became plain text), and the
+  clipboard (arboard, smithay-clipboard and a second Wayland toolkit, about
+  200 KB) is only in the `dyno` dev binary (`host`), which copies a hosted
+  world's address. Tried and dropped: `-C force-unwind-tables=no` saves
+  nothing (the standard library brings its unwind tables in; removing them
+  needs a nightly `build-std`). Left for product calls: Wayland window
+  decorations (sctk-adwaita and tiny-skia, about 290 KB; without them GNOME
+  on Wayland shows no title bar), the GL backend (about 30 KB and part of
+  naga's 700 KB), and the operating system's root certificates in place of
+  the built-in ones.
+- **Earlier: 9.32 MB** (Linux x86-64, 0.6.2 with the textures and sounds
   bake): over the 8 MB target. It was 10.89 MB before the bake merge, and
   9.54 MB after it with `panic = "abort"`; dropping egui-winit's `links`
   feature (webbrowser) took off 0.22 MB. In a symbol breakdown of the
