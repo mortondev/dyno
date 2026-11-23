@@ -84,6 +84,9 @@ dyno ping <address>      Join, print server information, leave (for tests and ag
 dyno say <address> <text>  Join, send chat or a /command, print replies, leave
 dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [--out f.ppm]
                          Join, render one frame off-screen to an image, leave
+dyno shot <address> --stand x,z --face x,y,z [--from-hearth] [--zoom 9] [--pitch 15]
+                         The view of a player standing there: a figure on the ground, the play camera behind it
+dyno scout <address>     Choose the stand of each landmark's shot (tools/concepts/landmarks.json to cameras.json)
 dyno fill <address> x,y,z x,y,z <block>   Fill a box with a block (Air clears it)
 dyno bot <address> [name] [seconds]      A bot that walks in a circle (demos, tests)
 dyno update              Check for a new release and install it

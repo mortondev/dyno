@@ -7,7 +7,7 @@ or the round cap is reached.
 
 ## Loop
 
-1. **Shoot.** Render the 18 locations in the game, from the canonical gameplay cameras (`tools/concepts/cameras.json`), at the location's time of day.
+1. **Shoot.** Render the 18 locations in the game, from the canonical gameplay cameras (`tools/concepts/cameras.json`), at the location's time of day: `python3 tools/concepts/shots.py OUT_DIR ADDRESS`. Each shot is `dyno shot --stand`: a stand-in player in starter gear on the ground, facing the landmark, through the play camera of the scale spec (9 m behind, 10–20° down, 75° field of view), with no interface. When the world changes where things stand, choose the cameras again with `dyno scout ADDRESS` (it reads `tools/concepts/landmarks.json`) before shooting.
 2. **Judge.** A fresh judge agent sees only pairs of images (the in-game shot beside its target) and the rubric below. It never sees the implementers' notes, diffs or claims. It scores each location and returns the five changes that would close the most gap.
 3. **Implement.** One implementer per lane works on its own branch in a worktree from current main, taking the judge's fixes for its lane.
 4. **Gate.**

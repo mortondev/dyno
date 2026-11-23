@@ -132,8 +132,11 @@ struct Play {
     ground: crate::terrain_mesh::Ground,
     /// the sections the server has streamed (a sparse world)
     world: World,
-    /// sections that arrived and are not lit and meshed yet, and when
-    arrived: Vec<([i32; 3], Instant)>,
+    /// lights and meshes the world on its own thread (worldwork.rs)
+    work: crate::worldwork::WorldWork,
+    /// the land round you has not all streamed in and been meshed yet (a
+    /// join, a long teleport): a loading veil is shown
+    land_wait: bool,
     /// how far the world streams around you (metres)
     view: f32,
     conn: net::Connection,
@@ -620,7 +623,7 @@ fn spawn_burst(out: &mut Vec<Particle>, c: Vec3, color: [f32; 3], radius: f32) {
 }
 
 /// Move a camera back from `eye` along -`dir` by up to `dist`, stopping before walls.
-fn pull_back(world: &dyno_world::World, eye: Vec3, dir: Vec3, dist: f32) -> Vec3 {
+pub(crate) fn pull_back(world: &dyno_world::World, eye: Vec3, dir: Vec3, dist: f32) -> Vec3 {
     let mut d = 0.0;
     let step = 0.1;
     while d < dist {
@@ -1348,79 +1351,83 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
     Ok(Tunnel { child, url, error })
 }
 
-/// Sections that arrived: kept now, lit and meshed by `take_arrivals`.
+/// Sections that arrived: kept now for the game, and sent to the world
+/// thread to be lit and meshed.
 fn sections_in(p: &mut Play, list: Vec<([i32; 3], Vec<u8>)>) {
+    let mut sent = Vec::with_capacity(list.len());
     for (s, data) in list {
         if p.world.put_section(s, &data).is_ok() {
-            p.arrived.push((s, Instant::now()));
+            let lo = [s[0] * 16, s[1] * 16, s[2] * 16];
+            p.minimap
+                .region_changed(lo, [lo[0] + 15, lo[1] + 15, lo[2] + 15]);
+            sent.push((s, data));
         }
     }
+    if !sent.is_empty() {
+        p.ground.clear();
+    }
+    p.work.put(sent);
 }
 
 /// Sections the server let go of: forget them and stop drawing them.
 fn sections_out(p: &mut Play, mut gfx: Option<&mut Gfx>, list: Vec<[i32; 3]>) {
-    for s in list {
-        p.world.drop_section(s);
-        p.light.forget(s);
-        p.arrived.retain(|a| a.0 != s);
+    for s in &list {
+        p.world.drop_section(*s);
+        p.light.forget(*s);
         if let Some(g) = gfx.as_deref_mut() {
-            g.section_gone(s);
+            g.section_gone(*s);
         }
     }
+    p.work.drop_sections(list);
 }
 
-/// Columns lit and meshed together (a batch costs some milliseconds).
-const ARRIVAL_COLUMNS: usize = 6;
-
-/// Light and mesh the sections of up to `max` columns that arrived.
-/// A column waits until it is whole (the server sends whole columns, and
-/// light is worked out a column at a time), or half a second at most.
-/// Returns how long it took (zero: nothing was ready).
-fn take_arrivals(p: &mut Play, gfx: Option<&mut Gfx>, max: usize) -> Duration {
+/// Take in what the world thread made: its light at once, then meshes
+/// uploaded until `budget` is spent (at least one). Returns the time spent.
+fn world_uploads(p: &mut Play, gfx: Option<&mut Gfx>, budget: Duration) -> Duration {
     let t0 = Instant::now();
-    if p.arrived.is_empty() {
-        return Duration::ZERO;
-    }
-    let layers = p.world.section_dims()[1];
-    let mut cols: Vec<[i32; 2]> = Vec::new();
-    for (s, at) in &p.arrived {
-        let c = [s[0], s[2]];
-        if cols.len() >= max || cols.contains(&c) {
-            continue;
+    p.work.poll(&mut p.light);
+    let Some(g) = gfx else {
+        p.work.queue.clear();
+        return t0.elapsed();
+    };
+    while let Some((s, geo)) = p.work.queue.pop_front() {
+        // dropped since it was made: nothing to draw
+        if p.world.has_section(s) {
+            g.put_mesh(s, geo);
         }
-        let whole = (0..layers).all(|y| p.world.has_section([c[0], y, c[1]]));
-        if whole || at.elapsed() > Duration::from_millis(500) {
-            cols.push(c);
+        if t0.elapsed() >= budget {
+            break;
         }
     }
-    if cols.is_empty() {
-        return Duration::ZERO;
-    }
-    let mut batch = Vec::new();
-    p.arrived.retain(|(s, _)| {
-        let take = cols.contains(&[s[0], s[2]]);
-        if take {
-            batch.push(*s);
-        }
-        !take
-    });
-    p.light.arrived(&p.world, &batch);
-    p.ground.clear();
-    for s in &batch {
-        let lo = [s[0] * 16, s[1] * 16, s[2] * 16];
-        p.minimap
-            .region_changed(lo, [lo[0] + 15, lo[1] + 15, lo[2] + 15]);
-    }
-    if let Some(g) = gfx {
-        g.sections_arrived(&p.world, &p.light, &batch);
-    }
-    t0.elapsed().max(Duration::from_nanos(1))
+    t0.elapsed()
+}
+
+/// `DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]"`: a camera flight for `dyno shot`.
+pub(crate) fn shot_run() -> Option<([f32; 2], [f32; 2], f32)> {
+    let v: Vec<f32> = std::env::var("DYNO_SHOT_RUN")
+        .ok()?
+        .split(',')
+        .filter_map(|x| x.trim().parse().ok())
+        .collect();
+    (v.len() >= 4).then(|| ([v[0], v[1]], [v[2], v[3]], v.get(4).copied().unwrap_or(7.0)))
+}
+
+/// The loading veil waits for the land within this many metres of you.
+const LAND_RADIUS: f32 = 24.0;
+
+/// Whether the land round `at` is here and drawn: every section of the
+/// columns within `r` metres (the loading veil waits for it).
+fn land_ready(p: &Play, gfx: &Gfx, at: Vec3, r: f32) -> bool {
+    net::sections_around(&p.world, at.into(), r)
+        .into_iter()
+        .all(|s| p.world.has_section(s) && gfx.is_built(s))
 }
 
 /// Play state for a freshly joined server.
 fn new_play(j: Joined) -> Play {
     let rpg_world = j.content.world.protected;
-    let light = Light::new(&j.world);
+    // worked out on the world thread and copied back as it changes
+    let light = Light::blank(&j.world);
     // the server names it: the world around it may not have streamed in
     let hearth = Some(j.hearth);
     Play {
@@ -1443,8 +1450,9 @@ fn new_play(j: Joined) -> Play {
             text: j.motd.clone(),
         }],
         view: j.view,
+        work: crate::worldwork::WorldWork::start(j.world.clone()),
         world: j.world,
-        arrived: Vec::new(),
+        land_wait: true,
         conn: j.conn,
         my_id: j.your_id,
         server_version: j.server_version,
@@ -1782,7 +1790,8 @@ impl App {
                     // layers in before its meshes are built
                     crate::textures::reload();
                     if let Some(g) = self.gfx.as_mut() {
-                        g.load_world(&p.world, &p.light);
+                        // drawn as the world thread meshes it
+                        g.begin_world(&p.world);
                     }
                     self.screen = Screen::Playing(Box::new(p));
                     self.audio.play(Sfx::Join, 0.5);
@@ -1872,10 +1881,7 @@ impl App {
                                 if p.world.get(pos[0], pos[1], pos[2]) != block {
                                     p.world.set(pos[0], pos[1], pos[2], block);
                                     p.minimap.block_changed(pos);
-                                    p.light.changed(&p.world, pos);
-                                    if let Some(g) = self.gfx.as_mut() {
-                                        g.block_changed(&p.world, &p.light, pos, 15);
-                                    }
+                                    p.work.block(pos, block);
                                 }
                             }
                         }
@@ -1961,18 +1967,8 @@ impl App {
                             if old != block {
                                 p.world.set(pos[0], pos[1], pos[2], block);
                                 p.minimap.block_changed(pos);
-                                p.light.changed(&p.world, pos);
-                                let r = if w::emission(old) > 0
-                                    || w::emission(block) > 0
-                                    || p.light.get(pos[0], pos[1], pos[2]) > 0
-                                {
-                                    15
-                                } else {
-                                    1
-                                };
-                                if let Some(g) = self.gfx.as_mut() {
-                                    g.block_changed(&p.world, &p.light, pos, r);
-                                }
+                                // relit and remeshed on the world thread
+                                p.work.block(pos, block);
                                 // another player changed it: show and play it, quieter with distance
                                 let d = Vec3::new(pos[0] as f32, pos[1] as f32, pos[2] as f32)
                                     .distance(p.player.eye());
@@ -2027,11 +2023,8 @@ impl App {
                                     }
                                 }
                             }
-                            p.light.changed_box(&p.world, a, b);
                             p.minimap.region_changed(a, b);
-                            if let Some(g) = self.gfx.as_mut() {
-                                g.region_changed(&p.world, &p.light, a, b, 15);
-                            }
+                            p.work.fill(a, b, block);
                             let c = Vec3::new(
                                 (a[0] + b[0]) as f32 * 0.5,
                                 (a[1] + b[1]) as f32 * 0.5,
@@ -2460,14 +2453,13 @@ impl App {
                     },
                 }
             }
-            // light and mesh what arrived: about 8 ms of it a frame
-            let mut spent = Duration::ZERO;
-            while !p.arrived.is_empty() && spent < Duration::from_millis(8) {
-                let took = take_arrivals(p, self.gfx.as_mut(), ARRIVAL_COLUMNS);
-                if took.is_zero() {
-                    break;
-                }
-                spent += took;
+            // the world thread's light and meshes: uploads within ~3 ms a frame;
+            // it works nearest the camera and what it faces first
+            world_uploads(p, self.gfx.as_mut(), Duration::from_millis(3));
+            p.work
+                .focus(p.player.eye().into(), p.player.look_dir().into());
+            if let Some(g) = self.gfx.as_ref() {
+                p.land_wait = !land_ready(p, g, p.player.pos, LAND_RADIUS);
             }
             if p.combat_log.len() > 300 {
                 p.combat_log.drain(..150);
@@ -2771,8 +2763,7 @@ impl App {
                                 let _ = p.conn.tx.send(ClientMsg::Dig { pos });
                                 p.world.set(pos[0], pos[1], pos[2], w::AIR);
                                 p.minimap.block_changed(pos);
-                                p.light.changed(&p.world, pos);
-                                gfx.block_changed(&p.world, &p.light, pos, 15);
+                                p.work.block(pos, w::AIR);
                                 spawn_particles(
                                     &mut p.particles,
                                     pos,
@@ -3727,7 +3718,9 @@ impl App {
     }
 
     fn click(&mut self, button: MouseButton) {
-        let Some(gfx) = self.gfx.as_mut() else { return };
+        if self.gfx.is_none() {
+            return;
+        }
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
@@ -3768,8 +3761,7 @@ impl App {
                 let old = p.world.get(pos[0], pos[1], pos[2]);
                 p.world.set(pos[0], pos[1], pos[2], w::AIR);
                 p.minimap.block_changed(pos);
-                p.light.changed(&p.world, pos);
-                gfx.block_changed(&p.world, &p.light, pos, 15);
+                p.work.block(pos, w::AIR);
                 spawn_particles(
                     &mut p.particles,
                     pos,
@@ -3822,8 +3814,7 @@ impl App {
                 {
                     p.world.set(pos[0], pos[1], pos[2], block);
                     p.minimap.block_changed(pos);
-                    p.light.changed(&p.world, pos);
-                    gfx.block_changed(&p.world, &p.light, pos, 15);
+                    p.work.block(pos, block);
                     self.audio.play(Sfx::Place(material_of(block)), 0.9);
                     if p.creative() {
                         p.undo.push((pos, here, block));
@@ -4093,6 +4084,22 @@ fn hud(
         egui::Id::new("hud"),
     ));
     let c = screen.center();
+    // after a join or a long teleport, until the land round you is here
+    if p.land_wait {
+        let veil = ctx.layer_painter(egui::LayerId::new(
+            egui::Order::Foreground,
+            egui::Id::new("land-veil"),
+        ));
+        veil.rect_filled(screen, 0.0, Color32::from_black_alpha(215));
+        crate::theme::shadow_text(
+            &veil,
+            Pos2::new(c.x, screen.bottom() - 60.0),
+            Align2::CENTER_CENTER,
+            "Loading the land around you",
+            crate::theme::body_font(15.0),
+            crate::theme::TEXT,
+        );
+    }
     // the cursor shows what a click will do
     if p.wow() && !p.captured {
         let icon = match p.hover.and_then(|id| p.entities.get(&id)).map(|e| e.kind) {
@@ -5846,7 +5853,9 @@ pub fn shot_front(
 }
 
 /// Render one frame with the real HUD, for `dyno shot --ui` (tests and agents).
-/// `ui` is "hud", "pack", "dig" or "dead".
+/// `ui` is "hud", "pack", "dig" or "dead"; or "stand" for the world alone
+/// with a stand-in figure on the ground at `pos` (see `shot::Stand`; a
+/// negative height there means the open ground of the column).
 #[allow(clippy::too_many_arguments)]
 pub fn shot_with_ui(
     j: Joined,
@@ -5863,157 +5872,266 @@ pub fn shot_with_ui(
     if let Some(z) = zoom {
         p.zoom = z;
     }
+    let stand = ui == "stand";
+    // a stand shot waits for its whole view, not just for the stream to pause
+    let view_missing = |p: &Play| {
+        stand
+            && pos.is_some_and(|at| {
+                net::sections_around(&p.world, at, p.view - 2.0 * w::SECTION as f32)
+                    .iter()
+                    .any(|s| !p.world.has_section(*s))
+            })
+    };
     let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
-    // the land the join waited for, then the rest of the view as it streams
-    // in, taken exactly as play takes it (lit and meshed in batches)
-    let load_start = Instant::now();
-    gfx.load_world(&p.world, &p.light);
-    let first_ms = load_start.elapsed().as_secs_f64() * 1e3;
-    let first_sections = p.world.held_sections().0;
-    let (mut batches, mut worst, mut streamed) = (0u32, Duration::ZERO, Duration::ZERO);
-    // a moment for the rest of the view to stream in (until it goes quiet)
+    // the camera: where asked (the server streams the world round it), else
+    // the character; DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]" flies it across
+    // the map to measure frames while the land streams in
+    let run = shot_run();
+    let start_cam = run
+        .map(|r| [r.0[0], p.player.pos.y + 40.0, r.0[1]])
+        .or(pos)
+        .unwrap_or(p.player.pos.into());
+    if run.is_some() || pos.is_some() {
+        let _ = p.conn.tx.send(ClientMsg::ViewAt { pos: start_cam });
+    }
+    p.player.pos = start_cam.into();
+    p.player.yaw = yaw;
+    p.player.pitch = pitch;
+    // the world is drawn as play draws it: lit and meshed on the world
+    // thread, uploaded within a budget each frame, frames rendered at ~60 Hz
+    gfx.begin_world(&p.world);
+    let fctx = egui::Context::default();
+    let mut frames: Vec<(f64, f64)> = Vec::new();
+    let mut land_at: Option<Duration> = None;
     let started = Instant::now();
     let mut last_section = Instant::now();
-    while started.elapsed() < Duration::from_millis(700)
-        || (last_section.elapsed() < Duration::from_millis(250)
-            && started.elapsed() < Duration::from_secs(4))
-    {
-        match p.conn.rx.recv_timeout(Duration::from_millis(30)) {
-            Ok(NetEvent::Msg(m)) => match m {
-                ServerMsg::Sections(list) => {
-                    sections_in(&mut p, list);
-                    last_section = Instant::now();
-                }
-                ServerMsg::SectionsGone(list) => sections_out(&mut p, Some(&mut *gfx), list),
-                m @ (ServerMsg::Block { .. } | ServerMsg::Fill { .. }) => {
-                    net::apply_world(&mut p.world, &m);
-                    if let ServerMsg::Block { pos, .. } | ServerMsg::Fill { a: pos, .. } = m {
-                        p.arrived
-                            .push((w::section_of(pos), Instant::now() - Duration::from_secs(1)));
+    let mut last_view = Instant::now();
+    loop {
+        let frame_t0 = Instant::now();
+        let mut world_t = Duration::ZERO;
+        loop {
+            let ev = p.conn.rx.try_recv();
+            if ev.is_err() {
+                break;
+            }
+            match ev {
+                Ok(NetEvent::Msg(m)) => match m {
+                    ServerMsg::Sections(list) => {
+                        let t = Instant::now();
+                        sections_in(&mut p, list);
+                        world_t += t.elapsed();
+                        last_section = Instant::now();
                     }
-                }
-                ServerMsg::Pack(s) => p.pack = s,
-                ServerMsg::Status {
-                    health,
-                    food,
-                    mode,
-                    fuel,
-                } => {
-                    p.health = health;
-                    p.food = food;
-                    p.mode = mode;
-                    p.fuel = fuel;
-                }
-                ServerMsg::Time { time, day_seconds } => {
-                    p.time = time;
-                    p.day_seconds = day_seconds;
-                    p.time_at = Instant::now();
-                }
-                ServerMsg::EntitySpawn { id, kind, pos, yaw } => {
-                    p.entities.insert(
+                    ServerMsg::SectionsGone(list) => {
+                        let t = Instant::now();
+                        sections_out(&mut p, Some(&mut *gfx), list);
+                        world_t += t.elapsed();
+                    }
+                    m @ (ServerMsg::Block { .. } | ServerMsg::Fill { .. }) => {
+                        net::apply_world(&mut p.world, &m);
+                        match m {
+                            ServerMsg::Block { pos, block } => p.work.block(pos, block),
+                            ServerMsg::Fill { a, b, block } => p.work.fill(a, b, block),
+                            _ => {}
+                        }
+                    }
+                    ServerMsg::Pack(s) => p.pack = s,
+                    ServerMsg::Status {
+                        health,
+                        food,
+                        mode,
+                        fuel,
+                    } => {
+                        p.health = health;
+                        p.food = food;
+                        p.mode = mode;
+                        p.fuel = fuel;
+                    }
+                    ServerMsg::Time { time, day_seconds } => {
+                        p.time = time;
+                        p.day_seconds = day_seconds;
+                        p.time_at = Instant::now();
+                    }
+                    ServerMsg::EntitySpawn { id, kind, pos, yaw } => {
+                        p.entities.insert(
+                            id,
+                            ClientEntity {
+                                kind,
+                                from: pos,
+                                to: pos,
+                                at: Instant::now(),
+                                yaw,
+                                born: Instant::now(),
+                                hurt_at: None,
+                                info: None,
+                                name: None,
+                            },
+                        );
+                    }
+                    ServerMsg::Character {
+                        look,
+                        class,
+                        level,
+                        xp,
+                        xp_next,
+                        money,
+                        max_health,
+                    } => {
+                        p.class = class;
+                        p.my_look = look;
+                        if class.is_some() {
+                            p.class_pick = false;
+                        }
+                        p.level = level;
+                        p.xp = xp;
+                        p.xp_next = xp_next;
+                        p.money = money;
+                        p.max_health = max_health;
+                    }
+                    ServerMsg::Weather { kind, strength } => {
+                        p.weather = (kind, strength);
+                        p.weather_mix = strength;
+                    }
+                    ServerMsg::Equipment(e) => p.equip = e,
+                    ServerMsg::Zone { name, .. } => p.zone = name,
+                    ServerMsg::Skills(sk) => p.skills = sk,
+                    ServerMsg::Power { value, max } => {
+                        p.power = value;
+                        p.power_max = max;
+                    }
+                    ServerMsg::Quests { log, done } => {
+                        p.quest_log = log;
+                        p.quests_done = done.into_iter().collect();
+                    }
+                    ServerMsg::EntityInfo {
                         id,
-                        ClientEntity {
-                            kind,
-                            from: pos,
-                            to: pos,
-                            at: Instant::now(),
-                            yaw,
-                            born: Instant::now(),
-                            hurt_at: None,
-                            info: None,
-                            name: None,
-                        },
-                    );
-                }
-                ServerMsg::Character {
-                    look,
-                    class,
-                    level,
-                    xp,
-                    xp_next,
-                    money,
-                    max_health,
-                } => {
-                    p.class = class;
-                    p.my_look = look;
-                    if class.is_some() {
-                        p.class_pick = false;
+                        level,
+                        health,
+                        max,
+                    } => {
+                        if let Some(e) = p.entities.get_mut(&id) {
+                            e.info = Some((level, health, max));
+                        }
                     }
-                    p.level = level;
-                    p.xp = xp;
-                    p.xp_next = xp_next;
-                    p.money = money;
-                    p.max_health = max_health;
-                }
-                ServerMsg::Weather { kind, strength } => {
-                    p.weather = (kind, strength);
-                    p.weather_mix = strength;
-                }
-                ServerMsg::Equipment(e) => p.equip = e,
-                ServerMsg::Zone { name, .. } => p.zone = name,
-                ServerMsg::Skills(sk) => p.skills = sk,
-                ServerMsg::Power { value, max } => {
-                    p.power = value;
-                    p.power_max = max;
-                }
-                ServerMsg::Quests { log, done } => {
-                    p.quest_log = log;
-                    p.quests_done = done.into_iter().collect();
-                }
-                ServerMsg::EntityInfo {
-                    id,
-                    level,
-                    health,
-                    max,
-                } => {
-                    if let Some(e) = p.entities.get_mut(&id) {
-                        e.info = Some((level, health, max));
-                    }
-                }
-                ServerMsg::Container(c) => p.chest = c,
-                ServerMsg::Milestone { title } => p.toast(format!("Journal: {title}")),
-                ServerMsg::Chat { from, text } => p.chat.push(Chat {
-                    at: Instant::now(),
-                    from: Some(from),
-                    text,
-                }),
-                ServerMsg::System { text } => p.chat.push(Chat {
-                    at: Instant::now(),
-                    from: None,
-                    text,
-                }),
-                _ => {}
-            },
-            Ok(NetEvent::Content(c)) => p.content = *c,
-            Ok(NetEvent::Closed(r)) => return Err(r),
-            Err(_) => {}
+                    ServerMsg::Container(c) => p.chest = c,
+                    ServerMsg::Milestone { title } => p.toast(format!("Journal: {title}")),
+                    ServerMsg::Chat { from, text } => p.chat.push(Chat {
+                        at: Instant::now(),
+                        from: Some(from),
+                        text,
+                    }),
+                    ServerMsg::System { text } => p.chat.push(Chat {
+                        at: Instant::now(),
+                        from: None,
+                        text,
+                    }),
+                    _ => {}
+                },
+                Ok(NetEvent::Content(c)) => p.content = *c,
+                Ok(NetEvent::Closed(r)) => return Err(r),
+                Err(_) => {}
+            }
         }
-        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_COLUMNS);
-        if took > Duration::ZERO {
-            // the time spent here is not the stream going quiet
-            last_section = Instant::now();
-            batches += 1;
-            worst = worst.max(took);
-            streamed += took;
+        world_t += world_uploads(&mut p, Some(&mut *gfx), Duration::from_millis(3));
+        // the camera, flying or still
+        let t = started.elapsed().as_secs_f32();
+        let flying = if let Some((from, to, speed)) = run {
+            let len = (to[0] - from[0]).hypot(to[1] - from[1]).max(1.0);
+            let k = (t * speed / len).min(1.0);
+            let (x, z) = (
+                from[0] + (to[0] - from[0]) * k,
+                from[1] + (to[1] - from[1]) * k,
+            );
+            let ground = p.world.surface(x as i32, z as i32);
+            let y = if ground > 0 {
+                ground as f32 + 3.0
+            } else {
+                p.player.pos.y
+            };
+            p.player.pos = Vec3::new(x, y, z);
+            p.player.yaw = (-(to[0] - from[0])).atan2(-(to[1] - from[1]));
+            p.player.pitch = -0.1;
+            if last_view.elapsed() > Duration::from_millis(100) {
+                last_view = Instant::now();
+                let _ = p.conn.tx.send(ClientMsg::ViewAt {
+                    pos: p.player.pos.into(),
+                });
+            }
+            k < 1.0
+        } else {
+            false
+        };
+        p.work
+            .focus(p.player.eye().into(), p.player.look_dir().into());
+        if land_at.is_none() && land_ready(&p, gfx, p.player.pos, LAND_RADIUS) {
+            land_at = Some(started.elapsed());
+        }
+        if stats || run.is_some() {
+            // a frame of the world, as the game draws it
+            let (fw, fh) = (gfx.config.width as f32, gfx.config.height as f32);
+            let vp = p.player.view_proj(fw / fh, 70.0, 160.0);
+            let sky_now = sky(p.time);
+            let out = fctx.run(egui::RawInput::default(), |_| {});
+            gfx.frame(
+                Some((vp, p.player.eye(), 160.0)),
+                &sky_now,
+                &[],
+                &[],
+                &fctx,
+                out,
+            );
+            frames.push((
+                world_t.as_secs_f64() * 1e3,
+                frame_t0.elapsed().as_secs_f64() * 1e3,
+            ));
+        }
+        let quiet = started.elapsed() > Duration::from_millis(700)
+            && last_section.elapsed() > Duration::from_millis(250)
+            && p.work.idle();
+        let limit = if run.is_some() {
+            120
+        } else if stand {
+            40
+        } else {
+            8
+        };
+        if (!flying && quiet && !view_missing(&p)) || started.elapsed() > Duration::from_secs(limit)
+        {
+            break;
+        }
+        // ~60 frames a second
+        if let Some(rest) = Duration::from_millis(16).checked_sub(frame_t0.elapsed()) {
+            std::thread::sleep(rest);
         }
     }
-    while !p.arrived.is_empty() {
-        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_COLUMNS);
-        if took.is_zero() {
-            std::thread::sleep(Duration::from_millis(10));
-            continue;
-        }
-        batches += 1;
-        worst = worst.max(took);
-        streamed += took;
+    // everything made, uploaded (the picture is complete)
+    while !p.work.idle() {
+        world_uploads(&mut p, Some(&mut *gfx), Duration::from_secs(1));
+        std::thread::sleep(Duration::from_millis(5));
     }
-    if stats {
-        eprintln!(
-            "stats: first view {first_ms:.0} ms ({first_sections} sections); then {} more in {batches} batches as the view streamed in: {:.0} ms in all, worst batch {:.0} ms",
-            p.world.held_sections().0 - first_sections,
-            streamed.as_secs_f64() * 1e3,
-            worst.as_secs_f64() * 1e3
-        );
+    world_uploads(&mut p, Some(&mut *gfx), Duration::from_secs(1));
+    p.land_wait = !land_ready(&p, gfx, p.player.pos, LAND_RADIUS);
+    if stats || run.is_some() {
+        let pct = |v: &mut Vec<f64>, q: f64| {
+            v.sort_by(|a, b| a.total_cmp(b));
+            v[((v.len() - 1) as f64 * q) as usize]
+        };
+        let (mut wt, mut ft): (Vec<f64>, Vec<f64>) = frames.iter().copied().unzip();
+        if !wt.is_empty() {
+            eprintln!(
+                "frames: {} in {:.1} s; land round the camera drawn after {} ms; world work on the main thread per frame: median {:.2} ms, 95% {:.2} ms, max {:.2} ms; whole frame: median {:.1} ms, 95% {:.1} ms, max {:.1} ms; frames over 20 ms: {}",
+                frames.len(),
+                started.elapsed().as_secs_f32(),
+                land_at.map_or("never".into(), |d| d.as_millis().to_string()),
+                pct(&mut wt, 0.5),
+                pct(&mut wt, 0.95),
+                pct(&mut wt, 1.0),
+                pct(&mut ft, 0.5),
+                pct(&mut ft, 0.95),
+                pct(&mut ft, 1.0),
+                ft.iter().filter(|f| **f > 20.0).count()
+            );
+        }
     }
     if std::env::var_os("DYNO_SHOT_VERIFY").is_some() {
         // the meshes built bit by bit, against the whole view at once
@@ -6031,11 +6149,21 @@ pub fn shot_with_ui(
         );
         p.light = whole;
     }
-    if let Some(pos) = pos {
-        p.player.pos = pos.into();
+    if run.is_none() {
+        p.player.pos = start_cam.into();
+        p.player.yaw = yaw;
+        p.player.pitch = pitch;
     }
-    p.player.yaw = yaw;
-    p.player.pitch = pitch;
+    if stand {
+        let at = p.player.pos;
+        let (x, z) = (at.x.floor() as i32, at.z.floor() as i32);
+        let near = (at.y >= 0.0).then_some(at.y);
+        p.player.pos.y = crate::shot::standing_y(&p.world, x, z, near)
+            .ok_or_else(|| format!("nowhere to stand at {x}, {z}"))?;
+        // the same sky for every round of shots
+        p.weather = (0, 0.0);
+        p.weather_mix = 0.0;
+    }
     p.captured = ui != "pack";
     p.picker_open = ui == "pack";
     p.screen_tab = match ui {
@@ -6138,7 +6266,9 @@ pub fn shot_with_ui(
             .collect();
         p.loot = Some((id, 23, items));
     }
-    p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+    if !stand {
+        p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
+    }
     if ui == "dig"
         && let Some(t) = &p.target
     {
@@ -6150,7 +6280,7 @@ pub fn shot_with_ui(
     let t = time.unwrap_or(p.time);
     p.time = t;
     let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
-    let load_ms = load_start.elapsed().as_secs_f64() * 1e3;
+    let load_ms = started.elapsed().as_secs_f64() * 1e3;
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
     let far = 160.0;
     let dir = p.player.look_dir();
@@ -6161,7 +6291,7 @@ pub fn shot_with_ui(
     };
     let right = dir.cross(Vec3::Y).normalize_or_zero();
     let up = right.cross(dir);
-    let vp = glam::Mat4::perspective_rh(75f32.to_radians(), wdt / hgt, 0.05, far)
+    let vp = glam::Mat4::perspective_rh(crate::shot::STAND_FOV.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
     models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
     let mut boxes = Vec::new();
@@ -6200,6 +6330,9 @@ pub fn shot_with_ui(
             .collect();
         look.wear(keys.iter().map(String::as_str));
         look.weapon = models::weapon_look(&p.content, p.held().map(|s| s.item));
+        if stand {
+            look = crate::shot::stand_in_look(&p.content);
+        }
         let at = p.player.pos + Vec3::Y;
         let l = p.light.get(
             at.x.floor() as i32,
@@ -6301,11 +6434,15 @@ pub fn shot_with_ui(
     let mut actions = Vec::new();
     // two passes so windows settle their size; the first pass loads the font atlas
     let first = ctx.run(raw(), |ctx| {
-        hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        if !stand {
+            hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        }
     });
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
     let second = ctx.run(raw(), |ctx| {
-        hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        if !stand {
+            hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
+        }
     });
     gfx.screenshot = Some(out.clone());
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, second);
@@ -6322,7 +6459,7 @@ pub fn shot_with_ui(
         let frame_ms = t0.elapsed().as_secs_f64() * 1e3 / n as f64;
         let (vo, vt) = gfx.world_vertices();
         eprintln!(
-            "stats: load_world {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
+            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
         );
     }
     let mut creatures: Vec<String> = p
