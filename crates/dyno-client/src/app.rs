@@ -235,6 +235,8 @@ struct Play {
     show_info: bool,
     /// my party (empty: none)
     party: Vec<dyno_protocol::PartyMember>,
+    /// how tall each creature stands as drawn (for name plates)
+    tops: std::cell::RefCell<HashMap<u32, f32>>,
     /// what other players hold in their weapon hand
     wielding: HashMap<u32, u16>,
     /// other players lying dead, and what they are doing (sitting, emoting)
@@ -713,9 +715,16 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         let speed = Vec3::new(vel.x, 0.0, vel.z).length();
         let (a, _) = book.entity(*id, now);
         a.drive_at(now, base, pos, skeleton.step(speed, scale));
+        let start = boxes.len();
         models::push_creature(
             boxes, c.model, c.variant, pos, e.yaw, c.color, light, flash, scale, a, now,
         );
+        // how tall it stands, so its name floats just over it
+        let top = boxes[start..]
+            .iter()
+            .map(|v| v.pos[1])
+            .fold(pos.y, f32::max);
+        p.tops.borrow_mut().insert(*id, top - pos.y);
     }
     push_corpses(boxes, p, book, clock);
 }
@@ -1374,6 +1383,7 @@ fn new_play(j: Joined) -> Play {
         show_info: false,
         party: Vec::new(),
         invite: None,
+        tops: Default::default(),
         wielding: HashMap::new(),
         remote_dead: Default::default(),
         remote_hold: HashMap::new(),
@@ -3865,7 +3875,7 @@ fn hud(
     if let Some(vp) = vp {
         for r in p.remotes.values() {
             let pose = r.current();
-            let head = glam::Vec3::from(pose.pos) + glam::Vec3::Y * 2.15;
+            let head = glam::Vec3::from(pose.pos) + glam::Vec3::Y * 2.0;
             let clip = vp * head.extend(1.0);
             if clip.w > 0.1 {
                 let ndc = clip.truncate() / clip.w;
@@ -3903,7 +3913,7 @@ fn hud(
                     (
                         npc.name.clone(),
                         title,
-                        2.25,
+                        2.05,
                         Color32::from_rgb(120, 230, 120),
                         me.marker(n),
                     )
@@ -3922,14 +3932,14 @@ fn hud(
                         Some(n) => (
                             format!("{n}  {lvl}  Elite"),
                             Some(format!("<{}>", cr.name)),
-                            2.8,
+                            p.tops.borrow().get(id).copied().unwrap_or(2.4) + 0.4,
                             Color32::from_rgb(255, 200, 60),
                             None,
                         ),
                         None => (
                             format!("{}  {}", cr.name, lvl),
                             None,
-                            if cr.hostile { 2.35 } else { 1.6 },
+                            p.tops.borrow().get(id).copied().unwrap_or(1.6) + 0.35,
                             col,
                             None,
                         ),

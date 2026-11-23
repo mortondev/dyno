@@ -9,8 +9,11 @@ use std::time::Instant;
 pub const EYE: f32 = 1.62;
 const HALF_W: f32 = 0.3;
 const HEIGHT: f32 = 1.8;
-const GRAVITY: f32 = 28.0;
-const JUMP: f32 = 8.6;
+/// 1.6 times Earth's gravity: real gravity looks floaty from a game camera,
+/// and most games use 1.5 to 2.5 times it (scale review).
+const GRAVITY: f32 = 15.7;
+/// A jump that clears about 0.6 m, like a real running jump onto a ledge.
+const JUMP: f32 = 4.35;
 pub const REACH: f32 = 7.0;
 
 #[derive(Default, Clone, Copy)]

@@ -312,6 +312,9 @@ const P_SHIN: [u8; 2] = [12, 13];
 const P_CAPE: [u8; 3] = [14, 15, 16];
 
 /// Where the parts hinge, in voxels from the feet.
+/// Heads are modelled at 16 voxels for a readable face, then drawn at 55%:
+/// about 0.27 m, life size on a 1.78 m adult (scale review, 1 block = 1 m).
+const HEAD_SCALE: f32 = 0.55;
 const HIP_Y: f32 = 26.0;
 const KNEE_Y: f32 = 13.0;
 const LEG_X: f32 = 5.0;
@@ -1727,7 +1730,8 @@ fn draw_person(
     }
     // head, tilted by pitch
     let head = bone(&body, Vec3::new(0.0, NECK_Y - WAIST_Y, 0.0), pose, HEAD)
-        * Affine3A::from_mat3(rx(-pitch * 0.55));
+        * Affine3A::from_mat3(rx(-pitch * 0.55))
+        * Affine3A::from_scale(Vec3::splat(HEAD_SCALE));
     emit(out, &m.head, &head, paint);
 }
 
@@ -4607,9 +4611,24 @@ mod anim_tests {
         for cr in &c.creatures {
             let mut v = Vec::new();
             let mut a = Animator::new(1, 0.0);
-            push_creature(&mut v, cr.model, cr.variant, Vec3::ZERO, 0.0, cr.color, 1.0, 0.0, cr.scale, &mut a, 0.0);
+            push_creature(
+                &mut v,
+                cr.model,
+                cr.variant,
+                Vec3::ZERO,
+                0.0,
+                cr.color,
+                1.0,
+                0.0,
+                cr.scale,
+                &mut a,
+                0.0,
+            );
             let d = size(&v);
-            println!("{}: {:.2} tall, {:.2} wide, {:.2} long (scale {})", cr.key, d.y, d.x, d.z, cr.scale);
+            println!(
+                "{}: {:.2} tall, {:.2} wide, {:.2} long (scale {})",
+                cr.key, d.y, d.x, d.z, cr.scale
+            );
         }
     }
 

@@ -1,6 +1,6 @@
 {
  "name": "Hearthblock Online",
- "version": 8,
+ "version": 9,
  "items": [
   {
    "key": "stick",
@@ -2549,7 +2549,8 @@
    "levels": [
     1,
     2
-   ]
+   ],
+   "scale": 0.7
   },
   {
    "key": "shade",
@@ -2631,7 +2632,7 @@
     }
    ],
    "hostile": true,
-   "scale": 1.15,
+   "scale": 0.9,
    "speed": 3.2,
    "spawn": "meadow",
    "cap": 0,

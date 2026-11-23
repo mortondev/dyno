@@ -96,7 +96,7 @@ impl State {
                         // in the air a while and not coming down: flying
                         let hang = now.duration_since(since).as_secs_f32();
                         let fallen = y0 - pose.pos[1];
-                        let should = 0.5 * 28.0 * (hang - 0.8).max(0.0).powi(2);
+                        let should = 0.5 * 15.7 * (hang - 0.8).max(0.0).powi(2);
                         if hang > MAX_HANG && fallen < should.min(3.0) {
                             bad = Some("flying");
                         }
