@@ -487,6 +487,11 @@ impl<'a> Fine<'a> {
         if !terrain && !fill {
             return if f & F_OPAQUE != 0 { OTHER } else { EMPTY };
         }
+        // nothing grows past the world's edge, where no section draws it
+        let w = [g.o[0] + x, g.o[1] + y, g.o[2] + z];
+        if !terrain && (0..3).any(|a| w[a] < 0 || w[a] >= g.size[a]) {
+            return EMPTY;
+        }
         // ground all round: solid; no ground round: empty (the noise stays
         // inside the margin, so the field cannot cross zero)
         let mut ground = 0;

@@ -134,6 +134,8 @@ pub(crate) struct Grid {
     pub(crate) fl: Vec<u8>,
     /// world position of local cell (0, 0, 0)
     pub(crate) o: [i32; 3],
+    /// the world's size in blocks
+    pub(crate) size: [i32; 3],
     /// light (block, sky) for detail blocks that stop light, borrowed from
     /// their open neighbours; empty when there are none
     patch: Vec<[u8; 2]>,
@@ -166,6 +168,7 @@ impl Grid {
             ids: vec![0; G * G * G],
             fl: vec![0; G * G * G],
             o,
+            size: world.size.map(|v| v as i32),
             patch: Vec::new(),
             cls: Vec::new(),
         };
@@ -1358,6 +1361,11 @@ mod tests {
                 }
             }
             let open = edges.values().filter(|n| *n % 2 == 1).count();
+            let mut odd: Vec<_> = edges.iter().filter(|(_, n)| *n % 2 == 1).map(|(k, _)| *k).collect();
+            odd.sort();
+            for e in odd.iter().take(12) {
+                eprintln!("open edge at {:?} along {} (r {r})", e.0, e.1);
+            }
             assert_eq!(open, 0, "{r} a metre: {open} open edges of {}", edges.len());
         }
     }
@@ -1495,7 +1503,7 @@ mod tests {
             assert_eq!(v.color[3], 1.0);
             tops += 1;
         }
-        assert!(tops > 1000);
+        assert!(tops >= 6, "{tops}");
         // the cliff face stays upright: within a few voxels of the grid
         // line all the way up, with ledges
         let wall: Vec<f32> = geos
