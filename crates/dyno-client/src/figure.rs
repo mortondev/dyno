@@ -42,6 +42,9 @@ pub struct Look {
     pub features: BTreeMap<String, u8>,
     pub colors: BTreeMap<String, [f32; 3]>,
     pub weapon: Option<(WeaponKind, [f32; 3])>,
+    /// a held kind in the right hand instead of a weapon (a hatchet, a
+    /// fishing rod), with its colour
+    pub tool: Option<(String, [f32; 3])>,
     /// things carried at the rig's other sockets ("offhand", "shield",
     /// "back"): a held kind and its colour
     pub carry: BTreeMap<String, (String, [f32; 3])>,
@@ -136,6 +139,9 @@ struct LookSpec {
     remap: BTreeMap<String, BTreeMap<String, u8>>,
     #[serde(default)]
     weapon: Option<(String, [f32; 3])>,
+    /// a held kind in the right hand instead of a weapon (townsfolk's tools)
+    #[serde(default)]
+    hold: Option<(String, [f32; 3])>,
     /// things carried at other sockets: socket → (held kind, colour)
     #[serde(default)]
     carry: BTreeMap<String, (String, [f32; 3])>,
@@ -1405,6 +1411,9 @@ fn apply_spec(s: &FiguresSpec, l: &mut Look, spec: &LookSpec, color: [f32; 3]) {
     }
     if let Some((kind, c)) = &spec.weapon {
         l.weapon = weapon_kind(kind).map(|k| (k, *c));
+    }
+    if let Some(h) = &spec.hold {
+        l.tool = Some(h.clone());
     }
     for (socket, h) in &spec.carry {
         l.carry.insert(socket.clone(), h.clone());

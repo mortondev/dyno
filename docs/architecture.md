@@ -84,7 +84,7 @@ flowchart TD
 |---|---|
 | `dyno-world` | The block grid (`World`, 1 m blocks in 16³ sections: all-one-block sections free, others palette-packed, shared copy-on-write between shards; clients hold only the streamed sections), the far view's heightmap tiles (`far.rs`), lighting (stored the same way), the content schema and parser, world generation, and the builders for Hearthstead (`village.rs`), the zones (`zones.rs`) and points of interest (`poi.rs`). |
 | `dyno-sim` | Rules shared by client and server: the XP curve and mob scaling (`progression.rs`), the character sheet and armour maths (`character.rs`), inventory and stacks. |
-| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 21). A version mismatch is refused with a clear reason. |
+| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 22). A version mismatch is refused with a clear reason. |
 | `dyno-server` | The game: shards, world streaming and area of interest (`stream.rs`), players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. The content pack (`pack.rs`: loading, hashing, the built-in pack embedded from `content/`, each session's asset outbox). |
 | `dyno-client` | Rendering (wgpu), the UI (egui, themed), input (classic MMO controls), audio, the front end (title, character select and creation), the minimap, headless screenshots. The asset store (`assets.rs`) and the cache of pack files (`cache.rs`). Local hosting only with the `host` feature. |
 | `dyno-update` | Checks GitHub Releases, verifies the signed manifest, picks the artifact named like its own executable (`dyno` or `hearthblock`), swaps the binary. Used by clients and by servers (`--auto-update`). |
@@ -342,15 +342,19 @@ flowchart LR
 flowchart TD
   F[Front end<br/>title · character select · creation] -->|Enter World| J[Loading screen<br/>pack download progress]
   J --> P[Play]
-  P --> R[Render: smooth terrain · canopies · water · grass · shadows]
+  P --> R[Render: fine voxel terrain · canopies · water · grass · shadows]
   P --> M[Models: 1/32-voxel characters and creatures · animation]
   P --> U[HUD: unit frames · action bar · minimap · tracker · party · windows]
   P --> I[Input: hold RMB steer · both to run · A/D turn · Q/E strafe]
 ```
 
-- **Rendering** (`render.rs`, `terrain_mesh.rs`): natural ground is a smooth
-  surface (surface nets with cube topology), built blocks are cubes (moving
-  to fine "detail blocks"), leaves are puffy canopies, lamps have halos, sun shadows and a colour grade.
+- **Rendering** (`render.rs`, `terrain_mesh.rs`, `fine.rs`): natural ground
+  is fine voxels (8 a metre near the camera, coarser further out), each
+  block's sub-grid shaped by the blocks around it, with a colour per voxel;
+  built blocks are cubes or voxel "detail blocks", leaves are canopies,
+  lamps have halos, sun shadows and
+  a colour grade. Feet stand on the top of the fine column under them
+  (`terrain_mesh::Ground`); picking and collision stay per block.
 - **Water** (`water.rs`): its own pass after the solid world, which it
   reads (picture and depth): colour by depth with the bed showing at the
   shore, the sky, land and lights mirrored, foam at shores and obstacles,
@@ -358,7 +362,6 @@ flowchart TD
   a fog with the eyes under water. The look, per kind of water and place, is
   in `render.json`; the setting `water_quality` (0–2) drops the mirror rays,
   then the reading of the picture.
-  Feet stand on the drawn surface (`terrain_mesh::Ground`).
 - **Models** (`models.rs`, `voxmodel.rs`): procedural 1/32-block voxel
   characters and creatures, rebuilt each frame. A shared animation contract
   (skeletons and an `Anim` set every model must implement) is being built.
@@ -413,7 +416,7 @@ flowchart LR
 | 2 | Pivot from a Minecraft-like to a classic MMORPG on the same engine | The user's direction: WoW-like progression, quests, classes. |
 | 3 | Content as data (one JSON pack) | Designers iterate without code; the server ships it to clients. |
 | 4 | Classic MMO controls and camera; no crosshair | Away from the Minecraft feel. |
-| 5 | Smooth terrain from the block grid, not a finer grid | Keeps saves, lighting and physics on 1 m blocks. |
+| 5 | Fine voxel terrain drawn from the block grid (about 8 voxels a metre, decided per voxel from the blocks around it), not finer storage; smooth terrain (surface nets) before it | The art direction is voxel (Cube World × WoW); saves, lighting, physics and the server stay on 1 m blocks. |
 | 6 | Detail blocks for built geometry, not finer storage | Same reason; fine look without multiplying memory per shard. |
 | 7 | No realms; one world, sharded automatically | The user's direction; players never choose a server. |
 | 8 | Shards are whole-world copies; crowding managed per area | Seamless moves; no second entity model; density where it matters. |

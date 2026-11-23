@@ -987,11 +987,6 @@ struct UnderOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32
   return o;
 }
 
-// The solid world, drawn aside, brought onto the frame.
-@fragment fn fs_blit(i: UnderOut) -> @location(0) vec4<f32> {
-  return vec4<f32>(scene_at(vec2<f32>(i.ndc.x * 0.5 + 0.5, 0.5 - i.ndc.y * 0.5)), 1.0);
-}
-
 // With the eye under water: everything fades into the water's colour.
 @fragment fn fs_under(i: UnderOut) -> @location(0) vec4<f32> {
   let uv = vec2<f32>(i.ndc.x * 0.5 + 0.5, 0.5 - i.ndc.y * 0.5);
@@ -1016,18 +1011,12 @@ struct UnderOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32
 pub struct WaterGfx {
     pipe: wgpu::RenderPipeline,
     under_pipe: wgpu::RenderPipeline,
-    blit_pipe: wgpu::RenderPipeline,
     layout: wgpu::BindGroupLayout,
     bind: wgpu::BindGroup,
     ubuf: wgpu::Buffer,
     samp: wgpu::Sampler,
     scene: wgpu::Texture,
     format: wgpu::TextureFormat,
-    /// the picture of the solid world can be copied out of its target (not
-    /// on every surface and backend). Where it cannot, the world is drawn
-    /// into `scene` itself (`stage`) and the pass starts by drawing that
-    /// onto the target. `DYNO_WATER_BLIT=1` forces this way, to test it.
-    can_copy: bool,
     /// 0..2, see the module; `DYNO_WATER_QUALITY` overrides it
     pub quality: u8,
     /// the spawn hearth (x, z) of the world being drawn
@@ -1158,7 +1147,6 @@ impl WaterGfx {
         };
         let pipe = make("vs_water", "fs_water", std::slice::from_ref(&vlayout));
         let under_pipe = make("vs_under", "fs_under", &[]);
-        let blit_pipe = make("vs_under", "fs_blit", &[]);
         let ubuf = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("water"),
             size: std::mem::size_of::<WaterUniform>() as u64,
@@ -1176,15 +1164,12 @@ impl WaterGfx {
         WaterGfx {
             pipe,
             under_pipe,
-            blit_pipe,
             layout,
             bind,
             ubuf,
             samp,
             scene,
             format: config.format,
-            can_copy: config.usage.contains(wgpu::TextureUsages::COPY_SRC)
-                && std::env::var_os("DYNO_WATER_BLIT").is_none(),
             quality: 2,
             origin: [0.0; 2],
             sunk: None,
@@ -1243,16 +1228,6 @@ impl WaterGfx {
         quality_override().unwrap_or(self.quality).min(2)
     }
 
-    /// Where the solid world must be drawn instead of the frame's target,
-    /// when the target cannot be copied: `begin` then draws it onto the
-    /// target.
-    pub fn stage(&self) -> Option<wgpu::TextureView> {
-        (!self.can_copy).then(|| {
-            self.scene
-                .create_view(&wgpu::TextureViewDescriptor::default())
-        })
-    }
-
     /// Where the eye is, in a world whose hearth is at `hearth`.
     pub fn look_from(&mut self, world: &World, eye: [f32; 3], hearth: [i32; 3]) {
         self.origin = [hearth[0] as f32, hearth[2] as f32];
@@ -1283,7 +1258,9 @@ impl WaterGfx {
             },
         );
         queue.write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&u));
-        if quality > 0 && self.can_copy {
+        // the picture so far (the world is drawn into one that can always
+        // be copied: post.rs), for the water to see through and mirror
+        if quality > 0 {
             enc.copy_texture_to_texture(
                 target.as_image_copy(),
                 self.scene.as_image_copy(),
@@ -1311,10 +1288,6 @@ impl WaterGfx {
         });
         rp.set_bind_group(0, world, &[]);
         rp.set_bind_group(1, &self.bind, &[]);
-        if !self.can_copy {
-            rp.set_pipeline(&self.blit_pipe);
-            rp.draw(0..3, 0..1);
-        }
         rp.set_pipeline(&self.pipe);
         rp
     }

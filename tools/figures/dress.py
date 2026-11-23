@@ -218,7 +218,7 @@ NPCS = {
                    'hair': [0.2, 0.14, 0.1], 'skin': [0.72, 0.52, 0.38],
                    'tunic': [0.5, 0.2, 0.14], 'trim': [0.3, 0.3, 0.32],
                    **slot('hands', [0.3, 0.2, 0.12], [0.2, 0.14, 0.1])},
-        'weapon': ['Mace', [0.45, 0.45, 0.5]]},
+        'hold': ['mace', [0.42, 0.42, 0.46]]},
     'holt': guard([0.87, 0.68, 0.52], [0.3, 0.19, 0.1], 1, build=2),
     'ansel': guard([0.96, 0.8, 0.66], [0.85, 0.68, 0.35], 0),
     # the logging foreman: a checked-red jerkin, a felling axe
@@ -229,7 +229,7 @@ NPCS = {
                    **slot('chest', [0.66, 0.2, 0.14], LEATHER, [0.28, 0.2, 0.14]),
                    **slot('hands', LEATHER, [0.3, 0.2, 0.12]),
                    'pants': [0.3, 0.26, 0.2], 'boots': [0.26, 0.18, 0.12]},
-        'weapon': ['Axe', [0.6, 0.62, 0.68]]},
+        'hold': ['hatchet', [0.62, 0.64, 0.7]]},
     # the farmer: a straw hat, a green tunic, an apron, a hoe
     'ostrin': {
         'features': {**PLAIN, 'helm': 5, 'beard': 1, 'build': 1, 'hair_style': 1, 'mood': 0},
@@ -237,7 +237,7 @@ NPCS = {
                    'tunic': [0.36, 0.52, 0.24], 'trim': [0.86, 0.72, 0.38],
                    'apron': [0.5, 0.36, 0.22], 'pants': [0.4, 0.3, 0.2],
                    **hat(5, STRAW, [0.7, 0.2, 0.15])},
-        'carry': {'offhand': ['hoe', [0.55, 0.55, 0.6]]}},
+        'hold': ['hoe', [0.55, 0.55, 0.6]]},
     # the old fisher: a wide straw hat, sea-blue clothes, a scarf
     'wenna': {
         'features': {**PLAIN, 'helm': 5, 'beard': 0, 'build': 0, 'hair_style': 2, 'elder': 1,
@@ -246,7 +246,7 @@ NPCS = {
                    'tunic': [0.2, 0.46, 0.62], 'trim': [0.9, 0.88, 0.8],
                    'apron': [0.82, 0.76, 0.6], 'pants': [0.3, 0.3, 0.36],
                    **hat(5, STRAW, [0.2, 0.46, 0.62])},
-        'carry': {'offhand': ['stick', [0.5, 0.36, 0.2]]}},
+        'hold': ['rod', [0.55, 0.38, 0.22]]},
     # the quartermaster: a ledger, a sash of office
     'bree': {
         'features': {**PLAIN, 'chest': 2, 'beard': 0, 'build': 1, 'hair_style': 4, 'mood': 1,
@@ -264,8 +264,39 @@ NPCS = {
                    **slot('hands', LEATHER, [0.3, 0.2, 0.12]),
                    **hat(6, [0.86, 0.66, 0.16], [0.3, 0.3, 0.32]),
                    'pants': [0.3, 0.27, 0.24]},
-        'carry': {'offhand': ['pickaxe', [0.55, 0.55, 0.6]]}},
+        'hold': ['pickaxe', [0.6, 0.6, 0.66]]},
 }
+
+
+
+def worker(base, **more):
+    """A townsperson in the clothes of `base`'s trade, with their own face
+    (drawn from their name) and whatever the pack already has them hold."""
+    keep = ('skin', 'hair', 'eyes')
+    own = ('beard', 'build', 'hair_style', 'body', 'mood', 'elder')
+    look = {'features': {k: v for k, v in NPCS[base]['features'].items() if k not in own},
+            'colors': {k: v for k, v in NPCS[base]['colors'].items() if k not in keep}}
+    for k, v in more.items():
+        look[k].update(v)
+    return look
+
+
+# the townsfolk at work (the life lane's): dressed as the named one of
+# their trade
+NPCS.update({
+    'nell': worker('tilda', colors={'tunic': [0.4, 0.5, 0.66], 'trim': [0.9, 0.88, 0.8]}),
+    'tam': worker('garrick'),
+    'wyn': worker('garrick', colors={'chest.main': [0.3, 0.46, 0.24]}),
+    'jory': worker('ostrin', colors={'tunic': [0.62, 0.5, 0.26]}),
+    'marl': worker('wenna', colors={'tunic': [0.26, 0.5, 0.42]}),
+    'tess': worker('wenna'),
+    'dag': worker('dunmore'),
+    'pell': worker('dunmore', colors={'chest.main': [0.4, 0.3, 0.26]}),
+    'calder': worker('holt'),
+    'mira': worker('holt', features={'body': 1}),
+})
+for k in ('calder', 'mira'):
+    NPCS[k]['features']['light'] = 12
 
 # carried weapons are this much bigger than life (the first-person size
 # is kept)
@@ -311,8 +342,10 @@ def figures(r):
     f = json.load(open(path))
     for key, spec in STARTERS.items():
         f['equip']['items'][key] = spec[5]
-    # townsfolk others have added stay as they are
-    f['npcs'].update(NPCS)
+    # townsfolk others have added stay; what the pack has someone hold stays
+    for key, look in NPCS.items():
+        hold = f['npcs'].get(key, {}).get('hold')
+        f['npcs'][key] = {**look, 'hold': hold} if hold else look
     show = f['showcase']
     # the people and sets of this script are rebuilt; the rest are kept
     # (sets name people by index, so people are only ever appended)

@@ -1953,6 +1953,52 @@
         }
       ]
     },
+    "held.broom": {
+      "file": "models/held/broom.vox",
+      "grids": [
+        {
+          "groups": [
+            {
+              "layers": [
+                {
+                  "layer": "held.broom/base"
+                }
+              ],
+              "name": "held.broom"
+            }
+          ],
+          "max": [24,72,8],
+          "min": [-24,-40,-8],
+          "name": "main",
+          "parts": [
+            "",
+            "item"
+          ]
+        }
+      ],
+      "lods": 1,
+      "palette": [
+        null,
+        {
+          "c": [0.549,0.384,0.22]
+        },
+        {
+          "c": [0.329,0.212,0.125]
+        },
+        {
+          "c": [0.886,0.886,0.863]
+        },
+        {
+          "c": [0.816,0.204,0.173]
+        },
+        {
+          "c": [0.871,0.729,0.376]
+        },
+        {
+          "c": [0.737,0.588,0.275]
+        }
+      ]
+    },
     "held.dagger": {
       "file": "models/held/dagger.vox",
       "grids": [
@@ -2978,6 +3024,52 @@
         {
           "c": [0.72,0.35,0.95],
           "glow": true
+        }
+      ]
+    },
+    "held.rod": {
+      "file": "models/held/rod.vox",
+      "grids": [
+        {
+          "groups": [
+            {
+              "layers": [
+                {
+                  "layer": "held.rod/base"
+                }
+              ],
+              "name": "held.rod"
+            }
+          ],
+          "max": [24,72,8],
+          "min": [-24,-40,-8],
+          "name": "main",
+          "parts": [
+            "",
+            "item"
+          ]
+        }
+      ],
+      "lods": 1,
+      "palette": [
+        null,
+        {
+          "c": [0.549,0.384,0.22]
+        },
+        {
+          "c": [0.329,0.212,0.125]
+        },
+        {
+          "c": [0.886,0.886,0.863]
+        },
+        {
+          "c": [0.816,0.204,0.173]
+        },
+        {
+          "c": [0.871,0.729,0.376]
+        },
+        {
+          "c": [0.737,0.588,0.275]
         }
       ]
     },
@@ -6574,6 +6666,13 @@
         "grip": "bow",
         "unit": 0.026590910367667673
       },
+      "broom": {
+        "carry_turn": 0,
+        "figure": "held.broom",
+        "fp": [0.36,0.4,0.15,0],
+        "grip": "one_hand",
+        "unit": 0.021
+      },
       "dagger": {
         "carry_turn": 0,
         "figure": "held.dagger",
@@ -6678,6 +6777,13 @@
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
         "unit": 0.019999999552965164
+      },
+      "rod": {
+        "carry_turn": 0,
+        "figure": "held.rod",
+        "fp": [0.36,0.4,0.15,0],
+        "grip": "one_hand",
+        "unit": 0.021
       },
       "shield": {
         "carry_turn": 0,
@@ -6887,13 +6993,83 @@
         "robe": 0
       }
     },
-    "dunmore": {
-      "carry": {
-        "offhand": [
-          "pickaxe",
-          [0.55,0.55,0.6]
-        ]
+    "calder": {
+      "colors": {
+        "boots": [0.26,0.18,0.12],
+        "cape": null,
+        "chest.accent": [0.14,0.27,0.68],
+        "chest.gem": [0.95,0.76,0.24],
+        "chest.main": [0.62,0.64,0.7],
+        "chest.trim": [0.95,0.76,0.24],
+        "hands.accent": [0.294,0.196,0.112],
+        "hands.gem": [0.3,0.2,0.12],
+        "hands.main": [0.42,0.28,0.16],
+        "hands.trim": [0.3,0.2,0.12],
+        "head.accent": [0.14,0.27,0.68],
+        "head.gem": [0.3,0.5,1.0],
+        "head.main": [0.66,0.68,0.74],
+        "head.trim": [0.95,0.76,0.24],
+        "pants": [0.24,0.24,0.3],
+        "shoulders.accent": [0.434,0.4479999999999999,0.48999999999999994],
+        "shoulders.gem": [0.95,0.76,0.24],
+        "shoulders.main": [0.62,0.64,0.7],
+        "shoulders.trim": [0.95,0.76,0.24],
+        "tabard.main": [0.14,0.27,0.68],
+        "tabard.trim": [0.95,0.76,0.24]
       },
+      "features": {
+        "armor": 0,
+        "chest": 3,
+        "emblem": 2,
+        "gloves": 0,
+        "hands": 2,
+        "helm": 4,
+        "helmet": 0,
+        "light": 12,
+        "pauldrons": 0,
+        "robe": 0,
+        "shoulders": 3,
+        "tabard": 1
+      },
+      "hold": [
+        "torch",
+        [1.0,0.75,0.35]
+      ]
+    },
+    "dag": {
+      "colors": {
+        "chest.accent": [0.3,0.26,0.22],
+        "chest.gem": [0.42,0.28,0.16],
+        "chest.main": [0.44,0.36,0.26],
+        "chest.trim": [0.42,0.28,0.16],
+        "hands.accent": [0.294,0.196,0.112],
+        "hands.gem": [0.3,0.2,0.12],
+        "hands.main": [0.42,0.28,0.16],
+        "hands.trim": [0.3,0.2,0.12],
+        "head.accent": [0.602,0.462,0.112],
+        "head.gem": [0.3,0.3,0.32],
+        "head.main": [0.86,0.66,0.16],
+        "head.trim": [0.3,0.3,0.32],
+        "pants": [0.3,0.27,0.24]
+      },
+      "features": {
+        "armor": 0,
+        "chest": 2,
+        "emblem": 0,
+        "gloves": 0,
+        "hands": 2,
+        "helm": 6,
+        "helmet": 0,
+        "light": 9,
+        "pauldrons": 0,
+        "robe": 0
+      },
+      "hold": [
+        "pickaxe",
+        [0.6,0.6,0.66]
+      ]
+    },
+    "dunmore": {
       "colors": {
         "chest.accent": [0.3,0.26,0.22],
         "chest.gem": [0.42,0.28,0.16],
@@ -6926,7 +7102,11 @@
         "mood": 0,
         "pauldrons": 0,
         "robe": 0
-      }
+      },
+      "hold": [
+        "pickaxe",
+        [0.6,0.6,0.66]
+      ]
     },
     "garrick": {
       "colors": {
@@ -6957,9 +7137,9 @@
         "pauldrons": 0,
         "robe": 0
       },
-      "weapon": [
-        "Axe",
-        [0.6,0.62,0.68]
+      "hold": [
+        "hatchet",
+        [0.62,0.64,0.7]
       ]
     },
     "hollis": {
@@ -6988,9 +7168,9 @@
         "pauldrons": 0,
         "robe": 0
       },
-      "weapon": [
-        "Mace",
-        [0.45,0.45,0.5]
+      "hold": [
+        "mace",
+        [0.42,0.42,0.46]
       ]
     },
     "holt": {
@@ -7040,6 +7220,31 @@
       "weapon": [
         "Polearm",
         [0.72,0.72,0.78]
+      ]
+    },
+    "jory": {
+      "colors": {
+        "apron": [0.5,0.36,0.22],
+        "head.accent": [0.602,0.504,0.26599999999999996],
+        "head.gem": [0.7,0.2,0.15],
+        "head.main": [0.86,0.72,0.38],
+        "head.trim": [0.7,0.2,0.15],
+        "pants": [0.4,0.3,0.2],
+        "trim": [0.86,0.72,0.38],
+        "tunic": [0.62,0.5,0.26]
+      },
+      "features": {
+        "armor": 0,
+        "emblem": 0,
+        "gloves": 0,
+        "helm": 5,
+        "helmet": 0,
+        "pauldrons": 0,
+        "robe": 0
+      },
+      "hold": [
+        "hoe",
+        [0.55,0.55,0.6]
       ]
     },
     "maren": {
@@ -7102,13 +7307,95 @@
         [0.8,0.82,0.88]
       ]
     },
-    "ostrin": {
-      "carry": {
-        "offhand": [
-          "hoe",
-          [0.55,0.55,0.6]
-        ]
+    "marl": {
+      "colors": {
+        "apron": [0.82,0.76,0.6],
+        "head.accent": [0.602,0.504,0.26599999999999996],
+        "head.gem": [0.2,0.46,0.62],
+        "head.main": [0.86,0.72,0.38],
+        "head.trim": [0.2,0.46,0.62],
+        "pants": [0.3,0.3,0.36],
+        "trim": [0.9,0.88,0.8],
+        "tunic": [0.26,0.5,0.42]
       },
+      "features": {
+        "armor": 0,
+        "emblem": 0,
+        "gloves": 0,
+        "helm": 5,
+        "helmet": 0,
+        "pauldrons": 0,
+        "robe": 0
+      },
+      "hold": [
+        "rod",
+        [0.55,0.38,0.22]
+      ]
+    },
+    "mira": {
+      "colors": {
+        "boots": [0.26,0.18,0.12],
+        "cape": null,
+        "chest.accent": [0.14,0.27,0.68],
+        "chest.gem": [0.95,0.76,0.24],
+        "chest.main": [0.62,0.64,0.7],
+        "chest.trim": [0.95,0.76,0.24],
+        "hands.accent": [0.294,0.196,0.112],
+        "hands.gem": [0.3,0.2,0.12],
+        "hands.main": [0.42,0.28,0.16],
+        "hands.trim": [0.3,0.2,0.12],
+        "head.accent": [0.14,0.27,0.68],
+        "head.gem": [0.3,0.5,1.0],
+        "head.main": [0.66,0.68,0.74],
+        "head.trim": [0.95,0.76,0.24],
+        "pants": [0.24,0.24,0.3],
+        "shoulders.accent": [0.434,0.4479999999999999,0.48999999999999994],
+        "shoulders.gem": [0.95,0.76,0.24],
+        "shoulders.main": [0.62,0.64,0.7],
+        "shoulders.trim": [0.95,0.76,0.24],
+        "tabard.main": [0.14,0.27,0.68],
+        "tabard.trim": [0.95,0.76,0.24]
+      },
+      "features": {
+        "armor": 0,
+        "body": 1,
+        "chest": 3,
+        "emblem": 2,
+        "gloves": 0,
+        "hands": 2,
+        "helm": 4,
+        "helmet": 0,
+        "light": 12,
+        "pauldrons": 0,
+        "robe": 0,
+        "shoulders": 3,
+        "tabard": 1
+      },
+      "hold": [
+        "torch",
+        [1.0,0.75,0.35]
+      ]
+    },
+    "nell": {
+      "colors": {
+        "apron": [0.95,0.93,0.86],
+        "trim": [0.9,0.88,0.8],
+        "tunic": [0.4,0.5,0.66]
+      },
+      "features": {
+        "armor": 0,
+        "emblem": 0,
+        "gloves": 0,
+        "helmet": 0,
+        "pauldrons": 0,
+        "robe": 1
+      },
+      "hold": [
+        "broom",
+        [0.6,0.45,0.25]
+      ]
+    },
+    "ostrin": {
       "colors": {
         "apron": [0.5,0.36,0.22],
         "hair": [0.45,0.28,0.12],
@@ -7133,7 +7420,97 @@
         "mood": 0,
         "pauldrons": 0,
         "robe": 0
-      }
+      },
+      "hold": [
+        "hoe",
+        [0.55,0.55,0.6]
+      ]
+    },
+    "pell": {
+      "colors": {
+        "chest.accent": [0.3,0.26,0.22],
+        "chest.gem": [0.42,0.28,0.16],
+        "chest.main": [0.4,0.3,0.26],
+        "chest.trim": [0.42,0.28,0.16],
+        "hands.accent": [0.294,0.196,0.112],
+        "hands.gem": [0.3,0.2,0.12],
+        "hands.main": [0.42,0.28,0.16],
+        "hands.trim": [0.3,0.2,0.12],
+        "head.accent": [0.602,0.462,0.112],
+        "head.gem": [0.3,0.3,0.32],
+        "head.main": [0.86,0.66,0.16],
+        "head.trim": [0.3,0.3,0.32],
+        "pants": [0.3,0.27,0.24]
+      },
+      "features": {
+        "armor": 0,
+        "chest": 2,
+        "emblem": 0,
+        "gloves": 0,
+        "hands": 2,
+        "helm": 6,
+        "helmet": 0,
+        "light": 9,
+        "pauldrons": 0,
+        "robe": 0
+      },
+      "hold": [
+        "pickaxe",
+        [0.6,0.6,0.66]
+      ]
+    },
+    "tam": {
+      "colors": {
+        "boots": [0.26,0.18,0.12],
+        "chest.accent": [0.28,0.2,0.14],
+        "chest.gem": [0.42,0.28,0.16],
+        "chest.main": [0.66,0.2,0.14],
+        "chest.trim": [0.42,0.28,0.16],
+        "hands.accent": [0.294,0.196,0.112],
+        "hands.gem": [0.3,0.2,0.12],
+        "hands.main": [0.42,0.28,0.16],
+        "hands.trim": [0.3,0.2,0.12],
+        "pants": [0.3,0.26,0.2]
+      },
+      "features": {
+        "armor": 0,
+        "chest": 2,
+        "emblem": 0,
+        "gloves": 0,
+        "hands": 2,
+        "helmet": 0,
+        "pauldrons": 0,
+        "robe": 0
+      },
+      "hold": [
+        "hatchet",
+        [0.62,0.64,0.7]
+      ]
+    },
+    "tess": {
+      "colors": {
+        "apron": [0.82,0.76,0.6],
+        "head.accent": [0.602,0.504,0.26599999999999996],
+        "head.gem": [0.2,0.46,0.62],
+        "head.main": [0.86,0.72,0.38],
+        "head.trim": [0.2,0.46,0.62],
+        "pants": [0.3,0.3,0.36],
+        "trim": [0.9,0.88,0.8],
+        "tunic": [0.2,0.46,0.62]
+      },
+      "features": {
+        "armor": 0,
+        "emblem": 0,
+        "gloves": 0,
+        "helm": 5,
+        "helmet": 0,
+        "pauldrons": 0,
+        "robe": 0
+      },
+      "hold": [
+        "rod",
+        [0.55,0.38,0.22]
+      ]
     },
     "tilda": {
       "colors": {
@@ -7159,12 +7536,6 @@
       }
     },
     "wenna": {
-      "carry": {
-        "offhand": [
-          "stick",
-          [0.5,0.36,0.2]
-        ]
-      },
       "colors": {
         "apron": [0.82,0.76,0.6],
         "hair": [0.85,0.85,0.82],
@@ -7191,7 +7562,39 @@
         "mood": 0,
         "pauldrons": 0,
         "robe": 0
-      }
+      },
+      "hold": [
+        "rod",
+        [0.55,0.38,0.22]
+      ]
+    },
+    "wyn": {
+      "colors": {
+        "boots": [0.26,0.18,0.12],
+        "chest.accent": [0.28,0.2,0.14],
+        "chest.gem": [0.42,0.28,0.16],
+        "chest.main": [0.3,0.46,0.24],
+        "chest.trim": [0.42,0.28,0.16],
+        "hands.accent": [0.294,0.196,0.112],
+        "hands.gem": [0.3,0.2,0.12],
+        "hands.main": [0.42,0.28,0.16],
+        "hands.trim": [0.3,0.2,0.12],
+        "pants": [0.3,0.26,0.2]
+      },
+      "features": {
+        "armor": 0,
+        "chest": 2,
+        "emblem": 0,
+        "gloves": 0,
+        "hands": 2,
+        "helmet": 0,
+        "pauldrons": 0,
+        "robe": 0
+      },
+      "hold": [
+        "hatchet",
+        [0.62,0.64,0.7]
+      ]
     }
   },
   "player": {
@@ -7322,13 +7725,98 @@
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Ansel",
-        "npc": "ansel"
+        "name": "Nell",
+        "npc": "nell"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Tam",
+        "npc": "tam"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Wyn",
+        "npc": "wyn"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Jory",
+        "npc": "jory"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Marl",
+        "npc": "marl"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Dag",
+        "npc": "dag"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Calder",
+        "npc": "calder"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Tess",
+        "npc": "tess"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Mira",
+        "npc": "mira"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Pell",
+        "npc": "pell"
       },
       {
         "color": [0.4,0.5,0.6],
         "name": "Brannoc",
         "npc": "brannoc"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Hollis",
+        "npc": "hollis"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Maren",
+        "npc": "maren"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Tilda",
+        "npc": "tilda"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Holt",
+        "npc": "holt"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Ansel",
+        "npc": "ansel"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Garrick",
+        "npc": "garrick"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Ostrin",
+        "npc": "ostrin"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Wenna",
+        "npc": "wenna"
       },
       {
         "color": [0.4,0.5,0.6],
@@ -7339,41 +7827,6 @@
         "color": [0.4,0.5,0.6],
         "name": "Dunmore",
         "npc": "dunmore"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Garrick",
-        "npc": "garrick"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Hollis",
-        "npc": "hollis"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Holt",
-        "npc": "holt"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Maren",
-        "npc": "maren"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Ostrin",
-        "npc": "ostrin"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Tilda",
-        "npc": "tilda"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Wenna",
-        "npc": "wenna"
       },
       {
         "color": [0.5,0.5,0.5],
@@ -7728,7 +8181,7 @@
       },
       {
         "name": "Named townsfolk",
-        "on": [4,5,6,7,8,9,10,11,12,13,14]
+        "on": [4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]
       },
       {
         "hero": true,
@@ -7847,7 +8300,7 @@
         },
         "hero": true,
         "name": "warrior",
-        "on": [15],
+        "on": [25],
         "weapon": [
           "Sword",
           [0.8,0.82,0.88]
@@ -7878,7 +8331,7 @@
         },
         "hero": true,
         "name": "paladin",
-        "on": [16],
+        "on": [26],
         "weapon": [
           "Mace",
           [0.95,0.76,0.24]
@@ -7914,7 +8367,7 @@
         },
         "hero": true,
         "name": "hunter",
-        "on": [17],
+        "on": [27],
         "weapon": [
           "Bow",
           [0.62,0.42,0.2]
@@ -7960,7 +8413,7 @@
         },
         "hero": true,
         "name": "rogue",
-        "on": [18],
+        "on": [28],
         "weapon": [
           "Dagger",
           [0.82,0.84,0.9]
@@ -7992,7 +8445,7 @@
         },
         "hero": true,
         "name": "priest",
-        "on": [19],
+        "on": [29],
         "weapon": [
           "Staff",
           [0.95,0.8,0.35]
@@ -8014,7 +8467,7 @@
         },
         "hero": true,
         "name": "mage",
-        "on": [20],
+        "on": [30],
         "weapon": [
           "Staff",
           [0.4,0.8,1.0]
