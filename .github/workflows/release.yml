@@ -54,6 +54,15 @@ jobs:
       - name: Linux audio headers
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+      - name: Protocol buffers compiler (the raft crate builds with it where it has no bundled one)
+        shell: bash
+        run: |
+          case "$RUNNER_OS" in
+            Linux) sudo apt-get install -y protobuf-compiler ;;
+            macOS) brew install protobuf ;;
+            Windows) choco install protoc -y --no-progress ;;
+          esac
+          protoc --version
       - run: cargo build --release --locked -p dyno --target ${{ matrix.target }}
       - name: Collect binary
         shell: bash

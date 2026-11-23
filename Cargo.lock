@@ -777,7 +777,7 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 
 [[package]]
 name = "dyno"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "dyno-bot",
  "dyno-client",
@@ -789,7 +789,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-bot"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "dyno-client",
  "dyno-protocol",
@@ -803,7 +803,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-client"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bytemuck",
  "directories",
@@ -825,7 +825,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-protocol"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "dyno-sim",
  "dyno-world",
@@ -835,7 +835,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-server"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "dyno-protocol",
  "dyno-sim",
@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-sim"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "dyno-world",
  "glam",
@@ -862,7 +862,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-update"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "ed25519-dalek",
  "self-replace",
@@ -875,7 +875,7 @@ dependencies = [
 
 [[package]]
 name = "dyno-world"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "serde",
  "serde_json",
