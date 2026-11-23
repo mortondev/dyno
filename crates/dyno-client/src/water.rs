@@ -906,6 +906,9 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   let glint = smoothstep(0.990, 0.996, dot(reflect(-V, ns), ldir));
   let glint_c = select(vec3<f32>(1.0, 0.93, 0.78) * u.light.rgb, vec3<f32>(0.62, 0.72, 0.95) * u.sun.w, moon);
   col += glint_c * (glint * K.surf.z * vis * sl * 0.9);
+  // and by day a cell here and there on a swell twinkles
+  let twinkle = step(0.9975, hash2(cell + vec2<f32>(tick * 3.0, tick * 17.0))) * smoothstep(0.5, 0.7, h0);
+  col += vec3<f32>(1.0, 0.97, 0.9) * u.light.rgb * (twinkle * K.surf.z * vis * sl * (1.0 - u.sun.w) * 0.55);
 
   // foam, in squares: against the shore and anything standing in the
   // water, a broken line a little way out, and all over white water
