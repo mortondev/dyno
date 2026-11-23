@@ -34,6 +34,10 @@ pub struct Settings {
     /// 0 plain water; 1 the bed seen through it and the far land mirrored;
     /// 2 everything on screen mirrored (water.rs)
     pub water_quality: u8,
+    /// the ground's voxel shading: 0 none, 1 creases where voxels meet,
+    /// 2 also the lips of steps and ledges (fine.rs); no more than
+    /// `graphics` allows (low none, medium creases)
+    pub ground_shading: u8,
     /// random ID of this install; servers bind your name to it
     pub token: u64,
 }
@@ -54,6 +58,7 @@ impl Default for Settings {
             graphics: u8::MAX,
             life: 2,
             water_quality: 2,
+            ground_shading: 2,
             token: 0,
         }
     }

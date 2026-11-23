@@ -5717,6 +5717,13 @@ impl ApplicationHandler for App {
                 g.water.quality = opts.water;
                 g.cover.set_quality(opts.cover);
                 crate::foliage::set_detail(opts.leaves);
+                // the ground's voxel shading as the graphics setting allows:
+                // none on low, creases on medium, creases and lips above
+                crate::fine::set_shading(
+                    self.settings
+                        .ground_shading
+                        .min(self.settings.graphics.min(2)),
+                );
                 crate::theme::apply(&self.egui_ctx);
                 self.egui_ctx.style_mut(|s| {
                     s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);

@@ -269,6 +269,28 @@ pass), the 18 gauntlet cameras (`tools/concepts/shots.py`, `dyno shot
   per block (warm golden sand, yellow-green grass, warm earth, toward the
   concepts), times the slow world tone. Geometry only knows the kind of
   ground.
+- **Corner shading** (Cube World's crisp per-voxel kind; the light
+  lane's screen-space occlusion handles the large scale). Each corner of a
+  voxel face is darkened by how many of the three voxels round it in front
+  of the face are filled (`ao`), and a top face's corner on a convex edge
+  is lit (`lip`): creases where steps meet, at the foot of ledges and
+  along path edges, and bright lips on steps and ledges. A corner's value
+  depends only on the voxels round it, so faces that share it agree. The
+  four-corner pattern is part of what faces merge on, so open level ground
+  still merges whole and only one-voxel strips split off along creases and
+  lips. Only within `shade_within` (24 m) of the camera. Per block
+  `shade` scales it: grass at about half, rock and paving in full.
+- **Gentle slopes.** On a slope (a mixed layer) each fine column reads
+  the field a little above or below itself (`terrace`, `terrace_size`),
+  so steps bunch in places and open into longer flat runs in others,
+  instead of ruled lines; a vertical wall does not change with height, so
+  cliffs are not moved. Grass and sand are lit partly by the slope the
+  voxels make (`smooth`: the field's gradient, blended per vertex), so a
+  meadow does not stripe into lit treads and dark risers; rock keeps its
+  own faces' light. (The face's direction travels in `tex.x`, since the
+  normal may be bent.)
+- **Setting.** `ground_shading` (0 none, 1 creases, 2 creases and lips),
+  no more than `graphics` allows (low none, medium creases).
 - **Meshing.** Faces are culled against filled voxels (ground, or built
   blocks: ground touching anything another mesher draws keeps that side
   whole, so the other side's hidden face never shows), merged greedily
@@ -296,8 +318,27 @@ pass), the 18 gauntlet cameras (`tools/concepts/shots.py`, `dyno shot
 
 All of it is data in `blocks.json` (`terrain`): voxels a metre, the levels
 of detail, noise and strata strength and size, edge reach and size, cover
-depth, jitter, and per block `under`, `jitter`, `tint`, `saturation`,
-`edge` and `inset`. The mesher is generic.
+depth, jitter, corner shading (`ao`, `lip`, `shade_within`), step
+wander (`terrace`, `terrace_size`), and per block `under`, `jitter`,
+`tint`, `saturation`, `shade`, `smooth`, `edge` and `inset`. The mesher
+is generic.
+
+### Corner shading and gentle slopes: evidence
+
+The 18 cameras with the same binary and world, ground shading off (left)
+and on (right), so only it differs: `visuals/ground-shading/<camera>.jpg`;
+contact sheets `contact-off.jpg`, `contact-on.jpg`, and main before this
+pass `contact-main.jpg`.
+
+| | shading off | shading on | |
+|---|---|---|---|
+| world vertices, median of 18 | 6.12 M | 6.88 M | 1.13× (worst 1.22×) |
+| ground vertices, median | 3.55 M | 4.28 M | 1.23× (worst 1.33×) |
+
+Against main before this pass the world is 1.14× (worst 1.24×). Load and
+frame times on this machine were dominated by its load (shading off came
+out slower than on), so they are not a measure here; the cost is in
+vertices, all within 24 m of the camera.
 
 ### Rules that keep it seamless
 
@@ -308,7 +349,8 @@ closed surface of voxel faces, each drawn once, at 8, 4 and 1 a metre,
 across section borders), `neighbours_decide_shared_voxels_alike`,
 `sections_agree_at_their_borders` (same corner and facing, same light),
 `ground_keeps_its_side_against_built_blocks`, `a_thin_roof_has_no_holes`,
-`flat_ground_sits_on_the_grid`, `feet_follow_the_drawn_ground` and the
+`flat_ground_sits_on_the_grid`, `feet_follow_the_drawn_ground`,
+`creases_are_shaded` and the
 world worker's test (its meshes cover the same ground as meshing the whole
 world at once).
 
@@ -342,9 +384,6 @@ planes rather than block by block.
 
 ### Still to do
 
-- Fine ambient occlusion: ground is lit by its facing, sun shadows and
-  occlusion from built blocks only; per-voxel corner occlusion would read
-  more like Cube World but defeats merging.
 - Leaves are not part of this (the vegetation pass draws voxel clumps).
 - Collision stays on the 1 m grid: feet are drawn on the fine surface, up
   to 0.7 m from where the body stands.
