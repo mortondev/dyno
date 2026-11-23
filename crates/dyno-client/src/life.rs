@@ -413,7 +413,9 @@ impl Life {
                 fx: &mut sink.1,
                 glow: &mut sink.2,
             };
-            self.particles.scan_all = i == 0;
+            // the first call may make the state anew (and forget the
+            // request), so ask on the second too
+            self.particles.scan_all = i <= 1;
             self.critters.settle_now = true;
             self.frame(s, clock - (40 - i) as f64 * 0.1, 0.1, quality, &mut out);
             sink.0.clear();

@@ -248,7 +248,7 @@ impl Critters {
         let eye = s.eye;
         let far = |rule: &Rule, kind: &Kind, cx: i32, cz: i32| {
             let c = rule.cell;
-            let reach = radius.max(kind.reach * radius / 70.0) + c * 1.5;
+            let reach = (kind.reach * radius / 70.0).min(radius * 2.0) + c * 1.5;
             ((cx as f32 + 0.5) * c - eye.x).abs() > reach
                 || ((cz as f32 + 0.5) * c - eye.z).abs() > reach
         };
@@ -263,7 +263,7 @@ impl Critters {
         for (ri, rule) in self.rules.iter().enumerate() {
             let kind = &self.kinds[rule.kind as usize];
             let c = rule.cell;
-            let reach = radius.max(kind.reach * radius / 70.0);
+            let reach = (kind.reach * radius / 70.0).min(radius * 2.0);
             let (x0, x1) = (
                 ((eye.x - reach) / c).floor() as i32,
                 ((eye.x + reach) / c).floor() as i32,
@@ -400,6 +400,20 @@ impl Critters {
                 v.sky = sky;
             }
             counts.critters += 1;
+        }
+        if std::env::var_os("DYNO_LIFE_DEBUG").is_some() {
+            let mut by = vec![0usize; self.kinds.len()];
+            for c in &self.list {
+                by[c.kind as usize] += 1;
+            }
+            let names: Vec<&String> = _d.critters.keys().collect();
+            let list: Vec<String> = names
+                .iter()
+                .zip(&by)
+                .filter(|(_, n)| **n > 0)
+                .map(|(k, n)| format!("{k} {n}"))
+                .collect();
+            eprintln!("life: critters near: {}", list.join(", "));
         }
     }
 }
