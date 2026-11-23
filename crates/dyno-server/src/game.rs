@@ -213,7 +213,11 @@ pub struct State {
     pub spawn_points: Vec<crate::camps::SpawnPoint>,
     pub zone_clock: f32,
     /// nodes resting after gathering (trees, bushes): until (unix seconds)
-    pub depleted: HashMap<[i32; 3], u64>,
+    /// nodes a player has gathered, and when each is theirs again: a node
+    /// rests for the one who took from it, not for everyone (a second
+    /// player at the same tree was told "gathered recently" with nothing
+    /// to show why)
+    pub depleted: HashMap<([i32; 3], PlayerId), u64>,
     /// the Nightfall Incursion, when one is under way
     pub incursion: Option<crate::events::Incursion>,
     /// the phase the next spawned creature belongs to (set by camps)

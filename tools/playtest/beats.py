@@ -2,10 +2,15 @@
 sections 3 to 5 and 12): one row per report, medians over its bots.
 
     python3 tools/playtest/beats.py REPORT.json [REPORT.json ...]
+    python3 tools/playtest/beats.py --by class|brain REPORT.json    (one row per class or brain of one mixed swarm)
 
 Times are minutes:seconds from the join. "-" means no bot got there.
 """
-import json, math, statistics, sys
+import json, math, os, statistics, sys
+
+# quests that pay in gear (a choice of items), from the pack's rules
+_RULES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "content", "rules", "hearthblock.json")
+GEAR_QUESTS = {q["key"] for q in json.load(open(_RULES))["quests"] if q.get("choice")}
 
 
 def med(xs):
@@ -25,9 +30,7 @@ def level_at(curve, level):
     return next((t for t, l, _ in curve if l >= level), None)
 
 
-def row(path):
-    d = json.load(open(path))
-    tels = d["telemetry"]
+def row(tels):
     out = {}
     out["bots"] = len(tels)
     out["first kill"] = med([t["first_kill"] for t in tels])
@@ -38,6 +41,9 @@ def row(path):
         if t["track"] else None for t in tels])
     out["first discovery"] = med([first(t["rewards"], "new_area") for t in tels])
     out["first upgrade"] = med([t.get("first_upgrade") for t in tels])
+    out["gear reward"] = med([
+        min((q["done"] for q in t["quests"] if q["done"] is not None and q["key"] in GEAR_QUESTS), default=None)
+        for t in tels])
 
     def second_ability(t):
         casts = sorted(v for k, v in t.get("first_casts", {}).items() if k != "Recall")
@@ -49,7 +55,12 @@ def row(path):
     out["level at end"] = med([t["level"] for t in tels])
     gaps, longest = [], []
     for t in tels:
-        ts = [0.0] + [x for x, _ in t["rewards"]] + [t["secs"]]
+        # moments within 2 s of each other are one (a kill, its loot, a level)
+        ts = [0.0]
+        for x, _ in t["rewards"]:
+            if x - ts[-1] > 2.0 or len(ts) == 1:
+                ts.append(x)
+        ts.append(t["secs"])
         g = [b - a for a, b in zip(ts, ts[1:])]
         gaps.append(statistics.median(g))
         longest.append(max(g))
@@ -69,20 +80,34 @@ def row(path):
     return out
 
 
-COLS = ["first kill", "first loot", "out of town", "first discovery", "first upgrade", "second ability",
+COLS = ["first kill", "first loot", "out of town", "first discovery", "gear reward", "first upgrade", "second ability",
         "level 2", "level 3", "level 4", "level 5", "level at end", "quests", "reward gap", "longest gap",
         "worst gap", "deaths/h", "travel %", "money", "party at"]
-TIMES = {"first kill", "first loot", "out of town", "first discovery", "first upgrade", "second ability",
+TIMES = {"gear reward", "first kill", "first loot", "out of town", "first discovery", "first upgrade", "second ability",
          "level 2", "level 3", "level 4", "level 5", "longest gap", "worst gap", "party at"}
 
 print("| run | " + " | ".join(COLS) + " |")
 print("|---|" + "---|" * len(COLS))
-for p in sys.argv[1:]:
+args = sys.argv[1:]
+by = None
+if args and args[0] == "--by":
+    by, args = args[1], args[2:]
+groups = []
+for p in args:
+    name = p.split("/")[-1][:-5]
     try:
-        r = row(p)
+        tels = json.load(open(p))["telemetry"]
     except Exception as e:  # a run that did not finish
-        print(f"| {p.split('/')[-1][:-5]} | (no report: {e}) |")
+        print(f"| {name} | (no report: {e}) |")
         continue
+    if by:
+        for k in sorted({t[by] for t in tels}):
+            groups.append((k, [t for t in tels if t[by] == k]))
+        groups.append(("all", tels))
+    else:
+        groups.append((name, tels))
+for name, tels in groups:
+    r = row(tels)
     cells = []
     for c in COLS:
         v = r[c]
@@ -98,4 +123,4 @@ for p in sys.argv[1:]:
             cells.append(f"{v:.0f}%")
         else:
             cells.append(f"{v:g}")
-    print(f"| {p.split('/')[-1][:-5]} | " + " | ".join(cells) + " |")
+    print(f"| {name} ({r['bots']}) | " + " | ".join(cells) + " |")

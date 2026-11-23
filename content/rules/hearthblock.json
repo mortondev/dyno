@@ -7945,11 +7945,11 @@
    "title": "Boar Trouble",
    "level": 3,
    "giver": "holt",
-   "text": "Thornboars charge anything on the north road. Six fewer would make it walkable again.",
+   "text": "Thornboars charge anything on the north road. Five fewer would make it walkable again.",
    "objectives": [
     {
      "kill": "thornboar",
-     "count": 6
+     "count": 5
     }
    ],
    "requires": [
@@ -10146,14 +10146,14 @@
     },
     {
      "creature": "thornboar",
-     "count": 3,
+     "count": 4,
      "place": "north_watch",
      "at": [
       -70,
       -40
      ],
      "spread": 16,
-     "respawn": 120
+     "respawn": 75
     },
     {
      "creature": "old_tusk",
@@ -10163,7 +10163,7 @@
       -135,
       -70
      ],
-     "spread": 4,
+     "spread": 14,
      "respawn": 150,
      "levels": [
       4,

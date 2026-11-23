@@ -27,7 +27,7 @@ r["creatures"].append(tusk)
 for c in areas["birchrise"]["camps"]:
     c.pop("rare", None)
 areas["birchrise"]["camps"].append(
-    {"creature": "old_tusk", "count": 1, "place": "north_watch", "at": [-135, -70], "spread": 4,
+    {"creature": "old_tusk", "count": 1, "place": "north_watch", "at": [-135, -70], "spread": 14,
      "respawn": 150, "levels": [4, 4]})
 r["quests"].append({
     "key": "old_tusk", "title": "Old Tusk (Group)", "level": 4, "giver": "holt", "requires": ["boar_trouble"],
@@ -59,6 +59,13 @@ quests["lay_of_the_land"]["text"] = (
 quests["iron_for_hollis"]["text"] = (
     "The Old Quarry has iron beside the coal. You need a stone pickaxe (Brannoc gives one for kindling) "
     "and Mining 5: dig coal until you have it. Bring me 6 raw iron.")
+
+# three players at Holt's boars at once got two each from packs of three
+for c in areas["birchrise"]["camps"]:
+    if c["creature"] == "thornboar" and c.get("place") == "north_watch":
+        c["count"], c["respawn"] = 4, 75
+quests["boar_trouble"]["objectives"][0]["count"] = 5
+quests["boar_trouble"]["text"] = quests["boar_trouble"]["text"].replace("6", "5").replace("six", "five")
 
 json.dump(r, open(PATH, "w"), indent=1)
 open(PATH, "a").write("\n")
