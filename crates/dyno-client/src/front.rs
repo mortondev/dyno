@@ -188,6 +188,16 @@ impl Front {
         }
     }
 
+    /// How far right (in clip space, -1 to 1) to draw the 3D preview, so the
+    /// character stands in the space the panels leave free.
+    pub fn preview_offset(&self) -> f32 {
+        match self.page {
+            Page::Class => 0.27,
+            Page::Appearance | Page::Name => 0.34,
+            _ => 0.0,
+        }
+    }
+
     pub fn randomise(&mut self, seed: u32) {
         let mut h = seed.wrapping_mul(2_654_435_761) | 1;
         let mut next = |n: u32| {
@@ -881,44 +891,7 @@ fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
     );
     match f.page {
         Page::Class => {
-            panel(ctx, "classes", left, |ui| {
-                ui.label(
-                    RichText::new("Choose your class")
-                        .font(theme::title_font(18.0))
-                        .color(theme::GOLD),
-                );
-                theme::ui_divider(ui, theme::GOLD_DARK);
-                egui::ScrollArea::vertical().show(ui, |ui| {
-                    for (i, c) in classes.iter().enumerate() {
-                        let col = Color32::from_rgb(
-                            (c.color[0] * 255.0) as u8,
-                            (c.color[1] * 255.0) as u8,
-                            (c.color[2] * 255.0) as u8,
-                        );
-                        let sel = i == f.class;
-                        let text =
-                            RichText::new(format!("{}   ·   {} · {}", c.name, c.armor, c.resource))
-                                .font(theme::title_font(16.0))
-                                .color(col);
-                        if ui.selectable_label(sel, text).clicked() {
-                            f.class = i;
-                        }
-                        if sel {
-                            ui.label(
-                                RichText::new(&c.blurb)
-                                    .font(theme::body_font(15.0))
-                                    .color(theme::TEXT),
-                            );
-                            ui.label(
-                                RichText::new(format!("Abilities: {}", c.abilities.join(", ")))
-                                    .font(theme::body_font(13.0))
-                                    .color(theme::TEXT_DIM),
-                            );
-                        }
-                        ui.add_space(6.0);
-                    }
-                });
-            });
+            class_cards(ctx, f, &classes, screen);
         }
         Page::Appearance => {
             panel(ctx, "looks", left, |ui| {
@@ -935,13 +908,7 @@ fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
                 theme::ui_divider(ui, theme::GOLD_DARK);
                 swatches(ui, "Skin", &mut f.look.skin, &Look::SKINS);
                 swatches(ui, "Eyes", &mut f.look.eyes, &Look::EYES);
-                stepper(
-                    ui,
-                    "Hair style",
-                    &mut f.look.hair_style,
-                    5,
-                    Some(&["Bald", "Short", "Long", "Hood", "Bun"]),
-                );
+                hair_thumbs(ui, &mut f.look);
                 swatches(ui, "Hair colour", &mut f.look.hair_color, &Look::HAIRS);
                 let mut beard = f.look.beard as u8;
                 stepper(ui, "Beard", &mut beard, 2, Some(&["None", "Beard"]));
@@ -1073,4 +1040,377 @@ fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
         }
     });
     f.turn += drag * 0.01;
+}
+
+fn col32(c: [f32; 3]) -> Color32 {
+    Color32::from_rgb(
+        (c[0].clamp(0.0, 1.0) * 255.0) as u8,
+        (c[1].clamp(0.0, 1.0) * 255.0) as u8,
+        (c[2].clamp(0.0, 1.0) * 255.0) as u8,
+    )
+}
+
+/// Roles and how hard a class is to play well (1 to 3), by class key.
+fn class_meta(key: &str) -> (&'static [&'static str], u8) {
+    match key {
+        "warrior" => (&["Tank", "Damage"], 1),
+        "paladin" => (&["Healer", "Damage"], 2),
+        "hunter" => (&["Damage"], 1),
+        "rogue" => (&["Damage"], 3),
+        "priest" => (&["Healer"], 2),
+        "mage" => (&["Damage"], 2),
+        _ => (&["Damage"], 2),
+    }
+}
+
+fn difficulty_text(d: u8) -> &'static str {
+    match d {
+        1 => "Easy",
+        2 => "Moderate",
+        _ => "Hard",
+    }
+}
+
+/// Small diamonds: filled up to `d` of 3.
+fn diamonds(p: &egui::Painter, right_center: Pos2, d: u8) {
+    for k in 0..3 {
+        let c = right_center + Vec2::new(-(2 - k) as f32 * 11.0, 0.0);
+        let pts = vec![
+            c + Vec2::new(0.0, -4.5),
+            c + Vec2::new(4.5, 0.0),
+            c + Vec2::new(0.0, 4.5),
+            c + Vec2::new(-4.5, 0.0),
+        ];
+        let fill = if (k as u8) < d {
+            theme::GOLD_BRIGHT
+        } else {
+            Color32::TRANSPARENT
+        };
+        p.add(egui::Shape::convex_polygon(
+            pts,
+            fill,
+            egui::Stroke::new(1.0_f32, theme::GOLD_DARK),
+        ));
+    }
+}
+
+/// Step 1: the six classes as cards, and the chosen one in detail.
+fn class_cards(ctx: &egui::Context, f: &mut Front, classes: &[ClassInfo], screen: Rect) {
+    let top = screen.top() + 64.0;
+    let bottom = screen.bottom() - 90.0;
+    let rows = classes.len().div_ceil(2).max(1);
+    let gap = 12.0;
+    let cw = ((screen.width() * 0.5 - 40.0) / 2.0).clamp(220.0, 320.0);
+    let ch = ((bottom - top - gap * (rows as f32 - 1.0)) / rows as f32).min(170.0);
+    egui::Area::new(egui::Id::new("class-cards"))
+        .fixed_pos(Pos2::new(screen.left() + 20.0, top))
+        .order(egui::Order::Foreground)
+        .show(ctx, |ui| {
+            for (i, c) in classes.iter().enumerate() {
+                let (row, colm) = (i / 2, i % 2);
+                let r = Rect::from_min_size(
+                    Pos2::new(
+                        screen.left() + 20.0 + colm as f32 * (cw + gap),
+                        top + row as f32 * (ch + gap),
+                    ),
+                    Vec2::new(cw, ch),
+                );
+                let resp = ui.interact(r, egui::Id::new(("class-card", i)), egui::Sense::click());
+                if resp.clicked() {
+                    f.class = i;
+                }
+                let sel = i == f.class;
+                let p = ui.painter();
+                let tint = col32(c.color);
+                p.rect_filled(r, 6.0, Color32::from_rgba_unmultiplied(28, 20, 14, 235));
+                if resp.hovered() && !sel {
+                    p.rect_filled(r, 6.0, Color32::from_white_alpha(10));
+                }
+                p.rect_stroke(
+                    r,
+                    6.0,
+                    egui::Stroke::new(
+                        if sel { 2.5_f32 } else { 1.0 },
+                        if sel {
+                            theme::GOLD_BRIGHT
+                        } else {
+                            theme::GOLD_DARK
+                        },
+                    ),
+                    egui::StrokeKind::Inside,
+                );
+                // crest: a shield in the class colour with its initial
+                let crest =
+                    Rect::from_min_size(r.min + Vec2::new(12.0, 12.0), Vec2::new(30.0, 34.0));
+                let sh = vec![
+                    crest.left_top(),
+                    crest.right_top(),
+                    Pos2::new(crest.right(), crest.top() + 20.0),
+                    Pos2::new(crest.center().x, crest.bottom()),
+                    Pos2::new(crest.left(), crest.top() + 20.0),
+                ];
+                p.add(egui::Shape::convex_polygon(
+                    sh,
+                    tint.gamma_multiply(0.85),
+                    egui::Stroke::new(1.5_f32, theme::GOLD),
+                ));
+                p.text(
+                    crest.center() - Vec2::new(0.0, 3.0),
+                    Align2::CENTER_CENTER,
+                    c.name.chars().next().unwrap_or('?').to_string(),
+                    theme::title_font(16.0),
+                    Color32::from_rgb(250, 240, 220),
+                );
+                p.text(
+                    Pos2::new(crest.right() + 10.0, r.top() + 14.0),
+                    Align2::LEFT_TOP,
+                    &c.name,
+                    theme::title_font(19.0),
+                    tint,
+                );
+                let (roles, diff) = class_meta(&c.key);
+                p.text(
+                    Pos2::new(r.right() - 12.0, r.top() + 12.0),
+                    Align2::RIGHT_TOP,
+                    "DIFFICULTY",
+                    theme::body_font(9.0),
+                    theme::TEXT_DIM,
+                );
+                diamonds(p, Pos2::new(r.right() - 16.0, r.top() + 30.0), diff);
+                p.text(
+                    Pos2::new(crest.right() + 10.0, r.top() + 38.0),
+                    Align2::LEFT_TOP,
+                    format!("{} · {} · {}", roles.join(" / "), c.armor, c.resource),
+                    theme::body_font(12.5),
+                    theme::TEXT_DIM,
+                );
+                // the blurb, wrapped
+                let galley = p.layout(
+                    c.blurb.clone(),
+                    theme::body_font(13.5),
+                    theme::TEXT,
+                    cw - 24.0,
+                );
+                let blurb_h = galley.size().y;
+                p.galley(
+                    Pos2::new(r.left() + 12.0, r.top() + 58.0),
+                    galley,
+                    theme::TEXT,
+                );
+                // signature abilities
+                let ay = (r.top() + 64.0 + blurb_h).min(r.bottom() - 26.0);
+                let mut x = r.left() + 12.0;
+                for a in c.abilities.iter().take(3) {
+                    let g = p.layout_no_wrap(a.clone(), theme::body_font(11.5), theme::GOLD);
+                    let w = g.size().x + 14.0;
+                    if x + w > r.right() - 8.0 {
+                        break;
+                    }
+                    let pill = Rect::from_min_size(Pos2::new(x, ay), Vec2::new(w, 18.0));
+                    p.rect_filled(pill, 4.0, Color32::from_black_alpha(110));
+                    p.rect_stroke(
+                        pill,
+                        4.0,
+                        egui::Stroke::new(1.0_f32, theme::GOLD_DARK),
+                        egui::StrokeKind::Inside,
+                    );
+                    p.galley(pill.min + Vec2::new(7.0, 2.0), g, theme::GOLD);
+                    x += w + 6.0;
+                }
+                if sel {
+                    let tag = Rect::from_min_size(
+                        Pos2::new(r.right() - 74.0, r.top() - 8.0),
+                        Vec2::new(64.0, 15.0),
+                    );
+                    p.rect_filled(tag, 3.0, theme::GOLD);
+                    p.text(
+                        tag.center(),
+                        Align2::CENTER_CENTER,
+                        "SELECTED",
+                        theme::body_font(9.5),
+                        theme::INK,
+                    );
+                }
+            }
+        });
+    // the chosen class in detail, on the right
+    let Some(c) = classes.get(f.class) else {
+        return;
+    };
+    let (roles, diff) = class_meta(&c.key);
+    let r = Rect::from_min_size(
+        Pos2::new(screen.right() - 300.0, top),
+        Vec2::new(280.0, (bottom - top).min(470.0)),
+    );
+    panel(ctx, "class-detail", r, |ui| {
+        ui.label(
+            RichText::new(&c.name)
+                .font(theme::title_font(24.0))
+                .color(col32(c.color)),
+        );
+        ui.label(
+            RichText::new(roles.join(" · "))
+                .font(theme::body_font(14.0))
+                .color(theme::TEXT_DIM),
+        );
+        theme::ui_divider(ui, theme::GOLD_DARK);
+        ui.label(
+            RichText::new(&c.blurb)
+                .font(theme::body_font(15.0))
+                .color(theme::TEXT),
+        );
+        ui.add_space(8.0);
+        egui::Grid::new("class-facts")
+            .num_columns(2)
+            .spacing([14.0, 4.0])
+            .show(ui, |ui| {
+                for (k, v) in [
+                    ("ARMOUR", c.armor.clone()),
+                    ("RESOURCE", c.resource.clone()),
+                    ("DIFFICULTY", difficulty_text(diff).to_string()),
+                ] {
+                    ui.label(
+                        RichText::new(k)
+                            .font(theme::body_font(11.0))
+                            .color(theme::TEXT_DIM),
+                    );
+                    ui.label(
+                        RichText::new(v)
+                            .font(theme::body_font(14.0))
+                            .color(theme::TEXT),
+                    );
+                    ui.end_row();
+                }
+            });
+        ui.add_space(8.0);
+        ui.label(
+            RichText::new("SIGNATURE ABILITIES")
+                .font(theme::body_font(11.0))
+                .color(theme::TEXT_DIM),
+        );
+        for a in &c.abilities {
+            ui.label(
+                RichText::new(format!("•  {a}"))
+                    .font(theme::body_font(14.5))
+                    .color(theme::GOLD),
+            );
+        }
+    });
+}
+
+/// Hair styles as little portraits in the chosen skin and hair colours.
+fn hair_thumbs(ui: &mut egui::Ui, look: &mut Appearance) {
+    const NAMES: [&str; 5] = ["Bald", "Short", "Long", "Hood", "Bun"];
+    ui.horizontal(|ui| {
+        ui.label(
+            RichText::new("Hair style")
+                .font(theme::title_font(13.0))
+                .color(theme::GOLD),
+        );
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.label(
+                RichText::new(NAMES[look.hair_style as usize % 5])
+                    .font(theme::body_font(14.0))
+                    .color(theme::TEXT),
+            );
+        });
+    });
+    let skin = col32(Look::SKINS[look.skin as usize % Look::SKINS.len()]);
+    let hair = col32(Look::HAIRS[look.hair_color as usize % Look::HAIRS.len()]);
+    let eyes = col32(Look::EYES[look.eyes as usize % Look::EYES.len()]);
+    let hood = Color32::from_rgb(92, 70, 52);
+    ui.horizontal(|ui| {
+        for style in 0..5u8 {
+            let (r, resp) = ui.allocate_exact_size(Vec2::new(64.0, 70.0), egui::Sense::click());
+            if resp.clicked() {
+                look.hair_style = style;
+            }
+            let on = look.hair_style == style;
+            let p = ui.painter();
+            p.rect_filled(
+                r,
+                4.0,
+                Color32::from_black_alpha(if resp.hovered() { 90 } else { 130 }),
+            );
+            p.rect_stroke(
+                r,
+                4.0,
+                egui::Stroke::new(
+                    if on { 2.5_f32 } else { 1.0 },
+                    if on {
+                        theme::GOLD_BRIGHT
+                    } else {
+                        theme::OUTLINE
+                    },
+                ),
+                egui::StrokeKind::Inside,
+            );
+            // a head 8 "pixels" wide, each pixel 4 points
+            let u = 4.0;
+            let o = r.center() - Vec2::new(4.0 * u, 4.5 * u);
+            let px = |x: f32, y: f32, w: f32, h: f32, c: Color32| {
+                p.rect_filled(
+                    Rect::from_min_size(o + Vec2::new(x * u, y * u), Vec2::new(w * u, h * u)),
+                    0.0,
+                    c,
+                );
+            };
+            // behind the head
+            match style {
+                2 => px(-0.5, 1.0, 9.0, 8.5, hair),
+                3 => px(-1.0, -1.0, 10.0, 11.0, hood),
+                _ => {}
+            }
+            if style == 4 {
+                px(2.5, -2.5, 3.0, 2.5, hair);
+            }
+            px(0.0, 0.0, 8.0, 8.0, skin);
+            // eyes and mouth
+            px(1.5, 4.0, 1.0, 1.0, eyes);
+            px(5.5, 4.0, 1.0, 1.0, eyes);
+            px(3.0, 6.0, 2.0, 0.6, Color32::from_rgb(120, 60, 50));
+            if look.beard {
+                px(0.0, 6.0, 8.0, 2.0, hair);
+                px(1.0, 8.0, 6.0, 1.0, hair);
+                px(3.0, 6.3, 2.0, 0.6, Color32::from_rgb(120, 60, 50));
+            }
+            match style {
+                1 => {
+                    px(0.0, 0.0, 8.0, 2.0, hair);
+                    px(0.0, 2.0, 1.0, 1.5, hair);
+                    px(7.0, 2.0, 1.0, 1.5, hair);
+                }
+                2 => {
+                    px(0.0, 0.0, 8.0, 2.5, hair);
+                    px(0.0, 2.5, 1.0, 6.0, hair);
+                    px(7.0, 2.5, 1.0, 6.0, hair);
+                }
+                3 => {
+                    px(-1.0, -1.0, 10.0, 2.0, hood);
+                    px(-1.0, 1.0, 1.5, 9.0, hood);
+                    px(7.5, 1.0, 1.5, 9.0, hood);
+                    px(0.0, 1.0, 8.0, 1.0, hair);
+                }
+                4 => {
+                    px(0.0, 0.0, 8.0, 2.0, hair);
+                    px(0.0, 2.0, 1.0, 1.0, hair);
+                    px(7.0, 2.0, 1.0, 1.0, hair);
+                }
+                _ => {}
+            }
+            p.text(
+                Pos2::new(r.center().x, r.bottom() - 3.0),
+                Align2::CENTER_BOTTOM,
+                NAMES[style as usize],
+                theme::body_font(10.5),
+                if on {
+                    theme::GOLD_BRIGHT
+                } else {
+                    theme::TEXT_DIM
+                },
+            );
+            ui.add_space(-4.0);
+        }
+    });
+    ui.add_space(4.0);
 }

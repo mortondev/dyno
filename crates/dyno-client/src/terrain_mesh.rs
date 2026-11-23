@@ -978,6 +978,86 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
     geo
 }
 
+/// Heights of the drawn ground, so feet stand on the smooth surface rather
+/// than on the block grid it was made from. Cached per block; clear it when
+/// blocks change.
+#[derive(Default)]
+pub struct Ground {
+    cache: std::cell::RefCell<std::collections::HashMap<[i32; 3], Option<[f32; 4]>>>,
+}
+
+impl Ground {
+    pub fn clear(&self) {
+        self.cache.borrow_mut().clear();
+    }
+
+    /// Height of the drawn top of the ground block `b`, at its four corners
+    /// (x0z0, x1z0, x0z1, x1z1). None when `b` is not smooth ground with open
+    /// air above it.
+    fn corners(&self, world: &World, b: [i32; 3]) -> Option<[f32; 4]> {
+        if let Some(c) = self.cache.borrow().get(&b) {
+            return *c;
+        }
+        let lut = flags();
+        let top = lut[world.get(b[0], b[1], b[2]) as usize];
+        let above = lut[world.get(b[0], b[1] + 1, b[2]) as usize];
+        let out = if top & F_TERRAIN == 0 || above & (F_TERRAIN | F_OPAQUE) != 0 {
+            None
+        } else {
+            // a grid whose middle holds the block, the same as a section's
+            let o = [b[0] - N / 2, b[1] - N / 2, b[2] - N / 2];
+            let mut g = Grid {
+                ids: vec![0; G * G * G],
+                fl: vec![0; G * G * G],
+                o,
+            };
+            let mut i = 0;
+            for y in -PAD..N + PAD {
+                for z in -PAD..N + PAD {
+                    for x in -PAD..N + PAD {
+                        let id = world.get(o[0] + x, o[1] + y, o[2] + z);
+                        g.ids[i] = id;
+                        g.fl[i] = lut[id as usize];
+                        i += 1;
+                    }
+                }
+            }
+            let mut nets = Nets::new(&g, false);
+            let (i, j, k) = (N / 2, N / 2 + 1, N / 2);
+            Some([
+                nets.vertex(i, j, k)[1],
+                nets.vertex(i + 1, j, k)[1],
+                nets.vertex(i, j, k + 1)[1],
+                nets.vertex(i + 1, j, k + 1)[1],
+            ])
+        };
+        let mut c = self.cache.borrow_mut();
+        if c.len() > 4096 {
+            c.clear();
+        }
+        c.insert(b, out);
+        out
+    }
+
+    /// Where feet at `pos` should be drawn: on the smooth surface when they
+    /// stand on smooth ground, otherwise where they are.
+    pub fn feet(&self, world: &World, pos: Vec3) -> Vec3 {
+        let by = (pos.y - 0.01).floor();
+        // only when standing (on the block top), not in the air
+        if pos.y - (by + 1.0) > 0.06 {
+            return pos;
+        }
+        let b = [pos.x.floor() as i32, by as i32, pos.z.floor() as i32];
+        let Some(c) = self.corners(world, b) else {
+            return pos;
+        };
+        let (fx, fz) = (pos.x - pos.x.floor(), pos.z - pos.z.floor());
+        let y = (c[0] * (1.0 - fx) + c[1] * fx) * (1.0 - fz) + (c[2] * (1.0 - fx) + c[3] * fx) * fz;
+        let dy = (y - (by + 1.0)).clamp(-0.7, 0.7);
+        Vec3::new(pos.x, pos.y + dy, pos.z)
+    }
+}
+
 /// A made-up landscape for tests and timing: rolling hills, a lake with
 /// beaches, cliffs, trees and a few built blocks.
 #[cfg(test)]
@@ -1204,5 +1284,34 @@ mod tests {
             .inspect(|v| assert_eq!(v.pos[0], 44.0))
             .count();
         assert!(wall > 20);
+    }
+
+    #[test]
+    fn feet_follow_the_drawn_ground() {
+        let mut world = World::empty([32, 32, 32]);
+        for x in 0..32 {
+            for z in 0..32 {
+                let h = if x < 16 { 10 } else { 11 };
+                for y in 0..=h {
+                    world.set(x, y, z, if y == h { w::GRASS } else { w::DIRT });
+                }
+            }
+        }
+        let g = Ground::default();
+        // far from the step: flat, on the block top
+        let flat = g.feet(&world, Vec3::new(5.5, 11.0, 16.5));
+        assert!((flat.y - 11.0).abs() < 1e-4, "{flat}");
+        // next to a one-block step up: the ground rises towards it
+        let low = g.feet(&world, Vec3::new(15.9, 11.0, 16.5));
+        assert!(low.y > 11.05, "{low}");
+        let high = g.feet(&world, Vec3::new(16.1, 12.0, 16.5));
+        assert!(high.y < 11.95, "{high}");
+        assert!(
+            (high.y - low.y).abs() < 0.6,
+            "the step is a ramp: {low} {high}"
+        );
+        // in the air: untouched
+        let air = Vec3::new(15.9, 11.5, 16.5);
+        assert_eq!(g.feet(&world, air), air);
     }
 }

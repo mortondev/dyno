@@ -119,6 +119,8 @@ struct Chat {
 }
 
 struct Play {
+    /// the drawn (smooth) height of the ground, for feet
+    ground: crate::terrain_mesh::Ground,
     world: World,
     conn: net::Connection,
     my_id: PlayerId,
@@ -604,7 +606,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
         if let EntityKind::Npc(n) = e.kind
             && let Some(npc) = p.content.npc(n)
         {
-            let pos = e.pos();
+            let pos = p.ground.feet(&p.world, e.pos());
             let at = pos + Vec3::Y;
             let light = p.light.get(
                 at.x.floor() as i32,
@@ -631,7 +633,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
         let Some(c) = p.content.creature(cid) else {
             continue;
         };
-        let pos = e.pos();
+        let pos = p.ground.feet(&p.world, e.pos());
         let step = Vec3::from(e.to) - Vec3::from(e.from);
         let moving = e.at.elapsed().as_secs_f32() < 0.25;
         let walk = if moving {
@@ -1076,6 +1078,7 @@ fn new_play(j: Joined) -> Play {
         hover: None,
         world_event: None,
         intro: None,
+        ground: Default::default(),
         hearth,
         level: 1,
         xp: 0,
@@ -1346,6 +1349,7 @@ impl App {
                             p.remotes.remove(&id);
                         }
                         ServerMsg::Block { pos, block } => {
+                            p.ground.clear();
                             let old = p.world.get(pos[0], pos[1], pos[2]);
                             if old != block {
                                 p.world.set(pos[0], pos[1], pos[2], block);
@@ -1833,8 +1837,6 @@ impl App {
                         st.world.surface(feet.x as i32, feet.z as i32) as f32 + 1.0,
                         feet.z,
                     );
-                    let creating = !matches!(self.front.page, front::Page::Select);
-                    let x_off = if creating { -1.1 } else { 0.0 };
                     models::push_person(
                         &mut boxes,
                         feet,
@@ -1846,8 +1848,8 @@ impl App {
                         0.0,
                     );
                     (
-                        feet + Vec3::new(x_off, 1.5, 5.2),
-                        feet + Vec3::new(x_off, 1.05, 0.0),
+                        feet + Vec3::new(0.0, 1.5, 5.2),
+                        feet + Vec3::new(0.0, 1.05, 0.0),
                     )
                 }
                 None => {
@@ -1860,8 +1862,14 @@ impl App {
                 }
             };
             let dir = (look_at - eye).normalize_or_zero();
-            let proj =
-                glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt.max(1.0), 0.05, far);
+            // the character is drawn off centre, in the room the panels leave
+            let shift = if preview.is_some() {
+                self.front.preview_offset()
+            } else {
+                0.0
+            };
+            let proj = glam::Mat4::from_translation(Vec3::new(shift, 0.0, 0.0))
+                * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt.max(1.0), 0.05, far);
             view = Some((proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y), eye, far));
         }
         if let Screen::Playing(p) = &mut self.screen {
@@ -2116,7 +2124,7 @@ impl App {
             let anim_t = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
             for (id, r) in &p.remotes {
                 let pose = r.current();
-                let base = Vec3::from(pose.pos);
+                let base = p.ground.feet(&p.world, Vec3::from(pose.pos));
                 let bl = light_at(&p.light, base + Vec3::Y);
                 let walk = (r.speed() / 4.0).min(1.0);
                 let _ = id;
@@ -2414,7 +2422,7 @@ impl App {
                 look.weapon = models::weapon_look(&p.content, held_item.map(|s| s.item));
                 models::push_person(
                     &mut boxes,
-                    p.player.pos,
+                    p.ground.feet(&p.world, p.player.pos),
                     p.player.yaw,
                     p.player.pitch,
                     &look,
@@ -4558,8 +4566,6 @@ pub fn shot_front(
                 world.surface(feet.x as i32, feet.z as i32) as f32 + 1.0,
                 feet.z,
             );
-            let creating = !matches!(f.page, front::Page::Select);
-            let x_off = if creating { -1.1 } else { 0.0 };
             models::push_person(
                 &mut boxes,
                 feet,
@@ -4571,8 +4577,8 @@ pub fn shot_front(
                 0.0,
             );
             (
-                feet + Vec3::new(x_off, 1.5, 5.2),
-                feet + Vec3::new(x_off, 1.05, 0.0),
+                feet + Vec3::new(0.0, 1.5, 5.2),
+                feet + Vec3::new(0.0, 1.05, 0.0),
             )
         }
         None => (
@@ -4581,7 +4587,8 @@ pub fn shot_front(
         ),
     };
     let dir = (at - eye).normalize_or_zero();
-    let vp = glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt, 0.05, far)
+    let vp = glam::Mat4::from_translation(Vec3::new(f.preview_offset(), 0.0, 0.0))
+        * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
     let ctx = egui::Context::default();
     crate::theme::apply(&ctx);
