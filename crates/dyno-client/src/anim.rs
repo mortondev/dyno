@@ -96,6 +96,14 @@ anims! {
     Bow,
     Cheer,
     Point,
+    /// at work: swinging an axe or a pick at something in front (loops)
+    Chop,
+    /// at work: short blows with a hammer on something at waist height
+    Hammer,
+    /// at work: a rod held out over the water, now and then a tug
+    Fish,
+    /// at work: long strokes with a broom or a rake
+    Sweep,
 }
 
 impl Anim {
@@ -554,6 +562,14 @@ impl Book {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The server names animations by the protocol's list (`Act::Emote`
+    /// carries an index): it is this list, in this order.
+    #[test]
+    fn the_protocol_names_the_same_animations() {
+        let mine: Vec<&str> = Anim::ALL.iter().map(|a| a.name()).collect();
+        assert_eq!(mine, dyno_protocol::ANIMS);
+    }
 
     #[test]
     fn locomotion_reads_direction() {

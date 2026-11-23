@@ -3,6 +3,10 @@
   "mirror_pairs": [["upper_arm.l","upper_arm.r"],["forearm.l","forearm.r"]],
   "sets": {
     "default": {
+      "Chop": {"loop":4.0,"time":{"body.oy":-3.4274,"body.rx":8.5944,"forearm.l.rx":-80.2141,"forearm.r.rx":-80.2141,"hood.rx":17.7617,"shape":1,"upper_arm.l.rx":-59.7338,"upper_arm.l.rz":20.0535,"upper_arm.r.rx":-55.4108,"upper_arm.r.rz":-20.0535}},
+      "Hammer": {"loop":4.0,"time":{"body.oy":-3.4274,"body.rx":8.5944,"forearm.l.rx":-80.2141,"forearm.r.rx":-80.2141,"hood.rx":17.7617,"shape":1,"upper_arm.l.rx":-59.7338,"upper_arm.l.rz":20.0535,"upper_arm.r.rx":-55.4108,"upper_arm.r.rz":-20.0535}},
+      "Fish": {"loop":4.0,"time":{"body.oy":-3.4274,"body.rx":8.5944,"forearm.l.rx":-80.2141,"forearm.r.rx":-80.2141,"hood.rx":17.7617,"shape":1,"upper_arm.l.rx":-59.7338,"upper_arm.l.rz":20.0535,"upper_arm.r.rx":-55.4108,"upper_arm.r.rz":-20.0535}},
+      "Sweep": {"loop":4.0,"time":{"body.oy":-3.4274,"body.rx":8.5944,"forearm.l.rx":-80.2141,"forearm.r.rx":-80.2141,"hood.rx":17.7617,"shape":1,"upper_arm.l.rx":-59.7338,"upper_arm.l.rz":20.0535,"upper_arm.r.rx":-55.4108,"upper_arm.r.rz":-20.0535}},
       "Attack1H": {
         "duration": 0.7,
         "time": {
