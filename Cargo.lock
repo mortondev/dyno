@@ -124,7 +124,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "parking_lot",
  "percent-encoding",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
  "x11rb",
 ]
 
@@ -817,6 +817,7 @@ dependencies = [
  "egui",
  "egui-wgpu",
  "egui-winit",
+ "epaint_default_fonts",
  "glam",
  "png",
  "pollster",
@@ -1009,7 +1010,6 @@ dependencies = [
  "bytemuck",
  "ecolor",
  "emath",
- "epaint_default_fonts",
  "log",
  "nohash-hasher",
  "parking_lot",

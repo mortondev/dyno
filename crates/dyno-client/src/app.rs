@@ -74,7 +74,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         settings,
         gfx: None,
         audio: Audio::new(),
-        egui_ctx: egui::Context::default(),
+        egui_ctx: crate::theme::new_context(),
         egui_state: None,
         screen: Screen::Menu,
         host: None,
@@ -5258,7 +5258,7 @@ fn hud(
         let label = if m.online {
             format!(
                 "{}{}  {}",
-                if m.leader { "♛ " } else { "" },
+                if m.leader { "* " } else { "" },
                 m.name,
                 m.level
             )
@@ -5896,7 +5896,7 @@ pub fn shot_front(
     let vp = glam::Mat4::from_translation(Vec3::new(f.preview_offset(), 0.0, 0.0))
         * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     crate::theme::apply(&ctx);
     ctx.style_mut(|s| s.animation_time = 0.0);
     let raw = || egui::RawInput {
@@ -6013,7 +6013,7 @@ pub fn shot_with_ui(
     // the world is drawn as play draws it: lit and meshed on the world
     // thread, uploaded within a budget each frame, frames rendered at ~60 Hz
     gfx.begin_world(&p.world);
-    let fctx = egui::Context::default();
+    let fctx = crate::theme::new_context();
     let mut frames: Vec<(f64, f64)> = Vec::new();
     let mut land_at: Option<Duration> = None;
     let started = Instant::now();
@@ -6562,7 +6562,7 @@ pub fn shot_with_ui(
             }
         }
     }
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     crate::theme::apply(&ctx);
     ctx.style_mut(|s| {
         s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);

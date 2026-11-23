@@ -748,7 +748,7 @@ fn stepper(ui: &mut egui::Ui, label: &str, value: &mut u8, n: u8, names: Option<
                 .color(theme::GOLD),
         );
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.button("▶").clicked() {
+            if ui.button(">").clicked() {
                 *value = (*value + 1) % n;
             }
             let shown = match names {
@@ -760,7 +760,7 @@ fn stepper(ui: &mut egui::Ui, label: &str, value: &mut u8, n: u8, names: Option<
                     .font(theme::body_font(15.0))
                     .color(theme::TEXT),
             );
-            if ui.button("◀").clicked() {
+            if ui.button("<").clicked() {
                 *value = (*value + n - 1) % n;
             }
         });
@@ -920,7 +920,7 @@ fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
                             .char_limit(16),
                     );
                     if ui
-                        .button(RichText::new("🎲").size(20.0))
+                        .button(RichText::new("?").size(20.0))
                         .on_hover_text("A random name")
                         .clicked()
                     {
