@@ -60,6 +60,9 @@ pub struct WorldWork {
     sent: Arc<AtomicUsize>,
     taken: usize,
     focus: Option<([f32; 3], [f32; 3])>,
+    /// `DYNO_WORLD_INLINE=1`: the same work done on the calling thread, a
+    /// step per `poll` (as before the worker: to compare frame times)
+    inline: Option<Box<Worker>>,
 }
 
 impl WorldWork {
@@ -72,10 +75,17 @@ impl WorldWork {
         let busy = Arc::new(AtomicBool::new(true));
         let sent = Arc::new(AtomicUsize::new(0));
         let (p, b, n) = (pending.clone(), busy.clone(), sent.clone());
-        std::thread::Builder::new()
-            .name("world".into())
-            .spawn(move || Worker::new(world).run(jobs, made, p, b, n))
-            .expect("the world thread starts");
+        let inline = std::env::var_os("DYNO_WORLD_INLINE").is_some();
+        let inline = if inline {
+            drop((jobs, made));
+            Some(Box::new(Worker::new(world)))
+        } else {
+            std::thread::Builder::new()
+                .name("world".into())
+                .spawn(move || Worker::new(world).run(jobs, made, p, b, n))
+                .expect("the world thread starts");
+            None
+        };
         WorldWork {
             tx,
             rx,
@@ -85,10 +95,15 @@ impl WorldWork {
             sent,
             taken: 0,
             focus: None,
+            inline,
         }
     }
 
-    fn send(&self, job: Job) {
+    fn send(&mut self, job: Job) {
+        if let Some(w) = self.inline.as_mut() {
+            w.take(job);
+            return;
+        }
         self.pending.fetch_add(1, Ordering::SeqCst);
         if self.tx.send(job).is_err() {
             self.pending.fetch_sub(1, Ordering::SeqCst);
@@ -96,26 +111,26 @@ impl WorldWork {
     }
 
     /// Sections that arrived (the game has stored them in its own copy).
-    pub fn put(&self, list: Vec<(SectionPos, Vec<u8>)>) {
+    pub fn put(&mut self, list: Vec<(SectionPos, Vec<u8>)>) {
         if !list.is_empty() {
             self.send(Job::Put(list));
         }
     }
 
     /// Sections the server let go of.
-    pub fn drop_sections(&self, list: Vec<SectionPos>) {
+    pub fn drop_sections(&mut self, list: Vec<SectionPos>) {
         if !list.is_empty() {
             self.send(Job::Drop(list));
         }
     }
 
     /// A block changed (relit and remeshed before anything else).
-    pub fn block(&self, pos: [i32; 3], block: BlockId) {
+    pub fn block(&mut self, pos: [i32; 3], block: BlockId) {
         self.send(Job::Block(pos, block));
     }
 
     /// A box of cells was filled with one block.
-    pub fn fill(&self, a: [i32; 3], b: [i32; 3], block: BlockId) {
+    pub fn fill(&mut self, a: [i32; 3], b: [i32; 3], block: BlockId) {
         self.send(Job::Fill(a, b, block));
     }
 
@@ -136,6 +151,17 @@ impl WorldWork {
     /// Take in what the worker made: light goes into the game's copy at
     /// once (a copy per section), meshes join the upload queue.
     pub fn poll(&mut self, light: &mut Light) {
+        if let Some(w) = self.inline.as_mut() {
+            if w.has_work()
+                && let (_, Some(m)) = w.step()
+            {
+                for (s, l) in m.light {
+                    light.set_section(s, l);
+                }
+                self.queue.extend(m.meshes);
+            }
+            return;
+        }
         while let Ok(m) = self.rx.try_recv() {
             self.taken += 1;
             for (s, l) in m.light {
@@ -147,6 +173,9 @@ impl WorldWork {
 
     /// Nothing sent is still waiting, being worked on or to be uploaded.
     pub fn idle(&self) -> bool {
+        if let Some(w) = &self.inline {
+            return !w.has_work() && self.queue.is_empty();
+        }
         self.pending.load(Ordering::SeqCst) == 0
             && !self.busy.load(Ordering::SeqCst)
             && self.sent.load(Ordering::SeqCst) == self.taken
@@ -362,6 +391,29 @@ impl Worker {
         list.into_iter().zip(geos).collect()
     }
 
+    fn has_work(&self) -> bool {
+        !self.unlit.is_empty() || !self.todo.is_empty() || !self.urgent.is_empty()
+    }
+
+    /// One round: light some columns (edits were lit as they came), mesh a
+    /// batch. Returns whether it lit any, and what it made.
+    fn step(&mut self) -> (bool, Option<Made>) {
+        let lit = if self.urgent.is_empty() {
+            self.light_some()
+        } else {
+            false
+        };
+        let meshes = self.mesh_some();
+        let light: Vec<(SectionPos, SectionLight)> = self
+            .light
+            .take_changed()
+            .into_iter()
+            .map(|s| (s, self.light.section(s)))
+            .collect();
+        let made = (!light.is_empty() || !meshes.is_empty()).then_some(Made { light, meshes });
+        (lit, made)
+    }
+
     fn run(
         mut self,
         jobs: Receiver<Job>,
@@ -371,9 +423,7 @@ impl Worker {
         sent: Arc<AtomicUsize>,
     ) {
         loop {
-            let has_work =
-                !self.unlit.is_empty() || !self.todo.is_empty() || !self.urgent.is_empty();
-            if !has_work {
+            if !self.has_work() {
                 busy.store(false, Ordering::SeqCst);
                 match jobs.recv() {
                     Ok(j) => {
@@ -395,23 +445,11 @@ impl Worker {
                     Err(TryRecvError::Disconnected) => return,
                 }
             }
-            // edits are lit at once (in `take`); then what streamed in
-            let lit = if self.urgent.is_empty() {
-                self.light_some()
-            } else {
-                false
-            };
-            let meshes = self.mesh_some();
-            let light: Vec<(SectionPos, SectionLight)> = self
-                .light
-                .take_changed()
-                .into_iter()
-                .map(|s| (s, self.light.section(s)))
-                .collect();
-            if !light.is_empty() || !meshes.is_empty() {
+            let (lit, out) = self.step();
+            if let Some(m) = out {
                 // counted before it is sent: never idle with a result in the pipe
                 sent.fetch_add(1, Ordering::SeqCst);
-                if made.send(Made { light, meshes }).is_err() {
+                if made.send(m).is_err() {
                     return;
                 }
             } else if !lit {

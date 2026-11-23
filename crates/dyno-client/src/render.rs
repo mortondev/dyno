@@ -9,7 +9,6 @@ use dyno_world::{self as w, BlockId, World};
 use egui_wgpu::wgpu;
 use glam::{Mat4, Vec3};
 use std::sync::Arc;
-use wgpu::util::DeviceExt;
 
 pub const SECTION: i32 = 16;
 pub const SKY: [f32; 3] = [0.62, 0.78, 0.96];

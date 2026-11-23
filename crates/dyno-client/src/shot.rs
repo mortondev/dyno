@@ -43,15 +43,17 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
     if o.ui != "none" || o.player.is_some() {
         let name = o.player.clone().unwrap_or_else(|| o.name.clone());
         let observer = o.player.is_none();
-        // an observer streams the world around the camera; a player sees
-        // what streams around their character
+        // the world streams round the camera (or where a camera flight starts)
+        let view_at = crate::app::shot_run()
+            .map(|r| [r.0[0], 40.0, r.0[1]])
+            .or(o.pos);
         let j = net::connect_with(
             &o.addr,
             &name,
             net::JoinOptions {
                 token: crate::settings::tool_token(&name),
                 observer,
-                view_at: o.pos,
+                view_at,
                 ..Default::default()
             },
             Duration::from_secs(10),

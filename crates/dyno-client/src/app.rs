@@ -1390,19 +1390,10 @@ fn world_uploads(p: &mut Play, gfx: Option<&mut Gfx>, budget: Duration) -> Durat
         p.work.queue.clear();
         return t0.elapsed();
     };
-    let tp = t0.elapsed();
-    if tp > Duration::from_millis(5) {
-        eprintln!("TMP slow poll {tp:?}");
-    }
     while let Some((s, geo)) = p.work.queue.pop_front() {
         // dropped since it was made: nothing to draw
         if p.world.has_section(s) {
-            let tu = Instant::now();
-            let n = geo.opaque.len() + geo.trans.len();
             g.put_mesh(s, geo);
-            if tu.elapsed() > Duration::from_millis(5) {
-                eprintln!("TMP slow upload {:?} {n} vertices", tu.elapsed());
-            }
         }
         if t0.elapsed() >= budget {
             break;
@@ -1412,7 +1403,7 @@ fn world_uploads(p: &mut Play, gfx: Option<&mut Gfx>, budget: Duration) -> Durat
 }
 
 /// `DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]"`: a camera flight for `dyno shot`.
-fn shot_run() -> Option<([f32; 2], [f32; 2], f32)> {
+pub(crate) fn shot_run() -> Option<([f32; 2], [f32; 2], f32)> {
     let v: Vec<f32> = std::env::var("DYNO_SHOT_RUN")
         .ok()?
         .split(',')
@@ -5915,11 +5906,7 @@ pub fn shot_with_ui(
                 Ok(NetEvent::Msg(m)) => match m {
                     ServerMsg::Sections(list) => {
                         let t = Instant::now();
-                        let n = list.len();
                         sections_in(&mut p, list);
-                        if t.elapsed() > Duration::from_millis(5) {
-                            eprintln!("TMP slow sections_in {:?} for {n}", t.elapsed());
-                        }
                         world_t += t.elapsed();
                         last_section = Instant::now();
                     }
@@ -6105,6 +6092,7 @@ pub fn shot_with_ui(
         std::thread::sleep(Duration::from_millis(5));
     }
     world_uploads(&mut p, Some(&mut *gfx), Duration::from_secs(1));
+    p.land_wait = !land_ready(&p, gfx, p.player.pos, LAND_RADIUS);
     if stats || run.is_some() {
         let pct = |v: &mut Vec<f64>, q: f64| {
             v.sort_by(|a, b| a.total_cmp(b));
