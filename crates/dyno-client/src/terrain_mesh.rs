@@ -56,28 +56,21 @@ pub const WATER_DROP: f32 = 0.2;
 /// Per cent of open grass blocks that grow a tuft.
 const TUFT_PER_CENT: u32 = 62;
 
-/// Natural ground: drawn smooth.
+/// Natural ground: drawn smooth (the pack's `terrain` tag).
 pub fn is_terrain(b: BlockId) -> bool {
-    matches!(
-        b,
-        w::GRASS
-            | w::DIRT
-            | w::STONE
-            | w::SAND
-            | w::EMBERSTONE
-            | w::SNOW
-            | 15 // basalt
-            | 16 // marble
-            | w::CLAY
-            | w::BEDROCK
-            | w::COAL_ORE
-            | w::IRON_ORE
-    )
+    crate::shapes::has(b, crate::shapes::tag::TERRAIN)
 }
 
 pub(crate) fn flags() -> &'static [u8; 256] {
-    static T: std::sync::OnceLock<[u8; 256]> = std::sync::OnceLock::new();
-    T.get_or_init(|| {
+    &crate::shapes::pack().flags
+}
+
+/// The flags of every block, given which are shaped and which are ground.
+pub(crate) fn flags_with(
+    detail: impl Fn(BlockId) -> bool,
+    terrain: impl Fn(BlockId) -> bool,
+) -> [u8; 256] {
+    {
         let mut t = [0u8; 256];
         for (b, f) in t.iter_mut().enumerate() {
             let b = b as BlockId;
@@ -87,10 +80,10 @@ pub(crate) fn flags() -> &'static [u8; 256] {
             if w::is_opaque(b) {
                 *f |= F_OPAQUE | F_DARK;
             }
-            if crate::detail::is_detail(b) {
+            if detail(b) {
                 *f |= F_DETAIL;
             }
-            if is_terrain(b) {
+            if terrain(b) {
                 *f |= F_TERRAIN;
             } else if w::is_leaves(b) {
                 *f |= F_LEAVES;
@@ -101,7 +94,7 @@ pub(crate) fn flags() -> &'static [u8; 256] {
             }
         }
         t
-    })
+    }
 }
 
 /// A tuft of grass (or a flower) to draw near the camera.
@@ -173,24 +166,37 @@ pub(crate) struct Grid {
     /// light (block, sky) for detail blocks that stop light, borrowed from
     /// their open neighbours; empty when there are none
     patch: Vec<[u8; 2]>,
+    /// each shaped block's class and quarter turn (`class << 2 | turn`),
+    /// decided by `shapes::classify`; 0 for the rest
+    pub(crate) cls: Vec<u16>,
 }
 
 /// Blocks that pave the ground: drawn as part of the smooth ground where
 /// they lie flush with it.
 pub(crate) fn is_paving(b: BlockId) -> bool {
-    matches!(b, w::COBBLE | w::FLAGSTONES | 19)
+    crate::shapes::has(b, crate::shapes::tag::PAVING)
 }
 
 impl Grid {
     /// Read the blocks of the section at `o` and its border, and decide
     /// what shape each is drawn as.
     fn load_shape(world: &World, o: [i32; 3]) -> Grid {
-        let lut = flags();
+        let mut g = Grid::load_with(world, o, flags());
+        if g.fl.iter().any(|f| f & F_DETAIL != 0) {
+            crate::shapes::classify(&mut g);
+        }
+        g
+    }
+
+    /// The blocks of the section and its border with the given flags, and
+    /// paving laid as ground; shapes not yet decided.
+    pub(crate) fn load_with(world: &World, o: [i32; 3], lut: &[u8; 256]) -> Grid {
         let mut g = Grid {
             ids: vec![0; G * G * G],
             fl: vec![0; G * G * G],
             o,
             patch: Vec::new(),
+            cls: Vec::new(),
         };
         let mut i = 0;
         let mut all = 0u8;
@@ -207,16 +213,13 @@ impl Grid {
             }
         }
         if all & F_PIN != 0 {
-            g.pave();
-        }
-        if all & F_DETAIL != 0 {
-            crate::detail::classify(&mut g);
+            g.pave(lut);
         }
         g
     }
 
     /// The same, with the light that detail blocks borrow.
-    fn load(world: &World, light: &Light, o: [i32; 3]) -> Grid {
+    pub(crate) fn load(world: &World, light: &Light, o: [i32; 3]) -> Grid {
         let mut g = Grid::load_shape(world, o);
         if g.fl.iter().any(|f| f & F_DETAIL != 0) {
             g.patch_light(light);
@@ -231,11 +234,12 @@ impl Grid {
     /// and the tops of pillars stay built). Reads one cell round each cell
     /// it changes, so every cell the meshers read (-3..N+3) is decided the
     /// same way by every section that holds it.
-    fn pave(&mut self) {
-        let lut = flags();
+    fn pave(&mut self, lut: &[u8; 256]) {
         // props and posts may stand on paving; anything else on it is a wall
         let built = |b: BlockId| {
-            lut[b as usize] & F_OPAQUE != 0 && !is_paving(b) && !crate::detail::stands_on_paving(b)
+            lut[b as usize] & F_OPAQUE != 0
+                && !is_paving(b)
+                && !crate::shapes::has(b, crate::shapes::tag::ON_PAVING)
         };
         let mut set = Vec::new();
         for y in -3..N + 3 {
@@ -1167,18 +1171,16 @@ thread_local! {
 }
 
 /// True for a cube the cube mesher draws with chamfered edges: built,
-/// opaque, not glowing.
+/// opaque, tagged `chamfer` (not glass, not glowing).
 fn bevels(g: &Grid, c: usize) -> bool {
     #[cfg(test)]
     if NO_BEVEL.with(|n| n.get()) {
         return false;
     }
     let f = g.fl[c];
-    let b = g.ids[c];
     f & (F_PIN | F_OPAQUE) == F_PIN | F_OPAQUE
         && f & (F_TERRAIN | F_LEAVES | F_WATER) == 0
-        && w::block(b).alpha >= 1.0
-        && w::emission(b) == 0
+        && crate::shapes::has(g.ids[c], crate::shapes::tag::CHAMFER)
 }
 
 /// Index in `FACES` of the face with this normal.
@@ -1296,7 +1298,7 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
         cubes(&g, light, has_water, &mut geo);
     }
     if own & F_DETAIL != 0 {
-        crate::detail::mesh(&g, light, &mut geo);
+        crate::shapes::mesh(&g, light, &mut geo);
     }
     geo
 }
@@ -1693,6 +1695,63 @@ mod tests {
             compared > 10_000 && detail > 200,
             "{compared} cells, {detail} detail"
         );
+    }
+
+    /// Remesh cost of the town's sections (best of nine runs each) and the
+    /// vertices they make:
+    /// `cargo test -p dyno-client --release town_remesh_cost -- --ignored --nocapture`
+    #[test]
+    #[ignore = "a measurement"]
+    fn town_remesh_cost() {
+        let world = town();
+        let light = Light::new(&world);
+        let (mut times, mut verts) = (Vec::new(), 0usize);
+        for sy in 0..4 {
+            for sz in 0..8 {
+                for sx in 0..8 {
+                    let mut best = f64::MAX;
+                    let mut n = 0;
+                    for _ in 0..9 {
+                        let t = std::time::Instant::now();
+                        let geo = mesh(&world, &light, sx, sy, sz);
+                        best = best.min(t.elapsed().as_secs_f64() * 1000.0);
+                        n = geo.opaque.len() + geo.trans.len();
+                    }
+                    if n > 0 {
+                        times.push(best);
+                        verts += n;
+                    }
+                }
+            }
+        }
+        let avg = times.iter().sum::<f64>() / times.len() as f64;
+        let worst = times.iter().fold(0.0f64, |a, b| a.max(*b));
+        let all = {
+            let t = std::time::Instant::now();
+            for sy in 0..4 {
+                for sz in 0..8 {
+                    for sx in 0..8 {
+                        let _ = mesh(&world, &light, sx, sy, sz);
+                    }
+                }
+            }
+            t.elapsed().as_secs_f64() * 1000.0
+        };
+        println!(
+            "town: {} sections, remesh avg {avg:.3} ms, worst {worst:.3} ms, all {all:.1} ms, {verts} vertices",
+            times.len()
+        );
+        crate::shapes::STATS.with(|s| {
+            let mut v: Vec<_> = s
+                .borrow()
+                .iter()
+                .map(|(k, v)| (v.1, v.0, k.clone()))
+                .collect();
+            v.sort_by(|a, b| b.cmp(a));
+            for (verts, cells, (b, class)) in v.iter().take(12) {
+                println!("  block {b} {class}: {cells} cells, {verts} vertices");
+            }
+        });
     }
 
     #[test]
