@@ -321,8 +321,8 @@ impl Body {
         );
         let lips = ellipsoid(
             p,
-            vec3(0.0, y(54.1), 3.95 * s),
-            if f { vec3(1.15, 0.6, 0.6) } else { vec3(1.25, 0.5, 0.55) },
+            vec3(0.0, y(54.05), 3.8 * s),
+            if f { vec3(1.05, 0.55, 0.5) } else { vec3(1.1, 0.45, 0.42) },
         );
         d = smin(d, jaw, 1.6);
         d = smin(d, chin, 0.9);
@@ -356,9 +356,5 @@ impl Body {
     pub fn eyes(&self, p: Vec3) -> f32 {
         let m = mirror(p);
         sphere(m, self.eye_centre(true), self.eye_r())
-    }
-
-    pub fn head(&self, p: Vec3) -> f32 {
-        self.skull(p).min(self.eyes(p))
     }
 }

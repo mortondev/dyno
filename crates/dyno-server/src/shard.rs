@@ -113,6 +113,10 @@ impl State {
                 player: o,
                 item: self.wielding(o),
             });
+            p.send(&ServerMsg::Wearing {
+                player: o,
+                items: self.wearing(o),
+            });
         }
         self.players.insert(id, p);
         self.send_wielding(id);

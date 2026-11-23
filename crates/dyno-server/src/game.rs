@@ -917,6 +917,10 @@ impl State {
                 player: o,
                 item: self.wielding(o),
             });
+            after.push(ServerMsg::Wearing {
+                player: o,
+                items: self.wearing(o),
+            });
         }
         self.players.insert(id, p);
         self.send_wielding(id);
@@ -1783,9 +1787,19 @@ impl State {
         slot(dyno_world::content::MAIN_HAND).or_else(|| slot(dyno_world::content::RANGED))
     }
 
+    /// Everything a player has equipped, for others to see on their figure.
+    pub fn wearing(&self, id: PlayerId) -> Vec<u16> {
+        self.players
+            .get(&id)
+            .map(|p| p.equip.iter().flatten().map(|s| s.item).collect())
+            .unwrap_or_default()
+    }
+
     pub fn send_wielding(&self, id: PlayerId) {
         let item = self.wielding(id);
         self.broadcast(&ServerMsg::Wielding { player: id, item }, None);
+        let items = self.wearing(id);
+        self.broadcast(&ServerMsg::Wearing { player: id, items }, None);
     }
 
     pub fn milestone(&mut self, id: PlayerId, trigger: &str) {

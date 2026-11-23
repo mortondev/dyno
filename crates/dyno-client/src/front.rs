@@ -231,7 +231,7 @@ impl Front {
             hair_style: next(5),
             hair_color: next(10),
             beard: next(3) == 0,
-            build: next(3),
+            build: next(6),
             mood: next(3),
             ears: next(3),
         };
@@ -877,30 +877,26 @@ fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
                     &mut f.look.hair_color,
                     &Look::options("hair"),
                 );
-                let mut beard = f.look.beard as u8;
-                stepper(ui, "Beard", &mut beard, 2, Some(&["None", "Beard"]));
-                f.look.beard = beard == 1;
-                stepper(
-                    ui,
-                    "Build",
-                    &mut f.look.build,
-                    3,
-                    Some(&["Slight", "Average", "Burly"]),
-                );
-                stepper(
-                    ui,
-                    "Expression",
-                    &mut f.look.mood,
-                    3,
-                    Some(&["Cheerful", "Stern", "Calm"]),
-                );
-                stepper(
-                    ui,
-                    "Ears",
-                    &mut f.look.ears,
-                    3,
-                    Some(&["Hidden", "Round", "Pointed"]),
-                );
+                // the pack says which features the creator offers, and
+                // how they pack into the appearance's fields
+                for st in Look::steppers() {
+                    let mut beard = f.look.beard as u8;
+                    let raw = match st.field.as_str() {
+                        "beard" => &mut beard,
+                        "build" => &mut f.look.build,
+                        "mood" => &mut f.look.mood,
+                        "ears" => &mut f.look.ears,
+                        "hair_style" => &mut f.look.hair_style,
+                        _ => continue,
+                    };
+                    let mut v = st.get(*raw);
+                    let names: Vec<&str> = st.names.iter().map(String::as_str).collect();
+                    stepper(ui, &st.label, &mut v, st.count(), Some(&names));
+                    *raw = st.put(*raw, v);
+                    if st.field == "beard" {
+                        f.look.beard = beard == 1;
+                    }
+                }
                 ui.add_space(8.0);
                 if dark_button(ui, "Randomise", 160.0).clicked() {
                     let seed = (ctx.input(|i| i.time) * 1000.0) as u32;

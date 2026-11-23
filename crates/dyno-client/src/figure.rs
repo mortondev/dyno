@@ -161,6 +161,67 @@ struct FieldSpec {
     field: String,
     #[serde(default = "max_u8")]
     max: u8,
+    /// several features packed in one field: this one is
+    /// `(field / div) % modulo`
+    #[serde(default = "one_u8")]
+    div: u8,
+    #[serde(default)]
+    modulo: Option<u8>,
+    /// how the character creator shows it: a label and a name per value
+    /// (none: the creator does not offer it as a stepper)
+    #[serde(default)]
+    label: Option<String>,
+    #[serde(default)]
+    names: Vec<String>,
+}
+
+fn one_u8() -> u8 {
+    1
+}
+
+impl FieldSpec {
+    fn get(&self, raw: u8) -> u8 {
+        let v = raw / self.div.max(1);
+        let v = match self.modulo {
+            Some(m) if m > 0 => v % m,
+            _ => v,
+        };
+        v.min(self.max)
+    }
+
+    fn put(&self, raw: u8, v: u8) -> u8 {
+        let div = self.div.max(1) as u16;
+        let span = self.modulo.map(|m| m as u16).unwrap_or(256 / div);
+        let raw = raw as u16;
+        let old = (raw / div) % span;
+        (raw - old * div + (v as u16 % span) * div).min(255) as u8
+    }
+}
+
+/// A stepper in the character creator, from the pack: the appearance
+/// field it edits, how many values it has, their names.
+#[derive(Clone, Debug)]
+pub struct Stepper {
+    pub label: String,
+    pub field: String,
+    pub names: Vec<String>,
+    spec: FieldSpec,
+}
+
+impl Stepper {
+    /// The value shown for a raw field value.
+    pub fn get(&self, raw: u8) -> u8 {
+        self.spec.get(raw)
+    }
+
+    /// The raw field value with this stepper's value set to `v`.
+    pub fn put(&self, raw: u8, v: u8) -> u8 {
+        self.spec.put(raw, v)
+    }
+
+    pub fn count(&self) -> u8 {
+        (self.spec.max as usize + 1).min(self.names.len().max(1)) as u8
+    }
 }
 
 fn max_u8() -> u8 {
@@ -173,6 +234,9 @@ struct AppearanceSpec {
     colors: BTreeMap<String, OptionList>,
     #[serde(default)]
     features: BTreeMap<String, FieldSpec>,
+    /// what a player wears before any gear
+    #[serde(default)]
+    base: Option<LookSpec>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -353,7 +417,11 @@ impl Default for LodsSpec {
 struct DeriveSpec {
     #[serde(rename = "if")]
     cond: BTreeMap<String, Vec<u8>>,
+    #[serde(default)]
     set: BTreeMap<String, u8>,
+    /// colours too, unless the look has them (fixed or from another colour)
+    #[serde(default)]
+    colors: BTreeMap<String, Gen<[f32; 3]>>,
 }
 
 /// One level of detail.
@@ -1323,7 +1391,10 @@ impl Look {
             }
         }
         for (name, f) in &s.appearance.features {
-            l.set(name, field(&f.field).min(f.max));
+            l.set(name, f.get(field(&f.field)));
+        }
+        if let Some(base) = &s.appearance.base {
+            apply_spec(&s, &mut l, base, color);
         }
         l
     }
@@ -1353,6 +1424,35 @@ impl Look {
                 apply_spec(&s, self, e, [0.5; 3]);
             }
         }
+    }
+
+    /// The steppers the character creator offers (features with a label),
+    /// in the pack's order of fields.
+    pub fn steppers() -> Vec<Stepper> {
+        let Some(s) = spec() else {
+            return Vec::new();
+        };
+        let mut v: Vec<Stepper> = s
+            .appearance
+            .features
+            .values()
+            .filter_map(|f| {
+                Some(Stepper {
+                    label: f.label.clone()?,
+                    field: f.field.clone(),
+                    names: f.names.clone(),
+                    spec: f.clone(),
+                })
+            })
+            .collect();
+        let order = ["beard", "build", "mood", "ears"];
+        v.sort_by_key(|st| {
+            (
+                order.iter().position(|f| *f == st.field).unwrap_or(9),
+                std::cmp::Reverse(st.spec.div),
+            )
+        });
+        v
     }
 
     /// The colours the character creator offers for a colour of the look
@@ -1506,6 +1606,15 @@ impl Figure {
                 for (f, v) in &d.set {
                     if !look.features.contains_key(f) {
                         l.set(f, *v);
+                    }
+                }
+                for (name, g) in &d.colors {
+                    if !look.colors.contains_key(name) {
+                        let base = l.colors.clone();
+                        let c = look.color("color").unwrap_or([0.5; 3]);
+                        if let Some(c) = gen_color(g, 0, &base, c, &l) {
+                            l.colors.insert(name.clone(), c);
+                        }
                     }
                 }
             }

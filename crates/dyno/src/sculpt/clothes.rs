@@ -94,7 +94,7 @@ pub fn all(main: &mut Grid, head: &mut Grid, bodies: &[Body; 2], ink: &Inks, pal
 
 fn trousers(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Layer {
     let b = b.clone();
-    layer(g, "legs/trousers", bi, &[("legs", &[0, 1])], move |p| {
+    layer(g, "legs/trousers", bi, &[("legs", &[0])], move |p| {
         if p.y > 33.8 || p.y < 4.0 || !shell(&b, p, 0.32, 1.4) {
             return None;
         }
@@ -111,7 +111,7 @@ fn trousers(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Layer {
 
 fn boots(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Layer {
     let b = b.clone();
-    layer(g, "feet/boots", bi, &[("feet", &[0, 1])], move |p| {
+    layer(g, "feet/boots", bi, &[("feet", &[0])], move |p| {
         if p.y < 0.0 || p.y > 12.6 {
             return None;
         }
@@ -243,7 +243,7 @@ fn robe(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
     let mut out = Vec::new();
     let bb = b.clone();
     let top = b.head.y - 3.0;
-    out.push(layer(g, "chest/robe", bi, &[("robe", &[1])], move |p| {
+    out.push(layer(g, "chest/robe", bi, &[("robe", &[1]), ("chest", &[0])], move |p| {
         let b = &bb;
         let m = mirror(p);
         let (ok, trim) = match b.part_of(p) {
@@ -275,7 +275,7 @@ fn robe(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         Some((g_part(b, p), Mode::Set, c))
     }));
     let female = b.female;
-    out.push(layer(g, "skirt/robe", bi, &[("robe", &[1])], move |p| {
+    out.push(layer(g, "skirt/robe", bi, &[("robe", &[1]), ("chest", &[0])], move |p| {
         if p.y > 34.0 || p.y < 1.4 {
             return None;
         }
@@ -390,7 +390,7 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         }
         let fold = 0.38 * (p.x * 1.05 + drop * 0.05).sin() * smooth(0.0, 8.0, drop);
         // round the shoulders at the top, hang straight below
-        let zc = c0.z - 0.4 - drop * 0.055 - fold + (p.x / w).powi(2) * 1.8 * smooth(6.0, 0.0, drop);
+        let zc = c0.z - 0.4 - drop * 0.06 - smooth(8.0, 24.0, drop) * 1.3 - fold + (p.x / w).powi(2) * 1.8 * smooth(6.0, 0.0, drop);
         if (p.z - zc).abs() > 0.42 {
             return None;
         }
@@ -595,8 +595,9 @@ fn hair(g: &Grid, b: &Body, bi: usize, ink: &Inks, style: u8) -> Layer {
         // volume over the crown, swept up at the front
         let lift = if style == 4 { 0.2 } else { 0.75 } * smooth(y(57.5), y(60.5), p.y)
             + if style == 1 { 0.5 * smooth(1.0, 3.5, p.z) * smooth(y(58.5), y(60.0), p.y) } else { 0.0 };
-        let off = tight + strand * 0.35 + lift;
         let line = hairline(&b, theta);
+        // thin where it starts, so it lies on the head rather than sitting on it
+        let off = (tight + strand * 0.35 + lift) * (0.25 + 0.75 * smooth(line, line + 1.6, p.y));
         let mut shape = cran;
         let mut extra = false;
         if style == 2 {

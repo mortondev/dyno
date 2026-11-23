@@ -55,7 +55,7 @@ impl Inks {
             skin: [s(p, "skin", 0.93), s(p, "skin", 1.0), s(p, "skin", 1.06)],
             skin_shadow: s(p, "skin", 0.8),
             blush: p.slot("skin", 0.94, [0.05, -0.015, -0.015], false),
-            lips: p.slot("skin", 0.8, [0.09, -0.01, 0.0], false),
+            lips: p.slot("skin", 0.88, [0.06, -0.01, -0.01], false),
             mouth: p.slot("skin", 0.42, [0.06, 0.0, 0.0], true),
             eye_white: p.fixed([0.93, 0.92, 0.88], false, true),
             iris: sc(p, "eyes", 1.0),
@@ -207,7 +207,7 @@ fn bare_head(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> super::Layer {
                 c = ink.skin_shadow;
             }
             // lips
-            else if m.x < 1.25 && (p.y - y(54.1)).abs() < 0.55 && p.z > 3.5 && skull > -0.3 {
+            else if m.x < 1.05 && p.y < y(54.05) && p.y > y(53.55) && p.z > 3.5 && skull > -0.3 {
                 c = ink.lips;
             }
             // cheeks and nose tip

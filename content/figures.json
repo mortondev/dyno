@@ -1,5 +1,29 @@
 {
  "appearance": {
+  "base": {
+   "colors": {
+    "cape": null,
+    "trim": [
+     0.42,
+     0.34,
+     0.24
+    ],
+    "tunic": [
+     0.6,
+     0.55,
+     0.45
+    ]
+   },
+   "features": {
+    "armor": 0,
+    "cape": 0,
+    "emblem": 0,
+    "gloves": 0,
+    "helmet": 0,
+    "pauldrons": 0,
+    "robe": 0
+   }
+  },
   "colors": {
    "eyes": {
     "field": "eyes",
@@ -140,15 +164,43 @@
   "features": {
    "beard": {
     "field": "beard",
-    "max": 1
+    "label": "Beard",
+    "max": 1,
+    "names": [
+     "None",
+     "Beard"
+    ]
+   },
+   "body": {
+    "div": 3,
+    "field": "build",
+    "label": "Body",
+    "max": 1,
+    "names": [
+     "Masculine",
+     "Feminine"
+    ]
    },
    "build": {
     "field": "build",
-    "max": 2
+    "label": "Build",
+    "max": 2,
+    "modulo": 3,
+    "names": [
+     "Slight",
+     "Average",
+     "Burly"
+    ]
    },
    "ears": {
     "field": "ears",
-    "max": 2
+    "label": "Ears",
+    "max": 2,
+    "names": [
+     "Hidden",
+     "Round",
+     "Pointed"
+    ]
    },
    "hair_style": {
     "field": "hair_style",
@@ -156,7 +208,13 @@
    },
    "mood": {
     "field": "mood",
-    "max": 2
+    "label": "Expression",
+    "max": 2,
+    "names": [
+     "Cheerful",
+     "Stern",
+     "Calm"
+    ]
    }
   }
  },
@@ -392,6 +450,2667 @@
   },
   "Quadruped/3": {
    "figure": "websnare"
+  }
+ },
+ "equip": {
+  "items": {
+   "apprentice_circlet": {
+    "colors": {
+     "head.accent": [
+      0.82,
+      0.78,
+      0.64
+     ],
+     "head.gem": [
+      0.4,
+      0.7,
+      1.0
+     ],
+     "head.main": [
+      0.24,
+      0.34,
+      0.68
+     ],
+     "head.trim": [
+      0.9,
+      0.88,
+      0.8
+     ]
+    },
+    "features": {
+     "helm": 1
+    }
+   },
+   "apprentice_mantle": {
+    "colors": {
+     "shoulders.accent": [
+      0.82,
+      0.78,
+      0.64
+     ],
+     "shoulders.gem": [
+      0.4,
+      0.7,
+      1.0
+     ],
+     "shoulders.main": [
+      0.24,
+      0.34,
+      0.68
+     ],
+     "shoulders.trim": [
+      0.9,
+      0.88,
+      0.8
+     ]
+    },
+    "features": {
+     "shoulders": 1
+    }
+   },
+   "apprentice_robe": {
+    "colors": {
+     "chest.accent": [
+      0.82,
+      0.78,
+      0.64
+     ],
+     "chest.gem": [
+      0.4,
+      0.7,
+      1.0
+     ],
+     "chest.main": [
+      0.24,
+      0.34,
+      0.68
+     ],
+     "chest.trim": [
+      0.9,
+      0.88,
+      0.8
+     ]
+    },
+    "features": {
+     "chest": 1,
+     "robe": 1
+    }
+   },
+   "apprentice_sash": {
+    "colors": {
+     "waist.accent": [
+      0.82,
+      0.78,
+      0.64
+     ],
+     "waist.gem": [
+      0.4,
+      0.7,
+      1.0
+     ],
+     "waist.main": [
+      0.24,
+      0.34,
+      0.68
+     ],
+     "waist.trim": [
+      0.9,
+      0.88,
+      0.8
+     ]
+    },
+    "features": {
+     "waist": 1
+    }
+   },
+   "apprentice_slippers": {
+    "colors": {
+     "feet.accent": [
+      0.82,
+      0.78,
+      0.64
+     ],
+     "feet.gem": [
+      0.4,
+      0.7,
+      1.0
+     ],
+     "feet.main": [
+      0.24,
+      0.34,
+      0.68
+     ],
+     "feet.trim": [
+      0.9,
+      0.88,
+      0.8
+     ]
+    },
+    "features": {
+     "feet": 1
+    }
+   },
+   "apprentice_trousers": {
+    "colors": {
+     "legs.accent": [
+      0.82,
+      0.78,
+      0.64
+     ],
+     "legs.gem": [
+      0.4,
+      0.7,
+      1.0
+     ],
+     "legs.main": [
+      0.24,
+      0.34,
+      0.68
+     ],
+     "legs.trim": [
+      0.9,
+      0.88,
+      0.8
+     ]
+    },
+    "features": {
+     "legs": 1
+    }
+   },
+   "apprentice_wraps": {
+    "colors": {
+     "hands.accent": [
+      0.82,
+      0.78,
+      0.64
+     ],
+     "hands.gem": [
+      0.4,
+      0.7,
+      1.0
+     ],
+     "hands.main": [
+      0.24,
+      0.34,
+      0.68
+     ],
+     "hands.trim": [
+      0.9,
+      0.88,
+      0.8
+     ]
+    },
+    "features": {
+     "hands": 1
+    }
+   },
+   "arcanist_circlet": {
+    "colors": {
+     "head.accent": [
+      0.2,
+      0.1,
+      0.3
+     ],
+     "head.gem": [
+      0.85,
+      0.45,
+      1.0
+     ],
+     "head.main": [
+      0.38,
+      0.16,
+      0.56
+     ],
+     "head.trim": [
+      0.92,
+      0.73,
+      0.3
+     ]
+    },
+    "features": {
+     "helm": 1
+    }
+   },
+   "arcanist_mantle": {
+    "colors": {
+     "shoulders.accent": [
+      0.2,
+      0.1,
+      0.3
+     ],
+     "shoulders.gem": [
+      0.85,
+      0.45,
+      1.0
+     ],
+     "shoulders.main": [
+      0.38,
+      0.16,
+      0.56
+     ],
+     "shoulders.trim": [
+      0.92,
+      0.73,
+      0.3
+     ]
+    },
+    "features": {
+     "shoulders": 1
+    }
+   },
+   "arcanist_robe": {
+    "colors": {
+     "chest.accent": [
+      0.2,
+      0.1,
+      0.3
+     ],
+     "chest.gem": [
+      0.85,
+      0.45,
+      1.0
+     ],
+     "chest.main": [
+      0.38,
+      0.16,
+      0.56
+     ],
+     "chest.trim": [
+      0.92,
+      0.73,
+      0.3
+     ]
+    },
+    "features": {
+     "chest": 1,
+     "robe": 1
+    }
+   },
+   "arcanist_sash": {
+    "colors": {
+     "waist.accent": [
+      0.2,
+      0.1,
+      0.3
+     ],
+     "waist.gem": [
+      0.85,
+      0.45,
+      1.0
+     ],
+     "waist.main": [
+      0.38,
+      0.16,
+      0.56
+     ],
+     "waist.trim": [
+      0.92,
+      0.73,
+      0.3
+     ]
+    },
+    "features": {
+     "waist": 1
+    }
+   },
+   "arcanist_slippers": {
+    "colors": {
+     "feet.accent": [
+      0.2,
+      0.1,
+      0.3
+     ],
+     "feet.gem": [
+      0.85,
+      0.45,
+      1.0
+     ],
+     "feet.main": [
+      0.38,
+      0.16,
+      0.56
+     ],
+     "feet.trim": [
+      0.92,
+      0.73,
+      0.3
+     ]
+    },
+    "features": {
+     "feet": 1
+    }
+   },
+   "arcanist_trousers": {
+    "colors": {
+     "legs.accent": [
+      0.2,
+      0.1,
+      0.3
+     ],
+     "legs.gem": [
+      0.85,
+      0.45,
+      1.0
+     ],
+     "legs.main": [
+      0.38,
+      0.16,
+      0.56
+     ],
+     "legs.trim": [
+      0.92,
+      0.73,
+      0.3
+     ]
+    },
+    "features": {
+     "legs": 1
+    }
+   },
+   "arcanist_wraps": {
+    "colors": {
+     "hands.accent": [
+      0.2,
+      0.1,
+      0.3
+     ],
+     "hands.gem": [
+      0.85,
+      0.45,
+      1.0
+     ],
+     "hands.main": [
+      0.38,
+      0.16,
+      0.56
+     ],
+     "hands.trim": [
+      0.92,
+      0.73,
+      0.3
+     ]
+    },
+    "features": {
+     "hands": 1
+    }
+   },
+   "barrow_wardens_helm": {
+    "colors": {
+     "head.gem": [
+      0.4,
+      0.9,
+      0.7
+     ],
+     "head.main": [
+      0.35,
+      0.35,
+      0.4
+     ],
+     "head.trim": [
+      0.5,
+      0.48,
+      0.42
+     ]
+    },
+    "features": {
+     "helm": 4
+    }
+   },
+   "bloodfang_belt": {
+    "colors": {
+     "waist.accent": [
+      0.14,
+      0.11,
+      0.1
+     ],
+     "waist.gem": [
+      0.95,
+      0.2,
+      0.15
+     ],
+     "waist.main": [
+      0.36,
+      0.13,
+      0.11
+     ],
+     "waist.trim": [
+      0.2,
+      0.15,
+      0.13
+     ]
+    },
+    "features": {
+     "waist": 2
+    }
+   },
+   "bloodfang_boots": {
+    "colors": {
+     "feet.accent": [
+      0.14,
+      0.11,
+      0.1
+     ],
+     "feet.gem": [
+      0.95,
+      0.2,
+      0.15
+     ],
+     "feet.main": [
+      0.36,
+      0.13,
+      0.11
+     ],
+     "feet.trim": [
+      0.2,
+      0.15,
+      0.13
+     ]
+    },
+    "features": {
+     "feet": 2
+    }
+   },
+   "bloodfang_breeches": {
+    "colors": {
+     "legs.accent": [
+      0.14,
+      0.11,
+      0.1
+     ],
+     "legs.gem": [
+      0.95,
+      0.2,
+      0.15
+     ],
+     "legs.main": [
+      0.36,
+      0.13,
+      0.11
+     ],
+     "legs.trim": [
+      0.2,
+      0.15,
+      0.13
+     ]
+    },
+    "features": {
+     "legs": 2
+    }
+   },
+   "bloodfang_cowl": {
+    "colors": {
+     "head.accent": [
+      0.14,
+      0.11,
+      0.1
+     ],
+     "head.gem": [
+      0.95,
+      0.2,
+      0.15
+     ],
+     "head.main": [
+      0.36,
+      0.13,
+      0.11
+     ],
+     "head.trim": [
+      0.2,
+      0.15,
+      0.13
+     ]
+    },
+    "features": {
+     "helm": 2
+    }
+   },
+   "bloodfang_gloves": {
+    "colors": {
+     "hands.accent": [
+      0.14,
+      0.11,
+      0.1
+     ],
+     "hands.gem": [
+      0.95,
+      0.2,
+      0.15
+     ],
+     "hands.main": [
+      0.36,
+      0.13,
+      0.11
+     ],
+     "hands.trim": [
+      0.2,
+      0.15,
+      0.13
+     ]
+    },
+    "features": {
+     "hands": 2
+    }
+   },
+   "bloodfang_jerkin": {
+    "colors": {
+     "chest.accent": [
+      0.14,
+      0.11,
+      0.1
+     ],
+     "chest.gem": [
+      0.95,
+      0.2,
+      0.15
+     ],
+     "chest.main": [
+      0.36,
+      0.13,
+      0.11
+     ],
+     "chest.trim": [
+      0.2,
+      0.15,
+      0.13
+     ]
+    },
+    "features": {
+     "chest": 2
+    }
+   },
+   "bloodfang_spaulders": {
+    "colors": {
+     "shoulders.accent": [
+      0.14,
+      0.11,
+      0.1
+     ],
+     "shoulders.gem": [
+      0.95,
+      0.2,
+      0.15
+     ],
+     "shoulders.main": [
+      0.36,
+      0.13,
+      0.11
+     ],
+     "shoulders.trim": [
+      0.2,
+      0.15,
+      0.13
+     ]
+    },
+    "features": {
+     "shoulders": 2
+    }
+   },
+   "dawnforged_cuirass": {
+    "colors": {
+     "chest.accent": [
+      0.42,
+      0.14,
+      0.58
+     ],
+     "chest.gem": [
+      1.0,
+      0.85,
+      0.35
+     ],
+     "chest.main": [
+      0.9,
+      0.87,
+      0.78
+     ],
+     "chest.trim": [
+      0.98,
+      0.76,
+      0.24
+     ]
+    },
+    "features": {
+     "chest": 4
+    }
+   },
+   "dawnforged_gauntlets": {
+    "colors": {
+     "hands.accent": [
+      0.42,
+      0.14,
+      0.58
+     ],
+     "hands.gem": [
+      1.0,
+      0.85,
+      0.35
+     ],
+     "hands.main": [
+      0.9,
+      0.87,
+      0.78
+     ],
+     "hands.trim": [
+      0.98,
+      0.76,
+      0.24
+     ]
+    },
+    "features": {
+     "hands": 4
+    }
+   },
+   "dawnforged_girdle": {
+    "colors": {
+     "waist.accent": [
+      0.42,
+      0.14,
+      0.58
+     ],
+     "waist.gem": [
+      1.0,
+      0.85,
+      0.35
+     ],
+     "waist.main": [
+      0.9,
+      0.87,
+      0.78
+     ],
+     "waist.trim": [
+      0.98,
+      0.76,
+      0.24
+     ]
+    },
+    "features": {
+     "waist": 4
+    }
+   },
+   "dawnforged_helm": {
+    "colors": {
+     "head.accent": [
+      0.42,
+      0.14,
+      0.58
+     ],
+     "head.gem": [
+      1.0,
+      0.85,
+      0.35
+     ],
+     "head.main": [
+      0.9,
+      0.87,
+      0.78
+     ],
+     "head.trim": [
+      0.98,
+      0.76,
+      0.24
+     ]
+    },
+    "features": {
+     "helm": 4
+    }
+   },
+   "dawnforged_legplates": {
+    "colors": {
+     "legs.accent": [
+      0.42,
+      0.14,
+      0.58
+     ],
+     "legs.gem": [
+      1.0,
+      0.85,
+      0.35
+     ],
+     "legs.main": [
+      0.9,
+      0.87,
+      0.78
+     ],
+     "legs.trim": [
+      0.98,
+      0.76,
+      0.24
+     ]
+    },
+    "features": {
+     "legs": 4
+    }
+   },
+   "dawnforged_pauldrons": {
+    "colors": {
+     "shoulders.accent": [
+      0.42,
+      0.14,
+      0.58
+     ],
+     "shoulders.gem": [
+      1.0,
+      0.85,
+      0.35
+     ],
+     "shoulders.main": [
+      0.9,
+      0.87,
+      0.78
+     ],
+     "shoulders.trim": [
+      0.98,
+      0.76,
+      0.24
+     ]
+    },
+    "features": {
+     "shoulders": 4
+    }
+   },
+   "dawnforged_sabatons": {
+    "colors": {
+     "feet.accent": [
+      0.42,
+      0.14,
+      0.58
+     ],
+     "feet.gem": [
+      1.0,
+      0.85,
+      0.35
+     ],
+     "feet.main": [
+      0.9,
+      0.87,
+      0.78
+     ],
+     "feet.trim": [
+      0.98,
+      0.76,
+      0.24
+     ]
+    },
+    "features": {
+     "feet": 4
+    }
+   },
+   "duskwhisper_belt": {
+    "colors": {
+     "waist.accent": [
+      0.08,
+      0.1,
+      0.18
+     ],
+     "waist.gem": [
+      0.5,
+      0.8,
+      1.0
+     ],
+     "waist.main": [
+      0.16,
+      0.2,
+      0.33
+     ],
+     "waist.trim": [
+      0.8,
+      0.82,
+      0.88
+     ]
+    },
+    "features": {
+     "waist": 2
+    }
+   },
+   "duskwhisper_boots": {
+    "colors": {
+     "feet.accent": [
+      0.08,
+      0.1,
+      0.18
+     ],
+     "feet.gem": [
+      0.5,
+      0.8,
+      1.0
+     ],
+     "feet.main": [
+      0.16,
+      0.2,
+      0.33
+     ],
+     "feet.trim": [
+      0.8,
+      0.82,
+      0.88
+     ]
+    },
+    "features": {
+     "feet": 2
+    }
+   },
+   "duskwhisper_breeches": {
+    "colors": {
+     "legs.accent": [
+      0.08,
+      0.1,
+      0.18
+     ],
+     "legs.gem": [
+      0.5,
+      0.8,
+      1.0
+     ],
+     "legs.main": [
+      0.16,
+      0.2,
+      0.33
+     ],
+     "legs.trim": [
+      0.8,
+      0.82,
+      0.88
+     ]
+    },
+    "features": {
+     "legs": 2
+    }
+   },
+   "duskwhisper_cowl": {
+    "colors": {
+     "head.accent": [
+      0.08,
+      0.1,
+      0.18
+     ],
+     "head.gem": [
+      0.5,
+      0.8,
+      1.0
+     ],
+     "head.main": [
+      0.16,
+      0.2,
+      0.33
+     ],
+     "head.trim": [
+      0.8,
+      0.82,
+      0.88
+     ]
+    },
+    "features": {
+     "helm": 2
+    }
+   },
+   "duskwhisper_gloves": {
+    "colors": {
+     "hands.accent": [
+      0.08,
+      0.1,
+      0.18
+     ],
+     "hands.gem": [
+      0.5,
+      0.8,
+      1.0
+     ],
+     "hands.main": [
+      0.16,
+      0.2,
+      0.33
+     ],
+     "hands.trim": [
+      0.8,
+      0.82,
+      0.88
+     ]
+    },
+    "features": {
+     "hands": 2
+    }
+   },
+   "duskwhisper_jerkin": {
+    "colors": {
+     "chest.accent": [
+      0.08,
+      0.1,
+      0.18
+     ],
+     "chest.gem": [
+      0.5,
+      0.8,
+      1.0
+     ],
+     "chest.main": [
+      0.16,
+      0.2,
+      0.33
+     ],
+     "chest.trim": [
+      0.8,
+      0.82,
+      0.88
+     ]
+    },
+    "features": {
+     "chest": 2
+    }
+   },
+   "duskwhisper_spaulders": {
+    "colors": {
+     "shoulders.accent": [
+      0.08,
+      0.1,
+      0.18
+     ],
+     "shoulders.gem": [
+      0.5,
+      0.8,
+      1.0
+     ],
+     "shoulders.main": [
+      0.16,
+      0.2,
+      0.33
+     ],
+     "shoulders.trim": [
+      0.8,
+      0.82,
+      0.88
+     ]
+    },
+    "features": {
+     "shoulders": 2
+    }
+   },
+   "grazer_hide_leggings": {
+    "colors": {
+     "legs.main": [
+      0.6,
+      0.5,
+      0.35
+     ],
+     "legs.trim": [
+      0.4,
+      0.3,
+      0.2
+     ]
+    },
+    "features": {
+     "legs": 2
+    }
+   },
+   "hearthkeeper_robe": {
+    "colors": {
+     "chest.accent": [
+      0.3,
+      0.14,
+      0.1
+     ],
+     "chest.gem": [
+      1.0,
+      0.6,
+      0.25
+     ],
+     "chest.main": [
+      0.55,
+      0.25,
+      0.2
+     ],
+     "chest.trim": [
+      0.85,
+      0.7,
+      0.4
+     ]
+    },
+    "features": {
+     "chest": 1,
+     "robe": 1
+    }
+   },
+   "ironbound_cuirass": {
+    "colors": {
+     "chest.accent": [
+      0.58,
+      0.12,
+      0.1
+     ],
+     "chest.gem": [
+      0.85,
+      0.25,
+      0.15
+     ],
+     "chest.main": [
+      0.5,
+      0.51,
+      0.54
+     ],
+     "chest.trim": [
+      0.66,
+      0.45,
+      0.22
+     ]
+    },
+    "features": {
+     "chest": 4
+    }
+   },
+   "ironbound_gauntlets": {
+    "colors": {
+     "hands.accent": [
+      0.58,
+      0.12,
+      0.1
+     ],
+     "hands.gem": [
+      0.85,
+      0.25,
+      0.15
+     ],
+     "hands.main": [
+      0.5,
+      0.51,
+      0.54
+     ],
+     "hands.trim": [
+      0.66,
+      0.45,
+      0.22
+     ]
+    },
+    "features": {
+     "hands": 4
+    }
+   },
+   "ironbound_girdle": {
+    "colors": {
+     "waist.accent": [
+      0.58,
+      0.12,
+      0.1
+     ],
+     "waist.gem": [
+      0.85,
+      0.25,
+      0.15
+     ],
+     "waist.main": [
+      0.5,
+      0.51,
+      0.54
+     ],
+     "waist.trim": [
+      0.66,
+      0.45,
+      0.22
+     ]
+    },
+    "features": {
+     "waist": 4
+    }
+   },
+   "ironbound_helm": {
+    "colors": {
+     "head.accent": [
+      0.58,
+      0.12,
+      0.1
+     ],
+     "head.gem": [
+      0.85,
+      0.25,
+      0.15
+     ],
+     "head.main": [
+      0.5,
+      0.51,
+      0.54
+     ],
+     "head.trim": [
+      0.66,
+      0.45,
+      0.22
+     ]
+    },
+    "features": {
+     "helm": 4
+    }
+   },
+   "ironbound_legplates": {
+    "colors": {
+     "legs.accent": [
+      0.58,
+      0.12,
+      0.1
+     ],
+     "legs.gem": [
+      0.85,
+      0.25,
+      0.15
+     ],
+     "legs.main": [
+      0.5,
+      0.51,
+      0.54
+     ],
+     "legs.trim": [
+      0.66,
+      0.45,
+      0.22
+     ]
+    },
+    "features": {
+     "legs": 4
+    }
+   },
+   "ironbound_pauldrons": {
+    "colors": {
+     "shoulders.accent": [
+      0.58,
+      0.12,
+      0.1
+     ],
+     "shoulders.gem": [
+      0.85,
+      0.25,
+      0.15
+     ],
+     "shoulders.main": [
+      0.5,
+      0.51,
+      0.54
+     ],
+     "shoulders.trim": [
+      0.66,
+      0.45,
+      0.22
+     ]
+    },
+    "features": {
+     "shoulders": 4
+    }
+   },
+   "ironbound_sabatons": {
+    "colors": {
+     "feet.accent": [
+      0.58,
+      0.12,
+      0.1
+     ],
+     "feet.gem": [
+      0.85,
+      0.25,
+      0.15
+     ],
+     "feet.main": [
+      0.5,
+      0.51,
+      0.54
+     ],
+     "feet.trim": [
+      0.66,
+      0.45,
+      0.22
+     ]
+    },
+    "features": {
+     "feet": 4
+    }
+   },
+   "magister_circlet": {
+    "colors": {
+     "head.accent": [
+      0.16,
+      0.06,
+      0.06
+     ],
+     "head.gem": [
+      1.0,
+      0.6,
+      0.2
+     ],
+     "head.main": [
+      0.6,
+      0.1,
+      0.12
+     ],
+     "head.trim": [
+      0.98,
+      0.8,
+      0.35
+     ]
+    },
+    "features": {
+     "helm": 1
+    }
+   },
+   "magister_mantle": {
+    "colors": {
+     "shoulders.accent": [
+      0.16,
+      0.06,
+      0.06
+     ],
+     "shoulders.gem": [
+      1.0,
+      0.6,
+      0.2
+     ],
+     "shoulders.main": [
+      0.6,
+      0.1,
+      0.12
+     ],
+     "shoulders.trim": [
+      0.98,
+      0.8,
+      0.35
+     ]
+    },
+    "features": {
+     "shoulders": 1
+    }
+   },
+   "magister_robe": {
+    "colors": {
+     "chest.accent": [
+      0.16,
+      0.06,
+      0.06
+     ],
+     "chest.gem": [
+      1.0,
+      0.6,
+      0.2
+     ],
+     "chest.main": [
+      0.6,
+      0.1,
+      0.12
+     ],
+     "chest.trim": [
+      0.98,
+      0.8,
+      0.35
+     ]
+    },
+    "features": {
+     "chest": 1,
+     "robe": 1
+    }
+   },
+   "magister_sash": {
+    "colors": {
+     "waist.accent": [
+      0.16,
+      0.06,
+      0.06
+     ],
+     "waist.gem": [
+      1.0,
+      0.6,
+      0.2
+     ],
+     "waist.main": [
+      0.6,
+      0.1,
+      0.12
+     ],
+     "waist.trim": [
+      0.98,
+      0.8,
+      0.35
+     ]
+    },
+    "features": {
+     "waist": 1
+    }
+   },
+   "magister_slippers": {
+    "colors": {
+     "feet.accent": [
+      0.16,
+      0.06,
+      0.06
+     ],
+     "feet.gem": [
+      1.0,
+      0.6,
+      0.2
+     ],
+     "feet.main": [
+      0.6,
+      0.1,
+      0.12
+     ],
+     "feet.trim": [
+      0.98,
+      0.8,
+      0.35
+     ]
+    },
+    "features": {
+     "feet": 1
+    }
+   },
+   "magister_trousers": {
+    "colors": {
+     "legs.accent": [
+      0.16,
+      0.06,
+      0.06
+     ],
+     "legs.gem": [
+      1.0,
+      0.6,
+      0.2
+     ],
+     "legs.main": [
+      0.6,
+      0.1,
+      0.12
+     ],
+     "legs.trim": [
+      0.98,
+      0.8,
+      0.35
+     ]
+    },
+    "features": {
+     "legs": 1
+    }
+   },
+   "magister_wraps": {
+    "colors": {
+     "hands.accent": [
+      0.16,
+      0.06,
+      0.06
+     ],
+     "hands.gem": [
+      1.0,
+      0.6,
+      0.2
+     ],
+     "hands.main": [
+      0.6,
+      0.1,
+      0.12
+     ],
+     "hands.trim": [
+      0.98,
+      0.8,
+      0.35
+     ]
+    },
+    "features": {
+     "hands": 1
+    }
+   },
+   "mudcaked_boots": {
+    "colors": {
+     "feet.accent": [
+      0.25,
+      0.2,
+      0.15
+     ],
+     "feet.main": [
+      0.42,
+      0.3,
+      0.2
+     ],
+     "feet.trim": [
+      0.3,
+      0.22,
+      0.15
+     ]
+    },
+    "features": {
+     "feet": 2
+    }
+   },
+   "nightstalker_belt": {
+    "colors": {
+     "waist.accent": [
+      0.34,
+      0.22,
+      0.42
+     ],
+     "waist.gem": [
+      0.6,
+      0.3,
+      0.9
+     ],
+     "waist.main": [
+      0.22,
+      0.2,
+      0.2
+     ],
+     "waist.trim": [
+      0.55,
+      0.55,
+      0.58
+     ]
+    },
+    "features": {
+     "waist": 2
+    }
+   },
+   "nightstalker_boots": {
+    "colors": {
+     "feet.accent": [
+      0.34,
+      0.22,
+      0.42
+     ],
+     "feet.gem": [
+      0.6,
+      0.3,
+      0.9
+     ],
+     "feet.main": [
+      0.22,
+      0.2,
+      0.2
+     ],
+     "feet.trim": [
+      0.55,
+      0.55,
+      0.58
+     ]
+    },
+    "features": {
+     "feet": 2
+    }
+   },
+   "nightstalker_breeches": {
+    "colors": {
+     "legs.accent": [
+      0.34,
+      0.22,
+      0.42
+     ],
+     "legs.gem": [
+      0.6,
+      0.3,
+      0.9
+     ],
+     "legs.main": [
+      0.22,
+      0.2,
+      0.2
+     ],
+     "legs.trim": [
+      0.55,
+      0.55,
+      0.58
+     ]
+    },
+    "features": {
+     "legs": 2
+    }
+   },
+   "nightstalker_cowl": {
+    "colors": {
+     "head.accent": [
+      0.34,
+      0.22,
+      0.42
+     ],
+     "head.gem": [
+      0.6,
+      0.3,
+      0.9
+     ],
+     "head.main": [
+      0.22,
+      0.2,
+      0.2
+     ],
+     "head.trim": [
+      0.55,
+      0.55,
+      0.58
+     ]
+    },
+    "features": {
+     "helm": 2
+    }
+   },
+   "nightstalker_gloves": {
+    "colors": {
+     "hands.accent": [
+      0.34,
+      0.22,
+      0.42
+     ],
+     "hands.gem": [
+      0.6,
+      0.3,
+      0.9
+     ],
+     "hands.main": [
+      0.22,
+      0.2,
+      0.2
+     ],
+     "hands.trim": [
+      0.55,
+      0.55,
+      0.58
+     ]
+    },
+    "features": {
+     "hands": 2
+    }
+   },
+   "nightstalker_jerkin": {
+    "colors": {
+     "chest.accent": [
+      0.34,
+      0.22,
+      0.42
+     ],
+     "chest.gem": [
+      0.6,
+      0.3,
+      0.9
+     ],
+     "chest.main": [
+      0.22,
+      0.2,
+      0.2
+     ],
+     "chest.trim": [
+      0.55,
+      0.55,
+      0.58
+     ]
+    },
+    "features": {
+     "chest": 2
+    }
+   },
+   "nightstalker_spaulders": {
+    "colors": {
+     "shoulders.accent": [
+      0.34,
+      0.22,
+      0.42
+     ],
+     "shoulders.gem": [
+      0.6,
+      0.3,
+      0.9
+     ],
+     "shoulders.main": [
+      0.22,
+      0.2,
+      0.2
+     ],
+     "shoulders.trim": [
+      0.55,
+      0.55,
+      0.58
+     ]
+    },
+    "features": {
+     "shoulders": 2
+    }
+   },
+   "old_tusk_mantle": {
+    "colors": {
+     "shoulders.main": [
+      0.38,
+      0.24,
+      0.16
+     ],
+     "shoulders.trim": [
+      0.85,
+      0.8,
+      0.65
+     ]
+    },
+    "features": {
+     "shoulders": 2
+    }
+   },
+   "ranger_jerkin": {
+    "colors": {
+     "chest.accent": [
+      0.26,
+      0.36,
+      0.2
+     ],
+     "chest.main": [
+      0.5,
+      0.35,
+      0.2
+     ],
+     "chest.trim": [
+      0.32,
+      0.22,
+      0.13
+     ]
+    },
+    "features": {
+     "chest": 2
+    }
+   },
+   "rook_varns_sash": {
+    "colors": {
+     "waist.main": [
+      0.7,
+      0.15,
+      0.12
+     ],
+     "waist.trim": [
+      0.45,
+      0.08,
+      0.06
+     ]
+    },
+    "features": {
+     "waist": 1
+    }
+   },
+   "shadowweave_gloves": {
+    "colors": {
+     "hands.main": [
+      0.3,
+      0.22,
+      0.4
+     ],
+     "hands.trim": [
+      0.6,
+      0.55,
+      0.7
+     ]
+    },
+    "features": {
+     "hands": 1
+    }
+   },
+   "silkmother_gloves": {
+    "colors": {
+     "hands.main": [
+      0.92,
+      0.92,
+      0.9
+     ],
+     "hands.trim": [
+      0.75,
+      0.7,
+      0.8
+     ]
+    },
+    "features": {
+     "hands": 1
+    }
+   },
+   "skyhunter_belt": {
+    "colors": {
+     "waist.accent": [
+      0.16,
+      0.3,
+      0.64
+     ],
+     "waist.gem": [
+      0.5,
+      0.75,
+      1.0
+     ],
+     "waist.main": [
+      0.68,
+      0.72,
+      0.8
+     ],
+     "waist.trim": [
+      0.95,
+      0.78,
+      0.3
+     ]
+    },
+    "features": {
+     "waist": 3
+    }
+   },
+   "skyhunter_boots": {
+    "colors": {
+     "feet.accent": [
+      0.16,
+      0.3,
+      0.64
+     ],
+     "feet.gem": [
+      0.5,
+      0.75,
+      1.0
+     ],
+     "feet.main": [
+      0.68,
+      0.72,
+      0.8
+     ],
+     "feet.trim": [
+      0.95,
+      0.78,
+      0.3
+     ]
+    },
+    "features": {
+     "feet": 3
+    }
+   },
+   "skyhunter_gauntlets": {
+    "colors": {
+     "hands.accent": [
+      0.16,
+      0.3,
+      0.64
+     ],
+     "hands.gem": [
+      0.5,
+      0.75,
+      1.0
+     ],
+     "hands.main": [
+      0.68,
+      0.72,
+      0.8
+     ],
+     "hands.trim": [
+      0.95,
+      0.78,
+      0.3
+     ]
+    },
+    "features": {
+     "hands": 3
+    }
+   },
+   "skyhunter_hauberk": {
+    "colors": {
+     "chest.accent": [
+      0.16,
+      0.3,
+      0.64
+     ],
+     "chest.gem": [
+      0.5,
+      0.75,
+      1.0
+     ],
+     "chest.main": [
+      0.68,
+      0.72,
+      0.8
+     ],
+     "chest.trim": [
+      0.95,
+      0.78,
+      0.3
+     ]
+    },
+    "features": {
+     "chest": 3
+    }
+   },
+   "skyhunter_hood": {
+    "colors": {
+     "head.accent": [
+      0.68,
+      0.72,
+      0.8
+     ],
+     "head.gem": [
+      0.5,
+      0.75,
+      1.0
+     ],
+     "head.main": [
+      0.16,
+      0.3,
+      0.64
+     ],
+     "head.trim": [
+      0.95,
+      0.78,
+      0.3
+     ]
+    },
+    "features": {
+     "helm": 3
+    }
+   },
+   "skyhunter_leggings": {
+    "colors": {
+     "legs.accent": [
+      0.16,
+      0.3,
+      0.64
+     ],
+     "legs.gem": [
+      0.5,
+      0.75,
+      1.0
+     ],
+     "legs.main": [
+      0.68,
+      0.72,
+      0.8
+     ],
+     "legs.trim": [
+      0.95,
+      0.78,
+      0.3
+     ]
+    },
+    "features": {
+     "legs": 3
+    }
+   },
+   "skyhunter_mantle": {
+    "colors": {
+     "shoulders.accent": [
+      0.16,
+      0.3,
+      0.64
+     ],
+     "shoulders.gem": [
+      0.5,
+      0.75,
+      1.0
+     ],
+     "shoulders.main": [
+      0.68,
+      0.72,
+      0.8
+     ],
+     "shoulders.trim": [
+      0.95,
+      0.78,
+      0.3
+     ]
+    },
+    "features": {
+     "shoulders": 3
+    }
+   },
+   "skyhunter_quiver": {
+    "colors": {
+     "back.accent": [
+      0.16,
+      0.3,
+      0.64
+     ],
+     "back.gem": [
+      0.5,
+      0.75,
+      1.0
+     ],
+     "back.main": [
+      0.42,
+      0.28,
+      0.16
+     ],
+     "back.trim": [
+      0.95,
+      0.78,
+      0.3
+     ]
+    },
+    "features": {
+     "quiver": 1
+    }
+   },
+   "smith_gloves": {
+    "colors": {
+     "hands.main": [
+      0.4,
+      0.28,
+      0.18
+     ],
+     "hands.trim": [
+      0.28,
+      0.2,
+      0.12
+     ]
+    },
+    "features": {
+     "hands": 2
+    }
+   },
+   "stormguard_cuirass": {
+    "colors": {
+     "chest.accent": [
+      0.12,
+      0.22,
+      0.55
+     ],
+     "chest.gem": [
+      0.35,
+      0.65,
+      1.0
+     ],
+     "chest.main": [
+      0.68,
+      0.73,
+      0.82
+     ],
+     "chest.trim": [
+      0.82,
+      0.88,
+      0.97
+     ]
+    },
+    "features": {
+     "chest": 4
+    }
+   },
+   "stormguard_gauntlets": {
+    "colors": {
+     "hands.accent": [
+      0.12,
+      0.22,
+      0.55
+     ],
+     "hands.gem": [
+      0.35,
+      0.65,
+      1.0
+     ],
+     "hands.main": [
+      0.68,
+      0.73,
+      0.82
+     ],
+     "hands.trim": [
+      0.82,
+      0.88,
+      0.97
+     ]
+    },
+    "features": {
+     "hands": 4
+    }
+   },
+   "stormguard_girdle": {
+    "colors": {
+     "waist.accent": [
+      0.12,
+      0.22,
+      0.55
+     ],
+     "waist.gem": [
+      0.35,
+      0.65,
+      1.0
+     ],
+     "waist.main": [
+      0.68,
+      0.73,
+      0.82
+     ],
+     "waist.trim": [
+      0.82,
+      0.88,
+      0.97
+     ]
+    },
+    "features": {
+     "waist": 4
+    }
+   },
+   "stormguard_helm": {
+    "colors": {
+     "head.accent": [
+      0.12,
+      0.22,
+      0.55
+     ],
+     "head.gem": [
+      0.35,
+      0.65,
+      1.0
+     ],
+     "head.main": [
+      0.68,
+      0.73,
+      0.82
+     ],
+     "head.trim": [
+      0.82,
+      0.88,
+      0.97
+     ]
+    },
+    "features": {
+     "helm": 4
+    }
+   },
+   "stormguard_legplates": {
+    "colors": {
+     "legs.accent": [
+      0.12,
+      0.22,
+      0.55
+     ],
+     "legs.gem": [
+      0.35,
+      0.65,
+      1.0
+     ],
+     "legs.main": [
+      0.68,
+      0.73,
+      0.82
+     ],
+     "legs.trim": [
+      0.82,
+      0.88,
+      0.97
+     ]
+    },
+    "features": {
+     "legs": 4
+    }
+   },
+   "stormguard_pauldrons": {
+    "colors": {
+     "shoulders.accent": [
+      0.12,
+      0.22,
+      0.55
+     ],
+     "shoulders.gem": [
+      0.35,
+      0.65,
+      1.0
+     ],
+     "shoulders.main": [
+      0.68,
+      0.73,
+      0.82
+     ],
+     "shoulders.trim": [
+      0.82,
+      0.88,
+      0.97
+     ]
+    },
+    "features": {
+     "shoulders": 4
+    }
+   },
+   "stormguard_sabatons": {
+    "colors": {
+     "feet.accent": [
+      0.12,
+      0.22,
+      0.55
+     ],
+     "feet.gem": [
+      0.35,
+      0.65,
+      1.0
+     ],
+     "feet.main": [
+      0.68,
+      0.73,
+      0.82
+     ],
+     "feet.trim": [
+      0.82,
+      0.88,
+      0.97
+     ]
+    },
+    "features": {
+     "feet": 4
+    }
+   },
+   "thornhide_boots": {
+    "colors": {
+     "feet.accent": [
+      0.22,
+      0.16,
+      0.1
+     ],
+     "feet.main": [
+      0.38,
+      0.24,
+      0.16
+     ],
+     "feet.trim": [
+      0.5,
+      0.45,
+      0.3
+     ]
+    },
+    "features": {
+     "feet": 2
+    }
+   },
+   "thornwatch_belt": {
+    "colors": {
+     "waist.accent": [
+      0.14,
+      0.36,
+      0.36
+     ],
+     "waist.gem": [
+      0.3,
+      0.9,
+      0.8
+     ],
+     "waist.main": [
+      0.46,
+      0.49,
+      0.52
+     ],
+     "waist.trim": [
+      0.72,
+      0.53,
+      0.25
+     ]
+    },
+    "features": {
+     "waist": 3
+    }
+   },
+   "thornwatch_boots": {
+    "colors": {
+     "feet.accent": [
+      0.14,
+      0.36,
+      0.36
+     ],
+     "feet.gem": [
+      0.3,
+      0.9,
+      0.8
+     ],
+     "feet.main": [
+      0.46,
+      0.49,
+      0.52
+     ],
+     "feet.trim": [
+      0.72,
+      0.53,
+      0.25
+     ]
+    },
+    "features": {
+     "feet": 3
+    }
+   },
+   "thornwatch_gauntlets": {
+    "colors": {
+     "hands.accent": [
+      0.14,
+      0.36,
+      0.36
+     ],
+     "hands.gem": [
+      0.3,
+      0.9,
+      0.8
+     ],
+     "hands.main": [
+      0.46,
+      0.49,
+      0.52
+     ],
+     "hands.trim": [
+      0.72,
+      0.53,
+      0.25
+     ]
+    },
+    "features": {
+     "hands": 3
+    }
+   },
+   "thornwatch_hauberk": {
+    "colors": {
+     "chest.accent": [
+      0.14,
+      0.36,
+      0.36
+     ],
+     "chest.gem": [
+      0.3,
+      0.9,
+      0.8
+     ],
+     "chest.main": [
+      0.46,
+      0.49,
+      0.52
+     ],
+     "chest.trim": [
+      0.72,
+      0.53,
+      0.25
+     ]
+    },
+    "features": {
+     "chest": 3
+    }
+   },
+   "thornwatch_hood": {
+    "colors": {
+     "head.accent": [
+      0.46,
+      0.49,
+      0.52
+     ],
+     "head.gem": [
+      0.3,
+      0.9,
+      0.8
+     ],
+     "head.main": [
+      0.14,
+      0.36,
+      0.36
+     ],
+     "head.trim": [
+      0.72,
+      0.53,
+      0.25
+     ]
+    },
+    "features": {
+     "helm": 3
+    }
+   },
+   "thornwatch_leggings": {
+    "colors": {
+     "legs.accent": [
+      0.14,
+      0.36,
+      0.36
+     ],
+     "legs.gem": [
+      0.3,
+      0.9,
+      0.8
+     ],
+     "legs.main": [
+      0.46,
+      0.49,
+      0.52
+     ],
+     "legs.trim": [
+      0.72,
+      0.53,
+      0.25
+     ]
+    },
+    "features": {
+     "legs": 3
+    }
+   },
+   "thornwatch_mantle": {
+    "colors": {
+     "shoulders.accent": [
+      0.14,
+      0.36,
+      0.36
+     ],
+     "shoulders.gem": [
+      0.3,
+      0.9,
+      0.8
+     ],
+     "shoulders.main": [
+      0.46,
+      0.49,
+      0.52
+     ],
+     "shoulders.trim": [
+      0.72,
+      0.53,
+      0.25
+     ]
+    },
+    "features": {
+     "shoulders": 3
+    }
+   },
+   "thornwatch_quiver": {
+    "colors": {
+     "back.accent": [
+      0.14,
+      0.36,
+      0.36
+     ],
+     "back.gem": [
+      0.3,
+      0.9,
+      0.8
+     ],
+     "back.main": [
+      0.42,
+      0.28,
+      0.16
+     ],
+     "back.trim": [
+      0.72,
+      0.53,
+      0.25
+     ]
+    },
+    "features": {
+     "quiver": 1
+    }
+   },
+   "watchman_vest": {
+    "colors": {
+     "chest.accent": [
+      0.3,
+      0.32,
+      0.5
+     ],
+     "chest.main": [
+      0.6,
+      0.62,
+      0.68
+     ],
+     "chest.trim": [
+      0.5,
+      0.36,
+      0.2
+     ]
+    },
+    "features": {
+     "chest": 3
+    }
+   },
+   "webspun_cloak": {
+    "colors": {
+     "cape": [
+      0.9,
+      0.9,
+      0.88
+     ]
+    },
+    "features": {
+     "cape": 1
+    }
+   },
+   "wildstalker_belt": {
+    "colors": {
+     "waist.accent": [
+      0.25,
+      0.4,
+      0.18
+     ],
+     "waist.gem": [
+      0.6,
+      0.85,
+      0.3
+     ],
+     "waist.main": [
+      0.5,
+      0.52,
+      0.5
+     ],
+     "waist.trim": [
+      0.45,
+      0.3,
+      0.16
+     ]
+    },
+    "features": {
+     "waist": 3
+    }
+   },
+   "wildstalker_boots": {
+    "colors": {
+     "feet.accent": [
+      0.25,
+      0.4,
+      0.18
+     ],
+     "feet.gem": [
+      0.6,
+      0.85,
+      0.3
+     ],
+     "feet.main": [
+      0.5,
+      0.52,
+      0.5
+     ],
+     "feet.trim": [
+      0.45,
+      0.3,
+      0.16
+     ]
+    },
+    "features": {
+     "feet": 3
+    }
+   },
+   "wildstalker_gauntlets": {
+    "colors": {
+     "hands.accent": [
+      0.25,
+      0.4,
+      0.18
+     ],
+     "hands.gem": [
+      0.6,
+      0.85,
+      0.3
+     ],
+     "hands.main": [
+      0.5,
+      0.52,
+      0.5
+     ],
+     "hands.trim": [
+      0.45,
+      0.3,
+      0.16
+     ]
+    },
+    "features": {
+     "hands": 3
+    }
+   },
+   "wildstalker_hauberk": {
+    "colors": {
+     "chest.accent": [
+      0.25,
+      0.4,
+      0.18
+     ],
+     "chest.gem": [
+      0.6,
+      0.85,
+      0.3
+     ],
+     "chest.main": [
+      0.5,
+      0.52,
+      0.5
+     ],
+     "chest.trim": [
+      0.45,
+      0.3,
+      0.16
+     ]
+    },
+    "features": {
+     "chest": 3
+    }
+   },
+   "wildstalker_hood": {
+    "colors": {
+     "head.accent": [
+      0.5,
+      0.52,
+      0.5
+     ],
+     "head.gem": [
+      0.6,
+      0.85,
+      0.3
+     ],
+     "head.main": [
+      0.25,
+      0.4,
+      0.18
+     ],
+     "head.trim": [
+      0.45,
+      0.3,
+      0.16
+     ]
+    },
+    "features": {
+     "helm": 3
+    }
+   },
+   "wildstalker_leggings": {
+    "colors": {
+     "legs.accent": [
+      0.25,
+      0.4,
+      0.18
+     ],
+     "legs.gem": [
+      0.6,
+      0.85,
+      0.3
+     ],
+     "legs.main": [
+      0.5,
+      0.52,
+      0.5
+     ],
+     "legs.trim": [
+      0.45,
+      0.3,
+      0.16
+     ]
+    },
+    "features": {
+     "legs": 3
+    }
+   },
+   "wildstalker_mantle": {
+    "colors": {
+     "shoulders.accent": [
+      0.25,
+      0.4,
+      0.18
+     ],
+     "shoulders.gem": [
+      0.6,
+      0.85,
+      0.3
+     ],
+     "shoulders.main": [
+      0.5,
+      0.52,
+      0.5
+     ],
+     "shoulders.trim": [
+      0.45,
+      0.3,
+      0.16
+     ]
+    },
+    "features": {
+     "shoulders": 3
+    }
+   },
+   "wildstalker_quiver": {
+    "colors": {
+     "back.accent": [
+      0.25,
+      0.4,
+      0.18
+     ],
+     "back.gem": [
+      0.6,
+      0.85,
+      0.3
+     ],
+     "back.main": [
+      0.42,
+      0.28,
+      0.16
+     ],
+     "back.trim": [
+      0.45,
+      0.3,
+      0.16
+     ]
+    },
+    "features": {
+     "quiver": 1
+    }
+   },
+   "woolen_cloak": {
+    "colors": {
+     "cape": [
+      0.85,
+      0.82,
+      0.75
+     ]
+    },
+    "features": {
+     "cape": 1
+    }
+   },
+   "worn_boots": {
+    "colors": {
+     "boots": [
+      0.35,
+      0.25,
+      0.18
+     ]
+    },
+    "features": {
+     "feet": 0
+    }
+   },
+   "worn_trousers": {
+    "colors": {
+     "pants": [
+      0.45,
+      0.38,
+      0.3
+     ]
+    },
+    "features": {
+     "legs": 0
+    }
+   },
+   "worn_tunic": {
+    "colors": {
+     "trim": [
+      0.42,
+      0.34,
+      0.24
+     ],
+     "tunic": [
+      0.62,
+      0.56,
+      0.45
+     ]
+    },
+    "features": {
+     "chest": 0
+    }
+   }
   }
  },
  "figures": {
@@ -4161,6 +6880,236 @@
      "robe"
     ]
    },
+   "derive": [
+    {
+     "if": {
+      "chest": [
+       1
+      ]
+     },
+     "set": {
+      "robe": 1
+     }
+    },
+    {
+     "colors": {
+      "chest.accent": {
+       "from": "tunic"
+      },
+      "chest.main": {
+       "from": "boots",
+       "scale": 1.35
+      },
+      "chest.trim": {
+       "from": "trim"
+      }
+     },
+     "if": {
+      "armor": [
+       1
+      ]
+     },
+     "set": {
+      "chest": 2
+     }
+    },
+    {
+     "colors": {
+      "chest.accent": {
+       "from": "tunic"
+      },
+      "chest.main": [
+       0.62,
+       0.64,
+       0.7
+      ],
+      "chest.trim": {
+       "from": "trim"
+      }
+     },
+     "if": {
+      "armor": [
+       2
+      ]
+     },
+     "set": {
+      "chest": 3
+     }
+    },
+    {
+     "colors": {
+      "chest.accent": {
+       "from": "tunic"
+      },
+      "chest.main": [
+       0.74,
+       0.76,
+       0.82
+      ],
+      "chest.trim": {
+       "from": "trim"
+      },
+      "legs.accent": [
+       0.62,
+       0.64,
+       0.7
+      ],
+      "legs.main": [
+       0.74,
+       0.76,
+       0.82
+      ],
+      "legs.trim": {
+       "from": "trim"
+      }
+     },
+     "if": {
+      "armor": [
+       3
+      ]
+     },
+     "set": {
+      "chest": 4,
+      "legs": 4
+     }
+    },
+    {
+     "colors": {
+      "shoulders.main": [
+       0.74,
+       0.76,
+       0.82
+      ],
+      "shoulders.trim": {
+       "from": "trim"
+      }
+     },
+     "if": {
+      "armor": [
+       3
+      ],
+      "pauldrons": [
+       1
+      ]
+     },
+     "set": {
+      "shoulders": 4
+     }
+    },
+    {
+     "colors": {
+      "shoulders.main": [
+       0.62,
+       0.64,
+       0.7
+      ],
+      "shoulders.trim": {
+       "from": "trim"
+      }
+     },
+     "if": {
+      "armor": [
+       2
+      ],
+      "pauldrons": [
+       1
+      ]
+     },
+     "set": {
+      "shoulders": 3
+     }
+    },
+    {
+     "colors": {
+      "shoulders.main": {
+       "from": "boots",
+       "scale": 1.35
+      },
+      "shoulders.trim": {
+       "from": "trim"
+      }
+     },
+     "if": {
+      "armor": [
+       0,
+       1
+      ],
+      "pauldrons": [
+       1
+      ]
+     },
+     "set": {
+      "shoulders": 2
+     }
+    },
+    {
+     "colors": {
+      "hands.main": [
+       0.74,
+       0.76,
+       0.82
+      ],
+      "hands.trim": {
+       "from": "trim"
+      }
+     },
+     "if": {
+      "armor": [
+       3
+      ],
+      "gloves": [
+       1
+      ]
+     },
+     "set": {
+      "hands": 4
+     }
+    },
+    {
+     "colors": {
+      "hands.main": {
+       "from": "boots",
+       "scale": 1.35
+      },
+      "hands.trim": {
+       "from": "boots"
+      }
+     },
+     "if": {
+      "armor": [
+       0,
+       1,
+       2
+      ],
+      "gloves": [
+       1
+      ]
+     },
+     "set": {
+      "hands": 2
+     }
+    },
+    {
+     "colors": {
+      "head.main": [
+       0.62,
+       0.64,
+       0.7
+      ],
+      "head.trim": {
+       "from": "trim"
+      }
+     },
+     "if": {
+      "helmet": [
+       1
+      ]
+     },
+     "set": {
+      "helm": 4
+     }
+    }
+   ],
    "detail": 2.0,
    "file": "models/person.vox",
    "grids": [
@@ -4197,8 +7146,7 @@
             0
            ],
            "legs": [
-            0,
-            1
+            0
            ]
           }
          ]
@@ -4211,8 +7159,7 @@
             1
            ],
            "legs": [
-            0,
-            1
+            0
            ]
           }
          ]
@@ -4225,8 +7172,7 @@
             0
            ],
            "feet": [
-            0,
-            1
+            0
            ]
           }
          ]
@@ -4239,8 +7185,7 @@
             1
            ],
            "feet": [
-            0,
-            1
+            0
            ]
           }
          ]
@@ -4304,6 +7249,9 @@
            "body": [
             0
            ],
+           "chest": [
+            0
+           ],
            "robe": [
             1
            ]
@@ -4315,6 +7263,9 @@
          "when": [
           {
            "body": [
+            0
+           ],
+           "chest": [
             0
            ],
            "robe": [
@@ -4330,6 +7281,9 @@
            "body": [
             1
            ],
+           "chest": [
+            0
+           ],
            "robe": [
             1
            ]
@@ -4342,6 +7296,9 @@
           {
            "body": [
             1
+           ],
+           "chest": [
+            0
            ],
            "robe": [
             1
@@ -4576,6 +7533,812 @@
             1
            ],
            "sash": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/cloth,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "legs": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/leather,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "legs": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/mail,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "legs": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/plate,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "legs": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/slippers,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "feet": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/soft-boots,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "feet": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/mail-boots,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "feet": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/sabatons,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "feet": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/cloth,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "legs": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/leather,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "legs": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/mail,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "legs": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/plate,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "legs": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/slippers,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "feet": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/soft-boots,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "feet": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/mail-boots,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "feet": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/sabatons,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "feet": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/robe-cloth,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/skirt/robe-cloth,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/jerkin,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/flaps/chest[2],body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/hauberk,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/flaps/chest[3],body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/cuirass,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/tabard,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/flap/tabard,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/flaps/chest[4],body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/robe-cloth,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/skirt/robe-cloth,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/jerkin,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/flaps/chest[2],body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/hauberk,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/flaps/chest[3],body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/cuirass,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/tabard,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/flap/tabard,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/flaps/chest[4],body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "chest": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/waist/sash-cloth,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "waist": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/waist/pouches,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "waist": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/waist/studded,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "waist": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/waist/girdle,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "waist": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/hands/wraps,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "hands": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/hands/gloves,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "hands": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/hands/mail-gloves,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "hands": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/hands/gauntlets,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "hands": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/waist/sash-cloth,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "waist": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/waist/pouches,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "waist": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/waist/studded,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "waist": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/waist/girdle,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "waist": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/hands/wraps,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "hands": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/hands/gloves,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "hands": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/hands/mail-gloves,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "hands": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/hands/gauntlets,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "hands": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/shoulders/mantle,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "shoulders": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/shoulders/pads,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "shoulders": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/shoulders/scales,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "shoulders": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/shoulders/pauldrons,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "shoulders": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/back/quiver,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "quiver": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/shoulders/mantle,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "shoulders": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/shoulders/pads,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "shoulders": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/shoulders/scales,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "shoulders": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/shoulders/pauldrons,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "shoulders": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/back/quiver,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "quiver": [
             1
            ]
           }
@@ -5210,6 +8973,110 @@
            ]
           }
          ]
+        },
+        {
+         "layer": "head/helm/circlet,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "helm": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/helm/cowl,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "helm": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/helm/hood,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "helm": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/helm/helm,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "helm": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/helm/circlet,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "helm": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/helm/cowl,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "helm": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/helm/hood,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "helm": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/helm/helm,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "helm": [
+            4
+           ]
+          }
+         ]
         }
        ]
       }
@@ -5299,14 +9166,14 @@
     },
     {
      "c": [
-      0.09000000357627869,
+      0.05999999865889549,
       -0.009999999776482582,
-      0.0
+      -0.009999999776482582
      ],
      "k": [
-      0.800000011920929,
-      0.800000011920929,
-      0.800000011920929
+      0.8799999952316284,
+      0.8799999952316284,
+      0.8799999952316284
      ],
      "slot": "skin"
     },
@@ -5637,6 +9504,822 @@
       0.7200000286102295
      ],
      "slot": "skin"
+    },
+    {
+     "k": [
+      0.6600000262260437,
+      0.6600000262260437,
+      0.6600000262260437
+     ],
+     "slot": "chest.main"
+    },
+    {
+     "k": [
+      0.8600000143051147,
+      0.8600000143051147,
+      0.8600000143051147
+     ],
+     "slot": "chest.main"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "chest.main"
+    },
+    {
+     "c": [
+      0.03999999910593033,
+      0.03999999910593033,
+      0.03999999910593033
+     ],
+     "k": [
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "chest.main"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.699999988079071,
+      0.699999988079071,
+      0.699999988079071
+     ],
+     "slot": "chest.trim"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "chest.trim"
+    },
+    {
+     "c": [
+      0.05999999865889549,
+      0.05999999865889549,
+      0.05999999865889549
+     ],
+     "crisp": true,
+     "k": [
+      1.25,
+      1.25,
+      1.25
+     ],
+     "slot": "chest.trim"
+    },
+    {
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "chest.accent"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "chest.accent"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "chest.accent"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "chest.gem"
+    },
+    {
+     "k": [
+      0.6600000262260437,
+      0.6600000262260437,
+      0.6600000262260437
+     ],
+     "slot": "shoulders.main"
+    },
+    {
+     "k": [
+      0.8600000143051147,
+      0.8600000143051147,
+      0.8600000143051147
+     ],
+     "slot": "shoulders.main"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "shoulders.main"
+    },
+    {
+     "c": [
+      0.03999999910593033,
+      0.03999999910593033,
+      0.03999999910593033
+     ],
+     "k": [
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "shoulders.main"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.699999988079071,
+      0.699999988079071,
+      0.699999988079071
+     ],
+     "slot": "shoulders.trim"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "shoulders.trim"
+    },
+    {
+     "c": [
+      0.05999999865889549,
+      0.05999999865889549,
+      0.05999999865889549
+     ],
+     "crisp": true,
+     "k": [
+      1.25,
+      1.25,
+      1.25
+     ],
+     "slot": "shoulders.trim"
+    },
+    {
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "shoulders.accent"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "shoulders.accent"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "shoulders.accent"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "shoulders.gem"
+    },
+    {
+     "k": [
+      0.6600000262260437,
+      0.6600000262260437,
+      0.6600000262260437
+     ],
+     "slot": "hands.main"
+    },
+    {
+     "k": [
+      0.8600000143051147,
+      0.8600000143051147,
+      0.8600000143051147
+     ],
+     "slot": "hands.main"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "hands.main"
+    },
+    {
+     "c": [
+      0.03999999910593033,
+      0.03999999910593033,
+      0.03999999910593033
+     ],
+     "k": [
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "hands.main"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.699999988079071,
+      0.699999988079071,
+      0.699999988079071
+     ],
+     "slot": "hands.trim"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "hands.trim"
+    },
+    {
+     "c": [
+      0.05999999865889549,
+      0.05999999865889549,
+      0.05999999865889549
+     ],
+     "crisp": true,
+     "k": [
+      1.25,
+      1.25,
+      1.25
+     ],
+     "slot": "hands.trim"
+    },
+    {
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "hands.accent"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "hands.accent"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "hands.accent"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "hands.gem"
+    },
+    {
+     "k": [
+      0.6600000262260437,
+      0.6600000262260437,
+      0.6600000262260437
+     ],
+     "slot": "waist.main"
+    },
+    {
+     "k": [
+      0.8600000143051147,
+      0.8600000143051147,
+      0.8600000143051147
+     ],
+     "slot": "waist.main"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "waist.main"
+    },
+    {
+     "c": [
+      0.03999999910593033,
+      0.03999999910593033,
+      0.03999999910593033
+     ],
+     "k": [
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "waist.main"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.699999988079071,
+      0.699999988079071,
+      0.699999988079071
+     ],
+     "slot": "waist.trim"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "waist.trim"
+    },
+    {
+     "c": [
+      0.05999999865889549,
+      0.05999999865889549,
+      0.05999999865889549
+     ],
+     "crisp": true,
+     "k": [
+      1.25,
+      1.25,
+      1.25
+     ],
+     "slot": "waist.trim"
+    },
+    {
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "waist.accent"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "waist.accent"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "waist.accent"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "waist.gem"
+    },
+    {
+     "k": [
+      0.6600000262260437,
+      0.6600000262260437,
+      0.6600000262260437
+     ],
+     "slot": "legs.main"
+    },
+    {
+     "k": [
+      0.8600000143051147,
+      0.8600000143051147,
+      0.8600000143051147
+     ],
+     "slot": "legs.main"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "legs.main"
+    },
+    {
+     "c": [
+      0.03999999910593033,
+      0.03999999910593033,
+      0.03999999910593033
+     ],
+     "k": [
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "legs.main"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.699999988079071,
+      0.699999988079071,
+      0.699999988079071
+     ],
+     "slot": "legs.trim"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "legs.trim"
+    },
+    {
+     "c": [
+      0.05999999865889549,
+      0.05999999865889549,
+      0.05999999865889549
+     ],
+     "crisp": true,
+     "k": [
+      1.25,
+      1.25,
+      1.25
+     ],
+     "slot": "legs.trim"
+    },
+    {
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "legs.accent"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "legs.accent"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "legs.accent"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "legs.gem"
+    },
+    {
+     "k": [
+      0.6600000262260437,
+      0.6600000262260437,
+      0.6600000262260437
+     ],
+     "slot": "feet.main"
+    },
+    {
+     "k": [
+      0.8600000143051147,
+      0.8600000143051147,
+      0.8600000143051147
+     ],
+     "slot": "feet.main"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "feet.main"
+    },
+    {
+     "c": [
+      0.03999999910593033,
+      0.03999999910593033,
+      0.03999999910593033
+     ],
+     "k": [
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "feet.main"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.699999988079071,
+      0.699999988079071,
+      0.699999988079071
+     ],
+     "slot": "feet.trim"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "feet.trim"
+    },
+    {
+     "c": [
+      0.05999999865889549,
+      0.05999999865889549,
+      0.05999999865889549
+     ],
+     "crisp": true,
+     "k": [
+      1.25,
+      1.25,
+      1.25
+     ],
+     "slot": "feet.trim"
+    },
+    {
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "feet.accent"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "feet.accent"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "feet.accent"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "feet.gem"
+    },
+    {
+     "k": [
+      0.6600000262260437,
+      0.6600000262260437,
+      0.6600000262260437
+     ],
+     "slot": "back.main"
+    },
+    {
+     "k": [
+      0.8600000143051147,
+      0.8600000143051147,
+      0.8600000143051147
+     ],
+     "slot": "back.main"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "back.main"
+    },
+    {
+     "c": [
+      0.03999999910593033,
+      0.03999999910593033,
+      0.03999999910593033
+     ],
+     "k": [
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "back.main"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.699999988079071,
+      0.699999988079071,
+      0.699999988079071
+     ],
+     "slot": "back.trim"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "back.trim"
+    },
+    {
+     "c": [
+      0.05999999865889549,
+      0.05999999865889549,
+      0.05999999865889549
+     ],
+     "crisp": true,
+     "k": [
+      1.25,
+      1.25,
+      1.25
+     ],
+     "slot": "back.trim"
+    },
+    {
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "back.accent"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "back.accent"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "back.accent"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "back.gem"
+    },
+    {
+     "k": [
+      0.6600000262260437,
+      0.6600000262260437,
+      0.6600000262260437
+     ],
+     "slot": "head.main"
+    },
+    {
+     "k": [
+      0.8600000143051147,
+      0.8600000143051147,
+      0.8600000143051147
+     ],
+     "slot": "head.main"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "head.main"
+    },
+    {
+     "c": [
+      0.03999999910593033,
+      0.03999999910593033,
+      0.03999999910593033
+     ],
+     "k": [
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "head.main"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.699999988079071,
+      0.699999988079071,
+      0.699999988079071
+     ],
+     "slot": "head.trim"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "head.trim"
+    },
+    {
+     "c": [
+      0.05999999865889549,
+      0.05999999865889549,
+      0.05999999865889549
+     ],
+     "crisp": true,
+     "k": [
+      1.25,
+      1.25,
+      1.25
+     ],
+     "slot": "head.trim"
+    },
+    {
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "head.accent"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "head.accent"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "head.accent"
+    },
+    {
+     "crisp": true,
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "head.gem"
     }
    ],
    "per_block": 34.19,
@@ -6889,6 +11572,347 @@
     "name": "Female, average"
    }
   ],
-  "sets": []
+  "sets": [
+   {
+    "carry": {
+     "shield": [
+      "shield",
+      [
+       0.5,
+       0.5,
+       0.55
+      ]
+     ]
+    },
+    "colors": {
+     "cape": [
+      0.58,
+      0.12,
+      0.1
+     ]
+    },
+    "features": {
+     "cape": 1
+    },
+    "name": "Plate: Ironbound (level 8)",
+    "on": [
+     0,
+     1
+    ],
+    "weapon": [
+     "Sword",
+     [
+      0.78,
+      0.8,
+      0.86
+     ]
+    ],
+    "wear": [
+     "ironbound_helm",
+     "ironbound_pauldrons",
+     "ironbound_cuirass",
+     "ironbound_gauntlets",
+     "ironbound_girdle",
+     "ironbound_legplates",
+     "ironbound_sabatons"
+    ]
+   },
+   {
+    "colors": {
+     "cape": [
+      0.12,
+      0.22,
+      0.55
+     ]
+    },
+    "features": {
+     "cape": 1
+    },
+    "name": "Plate: Stormguard (level 14)",
+    "on": [
+     2,
+     3
+    ],
+    "weapon": [
+     "Sword",
+     [
+      0.78,
+      0.8,
+      0.86
+     ]
+    ],
+    "wear": [
+     "stormguard_helm",
+     "stormguard_pauldrons",
+     "stormguard_cuirass",
+     "stormguard_gauntlets",
+     "stormguard_girdle",
+     "stormguard_legplates",
+     "stormguard_sabatons"
+    ]
+   },
+   {
+    "colors": {
+     "cape": [
+      0.42,
+      0.14,
+      0.58
+     ]
+    },
+    "features": {
+     "cape": 1
+    },
+    "name": "Plate: Dawnforged (level 20)",
+    "on": [
+     0,
+     3
+    ],
+    "weapon": [
+     "Sword",
+     [
+      0.78,
+      0.8,
+      0.86
+     ]
+    ],
+    "wear": [
+     "dawnforged_helm",
+     "dawnforged_pauldrons",
+     "dawnforged_cuirass",
+     "dawnforged_gauntlets",
+     "dawnforged_girdle",
+     "dawnforged_legplates",
+     "dawnforged_sabatons"
+    ]
+   },
+   {
+    "name": "Mail: Wildstalker (level 8)",
+    "on": [
+     0,
+     1
+    ],
+    "weapon": [
+     "Bow",
+     [
+      0.5,
+      0.36,
+      0.2
+     ]
+    ],
+    "wear": [
+     "wildstalker_hood",
+     "wildstalker_mantle",
+     "wildstalker_hauberk",
+     "wildstalker_gauntlets",
+     "wildstalker_belt",
+     "wildstalker_leggings",
+     "wildstalker_boots",
+     "wildstalker_quiver"
+    ]
+   },
+   {
+    "name": "Mail: Thornwatch (level 14)",
+    "on": [
+     2,
+     3
+    ],
+    "weapon": [
+     "Bow",
+     [
+      0.5,
+      0.36,
+      0.2
+     ]
+    ],
+    "wear": [
+     "thornwatch_hood",
+     "thornwatch_mantle",
+     "thornwatch_hauberk",
+     "thornwatch_gauntlets",
+     "thornwatch_belt",
+     "thornwatch_leggings",
+     "thornwatch_boots",
+     "thornwatch_quiver"
+    ]
+   },
+   {
+    "name": "Mail: Skyhunter (level 20)",
+    "on": [
+     0,
+     3
+    ],
+    "weapon": [
+     "Bow",
+     [
+      0.5,
+      0.36,
+      0.2
+     ]
+    ],
+    "wear": [
+     "skyhunter_hood",
+     "skyhunter_mantle",
+     "skyhunter_hauberk",
+     "skyhunter_gauntlets",
+     "skyhunter_belt",
+     "skyhunter_leggings",
+     "skyhunter_boots",
+     "skyhunter_quiver"
+    ]
+   },
+   {
+    "name": "Leather: Nightstalker (level 8)",
+    "on": [
+     0,
+     1
+    ],
+    "weapon": [
+     "Dagger",
+     [
+      0.7,
+      0.72,
+      0.78
+     ]
+    ],
+    "wear": [
+     "nightstalker_cowl",
+     "nightstalker_spaulders",
+     "nightstalker_jerkin",
+     "nightstalker_gloves",
+     "nightstalker_belt",
+     "nightstalker_breeches",
+     "nightstalker_boots"
+    ]
+   },
+   {
+    "name": "Leather: Bloodfang (level 14)",
+    "on": [
+     2,
+     3
+    ],
+    "weapon": [
+     "Dagger",
+     [
+      0.7,
+      0.72,
+      0.78
+     ]
+    ],
+    "wear": [
+     "bloodfang_cowl",
+     "bloodfang_spaulders",
+     "bloodfang_jerkin",
+     "bloodfang_gloves",
+     "bloodfang_belt",
+     "bloodfang_breeches",
+     "bloodfang_boots"
+    ]
+   },
+   {
+    "name": "Leather: Duskwhisper (level 20)",
+    "on": [
+     0,
+     3
+    ],
+    "weapon": [
+     "Dagger",
+     [
+      0.7,
+      0.72,
+      0.78
+     ]
+    ],
+    "wear": [
+     "duskwhisper_cowl",
+     "duskwhisper_spaulders",
+     "duskwhisper_jerkin",
+     "duskwhisper_gloves",
+     "duskwhisper_belt",
+     "duskwhisper_breeches",
+     "duskwhisper_boots"
+    ]
+   },
+   {
+    "name": "Cloth: Apprentice's (level 8)",
+    "on": [
+     0,
+     1
+    ],
+    "weapon": [
+     "Staff",
+     [
+      0.55,
+      0.38,
+      0.22
+     ]
+    ],
+    "wear": [
+     "apprentice_circlet",
+     "apprentice_mantle",
+     "apprentice_robe",
+     "apprentice_wraps",
+     "apprentice_sash",
+     "apprentice_trousers",
+     "apprentice_slippers"
+    ]
+   },
+   {
+    "name": "Cloth: Arcanist's (level 14)",
+    "on": [
+     2,
+     3
+    ],
+    "weapon": [
+     "Staff",
+     [
+      0.55,
+      0.38,
+      0.22
+     ]
+    ],
+    "wear": [
+     "arcanist_circlet",
+     "arcanist_mantle",
+     "arcanist_robe",
+     "arcanist_wraps",
+     "arcanist_sash",
+     "arcanist_trousers",
+     "arcanist_slippers"
+    ]
+   },
+   {
+    "name": "Cloth: Magister's (level 20)",
+    "on": [
+     0,
+     3
+    ],
+    "weapon": [
+     "Staff",
+     [
+      0.55,
+      0.38,
+      0.22
+     ]
+    ],
+    "wear": [
+     "magister_circlet",
+     "magister_mantle",
+     "magister_robe",
+     "magister_wraps",
+     "magister_sash",
+     "magister_trousers",
+     "magister_slippers"
+    ]
+   },
+   {
+    "name": "Townsfolk",
+    "on": [
+     0,
+     1,
+     2,
+     3
+    ]
+   }
+  ]
  }
 }

@@ -94,13 +94,6 @@ impl Grid {
         }
     }
 
-    pub fn part(&self, name: &str) -> u8 {
-        self.parts
-            .iter()
-            .position(|p| p == name)
-            .unwrap_or_else(|| panic!("grid {}: no part {name}", self.name)) as u8
-    }
-
     pub fn vmin(&self) -> [i32; 3] {
         (self.lo * self.detail).floor().as_ivec3().to_array()
     }
