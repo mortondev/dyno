@@ -22,7 +22,7 @@ WHERE = {
     "watch_tower": ("hearthstead", (-24, -26), (0, -22)),
     "north_watch": ("north_watch", (13, -5), (0, 10)),
     "logging_camp": ("logging_camp", (0, 0), (1, 6)),
-    "hollow_oak": ("hollow_oak", (0, 0), (0, 14)),
+    "hollow_oak": ("hollow_oak", (0, 0), (0, 24)),
     "old_barrow": ("old_barrow", (0, 0), (21, 0)),
     "barrow_crypt": ("old_barrow", (12, 0), (17, 0)),
     "wrecked_caravan": ("wrecked_caravan", (0, -8), (0, 0)),
@@ -39,7 +39,7 @@ WHERE = {
 BOX = {
     "hearthstead_plaza": ((9, 9), 6), "hearthstead_street": ((4, 20), 9), "hearthstead_dusk": ((22, 22), 28),
     "watch_tower": ((5, 5), 26), "north_watch": ((4, 4), 22), "logging_camp": ((19, 16), 9),
-    "hollow_oak": ((10, 10), 26), "old_barrow": ((17, 15), 12), "barrow_crypt": ((5, 4), 5),
+    "hollow_oak": ((10, 10), 29), "old_barrow": ((17, 15), 12), "barrow_crypt": ((5, 4), 5),
     "wrecked_caravan": ((9, 4), 5), "emberford_bridge": ((16, 5), 6), "windmill_farm": ((6, 6), 20),
     "fishers_landing": ((12, 12), 9), "mirrormere": ((30, 26), 3), "sunken_shrine": ((8, 8), 8),
     "ashcloak_stockade": ((14, 14), 9), "miners_rest": ((14, 10), 14), "hollow_mines": ((5, 5), 8),

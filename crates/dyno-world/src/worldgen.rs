@@ -626,6 +626,88 @@ impl<'a> Gen<'a> {
         true
     }
 
+    /// Is this spot in a wood of its mix (the same clumps the trees grow in)?
+    fn wooded(&self, x: i32, z: i32) -> bool {
+        let l = self.l;
+        let mix = &l.flora.mixes[l.mix_at(x as f32, z as f32)];
+        let n = value_noise(
+            x as f32 / mix.clump,
+            z as f32 / mix.clump,
+            l.seed.wrapping_add(96),
+        );
+        n > 0.5 + (0.5 - mix.cover) * 0.72
+    }
+
+    /// Stamps strewn by the mixes: boulders, crags, fallen logs. They go
+    /// down before the trees, which then grow round them.
+    fn strew(&mut self, w: &mut World) {
+        let l = self.l;
+        const CELL: i32 = 10;
+        let sea = l.terrain.sea;
+        for cz in (-self.cz + 16) / CELL..(self.sz - self.cz - 16) / CELL {
+            for cx in (-self.cx + 16) / CELL..(self.sx - self.cx - 16) / CELL {
+                let r = rnd(cx, cz, 85);
+                let (x, z) = (
+                    cx * CELL + (r % CELL as u32) as i32,
+                    cz * CELL + ((r >> 4) % CELL as u32) as i32,
+                );
+                let mix = &l.flora.mixes[l.mix_at(x as f32, z as f32)];
+                if mix.scatter.is_empty() {
+                    continue;
+                }
+                let wood = self.wooded(x, z);
+                let mut roll =
+                    ((r >> 8) % 1_000_000) as f32 / 1_000_000.0 * 10_000.0 / (CELL * CELL) as f32;
+                let Some(sc) = mix.scatter.iter().find(|sc| {
+                    if (sc.on == "wood" && !wood) || (sc.on == "open" && wood) {
+                        return false;
+                    }
+                    if roll < sc.per_ha {
+                        return true;
+                    }
+                    roll -= sc.per_ha;
+                    false
+                }) else {
+                    continue;
+                };
+                let Some(stamp) = self.stamps.get(&sc.stamp) else {
+                    continue;
+                };
+                let rot = (r >> 28) as u8 % 4;
+                let (lo, hi) = stamp.footprint(rot);
+                // clear, dry, fairly level ground, off the roads
+                let mut heights = (i32::MAX, i32::MIN);
+                let clear = (lo[1] - 2..=hi[1] + 2).all(|dz| {
+                    (lo[0] - 2..=hi[0] + 2).all(|dx| {
+                        self.idx(x + dx, z + dz).is_some_and(|i| {
+                            let g = self.g[i].round() as i32;
+                            heights = (heights.0.min(g), heights.1.max(g));
+                            self.flags[i] == 0 && g > sea
+                        })
+                    })
+                });
+                if !clear || heights.1 - heights.0 > 4 {
+                    continue;
+                }
+                let at = [x + self.cx, self.top(x, z) + 1, z + self.cz];
+                stamp.place(w, at, rot);
+                for sz in 0..stamp.size[2] {
+                    for sx in 0..stamp.size[0] {
+                        if stamp.covers(sx, sz) {
+                            let p = stamp.to_world(at, rot, [sx, 0, sz]);
+                            if let Some(i) = self.idx(p[0] - self.cx, p[2] - self.cz) {
+                                self.flags[i] |= SITE;
+                            }
+                        }
+                    }
+                }
+                self.built
+                    .stamps
+                    .push((String::new(), sc.stamp.clone(), at, rot));
+            }
+        }
+    }
+
     /// Trees and small plants: woods in clumps, open ground between them.
     fn flora(&mut self, w: &mut World) {
         let l = self.l;
@@ -998,6 +1080,7 @@ pub fn build(l: &Layout, stamps: &Stamps, size: [u32; 3]) -> Result<(World, Buil
     g.roads();
     g.commit(&mut w);
     g.stamp(&mut w);
+    g.strew(&mut w);
     g.flora(&mut w);
     let hub = &l.places[0];
     if g.built.hearth == [0, 0, 0] {

@@ -9,7 +9,7 @@
   {"name": "watch_tower", "at": [-24, -26], "half": [5, 5], "height": 26, "anchor": [0, -22], "time": 0.32, "base": 0, "far": 60},
   {"name": "north_watch", "at": [13, -260], "half": [4, 4], "height": 22, "anchor": [0, -245], "time": 0.3, "far": 44},
   {"name": "logging_camp", "at": [-225, -430], "half": [19, 16], "height": 9, "anchor": [-224, -424], "time": 0.27},
-  {"name": "hollow_oak", "at": [-480, -270], "half": [10, 10], "height": 26, "anchor": [-480, -256], "time": 0.36, "far": 50},
+  {"name": "hollow_oak", "at": [-480, -270], "half": [10, 10], "height": 29, "anchor": [-480, -246], "time": 0.36, "far": 50},
   {"name": "old_barrow", "at": [-650, 50], "half": [17, 15], "height": 12, "anchor": [-629, 50], "time": 0.4},
   {"name": "barrow_crypt", "at": [-638, 50], "half": [5, 4], "height": 5, "anchor": [-633, 50], "time": 0.62, "near": 8, "far": 22},
   {"name": "wrecked_caravan", "at": [220, -50], "half": [9, 4], "height": 5, "anchor": [220, -42], "time": 0.3, "near": 10, "far": 22},

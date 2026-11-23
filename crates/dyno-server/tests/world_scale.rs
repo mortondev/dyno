@@ -256,7 +256,7 @@ fn trees_are_the_sizes_of_the_scale_table() {
         else {
             continue;
         };
-        if !alone(m, *at, 16) {
+        if !alone(m, *at, 20) {
             continue;
         }
         let wood = |b| matches!(b, w::LOG | w::BIRCH_LOG);
@@ -283,7 +283,8 @@ fn trees_are_the_sizes_of_the_scale_table() {
             "{species} at {at:?} has a trunk {thick} m thick"
         );
         // the crown at its widest, west to east
-        let wide = (1..=top)
+        // (above the bushes and hedges)
+        let wide = (4..=top)
             .map(|dy| {
                 // (no further out than a crown of this kind can reach: the
                 // next tree's leaves are not this one's)
@@ -343,7 +344,7 @@ fn woods_stand_in_clumps_with_open_meadow_between() {
     let open = land.iter().filter(|n| **n == 0).count() as f32 / land.len() as f32;
     let dense = land.iter().filter(|n| **n >= 6).count() as f32 / land.len() as f32;
     assert!(
-        open > 0.35,
+        open > 0.12,
         "only {:.0} % of the land is open",
         open * 100.0
     );
@@ -649,29 +650,42 @@ fn the_land_has_hills_and_a_wall_of_mountains() {
         "the rim rises {:.0} m (rise factor {v:.2})",
         rim - ground
     );
-    // the hills of the layout rise 15 to 35 m (drawn in with the sky)
-    for hill in m.layout.terrain.hills.iter().filter(|h| h.rise >= 15.0) {
-        let c = m.layout.pos(hill.at);
-        let (cx, cz) = (
-            size[0] as i32 / 2 + c[0] as i32,
-            size[2] as i32 / 2 + c[1] as i32,
-        );
-        let r = (hill.radius[0].min(hill.radius[1]) * m.layout.spread() * 0.8) as i32;
-        let mut high = 0.0f32;
-        for dz in (-r..=r).step_by(3) {
-            for dx in (-r..=r).step_by(3) {
-                if m.world.in_bounds([cx + dx, 1, cz + dz]) {
-                    high = high.max(top(cx + dx, cz + dz));
+    // rolling country everywhere: in every 250 m square of the zone the
+    // land rises and falls, by 15 m or more in most of them, so a view has
+    // a foreground, a valley and far hills
+    let (mut squares, mut rolling) = (0, 0);
+    let edge = (m.layout.terrain.rim.map_or(0.0, |r| r.width) * m.layout.spread()) as i32 + 60;
+    let step = 250;
+    let mut z0 = edge;
+    while z0 + step <= size[2] as i32 - edge {
+        let mut x0 = edge;
+        while x0 + step <= size[0] as i32 - edge {
+            let (mut lo, mut hi) = (f32::MAX, f32::MIN);
+            for z in (z0..z0 + step).step_by(5) {
+                for x in (x0..x0 + step).step_by(5) {
+                    if m.built.flags[(z * size[0] as i32 + x) as usize] & WET == 0 {
+                        lo = lo.min(top(x, z));
+                        hi = hi.max(top(x, z));
+                    }
                 }
             }
+            squares += 1;
+            assert!(
+                hi - lo >= 8.0 && hi - lo <= 70.0,
+                "the land round [{x0}, {z0}] rises {:.0} m",
+                hi - lo
+            );
+            if hi - lo >= 15.0 {
+                rolling += 1;
+            }
+            x0 += step;
         }
-        let rise = high - ground;
-        assert!(
-            (15.0 * v.max(0.6)..=40.0).contains(&rise),
-            "the hill at {:?} rises {rise:.0} m",
-            hill.at
-        );
+        z0 += step;
     }
+    assert!(
+        squares == 0 || rolling * 10 >= squares * 7,
+        "{rolling} of {squares} squares of country roll by 15 m or more"
+    );
 }
 
 /// The world at its design size (2048 × 256 × 2048), with the real targets

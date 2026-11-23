@@ -254,6 +254,19 @@ pub struct Mix {
     /// patches of another surface block (bare earth, rock)
     #[serde(default)]
     pub patches: Option<Patch>,
+    /// stamps strewn over the land (boulders, crags, fallen logs): per
+    /// hectare, on "wood", "open" or "any" ground
+    #[serde(default)]
+    pub scatter: Vec<Strewn>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Strewn {
+    pub stamp: String,
+    pub per_ha: f32,
+    #[serde(default = "any")]
+    pub on: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -774,6 +787,16 @@ impl Layout {
                     return Err(format!(
                         "layout: place \"{}\" uses unknown stamp \"{}\"",
                         p.key, put.stamp
+                    ));
+                }
+            }
+        }
+        for (k, m) in &self.flora.mixes {
+            for sc in &m.scatter {
+                if stamps.get(&sc.stamp).is_none() {
+                    return Err(format!(
+                        "layout: mix \"{k}\" strews unknown stamp \"{}\"",
+                        sc.stamp
                     ));
                 }
             }
