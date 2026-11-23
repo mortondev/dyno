@@ -80,6 +80,15 @@ pub(crate) struct TerrainJson {
     pub cover_depth: f32,
     /// brightness jitter per voxel, for blocks that do not set their own
     pub jitter: f32,
+    /// colour cells a metre: each takes one flat colour from the block's
+    /// texture, so the ground reads at the same grain as props and
+    /// buildings (no finer than the voxels)
+    pub colour_per_metre: u8,
+    /// how much of a block's own `smooth` and `shade` a gentle slope keeps
+    /// and gives: on gentle slopes the creases soften by this share
+    pub shade_gentle: f32,
+    /// slope lighting for blocks that do not set their own `smooth`
+    pub smooth: f32,
     /// brightness of a voxel corner by how closed in it is: 3, 2, 1 and 0
     /// open neighbours of the three round it in front of the face (where
     /// steps meet, at the foot of a ledge, along a path's edge)
@@ -152,6 +161,9 @@ impl Default for TerrainJson {
             edge_size: 0.5,
             cover_depth: 0.25,
             jitter: 0.08,
+            colour_per_metre: 4,
+            shade_gentle: 0.6,
+            smooth: 0.0,
             ao: [0.6, 0.74, 0.87, 1.0],
             lip: 1.08,
             shade_within: 24.0,
@@ -174,6 +186,8 @@ pub(crate) struct Params {
     edge: f32,
     edge_size: f32,
     cover_depth: f32,
+    colour_per_metre: u8,
+    shade_gentle: f32,
     pub(crate) ao: [f32; 4],
     lip: f32,
     shade_within: f32,
@@ -202,6 +216,8 @@ impl Params {
             edge: j.edge.clamp(0.0, 0.9),
             edge_size: j.edge_size.max(0.0),
             cover_depth: j.cover_depth.max(0.0),
+            colour_per_metre: j.colour_per_metre.clamp(1, MAX_PER_METRE),
+            shade_gentle: j.shade_gentle.clamp(0.0, 1.0),
             ao: j.ao.map(|v| v.clamp(0.0, 2.0)),
             lip: j.lip.clamp(0.0, 2.0),
             shade_within: j.shade_within.max(0.0),
@@ -210,7 +226,7 @@ impl Params {
             tint: [[1.0; 3]; 256],
             saturation: [1.0; 256],
             shade: [1.0; 256],
-            smooth: [0.0; 256],
+            smooth: [j.smooth.clamp(0.0, 1.0); 256],
             edge_of: [1.0; 256],
             inset: [0.0; 256],
         };
@@ -1513,6 +1529,15 @@ impl<'a> Fine<'a> {
         let sig = ((q.key >> 8) & 0xfff) as u32;
         let p = self.p;
         let strength = p.shade[(q.key & 0xff) as usize];
+        // a gentle slope's creases are softer than a cliff's
+        let gentle = if sig != 0 && p.shade_gentle > 0.0 {
+            let mid = [0, 1, 2].map(|a| (c[0][a] + c[2][a]) / 2);
+            let sl = self.slope_at(mid);
+            ((sl[1] - 0.55) / 0.35).clamp(0.0, 1.0) * p.shade_gentle
+        } else {
+            0.0
+        };
+        let strength = strength * (1.0 - gentle);
         let mut shade = [0, 1, 2, 3].map(|k| {
             let bits = sig >> (k * 3);
             let a = p.ao[3 - (bits & 3) as usize];
@@ -1538,10 +1563,12 @@ impl<'a> Fine<'a> {
         };
         let glow = w::emission(b) > 0;
         // saturation (in hundredths) and jitter, packed
-        // voxels a metre, and which way the face looks (the normal may be
-        // bent towards the slope, below)
+        // voxels a metre, which way the face looks (the normal may be bent
+        // towards the slope, below), and colour cells a metre (no finer
+        // than the voxels)
+        let grain = (p.colour_per_metre as i32).min(r);
         let tex = [
-            r as f32 + 32.0 * q.dir as f32,
+            r as f32 + 32.0 * q.dir as f32 + 256.0 * grain as f32,
             (p.saturation[b as usize] * 100.0).round() + p.jitter[b as usize],
             KIND_VOXEL + layer as f32,
             render::layer_anim(layer),

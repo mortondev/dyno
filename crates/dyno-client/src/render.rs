@@ -55,8 +55,9 @@ pub const KIND_FOLIAGE: f32 = 8192.0;
 /// The water surface: waves, shore foam (`normal[0]` is how near the shore is).
 pub const KIND_WATER: f32 = 12288.0;
 /// Fine voxel ground: one colour per voxel, from the layer at the voxel's
-/// centre. `tex[0]` is voxels a metre plus 32 times the face's direction
-/// (+x -x +y -y +z -z: the normal may be bent towards the slope); `tex[1]` the saturation in
+/// centre. `tex[0]` is voxels a metre, plus 32 times the face's direction
+/// (+x -x +y -y +z -z: the normal may be bent towards the slope), plus 256
+/// times the colour cells a metre (one flat colour a cell); `tex[1]` the saturation in
 /// hundredths plus the brightness jitter (below 1); `color.rgb` a tint.
 pub const KIND_VOXEL: f32 = 16384.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
@@ -383,8 +384,10 @@ fn ground_tone(m: f32) -> vec3<f32> {
     // voxel's centre on the mip level with a texel a voxel, jittered
     // tex.x: voxels a metre plus 32 times the face's direction (+x -x +y
     // -y +z -z), as the normal may be bent towards the slope
-    let dir = floor(i.tex.x / 32.0);
-    let r = i.tex.x - dir * 32.0;
+    let grain = floor(i.tex.x / 256.0);
+    let dr = i.tex.x - grain * 256.0;
+    let dir = floor(dr / 32.0);
+    let r = dr - dir * 32.0;
     let sgn = select(-1.0, 1.0, (i32(dir) & 1) == 0);
     var ax = vec3<f32>(0.0, sgn, 0.0);
     if (dir < 1.5) {
@@ -392,14 +395,18 @@ fn ground_tone(m: f32) -> vec3<f32> {
     } else if (dir > 3.5) {
       ax = vec3<f32>(0.0, 0.0, sgn);
     }
+    // the voxel this pixel shows, then the colour cell it lies in: one
+    // flat colour a cell
     let vox = floor(i.wpos * r - ax * 0.5);
-    let ctr = (vox + 0.5) / r;
+    let g = max(grain, 1.0);
+    let cell = floor((vox + 0.5) / r * g);
+    let ctr = (cell + 0.5) / g;
     var uv = ctr.xz;
     if (abs(ax.x) > 0.5) { uv = vec2<f32>(ctr.z, -ctr.y); } else if (abs(ax.z) > 0.5) { uv = vec2<f32>(ctr.x, -ctr.y); }
     let size = f32(textureDimensions(tex_array, 0).x);
-    var col = textureSampleLevel(tex_array, tex_samp, uv, l0, log2(max(size / r, 1.0))).rgb;
-    let h1 = hash3(vox);
-    let h2 = hash3(vox + vec3<f32>(17.0, 31.0, 47.0));
+    var col = textureSampleLevel(tex_array, tex_samp, uv, l0, log2(max(size / g, 1.0))).rgb;
+    let h1 = hash3(cell);
+    let h2 = hash3(cell + vec3<f32>(17.0, 31.0, 47.0));
     let jit = fract(i.tex.y);
     let sat = floor(i.tex.y) / 100.0;
     col = col * (1.0 + jit * (h1 - 0.5) * 2.0) * (vec3<f32>(1.0) + vec3<f32>(0.5, -0.1, -0.45) * jit * (h2 - 0.5));

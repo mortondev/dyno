@@ -1297,8 +1297,9 @@ mod tests {
                 let hi = [0, 1, 2].map(|a| p.iter().map(|c| c[a]).max().unwrap());
                 let axis = (0..3).find(|a| lo[*a] == hi[*a]).expect("a flat face");
                 // which way the face looks (the normal may be bent towards
-                // the slope): tex.x is voxels a metre plus 32 times it
-                let dir = (q[0].tex[0] / 32.0).floor() as usize;
+                // the slope): tex.x is voxels a metre plus 32 times it,
+                // plus 256 times the colour cells a metre
+                let dir = ((q[0].tex[0] % 256.0) / 32.0).floor() as usize;
                 assert_eq!(dir / 2, axis, "direction and plane agree");
                 let mut n = [0f32; 3];
                 n[axis] = if dir.is_multiple_of(2) { 1.0 } else { -1.0 };
