@@ -3,6 +3,7 @@
 pub mod anim;
 pub mod app;
 pub mod audio;
+pub(crate) mod detail;
 pub mod front;
 pub mod game;
 pub mod minimap;

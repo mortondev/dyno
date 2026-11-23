@@ -5820,7 +5820,10 @@ pub fn shot_with_ui(
     let t = time.unwrap_or(p.time);
     p.time = t;
     let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
+    let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
+    let load_start = Instant::now();
     gfx.load_world(&p.world, &p.light);
+    let load_ms = load_start.elapsed().as_secs_f64() * 1e3;
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
     let far = 160.0;
     let dir = p.player.look_dir();
@@ -5972,6 +5975,22 @@ pub fn shot_with_ui(
     });
     gfx.screenshot = Some(out.clone());
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, second);
+    if stats {
+        // frame time on the headless path: the world only, GPU waited on
+        gfx.wait_idle();
+        let n = 30;
+        let t0 = Instant::now();
+        for _ in 0..n {
+            let o = ctx.run(raw(), |_| {});
+            gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
+            gfx.wait_idle();
+        }
+        let frame_ms = t0.elapsed().as_secs_f64() * 1e3 / n as f64;
+        let (vo, vt) = gfx.world_vertices();
+        eprintln!(
+            "stats: load_world {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
+        );
+    }
     let mut creatures: Vec<String> = p
         .entities
         .values()

@@ -143,6 +143,8 @@ struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, f
 const K_TERRAIN: f32 = 4096.0;
 const K_FOLIAGE: f32 = 8192.0;
 const K_WATER: f32 = 12288.0;
+// leaf texture repeats per metre
+const LEAF_SCALE: f32 = 0.6;
 
 // 1 in sunlight, 0 in shadow; soft-edged. Four taps: the sampler compares
 // and blends 2 x 2 texels at each, so together they cover the same patch a
@@ -164,7 +166,7 @@ fn sun_visible(wpos: vec3<f32>, n: vec3<f32>) -> f32 {
 fn grade(c0: vec3<f32>) -> vec3<f32> {
   var c = c0 * vec3<f32>(1.04, 1.0, 0.94);
   let l = dot(c, vec3<f32>(0.2126, 0.7152, 0.0722));
-  c = mix(vec3<f32>(l), c, 1.18);
+  c = mix(vec3<f32>(l), c, 1.1);
   // gentle contrast around mid grey
   c = (c - 0.18) * 1.06 + 0.18;
   // roll off highlights instead of clipping
@@ -173,11 +175,21 @@ fn grade(c0: vec3<f32>) -> vec3<f32> {
   return max(c, vec3<f32>(0.0));
 }
 
+// Integer hashes of whole-number points. (A sin-based hash loses
+// precision far from zero and breaks the clouds into hard shards.)
+fn mixu(h0: u32) -> u32 {
+  var h = h0;
+  h = (h ^ (h >> 16u)) * 0x7feb352du;
+  h = (h ^ (h >> 15u)) * 0x846ca68bu;
+  return h ^ (h >> 16u);
+}
 fn hash3(p: vec3<f32>) -> f32 {
-  return fract(sin(dot(p, vec3<f32>(12.9898, 78.233, 37.719))) * 43758.5453);
+  let q = bitcast<vec3<u32>>(vec3<i32>(p));
+  return f32(mixu(q.x * 0x9E3779B1u ^ mixu(q.y * 0x85EBCA77u ^ mixu(q.z))) >> 8u) / 16777216.0;
 }
 fn hash2(p: vec2<f32>) -> f32 {
-  return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453);
+  let q = bitcast<vec2<u32>>(vec2<i32>(p));
+  return f32(mixu(q.x * 0x9E3779B1u ^ mixu(q.y)) >> 8u) / 16777216.0;
 }
 fn vnoise(p: vec2<f32>) -> f32 {
   let i = floor(p);
@@ -242,6 +254,10 @@ struct VOut {
     tone = world_tone(root.xz);
   } else if (kz >= K_TERRAIN) {
     tone = world_tone(pos.xz);
+  } else if (kz >= 0.0) {
+    // built blocks: the same slow drift of tone, so a wall is not one tile
+    // stamped over and over
+    tone = world_tone(pos.xz * 1.7 + vec2<f32>(pos.y * 0.9, -pos.y * 0.6));
   } else if (kz < -2.5 && kz > -3.5) {
     pull = 0.35;
   } else if (kz < -3.5) {
@@ -354,7 +370,8 @@ fn ground_tone(m: f32) -> vec3<f32> {
   var uv0 = i.tex.xy;
   var l0 = 0;
   if (kz >= K_FOLIAGE) {
-    uv0 = i.wpos.xz;
+    // leaves: larger painted clumps than one tile a block
+    uv0 = i.wpos.xz * LEAF_SCALE;
     l0 = anim_layer(kz - K_FOLIAGE, i.tex.w);
   } else if (kz >= K_TERRAIN) {
     uv0 = i.wpos.xz;
@@ -367,6 +384,22 @@ fn ground_tone(m: f32) -> vec3<f32> {
   let has_n = dot(i.normal, i.normal) > 0.25;
   var n = vec3<f32>(0.0, 1.0, 0.0);
   if (has_n) { n = normalize(i.normal); }
+  // painted relief: the texture's brightness taken as height (dark mortar
+  // and cracks sink, stones stand out), turned into a bent normal from
+  // screen-space slopes; fades out with distance, where it would shimmer
+  let hgt = dot(tx0.rgb, vec3<f32>(0.3, 0.55, 0.15));
+  let dhx = dpdx(hgt);
+  let dhy = dpdy(hgt);
+  var bent = n;
+  if (has_n && kz >= 0.0 && kz < K_FOLIAGE && d < 40.0) {
+    let r1 = cross(dpy, n);
+    let r2 = cross(n, dpx);
+    let det = dot(dpx, r1);
+    let g = sign(det) * (dhx * r1 + dhy * r2);
+    // smooth ground: only on its level tops, which show the texture seen from above
+    let k = 0.022 * (1.0 - smoothstep(18.0, 40.0, d)) * select(1.0, smoothstep(0.6, 0.9, n.y), kz >= K_TERRAIN);
+    bent = normalize(abs(det) * n - g * k);
+  }
   var base = i.color.rgb;
   var grain = 1.0;
   // 0: hard sunlight; towards 1: light wraps round the form (foliage)
@@ -375,13 +408,16 @@ fn ground_tone(m: f32) -> vec3<f32> {
   if (kz >= K_FOLIAGE) {
     let w3 = tri_weights(n);
     var tx = w3.y * tx0;
-    if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos, dpx, dpy); }
-    if (w3.z > 0.001) { tx += w3.z * side_z(l0, i.wpos, dpx, dpy); }
+    if (w3.x > 0.001) { tx += w3.x * side_x(l0, i.wpos * LEAF_SCALE, dpx * LEAF_SCALE, dpy * LEAF_SCALE); }
+    if (w3.z > 0.001) { tx += w3.z * side_z(l0, i.wpos * LEAF_SCALE, dpx * LEAF_SCALE, dpy * LEAF_SCALE); }
     // gaps between the leaves close up with distance, where they would only flicker
     let cut = mix(0.5, 0.06, smoothstep(18.0, 44.0, d));
     if (tx.a < cut) { discard; }
     // big soft patches of light and dark over the canopy
-    base = base * tx.rgb * (0.86 + 0.28 * i.tone);
+    // big soft patches of light and dark; cool, deep shade underneath and
+    // warm sunlit crowns, so each canopy reads as one painted form
+    base = base * tx.rgb * (0.78 + 0.4 * i.tone);
+    base = base * mix(vec3<f32>(0.5, 0.64, 0.68), vec3<f32>(0.92, 0.94, 0.8), smoothstep(-0.4, 0.85, n.y));
     if (!front) { n = -n; dim = 0.72; }
     // darker underneath and inside
     dim = dim * (0.74 + 0.26 * smoothstep(-0.6, 0.5, n.y));
@@ -415,7 +451,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
     base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
     if (tx0.a < 0.5) { discard; }
-    base = base * tx0.rgb;
+    base = base * tx0.rgb * mix(0.88, 1.08, i.tone);
   } else if (kz > -1.5) {
     // 16 x 16 texel grain on untextured boxes so they read as pixel art
     let t = floor(i.wpos * 16.0 - i.normal * 0.01);
@@ -426,7 +462,7 @@ fn ground_tone(m: f32) -> vec3<f32> {
   let bl = i.light * i.light;
   let sl = i.sky * i.sky;
   let ldir = normalize(select(-u.sun.xyz, u.sun.xyz, u.sun.y > 0.0));
-  let lam = dot(n, ldir);
+  let lam = dot(select(n, bent, kz >= 0.0 && kz < K_FOLIAGE), ldir);
   let ndl = select(0.75, max(mix(lam, lam * 0.5 + 0.5, wrap), 0.0), has_n);
   let vis = sun_visible(i.wpos, n);
   let up = select(0.75, 0.6 + 0.4 * n.y, has_n);
@@ -468,9 +504,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
   if (-sd > 0.9994) { c = mix(c, vec3<f32>(0.85, 0.88, 0.95), u.sun.w); }
   // painted clouds: soft billows lit from the sun side, with warm rims
   if (h > 0.01) {
-    var q = dir.xz / (h + 0.08) * 1.1 + vec2<f32>(u.cam.w * 0.010, u.cam.w * 0.004);
-    // keep coordinates small: the hash loses precision far from zero
-    q = q - floor(q / 97.0) * 97.0;
+    let q = dir.xz / (h + 0.08) * 1.1 + vec2<f32>(u.cam.w * 0.010, u.cam.w * 0.004);
     let n = vnoise(q * 0.8) * 0.5 + vnoise(q * 1.9 + 7.3) * 0.3 + vnoise(q * 4.3 + 2.1) * 0.2;
     let over = u.sky_top.w;
     let cov = smoothstep(0.46 - over * 0.5, 0.78 - over * 0.45, n) * smoothstep(0.01, 0.25, h);
@@ -1723,6 +1757,21 @@ impl Gfx {
         self.remesh(world, light, &list);
     }
 
+    /// Wait until the GPU has finished all submitted work (for timing).
+    pub fn wait_idle(&self) {
+        let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
+    }
+
+    /// Opaque and translucent vertices held by the world meshes (for stats).
+    pub fn world_vertices(&self) -> (u64, u64) {
+        self.sections.iter().fold((0, 0), |a, s| {
+            (
+                a.0 + s.opaque.as_ref().map_or(0, |b| b.1 as u64),
+                a.1 + s.trans.as_ref().map_or(0, |b| b.1 as u64),
+            )
+        })
+    }
+
     /// Re-mesh every section that touches the box [lo - margin, hi + margin].
     pub fn region_changed(
         &mut self,
@@ -2115,6 +2164,62 @@ fn shadow_matrix(cam: Vec3, sun_dir: [f32; 3]) -> Mat4 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Timing on the real starting world: Hearthstead and the zones, as a
+    /// fresh server builds them. Run with:
+    /// `cargo test --release -p dyno-client town_meshing_speed -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn town_meshing_speed() {
+        let mut world = World::generate([384, 96, 384], 20261122);
+        let hearth = world.ensure_spawn_hearth(None);
+        w::village::build_hearthstead(&mut world, hearth);
+        w::zones::build_world_features(&mut world, hearth);
+        let light = Light::new(&world);
+        let _ = textures();
+        // the sections of the town: 64 blocks round the hearth
+        let mut town = Vec::new();
+        let mut all = Vec::new();
+        for sy in 0..6 {
+            for sz in 0..24 {
+                for sx in 0..24 {
+                    all.push([sx, sy, sz]);
+                    let c = [sx * SECTION + 8, sz * SECTION + 8];
+                    if (c[0] - hearth[0]).abs() <= 40 && (c[1] - hearth[2]).abs() <= 40 {
+                        town.push([sx, sy, sz]);
+                    }
+                }
+            }
+        }
+        // each section's best time over several runs, so other work on a
+        // busy machine does not count
+        let mut best = vec![f64::MAX; town.len()];
+        let mut verts = 0usize;
+        for _ in 0..9 {
+            verts = 0;
+            for (i, s) in town.iter().enumerate() {
+                let t = std::time::Instant::now();
+                let geo = terrain_mesh::mesh(&world, &light, s[0], s[1], s[2]);
+                best[i] = best[i].min(t.elapsed().as_secs_f64() * 1e3);
+                verts += geo.opaque.len() + geo.trans.len();
+            }
+        }
+        let sum: f64 = best.iter().sum();
+        let worst = best.iter().copied().fold(0.0, f64::max);
+        let start = std::time::Instant::now();
+        let n: usize = all
+            .chunks(256)
+            .map(|b| mesh_many(&world, &light, b).len())
+            .sum();
+        let many = start.elapsed().as_secs_f64();
+        eprintln!(
+            "town: {} sections, {:.3} ms each on average, worst {worst:.2} ms, {verts} vertices; \
+             whole world ({n} sections) on all cores {:.2} s",
+            town.len(),
+            sum / town.len() as f64,
+            many
+        );
+    }
 
     /// Timing. Run with:
     /// `cargo test --release -p dyno-client meshing_speed -- --ignored --nocapture`

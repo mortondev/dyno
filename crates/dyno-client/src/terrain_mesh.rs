@@ -18,7 +18,7 @@ use glam::Vec3;
 
 const N: i32 = SECTION;
 /// Cells read around the section.
-const PAD: i32 = 3;
+const PAD: i32 = 4;
 const G: usize = (N + 2 * PAD) as usize;
 /// Grid corners -1..=17 on each axis.
 const LV: usize = (N + 3) as usize;
@@ -29,18 +29,24 @@ const DB: usize = (N + 4) as usize;
 /// every section within this distance.
 pub const REACH: i32 = PAD + 1;
 
-const F_TERRAIN: u8 = 1;
-/// Drawn as a cube: ground corners that touch it stay on the grid.
-const F_PIN: u8 = 2;
-const F_OPAQUE: u8 = 4;
-const F_LEAVES: u8 = 8;
-const F_WATER: u8 = 16;
+pub(crate) const F_TERRAIN: u8 = 1;
+/// Built: ground corners that touch it stay on the grid.
+pub(crate) const F_PIN: u8 = 2;
+/// Fills its whole cell: hides the faces of its neighbours and darkens
+/// their corners. A detail block that draws as a smaller shape does not.
+pub(crate) const F_OPAQUE: u8 = 4;
+pub(crate) const F_LEAVES: u8 = 8;
+pub(crate) const F_WATER: u8 = 16;
+/// Stops light (the world's `is_opaque`): its own cell holds no light.
+pub(crate) const F_DARK: u8 = 32;
+/// Drawn by the detail mesher (see `detail.rs`), not as a plain cube.
+pub(crate) const F_DETAIL: u8 = 64;
 
 /// Smallest density magnitude of a ground cell. Keeps one-block features
 /// from thinning to nothing.
 const MARGIN: f32 = 0.15;
 /// Leaf canopies: the surface sits where the blurred leaf field crosses this.
-const LEAF_ISO: f32 = 0.33;
+const LEAF_ISO: f32 = 0.37;
 const LEAF_IN: f32 = 0.2;
 const LEAF_OUT: f32 = 0.08;
 /// How much of its smoothing a corner keeps on a cliff.
@@ -69,7 +75,7 @@ pub fn is_terrain(b: BlockId) -> bool {
     )
 }
 
-fn flags() -> &'static [u8; 256] {
+pub(crate) fn flags() -> &'static [u8; 256] {
     static T: std::sync::OnceLock<[u8; 256]> = std::sync::OnceLock::new();
     T.get_or_init(|| {
         let mut t = [0u8; 256];
@@ -79,7 +85,10 @@ fn flags() -> &'static [u8; 256] {
                 continue;
             }
             if w::is_opaque(b) {
-                *f |= F_OPAQUE;
+                *f |= F_OPAQUE | F_DARK;
+            }
+            if crate::detail::is_detail(b) {
+                *f |= F_DETAIL;
             }
             if is_terrain(b) {
                 *f |= F_TERRAIN;
@@ -156,19 +165,167 @@ fn material(g: &Grid, c: usize) -> BlockId {
 }
 
 /// The blocks of one section and a border around it, in section-local cells.
-struct Grid {
-    ids: Vec<BlockId>,
-    fl: Vec<u8>,
+pub(crate) struct Grid {
+    pub(crate) ids: Vec<BlockId>,
+    pub(crate) fl: Vec<u8>,
     /// world position of local cell (0, 0, 0)
-    o: [i32; 3],
+    pub(crate) o: [i32; 3],
+    /// light (block, sky) for detail blocks that stop light, borrowed from
+    /// their open neighbours; empty when there are none
+    patch: Vec<[u8; 2]>,
 }
 
-const DX: usize = 1;
-const DZ: usize = G;
-const DY: usize = G * G;
+/// Blocks that pave the ground: drawn as part of the smooth ground where
+/// they lie flush with it.
+pub(crate) fn is_paving(b: BlockId) -> bool {
+    matches!(b, w::COBBLE | w::FLAGSTONES | 19)
+}
+
+impl Grid {
+    /// Read the blocks of the section at `o` and its border, and decide
+    /// what shape each is drawn as.
+    fn load_shape(world: &World, o: [i32; 3]) -> Grid {
+        let lut = flags();
+        let mut g = Grid {
+            ids: vec![0; G * G * G],
+            fl: vec![0; G * G * G],
+            o,
+            patch: Vec::new(),
+        };
+        let mut i = 0;
+        let mut all = 0u8;
+        for y in -PAD..N + PAD {
+            for z in -PAD..N + PAD {
+                for x in -PAD..N + PAD {
+                    let b = world.get(o[0] + x, o[1] + y, o[2] + z);
+                    let f = lut[b as usize];
+                    g.ids[i] = b;
+                    g.fl[i] = f;
+                    all |= f;
+                    i += 1;
+                }
+            }
+        }
+        if all & F_PIN != 0 {
+            g.pave();
+        }
+        if all & F_DETAIL != 0 {
+            crate::detail::classify(&mut g);
+        }
+        g
+    }
+
+    /// The same, with the light that detail blocks borrow.
+    fn load(world: &World, light: &Light, o: [i32; 3]) -> Grid {
+        let mut g = Grid::load_shape(world, o);
+        if g.fl.iter().any(|f| f & F_DETAIL != 0) {
+            g.patch_light(light);
+        }
+        g
+    }
+
+    /// Paving that lies flush with the ground becomes ground: it follows
+    /// the smooth surface and blends into the grass along a ragged edge.
+    /// A cell counts when it has solid ground under it, nothing built on
+    /// top, other ground beside it and at most one open side (so low walls
+    /// and the tops of pillars stay built). Reads one cell round each cell
+    /// it changes, so every cell the meshers read (-3..N+3) is decided the
+    /// same way by every section that holds it.
+    fn pave(&mut self) {
+        let lut = flags();
+        // props and posts may stand on paving; anything else on it is a wall
+        let built = |b: BlockId| {
+            lut[b as usize] & F_OPAQUE != 0 && !is_paving(b) && !crate::detail::stands_on_paving(b)
+        };
+        let mut set = Vec::new();
+        for y in -3..N + 3 {
+            for z in -3..N + 3 {
+                for x in -3..N + 3 {
+                    let c = at(x, y, z);
+                    if !is_paving(self.ids[c]) {
+                        continue;
+                    }
+                    let (up, down) = (self.ids[c + DY], self.ids[c - DY]);
+                    if built(up) || is_paving(up) || !w::is_solid(down) {
+                        continue;
+                    }
+                    let (mut open, mut ground) = (0, 0);
+                    for n in [c - DX, c + DX, c - DZ, c + DZ] {
+                        let b = self.ids[n];
+                        if !w::is_solid(b) {
+                            open += 1;
+                        } else if is_terrain(b) || (is_paving(b) && !w::is_solid(self.ids[n + DY]))
+                        {
+                            ground += 1;
+                        }
+                    }
+                    if open <= 1 && ground >= 1 {
+                        set.push(c);
+                    }
+                }
+            }
+        }
+        for c in set {
+            self.fl[c] = (self.fl[c] & !(F_PIN | F_DETAIL)) | F_TERRAIN;
+        }
+    }
+
+    /// Detail blocks that stop light hold none in their own cell; their
+    /// faces take the light of the brightest open cell beside them.
+    fn patch_light(&mut self, light: &Light) {
+        self.patch = vec![[0, 0]; G * G * G];
+        for y in -3..N + 3 {
+            for z in -3..N + 3 {
+                for x in -3..N + 3 {
+                    let c = at(x, y, z);
+                    if self.fl[c] & (F_DETAIL | F_DARK) != F_DETAIL | F_DARK {
+                        continue;
+                    }
+                    let mut best = [0u8, 0u8];
+                    for (d, n) in [
+                        ([-1, 0, 0], c - DX),
+                        ([1, 0, 0], c + DX),
+                        ([0, 0, -1], c - DZ),
+                        ([0, 0, 1], c + DZ),
+                        ([0, -1, 0], c - DY),
+                        ([0, 1, 0], c + DY),
+                    ] {
+                        if self.fl[n] & F_DARK != 0 {
+                            continue;
+                        }
+                        let p = [
+                            self.o[0] + x + d[0],
+                            self.o[1] + y + d[1],
+                            self.o[2] + z + d[2],
+                        ];
+                        best[0] = best[0].max(light.get(p[0], p[1], p[2]));
+                        best[1] = best[1].max(light.sky(p[0], p[1], p[2]));
+                    }
+                    self.patch[c] = best;
+                }
+            }
+        }
+    }
+
+    /// Block light and sky light (0..=15) of a local cell.
+    #[inline]
+    pub(crate) fn light(&self, light: &Light, p: [i32; 3]) -> (f32, f32) {
+        let c = at(p[0], p[1], p[2]);
+        if !self.patch.is_empty() && self.fl[c] & (F_DETAIL | F_DARK) == F_DETAIL | F_DARK {
+            let l = self.patch[c];
+            return (l[0] as f32, l[1] as f32);
+        }
+        let (x, y, z) = (self.o[0] + p[0], self.o[1] + p[1], self.o[2] + p[2]);
+        (light.get(x, y, z) as f32, light.sky(x, y, z) as f32)
+    }
+}
+
+pub(crate) const DX: usize = 1;
+pub(crate) const DZ: usize = G;
+pub(crate) const DY: usize = G * G;
 
 #[inline]
-fn at(x: i32, y: i32, z: i32) -> usize {
+pub(crate) fn at(x: i32, y: i32, z: i32) -> usize {
     ((y + PAD) as usize * G + (z + PAD) as usize) * G + (x + PAD) as usize
 }
 
@@ -407,7 +564,7 @@ impl<'a> Nets<'a> {
         let base = at(i - 1, j - 1, k - 1);
         let (mut bl, mut sl, mut open) = (0u32, 0u32, 0u32);
         for (ci, o) in CELL8.iter().enumerate() {
-            if g.fl[base + o] & F_OPAQUE != 0 {
+            if g.fl[base + o] & F_DARK != 0 {
                 continue;
             }
             let (x, y, z) = (
@@ -694,8 +851,8 @@ fn water_surface(g: &Grid, c: usize) -> bool {
 
 /// Cubes, posts and water for the section's own blocks.
 fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
-    let lget = |p: [i32; 3]| light.get(g.o[0] + p[0], g.o[1] + p[1], g.o[2] + p[2]) as f32;
-    let lsky = |p: [i32; 3]| light.sky(g.o[0] + p[0], g.o[1] + p[1], g.o[2] + p[2]) as f32;
+    let lget = |p: [i32; 3]| g.light(light, p).0;
+    let lsky = |p: [i32; 3]| g.light(light, p).1;
     let solid = |p: [i32; 3]| (g.fl[at(p[0], p[1], p[2])] & F_OPAQUE != 0) as i32;
     let tile = render::tile_uv;
     let wt = render::textures().face(w::WATER, 0);
@@ -705,7 +862,8 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                 let c = at(x, y, z);
                 let b = g.ids[c];
                 let f = g.fl[c];
-                if b == w::AIR || f & F_LEAVES != 0 {
+                // detail blocks that no longer fill their cell draw themselves
+                if b == w::AIR || f & F_LEAVES != 0 || f & (F_DETAIL | F_OPAQUE) == F_DETAIL {
                     continue;
                 }
                 let wpos = [g.o[0] + x, g.o[1] + y, g.o[2] + z];
@@ -760,6 +918,9 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                 }
                 let water = b == w::WATER;
                 let surface = water && g.fl[c + DY] & F_WATER == 0;
+                // one size for every block, so a chamfer runs on unbroken
+                // from one block to the next
+                let bevel = if bevels(g, c) { BEVEL } else { 0.0 };
                 for (n, u, v, shade) in FACES {
                     let nc = step(c, n);
                     if g.fl[nc] & F_OPAQUE != 0 || (tr && g.ids[nc] == b) {
@@ -775,12 +936,20 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                         wpos[1] as f32 + 0.5 + n[1] as f32 * 0.5,
                         wpos[2] as f32 + 0.5 + n[2] as f32 * 0.5,
                     ];
-                    let mut corners = [([0f32; 3], 0f32, 0f32, 0f32); 4];
+                    // a convex edge (open beyond it, as well as in front)
+                    // is bevelled: the face pulls back from it and a slanted
+                    // strip joins it to the face round the corner
+                    let convex = |e: [i32; 3]| bevel > 0.0 && g.fl[step(c, e)] & F_OPAQUE == 0;
+                    let mut corners = [([0f32; 3], 0f32, 0f32, 0f32, 0f32, 0f32); 4];
                     for (i, (su, sv)) in QUAD.into_iter().enumerate() {
+                        let eu = [su * u[0], su * u[1], su * u[2]];
+                        let ev = [sv * v[0], sv * v[1], sv * v[2]];
+                        let ku = 0.5 - if convex(eu) { bevel } else { 0.0 };
+                        let kv = 0.5 - if convex(ev) { bevel } else { 0.0 };
                         let mut p = [
-                            center[0] + 0.5 * (su * u[0] + sv * v[0]) as f32,
-                            center[1] + 0.5 * (su * u[1] + sv * v[1]) as f32,
-                            center[2] + 0.5 * (su * u[2] + sv * v[2]) as f32,
+                            center[0] + ku * (su * u[0]) as f32 + kv * (sv * v[0]) as f32,
+                            center[1] + ku * (su * u[1]) as f32 + kv * (sv * v[1]) as f32,
+                            center[2] + ku * (su * u[2]) as f32 + kv * (sv * v[2]) as f32,
                         ];
                         if surface && p[1] > wpos[1] as f32 + 0.5 {
                             p[1] -= WATER_DROP;
@@ -816,9 +985,16 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                             } else {
                                 3 - (s1 + s2 + s3)
                             };
-                            [0.5, 0.66, 0.83, 1.0][ao as usize]
+                            [0.55, 0.7, 0.85, 1.0][ao as usize]
                         };
-                        corners[i] = (p, shade_ao, bl, sl);
+                        corners[i] = (
+                            p,
+                            shade_ao,
+                            bl,
+                            sl,
+                            ku * 2.0 * su as f32,
+                            kv * 2.0 * sv as f32,
+                        );
                     }
                     let nf = [n[0] as f32, n[1] as f32, n[2] as f32];
                     // textured: the texture carries the colour
@@ -836,31 +1012,184 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                     };
                     let layer = render::face_tex(b, face_id, 0.0, 0.0);
                     let out = if tr { &mut geo.trans } else { &mut geo.opaque };
-                    for i in order {
-                        let (p, l, bl, sl) = corners[i];
-                        let (su, sv) = (QUAD[i].0 as f32, QUAD[i].1 as f32);
-                        // sides: v runs down from the top; mirror u on the far faces
-                        let (tu, tv) = if face_id == 1 {
+                    // sides: v runs down from the top; mirror u on the far faces
+                    let uv = |su: f32, sv: f32| -> [f32; 2] {
+                        if face_id == 1 {
                             let uu = (su + 1.0) * 0.5;
-                            (
-                                if n[0] + n[2] < 0 { uu } else { 1.0 - uu },
-                                (1.0 - sv) * 0.5,
-                            )
+                            [
+                                tile(if n[0] + n[2] < 0 { uu } else { 1.0 - uu }),
+                                tile((1.0 - sv) * 0.5),
+                            ]
                         } else {
-                            ((su + 1.0) * 0.5, (sv + 1.0) * 0.5)
+                            [tile((su + 1.0) * 0.5), tile((sv + 1.0) * 0.5)]
+                        }
+                    };
+                    let vert =
+                        |p: [f32; 3], nrm: [f32; 3], l: f32, bl: f32, sl: f32, t: [f32; 2]| {
+                            Vertex {
+                                pos: p,
+                                normal: nrm,
+                                color: [col, col, col, l],
+                                light: bl,
+                                sky: sl,
+                                tex: [t[0], t[1], layer[2], layer[3]],
+                            }
                         };
-                        out.push(Vertex {
-                            pos: p,
-                            normal: nf,
-                            color: [col, col, col, l],
-                            light: bl,
-                            sky: sl,
-                            tex: [tile(tu), tile(tv), layer[2], layer[3]],
-                        });
+                    for i in order {
+                        let (p, l, bl, sl, au, av) = corners[i];
+                        out.push(vert(p, nf, l, bl, sl, uv(au, av)));
+                    }
+                    if bevel > 0.0 {
+                        let fi = face_index(n);
+                        let add = |p: [f32; 3], d: [i32; 3], k: f32| {
+                            [
+                                p[0] + (d[0] - n[0]) as f32 * k,
+                                p[1] + (d[1] - n[1]) as f32 * k,
+                                p[2] + (d[2] - n[2]) as f32 * k,
+                            ]
+                        };
+                        // strips along the four edges: (corner, corner, edge direction)
+                        for (i, j, eu_side) in
+                            [(0, 1, false), (1, 2, true), (2, 3, false), (3, 0, true)]
+                        {
+                            let (su, sv) = QUAD[i];
+                            let e = if eu_side {
+                                [su * u[0], su * u[1], su * u[2]]
+                            } else {
+                                [sv * v[0], sv * v[1], sv * v[2]]
+                            };
+                            if !convex(e) || face_index(e) < fi {
+                                continue;
+                            }
+                            let nrm = Vec3::new(
+                                (n[0] + e[0]) as f32,
+                                (n[1] + e[1]) as f32,
+                                (n[2] + e[2]) as f32,
+                            )
+                            .normalize()
+                            .to_array();
+                            let (pi, li, bli, sli, ui, vi) = corners[i];
+                            let (pj, lj, blj, slj, uj, vj) = corners[j];
+                            // texture runs on over the edge
+                            let ext = |a: f32, b: f32| {
+                                let k = bevel * 2.0;
+                                if eu_side {
+                                    (a + k * su as f32, b)
+                                } else {
+                                    (a, b + k * sv as f32)
+                                }
+                            };
+                            let (ui2, vi2) = ext(ui, vi);
+                            let (uj2, vj2) = ext(uj, vj);
+                            let q = [
+                                vert(pi, nrm, li, bli, sli, uv(ui, vi)),
+                                vert(pj, nrm, lj, blj, slj, uv(uj, vj)),
+                                vert(add(pj, e, bevel), nrm, lj, blj, slj, uv(uj2, vj2)),
+                                vert(add(pi, e, bevel), nrm, li, bli, sli, uv(ui2, vi2)),
+                            ];
+                            out.extend([q[0], q[1], q[2], q[0], q[2], q[3]]);
+                            // where the chamfer stops against a solid block that
+                            // does not carry it on, close the notch it leaves
+                            for (k, p, l, bl, sl, t) in [
+                                (i, pi, li, bli, sli, uv(ui, vi)),
+                                (j, pj, lj, blj, slj, uv(uj, vj)),
+                            ] {
+                                let (su, sv) = QUAD[k];
+                                let end = if eu_side {
+                                    [sv * v[0], sv * v[1], sv * v[2]]
+                                } else {
+                                    [su * u[0], su * u[1], su * u[2]]
+                                };
+                                let q = step(c, end);
+                                if g.fl[q] & F_OPAQUE == 0 {
+                                    continue;
+                                }
+                                let carries = bevels(g, q)
+                                    && g.fl[step(q, n)] & F_OPAQUE == 0
+                                    && g.fl[step(q, e)] & F_OPAQUE == 0;
+                                if carries {
+                                    continue;
+                                }
+                                let corner = [
+                                    p[0] + e[0] as f32 * bevel,
+                                    p[1] + e[1] as f32 * bevel,
+                                    p[2] + e[2] as f32 * bevel,
+                                ];
+                                let nn = [-end[0] as f32, -end[1] as f32, -end[2] as f32];
+                                out.extend([
+                                    vert(p, nn, l, bl, sl, t),
+                                    vert(corner, nn, l, bl, sl, t),
+                                    vert(add(p, e, bevel), nn, l, bl, sl, t),
+                                ]);
+                            }
+                        }
+                        // corner triangles where two bevels meet
+                        for (i, (su, sv)) in QUAD.into_iter().enumerate() {
+                            let eu = [su * u[0], su * u[1], su * u[2]];
+                            let ev = [sv * v[0], sv * v[1], sv * v[2]];
+                            if !convex(eu)
+                                || !convex(ev)
+                                || face_index(eu) < fi
+                                || face_index(ev) < fi
+                            {
+                                continue;
+                            }
+                            let nrm = Vec3::new(
+                                (n[0] + eu[0] + ev[0]) as f32,
+                                (n[1] + eu[1] + ev[1]) as f32,
+                                (n[2] + eu[2] + ev[2]) as f32,
+                            )
+                            .normalize()
+                            .to_array();
+                            let (p, l, bl, sl, au, av) = corners[i];
+                            let t = uv(au, av);
+                            out.extend([
+                                vert(p, nrm, l, bl, sl, t),
+                                vert(add(p, eu, bevel), nrm, l, bl, sl, t),
+                                vert(add(p, ev, bevel), nrm, l, bl, sl, t),
+                            ]);
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/// How far the convex edges of built cubes are chamfered.
+const BEVEL: f32 = 0.05;
+
+#[cfg(test)]
+thread_local! {
+    /// Tests of the bare skin turn the chamfers off: where a chamfered
+    /// block meets one without, its edges meet in T-junctions.
+    static NO_BEVEL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// True for a cube the cube mesher draws with chamfered edges: built,
+/// opaque, not glowing.
+fn bevels(g: &Grid, c: usize) -> bool {
+    #[cfg(test)]
+    if NO_BEVEL.with(|n| n.get()) {
+        return false;
+    }
+    let f = g.fl[c];
+    let b = g.ids[c];
+    f & (F_PIN | F_OPAQUE) == F_PIN | F_OPAQUE
+        && f & (F_TERRAIN | F_LEAVES | F_WATER) == 0
+        && w::block(b).alpha >= 1.0
+        && w::emission(b) == 0
+}
+
+/// Index in `FACES` of the face with this normal.
+fn face_index(n: [i32; 3]) -> usize {
+    match n {
+        [1, 0, 0] => 0,
+        [-1, 0, 0] => 1,
+        [0, 1, 0] => 2,
+        [0, -1, 0] => 3,
+        [0, 0, 1] => 4,
+        _ => 5,
     }
 }
 
@@ -934,13 +1263,7 @@ fn water_top(
 /// Build everything drawn for one 16³ section.
 pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionGeo {
     let mut geo = SectionGeo::default();
-    let o = [sx * N, sy * N, sz * N];
-    let lut = flags();
-    let mut g = Grid {
-        ids: vec![0; G * G * G],
-        fl: vec![0; G * G * G],
-        o,
-    };
+    let g = Grid::load(world, light, [sx * N, sy * N, sz * N]);
     let (mut own, mut all, mut every) = (0u8, 0u8, 0xffu8);
     let mut i = 0;
     for y in -PAD..N + PAD {
@@ -948,10 +1271,7 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
         for z in -PAD..N + PAD {
             let inner_z = inner_y && (0..N).contains(&z);
             for x in -PAD..N + PAD {
-                let b = world.get(o[0] + x, o[1] + y, o[2] + z);
-                let f = lut[b as usize];
-                g.ids[i] = b;
-                g.fl[i] = f;
+                let f = g.fl[i];
                 i += 1;
                 all |= f;
                 every &= f;
@@ -974,6 +1294,9 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
     let has_water = all & F_WATER != 0;
     if own & (F_PIN | F_WATER) != 0 || (has_water && own & F_TERRAIN != 0) {
         cubes(&g, light, has_water, &mut geo);
+    }
+    if own & F_DETAIL != 0 {
+        crate::detail::mesh(&g, light, &mut geo);
     }
     geo
 }
@@ -999,28 +1322,19 @@ impl Ground {
             return *c;
         }
         let lut = flags();
-        let top = lut[world.get(b[0], b[1], b[2]) as usize];
+        let id = world.get(b[0], b[1], b[2]);
+        let top = lut[id as usize];
         let above = lut[world.get(b[0], b[1] + 1, b[2]) as usize];
-        let out = if top & F_TERRAIN == 0 || above & (F_TERRAIN | F_OPAQUE) != 0 {
+        let out = if (top & F_TERRAIN == 0 && !is_paving(id)) || above & (F_TERRAIN | F_OPAQUE) != 0
+        {
             None
         } else {
             // a grid whose middle holds the block, the same as a section's
+            // (only the shape of the ground is wanted, not its light)
             let o = [b[0] - N / 2, b[1] - N / 2, b[2] - N / 2];
-            let mut g = Grid {
-                ids: vec![0; G * G * G],
-                fl: vec![0; G * G * G],
-                o,
-            };
-            let mut i = 0;
-            for y in -PAD..N + PAD {
-                for z in -PAD..N + PAD {
-                    for x in -PAD..N + PAD {
-                        let id = world.get(o[0] + x, o[1] + y, o[2] + z);
-                        g.ids[i] = id;
-                        g.fl[i] = lut[id as usize];
-                        i += 1;
-                    }
-                }
+            let g = Grid::load_shape(world, o);
+            if g.fl[at(N / 2, N / 2, N / 2)] & F_TERRAIN == 0 {
+                return self.remember(b, None);
             }
             let mut nets = Nets::new(&g, false);
             let (i, j, k) = (N / 2, N / 2 + 1, N / 2);
@@ -1031,6 +1345,10 @@ impl Ground {
                 nets.vertex(i + 1, j, k + 1)[1],
             ])
         };
+        self.remember(b, out)
+    }
+
+    fn remember(&self, b: [i32; 3], out: Option<[f32; 4]>) -> Option<[f32; 4]> {
         let mut c = self.cache.borrow_mut();
         if c.len() > 4096 {
             c.clear();
@@ -1187,7 +1505,9 @@ mod tests {
 
     #[test]
     fn the_skin_has_no_holes() {
+        NO_BEVEL.with(|n| n.set(true));
         let geos = all_sections(&lumpy());
+        NO_BEVEL.with(|n| n.set(false));
         let mut edges: HashMap<([u32; 3], [u32; 3]), u32> = HashMap::new();
         let mut triangles = 0;
         for geo in &geos {
@@ -1313,5 +1633,87 @@ mod tests {
         // in the air: untouched
         let air = Vec3::new(15.9, 11.5, 16.5);
         assert_eq!(g.feet(&world, air), air);
+    }
+
+    /// A small world with Hearthstead built on it: roofs, timber, props,
+    /// paving and pillars.
+    fn town() -> World {
+        let mut world = World::generate([128, 64, 128], 7);
+        let hearth = world.ensure_spawn_hearth(None);
+        w::village::build_hearthstead(&mut world, hearth);
+        world
+    }
+
+    #[test]
+    fn detail_shapes_agree_across_sections() {
+        // how a block is drawn (and whether it hides its neighbours) must
+        // not depend on which section is looking at it
+        let world = town();
+        let light = Light::new(&world);
+        let (mut detail, mut compared) = (0, 0);
+        for sy in 0..4 {
+            for sz in 0..8 {
+                for sx in 0..8 {
+                    let a = Grid::load(&world, &light, [sx * N, sy * N, sz * N]);
+                    for (dx, dy, dz) in [(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
+                        let (nx, ny, nz) = (sx + dx, sy + dy, sz + dz);
+                        if nx >= 8 || ny >= 4 || nz >= 8 {
+                            continue;
+                        }
+                        let b = Grid::load(&world, &light, [nx * N, ny * N, nz * N]);
+                        // cells both grids decide: two either side of the border
+                        for y in -3..N + 3 {
+                            for z in -3..N + 3 {
+                                for x in -3..N + 3 {
+                                    let (bx, by, bz) = (x - dx * N, y - dy * N, z - dz * N);
+                                    if !(-3..N + 3).contains(&bx)
+                                        || !(-3..N + 3).contains(&by)
+                                        || !(-3..N + 3).contains(&bz)
+                                    {
+                                        continue;
+                                    }
+                                    let fa = a.fl[at(x, y, z)];
+                                    let fb = b.fl[at(bx, by, bz)];
+                                    assert_eq!(
+                                        fa,
+                                        fb,
+                                        "block {:?} decided differently",
+                                        [a.o[0] + x, a.o[1] + y, a.o[2] + z]
+                                    );
+                                    compared += 1;
+                                    detail += (fa & F_DETAIL != 0) as u32;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(
+            compared > 10_000 && detail > 200,
+            "{compared} cells, {detail} detail"
+        );
+    }
+
+    #[test]
+    fn detail_blocks_mesh_and_light() {
+        // every section of the town meshes, the detail shapes make
+        // triangles, and none of their vertices is black or broken
+        let world = town();
+        let light = Light::new(&world);
+        let mut tris = 0;
+        for sy in 0..4 {
+            for sz in 0..8 {
+                for sx in 0..8 {
+                    let geo = mesh(&world, &light, sx, sy, sz);
+                    for v in geo.opaque.iter().chain(&geo.trans) {
+                        assert!(v.pos.iter().chain(&v.normal).all(|f| f.is_finite()));
+                    }
+                    assert_eq!(geo.opaque.len() % 3, 0);
+                    tris += geo.opaque.len() / 3;
+                }
+            }
+        }
+        assert!(tris > 50_000, "{tris} triangles");
     }
 }
