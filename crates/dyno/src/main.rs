@@ -2,6 +2,7 @@
 
 use std::time::Duration;
 
+mod bench;
 mod sculpt;
 
 const HELP: &str = "\
@@ -35,6 +36,12 @@ USAGE:
                                Choose where the stand shot of each landmark stands; write the camera data
   dyno shot --anim-sheet <out.ppm|out.png>
                                Render animation contact sheets (no server needed)
+  dyno bench --diff DIR_A DIR_B [--out DIR]
+                               Compare the still pictures of two bench runs, pixel by pixel
+  dyno bench <address>|--local [--tier low|medium|high|ultra|all] [--out DIR] [--check REPORT.json]
+                               Measure the fixed scenes of the performance budget (tools/bench/scenes.json)
+                               at each graphics tier; write report.json, report.md and the pictures.
+                               --check fails when vertex memory or triangles grew over 15% (--tolerance)
   dyno bot <address> [name] [seconds]
                                Join as a bot that walks in a circle (demos, tests)
   dyno bots <address>|--local [--count N] [--minutes M] [--brain mix|completionist|grinder|explorer|social|casual]
@@ -151,6 +158,74 @@ fn main() {
                 .cloned()
                 .unwrap_or_else(|| "anim-sheet.ppm".into());
             match dyno_client::sheet::anim_sheet(std::path::Path::new(&out)) {
+                Ok(msg) => println!("{msg}"),
+                Err(e) => {
+                    eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "bench" => {
+            // dyno bench --diff A B [--out DIR]: compare two runs' pictures
+            if args.get(1).is_some_and(|a| a == "--diff") {
+                let (Some(a), Some(b)) = (args.get(2), args.get(3)) else {
+                    fail("usage: dyno bench --diff DIR_A DIR_B [--out DIR]");
+                };
+                let out = (args.get(4).is_some_and(|a| a == "--out"))
+                    .then(|| args.get(5).map(std::path::PathBuf::from))
+                    .flatten();
+                match bench::diff(a.as_ref(), b.as_ref(), out.as_deref()) {
+                    Ok(table) => print!("{table}"),
+                    Err(e) => {
+                        eprintln!("FAILED: {e}");
+                        std::process::exit(1);
+                    }
+                }
+                return;
+            }
+            let mut o = bench::Options::default();
+            let mut i = 1;
+            while i < args.len() {
+                let v = args.get(i + 1).cloned().unwrap_or_default();
+                let size = |v: &str| -> Option<[u32; 2]> {
+                    let mut it = v.split('x').filter_map(|x| x.parse().ok());
+                    Some([it.next()?, it.next()?])
+                };
+                match args[i].as_str() {
+                    "--local" => {
+                        o.local = true;
+                        i += 1;
+                        continue;
+                    }
+                    "--no-flight" => {
+                        o.flight = false;
+                        i += 1;
+                        continue;
+                    }
+                    "--port" => o.port = v.parse().unwrap_or(o.port),
+                    "--scenes" => o.scenes = v.into(),
+                    "--cameras" => o.cameras = v.into(),
+                    "--tier" => o.tier = v,
+                    "--only" => o.only = Some(v),
+                    "--frames" => o.frames = v.parse().ok(),
+                    "--size" => o.size = size(&v),
+                    "--out" => o.out = v.into(),
+                    "--label" => o.label = v,
+                    "--check" => o.check = Some(v.into()),
+                    "--tolerance" => o.tolerance = v.parse().unwrap_or(o.tolerance),
+                    a if !a.starts_with("--") && o.addr.is_none() => {
+                        o.addr = Some(a.to_string());
+                        i += 1;
+                        continue;
+                    }
+                    other => fail(&format!("unknown bench option {other}\n{}", bench::USAGE)),
+                }
+                i += 2;
+            }
+            if o.addr.is_none() && !o.local {
+                fail(bench::USAGE);
+            }
+            match bench::run(o) {
                 Ok(msg) => println!("{msg}"),
                 Err(e) => {
                     eprintln!("FAILED: {e}");

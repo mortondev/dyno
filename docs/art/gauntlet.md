@@ -12,7 +12,7 @@ or the round cap is reached.
 3. **Implement.** One implementer per lane works on its own branch in a worktree from current main, taking the judge's fixes for its lane.
 4. **Gate.**
    - Automated checks: `cargo fmt`, `cargo clippy --workspace --all-targets -D warnings`, `cargo test --workspace` and `check-client.sh` (no content in the client).
-   - Frame time: within budget on the reference scene.
+   - Frame time and memory: within the budgets of docs/design/performance.md on the benchmark's scenes (`dyno bench`), and the counts test passes (`cargo test -p dyno-client --test budget`; a lane that means to add more than 15% records the counts again and says why).
    - Content as data: looks live in the pack (`render.json`, rules, models, textures), not in code; engine code only adds capabilities.
 5. **Merge.** The lead merges passing lanes into main and re-shoots. Releases stay with the lead, after a rehearsal on a copy of the live world.
 6. **Repeat** until the pass bar is met or four rounds have run.

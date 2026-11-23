@@ -1238,6 +1238,12 @@ impl WaterGfx {
         );
     }
 
+    /// Bytes of the copy of the picture the water reads (for measurements).
+    pub fn target_bytes(&self) -> u64 {
+        let t = &self.scene;
+        crate::bench::texture_bytes(t.format(), t.width(), t.height(), 1, 1)
+    }
+
     /// The quality in force.
     pub fn quality(&self) -> u8 {
         quality_override().unwrap_or(self.quality).min(2)

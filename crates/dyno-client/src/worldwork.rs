@@ -512,7 +512,7 @@ impl Worker {
         }
         let focus = self.focused.then_some(self.cam);
         let t = Instant::now();
-        let geos = render::mesh_many_at(&self.world, &self.light, &with, focus);
+        let geos = render::mesh_many_packed(&self.world, &self.light, &with, focus);
         count(2, with.len() as u64);
         count(3, t.elapsed().as_micros() as u64);
         for s in &empty {
@@ -667,8 +667,8 @@ mod tests {
         // the ground's faces merge by light, and a section may be meshed
         // before the light next door has settled: compare the area it
         // covers, which is its shape
-        let area = |g: &SectionGeo| -> f64 {
-            g.ground
+        let area = |ground: &[render::Vertex]| -> f64 {
+            ground
                 .as_chunks::<4>()
                 .0
                 .iter()
@@ -680,13 +680,19 @@ mod tests {
                 .sum()
         };
         for (s, g) in all.iter().zip(once) {
+            // the worker's are packed for the card (pack.rs)
             let m = &meshes[s];
+            let packed = m.packed.clone().unwrap_or_default();
             assert_eq!(
-                (m.opaque.len(), m.trans.len()),
+                (packed.meshed[1] as usize, m.trans.len()),
                 (g.opaque.len(), g.trans.len()),
                 "section {s:?}"
             );
-            assert!((area(m) - area(&g)).abs() < 1e-3, "section {s:?}: ground");
+            let ground = packed.ground(*s);
+            assert!(
+                (area(&ground) - area(&g.ground)).abs() < 1e-3,
+                "section {s:?}: ground"
+            );
         }
     }
 }

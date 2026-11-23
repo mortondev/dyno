@@ -100,6 +100,9 @@ pub struct Glow {
 
 #[derive(Default)]
 pub struct SectionGeo {
+    /// the ground and the other solid faces as the card will hold them
+    /// (`pack.rs`), once packed: `ground` and `opaque` are empty then
+    pub packed: Option<crate::pack::Geo>,
     pub opaque: Vec<Vertex>,
     /// fine voxel ground: four corners a quad, drawn with the shared quad
     /// index (triangles 0 1 2 and 0 2 3)

@@ -403,8 +403,10 @@ when one of them is replaced.
   the neighbours it made ready (and remeshes those below it, whose sky it
   may shade). The main thread copies the light in and uploads meshes until
   3 ms of the frame are spent (`world_uploads` in `app.rs`); each section is
-  one vertex buffer (opaque, translucent, then lamp halos) filled through
-  the queue's staging memory. Meshes for a section dropped since are
+  one buffer of packed vertices for its solid mesh (24 bytes a vertex,
+  packed on the worker: `pack.rs`, docs/design/performance.md) and, where
+  it has any, one of plain vertices for its translucent faces and lamp
+  halos, filled through the queue's staging memory. Meshes for a section dropped since are
   ignored. `DYNO_WORLD_INLINE=1` does the same work on the main thread, a
   step a frame (as before the worker), to compare. The mesher's interface
   (`terrain_mesh::mesh`) is unchanged. The draw distance is capped at the
