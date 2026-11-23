@@ -2283,7 +2283,7 @@ mod tests {
         assert!(leaks(&w) <= before, "water stands beside air");
         // the town is untouched, and there are two new hearths
         assert_eq!(w.get(h[0], h[1], h[2]), HEARTH);
-        let hearths = w.cells.iter().filter(|b| **b == HEARTH).count();
+        let hearths = w.positions_of(HEARTH).len();
         assert_eq!(hearths, 3);
         // the server finds a lantern at every landmark: no beacon comes back
         for at in BEACONS {

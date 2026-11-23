@@ -30,6 +30,9 @@ type Ws = WebSocket<MaybeTlsStream<TcpStream>>;
 
 pub enum NetEvent {
     Msg(ServerMsg),
+    /// Sections that arrived, decoded and packed on the network thread
+    /// (with `JoinOptions::prepare_sections`, instead of `ServerMsg::Sections`).
+    Sections(Vec<(dyno_world::SectionPos, dyno_world::SectionData)>),
     Closed(String),
     /// The rules changed (after /reload) and have arrived.
     Content(Box<Content>),
@@ -156,6 +159,9 @@ pub struct JoinOptions {
     /// where pack files are kept (default: the platform cache directory)
     pub cache: Option<Cache>,
     pub progress: Option<Arc<Progress>>,
+    /// decode sections on the network thread (`NetEvent::Sections`), so the
+    /// game's frame does not
+    pub prepare_sections: bool,
     /// stream the world around this point (default: the spawn): tools
     /// (`dyno shot`), for an observer or a player looking from elsewhere
     pub view_at: Option<[f32; 3]>,
@@ -469,6 +475,7 @@ pub fn connect_with(
         cache,
         progress,
         view_at,
+        prepare_sections,
     } = opts;
     let mut fetch = Fetch::new(cache.unwrap_or_default(), progress.unwrap_or_default());
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -659,7 +666,7 @@ pub fn connect_with(
     std::thread::Builder::new()
         .name("net".into())
         .spawn(move || {
-            let reason = pump(&mut ws, out_rx, &in_tx, &mut fetch);
+            let reason = pump(&mut ws, out_rx, &in_tx, &mut fetch, prepare_sections);
             let _ = ws.close(None);
             let _ = ws.flush();
             let _ = in_tx.send(NetEvent::Closed(reason));
@@ -690,6 +697,7 @@ fn pump(
     out_rx: Receiver<ClientMsg>,
     in_tx: &Sender<NetEvent>,
     fetch: &mut Fetch,
+    prepare: bool,
 ) -> String {
     // Keepalive: a minimised window stops drawing and sends nothing, so ping the server.
     let mut last_ping = Instant::now();
@@ -744,6 +752,11 @@ fn pump(
                     fetch.chunk(hash, offset, total, data);
                     fetch.new_rules().map(|c| NetEvent::Content(Box::new(c)))
                 }
+                Ok(ServerMsg::Sections(list)) if prepare => Some(NetEvent::Sections(
+                    list.into_iter()
+                        .filter_map(|(s, d)| World::prepare_section(&d).ok().map(|p| (s, p)))
+                        .collect(),
+                )),
                 Ok(m) => Some(NetEvent::Msg(m)),
                 Err(e) => return format!("bad message from server: {e}"),
             },

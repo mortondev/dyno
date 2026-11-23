@@ -54,6 +54,7 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
                 token: crate::settings::tool_token(&name),
                 observer,
                 view_at,
+                prepare_sections: true,
                 ..Default::default()
             },
             Duration::from_secs(10),

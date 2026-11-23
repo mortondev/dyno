@@ -7,6 +7,7 @@ pub mod audio;
 pub mod cache;
 pub mod clip;
 pub mod expr;
+pub mod farview;
 pub mod figure;
 pub mod front;
 pub mod game;
