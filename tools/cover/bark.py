@@ -27,18 +27,33 @@ def shade(c, k):
 
 def oak(seed):
     rnd = random.Random(seed)
-    ridge, groove = (134, 92, 52), (86, 56, 32)
+    # warm lit ridges, deep grooves between them, a few pale worn cells and
+    # a mossy one: bark that reads from across a meadow
+    ridge, groove, worn, moss = (150, 98, 54), (74, 46, 28), (178, 126, 76), (96, 118, 52)
     n = SIZE // CELL
-    # upright ridges and grooves; a ridge now and then breaks for a cell
     kinds = [rnd.choice([0, 0, 1]) for _ in range(n)]
     kinds[rnd.randrange(n)] = 1
+    kinds[rnd.randrange(n)] = 0
     cells = [[None] * n for _ in range(n)]
     for x in range(n):
         for y in range(n):
-            deep = kinds[x] == 1 or rnd.random() < 0.14
-            base = groove if deep else ridge
-            cells[y][x] = shade(base, rnd.uniform(0.86, 1.14))
-    return [[cells[y // CELL][x // CELL] for x in range(SIZE)] for y in range(SIZE)]
+            r = rnd.random()
+            deep = kinds[x] == 1 or r < 0.12
+            base = groove if deep else (worn if r > 0.84 else ridge)
+            if not deep and rnd.random() < 0.04:
+                base = moss
+            cells[y][x] = shade(base, rnd.uniform(0.84, 1.16))
+    rows = [[cells[y // CELL][x // CELL] for x in range(SIZE)] for y in range(SIZE)]
+    # a darker pixel down the left of each ridge cell, a lighter one down its
+    # right: every cell a small lit block
+    for y in range(SIZE):
+        for x in range(SIZE):
+            if kinds[x // CELL] == 0:
+                if x % CELL == 0:
+                    rows[y][x] = shade(rows[y][x], 0.82)
+                elif x % CELL == CELL - 1:
+                    rows[y][x] = shade(rows[y][x], 1.1)
+    return rows
 
 
 def birch(seed):

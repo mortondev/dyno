@@ -40,8 +40,12 @@ struct FoliageFile {
     /// leaves overhead count as deep
     under: f32,
     depth: f32,
+    /// brightness of the clumps at the very top of a crown (1: as coloured)
+    top: f32,
     /// how much each cube's brightness strays from its colour
     vary: f32,
+    /// cubes along the side of a clump of one colour (1: every cube its own)
+    clump: u8,
     /// crowns are drawn in clumps within this many metres of the camera;
     /// beyond it, a block of leaves is one cube (a quarter of the faces)
     near: f32,
@@ -66,7 +70,9 @@ impl Default for FoliageFile {
             crease: 0.6,
             under: 0.7,
             depth: 4.0,
+            top: 1.0,
             vary: 0.1,
+            clump: 1,
             near: 48.0,
             grain: 0,
             grain_vary: 0.0,
@@ -112,7 +118,9 @@ pub struct Foliage {
     crease: f32,
     under: f32,
     depth: f32,
+    top: f32,
     vary: f32,
+    clump: i32,
     near: f32,
     grain: f32,
     grain_vary: f32,
@@ -172,7 +180,9 @@ impl Foliage {
             crease: f.crease.clamp(0.0, 1.0),
             under: f.under.clamp(0.0, 1.0),
             depth: f.depth.max(1.0),
+            top: f.top.clamp(0.5, 2.0),
             vary: f.vary.clamp(0.0, 0.5),
+            clump: (f.clump as i32).clamp(1, 8),
             near: f.near.max(0.0),
             grain: f.grain.min(8) as f32,
             grain_vary: f.grain_vary.clamp(0.0, 0.9),
@@ -435,10 +445,15 @@ pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo, f
                             let rgb = if palette.is_empty() {
                                 [1.0; 3]
                             } else {
-                                palette[(h >> 10) as usize % palette.len()]
+                                // one colour to a clump of cubes
+                                let c = if fine { f.clump } else { 1 };
+                                let hc =
+                                    hash(cx.div_euclid(c), cy.div_euclid(c), cz.div_euclid(c), 5);
+                                palette[(hc >> 10) as usize % palette.len()]
                             };
                             let depth = over as f32 + (n - 1 - j) as f32 * s;
-                            let shade = (1.0 - (1.0 - f.under) * (depth / f.depth).min(1.0))
+                            let deep = (depth / f.depth).min(1.0);
+                            let shade = (f.top + (f.under - f.top) * deep.sqrt())
                                 * (1.0 + f.vary * (unit(h) * 2.0 - 1.0));
                             for (nrm, u, v) in FACES {
                                 let q = [p[0] + nrm[0], p[1] + nrm[1], p[2] + nrm[2]];

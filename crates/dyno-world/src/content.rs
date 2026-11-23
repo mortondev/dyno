@@ -342,6 +342,33 @@ pub struct Npc {
     /// shown only in (true) or out of (false) a phase
     #[serde(default)]
     pub phase: Option<(u8, bool)>,
+    /// what they do all day: the spots they go round, in order (empty:
+    /// they stand where they are)
+    #[serde(default)]
+    pub routine: Vec<RoutineStep>,
+}
+
+/// One stop on an NPC's round: where, what they do there and for how long.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct RoutineStep {
+    /// the spot, in blocks from where the NPC stands (`at`), so a round
+    /// moves with its NPC when the world is rebuilt
+    pub at: [i32; 2],
+    /// or: beside the nearest block of this kind (a block key) within
+    /// `within` blocks of the spot, facing it: the anvil, a log, the water
+    pub near: Option<String>,
+    pub within: u8,
+    /// the animation played there, a name from the animation contract
+    /// ("Chop", "Hammer", "Sit"...); none: they stand
+    pub anim: Option<String>,
+    /// one-shots thrown in now and then while there ("Wave", "Point"...)
+    pub emotes: Vec<String>,
+    /// seconds they stay: shortest and longest
+    pub secs: [f32; 2],
+    /// which way they face there, degrees (0 north, 90 west); none: the
+    /// way they came, or towards `near`
+    pub face: Option<f32>,
 }
 
 /// A phase: a way the world looks to you once your story has moved it on.
@@ -784,6 +811,12 @@ struct ANpc {
     /// "key" to show only in a phase, "!key" only outside it
     #[serde(default)]
     phase: Option<String>,
+    #[serde(default)]
+    routine: Vec<RoutineStep>,
+    /// an area key: `at` is then measured from that area's centre rather
+    /// than from the hearth, so the NPC moves with its place
+    #[serde(default)]
+    area: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -1172,11 +1205,32 @@ impl Content {
                 name: n.name.clone(),
                 title: n.title.clone(),
                 color: n.color,
-                at: n.at,
+                at: match &n.area {
+                    Some(k) => {
+                        let a = f
+                            .areas
+                            .iter()
+                            .find(|a| a.key == *k)
+                            .ok_or_else(|| format!("NPC '{}': unknown area '{k}'", n.key))?;
+                        [n.at[0] + a.at[0], n.at[1], n.at[2] + a.at[1]]
+                    }
+                    None => n.at,
+                },
                 greeting: n.greeting.clone(),
                 sells,
                 phase: phase_of(&n.phase)?,
+                routine: n.routine.clone(),
             });
+            for st in &n.routine {
+                if let Some(b) = &st.near
+                    && crate::block_by_key(b).is_none()
+                {
+                    return Err(format!("NPC '{}': routine near unknown block '{b}'", n.key));
+                }
+                if st.secs[1] < st.secs[0] || st.secs[0] < 0.0 {
+                    return Err(format!("NPC '{}': routine secs {:?}", n.key, st.secs));
+                }
+            }
         }
         let npc = |k: &str| -> Result<u16, String> {
             npcs.iter()
