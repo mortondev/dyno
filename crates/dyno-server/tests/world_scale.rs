@@ -723,6 +723,167 @@ fn design_size_world_meets_the_running_times() {
     assert!(bad.is_empty(), "outside the targets: {bad:?}");
 }
 
+/// Can someone on foot get from one cell to (near) another? Steps of a
+/// metre up, drops of three, wading and swimming allowed.
+fn walkable(world: &World, from: [i32; 3], to: [i32; 3]) -> bool {
+    let open = |p: [i32; 3]| !w::is_solid(world.get(p[0], p[1], p[2]));
+    let stand = |p: [i32; 3]| {
+        let below = world.get(p[0], p[1] - 1, p[2]);
+        open(p)
+            && open([p[0], p[1] + 1, p[2]])
+            && (w::is_solid(below) || below == w::WATER || world.get(p[0], p[1], p[2]) == w::WATER)
+    };
+    // start on the floor at or just under the point
+    let Some(start) = (0..4)
+        .flat_map(|d| {
+            [
+                [from[0], from[1] - d, from[2]],
+                [from[0], from[1] + d, from[2]],
+            ]
+        })
+        .find(|p| stand(*p))
+    else {
+        return false;
+    };
+    let mut seen = std::collections::HashSet::from([start]);
+    let mut queue = std::collections::VecDeque::from([start]);
+    while let Some(p) = queue.pop_front() {
+        if (p[0] - to[0]).abs() <= 3 && (p[2] - to[2]).abs() <= 3 && (p[1] - to[1]).abs() <= 3 {
+            return true;
+        }
+        if seen.len() > 400_000 {
+            return false;
+        }
+        for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+            for dy in [1, 0, -1, -2, -3] {
+                let q = [p[0] + dx, p[1] + dy, p[2] + dz];
+                // stay with the place: a route through it, not round the country
+                if (q[0] - from[0]).abs() > 160 || (q[2] - from[2]).abs() > 160 {
+                    continue;
+                }
+                if stand(q) && seen.insert(q) {
+                    queue.push_back(q);
+                    break;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// The rules land on the world: every camp has ground for its creatures,
+/// every NPC and objective a place to stand, and the dug-out places can be
+/// walked from their doors to their depths.
+#[test]
+fn camps_people_and_objectives_stand_in_the_world() {
+    use dyno_world::content::Objective;
+    let m = made();
+    let pack = Pack::builtin();
+    let c = &pack.content;
+    let h = m.built.hearth;
+    let free = |x: i32, y: i32, z: i32| {
+        w::is_solid(m.world.get(x, y - 1, z))
+            && !w::is_solid(m.world.get(x, y, z))
+            && !w::is_solid(m.world.get(x, y + 1, z))
+    };
+    // camps: as the server plans them
+    let points = dyno_server::camps::plan_spawn_points(&m.world, c, h);
+    for (ai, a) in c.areas.iter().enumerate() {
+        for (ci, camp) in a.camps.iter().enumerate() {
+            let n = points
+                .iter()
+                .filter(|p| p.area == ai && p.camp == ci)
+                .count();
+            assert!(
+                n * 2 >= camp.count as usize && n >= 1,
+                "{}: camp {ci} has ground for {n} of its {} creatures (at {:?}, y {:?})",
+                a.key,
+                camp.count,
+                camp.at,
+                camp.y
+            );
+        }
+        // an area is somewhere in the world
+        assert!(
+            m.world.in_bounds([h[0] + a.at[0], 1, h[2] + a.at[1]]),
+            "{} is outside the world",
+            a.key
+        );
+    }
+    // people: where the server will put them (the same search it makes)
+    for n in &c.npcs {
+        let (x, z) = (h[0] + n.at[0], h[2] + n.at[2]);
+        let y0 = h[1] + n.at[1];
+        let y = (0..12)
+            .flat_map(|d| [y0 + d, y0 - d])
+            .find(|y| free(x, *y, z));
+        assert!(
+            m.world.in_bounds([x, 1, z]) && y.is_some(),
+            "{} has nowhere to stand at {:?}",
+            n.key,
+            [x, y0, z]
+        );
+        // and not shut in: on the ground floor of the world, not on a roof
+        let y = y.unwrap();
+        assert!(
+            y - m.world.ground(x, z) <= 1 || !w::is_solid(m.world.get(x, y + 2, z)),
+            "{} is boxed in at {:?}",
+            n.key,
+            [x, y, z]
+        );
+    }
+    // explore objectives: a spot to reach, on the surface
+    for q in &c.quests {
+        for o in &q.objectives {
+            if let Objective::Explore { at, radius, name } = o {
+                let (x, z) = (h[0] + at[0], h[2] + at[2]);
+                assert!(m.world.in_bounds([x, 1, z]), "{name} is outside the world");
+                let r = *radius as i32;
+                let reachable = (-r..=r).any(|dz| {
+                    (-r..=r).any(|dx| {
+                        let y = m.world.surface(x + dx, z + dz) + 1;
+                        free(x + dx, y, z + dz) && (y - (h[1] + at[1])).abs() <= r + 6
+                    })
+                });
+                assert!(
+                    reachable,
+                    "{name}: nowhere to stand within {radius} m of {:?}",
+                    [x, z]
+                );
+            }
+        }
+    }
+    // the dug-out places: from the door to the depths on foot
+    for (site, name, at, rot) in &m.built.stamps {
+        let s = m.stamps.get(name).unwrap();
+        for (from, to) in [
+            ("adit", "upper_galleries"),
+            ("adit", "flooded_drift"),
+            ("adit", "deep_seam"),
+            ("door", "crypt"),
+        ] {
+            let (Some(a), Some(b)) = (s.point(from, *at, *rot), s.point(to, *at, *rot)) else {
+                continue;
+            };
+            assert!(
+                walkable(&m.world, a, b),
+                "{site}/{name}: no way on foot from {from} {a:?} to {to} {b:?}"
+            );
+            // and from the open air to the door
+            // (the barrow's own place is the middle of its mound: start
+            // on the grass east of it)
+            let mut out = place(m, site);
+            if from == "door" {
+                out[0] += 24;
+            }
+            assert!(
+                walkable(&m.world, out, a),
+                "{site}/{name}: no way in from {out:?} to {from} {a:?}"
+            );
+        }
+    }
+}
+
 /// The one-time rebuild: a save from the world before layouts is moved
 /// onto the built world. Everyone stays at their place, with everything
 /// they had.

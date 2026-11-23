@@ -292,6 +292,21 @@ pub fn rebuild(
             std::fs::copy(&from, &to)?;
         }
     }
+    // what is moved is always the save as it was before the rebuild: if a
+    // rebuild was cut short (positions written, the new world not yet), the
+    // next start moves the same old positions again, not the moved ones
+    let before = |name: &str| {
+        let kept = world_path.with_file_name(format!("{name}.{tag}"));
+        std::fs::read(if kept.exists() {
+            kept
+        } else {
+            world_path.with_file_name(name)
+        })
+    };
+    let meta_before: Option<crate::store::Meta> = before("server.json")
+        .ok()
+        .and_then(|b| serde_json::from_slice(&b).ok());
+    let meta = meta_before.as_ref().unwrap_or(meta);
     let old_hearth = meta.spawn_hearth.unwrap_or([
         old.size[0] as i32 / 2,
         old.surface(old.size[0] as i32 / 2, old.size[2] as i32 / 2) + 1,
@@ -321,7 +336,7 @@ pub fn rebuild(
         Some(standing(new, nx, nz).unwrap_or(home))
     };
     let players = world_path.with_file_name("players.json");
-    if let Ok(bytes) = std::fs::read(&players) {
+    if let Ok(bytes) = before("players.json") {
         let mut v: Value = serde_json::from_slice(&bytes).map_err(std::io::Error::other)?;
         if let Some(m) = v.as_object_mut() {
             for (name, p) in m.iter_mut() {
@@ -342,7 +357,7 @@ pub fn rebuild(
     }
     // chests stood on blocks that are gone; the backup keeps their contents
     let chests = world_path.with_file_name("chests.json");
-    if let Ok(bytes) = std::fs::read(&chests)
+    if let Ok(bytes) = before("chests.json")
         && let Ok(Value::Object(m)) = serde_json::from_slice::<Value>(&bytes)
         && !m.is_empty()
     {
@@ -350,7 +365,7 @@ pub fn rebuild(
         crate::store::write_atomic(&chests, b"{}")?;
     }
     let server = world_path.with_file_name("server.json");
-    let mut v: Value = std::fs::read(&server)
+    let mut v: Value = before("server.json")
         .ok()
         .and_then(|b| serde_json::from_slice(&b).ok())
         .unwrap_or_else(|| serde_json::json!({}));

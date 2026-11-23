@@ -74,7 +74,7 @@ measure a building where it stands.
 
 Stamps are written by `tools/stamps/build.py` from short recipes
 (`tools/stamps/kit.py`: houses, roofs, towers, stairs). The game never runs
-those; any tool that writes the format will do. Four stamps were baked
+those; any tool that writes the format will do. Three stamps were baked
 from the 0.8.0 world builders and have no recipe: `hollow_mines`,
 `old_barrow`, `sunken_shrine` (their files are the source).
 

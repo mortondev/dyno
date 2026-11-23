@@ -332,7 +332,7 @@
   {
    "key": "ford_trail",
    "way": "trail",
-   "path": [[38, 470], "windmill_farm", "ford_trail_ruin_20", [200, 455], "ford_trail_stones_21", "emberrun_ford", [430, 370], "ford_trail_wayshrine_22", [540, 230], "ford_trail_camp_23", "miners_rest"]
+   "path": [[38, 470], [47, 500], [96, 505], "ford_trail_ruin_20", [200, 455], "ford_trail_stones_21", "emberrun_ford", [430, 370], "ford_trail_wayshrine_22", [540, 230], "ford_trail_camp_23", "miners_rest"]
   },
   {
    "key": "stockade_trail",
