@@ -22,6 +22,9 @@ pub struct Smooth {
     pub blend: bool,
     /// how dark creases get (0: no ambient occlusion)
     pub occlusion: f32,
+    /// simplify the surface wherever that moves it less than this many
+    /// voxels (0: keep every face)
+    pub simplify: f32,
 }
 
 impl Default for Smooth {
@@ -30,6 +33,7 @@ impl Default for Smooth {
             relax: 4,
             blend: true,
             occlusion: 1.0,
+            simplify: 0.0,
         }
     }
 }
@@ -231,6 +235,45 @@ impl Vox {
         } else {
             Vec::new()
         };
+        // two triangles a face, split along the shorter diagonal
+        let mut tris: Vec<Tri> = Vec::with_capacity(quads.len() * 2);
+        for q in &quads {
+            let p = q.v.map(|i| pos[i as usize]);
+            let order = if (p[0] - p[2]).length_squared() <= (p[1] - p[3]).length_squared() {
+                [[0, 1, 2], [0, 2, 3]]
+            } else {
+                [[1, 2, 3], [1, 3, 0]]
+            };
+            for o in order {
+                tris.push(Tri {
+                    v: o.map(|i| q.v[i]),
+                    part: q.part,
+                    ink: q.ink,
+                });
+            }
+        }
+        if opts.simplify > 0.0 {
+            // where parts meet and where crisp or glowing inks end stays put
+            let mut seen: Vec<(u8, Ink, bool)> = vec![(0, 0, false); nv];
+            let mut locked = vec![false; nv];
+            for t in &tris {
+                let special = self.crisp[t.ink as usize] || self.palette[t.ink as usize].1;
+                for i in t.v {
+                    let s = &mut seen[i as usize];
+                    if !s.2 {
+                        *s = (t.part, t.ink, true);
+                    } else if s.0 != t.part
+                        || s.1 != t.ink
+                            && (special
+                                || self.crisp[s.1 as usize]
+                                || self.palette[s.1 as usize].1)
+                    {
+                        locked[i as usize] = true;
+                    }
+                }
+            }
+            decimate(&mut pos, &mut tris, &locked, opts.simplify);
+        }
         let min = Vec3::from(self.min.map(|x| x as f32));
         let unit = self.unit;
         let place = |p: Vec3, pivot: Vec3| -> [f32; 3] { ((p + min) * unit - pivot).into() };
@@ -256,20 +299,12 @@ impl Vox {
                 let pivot = Vec3::from(pivot);
                 let mut verts = Vec::new();
                 let mut normals = Vec::new();
-                for q in quads.iter().filter(|q| q.part == part) {
-                    let ink = q.ink as usize;
+                for t in tris.iter().filter(|t| t.part == part) {
+                    let ink = t.ink as usize;
                     let glow = self.palette[ink].1;
                     let flat = glow || self.crisp[ink] || blend.is_empty();
-                    let p = q.v.map(|i| pos[i as usize]);
-                    // split along the shorter diagonal
-                    let order = if (p[0] - p[2]).length_squared() <= (p[1] - p[3]).length_squared()
-                    {
-                        [0, 1, 2, 0, 2, 3]
-                    } else {
-                        [1, 2, 3, 1, 3, 0]
-                    };
-                    for o in order {
-                        let i = q.v[o] as usize;
+                    for i in t.v {
+                        let i = i as usize;
                         let rgb = match blend.get(i).copied().flatten() {
                             Some(b) if !flat => b * 0.5 + lin[ink] * 0.5,
                             _ => lin[ink],
@@ -281,14 +316,27 @@ impl Vox {
                         normals.push(nrm[i].into());
                     }
                 }
-                // caps where the part meets another
+                // caps where the part meets another, in shadow: those
+                // touching the surface follow it, the rest are flat and
+                // merged into rectangles
+                let quad = |c: [Vec3; 4], n: [f32; 3], ink: Ink, verts: &mut Vec<MeshVert>, normals: &mut Vec<[f32; 3]>| {
+                    let rgb = lin[ink as usize] * 0.55;
+                    for o in [0, 1, 2, 0, 2, 3] {
+                        verts.push(MeshVert {
+                            pos: place(c[o], pivot),
+                            color: [rgb.x, rgb.y, rgb.z, 0.8],
+                        });
+                        normals.push(n);
+                    }
+                };
+                let mut flat: std::collections::HashMap<(usize, i32, Ink), std::collections::HashSet<(i32, i32)>> =
+                    std::collections::HashMap::new();
                 let (lo, hi) = bounds[part as usize];
                 for y in lo[1]..=hi[1] {
                     for z in lo[2]..=hi[2] {
                         for x in lo[0]..=hi[0] {
                             let i = ((y * sz + z) * sx + x) as usize;
-                            let ink = self.cells[i];
-                            if ink == 0 || self.parts[i] != part {
+                            if self.cells[i] == 0 || self.parts[i] != part {
                                 continue;
                             }
                             let a = [x, y, z];
@@ -304,32 +352,63 @@ impl Vox {
                                 let (u, w) = ((d + 1) % 3, (d + 2) % 3);
                                 let mut base = a;
                                 base[d] += i32::from(e[d] > 0);
-                                let corner = |du: i32, dw: i32| -> Vec3 {
+                                let ks = [(0, 0), (1, 0), (1, 1), (0, 1)].map(|(du, dw)| {
                                     let mut k = base;
                                     k[u] += du;
                                     k[w] += dw;
-                                    match vid[cid(k)] {
-                                        u32::MAX => Vec3::from(k.map(|x| x as f32)),
-                                        v => pos[v as usize],
-                                    }
-                                };
-                                let mut c =
-                                    [corner(0, 0), corner(1, 0), corner(1, 1), corner(0, 1)];
+                                    k
+                                });
+                                if ks.iter().all(|k| vid[cid(*k)] == u32::MAX) {
+                                    flat.entry((dir, base[d], self.cells[i])).or_default().insert((base[u], base[w]));
+                                    continue;
+                                }
+                                let mut c = ks.map(|k| match vid[cid(k)] {
+                                    u32::MAX => Vec3::from(k.map(|x| x as f32)),
+                                    v => pos[v as usize],
+                                });
                                 if e[d] < 0 {
                                     c.swap(1, 3);
                                 }
-                                // the inside of a joint, in shadow
-                                let rgb = lin[ink as usize] * 0.4;
-                                let n = e.map(|v| v as f32);
-                                for o in [0, 1, 2, 0, 2, 3] {
-                                    verts.push(MeshVert {
-                                        pos: place(c[o], pivot),
-                                        color: [rgb.x, rgb.y, rgb.z, 0.7],
-                                    });
-                                    normals.push(n);
-                                }
+                                quad(c, e.map(|v| v as f32), self.cells[i], &mut verts, &mut normals);
                             }
                         }
+                    }
+                }
+                for ((dir, plane, ink), mut cells) in flat {
+                    let d = dir / 2;
+                    let (u, w) = ((d + 1) % 3, (d + 2) % 3);
+                    let mut order: Vec<(i32, i32)> = cells.iter().copied().collect();
+                    order.sort_by_key(|c| (c.1, c.0));
+                    for (u0, w0) in order {
+                        if !cells.contains(&(u0, w0)) {
+                            continue;
+                        }
+                        let mut wide = 1;
+                        while cells.contains(&(u0 + wide, w0)) {
+                            wide += 1;
+                        }
+                        let mut high = 1;
+                        while (0..wide).all(|i| cells.contains(&(u0 + i, w0 + high))) {
+                            high += 1;
+                        }
+                        for j in 0..high {
+                            for i in 0..wide {
+                                cells.remove(&(u0 + i, w0 + j));
+                            }
+                        }
+                        let at = |du: i32, dw: i32| {
+                            let mut k = [0f32; 3];
+                            k[d] = plane as f32;
+                            k[u] = (u0 + du) as f32;
+                            k[w] = (w0 + dw) as f32;
+                            Vec3::from(k)
+                        };
+                        let mut c = [at(0, 0), at(wide, 0), at(wide, high), at(0, high)];
+                        let e = DIRS[dir];
+                        if e[d] < 0 {
+                            c.swap(1, 3);
+                        }
+                        quad(c, e.map(|v| v as f32), ink, &mut verts, &mut normals);
                     }
                 }
                 let faces = face_normals(&verts);
@@ -423,4 +502,227 @@ impl Vox {
             })
             .collect()
     }
+}
+
+/// One triangle of the surface: corners, part and ink.
+#[derive(Clone, Copy)]
+struct Tri {
+    v: [u32; 3],
+    part: u8,
+    ink: Ink,
+}
+
+/// A plane's error quadric (symmetric 4x4, upper triangle).
+#[derive(Clone, Copy, Default)]
+struct Quadric([f64; 10]);
+
+impl Quadric {
+    fn plane(n: Vec3, d: f32, w: f32) -> Quadric {
+        let (a, b, c, d) = (n.x as f64, n.y as f64, n.z as f64, d as f64);
+        let w = w as f64;
+        Quadric([
+            a * a * w,
+            a * b * w,
+            a * c * w,
+            a * d * w,
+            b * b * w,
+            b * c * w,
+            b * d * w,
+            c * c * w,
+            c * d * w,
+            d * d * w,
+        ])
+    }
+
+    fn add(&mut self, o: &Quadric) {
+        for i in 0..10 {
+            self.0[i] += o.0[i];
+        }
+    }
+
+    fn error(&self, p: Vec3) -> f64 {
+        let q = &self.0;
+        let (x, y, z) = (p.x as f64, p.y as f64, p.z as f64);
+        q[0] * x * x + 2.0 * q[1] * x * y + 2.0 * q[2] * x * z + 2.0 * q[3] * x
+            + q[4] * y * y
+            + 2.0 * q[5] * y * z
+            + 2.0 * q[6] * y
+            + q[7] * z * z
+            + 2.0 * q[8] * z
+            + q[9]
+    }
+}
+
+/// Simplify the surface by collapsing edges (quadric error), while the
+/// error stays under `max_err` (grid units). Locked vertices (where parts
+/// meet, the edges of crisp inks) never move.
+fn decimate(pos: &mut [Vec3], tris: &mut Vec<Tri>, locked: &[bool], max_err: f32) {
+    use std::cmp::Reverse;
+    use std::collections::BinaryHeap;
+    let nv = pos.len();
+    let mut vt: Vec<Vec<u32>> = vec![Vec::new(); nv];
+    let mut q = vec![Quadric::default(); nv];
+    for (t, tri) in tris.iter().enumerate() {
+        let [a, b, c] = tri.v.map(|i| pos[i as usize]);
+        let n = (b - a).cross(c - a);
+        let area = n.length();
+        if area < 1e-9 {
+            continue;
+        }
+        let n = n / area;
+        let k = Quadric::plane(n, -n.dot(a), area);
+        for i in tri.v {
+            vt[i as usize].push(t as u32);
+            q[i as usize].add(&k);
+        }
+    }
+    // borders between parts and inks are held by their locks; give edges
+    // round locked vertices no special weight
+    let mut alive = vec![true; tris.len()];
+    let mut version = vec![0u32; nv];
+    let mut gone = vec![false; nv];
+    let limit = (max_err as f64) * (max_err as f64);
+    // the cost of collapsing u into v (v keeps), and where v goes
+    let cost = |u: usize, v: usize, pos: &[Vec3], q: &[Quadric]| -> Option<(f64, Vec3)> {
+        if locked[u] {
+            return None;
+        }
+        let mut qq = q[u];
+        qq.add(&q[v]);
+        let cands: &[Vec3] = if locked[v] {
+            &[pos[v]]
+        } else {
+            &[pos[v], (pos[u] + pos[v]) * 0.5]
+        };
+        cands
+            .iter()
+            .map(|p| (qq.error(*p).max(0.0), *p))
+            .min_by(|a, b| a.0.total_cmp(&b.0))
+    };
+    let mut heap: BinaryHeap<Reverse<(u64, u32, u32, u32, u32)>> = BinaryHeap::new();
+    let key = |c: f64| (c * 1e9) as u64;
+    // an edge goes on the heap once, the cheaper way round
+    let push = |heap: &mut BinaryHeap<_>, a: usize, b: usize, pos: &[Vec3], q: &[Quadric], version: &[u32]| {
+        let ab = cost(a, b, pos, q).map(|c| c.0);
+        let ba = cost(b, a, pos, q).map(|c| c.0);
+        let (c, u, v) = match (ab, ba) {
+            (Some(x), Some(y)) if y < x => (y, b, a),
+            (Some(x), _) => (x, a, b),
+            (None, Some(y)) => (y, b, a),
+            (None, None) => return,
+        };
+        if c <= limit {
+            heap.push(Reverse((key(c), u as u32, v as u32, version[u], version[v])));
+        }
+    };
+    for tri in tris.iter() {
+        for e in 0..3 {
+            let (a, b) = (tri.v[e] as usize, tri.v[(e + 1) % 3] as usize);
+            if a < b {
+                push(&mut heap, a, b, pos, &q, &version);
+            }
+        }
+    }
+    let ring = |v: usize, vt: &[Vec<u32>], tris: &[Tri], alive: &[bool]| -> Vec<u32> {
+        let mut r: Vec<u32> = Vec::new();
+        for &t in &vt[v] {
+            if !alive[t as usize] {
+                continue;
+            }
+            for w in tris[t as usize].v {
+                if w as usize != v && !r.contains(&w) {
+                    r.push(w);
+                }
+            }
+        }
+        r
+    };
+    while let Some(Reverse((_, u, v, vu, vv))) = heap.pop() {
+        let (u, v) = (u as usize, v as usize);
+        if gone[u] || gone[v] || version[u] != vu || version[v] != vv {
+            continue;
+        }
+        let Some((c, target)) = cost(u, v, pos, &q) else {
+            continue;
+        };
+        if c > limit {
+            continue;
+        }
+        // the link condition keeps the surface a manifold
+        let ru = ring(u, &vt, tris, &alive);
+        let rv = ring(v, &vt, tris, &alive);
+        if !rv.contains(&(u as u32)) {
+            continue;
+        }
+        let common = ru.iter().filter(|w| rv.contains(w)).count();
+        // and no vertex gathers a fan of slivers
+        if common != 2 || ru.len() + rv.len() - common - 2 > 10 {
+            continue;
+        }
+        // no triangle may flip or fold
+        let mut ok = true;
+        for &t in vt[u].iter().chain(vt[v].iter()) {
+            let t = t as usize;
+            if !alive[t] {
+                continue;
+            }
+            let tri = tris[t].v;
+            if tri.contains(&(u as u32)) && tri.contains(&(v as u32)) {
+                continue;
+            }
+            let before = tri.map(|i| pos[i as usize]);
+            let after = tri.map(|i| {
+                if i as usize == u || i as usize == v {
+                    target
+                } else {
+                    pos[i as usize]
+                }
+            });
+            let n0 = (before[1] - before[0]).cross(before[2] - before[0]);
+            let n1 = (after[1] - after[0]).cross(after[2] - after[0]);
+            if n0.normalize_or_zero().dot(n1.normalize_or_zero()) < 0.35 {
+                ok = false;
+                break;
+            }
+        }
+        if !ok {
+            continue;
+        }
+        // collapse u into v
+        pos[v] = target;
+        let qu = q[u];
+        q[v].add(&qu);
+        gone[u] = true;
+        let moved = std::mem::take(&mut vt[u]);
+        for t in moved {
+            let ti = t as usize;
+            if !alive[ti] {
+                continue;
+            }
+            if tris[ti].v.contains(&(v as u32)) {
+                alive[ti] = false;
+                continue;
+            }
+            for i in tris[ti].v.iter_mut() {
+                if *i as usize == u {
+                    *i = v as u32;
+                }
+            }
+            vt[v].push(t);
+        }
+        vt[v].retain(|t| alive[*t as usize]);
+        // only edges at v changed cost
+        version[v] += 1;
+        for w in ring(v, &vt, tris, &alive) {
+            let w = w as usize;
+            push(&mut heap, v, w, pos, &q, &version);
+        }
+    }
+    let mut out = Vec::with_capacity(tris.len() / 2);
+    for (t, tri) in tris.iter().enumerate() {
+        if alive[t] {
+            out.push(*tri);
+        }
+    }
+    *tris = out;
 }

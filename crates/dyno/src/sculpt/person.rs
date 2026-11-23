@@ -278,9 +278,10 @@ pub fn rig(bodies: &[Body; 2]) -> Value {
     ]);
     // build widens the trunk, the arms and the legs
     let shape = |s: [[f32; 3]; 3]| json!({"by": "build", "values": s.iter().map(|v| json!({"scale": v})).collect::<Vec<_>>()});
-    let trunk = shape([[0.92, 1.0, 0.93], [1.0, 1.0, 1.0], [1.1, 1.0, 1.08]]);
-    let limb = shape([[0.9, 1.0, 0.9], [1.0, 1.0, 1.0], [1.13, 1.0, 1.12]]);
-    let leg = shape([[0.93, 1.0, 0.93], [1.0, 1.0, 1.0], [1.08, 1.0, 1.08]]);
+    // one girth for every part, so seams between them stay closed
+    let trunk = shape([[0.93, 1.0, 0.93], [1.0, 1.0, 1.0], [1.1, 1.0, 1.08]]);
+    let limb = trunk.clone();
+    let leg = trunk.clone();
     let flat = shape([[0.94, 1.0, 1.0], [1.0, 1.0, 1.0], [1.08, 1.0, 1.05]]);
     let pivot = |f: &dyn Fn(&Body) -> Vec3| by_body(f);
     let parts = json!([
@@ -334,9 +335,9 @@ pub fn bake(content: &Path) -> Result<String, String> {
         f["detail"] = json!(2.0);
         f["smooth"] = json!({"relax": 4, "blend": true, "occlusion": 1.0});
         f["lods"] = json!([
-            {"smooth": true, "until": 6.0},
-            {"half": 1, "smooth": true, "until": 22.0},
-            {"half": 2, "smooth": true, "until": 48.0},
+            {"smooth": true, "until": 4.5, "simplify": 0.5},
+            {"half": 1, "smooth": true, "until": 8.0, "simplify": 0.85},
+            {"half": 2, "smooth": true, "until": 30.0, "simplify": 0.8},
             {"half": 3}
         ]);
         f["grids"] = gj;

@@ -436,6 +436,10 @@ struct LodSpec {
     /// drawn up to this many blocks from the camera (the last: any distance)
     #[serde(default)]
     until: Option<f32>,
+    /// a smooth level is simplified wherever that moves its surface less
+    /// than this many of its voxels
+    #[serde(default)]
+    simplify: f32,
 }
 
 impl LodsSpec {
@@ -446,6 +450,7 @@ impl LodsSpec {
                 half: 0,
                 smooth: false,
                 until: None,
+                simplify: 0.0,
             }],
             LodsSpec::Count(n) => {
                 let until = [Some(14.0), Some(40.0), None];
@@ -455,6 +460,7 @@ impl LodsSpec {
                         half: i as u8,
                         smooth: false,
                         until: if i + 1 == n { None } else { until[i] },
+                        simplify: 0.0,
                     })
                     .collect()
             }
@@ -1111,6 +1117,7 @@ fn load_figure(spec: &FigureSpec) -> Result<Option<Figure>, String> {
                 relax: s.relax,
                 blend: s.blend,
                 occlusion: s.occlusion,
+                simplify: 0.0,
             })
             .unwrap_or_default(),
         rig,
@@ -1780,11 +1787,15 @@ fn mesh_level(fig: &Figure, look: &Look, full: &[Vox], lod: LodSpec) -> Vec<Mesh
         }
         &halved
     };
+    let opts = Smooth {
+        simplify: lod.simplify,
+        ..fig.smooth
+    };
     let Some(rig) = &fig.rig else {
         // no rig: the first part of the first grid, about its origin
         return vec![if lod.smooth {
             grids[0]
-                .mesh_smooth(&[(1, [0.0; 3])], fig.smooth)
+                .mesh_smooth(&[(1, [0.0; 3])], opts)
                 .pop()
                 .unwrap_or_default()
         } else {
@@ -1804,7 +1815,7 @@ fn mesh_level(fig: &Figure, look: &Look, full: &[Vox], lod: LodSpec) -> Vec<Mesh
                 .iter()
                 .map(|&i| (rig.parts[i].part, rig.parts[i].pivot.vec(look).into()))
                 .collect();
-            for (i, m) in smooth.iter().zip(grid.mesh_smooth(&asks, fig.smooth)) {
+            for (i, m) in smooth.iter().zip(grid.mesh_smooth(&asks, opts)) {
                 out[*i] = m;
             }
         }
@@ -2029,4 +2040,39 @@ pub fn placeholder(out: &mut Vec<Vertex>, feet: Vec3, scale: f32, light: f32) {
         [0.55, 0.55, 0.58],
         light,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Prints how many vertices each level of detail of a player costs,
+    /// part by part. `cargo test -p dyno-client --release figure_budget -- --nocapture`
+    #[test]
+    fn figure_budget() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+        crate::assets::load_dir(&dir).expect("the content pack");
+        let name = player_figure().expect("a player figure");
+        let fig = figure(&name).expect("the player figure loads");
+        let look = Look::player(3, [0.6, 0.2, 0.2]);
+        let start = std::time::Instant::now();
+        let b = build(&fig, &look);
+        let compose = start.elapsed();
+        let rig = fig.rig.as_ref().unwrap();
+        for i in 0..fig.lods.len() {
+            let start = std::time::Instant::now();
+            let m = b.level(&fig, &fig.derived(&look), i);
+            let took = start.elapsed();
+            let total: usize = m.iter().map(|m| m.verts.len()).sum();
+            let parts: Vec<String> = rig
+                .parts
+                .iter()
+                .zip(m)
+                .filter(|(_, m)| !m.verts.is_empty())
+                .map(|(p, m)| format!("{}:{}", p.part, m.verts.len()))
+                .collect();
+            println!("lod {i}: {total} vertices in {took:?} ({})", parts.join(" "));
+        }
+        println!("compose: {compose:?}");
+    }
 }
