@@ -2,6 +2,7 @@
 
 pub mod anim;
 pub mod app;
+pub mod assets;
 pub mod audio;
 pub(crate) mod detail;
 pub mod front;
