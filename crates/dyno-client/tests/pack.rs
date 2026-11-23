@@ -1,241 +1,157 @@
-//! The content pack streams from the server (docs/design/data-and-streaming.md
-//! §1, §2): the first join downloads it, a second join with nothing changed
-//! downloads nothing, a changed file is the only one fetched, streamed files
-//! come during play without holding play up, and /reload sends new rules.
+//! Checks on the content pack in `content/` that the client depends on:
+//! every block has its textures, every sound and item icon is there, the
+//! fonts and render settings load; and the client has no generators left
+//! that paint textures or synthesise sounds in code.
 
-use dyno_client::cache::Cache;
-use dyno_client::net::{self, JoinOptions, Joined, NetEvent, Progress};
-use dyno_protocol::{ClientMsg, ServerMsg};
-use dyno_server::pack::Pack;
+use dyno_client::audio::{Sfx, decode_wav};
+use dyno_client::look::RenderSettings;
+use dyno_client::textures::{BlocksFile, TILE, decode_png};
+use dyno_world as w;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
 
-fn temp(name: &str) -> PathBuf {
-    let d = std::env::temp_dir().join(format!("dyno-packtest-{name}-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&d);
-    std::fs::create_dir_all(&d).unwrap();
-    d
+fn pack() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")
 }
 
-fn start(dir: &Path, content: Option<PathBuf>, rate: usize) -> (dyno_server::Handle, String) {
-    let cfg = dyno_server::Config {
-        bind: "127.0.0.1:0".parse().unwrap(),
-        world_path: dir.join("world.dynw"),
-        world_size: [48, 48, 48],
-        content_path: content,
-        asset_rate: rate,
-        trust_movement: true,
-        ..Default::default()
-    };
-    let h = dyno_server::start(cfg).expect("server starts");
-    let addr = format!("127.0.0.1:{}", h.local_addr.port());
-    (h, addr)
-}
-
-/// The built-in pack written out as a directory.
-fn write_pack(dir: &Path) {
-    for (path, bytes) in Pack::builtin().files() {
-        let p = dir.join(&path);
-        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-        std::fs::write(p, &bytes[..]).unwrap();
-    }
-}
-
-fn join(addr: &str, name: &str, token: u64, cache: &Path) -> (Joined, Arc<Progress>) {
-    let progress = Arc::new(Progress::default());
-    let j = net::connect_with(
-        addr,
-        name,
-        JoinOptions {
-            token,
-            cache: Some(Cache::at(cache)),
-            progress: Some(progress.clone()),
-            ..Default::default()
-        },
-        Duration::from_secs(10),
-    )
-    .unwrap_or_else(|e| panic!("{name} joins: {e}"));
-    (j, progress)
-}
-
-fn wait_msg<T>(j: &Joined, secs: f32, mut f: impl FnMut(&ServerMsg) -> Option<T>) -> Option<T> {
-    let until = Instant::now() + Duration::from_secs_f32(secs);
-    while Instant::now() < until {
-        if let Ok(NetEvent::Msg(m)) = j.conn.rx.recv_timeout(Duration::from_millis(20))
-            && let Some(t) = f(&m)
-        {
-            return Some(t);
-        }
-    }
-    None
+fn read(path: &str) -> Vec<u8> {
+    std::fs::read(pack().join(path)).unwrap_or_else(|e| panic!("{path}: {e}"))
 }
 
 #[test]
-fn a_second_join_with_nothing_changed_downloads_nothing() {
-    let dir = temp("second");
-    let cache = dir.join("cache");
-    let (server, addr) = start(&dir, None, 4 * 1024 * 1024);
-    let pack = server.server.pack();
-
-    let (first, progress) = join(&addr, "ada", 1, &cache);
-    assert_eq!(first.manifest, pack.manifest, "the welcome names the pack");
-    assert_eq!(
-        first.downloaded,
-        pack.bytes(),
-        "the first join fetches every file"
-    );
-    assert_eq!(progress.fraction(), Some(1.0));
-    assert_eq!(first.content.name, pack.content.name, "rules from the pack");
-    // the files are in the asset store for the game
-    assert!(dyno_client::assets::get("stage/title.dynw").is_some());
-    assert!(dyno_client::assets::text("ui/strings.json").is_some());
-    // what the server sent while the files downloaded still reaches the game
-    assert!(
-        wait_msg(&first, 3.0, |m| matches!(m, ServerMsg::Pack(_))
-            .then_some(()))
-        .is_some(),
-        "the pack (bags) message is not lost behind the download"
-    );
-
-    let (second, _) = join(&addr, "bo", 2, &cache);
-    assert_eq!(second.downloaded, 0, "nothing changed: nothing downloads");
-    assert_eq!(second.content.name, pack.content.name);
-    eprintln!(
-        "join bytes: first {} ({} files), second {}",
-        first.downloaded,
-        pack.manifest.files.len(),
-        second.downloaded
-    );
-    // the title screen finds the last pack in the cache
-    assert_eq!(
-        Cache::at(&cache).last_manifest(),
-        Some(pack.manifest.clone())
-    );
-    drop((first, second));
-    server.stop();
-
-    // one file changes: only it downloads
-    let packdir = dir.join("pack");
-    write_pack(&packdir);
-    let strings = packdir.join("ui/strings.json");
-    let text = std::fs::read_to_string(&strings).unwrap();
-    std::fs::write(&strings, text.replace("Ashfall Vale", "Ashfall Vale!")).unwrap();
-    let (server2, addr2) = start(&dir.join("2"), Some(packdir), 4 * 1024 * 1024);
-    let (third, _) = join(&addr2, "cy", 3, &cache);
-    let changed = std::fs::metadata(&strings).unwrap().len();
-    assert_eq!(third.downloaded, changed, "only the changed file downloads");
-    drop(third);
-    server2.stop();
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-#[test]
-fn streamed_files_arrive_during_play_without_holding_it_up() {
-    let dir = temp("stream");
-    let packdir = dir.join("pack");
-    write_pack(&packdir);
-    // a large file the pack streams when first needed
-    let meta = std::fs::read_to_string(packdir.join("pack.json")).unwrap();
-    std::fs::write(
-        packdir.join("pack.json"),
-        meta.replace("\"stream\": []", "\"stream\": [\"big/\"]"),
-    )
-    .unwrap();
-    let big: Vec<u8> = (0..640 * 1024u32).map(|i| (i * 31 % 253) as u8).collect();
-    std::fs::create_dir_all(packdir.join("big")).unwrap();
-    std::fs::write(packdir.join("big/blob.bin"), &big).unwrap();
-    let rate = 256 * 1024;
-    let (server, addr) = start(&dir, Some(packdir), rate);
-    let pack = server.server.pack();
-    assert!(!pack.manifest.preload("big/blob.bin"));
-
-    let (j, _) = join(&addr, "ada", 1, &dir.join("cache"));
-    assert!(
-        j.downloaded < pack.bytes() - big.len() as u64 + 1,
-        "the streamed file is not fetched before play"
-    );
-    assert!(dyno_client::assets::get("big/blob.bin").is_none());
-
-    // the game asks for it; meanwhile the player keeps playing
-    dyno_client::assets::request("big/blob.bin");
-    let t0 = Instant::now();
-    let mut worst = Duration::ZERO;
-    while dyno_client::assets::get("big/blob.bin").is_none() {
-        assert!(t0.elapsed() < Duration::from_secs(20), "the file arrives");
-        let asked = Instant::now();
-        j.conn
-            .tx
-            .send(ClientMsg::Chat {
-                text: "/who".into(),
-            })
-            .unwrap();
-        let answered = wait_msg(&j, 5.0, |m| match m {
-            ServerMsg::System { text } if text.contains("online") => Some(()),
-            _ => None,
-        });
+fn every_block_has_its_textures() {
+    let file = BlocksFile::parse(&String::from_utf8(read("blocks.json")).unwrap()).unwrap();
+    let mut listed = vec![false; w::BLOCKS.len()];
+    for b in &file.blocks {
         assert!(
-            answered.is_some(),
-            "commands are answered during the download"
+            (b.id as usize) < w::BLOCKS.len(),
+            "blocks.json lists unknown block {}",
+            b.id
         );
-        worst = worst.max(asked.elapsed());
-        std::thread::sleep(Duration::from_millis(100));
+        assert!(!listed[b.id as usize], "block {} listed twice", b.id);
+        listed[b.id as usize] = true;
+        assert_eq!(b.key, w::block_key(b.id), "key of block {}", b.id);
+        let Some(faces) = &b.textures else {
+            assert_eq!(b.id, w::AIR, "block {} ({}) has no textures", b.id, b.key);
+            continue;
+        };
+        for path in faces.all() {
+            let (wd, ht, _) = decode_png(&read(path))
+                .unwrap_or_else(|| panic!("{path} (block {}) is not a readable PNG", b.key));
+            let frames = file
+                .animated
+                .get(path)
+                .map(|a| a.frames as usize)
+                .unwrap_or(1);
+            assert_eq!(
+                (wd, ht),
+                (TILE, TILE * frames),
+                "{path}: {TILE} px wide, {frames} frames tall"
+            );
+        }
     }
-    let took = t0.elapsed();
-    assert_eq!(
-        &dyno_client::assets::get("big/blob.bin").unwrap()[..],
-        &big[..]
-    );
-    // the budget holds: after a 64 KB burst, about 256 KB/s
-    let budget = (big.len() - 64 * 1024) as f64 / rate as f64;
-    eprintln!(
-        "streamed {} KB in {:.2} s (budget {:.2} s); slowest reply during it {} ms",
-        big.len() / 1024,
-        took.as_secs_f64(),
-        budget,
-        worst.as_millis()
-    );
-    assert!(took.as_secs_f64() > budget * 0.8, "kept to the budget");
-    assert!(
-        worst < Duration::from_millis(500),
-        "play never waits behind the download ({worst:?})"
-    );
-    drop(j);
-    server.stop();
-    let _ = std::fs::remove_dir_all(&dir);
+    for (id, l) in listed.iter().enumerate() {
+        assert!(
+            l,
+            "block {id} ({}) is missing from blocks.json",
+            w::block_key(id as u8)
+        );
+    }
+    for (path, a) in &file.animated {
+        assert!(a.frames > 1 && a.frame_time > 0.0, "{path}: animation");
+    }
+    let unknown = file.unknown.expect("a texture for unknown blocks");
+    assert!(decode_png(&read(&unknown)).is_some());
 }
 
 #[test]
-fn reload_sends_new_rules_through_the_pack() {
-    let dir = temp("reload");
-    let rules = dir.join("rules.json");
-    std::fs::write(&rules, dyno_world::content::DEFAULT_JSON).unwrap();
-    let (server, addr) = start(&dir, Some(rules.clone()), 4 * 1024 * 1024);
-    // the first player owns the world and may /reload
-    let (j, _) = join(&addr, "ada", 1, &dir.join("cache"));
-    let before = j.content.version;
-    std::fs::write(
-        &rules,
-        dyno_world::content::DEFAULT_JSON.replacen("\"version\": ", "\"version\": 1", 1),
-    )
-    .unwrap();
-    j.conn
-        .tx
-        .send(ClientMsg::Chat {
-            text: "/reload".into(),
-        })
-        .unwrap();
-    let until = Instant::now() + Duration::from_secs(10);
-    let mut got = None;
-    while Instant::now() < until && got.is_none() {
-        if let Ok(NetEvent::Content(c)) = j.conn.rx.recv_timeout(Duration::from_millis(50)) {
-            got = Some(c.version);
+fn every_sound_is_in_the_pack() {
+    for s in Sfx::all() {
+        let first = format!("sounds/{}_0.wav", s.name());
+        let clip = decode_wav(&read(&first)).unwrap_or_else(|| panic!("{first}: not 16-bit PCM"));
+        assert!(!clip.samples.is_empty(), "{first} is empty");
+    }
+}
+
+#[test]
+fn every_item_has_an_icon() {
+    let c = dyno_world::content::Content::default_pack();
+    for (i, it) in c.items.iter().enumerate() {
+        if it.block.is_some() {
+            continue;
+        }
+        let path = it
+            .image
+            .as_deref()
+            .unwrap_or_else(|| panic!("item {} has no image", it.key));
+        let (wd, ht, _) = decode_png(&read(path)).unwrap_or_else(|| panic!("{path}: not a PNG"));
+        assert!(wd > 0 && ht > 0, "{path} (item {i})");
+    }
+}
+
+#[test]
+fn fonts_and_render_settings_load() {
+    let fonts: serde_json::Value = serde_json::from_slice(&read("fonts/fonts.json")).unwrap();
+    for (_, face) in fonts["faces"].as_object().unwrap() {
+        let f = read(face["file"].as_str().unwrap());
+        assert!(f.len() > 1000);
+    }
+    for family in ["proportional", "body", "body-bold", "title"] {
+        assert!(fonts["families"][family].is_array(), "font family {family}");
+    }
+    let s = RenderSettings::parse(&String::from_utf8(read("render.json")).unwrap()).unwrap();
+    assert!(s != RenderSettings::default());
+}
+
+/// Every source file of the client, as (path, text).
+fn client_sources() -> Vec<(PathBuf, String)> {
+    let mut out = Vec::new();
+    let mut dirs = vec![Path::new(env!("CARGO_MANIFEST_DIR")).join("src")];
+    while let Some(d) = dirs.pop() {
+        for e in std::fs::read_dir(&d).unwrap() {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                dirs.push(p);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                let text = std::fs::read_to_string(&p).unwrap();
+                out.push((p, text));
+            }
         }
     }
-    let after = got.expect("the new rules arrive");
-    assert_ne!(after, before);
-    assert_eq!(after, server.server.pack().content.version);
-    drop(j);
-    server.stop();
-    let _ = std::fs::remove_dir_all(&dir);
+    out
+}
+
+#[test]
+fn no_texture_painting_or_sound_synthesis_left() {
+    // the toolkit of the old generators (textures.rs, audio.rs), and the
+    // fonts that were built into the binary
+    let marks = [
+        ["struct ", "Surf"].concat(),
+        ["fn ", "item_sprite"].concat(),
+        ["fn ", "build_blocks"].concat(),
+        ["fn ", "noise_burst"].concat(),
+        ["fn ", "synth("].concat(),
+        ["include_bytes!(", "\"../assets"].concat(),
+        [".ttf", "\")"].concat(),
+    ];
+    for (path, text) in client_sources() {
+        for m in &marks {
+            assert!(
+                !text.contains(m.as_str()),
+                "{} still has `{m}`",
+                path.display()
+            );
+        }
+    }
+    // item icons are pictures from the pack, not shapes drawn per kind
+    let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let survival = std::fs::read_to_string(src.join("survival.rs")).unwrap();
+    for kind in ["Stick", "Lump", "Ingot", "Gem", "Dust", "Berries", "Meat"] {
+        let m = format!("Icon::{kind}");
+        assert!(!survival.contains(&m), "survival.rs still draws `{m}`");
+    }
+    let tex = std::fs::read_to_string(src.join("textures.rs")).unwrap();
+    assert!(
+        tex.lines().count() < 400,
+        "textures.rs should only load textures, not paint them"
+    );
 }

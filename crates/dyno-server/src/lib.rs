@@ -76,6 +76,9 @@ pub struct Config {
     pub content_path: Option<PathBuf>,
     /// bytes per second of pack files each session may send (left over from play)
     pub asset_rate: usize,
+    /// the same before the player starts playing (on the loading screen,
+    /// nothing competes with the download)
+    pub join_asset_rate: usize,
     /// names allowed to use /gamemode, /time, /reload and /give. Empty: the
     /// world's owner (its first player) only.
     pub ops: Vec<String>,
@@ -105,6 +108,7 @@ impl Default for Config {
             default_mode: Mode::Survival,
             content_path: None,
             asset_rate: 256 * 1024,
+            join_asset_rate: 2 * 1024 * 1024,
             ops: Vec::new(),
             webhook: None,
             shard_cap: 40,
@@ -1493,7 +1497,8 @@ impl Server {
         // a relayed session's welcome comes from the host: it names this
         // edge's pack, since this edge serves the files
         let mut patch_welcome = world_data.is_none();
-        let mut outbox = pack::Outbox::new(self.cfg.asset_rate);
+        let mut outbox = pack::Outbox::new(self.cfg.join_asset_rate.max(self.cfg.asset_rate));
+        let mut playing = false;
         let mut first = first.into_iter();
         if let Some(welcome) = first.next() {
             send(ws, &welcome)?;
@@ -1538,6 +1543,12 @@ impl Server {
                     msgs += 1;
                     let msg = proto::decode::<ClientMsg>(&b);
                     // pack files come from this instance, wherever the player lives
+                    let want = matches!(msg, Ok(ClientMsg::Want { .. }));
+                    if !want && !playing {
+                        // the player is in the world now: play comes first
+                        playing = true;
+                        outbox.set_rate(self.cfg.asset_rate);
+                    }
                     if let Ok(ClientMsg::Want { hashes }) = &msg {
                         outbox.want(hashes, &self.pack());
                     } else if self.relay_host(conn).is_some() {

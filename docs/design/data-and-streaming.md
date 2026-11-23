@@ -54,7 +54,7 @@ content/
   stage/               # the title-screen scene
 ```
 
-**Status: built** (protocol 16). Today's pack is `pack.json`,
+**Status: built** (protocol 17). Today's pack is `pack.json`,
 `rules/hearthblock.json`, `ui/strings.json` (loading screen, intro, news)
 and `stage/title.dynw` (the title stage); 4 files, 210 KB.
 

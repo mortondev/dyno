@@ -213,7 +213,13 @@ impl State {
         let h = self.spawn_hearth;
         let far = ((pos[0] - h[0] as f32).powi(2) + (pos[2] - h[2] as f32).powi(2)).sqrt();
         let level = if self.rpg() {
-            (1 + (far / 28.0) as u8 + (self.rng.f32() < 0.3) as u8).clamp(levels[0], levels[1])
+            // the area's level band decides (a level 1-2 meadow gets level 1-2
+            // Shades); outside any area, deeper into the wild is stronger
+            match self.area_levels(pos) {
+                Some([lo, hi]) => lo + self.rng.range(0, hi.saturating_sub(lo) as u32) as u8,
+                None => (1 + (far / 28.0) as u8 + (self.rng.f32() < 0.3) as u8)
+                    .clamp(levels[0], levels[1]),
+            }
         } else {
             1
         };
@@ -328,7 +334,7 @@ impl State {
             return None;
         }
         if surface {
-            let y = self.world.surface(x, z) + 1;
+            let y = self.world.ground(x, z) + 1;
             return standable(&self.world, x, y, z).then_some([x, y, z]);
         }
         let y0 = around[1].floor() as i32;

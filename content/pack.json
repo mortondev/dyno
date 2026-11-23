@@ -3,6 +3,9 @@
  "version": 1,
  "entries": {
   "rules": "rules/hearthblock.json",
+  "blocks": "blocks.json",
+  "render": "render.json",
+  "fonts": "fonts/fonts.json",
   "strings": "ui/strings.json",
   "stage": "stage/title.dynw"
  },

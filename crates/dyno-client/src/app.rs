@@ -3,7 +3,7 @@
 use crate::anim::{self, Anim, Book as Anims, Skeleton};
 use crate::audio::{Audio, Sfx};
 use crate::front::{self, Front, FrontCmd};
-use crate::game::{self, Input, Player, Remote, Remotes, Target};
+use crate::game::{self, Input, Player, PlayerPose, Remote, Remotes, Target};
 use crate::light::Light;
 use crate::models;
 use crate::net::{self, Joined, NetEvent};
@@ -42,8 +42,11 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
     if let Some(a) = prefill {
         settings.last_server = a;
     }
-    // the pack of the last world joined, from the cache (the title stage, strings)
-    crate::cache::Cache::default().load_last();
+    // the pack of the last world joined, from the cache (title stage, strings,
+    // textures, fonts), unless a dev build already loaded a local one
+    if crate::assets::get("pack.json").is_none() {
+        crate::cache::Cache::default().load_last();
+    }
     #[cfg(feature = "host")]
     if crate::assets::get("pack.json").is_none() {
         crate::load_builtin_pack();
@@ -1117,12 +1120,14 @@ pub(crate) fn sky(t: f32) -> render::Sky {
             (a[2] + b[2] * t).min(1.0),
         ]
     };
-    let mut top = lerp([0.02, 0.025, 0.07], [0.30, 0.52, 0.90], k);
-    let mut horizon = lerp([0.05, 0.07, 0.14], [0.68, 0.81, 0.96], k);
-    horizon = lerp(horizon, [0.98, 0.55, 0.30], g * 0.75);
-    top = add(top, [0.22, 0.12, 0.28], g * 0.6);
-    let mut light = lerp([0.30, 0.34, 0.50], [1.0, 0.99, 0.96], k);
-    light = lerp(light, [1.0, 0.74, 0.52], g * 0.55);
+    // the colours come from the pack's render settings
+    let p = crate::look::settings().sky;
+    let mut top = lerp(p.night_top, p.day_top, k);
+    let mut horizon = lerp(p.night_horizon, p.day_horizon, k);
+    horizon = lerp(horizon, p.sunset_horizon, g * 0.75);
+    top = add(top, p.sunset_top, g * 0.6);
+    let mut light = lerp(p.night_light, p.day_light, k);
+    light = lerp(light, p.sunset_light, g * 0.55);
     render::Sky {
         top,
         horizon,
@@ -1693,6 +1698,10 @@ impl App {
                     if !p.content.world.protected {
                         p.chat.push(Chat { at: Instant::now(), from: None, text: if p.creative() { "Creative mode. Click to play. WASD move, F fly, left click break, right click place, E all items, G G then V to fill, Ctrl+Z undo, T chat, /help.".into() } else { "Survival mode. Hold left click to break blocks, E opens your pack and recipes, right click places or eats, Q throws, T chat, /help. Punch a tree to start, and make light before night falls.".into() } });
                     }
+                    // the join returned only once blocks.json and every file
+                    // needed before play arrived: take this world's texture
+                    // layers in before its meshes are built
+                    crate::textures::reload();
                     if let Some(g) = self.gfx.as_mut() {
                         g.load_world(&p.world, &p.light);
                     }
@@ -3174,6 +3183,8 @@ impl App {
         };
         let raw = state.take_egui_input(&window);
         let ctx = self.egui_ctx.clone();
+        // the pack's fonts, once they arrive
+        crate::theme::refresh_fonts(&ctx);
         let mut actions = Vec::new();
         let out = ctx.run(raw, |ctx| {
             ui(

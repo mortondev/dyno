@@ -56,7 +56,7 @@ pub fn plan_spawn_points(
                         }
                     }
                     None => {
-                        let y = world.surface(x, z) + 1;
+                        let y = world.ground(x, z) + 1;
                         if !free(y) {
                             continue;
                         }
@@ -187,6 +187,21 @@ impl State {
                 p.send(&msg);
             }
         }
+    }
+
+    /// The level band of the smallest area containing this point.
+    pub fn area_levels(&self, pos: [f32; 3]) -> Option<[u8; 2]> {
+        let h = self.spawn_hearth;
+        self.content
+            .areas
+            .iter()
+            .filter(|a| {
+                let dx = pos[0] - (h[0] + a.at[0]) as f32;
+                let dz = pos[2] - (h[2] + a.at[1]) as f32;
+                (dx * dx + dz * dz).sqrt() <= a.radius
+            })
+            .min_by(|a, b| a.radius.total_cmp(&b.radius))
+            .map(|a| a.levels)
     }
 
     /// Is this point inside an area marked safe?

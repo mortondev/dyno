@@ -11,7 +11,7 @@ USAGE:
   dyno connect <address>       Open the game with the server address filled in
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
                                [--creative] [--content PACK_DIR|RULES.json] [--op NAME]...
-                               [--asset-rate 256] (KB/s of pack files per player)
+                               [--asset-rate 256] [--join-asset-rate 2048] (KB/s of pack files per player, in play / loading)
                                [--webhook DISCORD_URL] (or DYNO_WEBHOOK)
                                [--shard-cap 40] [--area-cap 16] [--max-shards 16]
                                [--cluster HOST:PORT] [--join HOST:PORT] [--advertise HOST:PORT]
@@ -25,6 +25,11 @@ USAGE:
                                Render animation contact sheets (no server needed)
   dyno bot <address> [name] [seconds]
                                Join as a bot that walks in a circle (demos, tests)
+  dyno bots <address>|--local [--count N] [--minutes M] [--brain mix|completionist|grinder|explorer|social|casual]
+            [--class KEY] [--report out.json] [--stagger SECS]
+                               Playtest with a swarm of headless AI players; writes a fun report (JSON + .md)
+  dyno play <address> --as NAME [--class KEY] [--script FILE]
+                               Play headless through a text interface (one command per line; 'help')
   dyno fill <address> x,y,z x,y,z <block>
                                Fill a box with a block (Air clears it)
   dyno bake-stage [PACK_DIR]   Bake the title-screen stage into the pack (default content/)
@@ -341,6 +346,16 @@ fn main() {
                 }
             }
         }
+        "bots" => {
+            if let Err(e) = dyno_bot::cli_bots(&args[1..]) {
+                fail(&e);
+            }
+        }
+        "play" if args.len() > 1 => {
+            if let Err(e) = dyno_bot::cli_play(&args[1..]) {
+                fail(&e);
+            }
+        }
         "" | "connect" | "play" => {
             let note = auto_update();
             let prefill = if cmd == "connect" {
@@ -427,6 +442,13 @@ fn run_server(args: &[String]) {
                     .parse()
                     .unwrap_or_else(|_| fail("--asset-rate needs KB per second"));
                 cfg.asset_rate = kb.max(1) * 1024;
+                i += 1;
+            }
+            "--join-asset-rate" => {
+                let kb: usize = val()
+                    .parse()
+                    .unwrap_or_else(|_| fail("--join-asset-rate needs KB per second"));
+                cfg.join_asset_rate = kb.max(1) * 1024;
                 i += 1;
             }
             "--webhook" => {

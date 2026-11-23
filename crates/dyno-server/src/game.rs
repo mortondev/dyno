@@ -1608,6 +1608,7 @@ impl State {
     }
 
     fn use_held(&mut self, id: PlayerId) {
+        let sheet_max = self.max_health(id);
         let c = &self.content;
         let p = self.players.get_mut(&id).unwrap();
         let slot = p.held as usize;
@@ -1615,7 +1616,7 @@ impl State {
         let food = c.item(s.item).food;
         if c.world.protected {
             // RPG: food heals, out of combat
-            let max = dyno_sim::progression::max_health(p.level);
+            let max = sheet_max;
             if food == 0 || p.dead || p.health >= max || p.combat_until > Instant::now() {
                 return;
             }
@@ -1739,13 +1740,14 @@ impl State {
 
     fn respawn(&mut self, id: PlayerId) {
         let spawn = self.spawn_point();
+        let sheet_max = self.max_health(id);
         let p = self.players.get_mut(&id).unwrap();
         if !p.dead {
             return;
         }
         p.dead = false;
         p.health = if self.content.world.protected {
-            (dyno_sim::progression::max_health(p.level) * 0.6).round()
+            (sheet_max * 0.6).round()
         } else {
             20.0
         };

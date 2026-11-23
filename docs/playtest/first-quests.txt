@@ -1,0 +1,19 @@
+# The first quests of Hearthstead, for `dyno play <address> --as NAME --script docs/playtest/first-quests.txt`
+look
+accept cold_hearth
+talk maren
+turnin cold_hearth
+accept thin_the_herd
+accept meat_for_the_pot
+attack grazer
+loot
+attack grazer
+loot
+attack grazer
+loot
+attack grazer
+loot
+quests
+turnin meat_for_the_pot
+equip best
+bags

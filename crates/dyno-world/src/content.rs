@@ -79,6 +79,10 @@ pub struct Item {
     pub level: u8,
     #[serde(default)]
     pub gear: Option<Gear>,
+    /// the item's picture in the pack ("icons/stick.png"); items that place
+    /// a block show the block instead
+    #[serde(default)]
+    pub image: Option<String>,
 }
 
 /// Where a piece of gear is worn. The paper doll has one place per slot,
@@ -844,6 +848,8 @@ struct AItem {
     level: u8,
     #[serde(default)]
     gear: Option<Gear>,
+    #[serde(default)]
+    image: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -1008,6 +1014,7 @@ impl Content {
                 value: a.value,
                 level: a.level,
                 gear: a.gear.clone(),
+                image: a.image.clone(),
             });
         }
         let mut blocks = Vec::new();
@@ -1387,6 +1394,7 @@ impl Content {
                 value: 0,
                 level: 0,
                 gear: None,
+                image: None,
             }
         } else if let Some(it) = self.items.get((id - FIRST_ITEM) as usize) {
             ItemView {
@@ -1404,6 +1412,7 @@ impl Content {
                 value: it.value,
                 level: it.level,
                 gear: it.gear.as_ref(),
+                image: it.image.as_deref(),
             }
         } else {
             ItemView {
@@ -1421,6 +1430,7 @@ impl Content {
                 value: 0,
                 level: 0,
                 gear: None,
+                image: None,
             }
         }
     }
@@ -1493,6 +1503,8 @@ pub struct ItemView<'a> {
     pub value: u32,
     pub level: u8,
     pub gear: Option<&'a Gear>,
+    /// the item's picture in the pack, if it has one
+    pub image: Option<&'a str>,
 }
 
 /// Quest XP when the content does not say: about five same-level kills,

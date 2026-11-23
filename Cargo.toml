@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.6.0"
+version = "0.6.2"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/mortondev/dyno"
@@ -27,3 +27,5 @@ opt-level = "z"
 lto = true
 codegen-units = 1
 strip = true
+# no unwind tables (about 1.5 MB); nothing in the client catches a panic
+panic = "abort"

@@ -240,6 +240,13 @@ impl Outbox {
         }
     }
 
+    /// Change the rate (the player started playing), keeping no more saved
+    /// budget than the new rate allows.
+    pub fn set_rate(&mut self, rate: usize) {
+        self.rate = rate.max(1024) as f64;
+        self.budget = self.budget.min(proto::MAX_ASSET_CHUNK as f64);
+    }
+
     pub fn is_empty(&self) -> bool {
         self.queue.is_empty()
     }

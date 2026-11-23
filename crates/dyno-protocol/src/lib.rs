@@ -159,7 +159,16 @@ impl Manifest {
     }
 
     /// Whether a file is fetched before entering the world.
+    /// The pack description, the rules and the block table always come
+    /// first: texture layer numbers depend on `blocks.json`, and nothing
+    /// remeshes if it arrives late.
     pub fn preload(&self, path: &str) -> bool {
+        if path == "pack.json"
+            || path == "blocks.json"
+            || self.rules().is_some_and(|r| r.path == path)
+        {
+            return true;
+        }
         !self.stream.iter().any(|p| path.starts_with(p.as_str()))
     }
 
@@ -185,7 +194,7 @@ pub const MAX_WANT: usize = 1024;
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 16;
+pub const PROTOCOL_VERSION: u32 = 17;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
