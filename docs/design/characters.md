@@ -210,6 +210,12 @@ Engine (generic, small):
 - the outfit sheet's level-of-detail strip also shows the last six sets
   (the heroes) from behind.
 
+Cost: at the play camera's level the four tier-8 sets measure 3 to 9% more
+vertices than before (the outfit sheet's strip); the heroes 10 to 16
+thousand. `bake-figure` now writes each model's voxels in runs along x,
+which compresses a third better: `person.vox` is 749 KB on the wire (942 KB
+before this work, with 30 more layers in it).
+
 Not done: the character creator still previews the bare look (the class
 list sent before joining does not carry the starter kit); a carried light
 lights the figure only, not the ground round it (the lighting lane's).
