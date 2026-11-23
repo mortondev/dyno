@@ -722,6 +722,10 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             let speed = Vec3::new(vel.x, 0.0, vel.z).length();
             let (a, _) = book.entity(*id, now);
             a.drive_at(now, base, pos, models::person_step(speed));
+            // neither in the picture nor casting a shadow into it: not made
+            if !models::in_sight(at, 4.0) {
+                continue;
+            }
             let look = models::Look::npc(&npc.key, npc.color);
             models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
             if let Some(m) = me.marker(n) {
@@ -766,6 +770,9 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             pos,
             models::creature_step(c.model, c.variant, speed, scale),
         );
+        if !models::in_sight(at, 4.0 * scale.max(1.0)) {
+            continue;
+        }
         let start = boxes.len();
         models::push_creature(
             boxes, c.model, c.variant, pos, e.yaw, c.color, light, flash, scale, a, now,
@@ -3346,8 +3353,13 @@ impl App {
                 far,
             );
             let vp = proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
-            // models skip faces the camera and sun cannot see, and coarsen far away
+            // models skip faces the camera and sun cannot see, and coarsen far
+            // away; creatures out of the picture whose shadows are too are not made
             models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
+            models::set_sight(Some((
+                render::view_planes(vp),
+                crate::shadows::to_light(sky_now.env.light_dir),
+            )));
             let held_item = if p.content.world.protected && !p.creative() {
                 // RPG: your best weapon is always in hand
                 let pack = dyno_sim::inventory::Inventory {
@@ -6182,7 +6194,10 @@ pub fn shot_with_ui(
     let mut last_view = Instant::now();
     loop {
         let frame_t0 = Instant::now();
-        let frame_sw = crate::bench::Stopwatch::start();
+        let mut frame_sw = crate::bench::Stopwatch::start();
+        // the main thread's own time on each part of the frame (a measured flight)
+        let mut lap = 0.0;
+        let mut parts: Vec<(&'static str, f64)> = Vec::new();
         let mut world_t = Duration::ZERO;
         loop {
             let ev = p.conn.rx.try_recv();
@@ -6338,9 +6353,12 @@ pub fn shot_with_ui(
                 Err(_) => {}
             }
         }
+        parts.push(("what arrived", frame_sw.lap(&mut lap)));
         let a = world_uploads(&mut p, Some(&mut *gfx), Duration::from_millis(3));
+        parts.push(("world uploads", frame_sw.lap(&mut lap)));
         let eye = p.player.eye();
         let b = far_uploads(&mut p, gfx, eye, Duration::from_millis(2));
+        parts.push(("far view", frame_sw.lap(&mut lap)));
         world_t += a + b;
         // the camera, flying or still
         let t = started.elapsed().as_secs_f32();
@@ -6386,12 +6404,18 @@ pub fn shot_with_ui(
             // ambient life as well as the land
             let mut boxes = Vec::new();
             let mut life_ms = 0.0;
+            parts.push(("camera", frame_sw.lap(&mut lap)));
             if let Some(b) = bench.as_ref().filter(|_| flying) {
                 let (eye, dir) = (p.player.eye(), p.player.look_dir());
                 models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
+                models::set_sight(Some((
+                    render::view_planes(vp),
+                    crate::shadows::to_light(sky_now.env.light_dir),
+                )));
                 let mut book = std::mem::take(&mut p.anims);
                 push_creatures(&mut boxes, &p, &mut book, 1.3);
                 p.anims = book;
+                parts.push(("creatures", frame_sw.lap(&mut lap)));
                 let t1 = Instant::now();
                 let time = p.time;
                 push_life(
@@ -6418,7 +6442,7 @@ pub fn shot_with_ui(
             );
             if bench.is_some() && flying {
                 let bytes = gfx.memory().world_vertices;
-                collect.frame(gfx.last, before, life_ms, bytes);
+                collect.frame(gfx.last, before, life_ms, bytes, &parts);
             }
             if stats_gpu {
                 gfx.wait_idle();
@@ -6646,6 +6670,10 @@ pub fn shot_with_ui(
     gfx.water
         .look_from(&p.world, eye.into(), p.hearth.unwrap_or_default());
     models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
+    models::set_sight(Some((
+        render::view_planes(vp),
+        crate::shadows::to_light(sky_now.env.light_dir),
+    )));
     let mut boxes = Vec::new();
     let mut lines = Vec::new();
     let light_at = |l: &Light, v: Vec3| {
@@ -6926,7 +6954,7 @@ pub fn shot_with_ui(
                 gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
                 gfx.wait_idle();
                 if i >= warm {
-                    collect.frame(gfx.last, before, life_ms, 0);
+                    collect.frame(gfx.last, before, life_ms, 0, &[]);
                 }
             }
         }

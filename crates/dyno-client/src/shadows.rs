@@ -55,12 +55,18 @@ impl Cascade {
     }
 }
 
+/// The direction towards the light the shadow maps are drawn from, for a
+/// light at `light_dir` (towards it).
+pub fn to_light(light_dir: [f32; 3]) -> Vec3 {
+    let dir = Vec3::from(light_dir).normalize_or(Vec3::Y);
+    // a light on the horizon would smear its map along the ground
+    Vec3::new(dir.x, dir.y.max(0.06), dir.z).normalize()
+}
+
 /// The cascades for a camera at `cam` looking along `forward`, lit from
 /// `light_dir` (towards the light).
 pub fn cascades(cam: Vec3, forward: Vec3, light_dir: [f32; 3], size: u32) -> [Cascade; CASCADES] {
-    let dir = Vec3::from(light_dir).normalize_or(Vec3::Y);
-    // a light on the horizon would smear its map along the ground
-    let dir = Vec3::new(dir.x, dir.y.max(0.06), dir.z).normalize();
+    let dir = to_light(light_dir);
     let up = if dir.x.abs() < 0.9 { Vec3::X } else { Vec3::Z };
     let view = Mat4::look_to_rh(Vec3::ZERO, -dir, up);
     let flat = Vec3::new(forward.x, 0.0, forward.z).normalize_or_zero();

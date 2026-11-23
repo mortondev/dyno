@@ -393,6 +393,10 @@ pub struct SceneResult {
     pub cpu_ms: Dist,
     /// the same by the clock on the wall: longer on a busy machine
     pub wall_ms: Dist,
+    /// the main thread's own time before the renderer takes over, by what
+    /// it went on (a flight): what arrived, uploads, creatures
+    #[serde(default)]
+    pub parts: Vec<(String, Dist)>,
     /// of that, the ambient life (median)
     pub life_ms: f64,
     /// and (medians) what the renderer does before the first pass, and
@@ -494,6 +498,7 @@ pub fn take_mesh() -> MeshResult {
 #[derive(Default)]
 pub struct Collector {
     frames: Vec<FrameStats>,
+    parts: Vec<(&'static str, Vec<f64>)>,
     cpu: Vec<f64>,
     wall: Vec<f64>,
     life: Vec<f64>,
@@ -504,7 +509,21 @@ impl Collector {
     /// One frame: what the renderer counted, the main thread's time on it
     /// before the renderer took over (on the wall, and its own), and the
     /// ambient life's part, in milliseconds.
-    pub fn frame(&mut self, f: FrameStats, before: (f64, f64), life_ms: f64, vertex_bytes: u64) {
+    /// `parts`: that time before the renderer by what it went on (its own).
+    pub fn frame(
+        &mut self,
+        f: FrameStats,
+        before: (f64, f64),
+        life_ms: f64,
+        vertex_bytes: u64,
+        parts: &[(&'static str, f64)],
+    ) {
+        for (name, ms) in parts {
+            match self.parts.iter_mut().find(|p| p.0 == *name) {
+                Some(p) => p.1.push(*ms),
+                None => self.parts.push((name, vec![*ms])),
+            }
+        }
         self.frames.push(f);
         self.wall.push(before.0 + f.cpu_ms);
         self.cpu.push(before.1 + f.cpu_own_ms);
@@ -543,6 +562,11 @@ impl Collector {
             gpu_ms: timed.then(|| Dist::of(&col(&|f| f.gpu_total_ms))),
             cpu_ms: Dist::of(&self.cpu),
             wall_ms: Dist::of(&self.wall),
+            parts: self
+                .parts
+                .iter()
+                .map(|(name, v)| (name.to_string(), Dist::of(v)))
+                .collect(),
             life_ms: Dist::of(&self.life).median,
             cpu_setup_ms: median(&|f| f.cpu_setup_ms),
             cpu_submit_ms: median(&|f| f.cpu_submit_ms),

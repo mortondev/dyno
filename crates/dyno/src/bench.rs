@@ -78,6 +78,8 @@ pub struct Report {
     /// it is busy; counts are not)
     pub load: String,
     pub default_tier: String,
+    #[serde(default)]
+    pub flight_seconds: f32,
     pub tiers: Vec<Tier>,
     pub scenes: Vec<SceneResult>,
 }
@@ -249,6 +251,7 @@ pub fn run(o: Options) -> Result<String, String> {
         world,
         load,
         default_tier: scenes.default_tier.clone(),
+        flight_seconds: scenes.flight.seconds,
         tiers,
         scenes: results,
     };
@@ -411,6 +414,26 @@ pub fn markdown(r: &Report) -> String {
                 mb(x.peak_vertex_bytes.max(x.memory.vertex_total())),
                 mb(x.memory.texture_total()),
                 mesh
+            );
+        }
+        for x in scenes.iter().filter(|x| !x.parts.is_empty()) {
+            let _ = writeln!(
+                s,
+                "\n{}: {} frames in its {} seconds, {} of them over 16.7 ms on the wall. The main thread's own ms before the renderer (median / 95% / worst):\n",
+                x.name, x.frames, r.flight_seconds, x.slow_frames
+            );
+            let _ = writeln!(s, "| part | median | 95% | worst |\n|---|---|---|---|");
+            for (name, d) in &x.parts {
+                let _ = writeln!(
+                    s,
+                    "| {name} | {:.2} | {:.2} | {:.2} |",
+                    d.median, d.p95, d.max
+                );
+            }
+            let _ = writeln!(
+                s,
+                "| the whole frame | {:.2} | {:.2} | {:.2} |",
+                x.cpu_ms.median, x.cpu_ms.p95, x.cpu_ms.max
             );
         }
         let _ = writeln!(
@@ -581,6 +604,7 @@ mod tests {
             world: String::new(),
             load: String::new(),
             default_tier: "high".into(),
+            flight_seconds: 60.0,
             tiers: Vec::new(),
             scenes: vec![SceneResult {
                 name: "meadow".into(),
