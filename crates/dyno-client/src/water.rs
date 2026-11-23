@@ -831,7 +831,10 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   }
 
   // the body of the water: clear, then the shallow colour, then the deep
-  let cover_sh = 1.0 - exp(-(through + 0.3 * smoothstep(0.0, 0.25, dv)) / max(K.shallow.w, 0.05));
+  // (mostly by the depth under the surface, a little by the slant of the
+  // look: from a walker's eye all water is seen at a slant, and the
+  // shallows must still show their bed)
+  let cover_sh = 1.0 - exp(-(dv * 1.5 + min(through, 12.0) * 0.12) / max(K.shallow.w, 0.05));
   let cover_dp = 1.0 - exp(-3.0 * dv / max(K.deep.w, 0.05));
   var body = mix(K.shallow.rgb, K.deep.rgb, cover_dp) * lit;
   body = body * (1.0 + 0.16 * (h0 - 0.5) + 0.55 * crest - 0.12 * trough) + crest * lit * 0.03;
@@ -861,7 +864,8 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
 
   // the mirror
   let ndv = max(dot(V, n), 0.0);
-  let fres = (0.02 + 0.98 * pow(1.0 - ndv, 5.0)) * K.surf.x;
+  // (a broad mirror: at a walker's eye the plain law leaves it too faint)
+  let fres = clamp((0.04 + 0.96 * pow(1.0 - ndv, 3.0)) * K.surf.x, 0.0, 0.95);
   var R = reflect(-V, n);
   R.y = abs(R.y) + 0.01;
   R = normalize(R);
@@ -907,6 +911,10 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
       refl = mix(refl, scene_at(hit), rim);
     }
   }
+  // the mirror takes a little of the water's own colour, so a pale sky
+  // does not wash the water out
+  let own = K.shallow.rgb / max(max(K.shallow.r, K.shallow.g), max(K.shallow.b, 0.001));
+  refl = refl * mix(vec3<f32>(1.0), own, 0.4);
   col = mix(col, refl, fres);
   alpha = mix(alpha, 1.0, fres);
 
@@ -919,6 +927,13 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   let glint = smoothstep(0.990, 0.996, dot(reflect(-V, ns), ldir));
   let glint_c = select(vec3<f32>(1.0, 0.93, 0.78) * u.light.rgb, vec3<f32>(0.62, 0.72, 0.95) * u.sun.w, moon);
   col += glint_c * (glint * K.surf.z * vis * sl * 0.9);
+  // the glitter path: a lane of flashing cells from the eye towards the
+  // sun or moon, thickest where the mirror meets the light
+  let mf = reflect(-V, vec3<f32>(0.0, 1.0, 0.0));
+  let toward = dot(normalize(mf.xz + vec2<f32>(0.00001, 0.0)), normalize(ldir.xz + vec2<f32>(0.00001, 0.0)));
+  let lane = smoothstep(0.955, 0.9995, toward) * exp(-pow((mf.y - ldir.y) / 0.6, 2.0));
+  let flash = step(1.0 - lane * 0.6, hash2(cell + vec2<f32>(tick * 5.0, tick * 9.0)));
+  col += glint_c * (flash * K.surf.z * (0.25 + 0.75 * vis) * sl * 1.3);
   // and by day a cell here and there on a swell twinkles
   let twinkle = step(0.9975, hash2(cell + vec2<f32>(tick * 3.0, tick * 17.0))) * smoothstep(0.5, 0.7, h0);
   col += vec3<f32>(1.0, 0.97, 0.9) * u.light.rgb * (twinkle * K.surf.z * vis * sl * (1.0 - u.sun.w) * 0.55);
@@ -933,9 +948,9 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
     foam = 1.0 - smoothstep(fw * (0.30 + 0.5 * lap * fn1), fw * (0.42 + 0.62 * lap * fn1), dvq);
     let ring = smoothstep(fw * 1.5, fw * 1.7, dvq) * (1.0 - smoothstep(fw * 2.1, fw * 2.3, dvq)) * step(0.58, fn1);
     foam = max(foam, ring * 0.6);
-    foam = max(foam, smoothstep(0.80, 0.86, sh.x + (fn1 - 0.5) * 0.3 + 0.05 * lap));
+    foam = max(foam, smoothstep(0.64, 0.70, sh.x + (fn1 - 0.5) * 0.3 + 0.05 * lap));
   } else {
-    foam = smoothstep(0.62, 0.68, sh.x + (fn1 - 0.5) * 0.38 + 0.06 * lap);
+    foam = smoothstep(0.56, 0.62, sh.x + (fn1 - 0.5) * 0.38 + 0.06 * lap);
   }
   let churn = hash2(cell + vec2<f32>(floor(t * 7.0) * 5.0, 1.0));
   foam = max(foam, smoothstep(0.42, 0.52, white * (0.55 + 0.75 * fn1) + (churn - 0.5) * 0.25 * white));

@@ -438,9 +438,11 @@ impl Particles {
         out: &mut Out,
         counts: &mut Counts,
     ) {
-        let (radius, budget, thin) = match quality {
-            1 => (40.0, 500usize, 0.5),
-            _ => (80.0, 2600usize, 1.0),
+        // how far, how many cubes, how many emitters, and the share of
+        // each effect's rate
+        let (radius, budget, most, thin) = match quality {
+            1 => (40.0, 400usize, 30usize, 0.5),
+            _ => (80.0, 1200usize, 72usize, 1.0),
         };
         self.refresh(s, radius, clock);
         // nearest first, so the budget cuts the far ones
@@ -458,18 +460,42 @@ impl Particles {
             if d2 > reach * reach {
                 continue;
             }
-            // behind the camera (with room for a plume to drift into view)
-            if d2 > 144.0 && to.dot(s.dir) < -0.2 * d2.sqrt() {
+            // behind the camera, or well off to the side of what it sees
+            // (with room for a plume to drift into view)
+            let ahead = to.dot(s.dir);
+            let d = d2.sqrt();
+            if (d > 12.0 && ahead < -0.2 * d) || (d > 24.0 && ahead < 0.35 * d) {
                 continue;
             }
             order.push((d2, *e));
         }
         order.sort_by(|a, b| a.0.total_cmp(&b.0));
+        if std::env::var_os("DYNO_LIFE_DEBUG").is_some() {
+            let mut by = vec![[0usize; 2]; self.effects.len()];
+            for e in self.sections.values().flatten() {
+                by[e.effect as usize][0] += 1;
+            }
+            for (_, e) in &order {
+                by[e.effect as usize][1] += 1;
+            }
+            let names: Vec<&String> = d.effects.keys().collect();
+            let list: Vec<String> = names
+                .iter()
+                .zip(&by)
+                .filter(|(_, n)| n[0] + n[1] > 0)
+                .map(|(k, n)| format!("{k}: {} found, {} drawn", n[0], n[1]))
+                .collect();
+            eprintln!(
+                "life: {} sections with emitters; {}",
+                self.sections.len(),
+                list.join("; ")
+            );
+        }
         let wind = Vec3::new(d.wind[0], 0.0, d.wind[1]);
         let start = out.fx.len() + out.glow.len() / 6 * 18;
         for (_, e) in &order {
             let used = (out.fx.len() + out.glow.len() / 6 * 18 - start) / 18;
-            if used >= budget {
+            if used >= budget || counts.emitters >= most {
                 break;
             }
             let fx = &self.effects[e.effect as usize];

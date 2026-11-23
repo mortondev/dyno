@@ -4,3 +4,5 @@
 /world*/
 .claude/worktrees/
 .serena/
+__pycache__/
+*.pyc

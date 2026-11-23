@@ -25,9 +25,9 @@
     "shallow": [0.04, 0.3, 0.48],
     "foam": [0.9, 0.95, 0.97],
     "depth": 3.0,
-    "clarity": 1.0,
-    "foam_width": 0.18,
-    "reflect": 0.42,
+    "clarity": 1.2,
+    "foam_width": 0.3,
+    "reflect": 0.5,
     "ripple": 1.0,
     "sparkle": 1.0,
     "flow": 0.0,
@@ -43,7 +43,7 @@
         "depth": 3.5,
         "clarity": 2.0,
         "foam_width": 0.3,
-        "reflect": 0.35,
+        "reflect": 0.6,
         "ripple": 1.3,
         "flow": 1.3,
         "lilies": 0.0
@@ -94,19 +94,19 @@
     "sunset_width": 0.26
   },
   "light": {
-    "sun_tint": [1.28, 1.08, 0.84],
+    "sun_tint": [1.34, 1.1, 0.8],
     "fill": 0.05,
-    "ambient_day": [0.34, 0.5, 1.0],
+    "ambient_day": [0.3, 0.48, 1.0],
     "ambient_night": [0.36, 0.42, 0.85],
-    "ambient": 0.82,
+    "ambient": 0.86,
     "lamp": [1.0, 0.74, 0.42],
     "lamp_day": 1.3,
     "lamp_night": 2.4,
     "lamp_hide": 0.8,
     "emissive": 3.0,
-    "rim": [0.6, 0.72, 1.0],
+    "rim": [0.55, 0.7, 1.0],
     "rim_day": 0.05,
-    "rim_night": 0.45,
+    "rim_night": 0.9,
     "rim_power": 3.0,
     "shadow": 1.0,
     "moon_shadow": 0.75,
@@ -116,12 +116,12 @@
     "point_reach": 8.0
   },
   "atmosphere": {
-    "haze_start": 45,
-    "haze_density": 0.009,
-    "haze_max": 0.8,
-    "haze_day": [0.58, 0.74, 0.98],
+    "haze_start": 40,
+    "haze_density": 0.0017,
+    "haze_max": 0.78,
+    "haze_day": [0.4, 0.58, 0.92],
     "haze_night": [0.14, 0.16, 0.38],
-    "haze_follow": 0.35,
+    "haze_follow": 0.22,
     "fog_height": 27,
     "fog_falloff": 0.3,
     "fog_density": 0.004,
@@ -129,8 +129,8 @@
     "fog_day": [0.86, 0.9, 0.96],
     "fog_night": [0.2, 0.22, 0.42],
     "fog_dawn": 2.5,
-    "edge": 0.62,
-    "fog_start": 45
+    "edge": 0.88,
+    "fog_start": 60
   },
   "dome": {
     "sun": [1.0, 0.96, 0.85],
@@ -138,8 +138,8 @@
     "sun_bright": 9,
     "sun_size": 2.6,
     "moon": [0.86, 0.9, 1.0],
-    "moon_bright": 2.2,
-    "moon_size": 2.4,
+    "moon_bright": 3.0,
+    "moon_size": 3.0,
     "glow": [1.0, 0.55, 0.28],
     "glow_strength": 0.7,
     "glow_tight": 3,
@@ -154,12 +154,13 @@
       "size": 0.75
     },
     "horizon": {
-      "height": 1.0,
-      "color": [0.24, 0.42, 0.36],
-      "haze": 0.55,
+      "height": 0.8,
+      "color": [0.22, 0.4, 0.42],
+      "haze": 0.38,
       "snow": [0.95, 0.96, 1.0],
-      "snow_amount": 0.8
-    }
+      "snow_amount": 0.3
+    },
+    "moon_height": 0.45
   },
   "post": {
     "exposure": 1.0,
@@ -169,8 +170,8 @@
       "strength": 0.32
     },
     "ao": {
-      "radius": 1.6,
-      "strength": 1.8,
+      "radius": 2.0,
+      "strength": 2.3,
       "reach": 80
     }
   },
@@ -197,7 +198,7 @@
     },
     {
       "area": "hollow_oak",
-      "feather": 20,
+      "feather": 30,
       "mood": {
         "tint": [0.93, 1.03, 1.0],
         "haze_color": [0.42, 0.8, 0.76],
@@ -209,14 +210,13 @@
         "fog_color_mix": 0,
         "clouds": 0.42
       },
-      "radius": 45,
       "order": 1
     },
     {
       "area": "barrowwood",
-      "feather": 20,
+      "feather": 40,
       "mood": {
-        "time": 0.5,
+        "time": 0.54,
         "time_pull": 0.85,
         "tint": [0.99, 0.96, 1.05],
         "sky_tint": [0.96, 0.88, 1.12],
@@ -232,9 +232,9 @@
     },
     {
       "area": "mirrormere",
-      "feather": 25,
+      "feather": 40,
       "mood": {
-        "time": 0.03,
+        "time": 0.485,
         "time_pull": 0.95,
         "tint": [1.04, 1.0, 0.98],
         "sky_tint": [1.05, 0.96, 1.05],
@@ -245,24 +245,31 @@
         "fog_color_mix": 0.25,
         "exposure": 1.12,
         "light_tint": [1.18, 1.0, 0.84]
-      },
-      "radius": 30
+      }
     },
     {
       "area": "windmill",
       "feather": 30,
       "mood": {
         "tint": [1.03, 1.02, 0.95],
-        "saturation": 1.06
-      }
+        "saturation": 1.06,
+        "time_pull": 0,
+        "fog": 1.0,
+        "fog_lift": 0,
+        "fog_color_mix": 0,
+        "sky_tint": [1, 1, 1],
+        "exposure": 1.0,
+        "light_tint": [1, 1, 1]
+      },
+      "radius": 60,
+      "order": 1
     },
     {
       "area": "fishers_landing",
-      "radius": 16,
-      "feather": 14,
+      "feather": 20,
       "mood": {
-        "time": 0.47,
-        "time_pull": 0.9,
+        "time": 0.485,
+        "time_pull": 0.95,
         "tint": [1.05, 1.0, 0.95],
         "sky_tint": [1.06, 0.97, 0.94],
         "saturation": 1.1,
@@ -276,8 +283,7 @@
     },
     {
       "area": "sunken_shrine",
-      "radius": 31,
-      "feather": 8,
+      "feather": 20,
       "mood": {
         "time_pull": 0,
         "tint": [0.93, 1.04, 1.04],
@@ -292,9 +298,9 @@
       "order": 1
     },
     {
-      "at": [68, 45],
-      "radius": 22,
-      "feather": 14,
+      "at": [330, 300],
+      "radius": 60,
+      "feather": 30,
       "mood": {
         "time": 0.63,
         "time_pull": 0.9,
@@ -304,8 +310,7 @@
     },
     {
       "area": "miners_rest",
-      "radius": 14,
-      "feather": 14,
+      "feather": 20,
       "mood": {
         "time": 0.03,
         "time_pull": 0.55,
@@ -330,16 +335,17 @@
       }
     },
     {
-      "at": [25.5, -23.5],
-      "radius": 8,
-      "feather": 10,
+      "at": [40, 0],
+      "radius": 24,
+      "feather": 8,
       "order": 2,
       "mood": {
         "time": 0.48,
         "time_pull": 0.95,
         "light_tint": [1.2, 1.0, 0.8],
-        "exposure": 1.2,
-        "ambient": 1.35
+        "exposure": 1.15,
+        "ambient": 0.95,
+        "tint": [1.05, 1.0, 0.94]
       }
     }
   ]
