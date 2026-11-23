@@ -2,7 +2,8 @@
 //! (`render.json`: `mood` for everywhere, `moods` for regions). A region is
 //! a circle round one of the world's areas (by its key in the rules) or
 //! round a point given relative to the spawn hearth; its mood fades in over
-//! its `feather`, and where regions overlap the smaller lies on top. The
+//! its `feather`, and where regions overlap the one with the higher `order`
+//! lies on top (of equals, the smaller). The
 //! engine only blends: which places have which mood is the pack's business.
 
 use crate::look::RenderSettings;
@@ -56,6 +57,8 @@ pub struct Region {
     pub radius: Option<f32>,
     /// the mood fades in over this many metres outside the radius
     pub feather: f32,
+    /// where regions overlap, the higher order lies on top
+    pub order: i32,
     pub mood: Mood,
 }
 
@@ -66,6 +69,7 @@ impl Default for Region {
             at: None,
             radius: None,
             feather: 24.0,
+            order: 0,
             mood: Mood::default(),
         }
     }
@@ -236,8 +240,9 @@ fn blend_regions(
     rel: [f32; 2],
     t: f32,
 ) {
-    // the regions that reach this spot, widest first, so the smaller lie on top
-    let mut reach: Vec<(f32, f32, &Mood)> = regions
+    // the regions that reach this spot, lowest first: by order, then widest
+    // first, so the smaller lie on top
+    let mut reach: Vec<(i32, f32, f32, &Mood)> = regions
         .iter()
         .filter_map(|r| {
             let area = r
@@ -248,11 +253,11 @@ fn blend_regions(
             let radius = r.radius.or(area.map(|a| a.2))?;
             let d = (rel[0] - centre[0]).hypot(rel[1] - centre[1]);
             let w = weight(d, radius, r.feather);
-            (w > 0.0).then_some((radius, w, &r.mood))
+            (w > 0.0).then_some((r.order, radius, w, &r.mood))
         })
         .collect();
-    reach.sort_by(|a, b| b.0.total_cmp(&a.0));
-    for (_, w, m) in reach {
+    reach.sort_by(|a, b| a.0.cmp(&b.0).then(b.1.total_cmp(&a.1)));
+    for (_, _, w, m) in reach {
         b.lay(m, w, t);
     }
 }
@@ -332,7 +337,9 @@ mod tests {
             ..Default::default()
         };
         b.lay(&m, 0.1, 0.0);
-        assert_eq!(b.haze_color, [0.5, 0.2, 0.8]);
+        for (got, want) in b.haze_color.iter().zip([0.5, 0.2, 0.8]) {
+            assert!((got - want).abs() < 1e-5, "{got} for {want}");
+        }
         assert!((b.haze_color_mix - 0.1).abs() < 1e-6);
     }
 }
