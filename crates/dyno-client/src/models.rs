@@ -20,7 +20,10 @@ const STILL_SEED: f32 = 0.3;
 
 /// The held kind of what a look holds in its right hand.
 fn held_of(look: &Look) -> Option<String> {
-    look.weapon.and_then(|(k, _)| figure::weapon_held(k))
+    match &look.tool {
+        Some((kind, _)) => Some(kind.clone()),
+        None => look.weapon.and_then(|(k, _)| figure::weapon_held(k)),
+    }
 }
 
 /// How a person in `look` grips what they hold.
@@ -29,7 +32,10 @@ pub fn grip(look: &Look) -> Grip {
 }
 
 fn holding_of(look: &Look) -> Option<Holding> {
-    let (_, color) = look.weapon?;
+    let color = match &look.tool {
+        Some((_, c)) => *c,
+        None => look.weapon?.1,
+    };
     figure::holding(&held_of(look)?, color, 1, false, 0)
 }
 
