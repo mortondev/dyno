@@ -442,9 +442,9 @@ impl Town<'_> {
 
     fn lamp(&mut self, x: i32, z: i32) {
         self.stand(x, z);
-        if (1..=4).all(|y| self.get(x, y, z) == AIR) {
-            self.column(x, z, 1..=3, TIMBER_BEAM);
-            self.put(x, 4, z, LANTERN);
+        if (1..=3).all(|y| self.get(x, y, z) == AIR) {
+            self.column(x, z, 1..=2, TIMBER_BEAM);
+            self.put(x, 3, z, LANTERN);
         }
         self.lift = 0;
     }
@@ -509,11 +509,11 @@ impl Town<'_> {
                     cz + side[1] * (k - k.signum()),
                 );
                 self.stand(x, z);
-                self.column(x, z, 1..=2, STONE_BRICKS);
-                self.column(x, z, 3..=6, TIMBER_BEAM);
-                self.put(ax, 6, az, TIMBER_BEAM);
-                self.column(ax, az, 4..=5, RED_BANNER);
-                self.put(x, 7, z, LANTERN);
+                self.put(x, 1, z, STONE_BRICKS);
+                self.column(x, z, 2..=4, TIMBER_BEAM);
+                self.put(ax, 4, az, TIMBER_BEAM);
+                self.column(ax, az, 2..=3, RED_BANNER);
+                self.put(x, 5, z, LANTERN);
                 self.lift = 0;
             }
         }
@@ -706,8 +706,9 @@ impl Town<'_> {
         for i in 0..rise {
             let sx = x + dx * i;
             self.column(sx, z, y + 1..=y + 1 + i, block);
-            if i >= rise - 2 {
-                self.column(sx, z, y + 2 + i..=y + rise + 2, AIR);
+            // head room: two clear blocks over every step
+            if i >= rise - 3 {
+                self.column(sx, z, y + 2 + i..=y + rise.max(i + 3), AIR);
             }
         }
     }
@@ -729,34 +730,35 @@ impl Town<'_> {
             roof: RED_ROOF_TILES,
             floor: PLANKS,
         };
+        // two storeys of 3 m, floor to floor
         self.shell(&House {
             r,
-            h: 9,
+            h: 6,
             style,
             ridge_x: true,
             door: Some((Side::E, 0, Some(-1))),
-            beams: &[5],
-            windows: &[(2, 3), (7, 8)],
+            beams: &[3],
+            windows: &[(2, 2), (5, 5)],
         });
         // a second leaf: the door stands open in the middle
         self.column(-9, 1, 1..=2, WOODEN_DOOR);
         self.put(-9, 3, 1, TIMBER_BEAM);
         self.put(-8, 1, 1, AIR);
-        // the sign over the door, lanterns beside it, an attic window
-        self.put(-8, 6, 0, TIMBER_BEAM);
-        self.column(-8, 0, 4..=5, RED_BANNER);
+        // the sign over the door, lanterns beside it, attic windows
+        self.put(-8, 4, 0, TIMBER_BEAM);
+        self.put(-8, 3, 0, RED_BANNER);
         self.put(-8, 3, -2, LANTERN);
         self.put(-8, 3, 2, LANTERN);
-        self.put(-9, 12, 0, LEADED_WINDOW);
-        self.put(-21, 12, -2, LEADED_WINDOW);
-        self.put(-21, 12, 2, LEADED_WINDOW);
+        self.put(-9, 8, 0, LEADED_WINDOW);
+        self.put(-21, 8, -2, LEADED_WINDOW);
+        self.put(-21, 8, 2, LEADED_WINDOW);
         self.column(-8, -5, 1..=2, BARREL);
         self.put(-8, 1, 5, CRATE);
         self.put(-8, 1, -4, BARREL);
         // upper floor
-        self.fill([-20, 5, -4], [-10, 5, 4], PLANKS);
-        self.fireplace(-21, 0, 1, Self::ridge(11, 9) + 1);
-        self.stairs([-12, 0, 4], -1, 4, DARK_PLANKS);
+        self.fill([-20, 3, -4], [-10, 3, 4], PLANKS);
+        self.fireplace(-21, 0, 1, Self::ridge(11, 6) + 1);
+        self.stairs([-12, 0, 4], -1, 3, DARK_PLANKS);
         // the common room: counter, kitchen, casks, tables
         self.fill([-17, 1, -4], [-17, 1, -2], DARK_PLANKS);
         self.put(-18, 1, -2, DARK_PLANKS);
@@ -770,21 +772,22 @@ impl Town<'_> {
         for (x, z) in [(-12, -3), (-15, -2), (-12, 0), (-16, 2)] {
             self.table(x, 1, z);
         }
-        self.put(-14, 4, 0, LANTERN);
-        self.put(-18, 4, 2, LANTERN);
-        self.put(-11, 4, -3, LANTERN);
+        // lanterns hang from the beams of the floor above
+        self.put(-14, 2, 0, LANTERN);
+        self.put(-18, 2, 2, LANTERN);
+        self.put(-11, 2, -3, LANTERN);
         // the guest rooms upstairs
-        self.fill([-15, 6, -4], [-15, 8, -2], PLASTER);
-        self.fill([-15, 6, 0], [-15, 8, 1], PLASTER);
+        self.fill([-15, 4, -4], [-15, 5, -2], PLASTER);
+        self.fill([-15, 4, 0], [-15, 5, 1], PLASTER);
         for z in [-4, -2, 2] {
-            self.put(-20, 6, z, BED);
-            self.put(-19, 6, z, BED);
+            self.put(-20, 4, z, BED);
+            self.put(-19, 4, z, BED);
         }
-        self.put(-20, 6, 4, CHEST);
-        self.put(-16, 6, -4, CHEST);
-        self.put(-10, 6, -4, BOOKSHELF);
-        self.put(-10, 7, -4, LANTERN);
-        self.put(-18, 9, 0, LANTERN);
+        self.put(-20, 4, 4, CHEST);
+        self.put(-16, 4, -4, CHEST);
+        self.column(-10, -4, 4..=5, BOOKSHELF);
+        self.put(-20, 5, 0, LANTERN);
+        self.put(-10, 5, 0, LANTERN);
         // the forecourt
         self.pave_rect(Rect {
             x0: -8,
@@ -934,10 +937,10 @@ impl Town<'_> {
         };
         self.fill([r.x0, 0, r.z0], [r.x1, 0, 8], COBBLE);
         self.fill([r.x0, 0, 9], [r.x1, 0, r.z1], PLANKS);
-        self.fill([r.x0, 1, r.z0], [r.x1, 5, r.z1], AIR);
+        self.fill([r.x0, 1, r.z0], [r.x1, 3, r.z1], AIR);
         let back = Rect { z0: 9, ..r };
         for (x, z) in back.ring() {
-            for y in 1..=5 {
+            for y in 1..=3 {
                 let n = hash3(x, y, z, 9) % 10;
                 let b = if n == 0 && y <= 2 {
                     MOSSY
@@ -948,7 +951,7 @@ impl Town<'_> {
             }
         }
         for (x, z) in [(9, 13), (13, 13), (16, 11), (6, 11)] {
-            self.column(x, z, 2..=3, LEADED_WINDOW);
+            self.put(x, 2, z, LEADED_WINDOW);
             let (ox, oz) = if z == 13 {
                 (0, 1)
             } else if x == 16 {
@@ -960,37 +963,36 @@ impl Town<'_> {
         }
         // the open forge: pillars, a beam on top, low side walls
         for x in [6, 11, 16] {
-            self.column(x, 5, 1..=5, STONE_BRICKS);
+            self.column(x, 5, 1..=3, STONE_BRICKS);
         }
-        self.fill([6, 5, 5], [16, 5, 5], TIMBER_BEAM);
+        self.fill([6, 3, 5], [16, 3, 5], TIMBER_BEAM);
         for x in [6, 16] {
-            self.fill([x, 5, 5], [x, 5, 8], TIMBER_BEAM);
+            self.fill([x, 3, 5], [x, 3, 8], TIMBER_BEAM);
             self.fill([x, 1, 6], [x, 1, 8], STONE_BRICKS);
-            self.put(x, 5, 5, STONE_BRICKS);
+            self.put(x, 3, 5, STONE_BRICKS);
         }
-        self.roof(r, 5, true, style);
+        self.roof(r, 3, true, style);
         // the forge and its chimney
         self.put(8, 1, 8, BRAZIER);
         self.put(9, 1, 8, FURNACE);
         self.put(10, 1, 8, FURNACE);
-        self.column(9, 8, 2..=Self::ridge(9, 5) + 2, STONE_BRICKS);
+        self.column(9, 8, 2..=Self::ridge(9, 3) + 2, STONE_BRICKS);
         self.put(9, 1, 6, ANVIL);
         self.put(7, 1, 8, BARREL);
         self.put(15, 1, 6, CRATE);
         self.column(15, 7, 1..=2, CRATE);
         self.put(15, 1, 8, BARREL);
-        self.put(8, 4, 5, LANTERN);
-        self.put(14, 4, 5, LANTERN);
+        self.put(8, 2, 5, LANTERN);
+        self.put(14, 2, 5, LANTERN);
         // the room behind
         self.column(13, 9, 1..=2, AIR);
-        self.put(12, 4, 9, RED_BANNER);
-        self.put(12, 3, 9, RED_BANNER);
+        self.put(12, 2, 8, RED_BANNER);
         self.put(7, 1, 12, BED);
         self.put(8, 1, 12, BED);
         self.put(7, 1, 10, CHEST);
         self.put(15, 1, 12, CRAFTING_TABLE);
         self.put(15, 2, 12, LANTERN);
-        self.put(11, 1, 12, BOOKSHELF);
+        self.column(11, 12, 1..=2, BOOKSHELF);
         self.fill([10, 0, 10], [12, 0, 11], WOOL_RED);
         // the yard
         self.pave_rect(Rect {
@@ -1021,25 +1023,25 @@ impl Town<'_> {
         };
         self.shell(&House {
             r,
-            h: 4,
+            h: 3,
             style,
             ridge_x: true,
             door: Some((Side::E, 13, Some(12))),
             beams: &[],
-            windows: &[(2, 3)],
+            windows: &[(2, 2)],
         });
-        self.put(-6, 6, 13, LEADED_WINDOW);
-        self.fireplace(-16, 13, 1, Self::ridge(9, 4) + 1);
-        // books along the walls, low under the windows
+        self.put(-6, 5, 13, LEADED_WINDOW);
+        self.fireplace(-16, 13, 1, Self::ridge(9, 3) + 1);
+        // books along the walls, 2 m cases, low under the windows
         for x in -14..=-8 {
-            let top = if x == -14 || x == -8 { 1 } else { 3 };
+            let top = if x == -14 || x == -8 { 1 } else { 2 };
             self.column(x, 10, 1..=top, BOOKSHELF);
         }
         for x in -13..=-11 {
-            self.column(x, 16, 1..=3, BOOKSHELF);
+            self.column(x, 16, 1..=2, BOOKSHELF);
         }
-        self.column(-15, 10, 1..=3, BOOKSHELF);
-        self.column(-15, 16, 1..=3, BOOKSHELF);
+        self.column(-15, 10, 1..=2, BOOKSHELF);
+        self.column(-15, 16, 1..=2, BOOKSHELF);
         self.put(-8, 1, 16, BED);
         self.put(-9, 1, 16, BED);
         self.put(-7, 1, 16, CHEST);
@@ -1062,22 +1064,23 @@ impl Town<'_> {
         self.put(-5, 1, 16, BARREL);
     }
 
-    /// One market stall: four posts, a striped awning, goods on the counter.
+    /// One market stall: four 2 m posts, a striped awning at about 2.2 m, a
+    /// counter at the front with goods on it, more stock behind.
     fn stall(&mut self, x: i32, z: i32, cloth: BlockId, goods: [BlockId; 3]) {
         for (px, pz) in [(x, z), (x + 3, z), (x, z + 2), (x + 3, z + 2)] {
-            self.column(px, pz, 1..=3, TIMBER_BEAM);
+            self.column(px, pz, 1..=2, TIMBER_BEAM);
         }
         for dz in -1..=3 {
             for dx in 0..=3 {
                 let b = if dx % 2 == 0 { cloth } else { WOOL_WHITE };
-                self.put(x + dx, if dz == -1 || dz == 3 { 3 } else { 4 }, z + dz, b);
+                self.put(x + dx, 3, z + dz, b);
             }
         }
+        self.fill([x + 1, 1, z], [x + 2, 1, z], DARK_PLANKS);
+        self.put(x + 1, 2, z, goods[1]);
+        self.put(x + 2, 2, z, goods[2]);
         self.put(x + 1, 1, z + 2, goods[0]);
         self.put(x + 2, 1, z + 2, goods[1]);
-        self.put(x + 1, 1, z, goods[2]);
-        self.put(x + 2, 1, z, goods[0]);
-        self.put(x + 2, 2, z, goods[1]);
     }
 
     fn market(&mut self) {
@@ -1139,12 +1142,12 @@ impl Town<'_> {
         self.stand(road[0], road[1]);
         self.shell(&House {
             r,
-            h: 4,
+            h: 3,
             style,
             ridge_x,
             door: Some(door),
             beams: &[],
-            windows: &[(2, 3)],
+            windows: &[(2, 2)],
         });
         // bed, chest, stove and table in the corners; a lantern on the table
         let (x0, x1, z0, z1) = (r.x0 + 1, r.x1 - 1, r.z0 + 1, r.z1 - 1);
@@ -1183,7 +1186,7 @@ impl Town<'_> {
         } else {
             ((r.x0 + r.x1) / 2, r.z1 - 2)
         };
-        let top = Self::ridge(span, 4);
+        let top = Self::ridge(span, 3);
         self.column(cx, cz, top..=top + 1, STONE_BRICKS);
         self.lift = 0;
         self.pave_rect(path);
@@ -1387,36 +1390,28 @@ impl Town<'_> {
         self.lift = 0;
     }
 
-    /// A small tree on open grass.
+    /// A garden tree on open grass, at full size.
     fn tree(&mut self, x: i32, z: i32, birch: bool) {
         self.stand(x, z);
-        let clear = (1..=7).all(|y| self.get(x, y, z) == AIR)
+        let clear = (1..=8).all(|y| self.get(x, y, z) == AIR)
             && [[2, 0], [-2, 0], [0, 2], [0, -2]]
                 .iter()
-                .all(|d| self.get(x + d[0], 5, z + d[1]) == AIR);
+                .all(|d| self.get(x + d[0], 6, z + d[1]) == AIR);
         if !clear || self.get(x, 0, z) != GRASS {
             self.lift = 0;
             return;
         }
-        let (log, leaf) = if birch {
-            (BIRCH_LOG, BIRCH_LEAVES)
+        let kind = if birch {
+            TreeKind::Birch
         } else {
-            (LOG, LEAVES)
+            TreeKind::Oak
         };
-        for dy in 4..=7i32 {
-            let rad: i32 = if dy >= 6 { 1 } else { 2 };
-            for dz in -rad..=rad {
-                for dx in -rad..=rad {
-                    let corner = dx.abs() == rad && dz.abs() == rad;
-                    if !corner
-                        || dy == 4 && rad == 2 && hash3(x + dx, dy, z + dz, 2).is_multiple_of(2)
-                    {
-                        self.put(x + dx, dy, z + dz, leaf);
-                    }
-                }
+        for b in tree_shape(kind, hash(x, z, 91)) {
+            let [dx, dy, dz] = b.at;
+            if b.wood || self.get(x + dx, dy, z + dz) == AIR {
+                self.put(x + dx, dy, z + dz, b.block);
             }
         }
-        self.column(x, z, 1..=5, log);
         self.lift = 0;
     }
 

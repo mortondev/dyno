@@ -405,6 +405,141 @@ pub fn emission(b: BlockId) -> u8 {
     block(b).emission
 }
 
+/// The kinds of tree the world grows.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum TreeKind {
+    /// a broad oak, 12 to 16 m
+    Oak,
+    /// a slim birch, about 12 m
+    Birch,
+    /// a tall pine, 15 to 20 m
+    Pine,
+    /// a gaunt oak with sparse dark needles (the barrow wood)
+    Dark,
+    /// a dead snag with a broken limb or two, 8 to 10 m
+    Dead,
+}
+
+/// One block of a tree, relative to the ground block it grows from.
+#[derive(Clone, Copy, Debug)]
+pub struct TreeBlock {
+    pub at: [i32; 3],
+    pub block: BlockId,
+    /// trunk and limbs (replace what is there); leaves only fill air
+    pub wood: bool,
+}
+
+/// A full-grown tree at life size (1 block = 1 m): the blocks of a tree
+/// standing on the ground block at the origin. `r` varies it.
+pub fn tree_shape(kind: TreeKind, r: u32) -> Vec<TreeBlock> {
+    let mut out = Vec::new();
+    let wood = |out: &mut Vec<TreeBlock>, at: [i32; 3], block: BlockId| {
+        out.push(TreeBlock {
+            at,
+            block,
+            wood: true,
+        })
+    };
+    let leaf = |out: &mut Vec<TreeBlock>, at: [i32; 3], block: BlockId| {
+        out.push(TreeBlock {
+            at,
+            block,
+            wood: false,
+        })
+    };
+    let jitter = |x: i32, y: i32, z: i32| (hash(x * 7 + y, z * 13 - y, r) % 100) as f32 / 100.0;
+    match kind {
+        TreeKind::Oak | TreeKind::Birch | TreeKind::Dark => {
+            let (log, leaves, h, rad, ry) = match kind {
+                TreeKind::Birch => (BIRCH_LOG, BIRCH_LEAVES, 11 + (r >> 8) as i32 % 3, 2.7, 4.2),
+                TreeKind::Dark => (LOG, PINE_LEAVES, 11 + (r >> 8) as i32 % 3, 3.6, 3.6),
+                _ => (
+                    LOG,
+                    LEAVES,
+                    12 + (r >> 8) as i32 % 5,
+                    3.8 + ((r >> 12) % 3) as f32 * 0.5,
+                    3.8,
+                ),
+            };
+            for y in 1..=h - 2 {
+                wood(&mut out, [0, y, 0], log);
+            }
+            // the crown: a lumpy egg round the top of the trunk
+            let cy = h as f32 - ry - 0.5;
+            let ri = rad.ceil() as i32;
+            for y in (cy - ry).floor() as i32..=h {
+                for dz in -ri..=ri {
+                    for dx in -ri..=ri {
+                        let (a, b) = (
+                            (dx * dx + dz * dz) as f32 / (rad * rad),
+                            (y as f32 - cy) / ry,
+                        );
+                        let d = a + b * b;
+                        let edge = 0.78 + 0.32 * jitter(dx, y, dz);
+                        if d > edge || (dx == 0 && dz == 0 && y <= h - 2) {
+                            continue;
+                        }
+                        // the dark wood keeps only a few of its needles
+                        if kind == TreeKind::Dark && jitter(dz, y, dx) < 0.45 {
+                            continue;
+                        }
+                        leaf(&mut out, [dx, y, dz], leaves);
+                    }
+                }
+            }
+        }
+        TreeKind::Pine => {
+            let h = 15 + (r >> 8) as i32 % 6;
+            for y in 1..=h - 1 {
+                wood(&mut out, [0, y, 0], LOG);
+            }
+            // a cone of tiers, widest low down
+            let base = 4;
+            for y in base..=h + 1 {
+                let t = (h + 1 - y) as f32 / (h + 1 - base) as f32;
+                let mut rad = 0.6 + 3.2 * t;
+                if (h + 1 - y) % 3 == 0 {
+                    rad *= 0.72;
+                }
+                let ri = rad.ceil() as i32;
+                for dz in -ri..=ri {
+                    for dx in -ri..=ri {
+                        if (dx == 0 && dz == 0 && y < h)
+                            || (dx * dx + dz * dz) as f32
+                                > rad * rad * (0.85 + 0.3 * jitter(dx, y, dz))
+                        {
+                            continue;
+                        }
+                        leaf(&mut out, [dx, y, dz], PINE_LEAVES);
+                    }
+                }
+            }
+        }
+        TreeKind::Dead => {
+            let h = 8 + (r >> 8) as i32 % 3;
+            for y in 1..=h {
+                wood(&mut out, [0, y, 0], LOG);
+            }
+            for (n, (dx, dz)) in [(1, 0), (0, 1), (-1, 0), (0, -1)].into_iter().enumerate() {
+                if (r >> (12 + n)) & 1 == 0 {
+                    continue;
+                }
+                let y = h - 2 - (n as i32 % 3);
+                wood(&mut out, [dx, y, dz], LOG);
+                if (r >> (16 + n)) & 1 == 1 {
+                    wood(&mut out, [2 * dx, y + 1, 2 * dz], LOG);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// The highest block of a tree above its ground.
+pub fn tree_height(blocks: &[TreeBlock]) -> i32 {
+    blocks.iter().map(|b| b.at[1]).max().unwrap_or(0)
+}
+
 const MAGIC: &[u8; 5] = b"DYNW1";
 
 #[derive(Clone)]
@@ -545,12 +680,13 @@ impl World {
             for x in 2..sx as i32 - 2 {
                 let r = hash(x, z, seed ^ 0x7ee5);
                 let f = forest(x, z, seed);
+                // life-size trees stand further apart than the old small ones
                 let chance = if f > 0.62 {
-                    9
+                    14
                 } else if f > 0.45 {
-                    40
+                    55
                 } else {
-                    400
+                    500
                 };
                 if !r.is_multiple_of(chance as u32) {
                     continue;
@@ -560,18 +696,19 @@ impl World {
                     continue;
                 }
                 // keep trees apart
-                if (-2..=2).any(|dz| {
-                    (-2..=2).any(|dx| matches!(w.get(x + dx, h + 1, z + dz), LOG | BIRCH_LOG))
+                if (-3..=3).any(|dz| {
+                    (-3..=3).any(|dx| matches!(w.get(x + dx, h + 1, z + dz), LOG | BIRCH_LOG))
                 }) {
                     continue;
                 }
-                if h > snow_line - 16 {
-                    w.pine(x, h, z, r);
+                let kind = if h > snow_line - 16 {
+                    TreeKind::Pine
                 } else if (r >> 12).is_multiple_of(3) {
-                    w.round_tree(x, h, z, r, BIRCH_LOG, BIRCH_LEAVES);
+                    TreeKind::Birch
                 } else {
-                    w.round_tree(x, h, z, r, LOG, LEAVES);
-                }
+                    TreeKind::Oak
+                };
+                w.grow_tree(x, h, z, kind, r);
             }
         }
         // berry bushes at forest edges
@@ -685,51 +822,20 @@ impl World {
         }
     }
 
-    fn round_tree(&mut self, x: i32, h: i32, z: i32, r: u32, log: BlockId, leaves: BlockId) {
-        let trunk = 4 + (r >> 8) as i32 % 3;
-        for y in 1..=trunk {
-            self.set(x, h + y, z, log);
+    /// Grow a tree on the ground block (x, h, z), if it fits under the sky.
+    fn grow_tree(&mut self, x: i32, h: i32, z: i32, kind: TreeKind, r: u32) {
+        let shape = tree_shape(kind, r);
+        if h + tree_height(&shape) >= self.size[1] as i32 - 1 {
+            return;
         }
-        for dy in -2..=1i32 {
-            let rad: i32 = if dy == 1 { 1 } else { 2 };
-            for dz in -rad..=rad {
-                for dx in -rad..=rad {
-                    if dx.abs() == rad
-                        && dz.abs() == rad
-                        && (dy == 1 || hash(x + dx, z + dz, dy as u32).is_multiple_of(2))
-                    {
-                        continue;
-                    }
-                    self.put_if_air(x + dx, h + trunk + dy, z + dz, leaves);
-                }
-            }
-        }
-    }
-
-    fn pine(&mut self, x: i32, h: i32, z: i32, r: u32) {
-        let trunk = 6 + (r >> 8) as i32 % 4;
-        for y in 1..=trunk {
-            self.set(x, h + y, z, LOG);
-        }
-        let mut rad: i32 = 2;
-        for y in (3..=trunk + 1).rev().step_by(1) {
-            let ry = if (trunk + 1 - y) % 2 == 0 {
-                rad.min(1)
+        for b in shape {
+            let [dx, dy, dz] = b.at;
+            if b.wood {
+                self.set(x + dx, h + dy, z + dz, b.block);
             } else {
-                rad
-            };
-            for dz in -ry..=ry {
-                for dx in -ry..=ry {
-                    if dx.abs() + dz.abs() <= ry + 1 {
-                        self.put_if_air(x + dx, h + y, z + dz, PINE_LEAVES);
-                    }
-                }
-            }
-            if (trunk + 1 - y) % 3 == 2 && rad < 3 {
-                rad += 1;
+                self.put_if_air(x + dx, h + dy, z + dz, b.block);
             }
         }
-        self.put_if_air(x, h + trunk + 2, z, PINE_LEAVES);
     }
 
     /// Highest solid block in a column, or -1.
