@@ -473,6 +473,34 @@ pub struct Mesh {
 }
 
 impl Mesh {
+    /// Move every vertex (and the shadow core's) through `f`, in voxel units
+    /// from the part's pivot, and refresh the bounds used to cull faces.
+    /// Gentle reshaping only: faces keep the direction they were made with.
+    pub fn reshape(&mut self, f: &dyn Fn([f32; 3]) -> [f32; 3]) {
+        for v in &mut self.verts {
+            v.pos = f(v.pos);
+        }
+        for (i, g) in self.groups.iter_mut().enumerate() {
+            let axis = i / 2;
+            let run = &self.verts[g.start as usize..g.end as usize];
+            if run.is_empty() {
+                continue;
+            }
+            g.lo = run.iter().map(|v| v.pos[axis]).fold(f32::MAX, f32::min);
+            g.hi = run.iter().map(|v| v.pos[axis]).fold(f32::MIN, f32::max);
+        }
+        if let Some(core) = &mut self.core {
+            core.reshape(f);
+        }
+    }
+
+    /// Lowest and highest vertex along y.
+    pub fn y_range(&self) -> (f32, f32) {
+        self.verts.iter().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
+            (lo.min(v.pos[1]), hi.max(v.pos[1]))
+        })
+    }
+
     pub fn quads(&self) -> usize {
         self.verts.len() / 6
     }

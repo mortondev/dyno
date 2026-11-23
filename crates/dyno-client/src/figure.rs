@@ -380,6 +380,28 @@ struct PartSpec {
     glow: bool,
     #[serde(default)]
     light: Option<f32>,
+    /// reshape the part: proportions are data (slimmer limbs, a waist)
+    #[serde(default)]
+    shape: Option<ShapeSpec>,
+}
+
+/// How a part's mesh is reshaped about its pivot, in the rig's data.
+#[derive(Clone, Copy, Debug, Deserialize)]
+struct ShapeSpec {
+    /// scale across (x), along (y) and front to back (z)
+    #[serde(default = "ones")]
+    scale: [f32; 3],
+    /// width (x and z) at the part's top and bottom, as factors: a limb that
+    /// narrows to the wrist, a torso broad at the shoulders and slim at the waist
+    #[serde(default)]
+    taper: Option<[f32; 2]>,
+    /// taper front to back too (false: only side to side)
+    #[serde(default = "yes")]
+    taper_depth: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -437,6 +459,7 @@ struct Part {
     held: bool,
     glow: bool,
     light: Option<f32>,
+    shape: Option<ShapeSpec>,
 }
 
 struct Rig {
@@ -564,6 +587,7 @@ fn compile_rig(sk: &SkeletonSpec, spec: &RigSpec, grids: &[GridSpec]) -> Result<
             held: p.held,
             glow: p.glow,
             light: p.light,
+            shape: p.shape,
         });
     }
     Ok(Rig {
@@ -1293,7 +1317,11 @@ fn build(fig: &Figure, look: &Look) -> Built {
                         return Mesh::default();
                     }
                     let pivot = p.pivot.get(look);
-                    grids[p.grid].mesh(p.part, pivot.into())
+                    let mut mesh = grids[p.grid].mesh(p.part, pivot.into());
+                    if let Some(s) = p.shape {
+                        reshape(&mut mesh, s);
+                    }
+                    mesh
                 })
                 .collect(),
             // no rig: the first part of the first grid, about its origin
@@ -1301,6 +1329,25 @@ fn build(fig: &Figure, look: &Look) -> Built {
         })
         .collect();
     Built { lods }
+}
+
+/// Apply a part's shape from the rig: scale, then a taper from top to bottom.
+fn reshape(mesh: &mut Mesh, s: ShapeSpec) {
+    let (lo, hi) = mesh.y_range();
+    let span = (hi - lo).max(1e-3);
+    let [sx, sy, sz] = s.scale;
+    let f = move |p: [f32; 3]| {
+        let (wx, wz) = match s.taper {
+            Some([top, bottom]) => {
+                let t = (hi - p[1]) / span;
+                let w = top + (bottom - top) * t;
+                (w, if s.taper_depth { w } else { 1.0 })
+            }
+            None => (1.0, 1.0),
+        };
+        [p[0] * sx * wx, p[1] * sy, p[2] * sz * wz]
+    };
+    mesh.reshape(&f);
 }
 
 fn built(name: &str, fig: &Figure, look: &Look) -> Rc<Built> {

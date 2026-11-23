@@ -235,3 +235,26 @@ carries no figure content; everything below comes through the asset store.
   crossfades as before; a grey stand-in is drawn until a figure's files
   arrive. `Anim` stays the list of standard names; the pack test
   `every_figure_has_every_animation` replaces the compile-time check.
+
+## Proportions are data (part shapes)
+
+A rig part may carry a `shape`, applied to its mesh about the part's pivot:
+
+```json
+{"part": "thigh.r", "bone": "thigh.r", "pivot": [5, 26, 0],
+ "shape": {"scale": [1, 1.15, 1], "taper": [0.80, 0.62], "taper_depth": true}}
+```
+
+- `scale`: across, along and front to back.
+- `taper`: width at the part's top and bottom (x, and z unless
+  `taper_depth` is false), linear in between.
+
+Human proportions (2026-11-23 review: from Minecraft/Roblox blocks to
+Warcraft-style heroic figures):
+- limbs taper (thigh 0.80 → 0.62, forearm 0.54 → 0.44, so the hands are smaller);
+- the torso is broad at the shoulders and narrow at the waist (1.0 → 0.72);
+- legs are 15% longer;
+- the head is about 1/7.5 of the height (scale 0.47 × 0.52 × 0.50);
+- `per_block` on the person figure (34.19) keeps the overall height at 1.78 m.
+
+Artists still edit the `.vox`; proportions are tuned here without touching it.
