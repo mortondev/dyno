@@ -256,10 +256,12 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
     g.load_world(&j.world, &light);
     let load_ms = load_start.elapsed().as_secs_f64() * 1e3;
     let t = o.time.unwrap_or(server_time);
-    let sky = crate::app::sky(t);
     let mut player = Player::new(o.pos.unwrap_or(j.spawn));
     player.yaw = o.yaw;
     player.pitch = o.pitch;
+    // the sky of the place: its mood is the pack's (mood.rs)
+    crate::mood::set_world(j.hearth, &j.content.areas);
+    let sky = crate::sky::sky_at(t, Some(player.eye()));
     let far = 160.0;
     let vp = player.view_proj(o.width as f32 / o.height as f32, 75.0, far);
     let mut boxes = Vec::new();

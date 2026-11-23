@@ -1117,44 +1117,11 @@ fn pick_entity(p: &Play) -> Option<u32> {
     best.map(|(id, _)| id)
 }
 
-/// Sky, sun and light for a time of day: 0.0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight.
+/// Sky, sun and light for a time of day (0.0 sunrise, 0.25 noon, 0.5 sunset,
+/// 0.75 midnight) in no particular place: the title screen and model sheets.
+/// In the world, `sky::sky_at` adds the mood of where you stand.
 pub(crate) fn sky(t: f32) -> render::Sky {
-    let a = t * std::f32::consts::TAU;
-    let e = a.sin();
-    let sun = Vec3::new(a.cos(), e, 0.3).normalize();
-    let k = ((e + 0.1) / 0.42).clamp(0.0, 1.0);
-    let k = k * k * (3.0 - 2.0 * k);
-    let g = (-(e / 0.17).powi(2)).exp();
-    let lerp = |a: [f32; 3], b: [f32; 3], t: f32| {
-        [
-            a[0] + (b[0] - a[0]) * t,
-            a[1] + (b[1] - a[1]) * t,
-            a[2] + (b[2] - a[2]) * t,
-        ]
-    };
-    let add = |a: [f32; 3], b: [f32; 3], t: f32| {
-        [
-            (a[0] + b[0] * t).min(1.0),
-            (a[1] + b[1] * t).min(1.0),
-            (a[2] + b[2] * t).min(1.0),
-        ]
-    };
-    // the colours come from the pack's render settings
-    let p = crate::look::settings().sky;
-    let mut top = lerp(p.night_top, p.day_top, k);
-    let mut horizon = lerp(p.night_horizon, p.day_horizon, k);
-    horizon = lerp(horizon, p.sunset_horizon, g * 0.75);
-    top = add(top, p.sunset_top, g * 0.6);
-    let mut light = lerp(p.night_light, p.day_light, k);
-    light = lerp(light, p.sunset_light, g * 0.55);
-    render::Sky {
-        top,
-        horizon,
-        light,
-        sun_dir: sun.into(),
-        stars: 1.0 - k,
-        cover: 0.0,
-    }
+    crate::sky::sky_at(t, None)
 }
 
 /// Weather on a sky: clouds close in, colours grey out, light dims.
@@ -1511,6 +1478,8 @@ fn land_ready(p: &Play, gfx: &Gfx, at: Vec3, r: f32) -> bool {
 
 /// Play state for a freshly joined server.
 fn new_play(j: Joined) -> Play {
+    // the moods of its places (mood.rs)
+    crate::mood::set_world(j.hearth, &j.content.areas);
     let rpg_world = j.content.world.protected;
     // worked out on the world thread and copied back as it changes
     let light = Light::blank(&j.world);
@@ -2637,7 +2606,10 @@ impl App {
         // time of day (also drawn behind the menu)
         let sky_now = match &self.screen {
             Screen::Playing(p) => weathered(
-                sky(p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds),
+                crate::sky::sky_at(
+                    p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds,
+                    Some(p.player.eye()),
+                ),
                 p.weather.0,
                 p.weather_mix,
             ),
@@ -6217,7 +6189,7 @@ pub fn shot_with_ui(
                 p.player.eye().into(),
                 p.hearth.unwrap_or_default(),
             );
-            let sky_now = sky(p.time);
+            let sky_now = crate::sky::sky_at(p.time, Some(p.player.eye()));
             let out = fctx.run(egui::RawInput::default(), |_| {});
             gfx.frame(
                 Some((vp, p.player.eye(), see)),
@@ -6432,7 +6404,11 @@ pub fn shot_with_ui(
     }
     let t = time.unwrap_or(p.time);
     p.time = t;
-    let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
+    let sky_now = weathered(
+        crate::sky::sky_at(t, Some(p.player.eye())),
+        p.weather.0,
+        p.weather_mix,
+    );
     let load_ms = started.elapsed().as_secs_f64() * 1e3;
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
     let far = if p.far.is_empty() { 160.0 } else { FAR_SEE };

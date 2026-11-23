@@ -198,6 +198,31 @@ when one of them is replaced.
 
 ## 3. Formats
 
+- **Render settings** (`render.json`; parsed by `look.rs`, every part
+  optional, neutral when left out). Besides leaves, ground tone, the grade
+  and water:
+  - `sky`: the palette through the day, with a `dusk` phase after sunset;
+  - `light` (`atmos.rs`): sun tint, sky light by day and night, lamp light,
+    glowing blocks (above 1 they bloom), rim light, shadow strength, the
+    moon's path;
+  - `atmosphere`: aerial haze (start, density, colours) and fog in low
+    ground (height, falloff, thicker at dawn);
+  - `dome` (`sky.rs`): sun, moon, stars, cloud cells and the far ridges
+    beyond the edge of the world;
+  - `post` (`post.rs`): exposure, bloom, ambient occlusion;
+  - `mood` and `moods` (`mood.rs`): how a place tints all of the above. A
+    region is a circle round an area of the rules (`"area": "<key>"`) or a
+    point relative to the hearth (`at`, `radius`), with a `feather` to fade
+    over and an `order` where regions overlap. A mood may also pull the
+    hour of the sky towards its own (`time`, `time_pull`): only the look
+    moves, the clock stays the server's.
+
+  The engine draws the world into a float picture, with three shadow
+  cascades (`shadows.rs`), then occlusion, bloom and the grade. The
+  player's `graphics` setting (0 low .. 3 ultra, default 2;
+  `DYNO_GRAPHICS=low|medium|high|ultra` overrides it) sets the shadow map
+  size and whether occlusion and bloom run.
+
 - **Blocks** (`blocks.json`): per block id
   - name, solid, opaque, light emitted, material (sounds)
   - textures per face (pack paths)
