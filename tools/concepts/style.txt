@@ -10,4 +10,13 @@ SCALE (World of Warcraft proportions; people are 1.8 m tall and every other size
 STYLE: Cube World's clean colourful voxels and soft bright lighting with World of Warcraft's art direction (heroic architecture, readable landmarks, a signature colour mood per zone). Varied tree species and sizes; grass and flowers as small voxel tufts.
 LIFE, REALISTICALLY: besides the player's character, a few other players and NPCs at most (slender heroic proportions, not chibi, oversized shoulder armour and weapons), a couple of creatures where they would roam, quest givers marked by a single small gold "!" above the head, light ambient effects (chimney smoke, a few birds or fireflies). Not a crowd.
 One clear focal landmark; calm open space around it; one coherent season per zone.
+CONSISTENCY (match the approved reference screenshots exactly in these respects):
+- camera low: about 3 m above the ground and 7 to 8 m behind the player's character; the character is large in frame (about one sixth of the image height), in the lower middle, standing on the path, seen from behind;
+- a road or path leads from the character's feet toward the focal landmark 40 to 80 m away; the landmark fills about a quarter to a third of the image height;
+- roads about 4 to 6 m wide (never a huge empty plaza or a giant cobbled field); a town square is a modest cobbled space bordered by buildings, stalls and trees;
+- framing tree trunks or canopy at one or both frame edges; a rich foreground of rocks, grass tufts, flowers or a fence;
+- other figures sized consistently with distance;
+- background layered: forest, rolling hills, then mountains fading into blue haze; horizon about one third down from the top;
+- the same voxel size everywhere (ground voxels about 25 cm, leaf clumps about 50 cm) and the same rendering, lighting and colour treatment as the approved images.
+THE VALE: a temperate valley like Elwynn Forest. Only oaks, birches, pines, willows, fruit and blossom trees; never palm trees or tropical plants. No castles, cities, keeps or fortresses anywhere on the horizon or in the distance: the distance is only forests, hills, ridges and mountains.
 No user interface, no text, no watermark. Wide 16:9.
