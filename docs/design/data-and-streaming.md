@@ -251,6 +251,15 @@ when one of them is replaced.
   blocks trees are made of) and `areas` (per area key: the `blocks` that
   turn, and `tones` with the `share` of trees each takes: autumn, blossom).
   Which cells hold leaves stays the world's business.
+  - `near`: crowns are drawn in clumps within this many metres of the
+    camera; beyond it a block of leaves is one cube (a quarter of the
+    faces or fewer). The world thread remeshes a section when the camera
+    brings it across the line (with 8 m of slack either way). The player's
+    `leaf_detail` setting (0–4; `DYNO_LEAVES` for tools) scales the
+    distance; 0 draws every crown coarse.
+  - `grain`, `grain_vary`: seen close (under 36 m), each face of a cube
+    breaks into `grain` squares a side of slightly different brightness, so
+    a crown at the edge of the frame keeps its detail.
 
 ## 4. World streaming
 
