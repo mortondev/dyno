@@ -18,7 +18,7 @@ use glam::Vec3;
 
 const N: i32 = SECTION;
 /// Cells read around the section.
-const PAD: i32 = 3;
+const PAD: i32 = 4;
 const G: usize = (N + 2 * PAD) as usize;
 /// Grid corners -1..=17 on each axis.
 const LV: usize = (N + 3) as usize;
@@ -229,8 +229,8 @@ impl Grid {
     /// A cell counts when it has solid ground under it, nothing built on
     /// top, other ground beside it and at most one open side (so low walls
     /// and the tops of pillars stay built). Reads one cell round each cell
-    /// it changes, so the cells -2..N+2 are decided the same way by every
-    /// section that holds them.
+    /// it changes, so every cell the meshers read (-3..N+3) is decided the
+    /// same way by every section that holds it.
     fn pave(&mut self) {
         let lut = flags();
         // props and posts may stand on paving; anything else on it is a wall
@@ -238,9 +238,9 @@ impl Grid {
             lut[b as usize] & F_OPAQUE != 0 && !is_paving(b) && !crate::detail::stands_on_paving(b)
         };
         let mut set = Vec::new();
-        for y in -2..N + 2 {
-            for z in -2..N + 2 {
-                for x in -2..N + 2 {
+        for y in -3..N + 3 {
+            for z in -3..N + 3 {
+                for x in -3..N + 3 {
                     let c = at(x, y, z);
                     if !is_paving(self.ids[c]) {
                         continue;
@@ -274,9 +274,9 @@ impl Grid {
     /// faces take the light of the brightest open cell beside them.
     fn patch_light(&mut self, light: &Light) {
         self.patch = vec![[0, 0]; G * G * G];
-        for y in -2..N + 2 {
-            for z in -2..N + 2 {
-                for x in -2..N + 2 {
+        for y in -3..N + 3 {
+            for z in -3..N + 3 {
+                for x in -3..N + 3 {
                     let c = at(x, y, z);
                     if self.fl[c] & (F_DETAIL | F_DARK) != F_DETAIL | F_DARK {
                         continue;
@@ -918,16 +918,9 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                 }
                 let water = b == w::WATER;
                 let surface = water && g.fl[c + DY] & F_WATER == 0;
-                let bevel = if tr || emissive || water {
-                    0.0
-                } else {
-                    match w::block(b).material {
-                        w::Material::Stone => 0.06,
-                        w::Material::Cloth => 0.05,
-                        w::Material::Wood => 0.035,
-                        _ => 0.04,
-                    }
-                };
+                // one size for every block, so a chamfer runs on unbroken
+                // from one block to the next
+                let bevel = if bevels(g, c) { BEVEL } else { 0.0 };
                 for (n, u, v, shade) in FACES {
                     let nc = step(c, n);
                     if g.fl[nc] & F_OPAQUE != 0 || (tr && g.ids[nc] == b) {
@@ -1079,6 +1072,37 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                                 vert(add(pi, e, bevel), nrm, li, bli, sli, uv(ui2, vi2)),
                             ];
                             out.extend([q[0], q[1], q[2], q[0], q[2], q[3]]);
+                            // where the chamfer stops against a solid block that
+                            // does not carry it on, close the notch it leaves
+                            for (k, p, l, bl, sl, t) in [(i, pi, li, bli, sli, uv(ui, vi)), (j, pj, lj, blj, slj, uv(uj, vj))] {
+                                let (su, sv) = QUAD[k];
+                                let end = if eu_side {
+                                    [sv * v[0], sv * v[1], sv * v[2]]
+                                } else {
+                                    [su * u[0], su * u[1], su * u[2]]
+                                };
+                                let q = step(c, end);
+                                if g.fl[q] & F_OPAQUE == 0 {
+                                    continue;
+                                }
+                                let carries = bevels(g, q)
+                                    && g.fl[step(q, n)] & F_OPAQUE == 0
+                                    && g.fl[step(q, e)] & F_OPAQUE == 0;
+                                if carries {
+                                    continue;
+                                }
+                                let corner = [
+                                    p[0] + e[0] as f32 * bevel,
+                                    p[1] + e[1] as f32 * bevel,
+                                    p[2] + e[2] as f32 * bevel,
+                                ];
+                                let nn = [-end[0] as f32, -end[1] as f32, -end[2] as f32];
+                                out.extend([
+                                    vert(p, nn, l, bl, sl, t),
+                                    vert(corner, nn, l, bl, sl, t),
+                                    vert(add(p, e, bevel), nn, l, bl, sl, t),
+                                ]);
+                            }
                         }
                         // corner triangles where two bevels meet
                         for (i, (su, sv)) in QUAD.into_iter().enumerate() {
@@ -1107,6 +1131,31 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
             }
         }
     }
+}
+
+/// How far the convex edges of built cubes are chamfered.
+const BEVEL: f32 = 0.05;
+
+#[cfg(test)]
+thread_local! {
+    /// Tests of the bare skin turn the chamfers off: where a chamfered
+    /// block meets one without, its edges meet in T-junctions.
+    static NO_BEVEL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// True for a cube the cube mesher draws with chamfered edges: built,
+/// opaque, not glowing.
+fn bevels(g: &Grid, c: usize) -> bool {
+    #[cfg(test)]
+    if NO_BEVEL.with(|n| n.get()) {
+        return false;
+    }
+    let f = g.fl[c];
+    let b = g.ids[c];
+    f & (F_PIN | F_OPAQUE) == F_PIN | F_OPAQUE
+        && f & (F_TERRAIN | F_LEAVES | F_WATER) == 0
+        && w::block(b).alpha >= 1.0
+        && w::emission(b) == 0
 }
 
 /// Index in `FACES` of the face with this normal.
@@ -1434,7 +1483,9 @@ mod tests {
 
     #[test]
     fn the_skin_has_no_holes() {
+        NO_BEVEL.with(|n| n.set(true));
         let geos = all_sections(&lumpy());
+        NO_BEVEL.with(|n| n.set(false));
         let mut edges: HashMap<([u32; 3], [u32; 3]), u32> = HashMap::new();
         let mut triangles = 0;
         for geo in &geos {
@@ -1560,5 +1611,84 @@ mod tests {
         // in the air: untouched
         let air = Vec3::new(15.9, 11.5, 16.5);
         assert_eq!(g.feet(&world, air), air);
+    }
+
+    /// A small world with Hearthstead built on it: roofs, timber, props,
+    /// paving and pillars.
+    fn town() -> World {
+        let mut world = World::generate([128, 64, 128], 7);
+        let hearth = world.ensure_spawn_hearth(None);
+        w::village::build_hearthstead(&mut world, hearth);
+        world
+    }
+
+    #[test]
+    fn detail_shapes_agree_across_sections() {
+        // how a block is drawn (and whether it hides its neighbours) must
+        // not depend on which section is looking at it
+        let world = town();
+        let light = Light::new(&world);
+        let (mut detail, mut compared) = (0, 0);
+        for sy in 0..4 {
+            for sz in 0..8 {
+                for sx in 0..8 {
+                    let a = Grid::load(&world, &light, [sx * N, sy * N, sz * N]);
+                    for (dx, dy, dz) in [(1, 0, 0), (0, 1, 0), (0, 0, 1)] {
+                        let (nx, ny, nz) = (sx + dx, sy + dy, sz + dz);
+                        if nx >= 8 || ny >= 4 || nz >= 8 {
+                            continue;
+                        }
+                        let b = Grid::load(&world, &light, [nx * N, ny * N, nz * N]);
+                        // cells both grids decide: two either side of the border
+                        for y in -3..N + 3 {
+                            for z in -3..N + 3 {
+                                for x in -3..N + 3 {
+                                    let (bx, by, bz) = (x - dx * N, y - dy * N, z - dz * N);
+                                    if !(-3..N + 3).contains(&bx)
+                                        || !(-3..N + 3).contains(&by)
+                                        || !(-3..N + 3).contains(&bz)
+                                    {
+                                        continue;
+                                    }
+                                    let fa = a.fl[at(x, y, z)];
+                                    let fb = b.fl[at(bx, by, bz)];
+                                    assert_eq!(
+                                        fa,
+                                        fb,
+                                        "block {:?} decided differently",
+                                        [a.o[0] + x, a.o[1] + y, a.o[2] + z]
+                                    );
+                                    compared += 1;
+                                    detail += (fa & F_DETAIL != 0) as u32;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(compared > 10_000 && detail > 200, "{compared} cells, {detail} detail");
+    }
+
+    #[test]
+    fn detail_blocks_mesh_and_light() {
+        // every section of the town meshes, the detail shapes make
+        // triangles, and none of their vertices is black or broken
+        let world = town();
+        let light = Light::new(&world);
+        let mut tris = 0;
+        for sy in 0..4 {
+            for sz in 0..8 {
+                for sx in 0..8 {
+                    let geo = mesh(&world, &light, sx, sy, sz);
+                    for v in geo.opaque.iter().chain(&geo.trans) {
+                        assert!(v.pos.iter().chain(&v.normal).all(|f| f.is_finite()));
+                    }
+                    assert_eq!(geo.opaque.len() % 3, 0);
+                    tris += geo.opaque.len() / 3;
+                }
+            }
+        }
+        assert!(tris > 50_000, "{tris} triangles");
     }
 }

@@ -273,9 +273,9 @@ fn pillar_free(g: &Grid, c: usize) -> bool {
 /// loaded grid, for the cells whose faces and corners the section uses.
 pub(crate) fn classify(g: &mut Grid) {
     let mut thin = Vec::new();
-    for y in -2..N + 2 {
-        for z in -2..N + 2 {
-            for x in -2..N + 2 {
+    for y in -3..N + 3 {
+        for z in -3..N + 3 {
+            for x in -3..N + 3 {
                 let c = at(x, y, z);
                 if g.fl[c] & F_DETAIL == 0 {
                     continue;
@@ -505,7 +505,7 @@ impl Kit<'_> {
             hi = hi.max(*p);
         }
         let wn = self.dir(n).normalize_or_zero();
-        let one = (hi - lo).max_element() < 0.4;
+        let one = (hi - lo).max_element() < 1.1;
         let lit = if m.glow {
             (0.0, 0.0, 1.0)
         } else if one {
@@ -739,11 +739,21 @@ impl Kit<'_> {
                 }
             } else {
                 // each ring vertex lit once, shared by the two sides it joins
+                // (a short band lights its far ring with its near one's light)
                 ring.clear();
-                for (a, r) in [(a0, r0), (a1, r1)] {
+                let short = (a1 - a0).abs() < 0.6;
+                for (k, (a, r)) in [(a0, r0), (a1, r1)].into_iter().enumerate() {
                     for s in 0..=segs {
                         let (p, d) = place(a, r, t_at(s));
-                        ring.push(self.vertex(p, nrm(d), [u_at(s), -a * vk], m));
+                        let v = if k == 1 && short {
+                            let n0 = ring[s];
+                            let wn = self.dir(nrm(d)).normalize_or_zero();
+                            let lit = (n0.light, n0.sky, n0.color[3]);
+                            Self::finish(self.pos(p), wn, [u_at(s), -a * vk], m, lit)
+                        } else {
+                            self.vertex(p, nrm(d), [u_at(s), -a * vk], m)
+                        };
+                        ring.push(v);
                     }
                 }
                 let row = segs + 1;
@@ -823,6 +833,17 @@ pub(crate) fn mesh(g: &Grid, light: &Light, geo: &mut SectionGeo) {
         glows,
         ..
     } = geo;
+    // room for what is coming, so the list grows once
+    let mut thin = 0;
+    for y in 0..N {
+        for z in 0..N {
+            for x in 0..N {
+                let f = g.fl[at(x, y, z)];
+                thin += usize::from(f & F_DETAIL != 0 && f & F_OPAQUE == 0);
+            }
+        }
+    }
+    opaque.reserve(thin * 120);
     let mut kit = Kit {
         g,
         light,
@@ -1390,6 +1411,10 @@ fn trunk(k: &mut Kit, c: usize) {
     let below = g.ids[nb(c, -dy)];
     let above = g.ids[nb(c, dy)];
     let birch = b == w::BIRCH_LOG;
+    // deep in the canopy nothing of it shows
+    if w::is_leaves(above) && H4.iter().all(|d| w::is_leaves(g.ids[nb(c, *d)])) {
+        return;
+    }
     // thinner towards the top of the tree
     let logs_above = (1..=2)
         .take_while(|i| {
@@ -1421,7 +1446,7 @@ fn trunk(k: &mut Kit, c: usize) {
         1,
         [0.5, 0.5],
         &prof,
-        10,
+        8,
         (h & 255) as f32 / 40.0,
         false,
         2.0,
