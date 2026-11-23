@@ -10,10 +10,28 @@
 
 pub mod content;
 pub mod far;
+pub mod layout;
 pub mod light;
-pub mod poi;
-pub mod village;
-pub mod zones;
+pub mod stamp;
+pub mod worldgen;
+
+/// The starting town on a piece of land, for tests and tools that used to
+/// call the town builder: the hub of the workspace pack's layout, put
+/// down round `hearth`. Places are data now; see [`worldgen`].
+pub mod village {
+    pub fn build_hearthstead(world: &mut crate::World, hearth: [i32; 3]) -> bool {
+        crate::worldgen::dev::hub(world, hearth)
+    }
+}
+
+/// Kept for callers of the old zone builder. The zone is built from the
+/// pack's layout when a world is made ([`worldgen::build`]); nothing is
+/// added to an existing world.
+pub mod zones {
+    pub fn build_world_features(_world: &mut crate::World, _hearth: [i32; 3]) -> bool {
+        false
+    }
+}
 
 use std::io::Write;
 use std::path::Path;

@@ -5314,12 +5314,29 @@
     0.32,
     0.22
    ],
+   "place": "hearthstead",
    "at": [
     -4,
     0,
-    14
+    8
    ],
-   "greeting": "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+   "greeting": "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point",
+      "Bow"
+     ]
+    }
+   ]
   },
   {
    "key": "maren",
@@ -5330,12 +5347,29 @@
     0.35,
     0.6
    ],
+   "place": "hearthstead",
    "at": [
-    2,
+    3,
     0,
-    -12
+    -15
    ],
-   "greeting": "Keep your blade close and your torch closer. The dark has teeth now."
+   "greeting": "Keep your blade close and your torch closer. The dark has teeth now.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point",
+      "Wave"
+     ]
+    }
+   ]
   },
   {
    "key": "tilda",
@@ -5346,10 +5380,11 @@
     0.55,
     0.3
    ],
+   "place": "hearthstead",
    "at": [
-    -7,
+    -11,
     0,
-    2
+    8
    ],
    "greeting": "Hungry? Everyone's hungry. Nobody brings me anything to cook.",
    "sells": [
@@ -5357,6 +5392,22 @@
     "cooked_meat:6",
     "berries:2",
     "miners_stew"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Cheer"
+     ]
+    }
    ]
   },
   {
@@ -5368,10 +5419,11 @@
     0.3,
     0.3
    ],
+   "place": "hearthstead",
    "at": [
-    12,
+    36,
     0,
-    7
+    -22
    ],
    "greeting": "Hammer's ready. Iron isn't. Never is.",
    "sells": [
@@ -5389,6 +5441,34 @@
     "stone_axe:20",
     "iron_pickaxe:150",
     "iron_axe:150"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      24
+     ],
+     "near": "anvil",
+     "within": 6,
+     "anim": "Hammer"
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
    ]
   },
   {
@@ -5400,12 +5480,28 @@
     0.35,
     0.6
    ],
+   "place": "north_watch",
    "at": [
     2,
-    -7,
-    -49
+    0,
+    4
    ],
-   "greeting": "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+   "greeting": "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
+   ]
   },
   {
    "key": "garrick",
@@ -5416,12 +5512,29 @@
     0.4,
     0.25
    ],
+   "place": "logging_camp",
    "at": [
-    -43,
-    -3,
-    -84
+    2,
+    0,
+    4
    ],
-   "greeting": "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold."
+   "greeting": "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point",
+      "Wave"
+     ]
+    }
+   ]
   },
   {
    "key": "ostrin",
@@ -5432,15 +5545,31 @@
     0.5,
     0.3
    ],
+   "place": "windmill_farm",
    "at": [
-    8,
-    -10,
-    97
+    -4,
+    0,
+    6
    ],
    "greeting": "Bandits in my fields, crabs in my ditches. Good thing the mill still turns.",
    "sells": [
     "hearth_bread",
     "berries:2"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
    ]
   },
   {
@@ -5452,12 +5581,29 @@
     0.45,
     0.55
    ],
+   "place": "fishers_landing",
    "at": [
-    -26,
-    -11,
-    138
+    2,
+    0,
+    3
    ],
-   "greeting": "The lake gives and the lake takes. Lately it only takes."
+   "greeting": "The lake gives and the lake takes. Lately it only takes.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
   },
   {
    "key": "bree",
@@ -5468,10 +5614,11 @@
     0.35,
     0.3
    ],
+   "place": "miners_rest",
    "at": [
-    128,
-    -4,
-    12
+    -3,
+    0,
+    7
    ],
    "greeting": "Supplies are short, the road's cut, and nobody will go back down that mine.",
    "sells": [
@@ -5480,6 +5627,21 @@
     "woolen_cloak",
     "grazer_hide_leggings",
     "iron_pickaxe:150"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
    ]
   },
   {
@@ -5491,12 +5653,29 @@
     0.4,
     0.35
    ],
+   "place": "miners_rest",
    "at": [
-    131,
-    -4,
-    8
+    5,
+    0,
+    4
    ],
-   "greeting": "Something lit candles down in the Hollow. Something that isn't us."
+   "greeting": "Something lit candles down in the Hollow. Something that isn't us.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Cheer",
+      "Point"
+     ]
+    }
+   ]
   },
   {
    "key": "ansel",
@@ -5507,10 +5686,11 @@
     0.36,
     0.55
    ],
+   "place": "ashcloak_stockade",
    "at": [
-    62,
-    -10,
-    64
+    0,
+    0,
+    4
    ],
    "greeting": "With Rook Varn dead, the Watch holds this stockade. The East Road breathes again, thanks to you.",
    "phase": "stockade_taken",
@@ -5518,6 +5698,1055 @@
     "hearth_bread",
     "miners_stew"
    ]
+  },
+  {
+   "key": "nell",
+   "name": "Nell",
+   "title": "Street Sweeper",
+   "color": [
+    0.5,
+    0.42,
+    0.6
+   ],
+   "at": [
+    3,
+    0,
+    -7
+   ],
+   "greeting": "Mind the dust. And the boots. Especially the boots.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sweep"
+    },
+    {
+     "at": [
+      4,
+      -5
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sweep"
+    },
+    {
+     "at": [
+      -3,
+      -8
+     ],
+     "secs": [
+      4,
+      7
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      -4,
+      -2
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sweep"
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "odo",
+   "name": "Odo",
+   "title": "Greengrocer",
+   "color": [
+    0.35,
+    0.55,
+    0.3
+   ],
+   "at": [
+    -6,
+    0,
+    -12
+   ],
+   "greeting": "Fresh from Ostrin's fields this morning. Well. Yesterday morning.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      16,
+      30
+     ],
+     "near": "crate",
+     "within": 8,
+     "anim": "Talk",
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "bram",
+   "name": "Bram",
+   "title": "Townsman",
+   "color": [
+    0.6,
+    0.35,
+    0.25
+   ],
+   "at": [
+    2,
+    0,
+    5
+   ],
+   "greeting": "Three hundred years that hearth burned. I give it three more, with you about.",
+   "routine": [
+    {
+     "at": [
+      5,
+      3
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      -5,
+      6
+     ],
+     "secs": [
+      5,
+      9
+     ]
+    },
+    {
+     "at": [
+      -6,
+      -4
+     ],
+     "secs": [
+      6,
+      12
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      4,
+      -5
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "ilsa",
+   "name": "Ilsa",
+   "title": "Townswoman",
+   "color": [
+    0.7,
+    0.45,
+    0.5
+   ],
+   "at": [
+    4,
+    0,
+    11
+   ],
+   "greeting": "Sit a while. The stones are still warm if you believe hard enough.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      25,
+      45
+     ],
+     "anim": "Sit"
+    },
+    {
+     "at": [
+      -5,
+      -3
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Wave",
+      "Cheer"
+     ]
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "tam",
+   "name": "Tam",
+   "title": "Lumberjack",
+   "color": [
+    0.6,
+    0.3,
+    0.2
+   ],
+   "at": [
+    -2,
+    -3,
+    -2
+   ],
+   "greeting": "Birch splits clean. Oak fights back. I respect oak.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "near": "log",
+     "within": 10,
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      3,
+      2
+     ],
+     "secs": [
+      4,
+      7
+     ],
+     "emotes": [
+      "Cheer"
+     ]
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "near": "birch_log",
+     "within": 12,
+     "anim": "Chop"
+    }
+   ],
+   "area": "logging_camp"
+  },
+  {
+   "key": "wyn",
+   "name": "Wyn",
+   "title": "Lumberjack",
+   "color": [
+    0.3,
+    0.45,
+    0.3
+   ],
+   "at": [
+    5,
+    -3,
+    -4
+   ],
+   "greeting": "Garrick says axes down. Garrick isn't the one behind on his cords.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "near": "birch_log",
+     "within": 12,
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      2,
+      3
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sit"
+    },
+    {
+     "at": [
+      -3,
+      4
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "near": "log",
+     "within": 8,
+     "anim": "Chop"
+    }
+   ],
+   "area": "logging_camp"
+  },
+  {
+   "key": "edric",
+   "name": "Guard Edric",
+   "title": "North Watch",
+   "color": [
+    0.25,
+    0.35,
+    0.6
+   ],
+   "at": [
+    -2,
+    -7,
+    5
+   ],
+   "greeting": "Quiet night. I don't trust quiet nights.",
+   "routine": [
+    {
+     "at": [
+      6,
+      0
+     ],
+     "secs": [
+      4,
+      8
+     ]
+    },
+    {
+     "at": [
+      6,
+      6
+     ],
+     "secs": [
+      4,
+      8
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      -4,
+      6
+     ],
+     "secs": [
+      4,
+      8
+     ]
+    },
+    {
+     "at": [
+      -4,
+      0
+     ],
+     "secs": [
+      4,
+      8
+     ]
+    }
+   ],
+   "area": "north_watch"
+  },
+  {
+   "key": "jory",
+   "name": "Jory",
+   "title": "Farmhand",
+   "color": [
+    0.7,
+    0.6,
+    0.3
+   ],
+   "at": [
+    4,
+    -10,
+    6
+   ],
+   "greeting": "Ostrin says the mill grinds, the hands rake. So I rake.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      18
+     ],
+     "near": "hay_bale",
+     "within": 12,
+     "anim": "Sweep"
+    },
+    {
+     "at": [
+      -4,
+      3
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      2,
+      -3
+     ],
+     "secs": [
+      4,
+      7
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "windmill"
+  },
+  {
+   "key": "marl",
+   "name": "Old Marl",
+   "title": "Fisherman",
+   "color": [
+    0.3,
+    0.45,
+    0.6
+   ],
+   "at": [
+    -3,
+    -11,
+    -2
+   ],
+   "greeting": "Hush. You'll scare the supper.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      45,
+      90
+     ],
+     "near": "water",
+     "within": 12,
+     "anim": "Fish"
+    },
+    {
+     "at": [
+      1,
+      1
+     ],
+     "secs": [
+      5,
+      8
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "fishers_landing"
+  },
+  {
+   "key": "dag",
+   "name": "Dag",
+   "title": "Miner",
+   "color": [
+    0.45,
+    0.4,
+    0.35
+   ],
+   "at": [
+    -4,
+    -4,
+    -3
+   ],
+   "greeting": "Coal's shallow here. Iron's deep. Candlekin are deeper. Guess which I dig.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "near": "coal_ore",
+     "within": 14,
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      -2,
+      3
+     ],
+     "secs": [
+      8,
+      14
+     ],
+     "anim": "Sit"
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      18
+     ],
+     "near": "iron_ore",
+     "within": 14,
+     "anim": "Chop"
+    }
+   ],
+   "area": "miners_rest"
+  },
+  {
+   "key": "sela",
+   "name": "Sela",
+   "title": "Wayfarer",
+   "color": [
+    0.5,
+    0.3,
+    0.55
+   ],
+   "at": [
+    9,
+    -6,
+    -5
+   ],
+   "greeting": "East road's no place to walk alone. So I walk it quickly.",
+   "routine": [
+    {
+     "at": [
+      -9,
+      0
+     ],
+     "secs": [
+      4,
+      8
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      9,
+      0
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
+   ],
+   "area": "east_road"
+  },
+  {
+   "key": "hobb",
+   "name": "Carter Hobb",
+   "title": "Carter",
+   "color": [
+    0.55,
+    0.45,
+    0.3
+   ],
+   "at": [
+    -36,
+    -6,
+    -14
+   ],
+   "greeting": "A good wagon, that was. Forty years. Then Ashcloaks.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "near": "crate",
+     "within": 10,
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      3,
+      -2
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
+   ],
+   "area": "east_road"
+  },
+  {
+   "key": "tolan",
+   "name": "Guard Tolan",
+   "title": "Hearthstead Watch",
+   "color": [
+    0.25,
+    0.35,
+    0.6
+   ],
+   "at": [
+    15,
+    1,
+    -18
+   ],
+   "greeting": "Tower's sound. It's the roads I'd watch.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      -5,
+      3
+     ],
+     "secs": [
+      5,
+      9
+     ]
+    },
+    {
+     "at": [
+      -2,
+      -5
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "rysa",
+   "name": "Rysa",
+   "title": "Hunter",
+   "color": [
+    0.3,
+    0.5,
+    0.3
+   ],
+   "at": [
+    -21,
+    -8,
+    -3
+   ],
+   "greeting": "Webs between the roots, thick as rope. Don't touch them.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      10,
+      18
+     ],
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      3,
+      -3
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      -2,
+      3
+     ],
+     "secs": [
+      6,
+      10
+     ]
+    }
+   ],
+   "area": "hollow_oak"
+  },
+  {
+   "key": "anwen",
+   "name": "Anwen",
+   "title": "Lorekeeper",
+   "color": [
+    0.5,
+    0.4,
+    0.65
+   ],
+   "at": [
+    -14,
+    -6,
+    20
+   ],
+   "greeting": "The stones are older than the hearth. Whatever sleeps under them is older still.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "near": "mossy_cobble",
+     "within": 8,
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      2,
+      2
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Point",
+      "Bow"
+     ]
+    }
+   ],
+   "area": "barrowwood"
+  },
+  {
+   "key": "calder",
+   "name": "Brother Calder",
+   "title": "Lamplighter",
+   "color": [
+    0.6,
+    0.5,
+    0.3
+   ],
+   "at": [
+    -3,
+    -9,
+    12
+   ],
+   "greeting": "A light at the door, every night. It's all that keeps them in.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      10,
+      18
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      -3,
+      2
+     ],
+     "secs": [
+      8,
+      12
+     ],
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      2,
+      3
+     ],
+     "secs": [
+      6,
+      10
+     ]
+    }
+   ],
+   "area": "barrowwood"
+  },
+  {
+   "key": "tess",
+   "name": "Tess",
+   "title": "Angler",
+   "color": [
+    0.35,
+    0.5,
+    0.55
+   ],
+   "at": [
+    13,
+    -11,
+    -9
+   ],
+   "greeting": "Mirrormere gives if you're patient. Takes, if you wade.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      45,
+      90
+     ],
+     "near": "water",
+     "within": 12,
+     "anim": "Fish"
+    },
+    {
+     "at": [
+      2,
+      -2
+     ],
+     "secs": [
+      5,
+      8
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "mirrormere"
+  },
+  {
+   "key": "oswin",
+   "name": "Oswin",
+   "title": "Pilgrim",
+   "color": [
+    0.75,
+    0.72,
+    0.6
+   ],
+   "at": [
+    25,
+    -10,
+    16
+   ],
+   "greeting": "They built it to stand in the water. I like to think they knew why.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      24
+     ],
+     "anim": "Kneel",
+     "emotes": [
+      "Bow"
+     ]
+    },
+    {
+     "at": [
+      -3,
+      3
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Bow",
+      "Point"
+     ]
+    }
+   ],
+   "area": "mirrormere"
+  },
+  {
+   "key": "mira",
+   "name": "Mira",
+   "title": "Night Watch",
+   "color": [
+    0.25,
+    0.3,
+    0.45
+   ],
+   "at": [
+    -25,
+    -11,
+    44
+   ],
+   "greeting": "Six by the fire, two on the gate. Stay behind my light.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      24
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      3,
+      -2
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "anim": "Kneel"
+    }
+   ],
+   "area": "east_road"
+  },
+  {
+   "key": "pell",
+   "name": "Pell",
+   "title": "Surveyor",
+   "color": [
+    0.5,
+    0.45,
+    0.3
+   ],
+   "at": [
+    -11,
+    -6,
+    37
+   ],
+   "greeting": "Shaft's sound enough. It's what moved in that isn't.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      18
+     ],
+     "near": "coal_ore",
+     "within": 10,
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      8,
+      14
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      18
+     ],
+     "near": "iron_ore",
+     "within": 10,
+     "anim": "Chop"
+    }
+   ],
+   "area": "hollow_mines"
   }
  ],
  "quests": [
@@ -5692,12 +6921,13 @@
    "objectives": [
     {
      "explore": "the North Watch beacon",
+     "place": "north_watch",
      "at": [
       0,
       0,
-      -56
+      2
      ],
-     "radius": 7
+     "radius": 12
     }
    ],
    "money": 80,
@@ -5962,12 +7192,13 @@
    "objectives": [
     {
      "explore": "the Old Barrow",
+     "place": "old_barrow",
      "at": [
-      -116,
+      17,
       0,
-      10
+      0
      ],
-     "radius": 9
+     "radius": 10
     }
    ],
    "requires": [
@@ -6132,12 +7363,13 @@
    "objectives": [
     {
      "explore": "the Sunken Shrine",
+     "place": "shrine_shore",
      "at": [
-      8,
       0,
-      159
+      0,
+      0
      ],
-     "radius": 9
+     "radius": 12
     }
    ],
    "requires": [
@@ -6209,12 +7441,13 @@
    "objectives": [
     {
      "explore": "the Ashcloak Stockade",
+     "place": "ashcloak_stockade",
      "at": [
-      62,
       0,
-      72
+      0,
+      16
      ],
-     "radius": 9
+     "radius": 10
     }
    ],
    "requires": [
@@ -7354,11 +8587,8 @@
   {
    "key": "hearthstead",
    "name": "Hearthstead",
-   "at": [
-    0,
-    0
-   ],
-   "radius": 36,
+   "place": "hearthstead",
+   "radius": "place",
    "levels": [
     1,
     1
@@ -7368,11 +8598,8 @@
   {
    "key": "hearthmeadow",
    "name": "Hearthmeadow",
-   "at": [
-    0,
-    0
-   ],
-   "radius": 80,
+   "place": "hearthmeadow",
+   "radius": "place",
    "levels": [
     1,
     2
@@ -7381,61 +8608,43 @@
     {
      "creature": "grazer",
      "count": 4,
-     "at": [
-      48,
-      22
-     ],
-     "spread": 10,
+     "place": "meadow_flock_1",
+     "spread": 18,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 4,
-     "at": [
-      -52,
-      30
-     ],
-     "spread": 10,
+     "place": "meadow_flock_2",
+     "spread": 18,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      30,
-      -52
-     ],
-     "spread": 9,
+     "place": "meadow_flock_3",
+     "spread": 16,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 4,
-     "at": [
-      -44,
-      -46
-     ],
-     "spread": 10,
+     "place": "meadow_flock_4",
+     "spread": 18,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      58,
-      -30
-     ],
-     "spread": 9,
+     "place": "meadow_flock_5",
+     "spread": 16,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      -20,
-      60
-     ],
-     "spread": 9,
+     "place": "meadow_flock_6",
+     "spread": 16,
      "respawn": 90
     }
    ]
@@ -7443,11 +8652,8 @@
   {
    "key": "north_watch",
    "name": "The North Watch",
-   "at": [
-    0,
-    -51
-   ],
-   "radius": 10,
+   "place": "north_watch",
+   "radius": "place",
    "levels": [
     2,
     3
@@ -7457,11 +8663,8 @@
   {
    "key": "birchrise",
    "name": "Birchrise",
-   "at": [
-    -30,
-    -92
-   ],
-   "radius": 46,
+   "place": "birchrise",
+   "radius": "place",
    "levels": [
     2,
     3
@@ -7470,21 +8673,15 @@
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      -18,
-      -76
-     ],
-     "spread": 9,
+     "place": "birchrise_boars_1",
+     "spread": 16,
      "respawn": 120
     },
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      -58,
-      -104
-     ],
-     "spread": 9,
+     "place": "birchrise_boars_2",
+     "spread": 16,
      "respawn": 120,
      "rare": {
       "name": "Old Tusk",
@@ -7496,21 +8693,15 @@
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      -8,
-      -118
-     ],
-     "spread": 9,
+     "place": "birchrise_boars_3",
+     "spread": 16,
      "respawn": 120
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      10,
-      -95
-     ],
-     "spread": 8,
+     "place": "birchrise_flock",
+     "spread": 14,
      "respawn": 90
     }
    ]
@@ -7518,11 +8709,8 @@
   {
    "key": "logging_camp",
    "name": "Garrick's Logging Camp",
-   "at": [
-    -45,
-    -86
-   ],
-   "radius": 10,
+   "place": "logging_camp",
+   "radius": "place",
    "levels": [
     3,
     3
@@ -7532,11 +8720,8 @@
   {
    "key": "hollow_oak",
    "name": "The Hollow Oak",
-   "at": [
-    -87,
-    -53
-   ],
-   "radius": 22,
+   "place": "hollow_oak",
+   "radius": "place",
    "levels": [
     3,
     4
@@ -7545,11 +8730,12 @@
     {
      "creature": "websnare",
      "count": 4,
+     "place": "hollow_oak",
      "at": [
-      -87,
-      -53
+      0,
+      4
      ],
-     "spread": 12,
+     "spread": 20,
      "respawn": 120,
      "rare": {
       "name": "Silkmother",
@@ -7561,11 +8747,8 @@
     {
      "creature": "websnare",
      "count": 3,
-     "at": [
-      -102,
-      -37
-     ],
-     "spread": 8,
+     "place": "oak_webs",
+     "spread": 14,
      "respawn": 120
     }
    ]
@@ -7573,11 +8756,8 @@
   {
    "key": "barrowwood",
    "name": "Barrowwood",
-   "at": [
-    -110,
-    -5
-   ],
-   "radius": 52,
+   "place": "barrowwood",
+   "radius": "place",
    "levels": [
     4,
     5
@@ -7586,33 +8766,28 @@
     {
      "creature": "websnare",
      "count": 3,
-     "at": [
-      -110,
-      -26
-     ],
-     "spread": 8,
+     "place": "barrow_webs",
+     "spread": 14,
      "respawn": 120
     },
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      -105,
-      30
-     ],
-     "spread": 9,
+     "place": "barrow_boars",
+     "spread": 16,
      "respawn": 120
     },
     {
      "creature": "barrow_warden",
      "count": 1,
+     "place": "old_barrow",
      "at": [
-      -133,
-      10
+      -3,
+      0
      ],
      "spread": 2,
      "respawn": 600,
-     "y": -11,
+     "below": 4,
      "phase": "!warden_rests"
     }
    ]
@@ -7620,11 +8795,8 @@
   {
    "key": "mirrormere",
    "name": "Mirrormere",
-   "at": [
-    0,
-    130
-   ],
-   "radius": 58,
+   "place": "mirrormere",
+   "radius": "place",
    "levels": [
     3,
     4
@@ -7633,51 +8805,36 @@
     {
      "creature": "mirepincher",
      "count": 4,
-     "at": [
-      -22,
-      118
-     ],
-     "spread": 10,
+     "place": "mere_pinchers_1",
+     "spread": 18,
      "respawn": 100
     },
     {
      "creature": "mirepincher",
      "count": 4,
-     "at": [
-      28,
-      138
-     ],
-     "spread": 10,
+     "place": "mere_pinchers_2",
+     "spread": 18,
      "respawn": 100
     },
     {
      "creature": "mirepincher",
      "count": 3,
-     "at": [
-      -40,
-      150
-     ],
-     "spread": 9,
+     "place": "mere_pinchers_3",
+     "spread": 16,
      "respawn": 100
     },
     {
      "creature": "ashcloak",
      "count": 3,
-     "at": [
-      46,
-      99
-     ],
-     "spread": 8,
+     "place": "mere_ashcloaks",
+     "spread": 14,
      "respawn": 120
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      5,
-      88
-     ],
-     "spread": 8,
+     "place": "mere_flock",
+     "spread": 14,
      "respawn": 90
     }
    ]
@@ -7685,11 +8842,8 @@
   {
    "key": "windmill",
    "name": "Ostrin's Farm",
-   "at": [
-    10,
-    95
-   ],
-   "radius": 9,
+   "place": "windmill_farm",
+   "radius": "place",
    "levels": [
     3,
     3
@@ -7699,11 +8853,8 @@
   {
    "key": "fishers_landing",
    "name": "Fisher's Landing",
-   "at": [
-    -28,
-    136
-   ],
-   "radius": 10,
+   "place": "fishers_landing",
+   "radius": "place",
    "levels": [
     4,
     4
@@ -7713,11 +8864,8 @@
   {
    "key": "sunken_shrine",
    "name": "The Sunken Shrine",
-   "at": [
-    8,
-    159
-   ],
-   "radius": 14,
+   "place": "shrine_shore",
+   "radius": 40,
    "levels": [
     7,
     8
@@ -7726,11 +8874,8 @@
     {
      "creature": "gloomwisp",
      "count": 3,
-     "at": [
-      8,
-      159
-     ],
-     "spread": 8,
+     "place": "shrine_shore",
+     "spread": 10,
      "respawn": 150,
      "rare": {
       "name": "The Drowned Lamp",
@@ -7744,11 +8889,8 @@
   {
    "key": "east_road",
    "name": "The East Road",
-   "at": [
-    86,
-    5
-   ],
-   "radius": 52,
+   "place": "east_road",
+   "radius": "place",
    "levels": [
     4,
     5
@@ -7757,19 +8899,17 @@
     {
      "creature": "ashcloak",
      "count": 2,
-     "at": [
-      84,
-      -16
-     ],
-     "spread": 5,
+     "place": "road_scouts_1",
+     "spread": 9,
      "respawn": 120
     },
     {
      "creature": "ashcloak",
      "count": 6,
+     "place": "ashcloak_stockade",
      "at": [
-      62,
-      67
+      0,
+      5
      ],
      "spread": 9,
      "respawn": 120,
@@ -7778,9 +8918,10 @@
     {
      "creature": "ashcloak_leader",
      "count": 2,
+     "place": "ashcloak_stockade",
      "at": [
-      64,
-      63
+      3,
+      2
      ],
      "spread": 4,
      "respawn": 240,
@@ -7789,9 +8930,10 @@
     {
      "creature": "rook_varn",
      "count": 1,
+     "place": "ashcloak_stockade",
      "at": [
-      62,
-      61
+      0,
+      -2
      ],
      "spread": 1,
      "respawn": 600,
@@ -7800,21 +8942,15 @@
     {
      "creature": "ashcloak",
      "count": 2,
-     "at": [
-      95,
-      8
-     ],
-     "spread": 5,
+     "place": "road_scouts_2",
+     "spread": 9,
      "respawn": 120
     },
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      110,
-      -30
-     ],
-     "spread": 9,
+     "place": "road_boars",
+     "spread": 16,
      "respawn": 120
     }
    ]
@@ -7822,11 +8958,8 @@
   {
    "key": "miners_rest",
    "name": "Miner's Rest",
-   "at": [
-    128,
-    10
-   ],
-   "radius": 10,
+   "place": "miners_rest",
+   "radius": "place",
    "levels": [
     5,
     5
@@ -7836,11 +8969,12 @@
   {
    "key": "hollow_mines",
    "name": "The Hollow Mines",
+   "place": "hollow_mines",
    "at": [
-    164,
-    -55
+    15,
+    -38
    ],
-   "radius": 40,
+   "radius": "place",
    "levels": [
     5,
     10
@@ -7849,46 +8983,50 @@
     {
      "creature": "candlekin",
      "count": 5,
+     "place": "hollow_mines",
      "at": [
-      167,
-      -47
+      18,
+      -30
      ],
      "spread": 10,
      "respawn": 120,
-     "y": -14
+     "below": 7
     },
     {
      "creature": "candlekin",
      "count": 4,
+     "place": "hollow_mines",
      "at": [
-      161,
-      -65
+      12,
+      -48
      ],
      "spread": 8,
      "respawn": 120,
-     "y": -17
+     "below": 10
     },
     {
      "creature": "gloomwisp",
      "count": 3,
+     "place": "hollow_mines",
      "at": [
-      150,
-      -82
+      1,
+      -65
      ],
      "spread": 8,
      "respawn": 150,
-     "y": -22
+     "below": 15
     },
     {
      "creature": "hollow_foreman",
      "count": 1,
+     "place": "hollow_mines",
      "at": [
-      174,
-      -106
+      25,
+      -89
      ],
      "spread": 1,
      "respawn": 1200,
-     "y": -30,
+     "below": 23,
      "phase": "!foreman_slain"
     }
    ]

@@ -82,9 +82,9 @@ flowchart TD
 
 | Crate | Owns |
 |---|---|
-| `dyno-world` | The block grid (`World`, 1 m blocks in 16³ sections: all-one-block sections free, others palette-packed, shared copy-on-write between shards; clients hold only the streamed sections), the far view's heightmap tiles (`far.rs`), lighting (stored the same way), the content schema and parser, world generation, and the builders for Hearthstead (`village.rs`), the zones (`zones.rs`) and points of interest (`poi.rs`). |
+| `dyno-world` | The block grid (`World`, 1 m blocks in 16³ sections: all-one-block sections free, others palette-packed, shared copy-on-write between shards; clients hold only the streamed sections), the far view's heightmap tiles (`far.rs`), lighting (stored the same way), the content schema and parser, and building a world from data: the layout (`layout.rs`), stamps (`stamp.rs`) and the generator that shapes land, lays roads, places stamps and scatters vegetation (`worldgen.rs`). |
 | `dyno-sim` | Rules shared by client and server: the XP curve and mob scaling (`progression.rs`), the character sheet and armour maths (`character.rs`), inventory and stacks. |
-| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 21). A version mismatch is refused with a clear reason. |
+| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 22). A version mismatch is refused with a clear reason. |
 | `dyno-server` | The game: shards, world streaming and area of interest (`stream.rs`), players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. The content pack (`pack.rs`: loading, hashing, the built-in pack embedded from `content/`, each session's asset outbox). |
 | `dyno-client` | Rendering (wgpu), the UI (egui, themed), input (classic MMO controls), audio, the front end (title, character select and creation), the minimap, headless screenshots. The asset store (`assets.rs`) and the cache of pack files (`cache.rs`). Local hosting only with the `host` feature. |
 | `dyno-update` | Checks GitHub Releases, verifies the signed manifest, picks the artifact named like its own executable (`dyno` or `hearthblock`), swaps the binary. Used by clients and by servers (`--auto-update`). |
@@ -296,15 +296,27 @@ using a full-size 384 world, the relay and headless screenshots.
 
 ```mermaid
 flowchart LR
-  G[World::generate<br/>seeded terrain] --> H[ensure_spawn_hearth]
-  H --> L[quest beacons]
-  L --> V[village::build_hearthstead]
-  V --> Z[zones: ridge, hills, lake, river, roads, mine]
-  Z --> P[POIs: watch, camps, barrow, shrine, stockade…]
-  P --> SP[camps → spawn points]
-  SP --> NPC[NPCs from content]
+  L[world/layout.json<br/>size · land · zones · flora · roads · places] --> B[worldgen::build]
+  ST[stamps/*.dstamp<br/>buildings · props · ruins · mines] --> B
+  B --> T[height map: land, river, lake, pads, roads]
+  T --> S[stamps placed]
+  S --> F[vegetation by rules]
+  F --> W[(world)]
+  R[rules: areas · camps · NPCs · objectives<br/>each at a place] -->|pack build resolves places| SP[spawn points · NPCs]
+  W --> SP
 ```
 
+- **The world is data** (docs/design/world-layout.md). Hearthstead, the
+  roads, the river and the lake, every camp, farm and ruin are in
+  `content/world/layout.json`; every structure is a stamp. Proportions and
+  distances follow docs/design/scale.md and are measured by
+  `crates/dyno-server/tests/world_scale.rs`.
+- **Size** is one value in the layout: 2048 × 256 × 2048. A smaller size
+  draws the places closer together in proportion; nothing else changes.
+- A saved world keeps the layout version it was built from; another
+  version rebuilds it once, with backups, and moves every character to its
+  place (`migrate::rebuild`). Worlds without a layout (builder worlds) are
+  generated from a seed and can still grow in place (`migrate::expand`).
 - **Streaming** (`stream.rs`, docs/design/data-and-streaming.md §4): the
   server sends each client the 16³ sections within its view (160 m, whole
   columns), nearest first, within a per-player budget (2 MB/s until the
@@ -312,11 +324,8 @@ flowchart LR
   24 m. Block edits go only to clients that hold the section. A client
   hears about entities, poses and actions within 100 m (forgotten past
   112 m). `--view`, `--aoi`, `--section-rate`, `--join-section-rate`.
-- 384 × 96 × 384 blocks; 14 areas with level bands, camps with respawn
-  timers and rare elites, a three-level mine.
-- Builders are idempotent: a restart builds nothing and leaves the file
-  unchanged. Older, smaller worlds grow in place (`migrate::expand`), keeping
-  every build and moving every saved position, with `.before-N` backups.
+- 14 areas with level bands, camps with respawn timers and rare elites, a
+  three-level mine.
 - Players cannot change the RPG world except by gathering (nodes deplete and
   regrow).
 

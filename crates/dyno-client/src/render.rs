@@ -45,7 +45,7 @@ pub const KIND_VOXEL: f32 = 16384.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
 const KIND_DECAL: f32 = -3.0;
 /// A halo: a camera-facing square, added to the picture.
-const KIND_GLOW: f32 = -4.0;
+pub(crate) const KIND_GLOW: f32 = -4.0;
 
 /// The block textures from the pack.
 pub fn textures() -> &'static crate::textures::Textures {
@@ -1119,6 +1119,10 @@ pub struct Gfx {
     /// When set, the next frame is saved to this path as a PPM image.
     pub screenshot: Option<std::path::PathBuf>,
     started: std::time::Instant,
+    /// ambient effects for the next frames (particles.rs): lit geometry
+    /// that casts no shadow, and halos added over the picture
+    pub fx: Vec<Vertex>,
+    pub fx_glow: Vec<Vertex>,
 }
 
 use egui_winit::winit;
@@ -1563,6 +1567,8 @@ impl Gfx {
             graphics_tier,
             screenshot: None,
             started: std::time::Instant::now(),
+            fx: Vec::new(),
+            fx_glow: Vec::new(),
         })
     }
 
@@ -2073,6 +2079,11 @@ impl Gfx {
         );
         let box_buf = self.upload(boxes);
         let line_buf = self.upload(lines);
+        let fx_buf = self.upload(&self.fx);
+        let fx_glow_buf = self.upload(&self.fx_glow);
+        // made anew for every frame
+        self.fx.clear();
+        self.fx_glow.clear();
 
         let mut enc = self
             .device
@@ -2185,6 +2196,10 @@ impl Gfx {
                     rp.set_vertex_buffer(0, b.slice(..));
                     rp.draw(0..*n, 0..1);
                 }
+                if let Some((b, n)) = &fx_buf {
+                    rp.set_vertex_buffer(0, b.slice(..));
+                    rp.draw(0..*n, 0..1);
+                }
             }
             self.post.occlude(&mut enc);
             // the sky, where nothing stands in front
@@ -2251,6 +2266,10 @@ impl Gfx {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(start..start + s.glow, 0..1);
                     }
+                }
+                if let Some((b, n)) = &fx_glow_buf {
+                    rp.set_vertex_buffer(0, b.slice(..));
+                    rp.draw(0..*n, 0..1);
                 }
                 if let Some((b, n)) = &line_buf {
                     rp.set_pipeline(&self.line_pipe);

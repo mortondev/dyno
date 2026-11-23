@@ -1,8 +1,8 @@
 {
   "voxel": 0.0625,
-  "range": 56,
-  "near": 13,
-  "detail": 14,
+  "range": 52,
+  "near": 15,
+  "detail": 11,
   "kinds": {
     "grass_short": {
       "file": "cover/grass_short.vox",
@@ -78,13 +78,13 @@
       "file": "cover/bush.vox",
       "voxel": 0.125,
       "sway": 0.15,
-      "soft": 0.35
+      "soft": 0.2
     },
     "bush_bloom": {
       "file": "cover/bush_bloom.vox",
       "voxel": 0.125,
       "sway": 0.15,
-      "soft": 0.35
+      "soft": 0.2
     },
     "leaf_litter": {
       "file": "cover/leaf_litter.vox",
@@ -97,18 +97,53 @@
     "mushroom_brown": {
       "file": "cover/mushroom_brown.vox",
       "soft": 0.4
+    },
+    "grass_lush": {
+      "file": "cover/grass_lush.vox",
+      "sway": 1.0,
+      "soft": 0.75
+    },
+    "lupin_drift": {
+      "file": "cover/lupin_drift.vox",
+      "sway": 0.7,
+      "soft": 0.6
+    },
+    "daisy_drift": {
+      "file": "cover/daisy_drift.vox",
+      "sway": 0.8,
+      "soft": 0.7
+    },
+    "buttercup_drift": {
+      "file": "cover/buttercup_drift.vox",
+      "sway": 0.8,
+      "soft": 0.7
+    },
+    "poppy_drift": {
+      "file": "cover/poppy_drift.vox",
+      "sway": 0.8,
+      "soft": 0.7
+    },
+    "fern_big": {
+      "file": "cover/fern_big.vox",
+      "sway": 0.5,
+      "soft": 0.6
+    },
+    "reeds_thick": {
+      "file": "cover/reeds_thick.vox",
+      "sway": 0.9,
+      "soft": 0.7
     }
   },
   "layers": [
     {
       "name": "grass tufts: ragged patches over every meadow, thin beside roads",
-      "kinds": ["grass", "grass", "grass_short"],
+      "kinds": ["grass", "grass", "grass_lush", "grass_short"],
       "on": ["grass"],
-      "per_block": 2.4,
+      "per_block": 2.6,
       "patch": {
         "scale": 7,
-        "from": 0.18,
-        "to": 0.6,
+        "from": 0.08,
+        "to": 0.45,
         "seed": 1
       },
       "away": {
@@ -116,8 +151,8 @@
         "within": 2,
         "keep": 0.45
       },
-      "far": 0.06,
-      "tint": [[0.62, 0.8, 0.62], [0.86, 0.92, 0.72]],
+      "far": 0.03,
+      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]],
       "areas": {
         "birchrise": {
           "density": 0.9,
@@ -142,13 +177,13 @@
     },
     {
       "name": "tall seeding grass in the open, away from roads",
-      "kinds": ["grass_tall"],
+      "kinds": ["grass_tall", "grass_lush"],
       "on": ["grass"],
-      "per_block": 0.7,
+      "per_block": 1.2,
       "patch": {
         "scale": 13,
-        "from": 0.5,
-        "to": 0.78,
+        "from": 0.4,
+        "to": 0.7,
         "seed": 2
       },
       "away": {
@@ -156,8 +191,8 @@
         "within": 3,
         "keep": 0.0
       },
-      "far": 0.12,
-      "tint": [[0.7, 0.84, 0.66], [0.9, 0.94, 0.74]],
+      "far": 0.06,
+      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]],
       "areas": {
         "birchrise": {
           "tint": [1.15, 1.0, 0.7]
@@ -172,17 +207,17 @@
     },
     {
       "name": "lupin meadows",
-      "kinds": ["lupin"],
+      "kinds": ["lupin", "lupin_drift", "lupin_drift"],
       "on": ["grass"],
-      "per_block": 0.3,
+      "per_block": 0.45,
       "patch": {
         "scale": 16,
-        "from": 0.64,
-        "to": 0.84,
+        "from": 0.56,
+        "to": 0.78,
         "seed": 3
       },
       "sky": [0.75, 1.0],
-      "far": 0.45,
+      "far": 0.3,
       "areas": {
         "barrowwood": {
           "density": 0.5,
@@ -198,42 +233,42 @@
     },
     {
       "name": "a few lupins along the roadside",
-      "kinds": ["lupin"],
+      "kinds": ["lupin", "lupin_drift"],
       "on": ["grass"],
-      "per_block": 0.1,
+      "per_block": 0.16,
       "near": {
         "blocks": ["cobble", "mossy_cobble", "flagstones"],
         "within": 3
       },
       "sky": [0.75, 1.0],
-      "far": 0.5
+      "far": 0.3
     },
     {
       "name": "daisies",
-      "kinds": ["daisy"],
+      "kinds": ["daisy", "daisy_drift", "daisy_drift"],
       "on": ["grass"],
-      "per_block": 0.3,
+      "per_block": 0.45,
       "patch": {
         "scale": 11,
-        "from": 0.62,
-        "to": 0.84,
+        "from": 0.56,
+        "to": 0.8,
         "seed": 4
       },
-      "far": 0.4
+      "far": 0.28
     },
     {
       "name": "buttercups",
-      "kinds": ["buttercup"],
+      "kinds": ["buttercup", "buttercup_drift", "buttercup_drift"],
       "on": ["grass"],
-      "per_block": 0.28,
+      "per_block": 0.42,
       "patch": {
         "scale": 14,
-        "from": 0.66,
-        "to": 0.86,
+        "from": 0.6,
+        "to": 0.82,
         "seed": 5
       },
       "sky": [0.7, 1.0],
-      "far": 0.4,
+      "far": 0.28,
       "areas": {
         "barrowwood": {
           "density": 0.2
@@ -242,17 +277,17 @@
     },
     {
       "name": "poppies",
-      "kinds": ["poppy"],
+      "kinds": ["poppy", "poppy_drift", "poppy_drift"],
       "on": ["grass"],
-      "per_block": 0.25,
+      "per_block": 0.36,
       "patch": {
         "scale": 18,
-        "from": 0.7,
-        "to": 0.88,
+        "from": 0.64,
+        "to": 0.84,
         "seed": 6
       },
       "sky": [0.8, 1.0],
-      "far": 0.45,
+      "far": 0.3,
       "areas": {
         "barrowwood": {
           "density": 0.0
@@ -273,7 +308,7 @@
         "to": 0.88,
         "seed": 7
       },
-      "far": 0.4,
+      "far": 0.28,
       "elsewhere": 0.0,
       "areas": {
         "hearthstead": {},
@@ -285,14 +320,14 @@
     },
     {
       "name": "ferns round the feet of trees",
-      "kinds": ["fern"],
+      "kinds": ["fern", "fern_big", "fern_big"],
       "on": ["grass", "dirt"],
-      "per_block": 0.45,
+      "per_block": 1.0,
       "near": {
         "blocks": ["log", "birch_log"],
         "within": 3
       },
-      "far": 0.3,
+      "far": 0.2,
       "areas": {
         "barrowwood": {
           "density": 1.6,
@@ -308,20 +343,20 @@
     },
     {
       "name": "reeds along the water",
-      "kinds": ["reeds"],
+      "kinds": ["reeds", "reeds_thick", "reeds_thick"],
       "on": ["grass", "sand", "dirt", "clay"],
-      "per_block": 1.5,
+      "per_block": 2.2,
       "near": {
         "blocks": ["water"],
         "within": 2
       },
       "patch": {
         "scale": 6,
-        "from": 0.4,
-        "to": 0.62,
+        "from": 0.25,
+        "to": 0.5,
         "seed": 8
       },
-      "far": 0.6
+      "far": 0.4
     },
     {
       "name": "pebbles on the shore",
@@ -340,8 +375,8 @@
         "blocks": ["grass"],
         "within": 1
       },
-      "far": 0.1,
-      "tint": [[0.62, 0.8, 0.62], [0.84, 0.9, 0.72]]
+      "far": 0.05,
+      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]]
     },
     {
       "name": "loose cobbles and pebbles in the grass beside the paving",
@@ -352,26 +387,26 @@
         "blocks": ["cobble", "mossy_cobble", "flagstones"],
         "within": 2
       },
-      "far": 0.25
+      "far": 0.12
     },
     {
       "name": "worn stones and pebbles in earth paths",
       "kinds": ["path_stones", "pebbles", "pebbles"],
       "on": ["dirt"],
       "per_block": 0.6,
-      "far": 0.3
+      "far": 0.15
     },
     {
       "name": "grass at the edges of earth paths",
-      "kinds": ["grass_short"],
+      "kinds": ["grass_short", "grass"],
       "on": ["dirt"],
-      "per_block": 1.2,
+      "per_block": 1.8,
       "near": {
         "blocks": ["grass"],
         "within": 1
       },
-      "far": 0.1,
-      "tint": [[0.62, 0.8, 0.62], [0.84, 0.9, 0.72]]
+      "far": 0.05,
+      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]]
     },
     {
       "name": "small mossy rocks",
@@ -394,18 +429,144 @@
       "tint": [[0.9, 0.9, 0.9], [1.05, 1.05, 1.05]]
     },
     {
+      "name": "the foreground of every verge: lush grass close along roads and paths",
+      "kinds": ["grass_lush", "grass_tall"],
+      "on": ["grass"],
+      "per_block": 1.1,
+      "near": {
+        "blocks": ["cobble", "mossy_cobble", "flagstones", "dirt", "sand"],
+        "within": 3
+      },
+      "far": 0.04,
+      "tint": [[0.5, 0.74, 0.46], [0.72, 0.9, 0.56]],
+      "areas": {
+        "birchrise": {
+          "density": 0.9,
+          "tint": [1.12, 1.0, 0.72]
+        },
+        "logging_camp": {
+          "density": 0.6,
+          "tint": [1.12, 1.0, 0.72]
+        },
+        "barrowwood": {
+          "density": 0.8,
+          "tint": [0.72, 0.86, 0.9]
+        },
+        "hollow_oak": {
+          "density": 1.0,
+          "tint": [0.8, 0.98, 0.92]
+        },
+        "hearthstead": {
+          "density": 0.7
+        }
+      }
+    },
+    {
+      "name": "ferns in the shade of the crowns",
+      "kinds": ["fern", "fern_big"],
+      "on": ["grass", "dirt"],
+      "per_block": 0.5,
+      "sky": [0.0, 0.8],
+      "patch": {
+        "scale": 8,
+        "from": 0.35,
+        "to": 0.65,
+        "seed": 11
+      },
+      "far": 0.15
+    },
+    {
+      "name": "bushes along the roads and paths",
+      "kinds": ["bush", "bush", "bush_bloom"],
+      "on": ["grass"],
+      "per_block": 0.07,
+      "near": {
+        "blocks": ["cobble", "mossy_cobble", "flagstones"],
+        "within": 3
+      },
+      "away": {
+        "blocks": ["cobble", "mossy_cobble", "flagstones"],
+        "within": 1,
+        "keep": 0.0
+      },
+      "patch": {
+        "scale": 9,
+        "from": 0.35,
+        "to": 0.6,
+        "seed": 12
+      },
+      "far": 1.0,
+      "tint": [[0.78, 0.86, 0.74], [0.95, 1.0, 0.86]],
+      "areas": {
+        "birchrise": {
+          "tint": [1.25, 0.95, 0.5]
+        },
+        "barrowwood": {
+          "tint": [0.65, 0.8, 0.85]
+        },
+        "hollow_oak": {
+          "tint": [0.75, 0.95, 0.9]
+        }
+      }
+    },
+    {
+      "name": "shrubs against the walls of buildings",
+      "kinds": ["bush", "bush_bloom", "bush_bloom"],
+      "on": ["grass", "dirt"],
+      "per_block": 0.3,
+      "near": {
+        "blocks": ["planks", "dark_planks", "birch_planks", "plaster", "stone_bricks", "brick", "timber_beam"],
+        "within": 1
+      },
+      "patch": {
+        "scale": 5,
+        "from": 0.3,
+        "to": 0.55,
+        "seed": 13
+      },
+      "far": 1.0,
+      "tint": [[0.78, 0.86, 0.74], [0.95, 1.0, 0.86]]
+    },
+    {
+      "name": "bushes at the water's edge",
+      "kinds": ["bush"],
+      "on": ["grass"],
+      "per_block": 0.05,
+      "near": {
+        "blocks": ["water"],
+        "within": 3
+      },
+      "far": 1.0,
+      "tint": [[0.78, 0.86, 0.74], [0.95, 1.0, 0.86]]
+    },
+    {
       "name": "bushes in loose thickets, and flowering ones round the town",
       "kinds": ["bush", "bush", "bush_bloom"],
       "on": ["grass"],
-      "per_block": 0.05,
-      "patch": {"scale": 15, "from": 0.6, "to": 0.85, "seed": 10},
-      "away": {"blocks": ["cobble", "mossy_cobble", "flagstones"], "within": 2, "keep": 0.0},
+      "per_block": 0.06,
+      "patch": {
+        "scale": 15,
+        "from": 0.55,
+        "to": 0.82,
+        "seed": 10
+      },
+      "away": {
+        "blocks": ["cobble", "mossy_cobble", "flagstones"],
+        "within": 2,
+        "keep": 0.0
+      },
       "far": 1.0,
-      "tint": [[0.85, 0.9, 0.85], [1.05, 1.05, 0.95]],
+      "tint": [[0.78, 0.86, 0.74], [0.95, 1.0, 0.86]],
       "areas": {
-        "birchrise": {"tint": [1.25, 0.95, 0.5]},
-        "barrowwood": {"tint": [0.65, 0.8, 0.85]},
-        "hollow_oak": {"tint": [0.75, 0.95, 0.9]}
+        "birchrise": {
+          "tint": [1.25, 0.95, 0.5]
+        },
+        "barrowwood": {
+          "tint": [0.65, 0.8, 0.85]
+        },
+        "hollow_oak": {
+          "tint": [0.75, 0.95, 0.9]
+        }
       }
     },
     {
@@ -413,10 +574,20 @@
       "kinds": ["bush"],
       "on": ["grass", "dirt"],
       "per_block": 0.05,
-      "near": {"blocks": ["log", "birch_log"], "within": 3},
+      "near": {
+        "blocks": ["log", "birch_log"],
+        "within": 3
+      },
       "far": 1.0,
-      "tint": [[0.8, 0.88, 0.82], [1.0, 1.0, 0.92]],
-      "areas": {"birchrise": {"tint": [1.25, 0.95, 0.5]}, "barrowwood": {"tint": [0.65, 0.8, 0.85]}}
+      "tint": [[0.78, 0.86, 0.74], [0.95, 1.0, 0.86]],
+      "areas": {
+        "birchrise": {
+          "tint": [1.25, 0.95, 0.5]
+        },
+        "barrowwood": {
+          "tint": [0.65, 0.8, 0.85]
+        }
+      }
     },
     {
       "name": "fallen leaves in the autumn wood",
@@ -429,7 +600,7 @@
         "to": 0.7,
         "seed": 9
       },
-      "far": 0.15,
+      "far": 0.08,
       "elsewhere": 0.0,
       "areas": {
         "birchrise": {},
@@ -449,7 +620,7 @@
         "blocks": ["log", "birch_log"],
         "within": 2
       },
-      "far": 0.4,
+      "far": 0.2,
       "elsewhere": 0.15,
       "areas": {
         "barrowwood": {},

@@ -459,7 +459,7 @@ fn title(
 /// and hosting a local world. Players normally never come here.
 fn realms(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
     let screen = ctx.content_rect();
-    let r = Rect::from_center_size(screen.center(), Vec2::new(620.0, 480.0));
+    let r = Rect::from_center_size(screen.center(), Vec2::new(620.0, 560.0));
     let hosting = f.hosting;
     panel(ctx, "options", r, |ui| {
         ui.vertical_centered(|ui| {

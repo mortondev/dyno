@@ -24,7 +24,7 @@ This document is the contract every part of the migration builds to.
 | The content pack (`include_str!` of hearthblock.json) | Sent by the server only |
 | Title-screen stage (client calls `World::generate` and `build_hearthstead`) | A small baked stage scene streamed like any other asset |
 | Block table (`dyno-world/src/lib.rs`) | `blocks.json` |
-| World builders (`village.rs`, `poi.rs`, `zones.rs`, worldgen trees) | Stamps (block volumes) and a layout file; terrain shaping as data operations |
+| World builders (`village.rs`, `poi.rs`, `zones.rs`, worldgen trees) | Stamps (block volumes) and a layout file; terrain shaping as data operations (**done**, §5) |
 
 Size floor: a stripped, size-optimised program with only wgpu, egui, winit,
 rodio and TLS WebSockets is **5.7 MB**. Today's `dyno` is 20.6 MB with the
@@ -244,6 +244,32 @@ when one of them is replaced.
   blends and layers as `anim.rs` does today. Bake today's procedural poses
   into keyframes by sampling them. A **pack test** fails if any figure lacks
   any standard animation, replacing the compile-time check.
+- **Ambient life** (`life.json`; `life.rs`, `particles.rs`, `critters.rs`):
+  decoration each client makes for itself, at no cost to the server.
+  - `effects`: streams of small cubes (rate, life, start box, velocity and
+    spread, push, drag, wind, meander, size and colours through life,
+    `glow` for a shining cube with a halo, `blink`, a time-of-day window).
+    A particle is a pure function of its emitter, its number and the
+    clock: nothing is stored, any moment can be drawn.
+  - `emitters`: block rules (`block`, `above`, `below`, `alone`, `near`,
+    `chance`, and a `where`: areas, ground, cover, time of day): a brazier, the top of a lone stone column by a roof
+    (a chimney), birch leaves over open air in the autumn woods.
+  - `ambient`: effects scattered over the land by area, ground, cover and
+    time (fireflies, wisps, pollen, dust).
+  - `critters`: a `.vox` with frames `idle`, `move1`, `move2`, `alt`; metres
+    per voxel; one behaviour the engine knows (`flock`, `flutter`, `swim`,
+    `wade`, `graze`, `scuttle`); speed, range, how near people may come.
+  - `wildlife`: where each kind lives (areas, ground, beside what, time,
+    group size). The land is cut into squares; the same squares always
+    hold the same life.
+  - Quality: `Settings::life` (0 none, 1 less and near, 2 all), or
+    `DYNO_LIFE=0|1|2`.
+  - The models and tables are written by `tools/life/*.py`.
+- **Routines** (rules, per NPC: `routine`): the stops of an NPC's round.
+  Each is a spot (`at`, blocks from where the NPC stands, or `near`: beside
+  the nearest block of a kind), an `anim` held there, `emotes`, `secs`. The
+  server walks them (`routines.rs`) and tells clients with `EntityMoves`
+  and `Act::Emote`; what an NPC holds is `hold` in `figures.json`.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.
@@ -288,8 +314,9 @@ when one of them is replaced.
     stand on or walk round belongs in the world as blocks.
 - **Foliage** (`foliage.json`; `dyno-client/src/foliage.rs`): leaf crowns as
   clumps of cubes. `cells` cubes along a block (0: the smooth canopy), `erode`
-  (how much of a crown's outside is worn away), `crease`, `under`, `depth`
-  and `vary` (shading), `leaves` (colours per leaf block key), `trunks` (the
+  (how much of a crown's outside is worn away), `crease`, `under`, `depth`,
+  `top`, `vary` and `clump` (cubes along a clump of one colour; shading: the brightness of the topmost clumps, falling
+  to `under` at `depth` blocks down), `leaves` (colours per leaf block key), `trunks` (the
   blocks trees are made of) and `areas` (per area key: the `blocks` that
   turn, and `tones` with the `share` of trees each takes: autumn, blossom).
   Which cells hold leaves stays the world's business.
@@ -505,17 +532,26 @@ with other builds, load average 30–50 on 16 cores):
 
 ## 5. World building as data
 
-The live world contains migrated player builds, so it is never regenerated.
-For new worlds and rebuilds:
+**Status: built** (docs/design/world-layout.md is the reference).
 
-- `World::generate` (terrain from a seed) stays code: it is an engine
-  generator driven by parameters in `layout.json`.
-- Every building, site and town is a **stamp**, placed by `layout.json`
-  with position, rotation and a ground-fitting rule.
-- Today's builders are run once by a bake tool to produce the stamps, and
-  are then deleted.
-- Vegetation comes from species tables (size ranges and crown shapes) in
-  `layout.json`.
+- The world is built from `world/layout.json` (size, land, river and lake,
+  zones, tree species and vegetation rules, roads, places) and
+  `stamps/*.dstamp` (every building, prop, ruin and dug-out place), by
+  `dyno_world::worldgen::build`. The engine keeps only general abilities:
+  shaping land from the layout's primitives, laying roads, placing stamps,
+  scattering vegetation by rules.
+- The old builders (`village.rs`, `poi.rs`, `zones.rs`) are gone. The
+  Hollow Mines, the Old Barrow and the Sunken Shrine were baked from them
+  into stamps; every building was drawn again at heroic proportions
+  (docs/design/scale.md) by the recipes in `tools/stamps/`.
+- The rules place areas, camps, NPCs and objectives at places of the
+  layout; the pack build resolves them into hearth offsets.
+- Layout and stamps stay on the server: they are not in the manifest.
+- A saved world records the layout version it was built from. A new
+  version (or a world from before layouts) is rebuilt once, with backups,
+  and every character is moved to its place (`migrate::rebuild`).
+- `World::generate` (terrain from a seed) stays for worlds without a
+  layout (builder worlds, tests).
 
 ## 6. Authoritative movement (last)
 
@@ -600,7 +636,7 @@ For new worlds and rebuilds:
    image diff (`dyno shot`, the animation sheet) matches:
    - textures, sounds, fonts and render settings;
    - models, rigs, clips and detail shapes.
-3. World streaming and area of interest **(done)**; stamps and layout.
+3. World streaming and area of interest **(done)**; stamps and layout **(done)**.
 4. Authoritative movement.
 
 Every step keeps `dyno shot`, the bots and the protocol tests working.
