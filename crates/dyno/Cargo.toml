@@ -8,6 +8,7 @@ rust-version.workspace = true
 description = "Dyno: live, script-defined multiplayer engine (bootstrap build)"
 
 [dependencies]
+dyno-bot = { path = "../dyno-bot" }
 dyno-client = { path = "../dyno-client" }
 dyno-protocol = { path = "../dyno-protocol" }
 dyno-server = { path = "../dyno-server" }

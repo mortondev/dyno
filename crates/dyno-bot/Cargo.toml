@@ -1,0 +1,18 @@
+[package]
+name = "dyno-bot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Headless playtesting bots for Hearthblock Online: bodies, brains, swarms, fun reports and a text interface"
+
+[dependencies]
+dyno-client = { path = "../dyno-client" }
+dyno-protocol = { path = "../dyno-protocol" }
+dyno-server = { path = "../dyno-server" }
+dyno-sim = { path = "../dyno-sim" }
+dyno-world = { path = "../dyno-world" }
+glam = "0.30"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"

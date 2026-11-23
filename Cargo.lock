@@ -733,11 +733,26 @@ checksum = "d8b14ccef22fc6f5a8f4d7d768562a182c04ce9a3b3157b91390b52ddfdf1a76"
 name = "dyno"
 version = "0.5.0"
 dependencies = [
+ "dyno-bot",
  "dyno-client",
  "dyno-protocol",
  "dyno-server",
  "dyno-update",
  "dyno-world",
+]
+
+[[package]]
+name = "dyno-bot"
+version = "0.5.0"
+dependencies = [
+ "dyno-client",
+ "dyno-protocol",
+ "dyno-server",
+ "dyno-sim",
+ "dyno-world",
+ "glam",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
