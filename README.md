@@ -1,8 +1,8 @@
 # Dyno
 
-Dyno is an open-source multiplayer engine for block worlds and 3D games. The goal is that all game logic is Luau code and data in a live content store, so a game can change while players are connected. The full design is in [docs/spec/index.html](docs/spec/index.html).
+Dyno is an open-source multiplayer engine. Its flagship game is **Hearthblock Online**, a classic fantasy MMORPG: six classes, quests and level progression, gear, loot, merchants, phasing and one shared world that shards itself automatically. The engine's original design is in [docs/spec/index.html](docs/spec/index.html); how it is actually built is in **[docs/architecture.md](docs/architecture.md)**.
 
-**Status: bootstrap build.** This build proves the release pipeline and the signed auto-updater, and gives a small shared block world to build in together.
+**Status: playable alpha.** Ashfall Vale (levels 1–10) is open, with the signed auto-updater keeping players and servers current.
 
 ## Play
 
@@ -19,9 +19,9 @@ Dyno is an open-source multiplayer engine for block worlds and 3D games. The goa
    - **Windows:** double-click. If SmartScreen appears, choose *More info*, then *Run anyway*.
    - **macOS:** in Terminal: `chmod +x dyno-aarch64-apple-darwin && xattr -d com.apple.quarantine dyno-aarch64-apple-darwin; ./dyno-aarch64-apple-darwin`
    - **Linux:** `chmod +x dyno-x86_64-unknown-linux-gnu && ./dyno-x86_64-unknown-linux-gnu`
-3. Enter your name and the server address, then press **Join**. The address is saved for next time.
+3. Press **Play**, create a character (class, appearance, name) and press **Enter World**. There are no realms to choose: there is one world, and the game places you in it.
 
-The address can be `192.168.1.20`, `192.168.1.20:7400`, `[::1]:7400`, a host name, or a tunnel address such as `https://name.trycloudflare.com`.
+Builds made without a world address built in (`DYNO_DEFAULT_SERVER`) ask for one under **Options**. It can be `192.168.1.20`, `192.168.1.20:7400`, a host name, or a tunnel address such as `https://name.trycloudflare.com`.
 
 ### Controls
 
@@ -54,7 +54,7 @@ Pick a class (Warrior, Paladin, Hunter, Rogue, Priest or Mage) and wake in Heart
 
 ## Host a world
 
-**From the game:** press *Host a world on this computer* on the connect screen. Friends on the same network join with the address shown in the menu. For friends on the internet, press *Share over the internet*. This needs [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) and gives you an `https://…trycloudflare.com` address to send them. No port forwarding is needed.
+**From the game (developers):** *Options → Host a local world* runs a world on your computer. *Share over the internet* needs [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/) and gives an `https://…trycloudflare.com` address. No port forwarding is needed.
 
 **Dedicated server:**
 
@@ -65,6 +65,8 @@ cloudflared tunnel --url http://localhost:7400
 ```
 
 The server saves the world every 10 seconds. `--auto-update` makes it install new releases and restart.
+
+The server splits the world into shards by itself: `--shard-cap 40` players per shard, `--area-cap 16` players in one area of a shard before newcomers are spread out, `--max-shards 16`. Parties are kept together. See [docs/architecture.md](docs/architecture.md).
 
 ## Updates
 
@@ -92,22 +94,23 @@ dyno version             Print the version
 
 ## What is in the world
 
-- A 256 × 96 × 256 world: meadows, oak and birch forests, pine-covered hills, snowy mountains and lakes with sandy shores.
-- A shared day and night cycle (20 minutes). Drifting clouds, sunsets, stars, fireflies and crickets, and a dark night where glowing blocks matter.
-- The server remembers where you were, so you rejoin where you left off.
-- 36 blocks: natural blocks, building blocks, 10 colours, glass, ice, and light sources (Lantern, Emberstone, Glowshroom) that light up their surroundings.
-- Sounds for breaking, placing and footsteps, and particles when blocks break. All sounds are generated in code.
+- **Ashfall Vale**, 384 × 96 × 384 blocks: Hearthstead and its market, the North Watch, Birchrise hills, the Hollow Oak, Barrowwood and its crypt, Mirrormere lake, the Emberrun river and its ford, the windmill farm, Fisher's Landing, the Sunken Shrine, the East Road and the Ashcloak Stockade, Miner's Rest and the three-level Hollow Mines.
+- **Six classes** (Warrior, Paladin, Hunter, Rogue, Priest, Mage) with rage, mana or energy, a spellbook and an action bar; levels 1–20; 35 quests in chains; gear in 17 slots; professions.
+- **Classic loop:** loot corpses by hand, sell to and buy from merchants, rest in town for rested XP, group up in parties.
+- **A living world:** camps that respawn, rare elites, weather, the Nightfall Incursion, and phasing (the world changes for you as your story moves on).
+- **Classic controls:** hold the right mouse button to steer, both to run, A/D to turn, Q/E to strafe; a minimap; character, bags, spellbook and skills windows.
 
 ## Where this build differs from the spec
 
-This is a bootstrap slice. These parts of [the spec](docs/spec/index.html) are not built yet:
+These parts of [the spec](docs/spec/index.html) are not built yet:
 
-- **No Luau yet.** Game rules are Rust (`crates/dyno-sim`, `crates/dyno-server`). Items, recipes, block drops, creatures and milestones are data in [content/hearthblock.json](content/hearthblock.json), sent to players on join; `/reload` changes them live. This is the first step toward the spec's content store.
+- **No Luau yet.** Game rules are Rust (`crates/dyno-sim`, `crates/dyno-server`); content is data in [content/hearthblock.json](content/hearthblock.json), sent to players on join; `/reload` changes it live.
 - **Transport is WebSocket over TCP**, not QUIC (NET-001), so the server also works through HTTPS tunnels.
-- **Movement is client-authoritative.** The server checks reach, break time, item use and crafting; falls and drowning are reported by the client (spec PRED-001 to PRED-016).
-- **One fixed-size world** (256 × 96 × 256) sent whole on join, not streamed chunks.
+- **Movement is client-authoritative**, checked by the server.
+- **The world is sent whole on join**, not streamed in chunks.
+- **One server instance today.** Running shards across many instances with a quorum is designed and in progress ([docs/architecture.md](docs/architecture.md), section 5).
 - **One release signing key**, not the root key list of REL-013. The private key stays offline with the maintainer; CI holds a copy as an Actions secret.
-- **No accounts.** Anyone who knows the address can join. Names are not reserved.
+- **No accounts.** A character belongs to the install that made it.
 
 ## Licence
 

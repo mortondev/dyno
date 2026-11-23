@@ -12,6 +12,7 @@ USAGE:
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
                                [--creative] [--content FILE.json] [--op NAME]...
                                [--webhook DISCORD_URL] (or DYNO_WEBHOOK)
+                               [--shard-cap 40] [--area-cap 16] [--max-shards 16]
                                Run a dedicated game server
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
@@ -383,6 +384,17 @@ fn run_server(args: &[String]) {
             }
             "--webhook" => {
                 cfg.webhook = Some(val());
+                i += 1;
+            }
+            "--shard-cap" | "--area-cap" | "--max-shards" => {
+                let n: usize = val()
+                    .parse()
+                    .unwrap_or_else(|_| fail(&format!("{} needs a number", args[i])));
+                match args[i].as_str() {
+                    "--shard-cap" => cfg.shard_cap = n,
+                    "--area-cap" => cfg.area_cap = n,
+                    _ => cfg.max_shards = n,
+                }
                 i += 1;
             }
             other => fail(&format!("unknown server option {other}")),
