@@ -7025,7 +7025,7 @@
         "hands": 2,
         "helm": 4,
         "helmet": 0,
-        "light": 12,
+        "light": 9,
         "pauldrons": 0,
         "robe": 0,
         "shoulders": 3,
@@ -7060,7 +7060,7 @@
         "hands": 2,
         "helm": 6,
         "helmet": 0,
-        "light": 9,
+        "light": 8,
         "pauldrons": 0,
         "robe": 0
       },
@@ -7098,7 +7098,7 @@
         "hands": 2,
         "helm": 6,
         "helmet": 0,
-        "light": 9,
+        "light": 8,
         "mood": 0,
         "pauldrons": 0,
         "robe": 0
@@ -7365,7 +7365,7 @@
         "hands": 2,
         "helm": 4,
         "helmet": 0,
-        "light": 12,
+        "light": 9,
         "pauldrons": 0,
         "robe": 0,
         "shoulders": 3,
@@ -7450,7 +7450,7 @@
         "hands": 2,
         "helm": 6,
         "helmet": 0,
-        "light": 9,
+        "light": 8,
         "pauldrons": 0,
         "robe": 0
       },
@@ -7725,53 +7725,8 @@
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Nell",
-        "npc": "nell"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Tam",
-        "npc": "tam"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Wyn",
-        "npc": "wyn"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Jory",
-        "npc": "jory"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Marl",
-        "npc": "marl"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Dag",
-        "npc": "dag"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Calder",
-        "npc": "calder"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Tess",
-        "npc": "tess"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Mira",
-        "npc": "mira"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Pell",
-        "npc": "pell"
+        "name": "Ansel",
+        "npc": "ansel"
       },
       {
         "color": [0.4,0.5,0.6],
@@ -7780,28 +7735,23 @@
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Hollis",
-        "npc": "hollis"
+        "name": "Bree",
+        "npc": "bree"
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Maren",
-        "npc": "maren"
+        "name": "Calder",
+        "npc": "calder"
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Tilda",
-        "npc": "tilda"
+        "name": "Dag",
+        "npc": "dag"
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Holt",
-        "npc": "holt"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Ansel",
-        "npc": "ansel"
+        "name": "Dunmore",
+        "npc": "dunmore"
       },
       {
         "color": [0.4,0.5,0.6],
@@ -7810,8 +7760,63 @@
       },
       {
         "color": [0.4,0.5,0.6],
+        "name": "Hollis",
+        "npc": "hollis"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Holt",
+        "npc": "holt"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Jory",
+        "npc": "jory"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Maren",
+        "npc": "maren"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Marl",
+        "npc": "marl"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Mira",
+        "npc": "mira"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Nell",
+        "npc": "nell"
+      },
+      {
+        "color": [0.4,0.5,0.6],
         "name": "Ostrin",
         "npc": "ostrin"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Pell",
+        "npc": "pell"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Tam",
+        "npc": "tam"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Tess",
+        "npc": "tess"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Tilda",
+        "npc": "tilda"
       },
       {
         "color": [0.4,0.5,0.6],
@@ -7820,13 +7825,8 @@
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Bree",
-        "npc": "bree"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Dunmore",
-        "npc": "dunmore"
+        "name": "Wyn",
+        "npc": "wyn"
       },
       {
         "color": [0.5,0.5,0.5],
@@ -8439,7 +8439,7 @@
         },
         "features": {
           "cape": 1,
-          "light": 14,
+          "light": 10,
           "shoulders": 1,
           "weapon_glow": 1
         },
@@ -8462,7 +8462,7 @@
         },
         "features": {
           "cape": 1,
-          "light": 12,
+          "light": 9,
           "weapon_glow": 1
         },
         "hero": true,

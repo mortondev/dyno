@@ -179,14 +179,15 @@ pub fn all(main: &mut Grid, _head: &mut Grid, bodies: &[Body; 2], ink: &Inks, pa
 }
 
 /// A device big enough to read from the play camera, about (0, 39.5): a
-/// sword, a sun, a chevron, a diamond.
+/// sword, a sun, a chevron, a diamond. (Far levels of detail widen crisp
+/// inks by up to a voxel, so strokes are drawn a little slim.)
 pub fn device(e: u8, x: f32, y: f32) -> bool {
     let x = x.abs();
     match e {
-        1 => x < 1.0 && (34.0..45.0).contains(&y) || x < 3.0 && (40.2..42.2).contains(&y),
-        2 => x * x + (y - 39.5).powi(2) < 3.0 * 3.0,
-        3 => x < 3.2 && ((y - 37.6) - (2.9 - x)).abs() < 1.1,
-        4 => x * 0.9 + (y - 39.5).abs() * 0.62 < 2.9,
+        1 => x < 0.6 && (35.0..43.4).contains(&y) || x < 2.6 && (40.0..41.2).contains(&y),
+        2 => x * x + (y - 39.5).powi(2) < 2.4 * 2.4,
+        3 => x < 2.8 && ((y - 37.6) - (2.6 - x)).abs() < 0.7,
+        4 => x * 0.9 + (y - 39.5).abs() * 0.62 < 2.3,
         _ => false,
     }
 }
@@ -194,7 +195,7 @@ pub fn device(e: u8, x: f32, y: f32) -> bool {
 /// The tabard's cloth at `p`: its part and whether it is the border.
 fn tabard_cell(b: &Body, p: Vec3) -> Option<(u8, bool)> {
     let m = mirror(p);
-    let w = 4.3;
+    let w = 5.0;
     if p.y > 32.8 {
         // the panels on the chest and the back
         let top = 46.4;
@@ -202,10 +203,10 @@ fn tabard_cell(b: &Body, p: Vec3) -> Option<(u8, bool)> {
             return None;
         }
         let d = b.body(p);
-        if !(1.0..2.1).contains(&d) {
+        if !(1.0..1.8).contains(&d) {
             return None;
         }
-        return Some((part_index("torso"), m.x > w - 1.0 || p.y > top - 1.0));
+        return Some((part_index("torso"), m.x > w - 0.6 || p.y > top - 0.6));
     }
     // the skirts, to the knees, with a pointed hem
     let top = 32.8;
@@ -223,10 +224,10 @@ fn tabard_cell(b: &Body, p: Vec3) -> Option<(u8, bool)> {
         ("flap.b", bz)
     };
     let hem = 15.0 + (m.x / w) * 2.4;
-    if (p.z - z0).abs() > 0.6 || p.y < hem {
+    if (p.z - z0).abs() > 0.45 || p.y < hem {
         return None;
     }
-    Some((part_index(part), m.x > w - 1.0 || p.y < hem + 1.1))
+    Some((part_index(part), m.x > w - 0.6 || p.y < hem + 0.7))
 }
 
 fn tabard(g: &Grid, b: &Body, bi: usize, s: &Si) -> Vec<Layer> {

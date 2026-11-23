@@ -148,13 +148,13 @@ HEROES = {
         'carry': {'offhand': ['dagger', [0.82, 0.84, 0.9]]}}),
     'priest': (person('Priest', SKIN[3], [0.85, 0.68, 0.35], 2, body=1), {
         'wear': ['acolytes_robe', 'acolytes_hood'],
-        'features': {'shoulders': 1, 'cape': 1, 'weapon_glow': 1, 'light': 14},
+        'features': {'shoulders': 1, 'cape': 1, 'weapon_glow': 1, 'light': 10},
         'colors': {**slot('shoulders', WHITE, GOLD, [0.86, 0.74, 0.4], [1.0, 0.85, 0.4]),
                    'cape': WHITE, 'trim': GOLD},
         'weapon': ['Staff', [0.95, 0.8, 0.35]]}),
     'mage': (person('Mage', SKIN[0], [0.45, 0.28, 0.12], 4, body=1), {
         'wear': ['novices_robe', 'novices_mantle'],
-        'features': {'cape': 1, 'weapon_glow': 1, 'light': 12},
+        'features': {'cape': 1, 'weapon_glow': 1, 'light': 9},
         'colors': {'cape': BLUE, 'trim': GOLD},
         'weapon': ['Staff', [0.4, 0.8, 1.0]]}),
 }
@@ -258,7 +258,7 @@ NPCS = {
     # the prospector: a hard hat with a lamp, a pickaxe
     'dunmore': {
         'features': {**PLAIN, 'helm': 6, 'chest': 2, 'hands': 2, 'beard': 1, 'build': 2,
-                     'hair_style': 1, 'mood': 0, 'light': 9},
+                     'hair_style': 1, 'mood': 0, 'light': 8},
         'colors': {'skin': [0.87, 0.68, 0.52], 'hair': [0.45, 0.48, 0.55],
                    **slot('chest', [0.44, 0.36, 0.26], LEATHER, [0.3, 0.26, 0.22]),
                    **slot('hands', LEATHER, [0.3, 0.2, 0.12]),
@@ -296,7 +296,7 @@ NPCS.update({
     'mira': worker('holt', features={'body': 1}),
 })
 for k in ('calder', 'mira'):
-    NPCS[k]['features']['light'] = 12
+    NPCS[k]['features']['light'] = 9
 
 # carried weapons are this much bigger than life (the first-person size
 # is kept)

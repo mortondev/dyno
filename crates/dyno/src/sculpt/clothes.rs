@@ -434,7 +434,7 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         // round the shoulders at the top, hang straight below
         let zc = c0.z - 0.4 - drop * 0.06 - smooth(8.0, 24.0, drop) * 1.3 - fold
             + (p.x / w).powi(2) * 1.8 * smooth(6.0, 0.0, drop);
-        if (p.z - zc).abs() > 0.6 {
+        if (p.z - zc).abs() > 0.5 {
             return None;
         }
         let seg = if drop < 13.0 {
@@ -444,7 +444,7 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         } else {
             "cape.2"
         };
-        let c = if drop > 36.4 || p.x.abs() > w - 1.7 {
+        let c = if drop > 37.0 || p.x.abs() > w - 1.0 {
             ink.trim[0]
         } else if fold > 0.2 {
             ink.cape[2]
@@ -473,7 +473,7 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
                 let fold = 0.38 * (p.x * 1.05 + drop * 0.05).sin() * smooth(0.0, 8.0, drop);
                 let zc = c0.z - 0.4 - drop * 0.06 - smooth(8.0, 24.0, drop) * 1.3 - fold
                     + (p.x / w).powi(2) * 1.8 * smooth(6.0, 0.0, drop);
-                if (p.z - zc).abs() > 0.6 {
+                if (p.z - zc).abs() > 0.5 {
                     return None;
                 }
                 // bigger than on a tabard, hung below the shoulders
