@@ -102,8 +102,16 @@ pub enum Act {
     CastStart { ability: u16, time: f32 },
     /// stops casting (`done`: it went off)
     CastEnd { done: bool },
-    /// an emote: 0 wave, 1 bow, 2 cheer, 3 point, 4 sit, 5 stand
+    /// an emote: an index into the client's animation list (`Anim::ALL`)
     Emote(u8),
+    /// takes a blow
+    Hurt,
+    /// falls
+    Died,
+    /// gets up again
+    Revived,
+    /// a creature's special move (charge, bolt, roar)
+    Special,
 }
 
 /// One quest in a player's log: counts per objective.
@@ -122,7 +130,7 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 14;
+pub const PROTOCOL_VERSION: u32 = 15;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -308,6 +316,8 @@ pub enum ClientMsg {
     },
     /// Trading with another player.
     Trade(TradeOp),
+    /// Play an emote for everyone nearby (an index into `Anim::ALL`).
+    Emote(u8),
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -636,6 +646,11 @@ pub enum ServerMsg {
     },
     /// The trade window (None: it closed).
     Trade(Option<TradeView>),
+    /// What a player holds in their weapon hand (drawn on their figure).
+    Wielding {
+        player: PlayerId,
+        item: Option<u16>,
+    },
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

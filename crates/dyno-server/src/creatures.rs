@@ -447,6 +447,8 @@ impl State {
         let mut heal_info: Vec<u32> = Vec::new();
         let mut bolts: Vec<Bolt> = Vec::new();
         let mut gone: Vec<(u32, bool)> = Vec::new();
+        // creatures that struck this tick (everyone nearby sees the blow)
+        let mut swings: Vec<u32> = Vec::new();
         let mut hurt: Vec<u32> = Vec::new();
         for id in ids {
             let e = self.entities.get_mut(&id).unwrap();
@@ -646,6 +648,7 @@ impl State {
                             [dx / d * 6.0, 4.5, dz / d * 6.0]
                         };
                         attacks.push((pid, dmg, push, c.id));
+                        swings.push(id);
                     }
                 }
             } else if mob.flee > 0.0 {
@@ -757,6 +760,15 @@ impl State {
                 };
                 self.broadcast(&info, None);
             }
+        }
+        for id in swings {
+            self.broadcast(
+                &ServerMsg::Act {
+                    actor: dyno_protocol::Actor::Entity(id),
+                    act: dyno_protocol::Act::Swing,
+                },
+                None,
+            );
         }
         for (id, drops) in gone {
             self.kill_mob(id, drops);

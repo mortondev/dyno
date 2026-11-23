@@ -29,6 +29,7 @@ impl State {
         if let Some(p) = self.players.get(&id) {
             p.send(&ServerMsg::Equipment(p.equip.clone()));
         }
+        self.send_wielding(id);
     }
 
     /// After gear or level changes: keep health and power within the new limits.
@@ -219,6 +220,17 @@ impl State {
             if crit {
                 amount *= 2.0;
             }
+            self.broadcast(
+                &ServerMsg::Act {
+                    actor: dyno_protocol::Actor::Player(id),
+                    act: if weapon.is_some() {
+                        dyno_protocol::Act::Shoot
+                    } else {
+                        dyno_protocol::Act::Swing
+                    },
+                },
+                Some(id),
+            );
             let p = self.players.get_mut(&id).unwrap();
             p.swing_at = now + Duration::from_secs_f32(speed.max(0.8));
             if weapon.is_some() {

@@ -911,7 +911,14 @@ impl State {
         if let Some(w) = &self.webhook {
             let _ = w.send(joined);
         }
+        for o in self.players.keys().copied().collect::<Vec<_>>() {
+            after.push(ServerMsg::Wielding {
+                player: o,
+                item: self.wielding(o),
+            });
+        }
         self.players.insert(id, p);
+        self.send_wielding(id);
         if let Some(class) = new_class {
             self.choose_class(id, class);
         }
@@ -1121,6 +1128,13 @@ impl State {
             ClientMsg::LootTake { id: corpse, slot } => self.take_loot(id, corpse, slot),
             ClientMsg::Buy { npc, item, count } => self.buy(id, npc, item, count),
             ClientMsg::Trade(op) => self.trade(id, op),
+            ClientMsg::Emote(n) => self.broadcast(
+                &ServerMsg::Act {
+                    actor: proto::Actor::Player(id),
+                    act: proto::Act::Emote(n),
+                },
+                Some(id),
+            ),
             ClientMsg::Gather { pos } => self.gather(id, pos),
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
@@ -1679,6 +1693,17 @@ impl State {
             .map(|b| b.amount)
             .sum();
         let amount = amount * (1.0 - (ward / 100.0).min(0.9));
+        let act = |a| ServerMsg::Act {
+            actor: proto::Actor::Player(id),
+            act: a,
+        };
+        if amount > 0.0 {
+            self.broadcast(&act(proto::Act::Hurt), Some(id));
+            if self.players[&id].health - amount <= 0.0 {
+                self.broadcast(&act(proto::Act::Died), Some(id));
+            }
+        }
+        let p = self.players.get_mut(&id).unwrap();
         p.health = (p.health - amount).max(0.0);
         p.combat_until = Instant::now() + Duration::from_secs(6);
         p.send(&ServerMsg::Hurt { amount, push });
@@ -1728,6 +1753,25 @@ impl State {
         p.pose.pos = to;
         p.send(&ServerMsg::Teleport { pos: to });
         p.send(&p.status());
+        self.broadcast(
+            &ServerMsg::Act {
+                actor: proto::Actor::Player(id),
+                act: proto::Act::Revived,
+            },
+            Some(id),
+        );
+    }
+
+    /// What a player holds in their weapon hand, for others to see.
+    pub fn wielding(&self, id: PlayerId) -> Option<u16> {
+        let p = self.players.get(&id)?;
+        let slot = |i: usize| p.equip.get(i).copied().flatten().map(|s| s.item);
+        slot(dyno_world::content::MAIN_HAND).or_else(|| slot(dyno_world::content::RANGED))
+    }
+
+    pub fn send_wielding(&self, id: PlayerId) {
+        let item = self.wielding(id);
+        self.broadcast(&ServerMsg::Wielding { player: id, item }, None);
     }
 
     pub fn milestone(&mut self, id: PlayerId, trigger: &str) {

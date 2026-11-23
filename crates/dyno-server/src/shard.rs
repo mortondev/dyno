@@ -108,7 +108,14 @@ impl State {
         // the zone will be re-announced as they move
         p.area = None;
         self.broadcast(&ServerMsg::PlayerJoined(self.player_info(id, &p)), None);
+        for o in self.players.keys().copied().collect::<Vec<_>>() {
+            p.send(&ServerMsg::Wielding {
+                player: o,
+                item: self.wielding(o),
+            });
+        }
         self.players.insert(id, p);
+        self.send_wielding(id);
     }
 }
 

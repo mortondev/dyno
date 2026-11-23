@@ -235,6 +235,11 @@ struct Play {
     show_info: bool,
     /// my party (empty: none)
     party: Vec<dyno_protocol::PartyMember>,
+    /// what other players hold in their weapon hand
+    wielding: HashMap<u32, u16>,
+    /// other players lying dead, and what they are doing (sitting, emoting)
+    remote_dead: std::collections::HashSet<u32>,
+    remote_hold: HashMap<u32, Anim>,
     /// someone asks to trade
     trade_ask: Option<String>,
     /// the open trade window
@@ -866,6 +871,9 @@ fn remote_anim(p: &Play, book: &mut Anims, id: u32, r: &Remote, now: f32) -> Ani
         pose.pos[2].floor() as i32,
     );
     let high = under == w::AIR && vel.y.abs() > 0.5;
+    if p.remote_dead.contains(&id) {
+        return Anim::Dead;
+    }
     if book.digging.contains_key(&id) {
         // swing after swing while they break a block
         let a = book.player(id, now);
@@ -883,6 +891,8 @@ fn remote_anim(p: &Play, book: &mut Anims, id: u32, r: &Remote, now: f32) -> Ani
         m
     } else if let Some(a) = book.casting(id, now) {
         cast_anim(&p.content, a)
+    } else if let Some(h) = p.remote_hold.get(&id) {
+        *h
     } else {
         Anim::Idle
     }
@@ -1364,6 +1374,9 @@ fn new_play(j: Joined) -> Play {
         show_info: false,
         party: Vec::new(),
         invite: None,
+        wielding: HashMap::new(),
+        remote_dead: Default::default(),
+        remote_hold: HashMap::new(),
         trade_ask: None,
         trade: None,
         trade_money: String::new(),
@@ -1647,6 +1660,9 @@ impl App {
                         }
                         ServerMsg::PlayerLeft { id } => {
                             p.remotes.remove(&id);
+                            p.wielding.remove(&id);
+                            p.remote_dead.remove(&id);
+                            p.remote_hold.remove(&id);
                         }
                         // moved to another copy of the world: same place, new company
                         ServerMsg::Shard {
@@ -1656,6 +1672,9 @@ impl App {
                         } => {
                             p.shard = shard;
                             p.entities.clear();
+                            p.wielding.clear();
+                            p.remote_dead.clear();
+                            p.remote_hold.clear();
                             p.remotes.clear();
                             p.focus = None;
                             p.hover = None;
@@ -1687,6 +1706,61 @@ impl App {
                             }
                         }
                         ServerMsg::Party { members } => p.party = members,
+                        ServerMsg::Wielding { player, item } => match item {
+                            Some(i) => {
+                                p.wielding.insert(player, i);
+                            }
+                            None => {
+                                p.wielding.remove(&player);
+                            }
+                        },
+                        // someone (or something) does something: everyone sees it
+                        ServerMsg::Act { actor, act } => {
+                            let now = p.anims.now();
+                            match actor {
+                                dyno_protocol::Actor::Player(pid) if pid != p.my_id => {
+                                    let one = match act {
+                                        dyno_protocol::Act::Swing => Some(Anim::Attack1H),
+                                        dyno_protocol::Act::Shoot => Some(Anim::Shoot),
+                                        dyno_protocol::Act::Hurt => Some(Anim::HitReact),
+                                        dyno_protocol::Act::Died => {
+                                            p.remote_hold.remove(&pid);
+                                            p.remote_dead.insert(pid);
+                                            Some(Anim::Death)
+                                        }
+                                        dyno_protocol::Act::Revived => {
+                                            p.remote_dead.remove(&pid);
+                                            None
+                                        }
+                                        dyno_protocol::Act::Emote(n) => {
+                                            match Anim::ALL.get(n as usize).copied() {
+                                                Some(e) if e.duration().is_none() => {
+                                                    p.remote_hold.insert(pid, e);
+                                                    None
+                                                }
+                                                e => e,
+                                            }
+                                        }
+                                        _ => None,
+                                    };
+                                    if let Some(a) = one {
+                                        p.anims.player(pid, now).play_fresh(now, a);
+                                    }
+                                }
+                                dyno_protocol::Actor::Entity(eid) => {
+                                    let a = match act {
+                                        dyno_protocol::Act::Swing => Some(Anim::AttackUnarmed),
+                                        dyno_protocol::Act::Special => Some(Anim::Special),
+                                        dyno_protocol::Act::Shoot => Some(Anim::Shoot),
+                                        _ => None,
+                                    };
+                                    if let Some(a) = a {
+                                        p.anims.play_entity(eid, now, a);
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
                         ServerMsg::TradeAsk { from } => {
                             p.trade_ask = Some(from);
                             self.audio.play(Sfx::Click, 0.8);
@@ -2600,7 +2674,8 @@ impl App {
                 let step = Skeleton::Biped.step(r.speed(), 1.0);
                 let a = book.player(*id, now);
                 a.drive_at(now, state, base, step);
-                let look = models::Look::from_appearance(&r.look, r.color);
+                let mut look = models::Look::from_appearance(&r.look, r.color);
+                look.weapon = models::weapon_look(&p.content, p.wielding.get(id).copied());
                 models::push_person_anim(&mut boxes, base, pose.yaw, pose.pitch, &look, bl, a, now);
             }
             p.anims = book;
@@ -4438,6 +4513,10 @@ fn hud(
                     // emotes play on your own figure (others cannot see them yet)
                     let emote = t.starts_with('/').then(|| Anim::emote(&t)).flatten();
                     if let Some(e) = emote {
+                        // everyone nearby sees it
+                        if let Some(n) = Anim::ALL.iter().position(|a| *a == e) {
+                            let _ = p.conn.tx.send(ClientMsg::Emote(n as u8));
+                        }
                         let now = p.anims.now();
                         if e.duration().is_some() {
                             p.anims.me(now).play(now, e);
