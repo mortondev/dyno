@@ -1696,11 +1696,7 @@ impl World {
         }
         let rd = |o: usize| u32::from_le_bytes([data[o], data[o + 1], data[o + 2], data[o + 3]]);
         let size = [rd(5), rd(9), rd(13)];
-        if size.contains(&0)
-            || size[0] > MAX_SIDE
-            || size[2] > MAX_SIDE
-            || size[1] > MAX_HEIGHT
-        {
+        if size.contains(&0) || size[0] > MAX_SIDE || size[2] > MAX_SIDE || size[1] > MAX_HEIGHT {
             return Err(format!("world size {size:?} is not supported"));
         }
         let mut w = World::empty(size);
