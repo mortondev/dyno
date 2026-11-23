@@ -45,6 +45,10 @@ pub struct Mob {
     /// slowed until then, by this share of its speed
     pub slowed_until: Instant,
     pub slow: f32,
+    /// someone has hit it since it last stood at peace
+    pub engaged: bool,
+    /// caught unawares: until then, openers still count as a first blow
+    pub surprised_until: Instant,
     pub dots: Vec<crate::abilities::Dot>,
     /// where it was spawned; pulled too far away it returns here
     pub home: [f32; 3],
@@ -71,6 +75,10 @@ pub struct Mob {
 pub const EVADE_STUCK: f32 = 3.0;
 /// A creature that cannot get at its target this long gives up the fight.
 pub const CHASE_STUCK: f32 = 6.0;
+
+/// A creature hit while at peace is off guard this long: an opener that
+/// lands just after your first swing still counts.
+pub const SURPRISE: Duration = Duration::from_millis(1500);
 
 /// How long a tag lasts after its owner's last blow.
 pub const TAG_LIFE: Duration = Duration::from_secs(15);
@@ -99,6 +107,8 @@ impl Mob {
             rooted_until: now,
             slowed_until: now,
             slow: 0.0,
+            engaged: false,
+            surprised_until: now,
             dots: Vec::new(),
             home: pos,
             evading: false,
@@ -121,6 +131,7 @@ impl Mob {
         self.tag = None;
         self.health = self.max_health;
         self.threat.clear();
+        self.engaged = false;
         self.target = None;
         self.dots.clear();
         self.stuck = 0.0;
@@ -148,6 +159,12 @@ impl Mob {
     pub fn take_hit(&mut self, pid: PlayerId, amount: f32) -> bool {
         if self.evading {
             return false;
+        }
+        if !self.engaged {
+            self.engaged = true;
+            if self.target.is_none() {
+                self.surprised_until = Instant::now() + SURPRISE;
+            }
         }
         self.health -= amount;
         self.last_hit = Some((pid, Instant::now()));
@@ -1151,6 +1168,31 @@ mod tests {
         m.arrive_home();
         assert!(!m.evading && m.stuck == 0.0 && m.health == m.max_health);
         assert!(m.take_hit(2, 5.0), "and it can be fought again");
+    }
+
+    /// Openers (Ambush, Marked Shot) count against a creature at peace, and
+    /// for a moment after the first blow, so a swing that lands just before
+    /// the opener does not waste it.
+    #[test]
+    fn a_creature_at_peace_is_caught_off_guard_once() {
+        let mut m = Mob::new(0, 60.0, 2, [0.0; 3]);
+        assert!(!m.engaged);
+        let before = Instant::now();
+        m.take_hit(1, 5.0);
+        assert!(m.engaged && m.surprised_until > before, "off guard at first");
+        let until = m.surprised_until;
+        m.take_hit(1, 5.0);
+        assert_eq!(m.surprised_until, until, "a second blow does not renew it");
+        // one that was already coming for you is not surprised
+        let mut m = Mob::new(0, 60.0, 2, [0.0; 3]);
+        m.target = Some(7);
+        let now = Instant::now();
+        m.take_hit(7, 5.0);
+        assert!(m.surprised_until <= now);
+        // back home and at peace, it can be surprised again
+        m.evade();
+        m.arrive_home();
+        assert!(!m.engaged);
     }
 
     #[test]

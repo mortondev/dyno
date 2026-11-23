@@ -90,6 +90,12 @@ pub fn ability_icon(
     c: &Content,
     a: &dyno_world::content::Ability,
 ) {
+    // ability pictures are streamed: ask for one the first time it is drawn
+    if let Some(p) = a.image.as_deref()
+        && crate::assets::get(p).is_none()
+    {
+        crate::assets::request(p);
+    }
     if let Some(t) = a
         .image
         .as_deref()

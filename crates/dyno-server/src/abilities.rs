@@ -453,7 +453,9 @@ impl State {
                         .entities
                         .get(&t)
                         .and_then(|e| e.mob.as_ref())
-                        .is_some_and(|m| !m.threat.contains_key(&id) && m.target != Some(id));
+                        .is_some_and(|m| {
+                            (!m.engaged && m.target.is_none()) || m.surprised_until > now
+                        });
                 let amount = dmg
                     * if bonus { a.shade_bonus } else { 1.0 }
                     * if unaware { a.opener } else { 1.0 };

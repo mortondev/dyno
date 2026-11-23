@@ -186,16 +186,23 @@ impl Audio {
         }
     }
 
-    /// Play a sound the content names (an ability's): `sounds/<name>_<n>.wav`
-    /// in the pack. False if the pack has no such sound (yet), so the caller
-    /// can fall back to a built-in one.
+    /// Play a sound the content names (an ability's):
+    /// `sounds/abilities/<name>_<n>.wav` in the pack. These are streamed: the
+    /// first time one is wanted it is asked for, and this returns false
+    /// until it has arrived (or if the pack has none), so the caller can
+    /// fall back to a built-in sound.
     pub fn play_named(&mut self, name: &str, gain: f32) -> bool {
         if !self.named.contains_key(name) {
+            let path = |v: usize| format!("sounds/abilities/{name}_{v}.wav");
             let clips: Vec<Clip> = (0..)
-                .map_while(|v| assets::get(&format!("sounds/{name}_{v}.wav")))
+                .map_while(|v| assets::get(&path(v)))
                 .filter_map(|b| decode_wav(&b))
                 .collect();
             if clips.is_empty() {
+                // up to three variants; asking for one the pack lacks is harmless
+                for v in 0..3 {
+                    assets::request(&path(v));
+                }
                 return false;
             }
             self.named.insert(name.to_string(), clips);

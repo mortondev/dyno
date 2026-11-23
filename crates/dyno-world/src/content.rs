@@ -530,7 +530,8 @@ pub struct Ability {
     /// the `icon` item's sprite is shown
     #[serde(default)]
     pub image: Option<String>,
-    /// the pack sound it makes when it goes off ("sounds/<name>_<n>.wav");
+    /// the pack sound it makes when it goes off
+    /// ("sounds/abilities/<name>_<n>.wav");
     /// empty: the plain bolt or burst sound
     #[serde(default)]
     pub sound: String,
@@ -1634,6 +1635,79 @@ mod tests {
         assert_eq!(r.tier, 1);
         assert_eq!(r.drops[0].item, crate::COBBLE as ItemId);
         assert!(c.rule(crate::BEDROCK).hardness < 0.0);
+    }
+
+    /// The first five levels of every class (docs/design/quality-bar.md,
+    /// section 6): at least three abilities by level 5, something new at
+    /// level 2 or 3 and again at 4 or 5, and a second button from the start.
+    #[test]
+    fn every_class_has_a_kit_by_level_five() {
+        let c = Content::default_pack();
+        for class in &c.classes {
+            let at = |lo: u8, hi: u8| {
+                c.abilities
+                    .iter()
+                    .filter(|a| a.class == class.id && a.level >= lo && a.level <= hi)
+                    .count()
+            };
+            assert!(at(1, 1) >= 2, "{}: two buttons at level 1", class.key);
+            assert!(at(2, 3) >= 1, "{}: a new ability at 2 or 3", class.key);
+            assert!(at(4, 5) >= 1, "{}: a new ability at 4 or 5", class.key);
+            assert!(at(1, 5) >= 4, "{}: a kit by level 5", class.key);
+        }
+    }
+
+    /// Ability presentation (quality bar, section 7): each has its own icon
+    /// and a sound in the pack, and the seconds its tooltip promises are the
+    /// seconds in its data.
+    #[test]
+    fn abilities_have_icons_sounds_and_honest_tooltips() {
+        let c = Content::default_pack();
+        let pack = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+        let mut icons = std::collections::HashSet::new();
+        for a in &c.abilities {
+            let image = a
+                .image
+                .as_deref()
+                .unwrap_or_else(|| panic!("{}: no icon", a.key));
+            assert!(pack.join(image).is_file(), "{}: {image} is missing", a.key);
+            assert!(icons.insert(image), "{}: shares its icon", a.key);
+            assert!(!a.sound.is_empty(), "{}: no sound", a.key);
+            assert!(
+                pack.join(format!("sounds/abilities/{}_0.wav", a.sound)).is_file(),
+                "{}: sound '{}' is not in the pack",
+                a.key,
+                a.sound
+            );
+            assert!(a.text.ends_with('.'), "{}: tooltip text", a.key);
+            // every "N seconds" / "N minutes" in the text is a number the data holds
+            let secs = [
+                a.stun,
+                a.root,
+                a.slow[1],
+                a.dot[2],
+                a.hot[2],
+                a.cooldown,
+                a.cast,
+                a.buff.map_or(0.0, |b| b.secs),
+            ];
+            let words: Vec<&str> = a.text.split_whitespace().collect();
+            for w in words.windows(2) {
+                let unit = w[1].trim_matches(|ch: char| !ch.is_alphabetic());
+                let scale = match unit {
+                    "second" | "seconds" => 1.0,
+                    "minute" | "minutes" => 60.0,
+                    _ => continue,
+                };
+                let Ok(n) = w[0].parse::<f32>() else { continue };
+                assert!(
+                    secs.iter().any(|s| (s - n * scale).abs() < 0.01),
+                    "{}: the text says {} {unit}, the data does not",
+                    a.key,
+                    w[0]
+                );
+            }
+        }
     }
 
     #[test]

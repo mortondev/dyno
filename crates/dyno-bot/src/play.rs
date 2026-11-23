@@ -915,8 +915,11 @@ impl Session {
                 } else {
                     self.find_creature(&words.join(" "))
                 };
-                let needs =
-                    ab.range > 0.0 && (ab.damage[0] > 0.0 || ab.root > 0.0 || ab.stun > 0.0);
+                let needs = ab.range > 0.0;
+                // like the client: using an ability on a creature starts the fight
+                if needs && let Some(t) = target {
+                    self.a.body.send(ClientMsg::AutoAttack { target: Some(t) });
+                }
                 self.a.body.send(ClientMsg::Cast {
                     ability: ab.id,
                     target: if needs { target } else { None },

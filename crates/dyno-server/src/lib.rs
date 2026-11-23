@@ -1825,7 +1825,7 @@ impl Server {
         log(format!("{me} ran {line}"));
         let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
+            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /xp <amount>, /reload"),
             "/who" => {
                 let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
@@ -1961,6 +1961,16 @@ impl Server {
                         st.tell(id, format!("Finished {key}."));
                     }
                     None => st.tell(id, "Usage: /finish <quest key>"),
+                }
+            }
+            "/xp" => {
+                // for testing classes at a level: experience, as if earned
+                if !op {
+                    return st.tell(id, "Only the world's owner can grant experience.");
+                }
+                match arg.trim().parse::<u32>() {
+                    Ok(n) => st.reward(id, n.min(1_000_000), 0),
+                    Err(_) => st.tell(id, "Usage: /xp <amount>"),
                 }
             }
             "/money" => {
