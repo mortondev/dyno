@@ -188,17 +188,9 @@ fn cell(p: [f32; 3]) -> [i32; 3] {
 
 /// Every hearth in the world.
 pub fn find_hearths(world: &World) -> Vec<[i32; 3]> {
-    let mut out = Vec::new();
-    let [sx, sy, sz] = world.size;
-    for x in 0..sx as i32 {
-        for z in 0..sz as i32 {
-            for y in 0..sy as i32 {
-                if world.get(x, y, z) == w::HEARTH {
-                    out.push([x, y, z]);
-                }
-            }
-        }
-    }
+    // sections without a hearth are skipped (a big world is mostly sky and rock)
+    let mut out = world.positions_of(w::HEARTH);
+    out.sort();
     out
 }
 
