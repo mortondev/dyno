@@ -52,3 +52,16 @@ Warcraft voxel set) was judged against that.
 - **Zone palettes and times of day:** per-zone grading in `render.json`.
 - **Wonder props per landmark:** runestones, glowing mushrooms, falls.
 - **Tree variety:** the species tables in the vegetation phase.
+
+# Round 3 review (adopted as the reference set)
+
+Round 3 meets the brief: the world is alive (parties, quest givers,
+townsfolk, wildlife, spirits), each zone has its own mood, and the
+framing is cinematic. Notes for the next pass:
+
+1. **Too busy in places.** The plaza, Logging Camp and Barrowwood are maximalist. Keep calm space and one clear focal point; let the landmark breathe.
+2. **The same "wonder" everywhere.** Glowing runestones appear in nearly every scene. Give each place its own wonder, and use runestones sparingly.
+3. **The same party in every scene.** The warrior, mage and hunter trio repeats. Vary classes, numbers and activities: a lone fisher, a duel, a group at a quest giver.
+4. **Distant castles and cities** are not places in Ashfall Vale. Keep them only as beyond-the-edge scenery (the horizon panorama), never as promised content.
+5. **Characters in the concepts are chibi** (Cube World proportions). The character direction stays slender, heroic, WoW-like with exaggerated gear; treat concept figures as placeholders for activity and colour, not proportions.
+6. **Seasons mix** within one scene. Each zone keeps one coherent season: spring blossom in Hearthstead, autumn in Birchrise, high summer at the farm, moody late autumn in Barrowwood.
