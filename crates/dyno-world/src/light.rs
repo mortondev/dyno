@@ -7,7 +7,6 @@
 //! (the air above the land, and everything not yet streamed) costs nothing.
 
 use crate::{self as w, SECTION, SECTION_CELLS, SectionPos, World};
-use std::collections::VecDeque;
 
 pub struct Light {
     size: [i32; 3],
@@ -170,64 +169,65 @@ impl Light {
             sy - 1,
             hi[2].min(self.size[2] - 1),
         ];
+        if lo[0] > hi[0] || lo[2] > hi[2] {
+            return;
+        }
         let elo = [(lo[0] - R).max(0), 0, (lo[2] - R).max(0)];
         let ehi = [
             (hi[0] + R).min(self.size[0] - 1),
             sy - 1,
             (hi[2] + R).min(self.size[2] - 1),
         ];
-        let es = [ehi[0] - elo[0] + 1, sy, ehi[2] - elo[2] + 1];
-        let eidx = |x: i32, y: i32, z: i32| -> Option<usize> {
-            let (lx, lz) = (x - elo[0], z - elo[2]);
-            if lx < 0 || y < 0 || lz < 0 || lx >= es[0] || y >= es[1] || lz >= es[2] {
-                None
-            } else {
-                Some(((y * es[2] + lz) * es[0] + lx) as usize)
-            }
+        let (ex, ez) = (ehi[0] - elo[0] + 1, ehi[2] - elo[2] + 1);
+        // the scratch box with a border of one opaque cell all round, so the
+        // fill needs no bounds checks (light never leaves the box)
+        let (px, pz) = ((ex + 2) as usize, (ez + 2) as usize);
+        let layer = px * pz;
+        let n = layer * (sy + 2) as usize;
+        let at = |x: i32, y: i32, z: i32| -> usize {
+            ((y + 1) as usize * pz + (z - elo[2] + 1) as usize) * px + (x - elo[0] + 1) as usize
         };
-        let n = (es[0] * es[1] * es[2]) as usize;
-        let mut bl = vec![0u8; n];
-        let mut sk = vec![0u8; n];
-        // the box's cells read once (the fill below visits each many times):
+        // the box's cells read once (the fill visits each many times):
         // bit 7 opaque, low bits the light it gives
         let mut lut = [0u8; 256];
         for (b, v) in lut.iter_mut().enumerate().take(w::BLOCK_COUNT as usize) {
             let b = b as w::BlockId;
             *v = w::emission(b).min(15) | if w::is_opaque(b) { 0x80 } else { 0 };
         }
-        let mut cell = vec![0u8; n];
+        let mut cell = vec![0x80u8; n];
         for y in 0..sy {
             for z in elo[2]..=ehi[2] {
-                let row = ((y * es[2] + (z - elo[2])) * es[0]) as usize;
-                for x in elo[0]..=ehi[0] {
-                    cell[row + (x - elo[0]) as usize] = lut[world.get(x, y, z) as usize];
+                let row = at(elo[0], y, z);
+                for (k, x) in (elo[0]..=ehi[0]).enumerate() {
+                    cell[row + k] = lut[world.get(x, y, z) as usize];
                 }
             }
         }
-        let opaque = |i: usize| cell[i] & 0x80 != 0;
+        let mut bl = vec![0u8; n];
+        let mut sk = vec![0u8; n];
         // highest opaque cell of each column
-        let mut top = vec![-1i32; (es[0] * es[2]) as usize];
+        let mut top = vec![-1i32; (ex * ez) as usize];
         for z in elo[2]..=ehi[2] {
             for x in elo[0]..=ehi[0] {
                 let mut t = -1;
                 for y in (0..sy).rev() {
-                    if opaque(eidx(x, y, z).unwrap()) {
+                    if cell[at(x, y, z)] & 0x80 != 0 {
                         t = y;
                         break;
                     }
                 }
-                top[((z - elo[2]) * es[0] + (x - elo[0])) as usize] = t;
+                top[((z - elo[2]) * ex + (x - elo[0])) as usize] = t;
             }
         }
         let top_at = |x: i32, z: i32| -> i32 {
             if x < elo[0] || x > ehi[0] || z < elo[2] || z > ehi[2] {
                 sy
             } else {
-                top[((z - elo[2]) * es[0] + (x - elo[0])) as usize]
+                top[((z - elo[2]) * ex + (x - elo[0])) as usize]
             }
         };
-        let mut qb = VecDeque::new();
-        let mut qs = VecDeque::new();
+        let mut qb: Vec<u32> = Vec::new();
+        let mut qs: Vec<u32> = Vec::new();
         for z in elo[2]..=ehi[2] {
             for x in elo[0]..=ehi[0] {
                 let t = top_at(x, z);
@@ -241,49 +241,53 @@ impl Light {
                 .max()
                 .unwrap_or(t);
                 for y in (t + 1).max(0)..sy {
-                    let i = eidx(x, y, z).unwrap();
+                    let i = at(x, y, z);
                     sk[i] = 15;
                     if y <= nmax {
-                        qs.push_back((x, y, z));
+                        qs.push(i as u32);
                     }
                 }
                 for y in 0..sy {
-                    let e = cell[eidx(x, y, z).unwrap()] & 0x0f;
+                    let i = at(x, y, z);
+                    let e = cell[i] & 0x0f;
                     if e > 0 {
-                        bl[eidx(x, y, z).unwrap()] = e;
-                        qb.push_back((x, y, z));
+                        bl[i] = e;
+                        qb.push(i as u32);
                     }
                 }
             }
         }
+        let steps = [
+            1isize,
+            -1,
+            px as isize,
+            -(px as isize),
+            layer as isize,
+            -(layer as isize),
+        ];
         for (buf, q) in [(&mut bl, &mut qb), (&mut sk, &mut qs)] {
-            while let Some((x, y, z)) = q.pop_front() {
-                let l = buf[eidx(x, y, z).unwrap()];
+            let mut head = 0;
+            while head < q.len() {
+                let i = q[head] as usize;
+                head += 1;
+                let l = buf[i];
                 if l <= 1 {
                     continue;
                 }
-                for (dx, dy, dz) in [
-                    (1, 0, 0),
-                    (-1, 0, 0),
-                    (0, 1, 0),
-                    (0, -1, 0),
-                    (0, 0, 1),
-                    (0, 0, -1),
-                ] {
-                    let (nx, ny, nz) = (x + dx, y + dy, z + dz);
-                    let Some(j) = eidx(nx, ny, nz) else { continue };
-                    if buf[j] >= l - 1 || opaque(j) {
+                for d in steps {
+                    let j = (i as isize + d) as usize;
+                    if buf[j] >= l - 1 || cell[j] & 0x80 != 0 {
                         continue;
                     }
                     buf[j] = l - 1;
-                    q.push_back((nx, ny, nz));
+                    q.push(j as u32);
                 }
             }
         }
         for y in 0..sy {
             for z in lo[2]..=hi[2] {
                 for x in lo[0]..=hi[0] {
-                    let j = eidx(x, y, z).unwrap();
+                    let j = at(x, y, z);
                     self.put(x, y, z, (sk[j] << 4) | bl[j]);
                 }
             }

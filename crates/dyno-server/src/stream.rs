@@ -156,6 +156,18 @@ impl View {
         dt: f32,
         cfg: &StreamConfig,
     ) -> (Option<ServerMsg>, Option<ServerMsg>) {
+        self.pump_with(world, at, dt, cfg, &mut |s| world.encode_section(s))
+    }
+
+    /// `pump`, encoding sections with `encode` (a shard's cache).
+    pub fn pump_with(
+        &mut self,
+        world: &World,
+        at: [f32; 3],
+        dt: f32,
+        cfg: &StreamConfig,
+        encode: &mut dyn FnMut(SectionPos) -> Vec<u8>,
+    ) -> (Option<ServerMsg>, Option<ServerMsg>) {
         let gone = self.replan(world, at, cfg);
         let rate = if self.filled { cfg.rate } else { cfg.join_rate } as f64;
         // a tick's worth, and at most a tenth of a second banked
@@ -166,7 +178,7 @@ impl View {
             if !self.held.insert(s) {
                 continue;
             }
-            let data = world.encode_section(s);
+            let data = encode(s);
             self.tokens -= (data.len() + 16) as f64;
             batch.push((s, data));
         }
@@ -190,15 +202,29 @@ impl State {
         let cfg = self.stream;
         let spawn = self.spawn_point();
         let world = &self.world;
+        // each section is encoded once and kept until it changes: many
+        // players want the same sections (a restart has everyone join at once)
+        let cache = &mut self.encoded;
+        let mut encode = |s: SectionPos| {
+            let rev = world.section_rev(s);
+            match cache.get(&s) {
+                Some((r, d)) if *r == rev => d.clone(),
+                _ => {
+                    let d = world.encode_section(s);
+                    cache.insert(s, (rev, d.clone()));
+                    d
+                }
+            }
+        };
         for p in self.players.values_mut() {
-            let (sent, gone) = p.view.pump(world, p.pose.pos, dt, &cfg);
+            let (sent, gone) = p.view.pump_with(world, p.pose.pos, dt, &cfg, &mut encode);
             for m in [gone, sent].into_iter().flatten() {
                 p.send(&m);
             }
         }
         for o in self.observers.values_mut() {
             let at = o.view.center.unwrap_or(spawn);
-            let (sent, gone) = o.view.pump(world, at, dt, &cfg);
+            let (sent, gone) = o.view.pump_with(world, at, dt, &cfg, &mut encode);
             for m in [gone, sent].into_iter().flatten() {
                 let _ = o.tx.send(std::sync::Arc::new(dyno_protocol::encode(&m)));
             }
@@ -330,6 +356,53 @@ impl State {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Forty players join at once (a restart) on the full world: how long
+    /// one tick of section streaming takes while every view fills.
+    /// cargo test --release -p dyno-server mass_join -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn mass_join_tick_time() {
+        let world = World::generate([384, 96, 384], 20261122);
+        let cfg = StreamConfig::default();
+        let mut views: Vec<(View, [f32; 3])> = (0..40)
+            .map(|i| {
+                let a = i as f32 * 0.7;
+                let at = [192.0 + a.cos() * 120.0, 40.0, 192.0 + a.sin() * 120.0];
+                (View::default(), at)
+            })
+            .collect();
+        let (mut worst, mut total, mut ticks, mut bytes) = (0.0f64, 0.0f64, 0, 0usize);
+        let mut cache: std::collections::HashMap<SectionPos, Vec<u8>> = Default::default();
+        let mut encode = |s: SectionPos| {
+            cache
+                .entry(s)
+                .or_insert_with(|| world.encode_section(s))
+                .clone()
+        };
+        while views.iter().any(|(v, _)| !v.filled) {
+            let t = std::time::Instant::now();
+            for (v, at) in views.iter_mut() {
+                if let (Some(ServerMsg::Sections(l)), _) =
+                    v.pump_with(&world, *at, 0.05, &cfg, &mut encode)
+                {
+                    bytes += l.iter().map(|(_, d)| d.len()).sum::<usize>();
+                }
+            }
+            let ms = t.elapsed().as_secs_f64() * 1e3;
+            worst = worst.max(ms);
+            total += ms;
+            ticks += 1;
+        }
+        eprintln!(
+            "40 views filled in {ticks} ticks ({:.1} s of game time): {} KB sent; \
+             a tick of streaming took {:.1} ms on average, {:.1} ms at worst (the tick is 50 ms)",
+            ticks as f32 * 0.05,
+            bytes / 1024,
+            total / ticks as f64,
+            worst
+        );
+    }
 
     #[test]
     fn a_view_streams_nearest_first_within_budget_and_drops_far_sections() {

@@ -1367,26 +1367,18 @@ fn sections_out(p: &mut Play, mut gfx: Option<&mut Gfx>, list: Vec<[i32; 3]>) {
     }
 }
 
-/// Light and mesh what arrived, a frame's worth at a time. Returns how long it took.
-fn take_arrivals(p: &mut Play, gfx: Option<&mut Gfx>) -> Duration {
+/// Sections lit and meshed together (a batch costs some milliseconds).
+const ARRIVAL_BATCH: usize = 64;
+
+/// Light and mesh up to `max` of the sections that arrived. Returns how long it took.
+fn take_arrivals(p: &mut Play, gfx: Option<&mut Gfx>, max: usize) -> Duration {
     let t0 = Instant::now();
     if p.arrived.is_empty() {
         return Duration::ZERO;
     }
-    let cap: usize = std::env::var("DYNO_ARRIVAL_BATCH")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .unwrap_or(384);
-    let n = p.arrived.len().min(cap);
+    let n = p.arrived.len().min(max);
     let batch: Vec<[i32; 3]> = p.arrived.drain(..n).collect();
-    let tl = Instant::now();
     p.light.arrived(&p.world, &batch);
-    if std::env::var_os("DYNO_ARRIVAL_DEBUG").is_some() {
-        eprintln!(
-            "arrivals: {n} sections, light {:.0} ms",
-            tl.elapsed().as_secs_f64() * 1e3
-        );
-    }
     p.ground.clear();
     for s in &batch {
         let lo = [s[0] * 16, s[1] * 16, s[2] * 16];
@@ -2436,8 +2428,11 @@ impl App {
                     },
                 }
             }
-            // light and mesh what arrived, a frame's worth at a time
-            take_arrivals(p, self.gfx.as_mut());
+            // light and mesh what arrived: about 8 ms of it a frame
+            let mut spent = Duration::ZERO;
+            while !p.arrived.is_empty() && spent < Duration::from_millis(8) {
+                spent += take_arrivals(p, self.gfx.as_mut(), ARRIVAL_BATCH);
+            }
             if p.combat_log.len() > 300 {
                 p.combat_log.drain(..150);
             }
@@ -5945,7 +5940,7 @@ pub fn shot_with_ui(
             Ok(NetEvent::Closed(r)) => return Err(r),
             Err(_) => {}
         }
-        let took = take_arrivals(&mut p, Some(&mut *gfx));
+        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_BATCH);
         if took > Duration::ZERO {
             // the time spent here is not the stream going quiet
             last_section = Instant::now();
@@ -5955,7 +5950,7 @@ pub fn shot_with_ui(
         }
     }
     while !p.arrived.is_empty() {
-        let took = take_arrivals(&mut p, Some(&mut *gfx));
+        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_BATCH);
         batches += 1;
         worst = worst.max(took);
         streamed += took;

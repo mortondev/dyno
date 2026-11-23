@@ -391,6 +391,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         rested_clock: 0.0,
         weather: (0, 0.0, 240.0),
         stream: cfg.stream,
+        encoded: HashMap::new(),
     };
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
     state.spawn_npcs();

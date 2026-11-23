@@ -222,6 +222,9 @@ pub struct State {
     pub weather: (u8, f32, f32),
     /// view radius, area of interest and section budgets
     pub stream: crate::stream::StreamConfig,
+    /// sections encoded for streaming, with the world's count of changes
+    /// to each when it was encoded (stream.rs)
+    pub encoded: HashMap<dyno_world::SectionPos, (u32, Vec<u8>)>,
 }
 
 pub fn now_secs() -> u64 {

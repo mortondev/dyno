@@ -600,6 +600,9 @@ pub struct World {
     cells: Vec<BlockId>,
     /// streamed worlds (clients): only the sections that have arrived
     sparse: Option<Box<Sparse>>,
+    /// dense worlds: a count per section, bumped by every change in it (so
+    /// the server can keep sections encoded until they change)
+    revs: Vec<u32>,
 }
 
 /// Run-length encode cells: (block, varint count) pairs.
@@ -670,10 +673,12 @@ fn unrle(data: &[u8], out: &mut Vec<BlockId>, total: usize) -> Result<(), String
 impl World {
     pub fn empty(size: [u32; 3]) -> Self {
         let n = size[0] as usize * size[1] as usize * size[2] as usize;
+        let d = Self::dims_of(size);
         World {
             size,
             cells: vec![AIR; n],
             sparse: None,
+            revs: vec![0; (d[0] * d[1] * d[2]) as usize],
         }
     }
 
@@ -689,6 +694,7 @@ impl World {
                 secs: vec![Sect::Unknown; (dims[0] * dims[1] * dims[2]) as usize],
                 rev: 0,
             })),
+            revs: Vec::new(),
         }
     }
 
@@ -789,10 +795,38 @@ impl World {
         }
     }
 
+    /// How many times a section of a dense world has changed (for caches
+    /// of encoded sections). Streamed worlds answer 0.
+    pub fn section_rev(&self, s: SectionPos) -> u32 {
+        match (self.sparse.is_none(), self.sect_index(s)) {
+            (true, Some(i)) => self.revs[i],
+            _ => 0,
+        }
+    }
+
     /// The section's cells, run-length encoded (for streaming). Cells past
     /// the edge of the world are air.
     pub fn encode_section(&self, s: SectionPos) -> Vec<u8> {
         let mut out = Vec::new();
+        let [wx, wy, wz] = self.size.map(|v| v as i32);
+        let (x0, y0, z0) = (s[0] * SECTION, s[1] * SECTION, s[2] * SECTION);
+        if self.sparse.is_none()
+            && self.sect_index(s).is_some()
+            && x0 + SECTION <= wx
+            && y0 + SECTION <= wy
+            && z0 + SECTION <= wz
+        {
+            // a whole section of a dense world: its rows straight from the grid
+            let rows = (0..SECTION).flat_map(move |ly| (0..SECTION).map(move |lz| (ly, lz)));
+            rle(
+                rows.flat_map(|(ly, lz)| {
+                    let i = (((y0 + ly) * wz + z0 + lz) * wx + x0) as usize;
+                    self.cells[i..i + SECTION as usize].iter().copied()
+                }),
+                &mut out,
+            );
+            return out;
+        }
         let (x0, y0, z0) = (s[0] * SECTION, s[1] * SECTION, s[2] * SECTION);
         let cells = (0..SECTION).flat_map(move |ly| {
             (0..SECTION).flat_map(move |lz| (0..SECTION).map(move |lx| (lx, ly, lz)))
@@ -955,7 +989,13 @@ impl World {
             return false;
         };
         let Some(sp) = self.sparse.as_mut() else {
-            self.cells[i] = b;
+            if self.cells[i] != b {
+                self.cells[i] = b;
+                let d = Self::dims_of(self.size);
+                let (sx, sy, sz) = (x / SECTION, y / SECTION, z / SECTION);
+                let r = &mut self.revs[((sy * d[2] + sz) * d[0] + sx) as usize];
+                *r = r.wrapping_add(1);
+            }
             return true;
         };
         let d = sp.dims;
@@ -1417,10 +1457,12 @@ impl World {
         let total = size[0] as usize * size[1] as usize * size[2] as usize;
         let mut cells = Vec::with_capacity(total);
         unrle(&data[17..], &mut cells, total)?;
+        let d = Self::dims_of(size);
         Ok(World {
             size,
             cells,
             sparse: None,
+            revs: vec![0; (d[0] * d[1] * d[2]) as usize],
         })
     }
 
