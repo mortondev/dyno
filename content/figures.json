@@ -4161,279 +4161,147 @@
      "robe"
     ]
    },
+   "detail": 2.0,
    "file": "models/person.vox",
    "grids": [
     {
+     "detail": 2.0,
      "groups": [
       {
        "layers": [
         {
-         "layer": "legs/base"
-        },
-        {
-         "layer": "legs/robe=1",
+         "layer": "body/base,body=0",
          "when": [
           {
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "legs/armor=0,robe=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
-          {
-           "armor": [
-            2
-           ],
-           "robe": [
+           "body": [
             0
            ]
           }
          ]
         },
         {
-         "layer": "legs/armor=3,robe=0",
+         "layer": "body/base,body=1",
          "when": [
           {
-           "armor": [
-            3
+           "body": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/trousers,body=0",
+         "when": [
+          {
+           "body": [
+            0
            ],
-           "robe": [
+           "legs": [
+            0,
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/legs/trousers,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "legs": [
+            0,
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/boots,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "feet": [
+            0,
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/feet/boots,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "feet": [
+            0,
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/tunic,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "chest": [
             0
            ]
           }
          ]
         },
         {
-         "layer": "legs/armor=3,robe=1",
+         "layer": "body/flaps/chest[0],body=0",
          "when": [
           {
-           "armor": [
-            3
+           "body": [
+            0
            ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        }
-       ],
-       "name": "legs"
-      },
-      {
-       "layers": [
-        {
-         "layer": "torso/base"
-        },
-        {
-         "layer": "torso/build=0",
-         "when": [
-          {
-           "build": [
+           "chest": [
             0
            ]
           }
          ]
         },
         {
-         "layer": "torso/build=2",
+         "layer": "body/chest/tunic,body=1",
          "when": [
           {
-           "build": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/armor=0,build=1",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
+           "body": [
             1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/armor=2,build=1",
-         "when": [
-          {
-           "armor": [
-            2
            ],
-           "build": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/armor=3,build=1",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/armor=0,build=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
+           "chest": [
             0
            ]
           }
          ]
         },
         {
-         "layer": "torso/armor=2,build=0",
+         "layer": "body/flaps/chest[0],body=1",
          "when": [
           {
-           "armor": [
-            2
+           "body": [
+            1
            ],
-           "build": [
+           "chest": [
             0
            ]
           }
          ]
         },
         {
-         "layer": "torso/armor=3,build=0",
+         "layer": "body/chest/robe,body=0",
          "when": [
           {
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/armor=0,build=2",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/armor=2,build=2",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/armor=3,build=2",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/robe=1,build=1,armor=1",
-         "when": [
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/robe=1,build=1,armor=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/robe=1,build=0,armor=1",
-         "when": [
-          {
-           "armor": [
-            1
-           ],
-           "build": [
+           "body": [
             0
            ],
            "robe": [
@@ -4443,35 +4311,10 @@
          ]
         },
         {
-         "layer": "torso/robe=1,build=0,armor=0",
+         "layer": "body/skirt/robe,body=0",
          "when": [
           {
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            3
-           ],
-           "build": [
+           "body": [
             0
            ],
            "robe": [
@@ -4481,47 +4324,11 @@
          ]
         },
         {
-         "layer": "torso/robe=1,build=2,armor=1",
+         "layer": "body/chest/robe,body=1",
          "when": [
           {
-           "armor": [
+           "body": [
             1
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            2
            ],
            "robe": [
             1
@@ -4530,744 +4337,68 @@
          ]
         },
         {
-         "layer": "torso/apron=1,build=1,armor=1,robe=0",
+         "layer": "body/skirt/robe,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "robe": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "body/chest/apron,body=0",
          "when": [
           {
            "apron": [
             1
            ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
+           "body": [
             0
            ]
           }
          ]
         },
         {
-         "layer": "torso/apron=1,build=1,armor=1,robe=1",
+         "layer": "body/flap/apron,body=0",
          "when": [
           {
            "apron": [
             1
            ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=1,armor=0,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
+           "body": [
             0
            ]
           }
          ]
         },
         {
-         "layer": "torso/apron=1,build=1,armor=0,robe=1",
+         "layer": "body/chest/emblem=1,body=0",
          "when": [
           {
-           "apron": [
-            1
-           ],
-           "armor": [
+           "body": [
             0
            ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=1,armor=2,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=1,armor=2,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=1,armor=3,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=1,armor=3,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=0,armor=1,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=0,armor=1,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=0,armor=0,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=0,armor=0,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=0,armor=2,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=0,armor=2,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=0,armor=3,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=0,armor=3,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=2,armor=1,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=2,armor=1,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=2,armor=0,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=2,armor=0,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=2,armor=2,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=2,armor=2,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=2,armor=3,robe=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/apron=1,build=2,armor=3,robe=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=1,armor=1,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
-            1
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=1,armor=0,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=1,armor=3,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=0,armor=1,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            1
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=0,armor=0,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=0,armor=3,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=2,armor=1,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            1
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=2,armor=0,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/elder=1,build=2,armor=3,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=0,build=1,armor=1,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
+           "chest": [
             0
            ],
            "emblem": [
-            0
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
             1
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
            ]
           }
          ]
         },
         {
-         "layer": "torso/emblem=2,build=1,armor=1,apron=0,elder=0",
+         "layer": "body/chest/emblem=2,body=0",
          "when": [
           {
-           "apron": [
+           "body": [
             0
            ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
+           "chest": [
             0
            ],
            "emblem": [
@@ -5277,36 +4408,13 @@
          ]
         },
         {
-         "layer": "torso/emblem=3,build=1,armor=1,apron=0,elder=0",
+         "layer": "body/chest/emblem=3,body=0",
          "when": [
           {
-           "apron": [
+           "body": [
             0
            ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
+           "chest": [
             0
            ],
            "emblem": [
@@ -5316,36 +4424,13 @@
          ]
         },
         {
-         "layer": "torso/emblem=4,build=1,armor=1,apron=0,elder=0",
+         "layer": "body/chest/emblem=4,body=0",
          "when": [
           {
-           "apron": [
+           "body": [
             0
            ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
+           "chest": [
             0
            ],
            "emblem": [
@@ -5355,129 +4440,55 @@
          ]
         },
         {
-         "layer": "torso/emblem=0,build=1,armor=0,apron=0,elder=0",
+         "layer": "body/chest/apron,body=1",
          "when": [
           {
            "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
             1
            ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
+           "body": [
+            1
            ]
           }
          ]
         },
         {
-         "layer": "torso/emblem=2,build=1,armor=0,apron=0,elder=0",
+         "layer": "body/flap/apron,body=1",
          "when": [
           {
            "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
             1
            ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
+           "body": [
+            1
            ]
           }
          ]
         },
         {
-         "layer": "torso/emblem=3,build=1,armor=0,apron=0,elder=0",
+         "layer": "body/chest/emblem=1,body=1",
          "when": [
           {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
+           "body": [
             1
            ],
-           "elder": [
+           "chest": [
             0
            ],
            "emblem": [
-            3
+            1
            ]
           }
          ]
         },
         {
-         "layer": "torso/emblem=4,build=1,armor=0,apron=0,elder=0",
+         "layer": "body/chest/emblem=2,body=1",
          "when": [
           {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
+           "body": [
             1
            ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=0,build=1,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=2,build=1,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "elder": [
+           "chest": [
             0
            ],
            "emblem": [
@@ -5487,19 +4498,13 @@
          ]
         },
         {
-         "layer": "torso/emblem=3,build=1,armor=3,apron=0,elder=0",
+         "layer": "body/chest/emblem=3,body=1",
          "when": [
           {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
+           "body": [
             1
            ],
-           "elder": [
+           "chest": [
             0
            ],
            "emblem": [
@@ -5509,19 +4514,13 @@
          ]
         },
         {
-         "layer": "torso/emblem=4,build=1,armor=3,apron=0,elder=0",
+         "layer": "body/chest/emblem=4,body=1",
          "when": [
           {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
+           "body": [
             1
            ],
-           "elder": [
+           "chest": [
             0
            ],
            "emblem": [
@@ -5531,680 +4530,23 @@
          ]
         },
         {
-         "layer": "torso/emblem=0,build=0,armor=1,apron=0,elder=0",
+         "layer": "body/waist/belt,body=0",
          "when": [
           {
-           "apron": [
+           "body": [
             0
            ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
+           "waist": [
             0
            ]
           }
          ]
         },
         {
-         "layer": "torso/emblem=2,build=0,armor=1,apron=0,elder=0",
+         "layer": "body/waist/sash,body=0",
          "when": [
           {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=3,build=0,armor=1,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=4,build=0,armor=1,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=0,build=0,armor=0,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=2,build=0,armor=0,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=3,build=0,armor=0,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=4,build=0,armor=0,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=0,build=0,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=2,build=0,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=3,build=0,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=4,build=0,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=0,build=2,armor=1,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=2,build=2,armor=1,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=3,build=2,armor=1,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=4,build=2,armor=1,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=0,build=2,armor=0,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=2,build=2,armor=0,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=3,build=2,armor=0,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=4,build=2,armor=0,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=0,build=2,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=2,build=2,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=3,build=2,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/emblem=4,build=2,armor=3,apron=0,elder=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "elder": [
-            0
-           ],
-           "emblem": [
-            4
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=1,robe=0,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
+           "body": [
             0
            ],
            "sash": [
@@ -6214,35 +4556,23 @@
          ]
         },
         {
-         "layer": "torso/sash=1,build=1,robe=0,apron=1",
+         "layer": "body/waist/belt,body=1",
          "when": [
           {
-           "apron": [
+           "body": [
             1
            ],
-           "build": [
-            1
-           ],
-           "robe": [
+           "waist": [
             0
-           ],
-           "sash": [
-            1
            ]
           }
          ]
         },
         {
-         "layer": "torso/sash=1,build=1,robe=1,apron=0",
+         "layer": "body/waist/sash,body=1",
          "when": [
           {
-           "apron": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
+           "body": [
             1
            ],
            "sash": [
@@ -6252,3758 +4582,37 @@
          ]
         },
         {
-         "layer": "torso/sash=1,build=1,robe=1,apron=1",
+         "layer": "body/back/cape,body=0",
          "when": [
           {
-           "apron": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=0,robe=0,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            0
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=0,robe=0,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            0
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=0,robe=1,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=0,robe=1,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=2,robe=0,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            0
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=2,robe=0,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            0
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=2,robe=1,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/sash=1,build=2,robe=1,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ],
-           "sash": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/hair_style=3,build=1,armor=1,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/hair_style=3,build=1,armor=1,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/hair_style=3,build=1,armor=3,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/hair_style=3,build=0,armor=1,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "hair_style": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/hair_style=3,build=0,armor=1,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "hair_style": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/hair_style=3,build=2,armor=1,apron=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "hair_style": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/hair_style=3,build=2,armor=1,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "hair_style": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/hair_style=3,build=2,armor=3,apron=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "hair_style": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=1,armor=1",
-         "when": [
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=1,armor=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=1,armor=2",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=1,armor=3",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=0,armor=1",
-         "when": [
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=0,armor=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=0,armor=2",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=0,armor=3",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=2,armor=1",
-         "when": [
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "pauldrons": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=2,armor=2",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/pauldrons=1,build=2,armor=3",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=1,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=1,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=1,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=1,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=1,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=1,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=1,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=1,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=0,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=0,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=0,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=0,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=0,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=0,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=0,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=0,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=2,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=2,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=2,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=2,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=2,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=2,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=2,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=2,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=3,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=3,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=3,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=3,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=3,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=3,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=3,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=1,armor=3,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=1,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=1,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=1,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=1,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=1,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=1,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=1,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=1,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=0,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=0,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=0,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=0,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=0,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=0,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=0,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=0,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=2,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=2,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=2,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=2,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=2,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=2,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=2,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=2,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=3,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=3,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=3,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=3,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=3,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=3,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=3,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=0,armor=3,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=1,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=1,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=1,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=1,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=1,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=1,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=1,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=1,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=0,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=0,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=0,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=0,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=0,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=0,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=0,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=0,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=2,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=2,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=2,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=2,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=2,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=2,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=2,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=2,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=3,apron=0,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=3,apron=0,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=3,apron=0,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=3,apron=0,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            0
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=3,apron=1,hair_style=1,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=3,apron=1,hair_style=1,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=3,apron=1,hair_style=3,pauldrons=0",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "torso/cape=0,build=2,armor=3,apron=1,hair_style=3,pauldrons=1",
-         "when": [
-          {
-           "apron": [
-            1
-           ],
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "cape": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "pauldrons": [
-            1
-           ]
-          }
-         ]
-        }
-       ],
-       "map": {
-        "hair_style": {
-         "*": 1,
-         "3": 3
-        }
-       },
-       "name": "torso"
-      },
-      {
-       "layers": [
-        {
-         "layer": "arms/base"
-        },
-        {
-         "layer": "arms/build=0",
-         "when": [
-          {
-           "build": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/build=2",
-         "when": [
-          {
-           "build": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=0,build=1",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=2,build=1",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=3,build=1",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=0,build=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=2,build=0",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=3,build=0",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=0,build=2",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=2,build=2",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/armor=3,build=2",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/robe=1,build=1,armor=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/robe=1,build=0,armor=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/robe=1,build=2,armor=0",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=1,armor=1,robe=0",
-         "when": [
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            1
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=1,armor=0,robe=1",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            1
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=1,armor=2,robe=0",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            1
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=1,armor=3,robe=0",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            1
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=0,armor=1,robe=0",
-         "when": [
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            0
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            0
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=0,armor=0,robe=1",
-         "when": [
-          {
-           "armor": [
+           "body": [
             0
            ],
-           "build": [
-            0
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=0,armor=2,robe=0",
-         "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            0
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=0,armor=3,robe=0",
-         "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            0
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=2,armor=1,robe=0",
-         "when": [
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
-          {
-           "armor": [
-            1
-           ],
-           "build": [
-            2
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            1
-           ]
-          },
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "arms/gloves=0,build=2,armor=0,robe=1",
-         "when": [
-          {
-           "armor": [
-            0
-           ],
-           "build": [
-            2
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
+           "cape": [
             1
            ]
           }
          ]
         },
         {
-         "layer": "arms/gloves=0,build=2,armor=2,robe=0",
+         "layer": "body/back/cape-collar,body=0",
          "when": [
-          {
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
           {
-           "armor": [
-            2
-           ],
-           "build": [
-            2
-           ],
-           "gloves": [
+           "body": [
             0
            ],
-           "robe": [
+           "cape": [
             1
            ]
           }
          ]
         },
         {
-         "layer": "arms/gloves=0,build=2,armor=3,robe=0",
+         "layer": "body/back/cape,body=1",
          "when": [
-          {
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
-            0
-           ]
-          },
           {
-           "armor": [
-            3
-           ],
-           "build": [
-            2
-           ],
-           "gloves": [
-            0
-           ],
-           "robe": [
+           "body": [
             1
-           ]
-          }
-         ]
-        }
-       ],
-       "name": "arms"
-      },
-      {
-       "layers": [
-        {
-         "layer": "cape/base"
-        },
-        {
-         "layer": "cape/cape=0",
-         "when": [
-          {
-           "cape": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "cape/build=0,cape=1",
-         "when": [
-          {
-           "build": [
-            0
            ],
            "cape": [
             1
@@ -10012,11 +4621,11 @@
          ]
         },
         {
-         "layer": "cape/build=2,cape=1",
+         "layer": "body/back/cape-collar,body=1",
          "when": [
           {
-           "build": [
-            2
+           "body": [
+            1
            ],
            "cape": [
             1
@@ -10024,2370 +4633,22 @@
           }
          ]
         }
-       ],
-       "name": "cape"
-      },
-      {
-       "layers": [
-        {
-         "layer": "head/base"
-        },
-        {
-         "layer": "head/mood=1",
-         "when": [
-          {
-           "mood": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/mood=2",
-         "when": [
-          {
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/ears=0",
-         "when": [
-          {
-           "ears": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/ears=2",
-         "when": [
-          {
-           "ears": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/ears=3",
-         "when": [
-          {
-           "ears": [
-            3
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=0,mood=0,ears=1",
-         "when": [
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=2,mood=0,ears=1",
-         "when": [
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=3,mood=0,ears=1",
-         "when": [
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=4,mood=0,ears=1",
-         "when": [
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=0,mood=0,ears=2",
-         "when": [
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=2,mood=0,ears=2",
-         "when": [
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=4,mood=0,ears=2",
-         "when": [
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=3,mood=0,ears=3",
-         "when": [
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=0,mood=1,ears=1",
-         "when": [
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=0,mood=1,ears=2",
-         "when": [
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=0,mood=2,ears=1",
-         "when": [
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/hair_style=0,mood=2,ears=2",
-         "when": [
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=0,ears=1,hair_style=1",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=0,ears=1,hair_style=0",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=0,ears=1,hair_style=2",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=0,ears=1,hair_style=3",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=0,ears=3,hair_style=1",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=0,ears=3,hair_style=0",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=0,ears=3,hair_style=2",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=0,ears=3,hair_style=3",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=1,ears=1,hair_style=0",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=1,ears=3,hair_style=0",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=2,ears=1,hair_style=0",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/beard=1,mood=2,ears=3,hair_style=0",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/elder=1,mood=0,hair_style=1,beard=0",
-         "when": [
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/elder=1,mood=0,hair_style=1,beard=1",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/elder=1,mood=0,hair_style=0,beard=0",
-         "when": [
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            0
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/elder=1,mood=1,hair_style=1,beard=0",
-         "when": [
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/elder=1,mood=1,hair_style=1,beard=1",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            1
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/elder=1,mood=2,hair_style=1,beard=0",
-         "when": [
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            0
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/elder=1,mood=2,hair_style=1,beard=1",
-         "when": [
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "mood": [
-            2
-           ]
-          },
-          {
-           "beard": [
-            1
-           ],
-           "elder": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "mood": [
-            2
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/scarf=1,ears=1,hair_style=1",
-         "when": [
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            1
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            0
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            1
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            0
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            2
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            4
-           ],
-           "scarf": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/scarf=1,ears=1,hair_style=2",
-         "when": [
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            2
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            3
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            1
-           ],
-           "hair_style": [
-            4
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            1
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            0
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            2
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            3
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            0
-           ],
-           "hair_style": [
-            4
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            2
-           ],
-           "hair_style": [
-            3
-           ],
-           "scarf": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/scarf=1,ears=3,hair_style=1",
-         "when": [
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            1
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            0
-           ],
-           "scarf": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/scarf=1,ears=3,hair_style=2",
-         "when": [
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            2
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            3
-           ],
-           "scarf": [
-            1
-           ]
-          },
-          {
-           "ears": [
-            3
-           ],
-           "hair_style": [
-            4
-           ],
-           "scarf": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/candle=1,hair_style=1",
-         "when": [
-          {
-           "candle": [
-            1
-           ],
-           "hair_style": [
-            1
-           ]
-          },
-          {
-           "candle": [
-            1
-           ],
-           "hair_style": [
-            2
-           ]
-          },
-          {
-           "candle": [
-            1
-           ],
-           "hair_style": [
-            3
-           ]
-          },
-          {
-           "candle": [
-            1
-           ],
-           "hair_style": [
-            4
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/candle=1,hair_style=0",
-         "when": [
-          {
-           "candle": [
-            1
-           ],
-           "hair_style": [
-            0
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/helmet=1,hair_style=1",
-         "when": [
-          {
-           "hair_style": [
-            1
-           ],
-           "helmet": [
-            1
-           ]
-          },
-          {
-           "hair_style": [
-            2
-           ],
-           "helmet": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/helmet=1,hair_style=0",
-         "when": [
-          {
-           "hair_style": [
-            0
-           ],
-           "helmet": [
-            1
-           ]
-          },
-          {
-           "hair_style": [
-            3
-           ],
-           "helmet": [
-            1
-           ]
-          }
-         ]
-        },
-        {
-         "layer": "head/helmet=1,hair_style=4",
-         "when": [
-          {
-           "hair_style": [
-            4
-           ],
-           "helmet": [
-            1
-           ]
-          }
-         ]
-        }
-       ],
-       "name": "head"
+       ]
       }
      ],
      "max": [
-      28,
-      82,
-      16
+      36,
+      114,
+      28
      ],
      "min": [
-      -28,
+      -36,
       0,
-      -16
+      -28
      ],
      "name": "main",
      "parts": [
       "",
-      "head",
       "torso",
       "flap.f",
       "flap.b",
@@ -12404,552 +4665,988 @@
       "cape.1",
       "cape.2"
      ]
+    },
+    {
+     "detail": 4.0,
+     "groups": [
+      {
+       "layers": [
+        {
+         "layer": "head/base,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/base,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/ears=1,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "ears": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/ears=2,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "ears": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/ears=3,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "ears": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/ears=1,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "ears": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/ears=2,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "ears": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/ears=3,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "ears": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/brows=0,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            0
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/mouth=0,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            0
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/lids=0,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            0
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/brows=1,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/mouth=1,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/lids=1,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/brows=2,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/mouth=2,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/lids=2,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "mood": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/elder,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "elder": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/brows=0,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            0
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/mouth=0,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            0
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/lids=0,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            0
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/brows=1,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/mouth=1,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/lids=1,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/brows=2,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/mouth=2,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/lids=2,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "mood": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/elder,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "elder": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/beard,body=0",
+         "when": [
+          {
+           "beard": [
+            1
+           ],
+           "body": [
+            0
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/beard,body=1",
+         "when": [
+          {
+           "beard": [
+            1
+           ],
+           "body": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/hair/short,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "hair_style": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/hair/long,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "hair_style": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/hair/hood,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "hair_style": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/hair/bun,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "hair_style": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/hair/short,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "hair_style": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/hair/long,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "hair_style": [
+            2
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/hair/hood,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "hair_style": [
+            3
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/hair/bun,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "hair_style": [
+            4
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/scarf,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "scarf": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/candle,body=0",
+         "when": [
+          {
+           "body": [
+            0
+           ],
+           "candle": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/scarf,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "scarf": [
+            1
+           ]
+          }
+         ]
+        },
+        {
+         "layer": "head/candle,body=1",
+         "when": [
+          {
+           "body": [
+            1
+           ],
+           "candle": [
+            1
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ],
+     "max": [
+      30,
+      264,
+      34
+     ],
+     "min": [
+      -30,
+      174,
+      -34
+     ],
+     "name": "head",
+     "parts": [
+      "",
+      "head"
+     ]
+    }
+   ],
+   "lods": [
+    {
+     "smooth": true,
+     "until": 6.0
+    },
+    {
+     "half": 1,
+     "smooth": true,
+     "until": 22.0
+    },
+    {
+     "half": 2,
+     "smooth": true,
+     "until": 48.0
+    },
+    {
+     "half": 3
     }
    ],
    "palette": [
     null,
     {
-     "c": [
-      0,
-      0,
-      0
-     ],
      "k": [
-      0.649999,
-      0.65,
-      0.65
+      0.9300000071525574,
+      0.9300000071525574,
+      0.9300000071525574
      ],
-     "slot": "boots"
-    },
-    {
-     "slot": "boots"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      1.45,
-      1.45,
-      1.45
-     ],
-     "slot": "boots"
-    },
-    {
-     "slot": "trim"
-    },
-    {
-     "slot": "pants"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      0.82,
-      0.82,
-      0.82
-     ],
-     "slot": "pants"
-    },
-    {
-     "c": [
-      0.36,
-      0.24,
-      0.14
-     ]
-    },
-    {
-     "c": [
-      0.4752,
-      0.4896,
-      0.5328
-     ]
-    },
-    {
-     "c": [
-      0.66,
-      0.68,
-      0.74
-     ]
-    },
-    {
-     "c": [
-      0.792,
-      0.816,
-      0.888
-     ]
-    },
-    {
-     "c": [
-      0.25,
-      0.16,
-      0.09
-     ]
-    },
-    {
-     "c": [
-      0.486,
-      0.324,
-      0.189
-     ]
-    },
-    {
-     "slot": "tunic"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      0.8,
-      0.8,
-      0.8
-     ],
-     "slot": "tunic"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      1.180001,
-      1.18,
-      1.18
-     ],
-     "slot": "tunic"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      0.7,
-      0.7,
-      0.7
-     ],
-     "slot": "trim"
-    },
-    {
      "slot": "skin"
     },
     {
-     "slot": "cape"
-    },
-    {
-     "c": [
-      0.4,
-      0.42,
-      0.47
-     ]
-    },
-    {
-     "c": [
-      0.56,
-      0.58,
-      0.63
-     ]
-    },
-    {
-     "c": [
-      0.8052,
-      0.8296,
-      0.9028
-     ]
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
      "k": [
-      0.8,
-      0.8,
-      0.8
+      1.0,
+      1.0,
+      1.0
      ],
-     "slot": "apron"
+     "slot": "skin"
     },
     {
-     "slot": "apron"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
      "k": [
-      1.25,
-      1.25,
-      1.25
+      1.059999942779541,
+      1.059999942779541,
+      1.059999942779541
      ],
-     "slot": "apron"
+     "slot": "skin"
     },
     {
-     "c": [
-      0,
-      0,
-      0
-     ],
      "k": [
-      0.819999,
-      0.82,
-      0.82
-     ],
-     "slot": "apron"
-    },
-    {
-     "slot": "sash"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      0.75,
-      0.75,
-      0.75
-     ],
-     "slot": "sash"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      1.25,
-      1.25,
-      1.25
-     ],
-     "slot": "boots"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      1.700001,
-      1.7,
-      1.7
-     ],
-     "slot": "boots"
-    },
-    {
-     "c": [
-      0.63,
-      0.602,
-      0.532
-     ],
-     "k": [
-      0.299999,
-      0.3,
-      0.3
-     ],
-     "slot": "tunic"
-    },
-    {
-     "c": [
-      0.504,
-      0.336,
-      0.196
-     ]
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      0.84,
-      0.84,
-      0.84
+      0.800000011920929,
+      0.800000011920929,
+      0.800000011920929
      ],
      "slot": "skin"
     },
     {
      "c": [
-      -1e-06,
-      0,
-      0
+      0.05000000074505806,
+      -0.014999999664723873,
+      -0.014999999664723873
      ],
      "k": [
-      1.250001,
-      1.25,
-      1.25
-     ],
-     "slot": "cape"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      0.78,
-      0.78,
-      0.78
-     ],
-     "slot": "cape"
-    },
-    {
-     "c": [
-      0,
-      0,
-      0
-     ],
-     "k": [
-      0.86,
-      0.86,
-      0.86
+      0.9399999976158142,
+      0.9399999976158142,
+      0.9399999976158142
      ],
      "slot": "skin"
     },
     {
      "c": [
-      0,
-      0,
-      0
+      0.09000000357627869,
+      -0.009999999776482582,
+      0.0
      ],
      "k": [
-      0.78,
-      0.78,
-      0.780001
-     ],
-     "slot": "hair"
-    },
-    {
-     "slot": "hair"
-    },
-    {
-     "c": [
-      0.275,
-      0.075,
-      0.075
-     ],
-     "k": [
-      0.274999,
-      0.275,
-      0.275
+      0.800000011920929,
+      0.800000011920929,
+      0.800000011920929
      ],
      "slot": "skin"
     },
     {
      "c": [
-      0.266,
-      0.126,
-      0.112
+      0.05999999865889549,
+      0.0,
+      0.0
      ],
+     "crisp": true,
      "k": [
-      0.72,
-      0.72,
-      0.720001
+      0.41999998688697815,
+      0.41999998688697815,
+      0.41999998688697815
      ],
      "slot": "skin"
     },
     {
      "c": [
-      0,
-      0,
-      0
+      0.9300000071525574,
+      0.9200000166893005,
+      0.8799999952316284
      ],
+     "crisp": true
+    },
+    {
+     "crisp": true,
      "k": [
-      0.93,
-      0.93,
-      0.93
+      1.0,
+      1.0,
+      1.0
      ],
-     "slot": "skin"
-    },
-    {
-     "c": [
-      0.97,
-      0.97,
-      0.95
-     ]
-    },
-    {
      "slot": "eyes"
     },
     {
      "c": [
-      0.07,
-      0.06,
-      0.09
-     ]
+      0.05000000074505806,
+      0.03999999910593033,
+      0.05000000074505806
+     ],
+     "crisp": true
     },
     {
      "c": [
-      0.075,
-      0.0375,
-      0.0375
+      1.0,
+      1.0,
+      1.0
      ],
-     "k": [
-      0.25,
-      0.250001,
-      0.25
-     ],
-     "slot": "skin"
+     "crisp": true
     },
     {
      "c": [
-      0,
-      0,
-      0
+      0.10000000149011612,
+      0.07000000029802322,
+      0.05999999865889549
      ],
+     "crisp": true
+    },
+    {
+     "crisp": true,
      "k": [
-      0.72,
-      0.72,
-      0.719999
+      0.800000011920929,
+      0.800000011920929,
+      0.800000011920929
      ],
      "slot": "hair"
     },
     {
-     "c": [
-      0.12,
-      0.12,
-      0.12
-     ],
      "k": [
-      1.100001,
-      1.100001,
-      1.1
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
      ],
      "slot": "hair"
     },
     {
-     "c": [
-      0.2975,
-      0.175,
-      0.1575
-     ],
      "k": [
-      0.649999,
-      0.65,
-      0.65
+      0.8999999761581421,
+      0.8999999761581421,
+      0.8999999761581421
      ],
-     "slot": "skin"
+     "slot": "hair"
     },
     {
-     "c": [
-      0,
-      0,
-      0
-     ],
      "k": [
-      0.6,
-      0.6,
-      0.6
+      1.0499999523162842,
+      1.0499999523162842,
+      1.0499999523162842
      ],
-     "slot": "skin"
+     "slot": "hair"
     },
     {
-     "c": [
-      0,
-      0,
-      0
-     ],
      "k": [
-      0.75,
-      0.75,
-      0.75
+      1.2200000286102295,
+      1.2200000286102295,
+      1.2200000286102295
+     ],
+     "slot": "hair"
+    },
+    {
+     "k": [
+      0.7400000095367432,
+      0.7400000095367432,
+      0.7400000095367432
+     ],
+     "slot": "tunic"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "tunic"
+    },
+    {
+     "k": [
+      1.1399999856948853,
+      1.1399999856948853,
+      1.1399999856948853
+     ],
+     "slot": "tunic"
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
      ],
      "slot": "trim"
     },
     {
-     "c": [
-      0,
-      0,
-      0
-     ],
+     "crisp": true,
      "k": [
-      0.8,
-      0.8,
-      0.8
+      1.0,
+      1.0,
+      1.0
      ],
-     "slot": "hair"
+     "slot": "trim"
+    },
+    {
+     "k": [
+      0.800000011920929,
+      0.800000011920929,
+      0.800000011920929
+     ],
+     "slot": "pants"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "pants"
+    },
+    {
+     "k": [
+      0.6499999761581421,
+      0.6499999761581421,
+      0.6499999761581421
+     ],
+     "slot": "boots"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "boots"
+    },
+    {
+     "k": [
+      1.2999999523162842,
+      1.2999999523162842,
+      1.2999999523162842
+     ],
+     "slot": "boots"
     },
     {
      "c": [
-      0,
-      0,
-      0
-     ],
+      0.09000000357627869,
+      0.07000000029802322,
+      0.05999999865889549
+     ]
+    },
+    {
      "k": [
-      0.779999,
-      0.78,
-      0.78
+      0.7799999713897705,
+      0.7799999713897705,
+      0.7799999713897705
+     ],
+     "slot": "boots"
+    },
+    {
+     "c": [
+      0.8600000143051147,
+      0.7200000286102295,
+      0.36000001430511475
+     ],
+     "crisp": true
+    },
+    {
+     "k": [
+      0.7400000095367432,
+      0.7400000095367432,
+      0.7400000095367432
+     ],
+     "slot": "cape"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "cape"
+    },
+    {
+     "k": [
+      1.1799999475479126,
+      1.1799999475479126,
+      1.1799999475479126
+     ],
+     "slot": "cape"
+    },
+    {
+     "k": [
+      0.8199999928474426,
+      0.8199999928474426,
+      0.8199999928474426
+     ],
+     "slot": "apron"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "apron"
+    },
+    {
+     "k": [
+      0.7799999713897705,
+      0.7799999713897705,
+      0.7799999713897705
+     ],
+     "slot": "sash"
+    },
+    {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
+     "slot": "sash"
+    },
+    {
+     "k": [
+      0.7799999713897705,
+      0.7799999713897705,
+      0.7799999713897705
      ],
      "slot": "scarf"
     },
     {
+     "k": [
+      1.0,
+      1.0,
+      1.0
+     ],
      "slot": "scarf"
     },
     {
      "c": [
-      0.96,
-      0.93,
-      0.8
+      0.30000001192092896,
+      0.23000000417232513,
+      0.17000000178813934
      ]
     },
     {
      "c": [
-      0.84,
-      0.79,
-      0.62
+      0.3700000047683716,
+      0.2800000011920929,
+      0.20999999344348907
      ]
     },
     {
      "c": [
-      0.1,
-      0.08,
-      0.07
+      0.9399999976158142,
+      0.8999999761581421,
+      0.7799999713897705
      ]
     },
     {
      "c": [
-      1,
-      0.62,
-      0.12
+      1.0,
+      0.6200000047683716,
+      0.11999999731779099
      ],
+     "crisp": true,
      "glow": true
     },
     {
      "c": [
-      1,
-      0.95,
-      0.62
+      1.0,
+      0.949999988079071,
+      0.6200000047683716
      ],
+     "crisp": true,
      "glow": true
     },
     {
      "c": [
-      0.495,
-      0.51,
-      0.555
+      0.3199999928474426,
+      0.3100000023841858,
+      0.33000001311302185
      ]
+    },
+    {
+     "crisp": true,
+     "k": [
+      0.7200000286102295,
+      0.7200000286102295,
+      0.7200000286102295
+     ],
+     "slot": "skin"
     }
    ],
+   "per_block": 34.19,
    "rig": "person",
    "skeleton": "biped",
-   "per_block": 34.19
+   "smooth": {
+    "blend": true,
+    "occlusion": 1.0,
+    "relax": 4
+   }
   },
   "shade": {
    "clips": "shade",
@@ -13425,7 +6122,7 @@
      0.12
     ],
     "grip": "bow",
-    "unit": 0.020454546436667442
+    "unit": 0.02045454643666744
    },
    "dagger": {
     "carry_turn": 0,
@@ -13461,7 +6158,7 @@
      0.03
     ],
     "grip": "one_hand",
-    "unit": 0.029999999329447746
+    "unit": 0.029999999329447743
    },
    "gem": {
     "carry_turn": 0,
@@ -13485,7 +6182,7 @@
      -0.02
     ],
     "grip": "one_hand",
-    "unit": 0.013846154324710369
+    "unit": 0.013846154324710367
    },
    "hatchet": {
     "carry_turn": 0,
@@ -14110,5 +6807,88 @@
    }
   },
   "figure": "person"
+ },
+ "showcase": {
+  "people": [
+   {
+    "appearance": {
+     "beard": false,
+     "build": 1,
+     "ears": 1,
+     "eyes": 0,
+     "hair_color": 2,
+     "hair_style": 1,
+     "mood": 0,
+     "skin": 1
+    },
+    "color": [
+     0.62,
+     0.18,
+     0.16
+    ],
+    "name": "Male, average"
+   },
+   {
+    "appearance": {
+     "beard": false,
+     "build": 0,
+     "ears": 1,
+     "eyes": 1,
+     "hair_color": 5,
+     "hair_style": 2,
+     "mood": 2,
+     "skin": 2
+    },
+    "color": [
+     0.22,
+     0.34,
+     0.78
+    ],
+    "features": {
+     "body": 1
+    },
+    "name": "Female, slight"
+   },
+   {
+    "appearance": {
+     "beard": true,
+     "build": 2,
+     "ears": 2,
+     "eyes": 2,
+     "hair_color": 0,
+     "hair_style": 4,
+     "mood": 1,
+     "skin": 5
+    },
+    "color": [
+     0.25,
+     0.55,
+     0.25
+    ],
+    "name": "Male, burly"
+   },
+   {
+    "appearance": {
+     "beard": false,
+     "build": 1,
+     "ears": 2,
+     "eyes": 5,
+     "hair_color": 7,
+     "hair_style": 4,
+     "mood": 0,
+     "skin": 7
+    },
+    "color": [
+     0.7,
+     0.55,
+     0.2
+    ],
+    "features": {
+     "body": 1
+    },
+    "name": "Female, average"
+   }
+  ],
+  "sets": []
  }
 }

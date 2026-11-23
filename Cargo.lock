@@ -785,6 +785,9 @@ dependencies = [
  "dyno-server",
  "dyno-update",
  "dyno-world",
+ "glam",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -22,7 +22,7 @@ use crate::anim::{Grip, MAX_BONES, Pose, key};
 use crate::clip::{ClipSet, SkeletonSpec};
 use crate::expr::Expr;
 use crate::render::Vertex;
-use crate::voxmodel::{Cache, Ink, Mesh, Paint, Vox, emit, key_of, view_distance};
+use crate::voxmodel::{Cache, Ink, Mesh, Paint, Smooth, Vox, emit, key_of, view_distance};
 use crate::{assets, vox};
 use dyno_world::content::WeaponKind;
 use glam::{Affine3A, Mat3, Vec3};
@@ -42,6 +42,9 @@ pub struct Look {
     pub features: BTreeMap<String, u8>,
     pub colors: BTreeMap<String, [f32; 3]>,
     pub weapon: Option<(WeaponKind, [f32; 3])>,
+    /// things carried at the rig's other sockets ("offhand", "shield",
+    /// "back"): a held kind and its colour
+    pub carry: BTreeMap<String, (String, [f32; 3])>,
 }
 
 impl Look {
@@ -133,6 +136,9 @@ struct LookSpec {
     remap: BTreeMap<String, BTreeMap<String, u8>>,
     #[serde(default)]
     weapon: Option<(String, [f32; 3])>,
+    /// things carried at other sockets: socket → (held kind, colour)
+    #[serde(default)]
+    carry: BTreeMap<String, (String, [f32; 3])>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -245,6 +251,10 @@ struct RecipeSpec {
     c: [f32; 3],
     #[serde(default)]
     glow: bool,
+    /// keeps its detail when meshed smooth: pinned corners, its own colour
+    /// (eyes, trim, emblems)
+    #[serde(default)]
+    crisp: bool,
 }
 
 fn ones() -> [f32; 3] {
@@ -271,6 +281,10 @@ struct GroupSpec {
 #[derive(Clone, Debug, Deserialize)]
 struct GridSpec {
     name: String,
+    /// voxels per rig unit in this grid (default: the figure's), so a
+    /// head can be modelled finer than the body
+    #[serde(default)]
+    detail: Option<f32>,
     min: [i32; 3],
     max: [i32; 3],
     parts: Vec<String>,
@@ -296,17 +310,103 @@ struct FigureSpec {
     rig: Option<String>,
     #[serde(default)]
     clips: Option<ClipChoice>,
-    #[serde(default = "three")]
-    lods: usize,
-    /// voxels per block
+    #[serde(default)]
+    lods: LodsSpec,
+    /// rig units per block (rig positions, clip offsets)
     #[serde(default = "fine")]
     per_block: f32,
+    /// voxels per rig unit: 2 models the figure at twice the density of
+    /// its rig, so rigs and clips keep their numbers
+    #[serde(default = "one")]
+    detail: f32,
+    /// how smooth levels of detail are meshed
+    #[serde(default)]
+    smooth: Option<SmoothSpec>,
+    /// features that follow from others when a look does not set them
+    /// (an old `armor` value standing for a chest piece, a robe for the
+    /// clips that a cloth chest implies)
+    #[serde(default)]
+    derive: Vec<DeriveSpec>,
     grids: Vec<GridSpec>,
     palette: Vec<Option<RecipeSpec>>,
 }
 
-fn three() -> usize {
-    3
+/// Levels of detail: a count (each half the last, blocky, changing at 14
+/// and 40 blocks) or a list.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+enum LodsSpec {
+    Count(usize),
+    List(Vec<LodSpec>),
+}
+
+impl Default for LodsSpec {
+    fn default() -> Self {
+        LodsSpec::Count(3)
+    }
+}
+
+/// `{"if": {"armor": [2]}, "set": {"chest": 3}}`: when every feature in
+/// `if` has one of its values, the features in `set` take these values
+/// unless the look sets them itself.
+#[derive(Clone, Debug, Deserialize)]
+struct DeriveSpec {
+    #[serde(rename = "if")]
+    cond: BTreeMap<String, Vec<u8>>,
+    set: BTreeMap<String, u8>,
+}
+
+/// One level of detail.
+#[derive(Clone, Copy, Debug, Deserialize)]
+struct LodSpec {
+    /// how many times the voxels are halved
+    #[serde(default)]
+    half: u8,
+    /// meshed smooth (surface nets) or as blocks
+    #[serde(default)]
+    smooth: bool,
+    /// drawn up to this many blocks from the camera (the last: any distance)
+    #[serde(default)]
+    until: Option<f32>,
+}
+
+impl LodsSpec {
+    fn list(&self) -> Vec<LodSpec> {
+        match self {
+            LodsSpec::List(l) if !l.is_empty() => l.clone(),
+            LodsSpec::List(_) => vec![LodSpec {
+                half: 0,
+                smooth: false,
+                until: None,
+            }],
+            LodsSpec::Count(n) => {
+                let until = [Some(14.0), Some(40.0), None];
+                let n = (*n).clamp(1, 3);
+                (0..n)
+                    .map(|i| LodSpec {
+                        half: i as u8,
+                        smooth: false,
+                        until: if i + 1 == n { None } else { until[i] },
+                    })
+                    .collect()
+            }
+        }
+    }
+}
+
+/// How smooth levels of detail are meshed (see [`Smooth`]).
+#[derive(Clone, Copy, Debug, Deserialize)]
+struct SmoothSpec {
+    #[serde(default = "four")]
+    relax: u8,
+    #[serde(default = "yes")]
+    blend: bool,
+    #[serde(default = "one")]
+    occlusion: f32,
+}
+
+fn four() -> u8 {
+    4
 }
 fn fine() -> f32 {
     32.0
@@ -323,33 +423,134 @@ struct FiguresSpec {
     creatures: HashMap<String, CreatureSpec>,
     #[serde(default)]
     held: HeldSpec,
+    /// what wearing an item does to the look (by item key)
+    #[serde(default)]
+    equip: EquipSpec,
+    /// looks to show off on a contact sheet (`dyno shot --outfit-sheet`)
+    #[serde(default)]
+    showcase: ShowcaseSpec,
     figures: HashMap<String, FigureSpec>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+struct EquipSpec {
+    /// item key → the features, colours and carried things it sets
+    #[serde(default)]
+    items: BTreeMap<String, LookSpec>,
+}
+
+/// A look's appearance as the character creator sets it, every field
+/// optional.
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(default)]
+struct ShowAppearance {
+    skin: u8,
+    eyes: u8,
+    hair_style: u8,
+    hair_color: u8,
+    beard: bool,
+    build: u8,
+    mood: u8,
+    ears: u8,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ShowPerson {
+    name: String,
+    #[serde(default)]
+    appearance: ShowAppearance,
+    /// the class colour
+    #[serde(default = "grey")]
+    color: [f32; 3],
+    #[serde(flatten)]
+    look: LookSpec,
+}
+
+fn grey() -> [f32; 3] {
+    [0.5, 0.5, 0.6]
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct ShowSet {
+    name: String,
+    /// item keys worn (through `equip`)
+    #[serde(default)]
+    wear: Vec<String>,
+    #[serde(flatten)]
+    look: LookSpec,
+    /// which people wear it (indices into `people`; all if absent)
+    #[serde(default)]
+    on: Option<Vec<usize>>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+struct ShowcaseSpec {
+    #[serde(default)]
+    people: Vec<ShowPerson>,
+    #[serde(default)]
+    sets: Vec<ShowSet>,
 }
 
 // -------------------------------------------------------------------- rigs
 
+/// A value that may vary by features of the look: fixed, a list indexed
+/// by one feature, or a map keyed by several features' values joined with
+/// commas, where `*` stands for any value (`"1,*"`, `"*"`).
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
-enum VecSpec {
-    Fixed([f32; 3]),
-    By { by: String, values: Vec<[f32; 3]> },
+enum By<T> {
+    One {
+        by: String,
+        values: Vec<T>,
+    },
+    Many {
+        by: Vec<String>,
+        map: BTreeMap<String, T>,
+    },
+    Fixed(T),
 }
+
+impl<T: Clone> By<T> {
+    fn get(&self, look: &Look) -> Option<T> {
+        match self {
+            By::Fixed(v) => Some(v.clone()),
+            By::One { by, values } => {
+                let i = (look.feature(by) as usize).min(values.len().saturating_sub(1));
+                values.get(i).cloned()
+            }
+            By::Many { by, map } => {
+                let vals: Vec<String> = by.iter().map(|f| look.feature(f).to_string()).collect();
+                // the exact values first, then with more and more of them
+                // left to `*`, the last features first
+                let n = vals.len().min(8);
+                let mut masks: Vec<u32> = (0..1u32 << n).collect();
+                masks.sort_by_key(|m| (m.count_ones(), m.reverse_bits()));
+                masks.iter().find_map(|m| {
+                    let key: Vec<&str> = vals
+                        .iter()
+                        .enumerate()
+                        .map(|(i, v)| if m >> i & 1 == 1 { "*" } else { v.as_str() })
+                        .collect();
+                    map.get(&key.join(","))
+                        .or_else(|| (*m == (1 << n) - 1).then(|| map.get("*")).flatten())
+                        .cloned()
+                })
+            }
+        }
+    }
+}
+
+type VecSpec = By<[f32; 3]>;
 
 impl Default for VecSpec {
     fn default() -> Self {
-        VecSpec::Fixed([0.0; 3])
+        By::Fixed([0.0; 3])
     }
 }
 
 impl VecSpec {
-    fn get(&self, look: &Look) -> Vec3 {
-        match self {
-            VecSpec::Fixed(v) => Vec3::from(*v),
-            VecSpec::By { by, values } => {
-                let i = (look.feature(by) as usize).min(values.len().saturating_sub(1));
-                values.get(i).map(|v| Vec3::from(*v)).unwrap_or(Vec3::ZERO)
-            }
-        }
+    fn vec(&self, look: &Look) -> Vec3 {
+        self.get(look).map(Vec3::from).unwrap_or(Vec3::ZERO)
     }
 }
 
@@ -373,16 +574,40 @@ struct PartSpec {
     bone: String,
     #[serde(default)]
     pivot: VecSpec,
-    /// where the held item is drawn
+    /// where a held item is drawn: `true` for the weapon hand, or the
+    /// name of a socket (an off-hand, a shield on the arm, the back)
     #[serde(default)]
-    held: bool,
+    held: HeldAt,
     #[serde(default)]
     glow: bool,
     #[serde(default)]
     light: Option<f32>,
-    /// reshape the part: proportions are data (slimmer limbs, a waist)
+    /// reshape the part: proportions are data (slimmer limbs, a waist),
+    /// which may vary by features (a build)
     #[serde(default)]
-    shape: Option<ShapeSpec>,
+    shape: Option<By<ShapeSpec>>,
+    /// false: meshed as blocks even where the figure is smooth
+    #[serde(default)]
+    smooth: Option<bool>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(untagged)]
+enum HeldAt {
+    #[default]
+    No,
+    Hand(bool),
+    Socket(String),
+}
+
+impl HeldAt {
+    fn socket(&self) -> Option<String> {
+        match self {
+            HeldAt::Hand(true) => Some(String::new()),
+            HeldAt::Socket(s) => Some(s.clone()),
+            _ => None,
+        }
+    }
 }
 
 /// How a part's mesh is reshaped about its pivot, in the rig's data.
@@ -456,10 +681,12 @@ struct Part {
     part: u8,
     bone: usize,
     pivot: VecSpec,
-    held: bool,
+    /// a held item is drawn here: "" for the weapon hand, else a socket
+    held: Option<String>,
     glow: bool,
     light: Option<f32>,
-    shape: Option<ShapeSpec>,
+    shape: Option<By<ShapeSpec>>,
+    smooth: bool,
 }
 
 struct Rig {
@@ -584,10 +811,11 @@ fn compile_rig(sk: &SkeletonSpec, spec: &RigSpec, grids: &[GridSpec]) -> Result<
             part,
             bone,
             pivot: p.pivot.clone(),
-            held: p.held,
+            held: p.held.socket(),
             glow: p.glow,
             light: p.light,
-            shape: p.shape,
+            shape: p.shape.clone(),
+            smooth: p.smooth.unwrap_or(true),
         });
     }
     Ok(Rig {
@@ -630,6 +858,7 @@ struct Group {
 struct Grid {
     min: [i32; 3],
     max: [i32; 3],
+    detail: f32,
     groups: Vec<Group>,
 }
 
@@ -639,6 +868,7 @@ struct Recipe {
     k: [f32; 3],
     c: [f32; 3],
     glow: bool,
+    crisp: bool,
 }
 
 /// A figure ready to compose and draw.
@@ -647,8 +877,10 @@ pub struct Figure {
     /// colour slots named by the palette
     slots: Vec<String>,
     palette: Vec<Option<Recipe>>,
-    lods: usize,
+    lods: Vec<LodSpec>,
     per_block: f32,
+    smooth: Smooth,
+    derive: Vec<DeriveSpec>,
     rig: Option<Rig>,
     clips: Option<ClipChoice>,
     sets: Option<Rc<HashMap<String, Rc<ClipSet>>>>,
@@ -705,6 +937,7 @@ fn load_figure(spec: &FigureSpec) -> Result<Option<Figure>, String> {
                 k: r.k,
                 c: r.c,
                 glow: r.glow,
+                crisp: r.crisp,
             })
         })
         .collect();
@@ -733,6 +966,7 @@ fn load_figure(spec: &FigureSpec) -> Result<Option<Figure>, String> {
         let mut grid = Grid {
             min: g.min,
             max: g.max,
+            detail: g.detail.unwrap_or(spec.detail).max(0.01),
             groups: Vec::new(),
         };
         for gs in &g.groups {
@@ -800,8 +1034,17 @@ fn load_figure(spec: &FigureSpec) -> Result<Option<Figure>, String> {
         grids,
         slots,
         palette,
-        lods: spec.lods.clamp(1, 3),
+        lods: spec.lods.list(),
         per_block: spec.per_block,
+        derive: spec.derive.clone(),
+        smooth: spec
+            .smooth
+            .map(|s| Smooth {
+                relax: s.relax,
+                blend: s.blend,
+                occlusion: s.occlusion,
+            })
+            .unwrap_or_default(),
         rig,
         clips: spec.clips.clone(),
         sets,
@@ -1020,6 +1263,9 @@ fn apply_spec(s: &FiguresSpec, l: &mut Look, spec: &LookSpec, color: [f32; 3]) {
     if let Some((kind, c)) = &spec.weapon {
         l.weapon = weapon_kind(kind).map(|k| (k, *c));
     }
+    for (socket, h) in &spec.carry {
+        l.carry.insert(socket.clone(), h.clone());
+    }
     let _ = s;
 }
 
@@ -1096,6 +1342,19 @@ impl Look {
         l
     }
 
+    /// Put on items (by key), as `figures.json`'s `equip` says each one
+    /// changes the look. Items it does not know change nothing.
+    pub fn wear<'a>(&mut self, items: impl IntoIterator<Item = &'a str>) {
+        let Some(s) = spec() else {
+            return;
+        };
+        for key in items {
+            if let Some(e) = s.equip.items.get(key) {
+                apply_spec(&s, self, e, [0.5; 3]);
+            }
+        }
+    }
+
     /// The colours the character creator offers for a colour of the look
     /// ("skin", "hair", "eyes").
     pub fn options(name: &str) -> Vec<[f32; 3]> {
@@ -1126,6 +1385,56 @@ pub fn creature(
     };
     look.colors.entry("color".into()).or_insert(color);
     Some((c.figure.clone(), look, c.held.clone()))
+}
+
+/// The looks of the showcase in `figures.json`: per set, its name and
+/// each person in it.
+pub fn showcase() -> Vec<(String, Vec<(String, Look)>)> {
+    let Some(s) = spec() else {
+        return Vec::new();
+    };
+    let person = |p: &ShowPerson| -> Look {
+        let a = p.appearance;
+        let mut l = Look::from_appearance(
+            &dyno_protocol::Appearance {
+                skin: a.skin,
+                eyes: a.eyes,
+                hair_style: a.hair_style,
+                hair_color: a.hair_color,
+                beard: a.beard,
+                build: a.build,
+                mood: a.mood,
+                ears: a.ears,
+            },
+            p.color,
+        );
+        apply_spec(&s, &mut l, &p.look, p.color);
+        l
+    };
+    let all = |on: &Option<Vec<usize>>| -> Vec<usize> {
+        on.clone().unwrap_or_else(|| (0..s.showcase.people.len()).collect())
+    };
+    if s.showcase.sets.is_empty() {
+        let people = s.showcase.people.iter().map(|p| (p.name.clone(), person(p))).collect();
+        return vec![("People".into(), people)];
+    }
+    s.showcase
+        .sets
+        .iter()
+        .map(|set| {
+            let people = all(&set.on)
+                .into_iter()
+                .filter_map(|i| s.showcase.people.get(i))
+                .map(|p| {
+                    let mut l = person(p);
+                    l.wear(set.wear.iter().map(String::as_str));
+                    apply_spec(&s, &mut l, &set.look, p.color);
+                    (p.name.clone(), l)
+                })
+                .collect();
+            (set.name.clone(), people)
+        })
+        .collect()
 }
 
 /// The figure players are drawn as.
@@ -1172,7 +1481,7 @@ impl Figure {
         }
     }
 
-    fn color(&self, ink: u8, look: &Look) -> Option<([f32; 3], bool)> {
+    fn color(&self, ink: u8, look: &Look) -> Option<([f32; 3], bool, bool)> {
         let r = self.palette.get(ink as usize).copied().flatten()?;
         let base = match r.slot {
             Some(s) => look.color(&self.slots[s]).unwrap_or([0.5; 3]),
@@ -1181,7 +1490,27 @@ impl Figure {
         Some((
             std::array::from_fn(|i| (r.k[i] * base[i] + r.c[i]).clamp(0.0, 1.0)),
             r.glow,
+            r.crisp,
         ))
+    }
+
+    /// The look with the features its figure derives from others.
+    pub fn derived(&self, look: &Look) -> Look {
+        let mut l = look.clone();
+        for d in &self.derive {
+            let on = d
+                .cond
+                .iter()
+                .all(|(f, vals)| vals.contains(&l.feature(f)));
+            if on {
+                for (f, v) in &d.set {
+                    if !look.features.contains_key(f) {
+                        l.set(f, *v);
+                    }
+                }
+            }
+        }
+        l
     }
 
     /// The voxel models of a look, one per grid.
@@ -1189,6 +1518,7 @@ impl Figure {
         let mut out = Vec::new();
         for g in &self.grids {
             let mut v = Vox::new(g.min, g.max);
+            v.set_unit(1.0 / g.detail);
             let mut inks: [Option<Ink>; 256] = [None; 256];
             let n = (g.size()[0] * g.size()[1] * g.size()[2]) as usize;
             // what the group does to each cell: (mode, part, palette) + 1
@@ -1234,9 +1564,10 @@ impl Figure {
                     let i = match inks[ink as usize] {
                         Some(i) => i,
                         None => {
-                            let (rgb, glow) =
-                                self.color(ink, look).unwrap_or(([1.0, 0.0, 1.0], false));
-                            let i = if glow { v.glow(rgb) } else { v.ink(rgb) };
+                            let (rgb, glow, crisp) = self
+                                .color(ink, look)
+                                .unwrap_or(([1.0, 0.0, 1.0], false, false));
+                            let i = v.ink_as(rgb, glow, crisp);
                             inks[ink as usize] = Some(i);
                             i
                         }
@@ -1260,6 +1591,7 @@ impl Figure {
     /// The clips this figure plays when holding `grip`.
     pub fn clips(&self, look: &Look, grip: Grip) -> Option<Rc<ClipSet>> {
         let sets = self.sets.as_ref()?;
+        let look = &self.derived(look);
         let name = match &self.clips {
             Some(ClipChoice::Name(n)) => n.clone(),
             Some(ClipChoice::ByGrip { features }) => {
@@ -1294,41 +1626,92 @@ impl Figure {
     }
 }
 
-/// A look's meshes, per level of detail, per rig part.
+/// A look's voxels, and its meshes per level of detail, per rig part,
+/// each made the first time it is drawn.
 struct Built {
-    lods: Vec<Vec<Mesh>>,
+    grids: Vec<Vox>,
+    /// where each rig bone sits on its parent, for this look
+    ats: Vec<Vec3>,
+    lods: Vec<std::cell::OnceCell<Vec<Mesh>>>,
+}
+
+impl Built {
+    fn level(&self, fig: &Figure, look: &Look, i: usize) -> &[Mesh] {
+        let i = i.min(self.lods.len() - 1);
+        self.lods[i].get_or_init(|| mesh_level(fig, look, &self.grids, fig.lods[i]))
+    }
 }
 
 fn build(fig: &Figure, look: &Look) -> Built {
-    let grids = fig.compose(look);
-    let mut levels: Vec<Vec<Vox>> = vec![grids];
-    for _ in 1..fig.lods {
-        let next = levels[levels.len() - 1].iter().map(Vox::half).collect();
-        levels.push(next);
+    let look = &fig.derived(look);
+    Built {
+        grids: fig.compose(look),
+        ats: fig
+            .rig
+            .iter()
+            .flat_map(|r| r.bones.iter().map(|b| b.at.vec(look)))
+            .collect(),
+        lods: fig.lods.iter().map(|_| std::cell::OnceCell::new()).collect(),
     }
-    let lods = levels
-        .iter()
-        .map(|grids| match &fig.rig {
-            Some(rig) => rig
-                .parts
+}
+
+/// Mesh one level of detail: halve the voxels, then mesh each rig part
+/// (smooth parts together, so they meet without seams) and reshape it.
+fn mesh_level(fig: &Figure, look: &Look, full: &[Vox], lod: LodSpec) -> Vec<Mesh> {
+    let mut halved: Vec<Vox> = Vec::new();
+    let grids: &[Vox] = if lod.half == 0 {
+        full
+    } else {
+        for g in full {
+            let mut v = g.half();
+            for _ in 1..lod.half {
+                v = v.half();
+            }
+            halved.push(v);
+        }
+        &halved
+    };
+    let Some(rig) = &fig.rig else {
+        // no rig: the first part of the first grid, about its origin
+        return vec![if lod.smooth {
+            grids[0]
+                .mesh_smooth(&[(1, [0.0; 3])], fig.smooth)
+                .pop()
+                .unwrap_or_default()
+        } else {
+            grids[0].mesh(1, [0.0; 3])
+        }];
+    };
+    let mut out: Vec<Mesh> = rig.parts.iter().map(|_| Mesh::default()).collect();
+    for (gi, grid) in grids.iter().enumerate() {
+        let smooth: Vec<usize> = (0..rig.parts.len())
+            .filter(|&i| {
+                let p = &rig.parts[i];
+                p.held.is_none() && p.grid == gi && lod.smooth && p.smooth
+            })
+            .collect();
+        if !smooth.is_empty() {
+            let asks: Vec<(u8, [f32; 3])> = smooth
                 .iter()
-                .map(|p| {
-                    if p.held {
-                        return Mesh::default();
-                    }
-                    let pivot = p.pivot.get(look);
-                    let mut mesh = grids[p.grid].mesh(p.part, pivot.into());
-                    if let Some(s) = p.shape {
-                        reshape(&mut mesh, s);
-                    }
-                    mesh
-                })
-                .collect(),
-            // no rig: the first part of the first grid, about its origin
-            None => vec![grids[0].mesh(1, [0.0; 3])],
-        })
-        .collect();
-    Built { lods }
+                .map(|&i| (rig.parts[i].part, rig.parts[i].pivot.vec(look).into()))
+                .collect();
+            for (i, m) in smooth.iter().zip(grid.mesh_smooth(&asks, fig.smooth)) {
+                out[*i] = m;
+            }
+        }
+        for (i, p) in rig.parts.iter().enumerate() {
+            if p.held.is_some() || p.grid != gi || smooth.contains(&i) {
+                continue;
+            }
+            out[i] = grid.mesh(p.part, p.pivot.vec(look).into());
+        }
+    }
+    for (p, m) in rig.parts.iter().zip(&mut out) {
+        if let Some(s) = p.shape.as_ref().and_then(|s| s.get(look)) {
+            reshape(m, s);
+        }
+    }
+    out
 }
 
 /// Apply a part's shape from the rig: scale, then a taper from top to bottom.
@@ -1361,12 +1744,13 @@ fn built(name: &str, fig: &Figure, look: &Look) -> Rc<Built> {
 
 /// Which level of detail to draw at `p`: full nearby, coarser far away, where
 /// a fine voxel is smaller than a pixel. Full when the camera is not known.
-fn lod_at(p: Vec3) -> usize {
-    match view_distance(p) {
-        Some(d) if d > 40.0 => 2,
-        Some(d) if d > 14.0 => 1,
-        _ => 0,
-    }
+fn lod_at(lods: &[LodSpec], p: Vec3) -> usize {
+    let Some(d) = view_distance(p) else {
+        return 0;
+    };
+    lods.iter()
+        .position(|l| l.until.is_none_or(|u| d <= u))
+        .unwrap_or(lods.len().saturating_sub(1))
 }
 
 /// The frame of a figure standing at `feet`: x right, y up, z forward, in
@@ -1385,6 +1769,8 @@ fn root(feet: Vec3, yaw: f32, per_block: f32) -> Affine3A {
 /// What a figure holds, for drawing: the held item's mesh and fit.
 pub struct Holding {
     held: Rc<Built>,
+    fig: Rc<Figure>,
+    look: Look,
     unit: f32,
     carry_turn: f32,
 }
@@ -1407,6 +1793,8 @@ pub fn holding(
     look.set("frame", frame);
     Some(Holding {
         held: built(&k.figure, &fig, &look),
+        fig,
+        look,
         unit: k.unit,
         carry_turn: k.carry_turn,
     })
@@ -1414,7 +1802,7 @@ pub fn holding(
 
 impl Holding {
     pub fn mesh(&self) -> &Mesh {
-        &self.held.lods[0][0]
+        &self.held.level(&self.fig, &self.look, 0)[0]
     }
     pub fn unit(&self) -> f32 {
         self.unit
@@ -1444,8 +1832,9 @@ pub fn draw(
     let Some(rig) = &fig.rig else {
         return;
     };
-    let m = built(name, fig, look);
-    let m = &m.lods[lod_at(feet).min(m.lods.len() - 1)];
+    let built = built(name, fig, look);
+    let derived = fig.derived(look);
+    let m = built.level(fig, &derived, lod_at(&fig.lods, feet));
     let mut vars = [0.0f32; N_VARS];
     vars[V_CLOCK] = pose.k[key::CLOCK];
     vars[V_FLOW] = pose.k[key::FLOW];
@@ -1459,10 +1848,10 @@ pub fn draw(
     }
     let base = root(feet, yaw, fig.per_block / scale) * Affine3A::from_translation(rig.offset);
     let mut frames: Vec<Affine3A> = Vec::with_capacity(rig.bones.len());
-    for b in &rig.bones {
+    for (b, at) in rig.bones.iter().zip(&built.ats) {
         let parent = b.parent.map(|p| frames[p]).unwrap_or(base);
         let off = b.pose.map(|i| pose.off[i]).unwrap_or(Vec3::ZERO);
-        let mut f = parent * Affine3A::from_translation(b.at.get(look) + off);
+        let mut f = parent * Affine3A::from_translation(*at + off);
         for op in &b.ops {
             f = match op {
                 Op::Pose => match b.pose {
@@ -1502,8 +1891,13 @@ pub fn draw(
             light: p.light.unwrap_or(paint.light),
             ..paint
         };
-        if p.held {
-            if let Some(h) = held {
+        if let Some(socket) = &p.held {
+            let other = (!socket.is_empty())
+                .then(|| look.carry.get(socket))
+                .flatten()
+                .and_then(|(kind, c)| holding(kind, *c, 1, false, 0));
+            let h = if socket.is_empty() { held } else { other.as_ref() };
+            if let Some(h) = h {
                 let fit = Mat3::from_rotation_y(h.carry_turn)
                     * Mat3::from_diagonal(Vec3::splat(h.unit * fig.per_block));
                 emit(out, h.mesh(), &(frame * Affine3A::from_mat3(fit)), paint);

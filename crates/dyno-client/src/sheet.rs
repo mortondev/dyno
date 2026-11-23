@@ -391,3 +391,155 @@ pub fn anim_sheet(out: &Path) -> Result<String, String> {
         written.join(", ")
     ))
 }
+
+/// A camera for one cell: where it is, what it looks at, its field of view.
+#[derive(Clone, Copy)]
+struct Cam {
+    eye: Vec3,
+    target: Vec3,
+    fov: f32,
+}
+
+impl Cam {
+    /// Looking at `target` from `dist` away, `az` degrees round from the
+    /// figure's front and `el` degrees up.
+    fn orbit(target: Vec3, dist: f32, az: f32, el: f32, fov: f32) -> Cam {
+        let (az, el) = (az.to_radians(), el.to_radians());
+        let back = Vec3::new(az.sin() * el.cos(), el.sin(), -az.cos() * el.cos());
+        Cam {
+            eye: target + back * dist,
+            target,
+            fov: fov.to_radians(),
+        }
+    }
+}
+
+/// Render one cell: `verts` on a ground plane from `cam`, labelled.
+fn shoot(
+    g: &mut Gfx,
+    verts: &[Vertex],
+    cam: Cam,
+    (cw, ch): (u32, u32),
+    label: &str,
+    tmp: &Path,
+) -> Result<Vec<u8>, String> {
+    let sky = crate::app::sky(0.32);
+    let vp = glam::Mat4::perspective_rh(cam.fov, cw as f32 / ch as f32, 0.02, 200.0)
+        * glam::Mat4::look_at_rh(cam.eye, cam.target, Vec3::Y);
+    let mut boxes = Vec::with_capacity(verts.len() + 64);
+    render::push_box(
+        &mut boxes,
+        Vec3::new(-60.0, -0.5, -60.0),
+        Vec3::new(60.0, 0.0, 60.0),
+        [0.42, 0.50, 0.36],
+        0.0,
+    );
+    boxes.extend_from_slice(verts);
+    let ctx = egui::Context::default();
+    let raw = egui::RawInput {
+        screen_rect: Some(egui::Rect::from_min_size(
+            egui::Pos2::ZERO,
+            egui::vec2(cw as f32, ch as f32),
+        )),
+        ..Default::default()
+    };
+    let text = label.to_string();
+    let out = ctx.run(raw, |ctx| {
+        if text.is_empty() {
+            return;
+        }
+        let p = ctx.layer_painter(egui::LayerId::background());
+        let font = egui::FontId::proportional(13.0);
+        let galley = p.layout_no_wrap(text.clone(), font, egui::Color32::WHITE);
+        let r = egui::Rect::from_min_size(egui::pos2(4.0, 4.0), galley.size()).expand(3.0);
+        p.rect_filled(r, 3.0, egui::Color32::from_black_alpha(150));
+        p.galley(egui::pos2(4.0, 4.0), galley, egui::Color32::WHITE);
+    });
+    g.screenshot = Some(tmp.to_path_buf());
+    g.frame(Some((vp, cam.eye, 200.0)), &sky, &boxes, &[], &ctx, out);
+    read_ppm(tmp)
+}
+
+/// Paste cells into one image, `cols` to a row.
+fn paste(cells: &[Vec<u8>], cols: usize, (cw, ch): (u32, u32)) -> (u32, u32, Vec<u8>) {
+    let rows = cells.len().div_ceil(cols.max(1));
+    let (w, h) = (cw * cols as u32, ch * rows as u32);
+    let mut img = vec![0u8; (w * h * 3) as usize];
+    for (i, px) in cells.iter().enumerate() {
+        let (r, c) = ((i / cols) as u32, (i % cols) as u32);
+        for y in 0..ch {
+            let src = &px[(y * cw * 3) as usize..((y + 1) * cw * 3) as usize];
+            let at = (((r * ch + y) * w + c * cw) * 3) as usize;
+            img[at..at + src.len()].copy_from_slice(src);
+        }
+    }
+    (w, h, img)
+}
+
+/// The outfit sheets: each item set in `figures.json`'s showcase on each
+/// of its people, from the front, three-quarter and back, idle, ready and
+/// mid-attack, and close up on the face. `out` gets an overview (every
+/// set from the front and three-quarter); `<out>-<set>` one sheet per set.
+pub fn outfit_sheet(out: &Path) -> Result<String, String> {
+    crate::assets::load_local_pack();
+    let sets = crate::figure::showcase();
+    if sets.is_empty() {
+        return Err("figures.json has no showcase".into());
+    }
+    let size = (300u32, 420u32);
+    let mut g = Gfx::new_headless(size.0, size.1)?;
+    models::set_view(None);
+    let dir = out
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."))
+        .to_path_buf();
+    let tmp = dir.join("outfit-sheet-cell.ppm");
+    let stem = out.file_stem().and_then(|s| s.to_str()).unwrap_or("outfits");
+    let ext = out.extension().and_then(|s| s.to_str()).unwrap_or("ppm");
+    let body = |az: f32| Cam::orbit(Vec3::new(0.0, 0.93, 0.0), 4.3, az, 6.0, 28.0);
+    let face = |az: f32| Cam::orbit(Vec3::new(0.0, 1.6, 0.0), 1.25, az, 3.0, 28.0);
+    let pose = |l: &Look, a: Anim, t: f32| -> Vec<Vertex> {
+        let fig = Figure::Person(l.clone());
+        cell_at(&fig, a, t)
+    };
+    let mut written = Vec::new();
+    let mut overview = Vec::new();
+    for (set, people) in &sets {
+        let mut cells = Vec::new();
+        for (who, l) in people {
+            let attack = crate::anim::attack_for(models::grip(l));
+            let idle = pose(l, Anim::Idle, 0.4);
+            let shots = [
+                (format!("{set}\n{who}\nfront"), idle.clone(), body(0.0)),
+                ("three-quarter".to_string(), idle.clone(), body(38.0)),
+                ("back".to_string(), idle.clone(), body(160.0)),
+                ("ready".to_string(), pose(l, Anim::Ready, 1.0), body(30.0)),
+                (format!("{attack:?}"), pose(l, attack, moment(attack)), body(55.0)),
+                ("portrait".to_string(), idle.clone(), face(0.0)),
+                ("portrait three-quarter".to_string(), idle.clone(), face(32.0)),
+            ];
+            for (i, (label, verts, cam)) in shots.into_iter().enumerate() {
+                let px = shoot(&mut g, &verts, cam, size, &label, &tmp)?;
+                if i < 2 {
+                    overview.push(px.clone());
+                }
+                cells.push(px);
+            }
+        }
+        let slug: String = set
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+            .collect::<String>()
+            .split('-')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("-");
+        let path = out.with_file_name(format!("{stem}-{slug}.{ext}"));
+        written.push(save(&path, paste(&cells, 7, size))?.display().to_string());
+    }
+    let main = save(out, paste(&overview, 8, size))?;
+    let _ = std::fs::remove_file(&tmp);
+    written.insert(0, main.display().to_string());
+    Ok(format!("{} sets: {}", sets.len(), written.join(", ")))
+}
