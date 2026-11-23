@@ -5,7 +5,9 @@ pub mod app;
 pub mod assets;
 pub mod audio;
 pub mod cache;
-pub(crate) mod detail;
+pub mod clip;
+pub mod expr;
+pub mod figure;
 pub mod front;
 pub mod game;
 pub mod look;
@@ -17,12 +19,14 @@ pub mod render;
 pub mod rpg_ui;
 pub mod screens;
 pub mod settings;
+pub(crate) mod shapes;
 pub mod sheet;
 pub mod shot;
 pub mod survival;
 pub mod terrain_mesh;
 pub mod textures;
 pub mod theme;
+pub mod vox;
 pub mod voxmodel;
 
 /// Open the game window. `prefill` sets the server address field.

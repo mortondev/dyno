@@ -176,3 +176,62 @@ actions, the lead would add (no changes were made to `dyno-protocol` or
   `out-all-<figure>.png` is every animation for one figure of each
   skeleton; `out-motion.png` plays the one-shots out frame by frame. Writes
   PPM, or PNG through ImageMagick when the name ends in `.png`.
+
+## 7. Figures, rigs and clips as pack data (step 2 of data-and-streaming)
+
+The builders in `models.rs` and the pose functions in `anim.rs` were run
+once by a bake (in git history: `crates/dyno-client/src/bake.rs`, commit
+"Bake figures, rigs and clips into the pack") and deleted. The client now
+carries no figure content; everything below comes through the asset store.
+
+- **`figures.json`**
+  - `appearance`: the character creator's options (`skin`, `hair`, `eyes`
+    colour lists, keyed by the protocol's `Appearance` fields) and the
+    features it sets (`hair_style`, `beard`, `build`, `mood`, `ears`).
+  - `player`: the player figure (`person`) and how a traveller is drawn
+    from a seed: `{"pick": [...], "shift": n}` picks by bits of the hash,
+    `{"pick": [...], "by": "armor"}` by another feature, `{"from": "color",
+    "scale": k}` follows the signature colour.
+  - `npcs`: `*` for all townsfolk, then named overrides (features, colours,
+    `null` to take one off, `remap` of values, a held `weapon`).
+  - `creatures`: `"<Model>/<variant>"` (or `/*`) → figure, an optional
+    look (as for NPCs, colours may follow the creature's `color`) and what
+    it holds.
+  - `held`: held kinds (figure, `unit` blocks per voxel, `carry_turn`,
+    `grip`, first-person `fp` = size, tilt, roll, lift) and how items map
+    to them (by weapon kind, tool kind, gear slot, icon; the torch; the
+    empty hand; `glow_names`).
+  - `figures`: per figure its `.vox` file, `skeleton`, `rig`, clip set
+    (`"name"`, or `{"features": ["robe"]}` for grip + features), LODs,
+    grids (bounds, part names, groups of layers with `when` conditions and
+    value `map`s) and the palette: each index is a fixed colour (`c`) or
+    follows a look colour (`slot`, per-channel `k` and `c`:
+    `clamp(k * colour + c)`), optionally glowing.
+- **`models/<figure>.vox`** (MagicaVoxel, one palette per file): models
+  named `<group>/<layer>/<part>/<mode>`. A look is composed group by group
+  (legs, torso, arms, cape, head for people): the base layer, then each
+  layer whose `when` matches, overriding cell by cell; then the group is
+  applied with each cell's mode: `set`, `add` (only into empty space),
+  `erase`, `dye` (recolour what is there), `add-dye`, or `drop` (undo an
+  earlier layer of the group). Layers are per feature value (a hair style,
+  a beard, plate armour) and name only the earlier features they depend on.
+- **`rigs/<skeleton>.json`**: the skeleton's pose bones, Euler orders
+  (default `yxz`), the upper-body mask, the step formula (ground per step
+  from speed), and per figure rig: bones (`parent`, `at` in voxels, which
+  may vary by a feature, `ops`: `"pose"`, `rx/ry/rz`, `move`, `scale`, with
+  expressions over `clock`, `flow`, `shape`, `spread`, `pitch` and bone
+  offsets — capes, rags, wisp motes and tail are written this way) and the
+  parts drawn in order on them (mesh pivot, `glow`, `light`, `held`).
+  People are 1.78 m with heads at 0.55 scale (`scale` op on `head`).
+- **`anims/<skeleton>.json`**: clip sets (`default` plus sets holding only
+  what differs: `one_hand+robe`, `thornboar`...). A clip has `duration`
+  (one-shot, `hold` for death) or `loop`, `time` channels and, for
+  locomotion, `stride` channels over one stride cycle that add to them.
+  Channels are `<bone>.rx|ry|rz` (degrees), `<bone>.ox|oy|oz` (voxels),
+  `flow|shape|spread`; a number or linear `[t, v]` keys. `seed` is the
+  figure seed the loops were sampled at; other seeds start further in.
+- **Engine** (`figure.rs`, `clip.rs`, `expr.rs`, `vox.rs`, `voxmodel.rs`,
+  `anim.rs`): reads it all, caches meshes per look, blends, layers and
+  crossfades as before; a grey stand-in is drawn until a figure's files
+  arrive. `Anim` stays the list of standard names; the pack test
+  `every_figure_has_every_animation` replaces the compile-time check.

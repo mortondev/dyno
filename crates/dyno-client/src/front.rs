@@ -868,10 +868,15 @@ fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
                         .color(theme::TEXT_DIM),
                 );
                 theme::ui_divider(ui, theme::GOLD_DARK);
-                swatches(ui, "Skin", &mut f.look.skin, &Look::SKINS);
-                swatches(ui, "Eyes", &mut f.look.eyes, &Look::EYES);
+                swatches(ui, "Skin", &mut f.look.skin, &Look::options("skin"));
+                swatches(ui, "Eyes", &mut f.look.eyes, &Look::options("eyes"));
                 hair_thumbs(ui, &mut f.look);
-                swatches(ui, "Hair colour", &mut f.look.hair_color, &Look::HAIRS);
+                swatches(
+                    ui,
+                    "Hair colour",
+                    &mut f.look.hair_color,
+                    &Look::options("hair"),
+                );
                 let mut beard = f.look.beard as u8;
                 stepper(ui, "Beard", &mut beard, 2, Some(&["None", "Beard"]));
                 f.look.beard = beard == 1;
@@ -1277,9 +1282,17 @@ fn hair_thumbs(ui: &mut egui::Ui, look: &mut Appearance) {
             );
         });
     });
-    let skin = col32(Look::SKINS[look.skin as usize % Look::SKINS.len()]);
-    let hair = col32(Look::HAIRS[look.hair_color as usize % Look::HAIRS.len()]);
-    let eyes = col32(Look::EYES[look.eyes as usize % Look::EYES.len()]);
+    let pick = |name: &str, i: u8| {
+        let o = Look::options(name);
+        col32(
+            o.get(i as usize % o.len().max(1))
+                .copied()
+                .unwrap_or([0.5; 3]),
+        )
+    };
+    let skin = pick("skin", look.skin);
+    let hair = pick("hair", look.hair_color);
+    let eyes = pick("eyes", look.eyes);
     let hood = Color32::from_rgb(92, 70, 52);
     ui.horizontal(|ui| {
         for style in 0..5u8 {

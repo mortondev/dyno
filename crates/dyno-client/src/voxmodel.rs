@@ -1,4 +1,4 @@
-//! Fine voxel models: dense grids with a palette, built in code, meshed once
+//! Fine voxel models: dense grids with a palette (composed from pack data), meshed once
 //! (hidden faces culled, flat areas merged, ambient occlusion baked per vertex)
 //! and then stamped into the frame's vertex list with a transform.
 
@@ -190,11 +190,6 @@ impl Vox {
         self.intern(rgb, true)
     }
 
-    /// The ink for a colour scaled by `k` (darker below 1, lighter above).
-    pub fn tone(&mut self, rgb: [f32; 3], k: f32) -> Ink {
-        self.ink(scale(rgb, k))
-    }
-
     fn idx(&self, x: i32, y: i32, z: i32) -> Option<usize> {
         let (a, b, c) = (x - self.min[0], y - self.min[1], z - self.min[2]);
         if a < 0 || b < 0 || c < 0 || a >= self.size[0] || b >= self.size[1] || c >= self.size[2] {
@@ -214,6 +209,17 @@ impl Vox {
             Some(i) if self.parts[i] == part => self.cells[i],
             _ => 0,
         }
+    }
+
+    /// The ink and part at a voxel, if it is solid.
+    pub fn voxel(&self, x: i32, y: i32, z: i32) -> Option<(Ink, u8)> {
+        let i = self.idx(x, y, z)?;
+        (self.cells[i] != 0).then(|| (self.cells[i], self.parts[i]))
+    }
+
+    /// The colour of an ink and whether it glows.
+    pub fn color(&self, ink: Ink) -> ([f32; 3], bool) {
+        self.palette[ink as usize]
     }
 
     pub fn solid(&self, x: i32, y: i32, z: i32) -> bool {
@@ -246,98 +252,6 @@ impl Vox {
             && self.cells[i] != 0
         {
             self.cells[i] = c;
-        }
-    }
-
-    /// Fill a box: `x0..x1`, `y0..y1`, `z0..z1`, upper bounds exclusive.
-    pub fn fill(&mut self, x: [i32; 2], y: [i32; 2], z: [i32; 2], c: Ink) {
-        for yy in y[0]..y[1] {
-            for zz in z[0]..z[1] {
-                for xx in x[0]..x[1] {
-                    self.set(xx, yy, zz, c);
-                }
-            }
-        }
-    }
-
-    /// Erase a box.
-    pub fn cut(&mut self, x: [i32; 2], y: [i32; 2], z: [i32; 2]) {
-        self.fill(x, y, z, 0);
-    }
-
-    /// Recolour whatever exists inside a box.
-    pub fn paint(&mut self, x: [i32; 2], y: [i32; 2], z: [i32; 2], c: Ink) {
-        for yy in y[0]..y[1] {
-            for zz in z[0]..z[1] {
-                for xx in x[0]..x[1] {
-                    self.dye(xx, yy, zz, c);
-                }
-            }
-        }
-    }
-
-    /// Recolour existing voxels of the current part inside a box with a
-    /// function of position and the old ink.
-    pub fn repaint(
-        &mut self,
-        x: [i32; 2],
-        y: [i32; 2],
-        z: [i32; 2],
-        mut f: impl FnMut(i32, i32, i32, Ink) -> Ink,
-    ) {
-        for yy in y[0]..y[1] {
-            for zz in z[0]..z[1] {
-                for xx in x[0]..x[1] {
-                    if let Some(i) = self.idx(xx, yy, zz)
-                        && self.cells[i] != 0
-                        && self.parts[i] == self.part
-                    {
-                        self.cells[i] = f(xx, yy, zz, self.cells[i]);
-                    }
-                }
-            }
-        }
-    }
-
-    /// A box with its edges cut back by `r` voxels, on the axes marked in
-    /// `round` (so a limb can be rounded around its length only).
-    pub fn rbox(
-        &mut self,
-        x: [i32; 2],
-        y: [i32; 2],
-        z: [i32; 2],
-        r: i32,
-        round: [bool; 3],
-        c: Ink,
-    ) {
-        let lo = [x[0], y[0], z[0]];
-        let hi = [x[1], y[1], z[1]];
-        for yy in y[0]..y[1] {
-            for zz in z[0]..z[1] {
-                for xx in x[0]..x[1] {
-                    if in_rbox([xx, yy, zz], lo, hi, r, round) {
-                        self.set(xx, yy, zz, c);
-                    }
-                }
-            }
-        }
-    }
-
-    /// A solid ellipsoid around a centre given in voxel units.
-    pub fn blob(&mut self, at: [f32; 3], r: [f32; 3], c: Ink) {
-        let lo = |i: usize| (at[i] - r[i]).floor() as i32;
-        let hi = |i: usize| (at[i] + r[i]).ceil() as i32 + 1;
-        for yy in lo(1)..hi(1) {
-            for zz in lo(2)..hi(2) {
-                for xx in lo(0)..hi(0) {
-                    let d = ((xx as f32 + 0.5 - at[0]) / r[0]).powi(2)
-                        + ((yy as f32 + 0.5 - at[1]) / r[1]).powi(2)
-                        + ((zz as f32 + 0.5 - at[2]) / r[2]).powi(2);
-                    if d <= 1.0 {
-                        self.set(xx, yy, zz, c);
-                    }
-                }
-            }
         }
     }
 
@@ -526,50 +440,6 @@ impl Vox {
             core: None,
         }
     }
-}
-
-/// True if `p` lies in the box `lo..hi` with edges cut back by `r` voxels on
-/// the axes marked in `round`.
-pub fn in_rbox(p: [i32; 3], lo: [i32; 3], hi: [i32; 3], r: i32, round: [bool; 3]) -> bool {
-    let mut sum = 0;
-    for ((p, (lo, hi)), on) in p.iter().zip(lo.iter().zip(hi.iter())).zip(round) {
-        if p < lo || p >= hi {
-            return false;
-        }
-        if on {
-            let edge = (p - lo).min(hi - 1 - p);
-            sum += (r - edge).max(0);
-        }
-    }
-    sum <= r
-}
-
-/// Scale a colour, clamped to 0..1.
-pub fn scale(c: [f32; 3], k: f32) -> [f32; 3] {
-    [
-        (c[0] * k).clamp(0.0, 1.0),
-        (c[1] * k).clamp(0.0, 1.0),
-        (c[2] * k).clamp(0.0, 1.0),
-    ]
-}
-
-/// Blend two colours: 0 gives `a`, 1 gives `b`.
-pub fn mix(a: [f32; 3], b: [f32; 3], t: f32) -> [f32; 3] {
-    [
-        a[0] + (b[0] - a[0]) * t,
-        a[1] + (b[1] - a[1]) * t,
-        a[2] + (b[2] - a[2]) * t,
-    ]
-}
-
-/// A small integer hash for scattering detail.
-pub fn hash3(x: i32, y: i32, z: i32) -> u32 {
-    let mut h = (x as u32).wrapping_mul(0x9E37_79B1)
-        ^ (y as u32).wrapping_mul(0x85EB_CA77)
-        ^ (z as u32).wrapping_mul(0xC2B2_AE3D);
-    h ^= h >> 15;
-    h = h.wrapping_mul(0x2C1B_3C6D);
-    h ^ (h >> 13)
 }
 
 #[derive(Clone, Copy)]
@@ -763,12 +633,6 @@ pub fn emit(out: &mut Vec<Vertex>, mesh: &Mesh, xf: &Affine3A, paint: Paint) {
     }
 }
 
-/// A frame for a part: `parent`, moved to `pivot` (in the parent's voxel
-/// units) and turned by `rot`.
-pub fn joint(parent: &Affine3A, pivot: Vec3, rot: glam::Mat3) -> Affine3A {
-    *parent * Affine3A::from_mat3_translation(rot, pivot)
-}
-
 /// Built models, kept by key so each is built once.
 pub struct Cache<T> {
     map: RefCell<HashMap<u64, Rc<T>>>,
@@ -783,6 +647,11 @@ impl<T> Default for Cache<T> {
 }
 
 impl<T> Cache<T> {
+    /// Forget everything built.
+    pub fn clear(&self) {
+        self.map.borrow_mut().clear();
+    }
+
     /// The model for `key`, built on first use.
     pub fn get(&self, key: u64, build: impl FnOnce() -> T) -> Rc<T> {
         if let Some(m) = self.map.borrow().get(&key) {

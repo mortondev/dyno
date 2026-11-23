@@ -1,0 +1,222 @@
+{
+  "bones": [
+    "body",
+    "claw.r",
+    "claw.l",
+    "leg.0",
+    "leg.1",
+    "leg.2",
+    "leg.3",
+    "leg.4",
+    "leg.5",
+    "leg.6",
+    "leg.7"
+  ],
+  "order": {
+    "claw.l": "zyx",
+    "claw.r": "zyx"
+  },
+  "rigs": {
+    "mirepincher": {
+      "bones": [
+        {
+          "at": [0,0,0],
+          "name": "body"
+        },
+        {
+          "at": [-5,7.5,9],
+          "name": "leg.0",
+          "parent": "body"
+        },
+        {
+          "at": [-0.5,7.5,9],
+          "name": "leg.1",
+          "parent": "body"
+        },
+        {
+          "at": [4,7.5,9],
+          "name": "leg.2",
+          "parent": "body"
+        },
+        {
+          "at": [-5,7.5,-9],
+          "name": "leg.3",
+          "parent": "body"
+        },
+        {
+          "at": [-0.5,7.5,-9],
+          "name": "leg.4",
+          "parent": "body"
+        },
+        {
+          "at": [4,7.5,-9],
+          "name": "leg.5",
+          "parent": "body"
+        },
+        {
+          "at": [7,7.5,7.5],
+          "name": "claw.r",
+          "parent": "body"
+        },
+        {
+          "at": [7,7.5,-7.5],
+          "name": "claw.l",
+          "parent": "body"
+        }
+      ],
+      "parts": [
+        {
+          "bone": "body",
+          "part": "body",
+          "pivot": [0,0,0]
+        },
+        {
+          "bone": "leg.0",
+          "part": "leg.0",
+          "pivot": [-5,7.5,9]
+        },
+        {
+          "bone": "leg.1",
+          "part": "leg.1",
+          "pivot": [-0.5,7.5,9]
+        },
+        {
+          "bone": "leg.2",
+          "part": "leg.2",
+          "pivot": [4,7.5,9]
+        },
+        {
+          "bone": "leg.3",
+          "part": "leg.3",
+          "pivot": [-5,7.5,-9]
+        },
+        {
+          "bone": "leg.4",
+          "part": "leg.4",
+          "pivot": [-0.5,7.5,-9]
+        },
+        {
+          "bone": "leg.5",
+          "part": "leg.5",
+          "pivot": [4,7.5,-9]
+        },
+        {
+          "bone": "claw.r",
+          "part": "claw.r",
+          "pivot": [7,7.5,7.5]
+        },
+        {
+          "bone": "claw.l",
+          "part": "claw.l",
+          "pivot": [7,7.5,-7.5]
+        }
+      ]
+    },
+    "websnare": {
+      "bones": [
+        {
+          "at": [0,0,0],
+          "name": "body"
+        },
+        {
+          "at": [4.5,10,9],
+          "name": "leg.0",
+          "parent": "body"
+        },
+        {
+          "at": [4.5,10,6],
+          "name": "leg.1",
+          "parent": "body"
+        },
+        {
+          "at": [4.5,10,3],
+          "name": "leg.2",
+          "parent": "body"
+        },
+        {
+          "at": [4.5,10,0],
+          "name": "leg.3",
+          "parent": "body"
+        },
+        {
+          "at": [-4.5,10,9],
+          "name": "leg.4",
+          "parent": "body"
+        },
+        {
+          "at": [-4.5,10,6],
+          "name": "leg.5",
+          "parent": "body"
+        },
+        {
+          "at": [-4.5,10,3],
+          "name": "leg.6",
+          "parent": "body"
+        },
+        {
+          "at": [-4.5,10,0],
+          "name": "leg.7",
+          "parent": "body"
+        }
+      ],
+      "parts": [
+        {
+          "bone": "body",
+          "part": "body",
+          "pivot": [0,0,0]
+        },
+        {
+          "bone": "leg.0",
+          "part": "leg.0",
+          "pivot": [4.5,10,9]
+        },
+        {
+          "bone": "leg.1",
+          "part": "leg.1",
+          "pivot": [4.5,10,6]
+        },
+        {
+          "bone": "leg.2",
+          "part": "leg.2",
+          "pivot": [4.5,10,3]
+        },
+        {
+          "bone": "leg.3",
+          "part": "leg.3",
+          "pivot": [4.5,10,0]
+        },
+        {
+          "bone": "leg.4",
+          "part": "leg.4",
+          "pivot": [-4.5,10,9]
+        },
+        {
+          "bone": "leg.5",
+          "part": "leg.5",
+          "pivot": [-4.5,10,6]
+        },
+        {
+          "bone": "leg.6",
+          "part": "leg.6",
+          "pivot": [-4.5,10,3]
+        },
+        {
+          "bone": "leg.7",
+          "part": "leg.7",
+          "pivot": [-4.5,10,0]
+        }
+      ]
+    }
+  },
+  "skeleton": "multileg",
+  "step": {
+    "base": 0.3,
+    "max": 0.55,
+    "min": 0.35,
+    "per_speed": 0.05
+  },
+  "upper": [
+    "claw.r",
+    "claw.l"
+  ]
+}
