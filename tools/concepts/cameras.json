@@ -6,18 +6,18 @@
   {"name": "hearthstead_dusk", "stand": [47.5,0.0,-0.5], "face": [4.0,13.5,-8.0], "zoom": 9.0, "pitch": 10.0, "time": 0.47},
   {"name": "watch_tower", "stand": [4.5,0.0,25.5], "face": [-24.0,12.5,-26.0], "zoom": 9.0, "pitch": 15.0, "time": 0.32},
   {"name": "north_watch", "stand": [-23.5,-14.0,-274.5], "face": [13.0,-3.5,-260.0], "zoom": 9.0, "pitch": 12.0, "time": 0.3},
-  {"name": "logging_camp", "stand": [-209.5,-2.0,-419.5], "face": [-225.0,1.0,-430.0], "zoom": 9.0, "pitch": 15.0, "time": 0.27},
+  {"name": "logging_camp", "stand": [-216.5,-3.0,-439.5], "face": [-223.0,3.0,-450.0], "zoom": 9.0, "pitch": 12.0, "time": 0.27},
   {"name": "hollow_oak", "stand": [-470.5,-8.0,-316.5], "face": [-480.0,5.0,-270.0], "zoom": 9.0, "pitch": 12.0, "time": 0.36},
   {"name": "old_barrow", "stand": [-638.5,-1.0,53.5], "face": [-650.0,3.5,50.0], "zoom": 9.0, "pitch": 15.0, "time": 0.4},
   {"name": "barrow_crypt", "stand": [-629.5,0.0,43.5], "face": [-638.0,0.0,50.0], "zoom": 9.0, "pitch": 15.0, "time": 0.62},
   {"name": "wrecked_caravan", "stand": [225.5,-13.0,-41.5], "face": [220.0,-10.0,-50.0], "zoom": 9.0, "pitch": 15.0, "time": 0.3},
   {"name": "emberford_bridge", "stand": [487.5,-32.0,0.5], "face": [475.0,-31.5,0.0], "zoom": 9.0, "pitch": 15.0, "time": 0.29},
-  {"name": "windmill_farm", "stand": [25.5,-23.0,483.5], "face": [60.0,-14.5,477.0], "zoom": 9.0, "pitch": 12.0, "time": 0.26},
-  {"name": "fishers_landing", "stand": [-142.5,-34.0,670.5], "face": [-150.0,-30.0,680.0], "zoom": 9.0, "pitch": 15.0, "time": 0.45},
+  {"name": "windmill_farm", "stand": [22.5,-23.0,489.5], "face": [60.0,-11.5,477.0], "zoom": 9.0, "pitch": 12.0, "time": 0.26},
+  {"name": "fishers_landing", "stand": [-143.5,-34.0,668.5], "face": [-150.0,-30.0,680.0], "zoom": 9.0, "pitch": 15.0, "time": 0.45},
   {"name": "mirrormere", "stand": [-127.5,-33.0,701.5], "face": [-110.0,-35.0,680.0], "zoom": 9.0, "pitch": 15.0, "time": 0.25},
   {"name": "sunken_shrine", "stand": [40.5,-34.0,771.5], "face": [30.0,-32.5,762.0], "zoom": 9.0, "pitch": 15.0, "time": 0.33},
   {"name": "ashcloak_stockade", "stand": [324.5,-21.0,307.5], "face": [310.0,-17.0,300.0], "zoom": 9.0, "pitch": 15.0, "time": 0.6},
   {"name": "miners_rest", "stand": [646.5,-12.0,29.5], "face": [640.0,-7.5,40.0], "zoom": 9.0, "pitch": 15.0, "time": 0.31},
-  {"name": "hollow_mines", "stand": [721.5,-11.0,-87.5], "face": [742.0,-2.5,-93.0], "zoom": 9.0, "pitch": 15.0, "time": 0.34}
+  {"name": "hollow_mines", "stand": [703.5,-15.0,-57.5], "face": [736.0,0.5,-86.0], "zoom": 9.0, "pitch": 10.0, "time": 0.34}
  ]
 }
