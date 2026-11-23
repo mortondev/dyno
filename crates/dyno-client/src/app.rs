@@ -5645,7 +5645,7 @@ fn hud(
     }
     // pause menu
     if p.menu_open {
-        egui::Window::new("Menu").collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
+        egui::Window::new("Menu").frame(crate::theme::window_frame()).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
             ui.set_width(380.0);
             if ui.add_sized([ui.available_width(), 32.0], egui::Button::new("Back to game")).clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
                 actions.push(Action::Resume);
