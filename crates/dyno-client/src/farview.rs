@@ -147,7 +147,8 @@ fn quad(out: &mut Vec<FarVertex>, p: [[f32; 3]; 4], n: [f32; 3], rgb: [f32; 3], 
     }
 }
 
-/// A box's top and the sides of it that show above each neighbour's height.
+/// A box's top and the sides of it that show above each neighbour's height
+/// (down to `bottom` where the neighbour is not known).
 #[allow(clippy::too_many_arguments)]
 fn column(
     out: &mut Vec<FarVertex>,
@@ -169,8 +170,11 @@ fn column(
     );
     let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)];
     for (k, (dx, dz)) in dirs.into_iter().enumerate() {
-        // an unknown neighbour (not here yet): down to the bottom, so no gap shows
-        let nh = neighbours[k].unwrap_or(bottom).max(bottom);
+        // down to the neighbour's height, however far below (a cliff, a tree
+        // or tower over flat land: cut off short, the side hung in the air
+        // with the sky showing under it); an unknown neighbour (not here
+        // yet): down to the bottom
+        let nh = neighbours[k].unwrap_or(bottom);
         if nh >= y {
             continue;
         }
@@ -274,6 +278,58 @@ pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> V
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What stands well above the land round it (a tower, a cliff) is drawn
+    /// down to that land, with no sky showing under it, out where only the
+    /// tops are drawn and inside the fade.
+    #[test]
+    fn far_columns_stand_on_the_land() {
+        let mut world = dyno_world::World::generate([128, 96, 128], 7);
+        // a stone tower 30 m over the land, filling the 4 × 4 m cell at (40, 40)
+        let g = (40..44)
+            .flat_map(|z| (40..44).map(move |x| (x, z)))
+            .map(|(x, z)| world.surface(x, z))
+            .max()
+            .unwrap();
+        let top = g + 30;
+        assert!(top < 96, "{top}");
+        for z in 40..44 {
+            for x in 40..44 {
+                for y in world.surface(x, z)..=top {
+                    world.set(x, y, z, dyno_world::STONE);
+                }
+            }
+        }
+        let mut tiles = FarTiles::new();
+        for tz in 0..2 {
+            for tx in 0..2 {
+                tiles.insert([tx, tz], FarTile::build(&world, [tx, tz]));
+            }
+        }
+        // the lowest point of the tower's sides (the side quads that reach its top)
+        let low = |mesh: &[FarVertex]| {
+            mesh.chunks(6)
+                .filter(|q| q[0].normal[1] == 0)
+                .filter(|q| q.iter().any(|v| v.pos[1] >= top as f32))
+                .filter(|q| {
+                    q.iter().all(|v| {
+                        (40.0..=44.0).contains(&v.pos[0]) && (40.0..=44.0).contains(&v.pos[2])
+                    })
+                })
+                .flat_map(|q| q.iter().map(|v| v.pos[1]))
+                .fold(f32::MAX, f32::min)
+        };
+        // only tops, far away; and within the fade
+        for (centre, cut) in [([-300.0, 40.0], 0.0), ([-30.0, 40.0], 60.0)] {
+            let mesh = mesh_tile(&tiles, [0, 0], centre, cut);
+            let bottom = low(&mesh);
+            assert!(
+                bottom <= g as f32 + 1.0,
+                "the tower's sides stop at {bottom}, its top at {}, the land at {g}",
+                top + 1
+            );
+        }
+    }
 
     #[test]
     fn far_tiles_mesh_in_two_layers_round_the_cut() {
