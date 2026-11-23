@@ -54,16 +54,19 @@ content/
   stage/               # the title-screen scene
 ```
 
-**Status: built** (protocol 17). Today's pack is `pack.json`,
-`rules/hearthblock.json`, `ui/strings.json` (loading screen, intro, news)
-and `stage/title.dynw` (the title stage); 4 files, 210 KB.
+**Status: built** (protocol 17). Today's pack: `pack.json`, the rules
+(`rules/hearthblock.json`), `blocks.json`, `render.json`, `fonts/`,
+`textures/`, `icons/`, `sounds/` (from the textures and sounds bake),
+`ui/strings.json` (loading screen, intro, class prompt, news) and
+`stage/title.dynw` (the title stage): 328 files, 5.3 MB, 4.1 MB of it sounds.
 
 `pack.json`:
 
 ```json
 { "name": "hearthblock", "version": 1,
-  "entries": { "rules": "rules/hearthblock.json", "strings": "ui/strings.json",
-               "stage": "stage/title.dynw" },
+  "entries": { "rules": "rules/hearthblock.json", "blocks": "blocks.json",
+               "render": "render.json", "fonts": "fonts/fonts.json",
+               "strings": "ui/strings.json", "stage": "stage/title.dynw" },
   "stream": [] }
 ```
 
@@ -84,7 +87,11 @@ pub struct AssetRef { pub path: String, pub hash: [u8; 32], pub size: u32 }
 
 `files[0]` is the rules JSON; the rest follow in path order, so the same
 files give the same manifest. The pack hash is the SHA-256 of the encoded
-manifest. `stream` lists path prefixes fetched when first needed (§2).
+manifest. `stream` lists path prefixes fetched when first needed (§2);
+`pack.json`, `blocks.json` and the rules are always fetched before play,
+because texture layer numbers depend on `blocks.json` and nothing remeshes
+if it arrives late (the client also reloads textures before meshing a
+joined world).
 
 `Welcome` carries the manifest instead of the whole content struct. The
 rules JSON is an asset like any other: the client parses `Content` from
@@ -100,8 +107,11 @@ port through a tunnel.
 
 Each session has an `Outbox` (a queue and a token bucket). Every pass of the
 session loop writes the game messages waiting for it first, then the asset
-chunks the budget allows: 256 KB/s by default (`--asset-rate KB`,
-`Config::asset_rate`), a 64 KB burst, chunks of 16–64 KB. Measured: a
+chunks the budget allows: 256 KB/s by default once the player plays
+(`--asset-rate KB`, `Config::asset_rate`), and 2 MB/s before that, while
+the loading screen is up and nothing competes (`--join-asset-rate KB`); a
+64 KB burst, chunks of 16–64 KB. The rate drops at the first message from
+the client that is not a `Want`. Measured: a
 640 KB streamed file took 2.5 s (budget 2.25 s) while `/who` was answered
 in at most 11 ms throughout.
 
@@ -117,8 +127,8 @@ read. On join it asks only for hashes it lacks, keeps playing messages that
 arrive during the download, and returns when the files needed before play
 are present (`net::connect_with`; `Joined::downloaded` counts the bytes). It
 pings the server during long downloads and gives up after 30 s with no
-progress. A second join with nothing changed downloads nothing: 214,597
-bytes on the first join, 0 on the second (`tests/pack.rs`). It also keeps
+progress. A second join with nothing changed downloads nothing: 4,290,437
+bytes on the first join, 0 on the second (`tests/streaming.rs`). It also keeps
 the last manifest, so the title screen shows the last world's stage, news
 and strings before any join. The loading screen shows the download.
 
@@ -127,8 +137,13 @@ instance handshake (the member's content identity is
 `"<rules name> v<version> pack <hash>"`); a mismatched instance drains, even
 when only one non-rules file differs.
 
-**Tools and tests** load a local pack with `assets::load_dir`, or the
-built-in one with `dyno_client::load_builtin_pack()` (dev builds).
+**Tools and tests** load a local pack with `assets::load_dir` or
+`assets::load_local_pack` (working directory, next to the executable, then
+the source tree), or the built-in one with
+`dyno_client::load_builtin_pack()`. `load_local_pack` does nothing in the
+player client (a release build without `host`): it works from the
+streamed pack and its cache alone. Before its first join ever it shows a
+plain title backdrop, egui's own fonts and flat block colours.
 
 ## 2. Assets needed before play vs streamed
 

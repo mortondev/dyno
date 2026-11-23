@@ -172,6 +172,17 @@ impl Manifest {
         !self.stream.iter().any(|p| path.starts_with(p.as_str()))
     }
 
+    /// Bytes a join with an empty cache downloads: the files fetched before
+    /// play, each distinct file (by hash) once.
+    pub fn download_bytes(&self) -> u64 {
+        let mut seen = std::collections::HashSet::new();
+        self.files
+            .iter()
+            .filter(|f| self.preload(&f.path) && seen.insert(f.hash))
+            .map(|f| f.size as u64)
+            .sum()
+    }
+
     /// Total bytes of the files fetched before play.
     pub fn preload_bytes(&self) -> u64 {
         self.files

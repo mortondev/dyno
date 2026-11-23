@@ -457,7 +457,7 @@ fn a_relayed_player_downloads_the_pack_from_the_edge() {
     // the edge named its own pack and sent every file
     let pack = a.handle.server.pack();
     assert_eq!(ada.manifest, pack.manifest);
-    assert_eq!(ada.downloaded, pack.bytes());
+    assert_eq!(ada.downloaded, pack.manifest.download_bytes());
     assert_eq!(ada.content.name, pack.content.name);
     // and play goes on through the relay
     let mut bags = vec![None; 36];

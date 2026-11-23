@@ -82,14 +82,25 @@ fn a_second_join_with_nothing_changed_downloads_nothing() {
     assert_eq!(first.manifest, pack.manifest, "the welcome names the pack");
     assert_eq!(
         first.downloaded,
-        pack.bytes(),
+        pack.manifest.download_bytes(),
         "the first join fetches every file"
     );
     assert_eq!(progress.fraction(), Some(1.0));
     assert_eq!(first.content.name, pack.content.name, "rules from the pack");
-    // the files are in the asset store for the game
-    assert!(dyno_client::assets::get("stage/title.dynw").is_some());
-    assert!(dyno_client::assets::text("ui/strings.json").is_some());
+    // every file is in the asset store for the game, from the stream alone
+    // (this test never loads a local pack): blocks.json, textures, sounds,
+    // fonts, the stage and the strings
+    // (the store is shared with the other tests here, so check the bytes in
+    // this test's own cache)
+    for f in &pack.manifest.files {
+        assert!(
+            dyno_client::assets::get(&f.path).is_some(),
+            "{} did not arrive",
+            f.path
+        );
+        assert!(Cache::at(&cache).read(f).is_some(), "{} not cached", f.path);
+    }
+    assert!(pack.manifest.file("blocks.json").is_some());
     // what the server sent while the files downloaded still reaches the game
     assert!(
         wait_msg(&first, 3.0, |m| matches!(m, ServerMsg::Pack(_))
@@ -152,7 +163,7 @@ fn streamed_files_arrive_during_play_without_holding_it_up() {
 
     let (j, _) = join(&addr, "ada", 1, &dir.join("cache"));
     assert!(
-        j.downloaded < pack.bytes() - big.len() as u64 + 1,
+        j.downloaded < pack.manifest.download_bytes() + 1,
         "the streamed file is not fetched before play"
     );
     assert!(dyno_client::assets::get("big/blob.bin").is_none());
