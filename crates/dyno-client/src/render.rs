@@ -2167,8 +2167,14 @@ impl Gfx {
             // of each mesh
             {
                 let w = &self.water;
-                let mut rp =
-                    w.begin(&self.queue, &mut enc, &settings.water, target, &view, &self.bind);
+                let mut rp = w.begin(
+                    &self.queue,
+                    &mut enc,
+                    &settings.water,
+                    target,
+                    &view,
+                    &self.bind,
+                );
                 for (i, s) in self.sections.iter().enumerate() {
                     if let Some(b) = &s.buf
                         && s.trans > 0

@@ -5875,6 +5875,8 @@ pub fn shot_with_ui(
         p.zoom = z;
     }
     let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
+    // DYNO_SHOT_STATS=gpu: each frame waits for the GPU, so its time counts
+    let stats_gpu = std::env::var("DYNO_SHOT_STATS").is_ok_and(|v| v == "gpu");
     // the camera: where asked (the server streams the world round it), else
     // the character; DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]" flies it across
     // the map to measure frames while the land streams in
@@ -6077,6 +6079,9 @@ pub fn shot_with_ui(
                 &fctx,
                 out,
             );
+            if stats_gpu {
+                gfx.wait_idle();
+            }
             frames.push((
                 world_t.as_secs_f64() * 1e3,
                 frame_t0.elapsed().as_secs_f64() * 1e3,

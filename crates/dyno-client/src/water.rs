@@ -90,7 +90,10 @@ fn kind_of(b: &look::Water, k: Option<&look::WaterKind>) -> Kind {
             k.foam.unwrap_or(b.foam),
             k.foam_width.unwrap_or(b.foam_width),
         ),
-        fog: v(k.fog.unwrap_or(b.fog), k.fog_density.unwrap_or(b.fog_density)),
+        fog: v(
+            k.fog.unwrap_or(b.fog),
+            k.fog_density.unwrap_or(b.fog_density),
+        ),
         surf: [
             k.reflect.unwrap_or(b.reflect),
             k.ripple.unwrap_or(b.ripple),
@@ -201,8 +204,8 @@ pub(crate) fn has_surface(g: &Grid, c: usize) -> bool {
     g.fl[c] & F_WATER != 0 && g.fl[c + DY] & (F_WATER | F_OPAQUE) == 0
 }
 
-/// Whether the column holds a surface a little above (+1) or below (-1, -2)
-/// the level `y`.
+/// Whether the column holds a surface a little above (+1, +2) or below
+/// (-1, -2) the level `y`.
 #[inline]
 fn step_at(g: &Grid, x: i32, y: i32, z: i32) -> i32 {
     let c = at(x, y, z);
@@ -210,6 +213,8 @@ fn step_at(g: &Grid, x: i32, y: i32, z: i32) -> i32 {
         0
     } else if has_surface(g, c + DY) {
         1
+    } else if has_surface(g, c + 2 * DY) {
+        2
     } else if has_surface(g, c - DY) {
         -1
     } else if has_surface(g, c - 2 * DY) {
@@ -310,7 +315,8 @@ pub(crate) fn surface(
                     }
                     let v = [dx as f32 + 0.5, dz as f32 + 0.5];
                     let d = (v[0] * v[0] + v[1] * v[1]).sqrt();
-                    let k = (1.0 - d / (SPLASH as f32 + 0.5)).max(0.0);
+                    // (a sill a block wide may stand between the two)
+                    let k = (1.0 - (d - 1.0) / SPLASH as f32).clamp(0.0, 1.0);
                     let sign = if s > 0 { -1.0 } else { 1.0 };
                     white = white.max(if s > 0 { k } else { k * 0.6 });
                     run[0] += sign * v[0] / d * k;
@@ -659,6 +665,45 @@ fn waves(p: vec2<f32>, t: f32, flow: vec2<f32>, run: f32) -> f32 {
   return mix(b, a, 1.0 - abs(2.0 * ph - 1.0));
 }
 
+// Short strokes one cell thick, in rows: each row slides at its own pace,
+// and strokes come and go along it. `c` is the cell (along the rows,
+// across them), `g` its size, `shift` how far the rows have slid, `many`
+// how thick they lie (0..1).
+fn strokes(c: vec2<f32>, g: f32, shift: f32, many: f32, seed: f32) -> f32 {
+  let row = c.y;
+  let rh = hash2(vec2<f32>(row, seed));
+  let along = (c.x * g + shift + rh * 37.0) / 1.25;
+  let seg = floor(along);
+  let h = hash2(vec2<f32>(seg, row * 3.0 + seed));
+  let len = 0.2 + 0.55 * hash2(vec2<f32>(seg + 91.0, row * 3.0 + seed));
+  return step(1.0 - many, h) * step(fract(along), len);
+}
+// Strokes on still water (along x, drifting), or along the flow: rows on
+// the grid axis the water mostly follows, carried a short way and faded
+// into a second copy (as `waves`).
+fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f32) -> f32 {
+  let rh = hash2(vec2<f32>(cell.y, seed + 7.0));
+  let still = strokes(cell, g, t * (0.12 + 0.2 * rh), many, seed);
+  let speed = length(flow);
+  if (speed < 0.02) { return still; }
+  let period = 3.0;
+  let ph = fract(t / period);
+  let ph2 = fract(t / period + 0.5);
+  let w = 1.0 - abs(2.0 * ph - 1.0);
+  let ax = abs(flow.x);
+  let az = abs(flow.y);
+  var r = 0.0;
+  if (ax > az * 0.5) {
+    let k = smoothstep(0.5, 1.0, ax / max(az, 0.0001));
+    r += k * mix(strokes(cell, g, -flow.x * (ph2 - 0.5) * period + 11.0, many, seed + 1.0), strokes(cell, g, -flow.x * (ph - 0.5) * period, many, seed), w);
+  }
+  if (az > ax * 0.5) {
+    let k = smoothstep(0.5, 1.0, az / max(ax, 0.0001));
+    r += k * mix(strokes(cell.yx, g, -flow.y * (ph2 - 0.5) * period + 11.0, many, seed + 3.0), strokes(cell.yx, g, -flow.y * (ph - 0.5) * period, many, seed + 2.0), w);
+  }
+  return mix(still, min(r, 1.0), smoothstep(0.02, 0.2, speed));
+}
+
 @fragment fn fs_water(i: WOut) -> @location(0) vec4<f32> {
   // how what the vertices carry changes across the screen, to snap it to cells
   let dpx = dpdx(i.wpos.xz);
@@ -709,10 +754,12 @@ fn waves(p: vec2<f32>, t: f32, flow: vec2<f32>, run: f32) -> f32 {
   let h0 = waves(q, t, flow, run);
   let hx = waves(q + vec2<f32>(g, 0.0), t, flow, run);
   let hz = waves(q + vec2<f32>(0.0, g), t, flow, run);
-  let lean = vec2<f32>(hx - h0, hz - h0) / g * (0.045 * K.surf.y * (1.0 + 1.5 * white)) / (1.0 + d * 0.012);
+  let lean = vec2<f32>(hx - h0, hz - h0) / g * (0.03 * K.surf.y * (1.0 + 1.5 * white)) / (1.0 + d * 0.012);
   var n = normalize(vec3<f32>(-lean.x, 1.0, -lean.y));
-  let crest = smoothstep(0.60, 0.63, h0) * K.surf.y;
-  let trough = smoothstep(0.40, 0.37, h0) * K.surf.y;
+  // bright strokes, thicker on the swells, and a few dark ones
+  let many = clamp((0.10 + 0.5 * smoothstep(0.35, 0.75, h0)) * K.surf.y, 0.0, 0.8);
+  let crest = ripples(cell, g, t, flow, many, 0.0);
+  let trough = ripples(cell + vec2<f32>(5.0, 3.0), g, t, flow, many * 0.3, 40.0) * (1.0 - crest);
 
   let sunk = wu.counts.w > 0.5 && u.cam.y < p.y;
   if (sunk && fall < 0.5) {
@@ -774,13 +821,13 @@ fn waves(p: vec2<f32>, t: f32, flow: vec2<f32>, run: f32) -> f32 {
   let cover_sh = 1.0 - exp(-through / max(K.shallow.w, 0.05));
   let cover_dp = 1.0 - exp(-3.0 * dv / max(K.deep.w, 0.05));
   var body = mix(K.shallow.rgb, K.deep.rgb, cover_dp) * lit;
-  body = body * (1.0 + 0.45 * crest - 0.14 * trough) + crest * lit * 0.025;
+  body = body * (1.0 + 0.16 * (h0 - 0.5) + 0.55 * crest - 0.12 * trough) + crest * lit * 0.03;
   var alpha = clamp(max(cover_sh, cover_dp), 0.0, 1.0);
   var col = grade(mix(body, u.fog.rgb, fogk));
   if (have) {
     col = mix(bed_c, col, alpha);
     // crests catch the light over clear water too
-    col = col * (1.0 + 0.18 * crest * (1.0 - alpha));
+    col = col * (1.0 + (0.22 * crest - 0.08 * trough) * (1.0 - alpha));
     alpha = 1.0;
   }
 
@@ -872,7 +919,7 @@ fn waves(p: vec2<f32>, t: f32, flow: vec2<f32>, run: f32) -> f32 {
     foam = max(foam, ring * 0.85);
     foam = max(foam, smoothstep(0.80, 0.86, sh.x + (fn1 - 0.5) * 0.3 + 0.05 * lap));
   } else {
-    foam = smoothstep(0.50, 0.56, sh.x + (fn1 - 0.5) * 0.38 + 0.06 * lap);
+    foam = smoothstep(0.62, 0.68, sh.x + (fn1 - 0.5) * 0.38 + 0.06 * lap);
   }
   let churn = hash2(cell + vec2<f32>(floor(t * 7.0) * 5.0, 1.0));
   foam = max(foam, smoothstep(0.42, 0.52, white * (0.55 + 0.75 * fn1) + (churn - 0.5) * 0.25 * white));
@@ -1320,7 +1367,7 @@ mod tests {
         // under the sill, in the lower pool: white, and running away from it
         let below = vs
             .iter()
-            .find(|v| v.pos == [26.0, 9.0 - WATER_DROP, 20.0] && v.color[2] == 0.0)
+            .find(|v| v.pos == [25.0, 9.0 - WATER_DROP, 20.0] && v.color[2] == 0.0)
             .expect("a corner under the sill");
         assert!(below.normal[2] > 0.5, "{:?}", below.normal);
         assert!(below.color[0] > 0.6, "{:?}", below.color);
