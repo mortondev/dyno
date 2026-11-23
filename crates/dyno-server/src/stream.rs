@@ -26,8 +26,9 @@
 
 use crate::game::State;
 use dyno_protocol::{PlayerId, Pose, ServerMsg};
+use dyno_world::far::{self, TILE, TilePos};
 use dyno_world::{SECTION, SectionPos, World};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// How far the world streams and how far players hear about things.
 #[derive(Debug, Clone, Copy)]
@@ -44,6 +45,9 @@ pub struct StreamConfig {
     pub rate: usize,
     /// bytes per second until the first view is complete (the loading screen)
     pub join_rate: usize,
+    /// the far view (a coarse heightmap: `dyno_world::far`) reaches this
+    /// many metres; 0: none
+    pub far: f32,
 }
 
 impl Default for StreamConfig {
@@ -55,6 +59,7 @@ impl Default for StreamConfig {
             aoi_keep: 12.0,
             rate: 256 * 1024,
             join_rate: 2 * 1024 * 1024,
+            far: 800.0,
         }
     }
 }
@@ -72,6 +77,12 @@ pub struct View {
     tokens: f64,
     /// the first view is complete (the play rate applies from then on)
     pub filled: bool,
+    /// far tiles sent, with the tile's revision then
+    pub far_held: HashMap<TilePos, u64>,
+    /// far tiles to send, farthest first
+    far_want: Vec<TilePos>,
+    /// the tile the far list was made for
+    far_at: Option<TilePos>,
     /// where an observer's view is centred (players use their pose)
     pub center: Option<[f32; 3]>,
 }
@@ -195,6 +206,80 @@ impl View {
             (!gone.is_empty()).then_some(ServerMsg::SectionsGone(gone)),
         )
     }
+
+    /// The far view, after the near: tiles within `cfg.far`, nearest first,
+    /// with what the budget leaves this tick; tiles past it are dropped.
+    /// The list is remade when the view moves to another tile (a tile that
+    /// changed since it was sent is sent again then). `tile` gives a tile's
+    /// revision and its encoding.
+    pub fn pump_far(
+        &mut self,
+        world: &World,
+        at: [f32; 3],
+        cfg: &StreamConfig,
+        tile: &mut dyn FnMut(TilePos) -> (u64, Vec<u8>),
+    ) -> Vec<ServerMsg> {
+        let mut out = Vec::new();
+        if cfg.far <= 0.0 {
+            return out;
+        }
+        let here = [
+            (at[0].floor() as i32).div_euclid(TILE),
+            (at[2].floor() as i32).div_euclid(TILE),
+        ];
+        let dist = |t: TilePos| {
+            let c = [
+                (t[0] * TILE + TILE / 2) as f32,
+                (t[1] * TILE + TILE / 2) as f32,
+            ];
+            (c[0] - at[0]).hypot(c[1] - at[2])
+        };
+        if self.far_at != Some(here) {
+            self.far_at = Some(here);
+            let gone: Vec<TilePos> = self
+                .far_held
+                .keys()
+                .filter(|t| dist(**t) > cfg.far + 2.0 * TILE as f32)
+                .copied()
+                .collect();
+            for t in &gone {
+                self.far_held.remove(t);
+            }
+            if !gone.is_empty() {
+                out.push(ServerMsg::FarGone(gone));
+            }
+            let d = far::tile_dims(world);
+            let r = (cfg.far / TILE as f32).ceil() as i32 + 1;
+            let mut want: Vec<(f32, TilePos)> = Vec::new();
+            for tz in (here[1] - r).max(0)..=(here[1] + r).min(d[1] - 1) {
+                for tx in (here[0] - r).max(0)..=(here[0] + r).min(d[0] - 1) {
+                    let t = [tx, tz];
+                    let dt = dist(t);
+                    if dt <= cfg.far && self.far_held.get(&t) != Some(&far::tile_rev(world, t)) {
+                        want.push((dt, t));
+                    }
+                }
+            }
+            want.sort_by(|a, b| b.0.total_cmp(&a.0));
+            self.far_want = want.into_iter().map(|(_, t)| t).collect();
+        }
+        // the near view first
+        if !self.filled || !self.want.is_empty() {
+            return out;
+        }
+        let mut batch = Vec::new();
+        while self.tokens > 0.0 {
+            let Some(t) = self.far_want.pop() else { break };
+            let (rev, data) = tile(t);
+            self.tokens -= (data.len() + 12) as f64;
+            self.far_held.insert(t, rev);
+            batch.push((t, data));
+        }
+        if !batch.is_empty() {
+            out.push(ServerMsg::Far(batch));
+        }
+        out
+    }
 }
 
 fn hdist(a: [f32; 3], b: [f32; 3]) -> f32 {
@@ -221,16 +306,34 @@ impl State {
                 }
             }
         };
+        // far tiles likewise, kept until a block in them changes
+        let fcache = &mut self.far_encoded;
+        let mut tile = |t: TilePos| {
+            let rev = far::tile_rev(world, t);
+            match fcache.get(&t) {
+                Some((r, d)) if *r == rev => (rev, d.clone()),
+                _ => {
+                    let d = far::FarTile::build(world, t).encode();
+                    fcache.insert(t, (rev, d.clone()));
+                    (rev, d)
+                }
+            }
+        };
         for p in self.players.values_mut() {
-            let (sent, gone) = p.view.pump_with(world, p.centre(), dt, &cfg, &mut encode);
+            let at = p.centre();
+            let (sent, gone) = p.view.pump_with(world, at, dt, &cfg, &mut encode);
             for m in [gone, sent].into_iter().flatten() {
+                p.send(&m);
+            }
+            for m in p.view.pump_far(world, at, &cfg, &mut tile) {
                 p.send(&m);
             }
         }
         for o in self.observers.values_mut() {
             let at = o.view.center.unwrap_or(spawn);
             let (sent, gone) = o.view.pump_with(world, at, dt, &cfg, &mut encode);
-            for m in [gone, sent].into_iter().flatten() {
+            let fars = o.view.pump_far(world, at, &cfg, &mut tile);
+            for m in [gone, sent].into_iter().flatten().chain(fars) {
                 let _ = o.tx.send(std::sync::Arc::new(dyno_protocol::encode(&m)));
             }
         }

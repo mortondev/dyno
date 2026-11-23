@@ -275,7 +275,7 @@ when one of them is replaced.
   shard-move block diff (which becomes "resend the sections you have").
 - The title screen's stage is a small baked scene in the pack.
 
-**Status: built** (protocol 19).
+**Status: built** (protocol 19; the 2 km world: 21).
 
 - **Sections on the wire.** `ServerMsg::Sections(Vec<(pos, data)>)`:
   section positions with each section's cells run-length encoded
@@ -409,6 +409,57 @@ kind of traffic fell.
   Under heavy load (other builds, load average 25–60 on 16 cores) single
   frames still rose to 20–40 ms in a few join runs while their world work
   stayed under 10 ms: the rest is rendering and scheduling.
+
+### The 2 km world (protocol 21)
+
+For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
+
+- **Storage** (`dyno_world::World`). Every world, server and client, is a
+  grid of 16³ sections behind shared pointers: a section all one block
+  (the sky, solid rock) costs nothing; others are packed with a palette
+  and 1, 2 or 4 bits a cell (`World::compact`, after building and on
+  load), and unpacked to a byte a cell only while being built or edited.
+  Copies of the world (shards) share every section until they change one,
+  so `diff` between shards skips shared sections. `positions_of` finds a
+  block without scanning the sky and rock (hearths). Limits: `MAX_SIDE`
+  4096, `MAX_HEIGHT` 512.
+- **Saves** are `DYNW2`: the size, then each section as one block or its
+  cells run-length encoded. `DYNW1` saves (every cell in one stream) still
+  load, a row at a time, so the live world migrates on its next save.
+- **Light** is stored the same way (one level, packed, or a byte a cell,
+  copy on write); a whole world is lit in tiles of 128 × 128 columns on
+  every core; shards start from a copy of the base world's light.
+- **Renderer.** Only resident sections are held (a map, not a slot for
+  each of the 262,144 places); each frame culls them once against the view
+  and the three passes draw that list. Sections that are all sky (or rock)
+  with the same all round are marked drawn without meshing, and sections
+  are decoded and packed on the network thread (`NetEvent::Sections`;
+  the game and the world thread share them).
+- **Far view** (`dyno_world::far`, `dyno-client/src/farview.rs`). Beyond
+  the streamed 160 m, the server sends a coarse heightmap in tiles of
+  64 m: for each 4 × 4 m cell, the top of its highest block and that
+  block's kind (`ServerMsg::Far`, about 300 bytes a tile), after the near
+  view and within the same budget, out to 800 m (`--far`), remade and sent
+  again only when a block in the tile changed (the sum of its sections'
+  counts of changes). The client draws each cell as a column (a top, and
+  the sides it shows above its neighbours) coloured by its block, outside
+  the near view; the fog then ends at 900 m. A tower, a windmill, a
+  headframe or a hero tree wins its cell, so landmarks stand out.
+  `--world-size WxHxD` makes a new world of that size.
+
+Measured on 2048 × 256 × 2048 (today's generator; release; a machine shared
+with other builds, load average 30–50 on 16 cores):
+
+| | |
+|---|---|
+| Sections | 262,144: 207,521 all one block, 54,623 packed, none raw |
+| World in memory | 99 MB (94 MB of cells, 5 MB of table) |
+| Light in memory | 60 MB (was 165 MB as a byte a cell; lit in 18 s) |
+| Each further shard | about 10 MB (tables) plus what it changes |
+| Save | 38 MB `DYNW2`, encoded in 0.9 s, loaded in 0.7 s |
+| Server start from the save | 22 s; 234 MB resident, the whole process |
+| Join on the 2 km world, a camera 46 m up | the land round it drawn after 1.3–1.5 s; world work on the main thread a frame: median 0, 95% 4–5 ms, max 7–9 ms (one run had a single far tile upload of 44 ms under that load) |
+| Meshes streamed bit by bit against the whole view at once | identical (4,286,718 + 42,768 vertices) |
 
 ## 5. World building as data
 

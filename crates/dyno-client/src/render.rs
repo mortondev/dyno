@@ -596,7 +596,7 @@ struct SkyOut { @builtin(position) clip: vec4<f32>, @location(0) ndc: vec2<f32> 
 }
 "#;
 
-fn srgb(c: [f32; 3]) -> [f32; 3] {
+pub(crate) fn srgb(c: [f32; 3]) -> [f32; 3] {
     [c[0].powf(2.2), c[1].powf(2.2), c[2].powf(2.2)]
 }
 
@@ -1250,8 +1250,12 @@ pub struct Gfx {
     tex_gen: u64,
     /// the asset store's generation when last checked for new textures
     assets_gen: u64,
-    sections: Vec<SectionMesh>,
+    /// the sections meshed and resident, by section position (a 2 km world
+    /// has some 262,000 places for a section; only those near are here)
+    sections: std::collections::HashMap<[i32; 3], SectionMesh>,
     dims: [i32; 3],
+    /// the far view's tiles (farview.rs), by tile position
+    far: std::collections::HashMap<[i32; 2], (wgpu::Buffer, u32)>,
     /// grass and flowers around the camera, and the section column they were built for
     /// ground cover: grass, flowers and stones near the camera
     pub cover: crate::cover::Gpu,
@@ -1700,8 +1704,9 @@ impl Gfx {
             look_buf,
             tex_gen,
             assets_gen: crate::assets::generation(),
-            sections: Vec::new(),
+            sections: Default::default(),
             dims: [0; 3],
+            far: Default::default(),
             cover,
             adapter_info,
             screenshot: None,
@@ -1770,7 +1775,7 @@ impl Gfx {
     }
 
     /// Upload one section's mesh.
-    fn store(&mut self, i: usize, geo: SectionGeo) {
+    fn store(&mut self, at: [i32; 3], geo: SectionGeo) {
         let SectionGeo {
             mut opaque,
             trans,
@@ -1784,14 +1789,18 @@ impl Gfx {
             push_glow(&mut opaque, g);
         }
         let glow = opaque.len() as u32 - o - t;
-        self.sections[i] = SectionMesh {
-            buf: self.upload(&opaque).map(|(b, _)| b),
-            opaque: o,
-            trans: t,
-            glow,
-            cover,
-            built: true,
-        };
+        let buf = self.upload(&opaque).map(|(b, _)| b);
+        self.sections.insert(
+            at,
+            SectionMesh {
+                buf,
+                opaque: o,
+                trans: t,
+                glow,
+                cover,
+                built: true,
+            },
+        );
     }
 
     /// Mesh a list of sections and upload them. In a streamed world, only
@@ -1812,8 +1821,7 @@ impl Gfx {
         // in batches, so a whole world's vertices are never all in memory at once
         for batch in list.chunks(256) {
             for (s, geo) in batch.iter().zip(mesh_many(world, light, batch)) {
-                let i = ((s[1] * self.dims[2] + s[2]) * self.dims[0] + s[0]) as usize;
-                self.store(i, geo);
+                self.store(*s, geo);
             }
         }
         // grass near the camera may have changed
@@ -1829,9 +1837,7 @@ impl Gfx {
         ];
         self.dims = d;
         self.sections.clear();
-        self.sections
-            .resize_with((d[0] * d[1] * d[2]) as usize, SectionMesh::default);
-        let mut list = Vec::with_capacity(self.sections.len());
+        let mut list = Vec::with_capacity((d[0] * d[1] * d[2]) as usize);
         for sy in 0..d[1] {
             for sz in 0..d[2] {
                 for sx in 0..d[0] {
@@ -1846,10 +1852,8 @@ impl Gfx {
     /// world worker meshes sections as they arrive: `put_mesh`).
     pub fn begin_world(&mut self, world: &World) {
         self.dims = world.section_dims();
-        let d = self.dims;
         self.sections.clear();
-        self.sections
-            .resize_with((d[0] * d[1] * d[2]) as usize, SectionMesh::default);
+        self.far.clear();
         self.cover.changed();
     }
 
@@ -1859,24 +1863,44 @@ impl Gfx {
         if !(0..3).all(|i| s[i] >= 0 && s[i] < d[i]) {
             return;
         }
-        self.store(((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize, geo);
+        self.store(s, geo);
         // the cover near the camera may have changed
         self.cover.changed_in(s);
     }
 
+    /// Store (upload) a far tile's mesh (an empty mesh removes it).
+    pub fn put_far(&mut self, at: [i32; 2], verts: &[Vertex]) {
+        match self.upload(verts) {
+            Some(b) => {
+                self.far.insert(at, b);
+            }
+            None => {
+                self.far.remove(&at);
+            }
+        }
+    }
+
+    /// Stop drawing a far tile.
+    pub fn drop_far(&mut self, at: [i32; 2]) {
+        self.far.remove(&at);
+    }
+
+    /// Far tiles drawn, and their vertices (for stats).
+    pub fn far_stats(&self) -> (usize, u64) {
+        (
+            self.far.len(),
+            self.far.values().map(|(_, n)| *n as u64).sum(),
+        )
+    }
+
     /// Whether a section has been meshed since it last arrived.
     pub fn is_built(&self, s: [i32; 3]) -> bool {
-        let d = self.dims;
-        (0..3).all(|i| s[i] >= 0 && s[i] < d[i])
-            && self.sections[((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize].built
+        self.sections.get(&s).is_some_and(|m| m.built)
     }
 
     /// A section left a streamed world: stop drawing it.
     pub fn section_gone(&mut self, s: [i32; 3]) {
-        let d = self.dims;
-        if (0..3).all(|i| s[i] >= 0 && s[i] < d[i]) {
-            let i = ((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize;
-            self.sections[i] = SectionMesh::default();
+        if self.sections.remove(&s).is_some() {
             self.cover.changed_in(s);
         }
     }
@@ -1889,7 +1913,7 @@ impl Gfx {
     /// Opaque and translucent vertices held by the world meshes (for stats).
     pub fn world_vertices(&self) -> (u64, u64) {
         self.sections
-            .iter()
+            .values()
             .fold((0, 0), |a, s| (a.0 + s.opaque as u64, a.1 + s.trans as u64))
     }
 
@@ -1902,7 +1926,7 @@ impl Gfx {
         hi: [i32; 3],
         margin: i32,
     ) {
-        if self.sections.is_empty() {
+        if self.dims[0] == 0 {
             return;
         }
         // a section's smooth mesh reads a few blocks past its own edge
@@ -1940,11 +1964,8 @@ impl Gfx {
         let sections = &self.sections;
         let near = ((at[1] - reach).max(0)..=(at[1] + reach).min(d[2] - 1)).flat_map(|sz| {
             ((at[0] - reach).max(0)..=(at[0] + reach).min(d[0] - 1)).flat_map(move |sx| {
-                (0..d[1]).map(move |sy| {
-                    sections[((sy * d[2] + sz) * d[0] + sx) as usize]
-                        .cover
-                        .as_slice()
-                })
+                (0..d[1])
+                    .filter_map(move |sy| sections.get(&[sx, sy, sz]).map(|m| m.cover.as_slice()))
             })
         });
         self.cover.rebuild(&self.device, &self.queue, cam, near);
@@ -2031,15 +2052,14 @@ impl Gfx {
             rp.set_pipeline(&self.shadow_pipe);
             rp.set_bind_group(0, &self.shadow_bind, &[]);
             let reach = SHADOW_HALF + SECTION as f32 * 2.0;
-            for (i, s) in self.sections.iter().enumerate() {
+            for (at, s) in &self.sections {
                 let (Some(b), n) = (&s.buf, s.opaque) else {
                     continue;
                 };
                 if n == 0 {
                     continue;
                 }
-                let d = self.dims;
-                let (sx, sz) = ((i as i32) % d[0], (i as i32 / d[0]) % d[2]);
+                let (sx, sz) = (at[0], at[2]);
                 let cx = sx as f32 * SECTION as f32 + SECTION as f32 * 0.5;
                 let cz = sz as f32 * SECTION as f32 + SECTION as f32 * 0.5;
                 if (cx - cam.x).abs() > reach || (cz - cam.z).abs() > reach {
@@ -2086,14 +2106,26 @@ impl Gfx {
                 rp.set_pipeline(&self.sky_pipe);
                 rp.draw(0..3, 0..1);
                 rp.set_pipeline(&self.opaque_pipe);
-                let visible = |i: usize| self.section_visible(i, vp, dist);
-                for (i, s) in self.sections.iter().enumerate() {
+                // the resident sections in view, culled once for all three passes
+                let shown: Vec<&SectionMesh> = self
+                    .sections
+                    .iter()
+                    .filter(|(at, m)| m.buf.is_some() && self.section_visible(**at, vp, dist))
+                    .map(|(_, m)| m)
+                    .collect();
+                for s in &shown {
                     if let Some(b) = &s.buf
                         && s.opaque > 0
-                        && visible(i)
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(0..s.opaque, 0..1);
+                    }
+                }
+                // the far view, round and beyond the near
+                for (at, (b, n)) in &self.far {
+                    if self.far_visible(*at, vp, dist) {
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw(0..*n, 0..1);
                     }
                 }
                 self.cover.draw(&mut rp);
@@ -2103,20 +2135,18 @@ impl Gfx {
                     rp.draw(0..*n, 0..1);
                 }
                 rp.set_pipeline(&self.trans_pipe);
-                for (i, s) in self.sections.iter().enumerate() {
+                for s in &shown {
                     if let Some(b) = &s.buf
                         && s.trans > 0
-                        && visible(i)
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
                         rp.draw(s.opaque..s.opaque + s.trans, 0..1);
                     }
                 }
                 rp.set_pipeline(&self.glow_pipe);
-                for (i, s) in self.sections.iter().enumerate() {
+                for s in &shown {
                     if let Some(b) = &s.buf
                         && s.glow > 0
-                        && visible(i)
                     {
                         let start = s.opaque + s.trans;
                         rp.set_vertex_buffer(0, b.slice(..));
@@ -2239,12 +2269,21 @@ impl Gfx {
         }
     }
 
-    fn section_visible(&self, i: usize, vp: Mat4, dist: f32) -> bool {
-        let d = self.dims;
-        let i = i as i32;
-        let sx = i % d[0];
-        let sz = (i / d[0]) % d[2];
-        let sy = i / (d[0] * d[2]);
+    fn far_visible(&self, at: [i32; 2], vp: Mat4, dist: f32) -> bool {
+        let t = dyno_world::far::TILE as f32;
+        let c = Vec3::new(at[0] as f32 * t + t * 0.5, 64.0, at[1] as f32 * t + t * 0.5);
+        // a tile is wide and its height unknown here: a generous sphere
+        let r = t * 0.75 + 96.0;
+        let clip = vp * c.extend(1.0);
+        if clip.w < -r || clip.w > dist + r {
+            return false;
+        }
+        let w = clip.w.abs() + r * 2.0;
+        clip.x.abs() <= w * 1.2 && clip.y.abs() <= w * 1.2
+    }
+
+    fn section_visible(&self, at: [i32; 3], vp: Mat4, dist: f32) -> bool {
+        let [sx, sy, sz] = at;
         let c = Vec3::new(
             (sx * SECTION + SECTION / 2) as f32,
             (sy * SECTION + SECTION / 2) as f32,

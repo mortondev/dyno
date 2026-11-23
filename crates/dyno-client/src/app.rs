@@ -134,6 +134,11 @@ struct Play {
     world: World,
     /// lights and meshes the world on its own thread (worldwork.rs)
     work: crate::worldwork::WorldWork,
+    /// the far view's tiles (farview.rs), those whose meshes are out of
+    /// date, and where the camera was when the cut round it was made
+    far: crate::farview::FarTiles,
+    far_dirty: std::collections::HashSet<[i32; 2]>,
+    far_centre: Option<[f32; 2]>,
     /// the land round you has not all streamed in and been meshed yet (a
     /// join, a long teleport): a loading veil is shown
     land_wait: bool,
@@ -1354,9 +1359,19 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
 /// Sections that arrived: kept now for the game, and sent to the world
 /// thread to be lit and meshed.
 fn sections_in(p: &mut Play, list: Vec<([i32; 3], Vec<u8>)>) {
+    let ready = list
+        .into_iter()
+        .filter_map(|(s, d)| World::prepare_section(&d).ok().map(|p| (s, p)))
+        .collect();
+    sections_ready(p, ready);
+}
+
+/// Sections decoded and packed already (on the network thread): stored in
+/// the game's world and the world thread's, which share them.
+fn sections_ready(p: &mut Play, list: Vec<([i32; 3], dyno_world::SectionData)>) {
     let mut sent = Vec::with_capacity(list.len());
     for (s, data) in list {
-        if p.world.put_section(s, &data).is_ok() {
+        if p.world.put_prepared(s, data.clone()).is_ok() {
             let lo = [s[0] * 16, s[1] * 16, s[2] * 16];
             p.minimap
                 .region_changed(lo, [lo[0] + 15, lo[1] + 15, lo[2] + 15]);
@@ -1412,6 +1427,77 @@ pub(crate) fn shot_run() -> Option<([f32; 2], [f32; 2], f32)> {
     (v.len() >= 4).then(|| ([v[0], v[1]], [v[2], v[3]], v.get(4).copied().unwrap_or(7.0)))
 }
 
+/// Far tiles that arrived: kept, and their meshes (and their neighbours',
+/// whose sides face them) remade.
+fn far_in(p: &mut Play, list: Vec<([i32; 2], Vec<u8>)>) {
+    for (t, data) in list {
+        if let Ok(tile) = dyno_world::far::FarTile::decode(&data) {
+            p.far.insert(t, tile);
+            for d in [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] {
+                p.far_dirty.insert([t[0] + d[0], t[1] + d[1]]);
+            }
+        }
+    }
+}
+
+fn far_out(p: &mut Play, mut gfx: Option<&mut Gfx>, list: Vec<[i32; 2]>) {
+    for t in list {
+        p.far.remove(&t);
+        p.far_dirty.remove(&t);
+        if let Some(g) = gfx.as_deref_mut() {
+            g.drop_far(t);
+        }
+    }
+}
+
+/// How far the far view is drawn (its fog ends here).
+const FAR_SEE: f32 = 900.0;
+
+/// Mesh far tiles that changed, or whose cut round the camera moved, nearest
+/// first, until `budget` is spent. Returns the time spent.
+fn far_uploads(p: &mut Play, gfx: &mut Gfx, cam: Vec3, budget: Duration) -> Duration {
+    let t0 = Instant::now();
+    let tile = dyno_world::far::TILE as f32;
+    // the near view is drawn within this; the far view outside it
+    let cut = (p.view - 16.0).max(32.0);
+    let here = [cam.x, cam.z];
+    if p.far_centre
+        .is_none_or(|c| (c[0] - here[0]).hypot(c[1] - here[1]) > 16.0)
+    {
+        p.far_centre = Some(here);
+        // the tiles the edge of the cut can touch
+        for t in p.far.keys() {
+            let c = [
+                t[0] as f32 * tile + tile * 0.5,
+                t[1] as f32 * tile + tile * 0.5,
+            ];
+            if (c[0] - here[0]).hypot(c[1] - here[1]) < cut + tile * 1.5 {
+                p.far_dirty.insert(*t);
+            }
+        }
+    }
+    if p.far_dirty.is_empty() {
+        return t0.elapsed();
+    }
+    let mut todo: Vec<[i32; 2]> = p.far_dirty.iter().copied().collect();
+    todo.sort_by(|a, b| {
+        let d = |t: &[i32; 2]| (t[0] as f32 * tile - here[0]).hypot(t[1] as f32 * tile - here[1]);
+        d(a).total_cmp(&d(b))
+    });
+    let centre = p.far_centre.unwrap_or(here);
+    for t in todo {
+        p.far_dirty.remove(&t);
+        if p.far.contains_key(&t) {
+            let verts = crate::farview::mesh_tile(&p.far, t, centre, cut);
+            gfx.put_far(t, &verts);
+        }
+        if t0.elapsed() >= budget {
+            break;
+        }
+    }
+    t0.elapsed()
+}
+
 /// The loading veil waits for the land within this many metres of you.
 const LAND_RADIUS: f32 = 24.0;
 
@@ -1451,6 +1537,9 @@ fn new_play(j: Joined) -> Play {
         }],
         view: j.view,
         work: crate::worldwork::WorldWork::start(j.world.clone()),
+        far: Default::default(),
+        far_dirty: Default::default(),
+        far_centre: None,
         world: j.world,
         land_wait: true,
         conn: j.conn,
@@ -1680,6 +1769,7 @@ impl App {
         let token = self.settings.token;
         let progress = Arc::new(net::Progress::default());
         let opts = net::JoinOptions {
+            prepare_sections: true,
             token,
             create,
             progress: Some(progress.clone()),
@@ -1709,6 +1799,7 @@ impl App {
         let token = self.settings.token;
         let progress = Arc::new(net::Progress::default());
         let opts = net::JoinOptions {
+            prepare_sections: true,
             token,
             progress: Some(progress.clone()),
             ..Default::default()
@@ -1816,6 +1907,7 @@ impl App {
             while let Ok(ev) = p.conn.rx.try_recv() {
                 match ev {
                     NetEvent::Closed(r) => closed = Some(r),
+                    NetEvent::Sections(list) => sections_ready(p, list),
                     // new rules from the pack (after /reload)
                     NetEvent::Content(c) => {
                         if let Some(h) = p.hearth {
@@ -1994,6 +2086,8 @@ impl App {
                         }
                         // the world streams in around you (and is let go behind you)
                         ServerMsg::Sections(list) => sections_in(p, list),
+                        ServerMsg::Far(list) => far_in(p, list),
+                        ServerMsg::FarGone(list) => far_out(p, self.gfx.as_mut(), list),
                         ServerMsg::SectionsGone(list) => sections_out(p, self.gfx.as_mut(), list),
                         ServerMsg::PlayersFar(ids) => {
                             for id in ids {
@@ -2461,6 +2555,9 @@ impl App {
             // the world thread's light and meshes: uploads within ~3 ms a frame;
             // it works nearest the camera and what it faces first
             world_uploads(p, self.gfx.as_mut(), Duration::from_millis(3));
+            if let Some(g) = self.gfx.as_mut() {
+                far_uploads(p, g, p.player.eye(), Duration::from_millis(2));
+            }
             p.work
                 .focus(p.player.eye().into(), p.player.look_dir().into());
             if let Some(g) = self.gfx.as_ref() {
@@ -2521,6 +2618,10 @@ impl App {
         // no further than the world streams (less a section, whose
         // neighbours must arrive before it is drawn)
         let far = match &self.screen {
+            // the far view's land and landmarks (its fog thins weather alike)
+            Screen::Playing(p) if !p.far.is_empty() => {
+                FAR_SEE * (far / self.settings.view_distance.max(1.0)).min(1.0)
+            }
             Screen::Playing(p) => far.min((p.view - 16.0).max(48.0)),
             _ => far,
         };
@@ -5934,6 +6035,13 @@ pub fn shot_with_ui(
                         sections_out(&mut p, Some(&mut *gfx), list);
                         world_t += t.elapsed();
                     }
+                    ServerMsg::Far(list) => {
+                        let t = Instant::now();
+                        far_in(&mut p, list);
+                        world_t += t.elapsed();
+                        last_section = Instant::now();
+                    }
+                    ServerMsg::FarGone(list) => far_out(&mut p, Some(&mut *gfx), list),
                     m @ (ServerMsg::Block { .. } | ServerMsg::Fill { .. }) => {
                         net::apply_world(&mut p.world, &m);
                         match m {
@@ -6034,12 +6142,21 @@ pub fn shot_with_ui(
                     }),
                     _ => {}
                 },
+                Ok(NetEvent::Sections(list)) => {
+                    let t = Instant::now();
+                    sections_ready(&mut p, list);
+                    world_t += t.elapsed();
+                    last_section = Instant::now();
+                }
                 Ok(NetEvent::Content(c)) => p.content = *c,
                 Ok(NetEvent::Closed(r)) => return Err(r),
                 Err(_) => {}
             }
         }
-        world_t += world_uploads(&mut p, Some(&mut *gfx), Duration::from_millis(3));
+        let a = world_uploads(&mut p, Some(&mut *gfx), Duration::from_millis(3));
+        let eye = p.player.eye();
+        let b = far_uploads(&mut p, gfx, eye, Duration::from_millis(2));
+        world_t += a + b;
         // the camera, flying or still
         let t = started.elapsed().as_secs_f32();
         let flying = if let Some((from, to, speed)) = run {
@@ -6076,11 +6193,12 @@ pub fn shot_with_ui(
         if stats || run.is_some() {
             // a frame of the world, as the game draws it
             let (fw, fh) = (gfx.config.width as f32, gfx.config.height as f32);
-            let vp = p.player.view_proj(fw / fh, 70.0, 160.0);
+            let see = if p.far.is_empty() { 160.0 } else { FAR_SEE };
+            let vp = p.player.view_proj(fw / fh, 70.0, see);
             let sky_now = sky(p.time);
             let out = fctx.run(egui::RawInput::default(), |_| {});
             gfx.frame(
-                Some((vp, p.player.eye(), 160.0)),
+                Some((vp, p.player.eye(), see)),
                 &sky_now,
                 &[],
                 &[],
@@ -6117,6 +6235,8 @@ pub fn shot_with_ui(
         std::thread::sleep(Duration::from_millis(5));
     }
     world_uploads(&mut p, Some(&mut *gfx), Duration::from_secs(1));
+    let eye = p.player.eye();
+    far_uploads(&mut p, gfx, eye, Duration::from_secs(5));
     p.land_wait = !land_ready(&p, gfx, p.player.pos, LAND_RADIUS);
     if stats || run.is_some() {
         let pct = |v: &mut Vec<f64>, q: f64| {
@@ -6289,7 +6409,7 @@ pub fn shot_with_ui(
     let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
     let load_ms = started.elapsed().as_secs_f64() * 1e3;
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
-    let far = 160.0;
+    let far = if p.far.is_empty() { 160.0 } else { FAR_SEE };
     let dir = p.player.look_dir();
     let eye = if p.zoom > 0.5 {
         pull_back(&p.world, p.player.eye(), dir, p.zoom)

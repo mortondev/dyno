@@ -8,6 +8,7 @@ pub mod cache;
 pub mod clip;
 pub mod cover;
 pub mod expr;
+pub mod farview;
 pub mod figure;
 pub mod foliage;
 pub mod front;

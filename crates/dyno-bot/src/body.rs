@@ -602,6 +602,12 @@ impl Body {
                 }
                 // new rules from the pack (after /reload)
                 Ok(NetEvent::Content(c)) => self.content = *c,
+                // (only when asked for: bots take sections as messages)
+                Ok(NetEvent::Sections(list)) => {
+                    for (s, d) in list {
+                        let _ = self.world.put_prepared(s, d);
+                    }
+                }
                 Ok(NetEvent::Closed(r)) => {
                     self.closed = Some(r.clone());
                     self.ev(Ev::Closed(r));
