@@ -61,6 +61,7 @@ impl State {
     /// Let go of a player who is moving to another shard. Everything that
     /// pointed at this shard's creatures is cleared.
     pub fn detach(&mut self, id: PlayerId) -> Option<Player> {
+        self.cancel_trade(id, "Trade cancelled.");
         let mut p = self.players.remove(&id)?;
         self.broadcast(&ServerMsg::PlayerLeft { id }, None);
         for e in self.entities.values_mut() {
@@ -186,6 +187,8 @@ impl State {
             incursion: None,
             next_phase: None,
             shard,
+            trades: Default::default(),
+            trade_asks: Default::default(),
             corpses: Default::default(),
             rested_clock: 0.0,
             weather: seed.weather,

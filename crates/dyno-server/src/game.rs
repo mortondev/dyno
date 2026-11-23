@@ -197,6 +197,10 @@ pub struct State {
     pub next_phase: Option<(u8, bool)>,
     /// this shard's number
     pub shard: u32,
+    /// open trade windows, both sides
+    pub trades: HashMap<PlayerId, crate::trade::Trade>,
+    /// who has been asked to trade, by whom, when
+    pub trade_asks: HashMap<PlayerId, (PlayerId, Instant)>,
     /// fallen creatures still holding loot
     pub corpses: HashMap<u32, crate::loot::Corpse>,
     pub rested_clock: f32,
@@ -934,6 +938,7 @@ impl State {
     }
 
     pub fn leave(&mut self, id: PlayerId) {
+        self.cancel_trade(id, "Trade cancelled.");
         if let Some(p) = self.players.remove(&id) {
             self.remember(&p);
             self.broadcast(&ServerMsg::PlayerLeft { id }, None);
@@ -1115,6 +1120,7 @@ impl State {
             ClientMsg::Loot { id: corpse, all } => self.open_loot(id, corpse, all),
             ClientMsg::LootTake { id: corpse, slot } => self.take_loot(id, corpse, slot),
             ClientMsg::Buy { npc, item, count } => self.buy(id, npc, item, count),
+            ClientMsg::Trade(op) => self.trade(id, op),
             ClientMsg::Gather { pos } => self.gather(id, pos),
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
@@ -1808,6 +1814,9 @@ impl State {
         }
         self.tick_power(dt);
         self.tick_items(dt);
+        if self.zone_clock == 0.0 {
+            self.tick_trades();
+        }
         self.tick_loot(dt);
         self.tick_creatures(dt);
         self.spawn_creatures(dt);

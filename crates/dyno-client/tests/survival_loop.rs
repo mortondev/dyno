@@ -1334,3 +1334,87 @@ fn parties_share_kills_and_loot() {
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Two players trade: items and coins change hands only when both accept.
+#[test]
+fn players_trade_items_and_coins() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-trade-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "ada", 5001, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "bo", 5002, false, Duration::from_secs(5)).expect("join");
+    let c = a.content.clone();
+    let (mut pa, mut pb) = (vec![None; 36], vec![None; 36]);
+    let tusk = c.item_by_key("boar_tusk").unwrap();
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/give boar_tusk 3".into(),
+        },
+    );
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/money 50".into(),
+        },
+    );
+    let slot = wait(&a, &mut pa, 3.0, |m, p| {
+        matches!(m, ServerMsg::Pack(_))
+            .then(|| p.iter().position(|s| s.is_some_and(|s| s.item == tusk)))
+            .flatten()
+    });
+    let bo = b.your_id;
+    send(&a, ClientMsg::Trade(dyno_protocol::TradeOp::Ask(bo)));
+    wait(&b, &mut pb, 3.0, |m, _| {
+        matches!(m, ServerMsg::TradeAsk { .. }).then_some(())
+    });
+    send(&b, ClientMsg::Trade(dyno_protocol::TradeOp::Agree));
+    // the window opens for both
+    wait(&a, &mut pa, 3.0, |m, _| {
+        matches!(m, ServerMsg::Trade(Some(_))).then_some(())
+    });
+    send(
+        &a,
+        ClientMsg::Trade(dyno_protocol::TradeOp::Offer {
+            slot: slot as u8,
+            count: 2,
+        }),
+    );
+    send(&a, ClientMsg::Trade(dyno_protocol::TradeOp::Money(20)));
+    wait(&b, &mut pb, 3.0, |m, _| match m {
+        ServerMsg::Trade(Some(v)) if v.their_money == 20 && !v.theirs.is_empty() => Some(()),
+        _ => None,
+    });
+    // one side accepting is not enough
+    send(&a, ClientMsg::Trade(dyno_protocol::TradeOp::Accept));
+    wait(&b, &mut pb, 3.0, |m, _| match m {
+        ServerMsg::Trade(Some(v)) if v.they_accept => Some(()),
+        _ => None,
+    });
+    assert_eq!(count(&pb, tusk), 0);
+    send(&b, ClientMsg::Trade(dyno_protocol::TradeOp::Accept));
+    wait(&b, &mut pb, 3.0, |m, p| {
+        matches!(m, ServerMsg::Pack(_))
+            .then_some(())
+            .filter(|_| count(p, tusk) == 2)
+    });
+    let money_b = wait(&b, &mut pb, 3.0, |m, _| match m {
+        ServerMsg::Character { money, .. } => Some(*money),
+        _ => None,
+    });
+    assert_eq!(money_b, 20);
+    wait(&a, &mut pa, 3.0, |m, p| {
+        matches!(m, ServerMsg::Pack(_))
+            .then_some(())
+            .filter(|_| count(p, tusk) == 1)
+    });
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}

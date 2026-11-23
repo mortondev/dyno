@@ -235,6 +235,12 @@ struct Play {
     show_info: bool,
     /// my party (empty: none)
     party: Vec<dyno_protocol::PartyMember>,
+    /// someone asks to trade
+    trade_ask: Option<String>,
+    /// the open trade window
+    trade: Option<dyno_protocol::TradeView>,
+    /// coins typed into the trade window
+    trade_money: String,
     /// someone has invited me to their party
     invite: Option<String>,
     /// which copy of the world I am in
@@ -1358,6 +1364,9 @@ fn new_play(j: Joined) -> Play {
         show_info: false,
         party: Vec::new(),
         invite: None,
+        trade_ask: None,
+        trade: None,
+        trade_money: String::new(),
         shard: 0,
         ground: Default::default(),
         hearth,
@@ -1678,6 +1687,18 @@ impl App {
                             }
                         }
                         ServerMsg::Party { members } => p.party = members,
+                        ServerMsg::TradeAsk { from } => {
+                            p.trade_ask = Some(from);
+                            self.audio.play(Sfx::Click, 0.8);
+                            release = true;
+                        }
+                        ServerMsg::Trade(view) => {
+                            if view.is_some() && p.trade.is_none() {
+                                p.screen_tab = Some(screens::Tab::Bags);
+                                release = true;
+                            }
+                            p.trade = view;
+                        }
                         ServerMsg::Invite { from } => {
                             p.invite = Some(from);
                             self.audio.play(Sfx::Click, 0.8);
@@ -3034,6 +3055,11 @@ impl App {
                                 let _ = p.conn.tx.send(ClientMsg::Held { slot: i });
                                 let _ = p.conn.tx.send(ClientMsg::UseHeld);
                                 p.sent_held = i as usize;
+                            }
+                            screens::ScreenCmd::Offer(i) => {
+                                let _ = p.conn.tx.send(ClientMsg::Trade(
+                                    dyno_protocol::TradeOp::Offer { slot: i, count: 0 },
+                                ));
                             }
                             screens::ScreenCmd::Sell(i) => {
                                 let _ = p.conn.tx.send(ClientMsg::Sell { from: i });
@@ -4418,6 +4444,26 @@ fn hud(
                         } else {
                             p.anims.hold = Some(e);
                         }
+                    } else if let Some(who) = t.strip_prefix("/trade ") {
+                        // trade with a player near you, by name
+                        let who = who.trim();
+                        match p
+                            .remotes
+                            .iter()
+                            .find(|(_, r)| r.name.eq_ignore_ascii_case(who))
+                        {
+                            Some((id, _)) => {
+                                let _ = p
+                                    .conn
+                                    .tx
+                                    .send(ClientMsg::Trade(dyno_protocol::TradeOp::Ask(*id)));
+                            }
+                            None => p.chat.push(Chat {
+                                at: Instant::now(),
+                                from: None,
+                                text: format!("No one called '{who}' is near you."),
+                            }),
+                        }
                     } else if !t.is_empty() {
                         let _ = p.conn.tx.send(ClientMsg::Chat { text: t });
                     }
@@ -4488,6 +4534,7 @@ fn hud(
             equip: &p.equip,
             health: p.health,
             power: p.power,
+            trading: p.trade.is_some(),
             at_vendor: matches!(
                 p.panel,
                 Some(rpg_ui::Panel::Dialog { .. } | rpg_ui::Panel::Vendor { .. })
@@ -4822,6 +4869,137 @@ fn hud(
         if let Some(a) = answer {
             let _ = p.conn.tx.send(ClientMsg::Chat { text: a.into() });
             p.invite = None;
+        }
+    }
+    // someone asks to trade
+    if let Some(from) = p.trade_ask.clone() {
+        let mut answer = None;
+        egui::Window::new("Trade request")
+            .id(egui::Id::new("trade-ask"))
+            .title_bar(false)
+            .resizable(false)
+            .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 190.0))
+            .frame(crate::theme::window_frame())
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new(format!("{from} wants to trade with you."))
+                        .font(crate::theme::body_font(16.0))
+                        .color(crate::theme::TEXT),
+                );
+                ui.horizontal(|ui| {
+                    if ui.button("Trade").clicked() {
+                        answer = Some(dyno_protocol::TradeOp::Agree);
+                    }
+                    if ui.button("Decline").clicked() {
+                        answer = Some(dyno_protocol::TradeOp::Cancel);
+                    }
+                });
+            });
+        if let Some(a) = answer {
+            let _ = p.conn.tx.send(ClientMsg::Trade(a));
+            p.trade_ask = None;
+        }
+    }
+    // the trade window
+    if let Some(view) = p.trade.clone() {
+        let mut ops = Vec::new();
+        let mut open = true;
+        crate::theme::window(
+            ctx,
+            "trade",
+            "Trade",
+            &format!("with {}", view.with),
+            430.0,
+            (Align2::LEFT_CENTER, Vec2::new(40.0, 0.0)),
+            &mut open,
+            |ui| {
+                ui.label(
+                    RichText::new("Right-click items in your bags to offer them. Click a line to take it back.")
+                        .small()
+                        .color(crate::theme::TEXT_DIM),
+                );
+                ui.columns(2, |cols| {
+                    for (k, (title, items, money, accept)) in [
+                        ("You offer", &view.mine, view.my_money, view.i_accept),
+                        (
+                            view.with.as_str(),
+                            &view.theirs,
+                            view.their_money,
+                            view.they_accept,
+                        ),
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        let ui = &mut cols[k];
+                        ui.label(
+                            RichText::new(title)
+                                .font(crate::theme::title_font(14.0))
+                                .color(crate::theme::GOLD),
+                        );
+                        for (i, st) in items.iter().enumerate() {
+                            let it = p.content.item(st.item);
+                            let label = if st.count > 1 {
+                                format!("{} ×{}", it.name, st.count)
+                            } else {
+                                it.name.to_string()
+                            };
+                            let r = ui.add(egui::Button::new(
+                                RichText::new(label).color(crate::theme::quality_color(it.quality)),
+                            ));
+                            if k == 0 && r.clicked() {
+                                ops.push(dyno_protocol::TradeOp::Withdraw { line: i as u8 });
+                            }
+                        }
+                        ui.label(
+                            RichText::new(dyno_sim::progression::money_text(money))
+                                .color(crate::theme::GOLD),
+                        );
+                        ui.label(
+                            RichText::new(if accept {
+                                "Accepted"
+                            } else {
+                                "Not yet accepted"
+                            })
+                            .small()
+                            .color(if accept {
+                                Color32::from_rgb(120, 210, 120)
+                            } else {
+                                crate::theme::TEXT_DIM
+                            }),
+                        );
+                    }
+                });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    ui.label("Coins (copper):");
+                    let r =
+                        ui.add(egui::TextEdit::singleline(&mut p.trade_money).desired_width(80.0));
+                    if r.lost_focus()
+                        && let Ok(n) = p.trade_money.trim().parse::<u32>()
+                    {
+                        ops.push(dyno_protocol::TradeOp::Money(n));
+                    }
+                });
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    if ui
+                        .button(RichText::new("Accept").color(crate::theme::GOLD_BRIGHT))
+                        .clicked()
+                    {
+                        ops.push(dyno_protocol::TradeOp::Accept);
+                    }
+                    if ui.button("Cancel").clicked() {
+                        ops.push(dyno_protocol::TradeOp::Cancel);
+                    }
+                });
+            },
+        );
+        if !open {
+            ops.push(dyno_protocol::TradeOp::Cancel);
+        }
+        for op in ops {
+            let _ = p.conn.tx.send(ClientMsg::Trade(op));
         }
     }
     // an open corpse

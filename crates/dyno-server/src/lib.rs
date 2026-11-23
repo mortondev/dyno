@@ -19,6 +19,7 @@ pub mod professions;
 pub mod rpg;
 pub mod shard;
 pub mod store;
+pub mod trade;
 
 use dyno_protocol::{self as proto, ClientMsg, Mode, PlayerId, Pose, ServerMsg};
 use dyno_sim::rng::Rng;
@@ -283,6 +284,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         incursion: None,
         next_phase: None,
         shard: 0,
+        trades: Default::default(),
+        trade_asks: Default::default(),
         corpses: Default::default(),
         rested_clock: 0.0,
         weather: (0, 0.0, 240.0),
@@ -1369,7 +1372,7 @@ impl Server {
         log(format!("{me} ran {line}"));
         let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
+            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
             "/who" => {
                 let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
