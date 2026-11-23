@@ -352,9 +352,16 @@ flowchart TD
   is fine voxels (8 a metre near the camera, coarser further out), each
   block's sub-grid shaped by the blocks around it, with a colour per voxel;
   built blocks are cubes or voxel "detail blocks", leaves are canopies,
-  water has a lowered surface with foam, lamps have halos, sun shadows and
+  lamps have halos, sun shadows and
   a colour grade. Feet stand on the top of the fine column under them
   (`terrain_mesh::Ground`); picking and collision stay per block.
+- **Water** (`water.rs`): its own pass after the solid world, which it
+  reads (picture and depth): colour by depth with the bed showing at the
+  shore, the sky, land and lights mirrored, foam at shores and obstacles,
+  ripples and glints in voxel squares, falls where the level steps down, and
+  a fog with the eyes under water. The look, per kind of water and place, is
+  in `render.json`; the setting `water_quality` (0–2) drops the mirror rays,
+  then the reading of the picture.
 - **Models** (`models.rs`, `voxmodel.rs`): procedural 1/32-block voxel
   characters and creatures, rebuilt each frame. A shared animation contract
   (skeletons and an `Anim` set every model must implement) is being built.

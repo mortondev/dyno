@@ -13,7 +13,7 @@
 
 use crate::fine::{self, Lod};
 use crate::light::Light;
-use crate::render::{self, KIND_FOLIAGE, KIND_WATER, SECTION, Vertex};
+use crate::render::{self, KIND_FOLIAGE, SECTION, Vertex};
 use dyno_world::{self as w, BlockId, World};
 use glam::Vec3;
 
@@ -603,12 +603,6 @@ impl<'a> Nets<'a> {
     }
 }
 
-/// True for a water cell whose top is open: it has a surface.
-#[inline]
-fn water_surface(g: &Grid, c: usize) -> bool {
-    g.fl[c] & F_WATER != 0 && g.fl[c + DY] & (F_WATER | F_OPAQUE) == 0
-}
-
 /// Cubes, posts and water for the section's own blocks.
 fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
     let lget = |p: [i32; 3]| g.light(light, p).0;
@@ -628,23 +622,12 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                 }
                 let wpos = [g.o[0] + x, g.o[1] + y, g.o[2] + z];
                 if f & F_TERRAIN != 0 {
-                    // the shore: carry the water surface on under the ground,
-                    // which now slopes back from it (a beach, or a bank
-                    // that stands above the water)
-                    if has_water && g.fl[c + DY] & F_WATER == 0 {
-                        let near = [
-                            c - DX,
-                            c + DX,
-                            c - DZ,
-                            c + DZ,
-                            c - DX - DZ,
-                            c + DX - DZ,
-                            c - DX + DZ,
-                            c + DX + DZ,
-                        ];
-                        if near.iter().any(|q| water_surface(g, *q)) {
-                            water_top(g, &lget, &lsky, [x, y, z], wt, &mut geo.trans);
-                        }
+                    // the shore: the water surface carries on under the
+                    // ground, which slopes back from it (a beach, or a
+                    // bank that stands above the water); over a sill, the
+                    // water falls
+                    if has_water {
+                        crate::water::bank(g, &lget, &lsky, [x, y, z], wt, true, &mut geo.trans);
                     }
                     continue;
                 }
@@ -678,6 +661,10 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                 }
                 let water = b == w::WATER;
                 let surface = water && g.fl[c + DY] & F_WATER == 0;
+                if has_water && f & F_OPAQUE != 0 {
+                    // a built sill that holds water back: it runs over
+                    crate::water::bank(g, &lget, &lsky, [x, y, z], wt, false, &mut geo.trans);
+                }
                 // one size for every block, so a chamfer runs on unbroken
                 // from one block to the next
                 let bevel = if bevels(g, c) { BEVEL } else { 0.0 };
@@ -687,7 +674,13 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                         continue;
                     }
                     if water && n[1] == 1 {
-                        water_top(g, &lget, &lsky, [x, y, z], wt, &mut geo.trans);
+                        crate::water::surface(g, &lget, &lsky, [x, y, z], wt, &mut geo.trans);
+                        continue;
+                    }
+                    if water && n[1] == 0 {
+                        // an open side: the water falls
+                        let d = [n[0], n[2]];
+                        crate::water::side(g, &lget, &lsky, [x, y, z], d, wt, &mut geo.trans);
                         continue;
                     }
                     let base = [x + n[0], y + n[1], z + n[2]];
@@ -949,73 +942,6 @@ fn face_index(n: [i32; 3]) -> usize {
         [0, 0, 1] => 4,
         _ => 5,
     }
-}
-
-/// The water surface over one cell. `normal.x` carries how close the shore
-/// is (0 open water, 1 land all round), for the foam line.
-fn water_top(
-    g: &Grid,
-    lget: &dyn Fn([i32; 3]) -> f32,
-    lsky: &dyn Fn([i32; 3]) -> f32,
-    cell: [i32; 3],
-    layer: u16,
-    out: &mut Vec<Vertex>,
-) {
-    let [x, y, z] = cell;
-    let h = (g.o[1] + y + 1) as f32 - WATER_DROP;
-    let mut vs = [Vertex {
-        pos: [0.0; 3],
-        normal: [0.0, 1.0, 0.0],
-        color: [1.0, 1.0, 1.0, w::block(w::WATER).alpha],
-        light: 0.0,
-        sky: 0.0,
-        tex: [
-            0.0,
-            0.0,
-            KIND_WATER + layer as f32,
-            render::layer_anim(layer),
-        ],
-    }; 4];
-    for (i, (du, dv)) in [(0, 0), (1, 0), (1, 1), (0, 1)].into_iter().enumerate() {
-        let (cx, cz) = (x + du, z + dv);
-        // the four cells around this corner, at the water's level and above it
-        let (mut wet, mut open, mut bl, mut sl) = (0u32, 0u32, 0.0, 0.0);
-        for (ox, oz) in [(-1, -1), (0, -1), (-1, 0), (0, 0)] {
-            wet += water_surface(g, at(cx + ox, y, cz + oz)) as u32;
-            if g.fl[at(cx + ox, y + 1, cz + oz)] & F_OPAQUE == 0 {
-                open += 1;
-                bl += lget([cx + ox, y + 1, cz + oz]);
-                sl += lsky([cx + ox, y + 1, cz + oz]);
-            }
-        }
-        vs[i].pos = [(g.o[0] + cx) as f32, h, (g.o[2] + cz) as f32];
-        vs[i].normal[0] = 1.0 - wet as f32 / 4.0;
-        // light from the open cells above; a corner buried in the bank is
-        // marked and takes its light from the others below
-        let k = 1.0 / (open.max(1) as f32 * 15.0);
-        vs[i].light = if open == 0 { -1.0 } else { bl * k };
-        vs[i].sky = sl * k;
-    }
-    let lit: Vec<(f32, f32)> = vs
-        .iter()
-        .filter(|v| v.light >= 0.0)
-        .map(|v| (v.light, v.sky))
-        .collect();
-    let n = lit.len().max(1) as f32;
-    let mean = lit
-        .iter()
-        .fold((0.0, 0.0), |a, l| (a.0 + l.0 / n, a.1 + l.1 / n));
-    for v in vs.iter_mut().filter(|v| v.light < 0.0) {
-        (v.light, v.sky) = mean;
-    }
-    // split so the shore factor interpolates evenly
-    let order =
-        if (vs[0].normal[0] - vs[2].normal[0]).abs() <= (vs[1].normal[0] - vs[3].normal[0]).abs() {
-            [0, 1, 2, 0, 2, 3]
-        } else {
-            [1, 2, 3, 1, 3, 0]
-        };
-    out.extend(order.into_iter().map(|i| vs[i]));
 }
 
 /// Build everything drawn for one 16³ section, its ground at the finest
