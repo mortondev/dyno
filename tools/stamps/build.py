@@ -495,8 +495,9 @@ def windmill():
             if i >= 2:
                 # cloth on the trailing side of each arm
                 v.set(dx * i - dy, hub[1] + dy * i + dx, 6, "white")
-                if i >= 3:
-                    v.set(dx * i - 2 * dy, hub[1] + dy * i + 2 * dx, 6, "white")
+                v.set(dx * i - 2 * dy, hub[1] + dy * i + 2 * dx, 6, "white")
+                if i >= 4:
+                    v.set(dx * i - 3 * dy, hub[1] + dy * i + 3 * dx, 6, "white")
     v.set(-3, 0, -3, "hay_bale")
     v.set(-3, 1, -3, "hay_bale")
     v.set(3, 0, -3, "barrel")
@@ -515,7 +516,7 @@ def field():
             if x % 2 == 0:
                 v.set(x, -1, z, "dirt")
                 if rnd(x, 0, z) % 5 != 0:
-                    v.set(x, 0, z, "hay_bale" if rnd(x, 1, z) % 9 == 0 else "flower_bed" if rnd(x, 2, z) % 17 == 0 else "skip")
+                    v.set(x, 0, z, "hay_bale" if rnd(x, 1, z) % 7 == 0 else "skip")
     # sheaves standing in the stubble
     for (x, z) in ((-6, -4), (-2, 2), (4, -2), (6, 4), (0, -4), (-4, 4)):
         v.set(x, 0, z, "hay_bale")
@@ -607,9 +608,9 @@ def bridge():
     west. The anchor is the middle of the river, level with the banks."""
     v = Vol("building")
     v.foundation = "stone_bricks"
-    L = 15
+    L = 20
     for x in range(-L, L + 1):
-        rise = 1 if abs(x) <= 9 else 0
+        rise = 1 if abs(x) <= 13 else 0
         for z in range(-4, 5):
             edge = abs(z) == 4
             v.set(x, rise, z, pick(x, 0, z, ["flagstones", "cobble", "flagstones", "stone_bricks"]))
@@ -625,9 +626,9 @@ def bridge():
         else:
             for z in range(-4, 5):
                 v.set(x, -1, z, "stone_bricks") if abs(x % 6 - 3) >= 2 else None
-    for x in (-L, -9, 0, 9, L):
+    for x in (-L, -13, 0, 13, L):
         for z in (-4, 4):
-            r = 1 if abs(x) <= 9 else 0
+            r = 1 if abs(x) <= 13 else 0
             v.col(x, z, r + 1, r + 3, "stone_bricks")
             v.set(x, r + 4, z, "lantern")
     v.points["middle"] = (0, 2, 0)
@@ -717,6 +718,8 @@ def mine_portal():
             if abs(z) == 3 or y >= 4:
                 v.set(-1, y, z, pick(0, y, z, MASONRY))
     v.set(-1, 4, 0, "lantern")
+    for x in range(-9, 0):
+        v.set(x, -1, 0, "timber_beam" if x % 2 else "dark_planks")
     v.set(-2, 0, 3, "crate")
     v.set(-2, 0, -3, "barrel")
     v.doors.append({"at": [0, 0, 0], "height": 3})
@@ -741,6 +744,16 @@ def stockade():
         v.set(x, 8, a, "brazier")
     for x in range(-3, 4):
         v.set(x, 6, a, "timber_beam")
+    for x in range(-4, 5):
+        for z in range(a - 2, a + 2):
+            v.set(x, 7, z, "dark_planks")
+            v.set(x, 11 - abs(z - a) if abs(z - a) < 2 else 10, z, "thatch")
+    for (x, z) in ((-4, a - 2), (4, a - 2), (-4, a + 1), (4, a + 1)):
+        v.col(x, z, 0 if z < a else 7, 10, "log")
+    for x in (-4, 4):
+        v.set(x, 8, a + 1, "log")
+    v.set(-5, 3, a + 1, "lantern")
+    v.set(5, 3, a + 1, "lantern")
     v.col(-2, a + 1, 3, 5, "red_banner")
     v.col(2, a + 1, 3, 5, "red_banner")
     # corner platforms
@@ -821,8 +834,6 @@ def hollow_oak():
     # webs in the hollow and under the limbs
     for (x, y, z) in ((1, 6, 1), (-1, 8, 0), (0, 10, -1), (1, 9, -1), (-3, 12, 3), (4, 13, -2), (-4, 14, -3), (2, 4, 4), (-2, 3, 4), (3, 12, 4)):
         v.set(x, y, z, "white")
-    for (x, z) in ((5, 2), (-5, -1), (2, -5), (-3, 5), (6, -4)):
-        v.set(x, 0, z, "glowshroom")
     return v
 
 

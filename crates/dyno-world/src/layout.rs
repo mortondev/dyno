@@ -268,6 +268,9 @@ pub struct Way {
     pub lamp: Option<String>,
     #[serde(default)]
     pub lamp_every: f32,
+    /// the block of the kerb: the outermost metre on each side
+    #[serde(default)]
+    pub kerb: Option<String>,
     /// crosses shallow water on a raised bed instead of a bridge
     #[serde(default)]
     pub ford: bool,
@@ -611,7 +614,7 @@ impl Layout {
                 "layout: road \"{}\" has unknown way \"{}\"",
                 r.key, r.way
             ))?;
-            for k in way.surface.keys() {
+            for k in way.surface.keys().chain(way.kerb.iter()) {
                 block(k)?;
             }
             for s in &r.path {

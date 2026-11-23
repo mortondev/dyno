@@ -733,7 +733,7 @@ fn quests_give_xp_and_rewards() {
                 if dx.abs() != r && dz.abs() != r {
                     continue;
                 }
-                for y in 1..47 {
+                for y in 1..j.world.size[1] as i32 {
                     if j.world.get(cx + dx, y, cz + dz) == dyno_world::LOG {
                         node = Some([cx + dx, y, cz + dz]);
                         break 'find;

@@ -20,7 +20,7 @@ WHERE = {
     "hearthstead_street": ("hearthstead", (0, -40), (0, -22)),
     "hearthstead_dusk": ("hearthstead", (4, -8), (0, 8)),
     "watch_tower": ("hearthstead", (-24, -26), (0, -22)),
-    "north_watch": ("north_watch", (0, -5), (2, 9)),
+    "north_watch": ("north_watch", (13, -5), (0, 10)),
     "logging_camp": ("logging_camp", (0, 0), (1, 6)),
     "hollow_oak": ("hollow_oak", (0, 0), (0, 14)),
     "old_barrow": ("old_barrow", (0, 0), (21, 0)),

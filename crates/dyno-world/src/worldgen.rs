@@ -332,11 +332,28 @@ impl<'a> Gen<'a> {
                     prof[i] = old[a..=b].iter().sum::<f32>() / (b - a + 1) as f32;
                 }
             }
+            // never steeper than a runner takes in stride: ramps are cut
+            // and banked out from the fixed stretches
+            const GRADE: f32 = 0.6;
+            for _ in 0..3 {
+                for i in 1..prof.len() {
+                    if !fixed[i] {
+                        prof[i] = prof[i].clamp(prof[i - 1] - GRADE, prof[i - 1] + GRADE);
+                    }
+                }
+                for i in (0..prof.len() - 1).rev() {
+                    if !fixed[i] {
+                        prof[i] = prof[i].clamp(prof[i + 1] - GRADE, prof[i + 1] + GRADE);
+                    }
+                }
+            }
             let half = way.width as f32 / 2.0;
             let shoulder = 4.0f32;
             let reach = (half + shoulder).ceil() as i32;
             // nearest point of the line per column
-            let mut near: BTreeMap<usize, (f32, f32)> = BTreeMap::new();
+            // (the height is blended over the points close by, so the road
+            // climbs evenly however its points fall on the columns)
+            let mut near: BTreeMap<usize, (f32, f32, f32)> = BTreeMap::new();
             for (p, h) in line.iter().zip(&prof) {
                 let c = cell(p);
                 for dz in -reach..=reach {
@@ -348,16 +365,20 @@ impl<'a> Gen<'a> {
                         if d > half + shoulder {
                             continue;
                         }
-                        let e = near.entry(i).or_insert((f32::MAX, 0.0));
-                        if d < e.0 {
-                            *e = (d, *h);
-                        }
+                        let e = near.entry(i).or_insert((f32::MAX, 0.0, 0.0));
+                        e.0 = e.0.min(d);
+                        let weight = 1.0 / (0.4 + d).powi(6);
+                        e.1 += weight * h;
+                        e.2 += weight;
                     }
                 }
             }
-            for (i, (d, h)) in near {
+            for (i, (d, sum, weight)) in near {
+                let h = sum / weight;
                 let f = self.flags[i];
-                let on = d <= half - 0.01 + (rnd(i as i32, 7, 63) % 100) as f32 * 0.004;
+                // a ragged edge, less so on a narrow trail
+                let rag = 0.004 * (half / 3.5).min(1.0);
+                let on = d <= half - 0.01 + (rnd(i as i32, 7, 63) % 100) as f32 * rag;
                 if f & WET != 0 {
                     // a ford: the bed comes up under a trail
                     if way.ford && on {
@@ -373,10 +394,17 @@ impl<'a> Gen<'a> {
                 }
                 if on {
                     self.flags[i] |= ROAD;
-                    if (f & SITE == 0 || self.paint[i] == AIR)
-                        && let Some(k) = Layout::pick(&way.surface, rnd(i as i32, 3, 64))
-                    {
-                        self.paint[i] = block_by_key(k).unwrap_or(AIR);
+                    if f & SITE == 0 || self.paint[i] == AIR {
+                        // the kerb: the outermost metre, a little broken
+                        let kerb = way
+                            .kerb
+                            .as_deref()
+                            .filter(|_| d > half - 1.0 && !rnd(i as i32, 5, 68).is_multiple_of(6));
+                        if let Some(k) =
+                            kerb.or_else(|| Layout::pick(&way.surface, rnd(i as i32, 3, 64)))
+                        {
+                            self.paint[i] = block_by_key(k).unwrap_or(AIR);
+                        }
                     }
                 }
             }
@@ -452,7 +480,7 @@ impl<'a> Gen<'a> {
                 if top == AIR {
                     top = if wet || h <= sea {
                         if r.is_multiple_of(7) { CLAY } else { SAND }
-                    } else if steep >= 3 {
+                    } else if steep >= 2 {
                         STONE
                     } else if let Some([rock, snow]) = lines
                         && h as f32 > rock + (r % 5) as f32
@@ -566,6 +594,15 @@ impl<'a> Gen<'a> {
         let (wx, wz) = (x + self.cx, z + self.cz);
         for b in tree {
             let [dx, dy, dz] = b.at;
+            // boughs keep clear of the roads: room to run and ride under them
+            if dy <= 6
+                && !b.wood
+                && self
+                    .idx(x + dx, z + dz)
+                    .is_some_and(|j| self.flags[j] & ROAD != 0)
+            {
+                continue;
+            }
             let here = w.get(wx + dx, g + dy, wz + dz);
             if b.wood {
                 if here == AIR || is_leaves(here) || matches!(here, GRASS | DIRT) {
@@ -868,8 +905,12 @@ pub fn grow(sp: &Species, r: u32) -> Vec<TreeBlock> {
                     }
                 }
             }
-            // the top of the trunk is under leaves
-            leaf(&mut out, [mid.floor() as i32, h, mid.floor() as i32]);
+            // the top of the trunk is under leaves, however thin the crown
+            out.push(TreeBlock {
+                at: [mid.floor() as i32, h, mid.floor() as i32],
+                block: leaves,
+                wood: false,
+            });
         }
     }
     out
