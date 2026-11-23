@@ -348,12 +348,25 @@ impl Particles {
             } else {
                 SCAN_PER_FRAME
             };
-            self.scanned = self.scanned.saturating_add(n);
-            for _ in 0..n {
+            // the layers of sections nearest the camera's height first (the
+            // land is there; the sky and deep rock come last), and sections
+            // that are all one block (air, rock) cost nothing
+            let layer = (span * span) as usize;
+            let eye_sy = sec(s.eye.y).clamp(0, dims[1] - 1);
+            let mut done = 0;
+            let mut looked = 0;
+            while done < n && looked < ring {
                 let i = self.cursor % ring;
                 self.cursor = self.cursor.wrapping_add(1);
-                let (ix, rest) = (i as i32 % span, i as i32 / span);
-                let key = [cx - r + ix, rest / span, cz - r + rest % span];
+                self.scanned = self.scanned.saturating_add(1);
+                looked += 1;
+                // layer k is 0, +1, -1, +2, -2... from the camera's, folded
+                // back into the world where it runs off the top or bottom
+                let k = (i / layer) as i32;
+                let off = if k % 2 == 1 { (k + 1) / 2 } else { -(k / 2) };
+                let sy = (eye_sy + off).rem_euclid(dims[1]);
+                let col = (i % layer) as i32;
+                let key = [cx - r + col % span, sy, cz - r + col / span];
                 if key[0] < 0 || key[2] < 0 || key[0] >= dims[0] || key[2] >= dims[2] {
                     continue;
                 }
@@ -361,6 +374,13 @@ impl Particles {
                     self.sections.remove(&key);
                     continue;
                 }
+                if let Some(b) = s.world.section_uniform(key)
+                    && !self.by_block.contains_key(&b)
+                {
+                    self.sections.remove(&key);
+                    continue;
+                }
+                done += 1;
                 let found = self.scan(s, key);
                 if found.is_empty() {
                     self.sections.remove(&key);
