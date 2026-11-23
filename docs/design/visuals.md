@@ -323,6 +323,23 @@ wander (`terrace`, `terrace_size`), and per block `under`, `jitter`,
 `tint`, `saturation`, `shade`, `smooth`, `edge` and `inset`. The mesher
 is generic.
 
+### Corner shading and gentle slopes: evidence
+
+The 18 cameras with the same binary and world, ground shading off (left)
+and on (right), so only it differs: `visuals/ground-shading/<camera>.jpg`;
+contact sheets `contact-off.jpg`, `contact-on.jpg`, and main before this
+pass `contact-main.jpg`.
+
+| | shading off | shading on | |
+|---|---|---|---|
+| world vertices, median of 18 | 6.12 M | 6.88 M | 1.13× (worst 1.22×) |
+| ground vertices, median | 3.55 M | 4.28 M | 1.23× (worst 1.33×) |
+
+Against main before this pass the world is 1.14× (worst 1.24×). Load and
+frame times on this machine were dominated by its load (shading off came
+out slower than on), so they are not a measure here; the cost is in
+vertices, all within 24 m of the camera.
+
 ### Rules that keep it seamless
 
 Every voxel is decided only from the blocks within two cells of it and its
