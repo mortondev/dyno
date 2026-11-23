@@ -648,7 +648,7 @@ pub fn section_ready(world: &World, s: [i32; 3]) -> bool {
 }
 
 /// Mesh many sections at once, on every core.
-fn mesh_many(world: &World, light: &Light, list: &[[i32; 3]]) -> Vec<SectionGeo> {
+pub(crate) fn mesh_many(world: &World, light: &Light, list: &[[i32; 3]]) -> Vec<SectionGeo> {
     let threads = std::thread::available_parallelism()
         .map(|n| n.get())
         .unwrap_or(1)
@@ -1276,10 +1276,13 @@ fn ring(
 
 #[derive(Default)]
 struct SectionMesh {
-    opaque: Option<(wgpu::Buffer, u32)>,
-    trans: Option<(wgpu::Buffer, u32)>,
-    /// halos round the section's lamps
-    glow: Option<(wgpu::Buffer, u32)>,
+    /// one buffer (one allocation: streaming uploads many sections a
+    /// second): the opaque vertices, then the translucent, then the halos
+    /// round the section's lamps
+    buf: Option<wgpu::Buffer>,
+    opaque: u32,
+    trans: u32,
+    glow: u32,
     /// where grass grows; turned into blades when the camera is near
     tufts: Vec<Tuft>,
     /// meshed (possibly to nothing) since the section last arrived
@@ -1820,27 +1823,40 @@ impl Gfx {
         if v.is_empty() {
             return None;
         }
-        let buf = self
-            .device
-            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: None,
-                contents: bytemuck::cast_slice(v),
-                usage: wgpu::BufferUsages::VERTEX,
-            });
+        // a plain buffer filled through the queue's pooled staging memory
+        // (create_buffer_init makes a staging buffer of its own each time,
+        // and streaming uploads many sections a second)
+        let bytes: &[u8] = bytemuck::cast_slice(v);
+        let buf = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: bytes.len() as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(&buf, 0, bytes);
         Some((buf, v.len() as u32))
     }
 
     /// Upload one section's mesh.
     fn store(&mut self, i: usize, geo: SectionGeo) {
-        let mut halo = Vec::with_capacity(geo.glows.len() * 6);
-        for g in &geo.glows {
-            push_glow(&mut halo, g);
+        let SectionGeo {
+            mut opaque,
+            trans,
+            glows,
+            tufts,
+        } = geo;
+        let (o, t) = (opaque.len() as u32, trans.len() as u32);
+        opaque.extend(trans);
+        for g in &glows {
+            push_glow(&mut opaque, g);
         }
+        let glow = opaque.len() as u32 - o - t;
         self.sections[i] = SectionMesh {
-            opaque: self.upload(&geo.opaque),
-            trans: self.upload(&geo.trans),
-            glow: self.upload(&halo),
-            tufts: geo.tufts,
+            buf: self.upload(&opaque).map(|(b, _)| b),
+            opaque: o,
+            trans: t,
+            glow,
+            tufts,
             built: true,
         };
     }
@@ -1893,39 +1909,38 @@ impl Gfx {
         self.remesh(world, light, &list);
     }
 
-    /// Sections that arrived in a streamed world (already lit): mesh them
-    /// and their neighbours that have become ready. A section is meshed only
-    /// once all its neighbours are here, and light reaches less than a
-    /// section, so an arrival changes no built mesh round it, except below
-    /// it in its column (the sky's light falls straight down).
-    pub fn sections_arrived(&mut self, world: &World, light: &Light, list: &[[i32; 3]]) {
-        if self.sections.is_empty() {
+    /// Start drawing a streamed world: its size, nothing meshed yet (the
+    /// world worker meshes sections as they arrive: `put_mesh`).
+    pub fn begin_world(&mut self, world: &World) {
+        self.dims = world.section_dims();
+        let d = self.dims;
+        self.sections.clear();
+        self.sections
+            .resize_with((d[0] * d[1] * d[2]) as usize, SectionMesh::default);
+        self.clutter_at = None;
+    }
+
+    /// Store (upload) a section's mesh made elsewhere.
+    pub fn put_mesh(&mut self, s: [i32; 3], geo: SectionGeo) {
+        let d = self.dims;
+        if !(0..3).all(|i| s[i] >= 0 && s[i] < d[i]) {
             return;
         }
-        let d = self.dims;
-        let idx = |n: [i32; 3]| ((n[1] * d[2] + n[2]) * d[0] + n[0]) as usize;
-        let mut todo = std::collections::BTreeSet::new();
-        for s in list {
-            for dy in -1..=1 {
-                for dz in -1..=1 {
-                    for dx in -1..=1 {
-                        let n = [s[0] + dx, s[1] + dy, s[2] + dz];
-                        if (0..3).all(|i| n[i] >= 0 && n[i] < d[i])
-                            && (n == *s || !self.sections[idx(n)].built)
-                        {
-                            todo.insert([n[1], n[2], n[0]]);
-                        }
-                    }
-                }
-            }
-            for y in 0..s[1] - 1 {
-                if self.sections[idx([s[0], y, s[2]])].built {
-                    todo.insert([y, s[2], s[0]]);
-                }
-            }
+        self.store(((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize, geo);
+        // grass near the camera may have changed
+        if let Some(at) = self.clutter_at
+            && (s[0] - at[0]).abs() <= CLUTTER_SECTIONS
+            && (s[2] - at[1]).abs() <= CLUTTER_SECTIONS
+        {
+            self.clutter_at = None;
         }
-        let list: Vec<[i32; 3]> = todo.into_iter().map(|[y, z, x]| [x, y, z]).collect();
-        self.remesh(world, light, &list);
+    }
+
+    /// Whether a section has been meshed since it last arrived.
+    pub fn is_built(&self, s: [i32; 3]) -> bool {
+        let d = self.dims;
+        (0..3).all(|i| s[i] >= 0 && s[i] < d[i])
+            && self.sections[((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize].built
     }
 
     /// A section left a streamed world: stop drawing it.
@@ -1945,12 +1960,9 @@ impl Gfx {
 
     /// Opaque and translucent vertices held by the world meshes (for stats).
     pub fn world_vertices(&self) -> (u64, u64) {
-        self.sections.iter().fold((0, 0), |a, s| {
-            (
-                a.0 + s.opaque.as_ref().map_or(0, |b| b.1 as u64),
-                a.1 + s.trans.as_ref().map_or(0, |b| b.1 as u64),
-            )
-        })
+        self.sections
+            .iter()
+            .fold((0, 0), |a, s| (a.0 + s.opaque as u64, a.1 + s.trans as u64))
     }
 
     /// Re-mesh every section that touches the box [lo - margin, hi + margin].
@@ -2093,7 +2105,12 @@ impl Gfx {
             rp.set_bind_group(0, &self.shadow_bind, &[]);
             let reach = SHADOW_HALF + SECTION as f32 * 2.0;
             for (i, s) in self.sections.iter().enumerate() {
-                let Some((b, n)) = &s.opaque else { continue };
+                let (Some(b), n) = (&s.buf, s.opaque) else {
+                    continue;
+                };
+                if n == 0 {
+                    continue;
+                }
                 let d = self.dims;
                 let (sx, sz) = ((i as i32) % d[0], (i as i32 / d[0]) % d[2]);
                 let cx = sx as f32 * SECTION as f32 + SECTION as f32 * 0.5;
@@ -2102,7 +2119,7 @@ impl Gfx {
                     continue;
                 }
                 rp.set_vertex_buffer(0, b.slice(..));
-                rp.draw(0..*n, 0..1);
+                rp.draw(0..n, 0..1);
             }
             if let Some((b, n)) = &box_buf {
                 rp.set_vertex_buffer(0, b.slice(..));
@@ -2144,11 +2161,12 @@ impl Gfx {
                 rp.set_pipeline(&self.opaque_pipe);
                 let visible = |i: usize| self.section_visible(i, vp, dist);
                 for (i, s) in self.sections.iter().enumerate() {
-                    if let Some((b, n)) = &s.opaque
+                    if let Some(b) = &s.buf
+                        && s.opaque > 0
                         && visible(i)
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(0..*n, 0..1);
+                        rp.draw(0..s.opaque, 0..1);
                     }
                 }
                 if let Some((b, n)) = &self.clutter {
@@ -2161,20 +2179,23 @@ impl Gfx {
                 }
                 rp.set_pipeline(&self.trans_pipe);
                 for (i, s) in self.sections.iter().enumerate() {
-                    if let Some((b, n)) = &s.trans
+                    if let Some(b) = &s.buf
+                        && s.trans > 0
                         && visible(i)
                     {
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(0..*n, 0..1);
+                        rp.draw(s.opaque..s.opaque + s.trans, 0..1);
                     }
                 }
                 rp.set_pipeline(&self.glow_pipe);
                 for (i, s) in self.sections.iter().enumerate() {
-                    if let Some((b, n)) = &s.glow
+                    if let Some(b) = &s.buf
+                        && s.glow > 0
                         && visible(i)
                     {
+                        let start = s.opaque + s.trans;
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(0..*n, 0..1);
+                        rp.draw(start..start + s.glow, 0..1);
                     }
                 }
                 if let Some((b, n)) = &line_buf {

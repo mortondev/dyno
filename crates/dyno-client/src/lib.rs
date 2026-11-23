@@ -28,6 +28,7 @@ pub mod textures;
 pub mod theme;
 pub mod vox;
 pub mod voxmodel;
+pub mod worldwork;
 
 /// Open the game window. `prefill` sets the server address field.
 pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
