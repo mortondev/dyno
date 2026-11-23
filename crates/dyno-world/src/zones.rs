@@ -1364,12 +1364,13 @@ impl<'a> Zone<'a> {
             && !self.locked(x, z)
             && self.water(x, z) == 0
             && is_solid(self.block(x, g, z))
-            && (1..=4).all(|k| self.block(x, g + k, z) == AIR);
+            && (1..=3).all(|k| self.block(x, g + k, z) == AIR);
         if clear {
-            for k in 1..=3 {
+            // a 2 m post with the lantern on top: about 2.5 m in all
+            for k in 1..=2 {
                 self.set(x, g + k, z, TIMBER_BEAM);
             }
-            self.set(x, g + 4, z, LANTERN);
+            self.set(x, g + 3, z, LANTERN);
         }
         clear
     }
@@ -1383,12 +1384,14 @@ impl<'a> Zone<'a> {
         {
             return;
         }
-        for k in 1..=4 {
-            self.set(x, g + k, z, if k < 4 { DARK_PLANKS } else { PLANKS });
+        // a 3 m post, an arm at the top with the banner under it, and a
+        // pointer the other way
+        for k in 1..=3 {
+            self.set(x, g + k, z, TIMBER_BEAM);
         }
-        self.set(x + arm[0], g + 4, z + arm[1], PLANKS);
-        self.set(x + arm[0], g + 3, z + arm[1], banner);
-        self.set(x - arm[0], g + 3, z - arm[1], PLANKS);
+        self.set(x + arm[0], g + 3, z + arm[1], TIMBER_BEAM);
+        self.set(x + arm[0], g + 2, z + arm[1], banner);
+        self.set(x - arm[0], g + 3, z - arm[1], TIMBER_BEAM);
     }
 
     /// Lamps along the roads and signposts at the forks.
@@ -1791,8 +1794,8 @@ impl<'a> Zone<'a> {
         {
             return;
         }
-        for dz in -2..=2 {
-            for dx in -2..=2 {
+        for dz in -3..=3 {
+            for dx in -3..=3 {
                 if is_log(self.block(x + dx, g + 1, z + dz))
                     || is_log(self.block(x + dx, g + 2, z + dz))
                 {
@@ -1800,44 +1803,20 @@ impl<'a> Zone<'a> {
                 }
             }
         }
-        let (log, leaf) = match kind {
-            1 => (BIRCH_LOG, BIRCH_LEAVES),
-            3 => (LOG, PINE_LEAVES),
-            _ => (LOG, LEAVES),
+        let kind = match kind {
+            1 => TreeKind::Birch,
+            2 => TreeKind::Dead,
+            3 => TreeKind::Dark,
+            _ => TreeKind::Oak,
         };
-        let trunk = 4 + (r >> 8) as i32 % 3 + i32::from(kind == 1);
-        for y in 1..=trunk {
-            self.set(x, g + y, z, log);
-        }
-        if kind == 2 {
-            // a dead snag: a bare trunk with a broken limb or two
-            for (n, (dx, dz)) in [(1, 0), (0, 1), (-1, 0), (0, -1)].into_iter().enumerate() {
-                if (r >> (12 + n)) & 1 == 0 {
-                    continue;
-                }
-                let h = g + trunk - 1 - n as i32 % 2;
-                self.set(x + dx, h, z + dz, LOG);
-                if (r >> (16 + n)) & 1 == 1 {
-                    self.set(x + 2 * dx, h + 1, z + 2 * dz, LOG);
-                }
-            }
+        let shape = tree_shape(kind, r);
+        if g + tree_height(&shape) >= self.sy - 1 {
             return;
         }
-        for dy in -2..=1i32 {
-            let rad: i32 = if dy == 1 { 1 } else { 2 };
-            for dz in -rad..=rad {
-                for dx in -rad..=rad {
-                    let corner = dx.abs() == rad && dz.abs() == rad;
-                    if corner && (dy == 1 || hash(x + dx, z + dz, dy as u32).is_multiple_of(2)) {
-                        continue;
-                    }
-                    if kind == 3 && hash3(x + dx, dy, z + dz, 7).is_multiple_of(3) {
-                        continue;
-                    }
-                    if self.block(x + dx, g + trunk + dy, z + dz) == AIR {
-                        self.set(x + dx, g + trunk + dy, z + dz, leaf);
-                    }
-                }
+        for b in shape {
+            let [dx, dy, dz] = b.at;
+            if b.wood || self.block(x + dx, g + dy, z + dz) == AIR {
+                self.set(x + dx, g + dy, z + dz, b.block);
             }
         }
     }
@@ -1882,7 +1861,7 @@ impl<'a> Zone<'a> {
                         }
                     }
                     Biome::Birchrise => {
-                        for y in g + 1..(g + 14).min(self.sy) {
+                        for y in g + 1..(g + 24).min(self.sy) {
                             match self.block(x, y, z) {
                                 LOG => self.set(x, y, z, BIRCH_LOG),
                                 LEAVES => self.set(x, y, z, BIRCH_LEAVES),
@@ -1895,7 +1874,7 @@ impl<'a> Zone<'a> {
                         }
                     }
                     Biome::Barrowwood => {
-                        for y in g + 1..(g + 14).min(self.sy) {
+                        for y in g + 1..(g + 24).min(self.sy) {
                             match self.block(x, y, z) {
                                 BIRCH_LOG => self.set(x, y, z, LOG),
                                 GLOWSHROOM | BERRY_BUSH => self.set(x, y, z, AIR),

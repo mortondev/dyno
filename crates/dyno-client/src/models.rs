@@ -4607,9 +4607,24 @@ mod anim_tests {
         for cr in &c.creatures {
             let mut v = Vec::new();
             let mut a = Animator::new(1, 0.0);
-            push_creature(&mut v, cr.model, cr.variant, Vec3::ZERO, 0.0, cr.color, 1.0, 0.0, cr.scale, &mut a, 0.0);
+            push_creature(
+                &mut v,
+                cr.model,
+                cr.variant,
+                Vec3::ZERO,
+                0.0,
+                cr.color,
+                1.0,
+                0.0,
+                cr.scale,
+                &mut a,
+                0.0,
+            );
             let d = size(&v);
-            println!("{}: {:.2} tall, {:.2} wide, {:.2} long (scale {})", cr.key, d.y, d.x, d.z, cr.scale);
+            println!(
+                "{}: {:.2} tall, {:.2} wide, {:.2} long (scale {})",
+                cr.key, d.y, d.x, d.z, cr.scale
+            );
         }
     }
 
