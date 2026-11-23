@@ -1,66 +1,86 @@
-"""Canonical cameras for the concept references and the visual gauntlet.
+"""The canonical gameplay shots for the concept references and the visual gauntlet.
 
-Gameplay framing (docs/design/scale.md): about 5 m above the ground, about
-30 m from the landmark, looking slightly down at it, as a WoW-style third
-person camera sees a place while you walk up to it.
+Renders the cameras of tools/concepts/cameras.json with `dyno shot --stand`:
+a stand-in player on the ground facing each landmark, seen through the game's
+own third-person camera (docs/design/scale.md), with no interface. The
+cameras are data, chosen by `dyno scout` from tools/concepts/landmarks.json;
+run that again when the world changes.
 
 usage: python3 tools/concepts/shots.py OUT_DIR [ADDRESS] [name ...]
+
+Writes OUT_DIR/<name>.jpg for each camera (or the named ones) and
+OUT_DIR/contact.jpg, a sheet of every JPG of the cameras in OUT_DIR.
+Environment: DYNO (the dyno binary, default ./target/debug/dyno),
+SHOT_SIZE (default 1280x720).
 """
-import math, subprocess, sys, os
+import json, os, subprocess, sys
 
-# world placement: the test world's hearth is at H; the spots were measured
-# in a world whose hearth was at OLD
-H = (192, 37, 192); OLD = (194, 37, 195)
-def at(p): return (p[0] - OLD[0] + H[0], p[1], p[2] - OLD[2] + H[2])
+HERE = os.path.dirname(os.path.abspath(__file__))
 
-# name: (landmark (ground), direction to the camera (dx, dz), distance m,
-#        camera height above the landmark ground m, time of day 0-1)
-SPOTS = {
- 'hearthstead_plaza': ((194,38,195), (14,16), 28, 5, 0.30),
- 'hearthstead_street': ((194,38,180), (6,22), 26, 4, 0.28),
- 'hearthstead_dusk': ((194,40,195), (-26,24), 34, 7, 0.47),
- 'watch_tower': ((200,40,180), (-14,20), 32, 4, 0.32),
- 'north_watch': ((194,30,144), (16,18), 30, 5, 0.30),
- 'logging_camp': ((149,34,109), (14,16), 30, 5, 0.27),
- 'hollow_oak': ((107,27,142), (16,14), 30, 5, 0.36),
- 'old_barrow': ((78,30,205), (16,12), 28, 5, 0.40),
- 'barrow_crypt': ((61,26,205), (8,6), 22, 4, 0.62),
- 'wrecked_caravan': ((244,31,186), (12,12), 24, 4, 0.30),
- 'emberford_bridge': ((289,31,195), (14,18), 30, 5, 0.29),
- 'windmill_farm': ((204,27,290), (18,16), 32, 5, 0.26),
- 'fishers_landing': ((166,26,331), (16,14), 30, 5, 0.45),
- 'mirrormere': ((185,26,300), (-22,24), 34, 6, 0.25),
- 'sunken_shrine': ((202,28,354), (14,12), 26, 5, 0.33),
- 'ashcloak_stockade': ((256,28,267), (18,18), 30, 5, 0.60),
- 'miners_rest': ((322,33,205), (16,16), 30, 5, 0.31),
- 'hollow_mines': ((351,30,176), (14,16), 30, 5, 0.34),
-}
 
-def camera(name):
-    t, (dx, dz), dist, up, time = SPOTS[name]
-    tx, ty, tz = at(t)
-    n = math.hypot(dx, dz)
-    cx, cz = tx + dx / n * dist, tz + dz / n * dist
-    cy = ty + up
-    # look at a point 3 m above the landmark's ground
-    lx, ly, lz = tx - cx, ty + 3 - cy, tz - cz
-    yaw = math.degrees(math.atan2(-lx, -lz))
-    pitch = math.degrees(math.atan2(ly, math.hypot(lx, lz)))
-    return (cx, cy, cz), (yaw, pitch), time
+def cameras():
+    with open(os.path.join(HERE, 'cameras.json')) as f:
+        return json.load(f)['cameras']
+
+
+def csv(v):
+    return ','.join(f'{x:g}' for x in v)
+
+
+def shoot(exe, addr, cam, out_dir, size):
+    ppm = os.path.join(out_dir, cam['name'] + '.ppm')
+    jpg = ppm[:-4] + '.jpg'
+    r = subprocess.run(
+        [exe, 'shot', addr, '--from-hearth',
+         '--stand', csv(cam['stand']), '--face', csv(cam['face']),
+         '--zoom', f"{cam['zoom']:g}", '--pitch', f"{cam['pitch']:g}",
+         '--time', f"{cam['time']:g}", '--size', size, '--out', ppm],
+        capture_output=True, text=True, timeout=600)
+    if r.returncode != 0 or not os.path.exists(ppm):
+        return False, (r.stderr or r.stdout).strip().splitlines()[-1:]
+    subprocess.run(['magick', ppm, '-quality', '90', jpg], check=True)
+    os.remove(ppm)
+    return True, jpg
+
+
+def contact(out_dir, names):
+    have = [n for n in names if os.path.exists(os.path.join(out_dir, n + '.jpg'))]
+    if not have:
+        return None
+    sheet = os.path.join(out_dir, 'contact.jpg')
+    args = ['magick', 'montage']
+    for n in have:
+        args += ['-label', n, os.path.join(out_dir, n + '.jpg')]
+    args += ['-tile', '3x', '-geometry', '640x360+6+6', '-background', '#181818',
+             '-fill', '#e8e8e8', '-pointsize', '18', '-quality', '88', sheet]
+    subprocess.run(args, check=True)
+    return sheet
+
 
 if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
     out_dir = sys.argv[1]
     addr = sys.argv[2] if len(sys.argv) > 2 else '127.0.0.1:7499'
-    names = sys.argv[3:] or list(SPOTS)
+    cams = cameras()
+    known = [c['name'] for c in cams]
+    names = sys.argv[3:] or known
+    unknown = [n for n in names if n not in known]
+    if unknown:
+        sys.exit(f"no camera called {', '.join(unknown)}; cameras.json has: {', '.join(known)}")
     os.makedirs(out_dir, exist_ok=True)
     exe = os.environ.get('DYNO', './target/debug/dyno')
-    for name in names:
-        (cx, cy, cz), (yaw, pitch), time = camera(name)
-        out = f'{out_dir}/{name}.ppm'
-        r = subprocess.run([exe, 'shot', addr, '--pos', f'{cx:.1f},{cy:.1f},{cz:.1f}',
-                            '--look', f'{yaw:.1f},{pitch:.1f}', '--time', str(time),
-                            '--size', '1280x720', '--out', out],
-                           capture_output=True, text=True, timeout=300)
-        subprocess.run(['magick', out, '-quality', '90', out[:-4] + '.jpg'])
-        os.remove(out) if os.path.exists(out) else None
-        print(name, (r.stdout or r.stderr).strip().splitlines()[-1][:70])
+    size = os.environ.get('SHOT_SIZE', '1280x720')
+    failed = []
+    for cam in cams:
+        if cam['name'] not in names:
+            continue
+        ok, what = shoot(exe, addr, cam, out_dir, size)
+        print(cam['name'], what if ok else f'FAILED: {what}', flush=True)
+        if not ok:
+            failed.append(cam['name'])
+    sheet = contact(out_dir, known)
+    if sheet:
+        print('contact sheet', sheet)
+    if failed:
+        sys.exit(f"failed: {', '.join(failed)}")
