@@ -764,6 +764,12 @@ pub enum ServerMsg {
         player: PlayerId,
         item: Option<u16>,
     },
+    /// Everything a player has equipped (item ids), so their figure wears
+    /// it; sent with `Wielding`.
+    Wearing {
+        player: PlayerId,
+        items: Vec<u16>,
+    },
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

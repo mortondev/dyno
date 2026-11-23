@@ -250,6 +250,8 @@ struct Play {
     tops: std::cell::RefCell<HashMap<u32, f32>>,
     /// what other players hold in their weapon hand
     wielding: HashMap<u32, u16>,
+    /// what other players have equipped (item ids), worn on their figures
+    wearing: HashMap<u32, Vec<u16>>,
     /// other players lying dead, and what they are doing (sitting, emoting)
     remote_dead: std::collections::HashSet<u32>,
     remote_hold: HashMap<u32, Anim>,
@@ -1529,6 +1531,7 @@ fn new_play(j: Joined) -> Play {
         invite: None,
         tops: Default::default(),
         wielding: HashMap::new(),
+        wearing: HashMap::new(),
         remote_dead: Default::default(),
         remote_hold: HashMap::new(),
         trade_ask: None,
@@ -1830,6 +1833,7 @@ impl App {
                         ServerMsg::PlayerLeft { id } => {
                             p.remotes.remove(&id);
                             p.wielding.remove(&id);
+                            p.wearing.remove(&id);
                             p.remote_dead.remove(&id);
                             p.remote_hold.remove(&id);
                         }
@@ -1842,6 +1846,7 @@ impl App {
                             p.shard = shard;
                             p.entities.clear();
                             p.wielding.clear();
+                            p.wearing.clear();
                             p.remote_dead.clear();
                             p.remote_hold.clear();
                             p.remotes.clear();
@@ -1883,6 +1888,9 @@ impl App {
                                 p.wielding.remove(&player);
                             }
                         },
+                        ServerMsg::Wearing { player, items } => {
+                            p.wearing.insert(player, items);
+                        }
                         // someone (or something) does something: everyone sees it
                         ServerMsg::Act { actor, act } => {
                             let now = p.anims.now();
@@ -2868,6 +2876,10 @@ impl App {
                 let a = book.player(*id, now);
                 a.drive_at(now, state, base, step);
                 let mut look = models::Look::from_appearance(&r.look, r.color);
+                if let Some(items) = p.wearing.get(id) {
+                    let keys: Vec<String> = items.iter().map(|i| p.content.item_key(*i)).collect();
+                    look.wear(keys.iter().map(String::as_str));
+                }
                 look.weapon = models::weapon_look(&p.content, p.wielding.get(id).copied());
                 models::push_person_anim(&mut boxes, base, pose.yaw, pose.pitch, &look, bl, a, now);
             }
@@ -3151,6 +3163,13 @@ impl App {
                         .map(|c| c.color)
                         .unwrap_or([0.5, 0.5, 0.6]),
                 );
+                let keys: Vec<String> = p
+                    .equip
+                    .iter()
+                    .flatten()
+                    .map(|s| p.content.item_key(s.item))
+                    .collect();
+                look.wear(keys.iter().map(String::as_str));
                 look.weapon = models::weapon_look(&p.content, held_item.map(|s| s.item));
                 let mut book = std::mem::take(&mut p.anims);
                 let now = book.now();
@@ -6173,6 +6192,13 @@ pub fn shot_with_ui(
                 .map(|c| c.color)
                 .unwrap_or([0.5, 0.5, 0.6]),
         );
+        let keys: Vec<String> = p
+            .equip
+            .iter()
+            .flatten()
+            .map(|s| p.content.item_key(s.item))
+            .collect();
+        look.wear(keys.iter().map(String::as_str));
         look.weapon = models::weapon_look(&p.content, p.held().map(|s| s.item));
         let at = p.player.pos + Vec3::Y;
         let l = p.light.get(
