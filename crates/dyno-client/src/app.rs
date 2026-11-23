@@ -225,6 +225,10 @@ struct Play {
     level: u8,
     xp: u32,
     xp_next: u32,
+    /// banked rested XP
+    rested: u32,
+    /// an open corpse: id, money, items
+    loot: Option<(u32, u32, Vec<dyno_protocol::Stack>)>,
     money: u32,
     max_health: f32,
     quest_log: Vec<dyno_protocol::QuestProgress>,
@@ -675,6 +679,78 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             }
         }
     }
+    push_corpses(boxes, p, clock);
+}
+
+/// The fallen: the creature on its side (it topples as it dies), with a
+/// glint of gold while it still holds loot.
+fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
+    for (id, e) in &p.entities {
+        let EntityKind::Corpse { creature, loot } = e.kind else {
+            continue;
+        };
+        let Some(c) = p.content.creature(creature) else {
+            continue;
+        };
+        let pos = p.ground.feet(&p.world, e.pos());
+        let at = pos + Vec3::Y * 0.5;
+        let light = p.light.get(
+            at.x.floor() as i32,
+            at.y.floor() as i32,
+            at.z.floor() as i32,
+        ) as f32
+            / 15.0;
+        let start = boxes.len();
+        models::push_creature(
+            boxes,
+            c.model,
+            c.variant,
+            pos,
+            e.yaw,
+            [c.color[0] * 0.75, c.color[1] * 0.75, c.color[2] * 0.75],
+            light,
+            0.0,
+            0.0,
+            0.0,
+            *id as f32 * 0.37,
+        );
+        // topple onto its side over a moment, then lie still
+        let t = (e.born.elapsed().as_secs_f32() / 0.45).min(1.0);
+        let fall = t * t * (3.0 - 2.0 * t);
+        let half = c.scale * 0.5;
+        let forward = Vec3::new(-e.yaw.sin(), 0.0, -e.yaw.cos());
+        let rot = glam::Quat::from_axis_angle(forward, std::f32::consts::FRAC_PI_2 * 0.96 * fall);
+        // lie on the ground: the body's half-width lifts it as it rolls
+        let lift = Vec3::Y * (0.12 * c.scale * fall);
+        let sink = Vec3::Y * (-half * 0.15 * fall);
+        for v in &mut boxes[start..] {
+            let q = (Vec3::from(v.pos) - pos) * c.scale;
+            v.pos = (rot * q + pos + lift + sink).into();
+            v.normal = (rot * Vec3::from(v.normal)).into();
+        }
+        if loot && fall >= 1.0 {
+            // a few motes of gold drifting up
+            for k in 0..5 {
+                let ph = clock * 0.6 + k as f32 * 0.2 + *id as f32 * 0.13;
+                let f = ph.fract();
+                let a = k as f32 * 1.3 + clock * 0.4;
+                let q = pos
+                    + Vec3::new(
+                        a.cos() * 0.45 * c.scale,
+                        0.15 + f * 1.1,
+                        a.sin() * 0.45 * c.scale,
+                    );
+                let s = 0.05 * (1.0 - f) + 0.015;
+                render::push_box(
+                    boxes,
+                    q - Vec3::splat(s),
+                    q + Vec3::splat(s),
+                    [1.0, 0.85, 0.35],
+                    1.0,
+                );
+            }
+        }
+    }
 }
 
 /// The creature or person along a ray (the mouse cursor), nearest first,
@@ -692,6 +768,7 @@ fn pick_entity_ray(p: &Play, o: Vec3, dir: Vec3, max: f32) -> Option<u32> {
     for (id, e) in &p.entities {
         let h = match e.kind {
             EntityKind::Npc(_) => 2.0,
+            EntityKind::Corpse { .. } => 0.7,
             EntityKind::Creature(c) => match p.content.creature(c).map(|c| (c.model, c.scale)) {
                 Some((dyno_world::content::Model::Humanoid, s)) => 2.0 * s,
                 Some((_, s)) => 1.3 * s,
@@ -1083,6 +1160,8 @@ fn new_play(j: Joined) -> Play {
         level: 1,
         xp: 0,
         xp_next: 400,
+        rested: 0,
+        loot: None,
         money: 0,
         max_health: 20.0,
         quest_log: Vec::new(),
@@ -1164,10 +1243,16 @@ impl App {
             .hover
             .and_then(|id| p.entities.get(&id).map(|e| (id, e.kind)));
         match (button, hover) {
+            (MouseButton::Left, Some((_, EntityKind::Corpse { .. }))) => {}
             (MouseButton::Left, Some((id, _))) => p.focus = Some(id),
             (MouseButton::Right, Some((id, EntityKind::Npc(_)))) => {
                 p.focus = Some(id);
                 let _ = p.conn.tx.send(ClientMsg::Talk { entity: id });
+            }
+            (MouseButton::Right, Some((id, EntityKind::Corpse { .. }))) => {
+                let all =
+                    p.keys.contains(&KeyCode::ShiftLeft) || p.keys.contains(&KeyCode::ShiftRight);
+                let _ = p.conn.tx.send(ClientMsg::Loot { id, all });
             }
             (MouseButton::Right, Some((id, EntityKind::Creature(_)))) => {
                 p.focus = Some(id);
@@ -1464,6 +1549,11 @@ impl App {
                             }
                         }
                         ServerMsg::EntitySpawn { id, kind, pos, yaw } => {
+                            let born = p
+                                .entities
+                                .get(&id)
+                                .map(|e| e.born)
+                                .unwrap_or_else(Instant::now);
                             p.entities.insert(
                                 id,
                                 ClientEntity {
@@ -1472,7 +1562,7 @@ impl App {
                                     to: pos,
                                     at: Instant::now(),
                                     yaw,
-                                    born: Instant::now(),
+                                    born,
                                     hurt_at: None,
                                     info: None,
                                     name: None,
@@ -1695,6 +1785,20 @@ impl App {
                             }
                             p.quest_log = log;
                             p.quests_done = done.into_iter().collect();
+                        }
+                        ServerMsg::Rested { pool } => p.rested = pool,
+                        ServerMsg::Loot { id, money, items } => {
+                            if money == 0 && items.is_empty() {
+                                if p.loot.as_ref().is_some_and(|l| l.0 == id) {
+                                    p.loot = None;
+                                }
+                            } else {
+                                if p.loot.is_none() {
+                                    self.audio.play(Sfx::Click, 0.6);
+                                }
+                                p.loot = Some((id, money, items));
+                                release = true;
+                            }
                         }
                         ServerMsg::Dialog { entity, npc } => {
                             p.panel = Some(rpg_ui::Panel::Dialog {
@@ -2630,7 +2734,21 @@ impl App {
                             rpg_ui::RpgCmd::Abandon(q) => {
                                 let _ = p.conn.tx.send(ClientMsg::AbandonQuest { quest: q });
                             }
-                            rpg_ui::RpgCmd::Show(panel) => p.panel = Some(panel),
+                            rpg_ui::RpgCmd::Show(panel) => {
+                                // a merchant opens your bags beside their goods
+                                if matches!(panel, rpg_ui::Panel::Vendor { .. }) {
+                                    p.screen_tab = Some(screens::Tab::Bags);
+                                }
+                                p.panel = Some(panel);
+                            }
+                            rpg_ui::RpgCmd::Buy(npc, item, count) => {
+                                let _ = p.conn.tx.send(ClientMsg::Buy { npc, item, count });
+                                self.audio.play(Sfx::Click, 0.6);
+                            }
+                            rpg_ui::RpgCmd::Loot(id, slot) => {
+                                let _ = p.conn.tx.send(ClientMsg::LootTake { id, slot });
+                            }
+                            rpg_ui::RpgCmd::CloseLoot => p.loot = None,
                             rpg_ui::RpgCmd::Close => {
                                 p.panel = None;
                                 close = true;
@@ -3303,6 +3421,7 @@ fn hud(
     // nameplates for creatures and NPCs, with quest markers
     let me = rpg_ui::Me {
         content: &p.content,
+        money: p.money,
         level: p.level,
         log: &p.quest_log,
         done: &p.quests_done,
@@ -3622,6 +3741,7 @@ fn hud(
             p.xp,
             p.xp_next,
             p.level,
+            p.rested,
         );
         label_y -= 14.0;
     }
@@ -3913,7 +4033,10 @@ fn hud(
             equip: &p.equip,
             health: p.health,
             power: p.power,
-            at_vendor: matches!(p.panel, Some(rpg_ui::Panel::Dialog { .. })),
+            at_vendor: matches!(
+                p.panel,
+                Some(rpg_ui::Panel::Dialog { .. } | rpg_ui::Panel::Vendor { .. })
+            ),
             bar: &p.bar,
             skills: &lines,
             extra,
@@ -4147,6 +4270,7 @@ fn hud(
     if let Some(mut panel) = p.panel.clone() {
         let me = rpg_ui::Me {
             content: &p.content,
+            money: p.money,
             level: p.level,
             log: &p.quest_log,
             done: &p.quests_done,
@@ -4156,8 +4280,24 @@ fn hud(
         let cmds = match panel {
             rpg_ui::Panel::Dialog { .. } => rpg_ui::dialog_window(ctx, &me, &mut panel),
             rpg_ui::Panel::Log { .. } => rpg_ui::log_window(ctx, &me, &mut panel),
+            rpg_ui::Panel::Vendor { .. } => rpg_ui::vendor_window(ctx, &me, &mut panel),
         };
         p.panel = Some(panel);
+        if !cmds.is_empty() {
+            actions.push(Action::Rpg(cmds));
+        }
+    }
+    // an open corpse
+    if let Some((id, money, items)) = &p.loot {
+        let gone = p
+            .entities
+            .get(id)
+            .is_none_or(|e| (e.pos() - p.player.pos).length() > 7.0);
+        let cmds = if gone {
+            vec![rpg_ui::RpgCmd::CloseLoot]
+        } else {
+            rpg_ui::loot_window(ctx, &p.content, *id, *money, items)
+        };
         if !cmds.is_empty() {
             actions.push(Action::Rpg(cmds));
         }
@@ -4806,6 +4946,72 @@ pub fn shot_with_ui(
                 choice: 0,
             });
         }
+    }
+    if ui == "vendor" {
+        // the nearest merchant's goods, with the bags open
+        let me = p.player.pos;
+        if let Some((id, n)) = p
+            .entities
+            .iter()
+            .filter_map(|(id, e)| match e.kind {
+                EntityKind::Npc(n) if p.content.npc(n).is_some_and(|m| !m.sells.is_empty()) => {
+                    Some((*id, n, e.pos().distance(me)))
+                }
+                _ => None,
+            })
+            .min_by(|a, b| a.2.total_cmp(&b.2))
+            .map(|(id, n, _)| (id, n))
+        {
+            p.panel = Some(rpg_ui::Panel::Vendor { entity: id, npc: n });
+            p.screen_tab = Some(screens::Tab::Bags);
+            p.money = p.money.max(57);
+        }
+    }
+    if ui == "loot" {
+        // a fallen creature a few steps ahead, its loot open
+        let d = p.player.look_dir();
+        let d = Vec3::new(d.x, 0.0, d.z).normalize_or_zero();
+        let at = p.player.pos + d * 4.0 + Vec3::new(-d.z, 0.0, d.x) * 0.8;
+        let at = Vec3::new(
+            at.x,
+            p.world.surface(at.x as i32, at.z as i32) as f32 + 1.0,
+            at.z,
+        );
+        let creature = p
+            .content
+            .creatures
+            .iter()
+            .find(|c| c.key == "thornboar")
+            .map(|c| c.id)
+            .unwrap_or(0);
+        let id = 9_000_000;
+        p.entities.insert(
+            id,
+            ClientEntity {
+                kind: EntityKind::Corpse {
+                    creature,
+                    loot: true,
+                },
+                from: at.into(),
+                to: at.into(),
+                at: Instant::now(),
+                yaw: p.player.yaw + 1.2,
+                born: if std::env::var_os("DYNO_CORPSE_UPRIGHT").is_some() {
+                    Instant::now()
+                } else {
+                    Instant::now() - Duration::from_secs(5)
+                },
+                hurt_at: None,
+                info: None,
+                name: None,
+            },
+        );
+        let item = |k: &str| p.content.item_by_key(k);
+        let items = [("boar_tusk", 2), ("torn_hide", 1), ("thornhide_boots", 1)]
+            .iter()
+            .filter_map(|(k, n)| item(k).map(|i| dyno_protocol::Stack::new(i, *n)))
+            .collect();
+        p.loot = Some((id, 23, items));
     }
     p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
     if ui == "dig"

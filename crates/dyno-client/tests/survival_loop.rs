@@ -857,3 +857,146 @@ fn characters_are_created_listed_and_deleted() {
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Kill, loot the body by hand, then spend the coins at a merchant.
+#[test]
+fn corpses_are_looted_and_merchants_sell() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-loot-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let j = net::connect(&addr, "looter", 777, false, Duration::from_secs(5)).expect("join");
+    let c = j.content.clone();
+    let mut pack = vec![None; 36];
+    let tilda = c.npcs.iter().find(|n| n.key == "tilda").unwrap().id;
+    let mut tilda_at = None;
+    let mut money = None;
+    let end = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < end && (tilda_at.is_none() || money.is_none()) {
+        match wait_opt(&j, &mut pack, 0.2, |m| Some(m.clone())) {
+            Some(ServerMsg::EntitySpawn {
+                id,
+                kind: EntityKind::Npc(n),
+                pos,
+                ..
+            }) if n == tilda => tilda_at = Some((id, pos)),
+            Some(ServerMsg::Character { money: m, .. }) => money = Some(m),
+            _ => {}
+        }
+    }
+    let (tilda_id, tilda_pos) = tilda_at.expect("Tilda stands in town");
+    let money0 = money.unwrap_or(0);
+    // a rare elite: always carries its sash
+    pose(&j, j.spawn);
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/summon rook_varn".into(),
+        },
+    );
+    wait(&j, &mut pack, 3.0, |m, _| {
+        matches!(
+            m,
+            ServerMsg::EntitySpawn {
+                kind: EntityKind::Creature(_),
+                ..
+            }
+        )
+        .then_some(())
+    });
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/slay".into(),
+        },
+    );
+    let corpse = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::EntitySpawn {
+            id,
+            kind: EntityKind::Corpse { loot: true, .. },
+            ..
+        } => Some(*id),
+        _ => None,
+    });
+    // open it: the sash is inside; nothing went to the bags by itself
+    let sash = c.item_by_key("rook_varns_sash").unwrap();
+    assert_eq!(count(&pack, sash), 0, "loot waits on the body");
+    send(
+        &j,
+        ClientMsg::Loot {
+            id: corpse,
+            all: false,
+        },
+    );
+    let (coins, items) = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Loot { id, money, items } if *id == corpse => Some((*money, items.clone())),
+        _ => None,
+    });
+    assert!(items.iter().any(|s| s.item == sash), "{items:?}");
+    // take everything: the body empties and stops glinting
+    send(
+        &j,
+        ClientMsg::LootTake {
+            id: corpse,
+            slot: 255,
+        },
+    );
+    wait(&j, &mut pack, 3.0, |m, p| {
+        matches!(m, ServerMsg::Pack(_))
+            .then_some(())
+            .filter(|_| count(p, sash) == 1)
+    });
+    wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::EntitySpawn {
+            id,
+            kind: EntityKind::Corpse { loot: false, .. },
+            ..
+        } if *id == corpse => Some(()),
+        _ => None,
+    });
+    // a merchant: five loaves of Hearth Bread
+    send(
+        &j,
+        ClientMsg::Chat {
+            text: "/money 100".into(),
+        },
+    );
+    let purse = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Character { money, .. } if *money >= 100 + coins + money0 => Some(*money),
+        _ => None,
+    });
+    let bread = c.item_by_key("hearth_bread").unwrap();
+    let price = c.npcs[tilda as usize]
+        .sells
+        .iter()
+        .find(|(i, _)| *i == bread)
+        .unwrap()
+        .1;
+    pose(&j, [tilda_pos[0] + 1.0, tilda_pos[1], tilda_pos[2]]);
+    std::thread::sleep(Duration::from_millis(100));
+    send(
+        &j,
+        ClientMsg::Buy {
+            npc: tilda_id,
+            item: bread,
+            count: 5,
+        },
+    );
+    let left = wait(&j, &mut pack, 3.0, |m, p| match m {
+        ServerMsg::Character { money, .. } if count(p, bread) == 5 => Some(*money),
+        _ => None,
+    });
+    assert_eq!(left, purse - 5 * price);
+    // too poor for the smith's best pick: nothing changes hands
+    let pick = c.item_by_key("iron_pickaxe").unwrap();
+    let hollis = c.npcs.iter().find(|n| n.key == "hollis").unwrap();
+    assert!(hollis.sells.iter().any(|(i, _)| *i == pick));
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -64,6 +64,8 @@ pub struct Player {
     pub xp: u32,
     /// copper
     pub money: u32,
+    /// banked rested XP
+    pub rested: u32,
     pub quests: Vec<proto::QuestProgress>,
     pub done: HashSet<u16>,
     /// no health regeneration until then
@@ -173,6 +175,9 @@ pub struct State {
     pub depleted: HashMap<[i32; 3], u64>,
     /// the Nightfall Incursion, when one is under way
     pub incursion: Option<crate::events::Incursion>,
+    /// fallen creatures still holding loot
+    pub corpses: HashMap<u32, crate::loot::Corpse>,
+    pub rested_clock: f32,
     /// weather kind (0 clear, 1 cloudy, 2 rain, 3 fog), strength, seconds left
     pub weather: (u8, f32, f32),
 }
@@ -525,6 +530,17 @@ impl State {
                 }
             }
         }
+        // time away banks rested XP: in full in a town or camp, a little anywhere else
+        let data_rested_before = data.rested;
+        let rested_now = if self.rpg() && data.last_seen > 0 {
+            let hours = now_secs().saturating_sub(data.last_seen) as f32 / 3600.0;
+            let next = dyno_sim::progression::xp_to_next(data.level.max(1));
+            let safe = self.in_safe_area(data.pos);
+            (data.rested + crate::loot::rested_gain(next, hours, safe))
+                .min(crate::loot::rested_cap(next))
+        } else {
+            data.rested
+        };
         let pose = Pose {
             pos: data.pos,
             yaw: 0.0,
@@ -559,6 +575,7 @@ impl State {
             level: data.level.max(1),
             xp: data.xp,
             money: data.money,
+            rested: rested_now,
             quests: data
                 .quests
                 .iter()
@@ -674,6 +691,12 @@ impl State {
                 (true, None) => dyno_sim::progression::max_health(p.level),
                 _ => 20.0,
             };
+            after.push(ServerMsg::Rested { pool: p.rested });
+            if p.rested > 0 && rested_now > data_rested_before {
+                after.push(ServerMsg::System {
+                    text: "You feel rested: kills give double experience for a while.".into(),
+                });
+            }
             after.push(ServerMsg::Character {
                 class: p.class,
                 look: p.look,
@@ -794,6 +817,7 @@ impl State {
             level: p.level,
             xp: p.xp,
             money: p.money,
+            rested: p.rested,
             class: p
                 .class
                 .and_then(|c| self.content.class(c))
@@ -935,6 +959,9 @@ impl State {
             ClientMsg::Unequip { place } => self.unequip(id, place),
             ClientMsg::AutoAttack { target } => self.set_auto_attack(id, target),
             ClientMsg::Sell { from } => self.sell(id, from),
+            ClientMsg::Loot { id: corpse, all } => self.open_loot(id, corpse, all),
+            ClientMsg::LootTake { id: corpse, slot } => self.take_loot(id, corpse, slot),
+            ClientMsg::Buy { npc, item, count } => self.buy(id, npc, item, count),
             ClientMsg::Gather { pos } => self.gather(id, pos),
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
@@ -1613,6 +1640,7 @@ impl State {
         }
         self.tick_power(dt);
         self.tick_items(dt);
+        self.tick_loot(dt);
         self.tick_creatures(dt);
         self.spawn_creatures(dt);
         self.tick_players(dt);

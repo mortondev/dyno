@@ -332,6 +332,9 @@ pub struct Npc {
     /// where they stand, relative to the spawn hearth
     pub at: [i32; 3],
     pub greeting: String,
+    /// what they sell, and the price in copper
+    #[serde(default)]
+    pub sells: Vec<(ItemId, u32)>,
 }
 
 /// One thing a quest asks for.
@@ -731,6 +734,9 @@ struct ANpc {
     at: [i32; 3],
     #[serde(default)]
     greeting: String,
+    /// item keys, each optionally with a price: "cooked_meat:25"
+    #[serde(default)]
+    sells: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -1068,11 +1074,26 @@ impl Content {
                 aggro: c.aggro,
             });
         }
-        let npcs: Vec<Npc> = f
-            .npcs
-            .iter()
-            .enumerate()
-            .map(|(i, n)| Npc {
+        let mut npcs: Vec<Npc> = Vec::new();
+        for (i, n) in f.npcs.iter().enumerate() {
+            let mut sells = Vec::new();
+            for s in &n.sells {
+                let (k, price) = match s.split_once(':') {
+                    Some((k, p)) => (k.trim(), p.trim().parse::<u32>().ok()),
+                    None => (s.trim(), None),
+                };
+                let id = item(k)?;
+                // a merchant asks four times what they would pay you
+                let value = f
+                    .items
+                    .iter()
+                    .find(|it| it.key == k)
+                    .map(|it| it.value)
+                    .unwrap_or(0);
+                let price = price.unwrap_or(value * 4).max(1);
+                sells.push((id, price));
+            }
+            npcs.push(Npc {
                 id: i as u16,
                 key: n.key.clone(),
                 name: n.name.clone(),
@@ -1080,8 +1101,9 @@ impl Content {
                 color: n.color,
                 at: n.at,
                 greeting: n.greeting.clone(),
-            })
-            .collect();
+                sells,
+            });
+        }
         let npc = |k: &str| -> Result<u16, String> {
             npcs.iter()
                 .find(|n| n.key == k)

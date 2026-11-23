@@ -785,7 +785,7 @@ impl State {
         let Some(e) = self.entities.get(&id) else {
             return;
         };
-        let (pos, mob) = (e.pos, e.mob.clone());
+        let (pos, yaw, mob) = (e.pos, e.yaw, e.mob.clone());
         self.entities.remove(&id);
         self.broadcast(
             &ServerMsg::EntityGone {
@@ -810,43 +810,26 @@ impl State {
         let Some((key, list)) = list else {
             return;
         };
-        // RPG: loot goes straight into the killer's bags (the ground if they are full)
         let looter = mob
             .last_hit
-            .filter(|(_, at)| self.rpg() && at.elapsed() < Duration::from_secs(10))
+            .filter(|(_, at)| at.elapsed() < Duration::from_secs(10))
             .map(|(p, _)| p);
-        let mut looted = Vec::new();
+        let mut items = Vec::new();
         for d in list {
             if self.rng.f32() < d.chance {
                 let n = self.rng.range(d.min as u32, d.max as u32) as u8;
-                if n == 0 {
-                    continue;
+                if n > 0 {
+                    items.push(Stack::new(d.item, n));
                 }
-                let mut st = Stack::new(d.item, n);
-                if let Some(p) = looter.and_then(|l| self.players.get_mut(&l)) {
-                    match p.pack.add(&self.content, st) {
-                        None => {
-                            looted.push(st);
-                            continue;
-                        }
-                        Some(rest) => st = rest,
-                    }
-                }
-                self.spawn_item([pos[0], pos[1] + 0.6, pos[2]], st, 0.2);
             }
         }
-        if let Some(l) = looter
-            && let Some(p) = self.players.get(&l)
-        {
-            p.send(&ServerMsg::Pack(p.pack.slots.clone()));
-            for st in looted {
-                let name = self.content.item(st.item).name.to_string();
-                let text = if st.count > 1 {
-                    format!("You receive loot: {name} ×{}", st.count)
-                } else {
-                    format!("You receive loot: {name}")
-                };
-                p.send(&ServerMsg::System { text });
+        if self.rpg() {
+            // RPG: the body stays, holding its loot for whoever killed it
+            let money = self.roll_money(mob.creature, mob.level);
+            self.spawn_corpse(pos, yaw, mob.creature, looter, money, items);
+        } else {
+            for st in items {
+                self.spawn_item([pos[0], pos[1] + 0.6, pos[2]], st, 0.2);
             }
         }
         if let Some((pid, at)) = mob.last_hit

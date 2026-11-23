@@ -289,7 +289,19 @@ impl State {
         let Some(p) = self.players.get_mut(&id) else {
             return;
         };
-        let xp = prog::kill_xp(p.level, level);
+        let base = prog::kill_xp(p.level, level);
+        // rested: the same again, out of the bank
+        let bonus = base.min(p.rested);
+        p.rested -= bonus;
+        let xp = base + bonus;
+        if bonus > 0 {
+            p.send(&ServerMsg::Rested { pool: p.rested });
+            if p.rested == 0 {
+                p.send(&ServerMsg::System {
+                    text: "You feel normal again.".into(),
+                });
+            }
+        }
         let mut changed = false;
         for q in p.quests.iter_mut() {
             let Some(quest) = self.content.quest(q.quest) else {

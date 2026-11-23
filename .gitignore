@@ -2,3 +2,4 @@
 /.tracker
 *.pem
 /world*/
+.claude/worktrees/

@@ -59,6 +59,9 @@ pub struct PlayerData {
     pub zone: String,
     #[serde(default)]
     pub power: f32,
+    /// banked rested XP
+    #[serde(default)]
+    pub rested: u32,
 }
 
 fn level_one() -> u8 {
@@ -123,6 +126,7 @@ impl PlayerData {
             done: Vec::new(),
             class: None,
             power: 0.0,
+            rested: 0,
             equip: Vec::new(),
             skills: Vec::new(),
             look: Default::default(),

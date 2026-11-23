@@ -1,6 +1,6 @@
 {
  "name": "Hearthblock Online",
- "version": 6,
+ "version": 7,
  "items": [
   {
    "key": "stick",
@@ -1419,6 +1419,33 @@
      "spi": 2
     }
    }
+  },
+  {
+   "key": "hearth_bread",
+   "name": "Hearth Bread",
+   "color": [
+    0.82,
+    0.62,
+    0.36
+   ],
+   "icon": "lump",
+   "quality": 1,
+   "value": 1,
+   "food": 6
+  },
+  {
+   "key": "miners_stew",
+   "name": "Miner's Stew",
+   "color": [
+    0.55,
+    0.34,
+    0.2
+   ],
+   "icon": "meat",
+   "quality": 1,
+   "value": 6,
+   "level": 5,
+   "food": 12
   }
  ],
  "blocks": {
@@ -3159,7 +3186,13 @@
     0,
     2
    ],
-   "greeting": "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+   "greeting": "Hungry? Everyone's hungry. Nobody brings me anything to cook.",
+   "sells": [
+    "hearth_bread",
+    "cooked_meat:6",
+    "berries:2",
+    "miners_stew"
+   ]
   },
   {
    "key": "hollis",
@@ -3175,7 +3208,23 @@
     0,
     7
    ],
-   "greeting": "Hammer's ready. Iron isn't. Never is."
+   "greeting": "Hammer's ready. Iron isn't. Never is.",
+   "sells": [
+    "worn_shortsword",
+    "rough_maul",
+    "hunting_bow",
+    "rusty_dagger",
+    "oak_mace",
+    "apprentice_staff",
+    "battered_buckler",
+    "worn_tunic",
+    "worn_trousers",
+    "worn_boots",
+    "stone_pickaxe:20",
+    "stone_axe:20",
+    "iron_pickaxe:150",
+    "iron_axe:150"
+   ]
   },
   {
    "key": "holt",
@@ -3223,7 +3272,11 @@
     -10,
     97
    ],
-   "greeting": "Bandits in my fields, crabs in my ditches. Good thing the mill still turns."
+   "greeting": "Bandits in my fields, crabs in my ditches. Good thing the mill still turns.",
+   "sells": [
+    "hearth_bread",
+    "berries:2"
+   ]
   },
   {
    "key": "wenna",
@@ -3255,7 +3308,14 @@
     -4,
     12
    ],
-   "greeting": "Supplies are short, the road's cut, and nobody will go back down that mine."
+   "greeting": "Supplies are short, the road's cut, and nobody will go back down that mine.",
+   "sells": [
+    "hearth_bread",
+    "miners_stew",
+    "woolen_cloak",
+    "grazer_hide_leggings",
+    "iron_pickaxe:150"
+   ]
   },
   {
    "key": "dunmore",

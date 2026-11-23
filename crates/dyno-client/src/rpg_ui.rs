@@ -20,6 +20,8 @@ pub enum Panel {
     },
     /// the quest log; `quest` is the selected entry
     Log { quest: Option<u16> },
+    /// a merchant's goods
+    Vendor { entity: u32, npc: u16 },
 }
 
 pub enum RpgCmd {
@@ -28,11 +30,17 @@ pub enum RpgCmd {
     Abandon(u16),
     Close,
     Show(Panel),
+    /// buy from a merchant entity: item, count
+    Buy(u32, u16, u8),
+    /// take from a corpse: slot (254 money, 255 everything)
+    Loot(u32, u8),
+    CloseLoot,
 }
 
 /// What a player knows about their own character.
 pub struct Me<'a> {
     pub content: &'a Content,
+    pub money: u32,
     pub level: u8,
     pub log: &'a [QuestProgress],
     pub done: &'a HashSet<u16>,
@@ -323,11 +331,15 @@ fn quest_row(
 pub fn dialog_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<RpgCmd> {
     let mut out = Vec::new();
     let Panel::Dialog {
-        npc, quest, choice, ..
+        entity,
+        npc,
+        quest,
+        choice,
     } = panel
     else {
         return out;
     };
+    let entity = *entity;
     let c = me.content;
     let Some(n) = c.npc(*npc) else {
         out.push(RpgCmd::Close);
@@ -388,6 +400,23 @@ pub fn dialog_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<Rpg
                             if resp.clicked() {
                                 *quest = Some(q.id);
                                 *choice = 0;
+                            }
+                        }
+                        if !n.sells.is_empty() {
+                            any = true;
+                            let resp = quest_row(
+                                ui,
+                                "$",
+                                GOLD,
+                                "Let me browse your goods.",
+                                theme::INK_GOLD,
+                                "Merchant",
+                                theme::INK_FADED,
+                                false,
+                                Color32::from_rgba_unmultiplied(150, 104, 30, 60),
+                            );
+                            if resp.clicked() {
+                                out.push(RpgCmd::Show(Panel::Vendor { entity, npc: *npc }));
                             }
                         }
                         if !any {
@@ -898,7 +927,17 @@ fn fmt_u8(n: u8, buf: &mut [u8; 3]) -> &str {
 
 /// The XP bar, centred at `at`, `width` wide (just above the action bar):
 /// twenty segments in a gold trim.
-pub fn xp_bar(painter: &egui::Painter, at: Pos2, width: f32, xp: u32, next: u32, level: u8) {
+/// The experience bar. While rested it turns blue, and a paler band shows
+/// how far double XP will carry you.
+pub fn xp_bar(
+    painter: &egui::Painter,
+    at: Pos2,
+    width: f32,
+    xp: u32,
+    next: u32,
+    level: u8,
+    rested: u32,
+) {
     let r = Rect::from_center_size(at, Vec2::new(width, 9.0));
     painter.rect_filled(r, 2.0, Color32::from_rgb(16, 10, 20));
     let f = if next > 0 {
@@ -908,12 +947,38 @@ pub fn xp_bar(painter: &egui::Painter, at: Pos2, width: f32, xp: u32, next: u32,
     };
     let inner = r.shrink(1.5);
     let fill = Rect::from_min_size(inner.min, Vec2::new(inner.width() * f, inner.height()));
-    theme::gradient_rect(
-        painter,
-        fill,
-        Color32::from_rgb(190, 130, 250),
-        Color32::from_rgb(104, 52, 176),
-    );
+    if rested > 0 && next > 0 {
+        let to = ((xp + rested) as f32 / next as f32).clamp(0.0, 1.0);
+        let band = Rect::from_min_max(
+            Pos2::new(fill.right(), inner.top()),
+            Pos2::new(inner.left() + inner.width() * to, inner.bottom()),
+        );
+        painter.rect_filled(band, 0.0, Color32::from_rgba_unmultiplied(70, 120, 230, 90));
+        // the rested marker
+        let x = band.right();
+        painter.add(egui::Shape::convex_polygon(
+            vec![
+                Pos2::new(x - 4.0, r.top() - 5.0),
+                Pos2::new(x + 4.0, r.top() - 5.0),
+                Pos2::new(x, r.top() + 1.0),
+            ],
+            Color32::from_rgb(120, 170, 255),
+            Stroke::new(1.0_f32, theme::OUTLINE),
+        ));
+        theme::gradient_rect(
+            painter,
+            fill,
+            Color32::from_rgb(120, 170, 255),
+            Color32::from_rgb(40, 80, 190),
+        );
+    } else {
+        theme::gradient_rect(
+            painter,
+            fill,
+            Color32::from_rgb(190, 130, 250),
+            Color32::from_rgb(104, 52, 176),
+        );
+    }
     if f > 0.0 && f < 1.0 {
         painter.line_segment(
             [fill.right_top(), fill.right_bottom()],
@@ -956,7 +1021,9 @@ pub fn xp_bar(painter: &egui::Painter, at: Pos2, width: f32, xp: u32, next: u32,
             Stroke::new(1.0_f32, theme::OUTLINE),
         );
     }
-    let text = if next > 0 {
+    let text = if next > 0 && rested > 0 {
+        format!("Level {level}   {xp} / {next} XP   Rested +{rested}")
+    } else if next > 0 {
         format!("Level {level}   {xp} / {next} XP")
     } else {
         format!("Level {level}")
@@ -969,4 +1036,247 @@ pub fn xp_bar(painter: &egui::Painter, at: Pos2, width: f32, xp: u32, next: u32,
         theme::body_font(12.0),
         Color32::from_rgb(226, 214, 190),
     );
+}
+
+/// A merchant's goods: click to buy one, shift-click for five.
+pub fn vendor_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<RpgCmd> {
+    let mut out = Vec::new();
+    let Panel::Vendor { entity, npc } = *panel else {
+        return out;
+    };
+    let c = me.content;
+    let Some(n) = c.npc(npc) else {
+        out.push(RpgCmd::Close);
+        return out;
+    };
+    let mut open = true;
+    theme::window(
+        ctx,
+        "npc-vendor",
+        &n.name,
+        "Merchant",
+        360.0,
+        (Align2::LEFT_CENTER, Vec2::new(40.0, 0.0)),
+        &mut open,
+        |ui| {
+            ui.label(
+                RichText::new(
+                    "Click to buy. Shift-click buys five. Right-click your bag items to sell.",
+                )
+                .small()
+                .color(theme::TEXT_DIM),
+            );
+            ui.add_space(4.0);
+            egui::ScrollArea::vertical()
+                .max_height(380.0)
+                .show(ui, |ui| {
+                    for &(item, price) in &n.sells {
+                        let it = c.item(item);
+                        let afford = me.money >= price;
+                        let (r, resp) = ui.allocate_exact_size(
+                            Vec2::new(ui.available_width(), 46.0),
+                            egui::Sense::click(),
+                        );
+                        let p = ui.painter();
+                        p.rect_filled(
+                            r,
+                            4.0,
+                            if resp.hovered() {
+                                Color32::from_rgba_unmultiplied(150, 104, 30, 70)
+                            } else {
+                                Color32::from_black_alpha(90)
+                            },
+                        );
+                        let icon =
+                            Rect::from_min_size(r.min + Vec2::new(4.0, 4.0), Vec2::splat(38.0));
+                        p.rect_filled(icon, 3.0, Color32::from_black_alpha(160));
+                        crate::survival::item_icon(p, icon, c, item);
+                        p.rect_stroke(
+                            icon,
+                            3.0,
+                            Stroke::new(1.0_f32, theme::quality_color(it.quality)),
+                            egui::StrokeKind::Inside,
+                        );
+                        p.text(
+                            Pos2::new(icon.right() + 10.0, r.top() + 8.0),
+                            Align2::LEFT_TOP,
+                            it.name,
+                            theme::body_font(15.0),
+                            theme::quality_color(it.quality),
+                        );
+                        let req = if it.level > me.level {
+                            format!("Requires level {}", it.level)
+                        } else {
+                            String::new()
+                        };
+                        p.text(
+                            Pos2::new(icon.right() + 10.0, r.bottom() - 7.0),
+                            Align2::LEFT_BOTTOM,
+                            req,
+                            theme::body_font(11.5),
+                            Color32::from_rgb(220, 90, 80),
+                        );
+                        p.text(
+                            Pos2::new(r.right() - 8.0, r.center().y),
+                            Align2::RIGHT_CENTER,
+                            prog::money_text(price),
+                            theme::body_font(14.0),
+                            if afford {
+                                theme::GOLD
+                            } else {
+                                Color32::from_rgb(220, 90, 80)
+                            },
+                        );
+                        let s = dyno_protocol::Stack::new(item, 1);
+                        let resp = resp.on_hover_ui(|ui| {
+                            crate::screens::item_tooltip(ui, c, &s, None, me.level)
+                        });
+                        if resp.clicked() {
+                            let five = ui.input(|i| i.modifiers.shift);
+                            out.push(RpgCmd::Buy(entity, item, if five { 5 } else { 1 }));
+                        }
+                        ui.add_space(3.0);
+                    }
+                });
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("Your purse:").color(theme::TEXT_DIM));
+                ui.label(RichText::new(prog::money_text(me.money)).color(theme::GOLD));
+            });
+        },
+    );
+    if !open {
+        out.push(RpgCmd::Close);
+    }
+    out
+}
+
+/// A corpse's loot: click a line to take it.
+pub fn loot_window(
+    ctx: &egui::Context,
+    c: &Content,
+    id: u32,
+    money: u32,
+    items: &[dyno_protocol::Stack],
+) -> Vec<RpgCmd> {
+    let mut out = Vec::new();
+    let mut open = true;
+    let pos = ctx
+        .input(|i| i.pointer.latest_pos())
+        .unwrap_or(Pos2::new(120.0, 220.0));
+    egui::Window::new("Loot")
+        .id(egui::Id::new("loot-window"))
+        .title_bar(false)
+        .resizable(false)
+        .collapsible(false)
+        .default_pos(pos + Vec2::new(20.0, -40.0))
+        .frame(theme::window_frame())
+        .fixed_size(Vec2::new(230.0, 0.0))
+        .open(&mut open)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("Loot")
+                        .font(theme::title_font(16.0))
+                        .color(theme::GOLD),
+                );
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.small_button("×").clicked() {
+                        out.push(RpgCmd::CloseLoot);
+                    }
+                });
+            });
+            let row = |ui: &mut egui::Ui, draw: &dyn Fn(&egui::Painter, Rect)| -> bool {
+                let (r, resp) = ui.allocate_exact_size(
+                    Vec2::new(ui.available_width(), 40.0),
+                    egui::Sense::click(),
+                );
+                let p = ui.painter();
+                p.rect_filled(
+                    r,
+                    4.0,
+                    if resp.hovered() {
+                        Color32::from_rgba_unmultiplied(150, 104, 30, 80)
+                    } else {
+                        Color32::from_black_alpha(100)
+                    },
+                );
+                draw(p, r);
+                resp.clicked()
+            };
+            if money > 0 {
+                let clicked = row(ui, &|p, r| {
+                    let icon = Rect::from_min_size(r.min + Vec2::new(4.0, 4.0), Vec2::splat(32.0));
+                    p.circle_filled(icon.center(), 11.0, Color32::from_rgb(230, 180, 60));
+                    p.circle_stroke(
+                        icon.center(),
+                        11.0,
+                        Stroke::new(1.5_f32, Color32::from_rgb(140, 100, 30)),
+                    );
+                    p.text(
+                        Pos2::new(icon.right() + 8.0, r.center().y),
+                        Align2::LEFT_CENTER,
+                        prog::money_text(money),
+                        theme::body_font(15.0),
+                        theme::GOLD,
+                    );
+                });
+                if clicked {
+                    out.push(RpgCmd::Loot(id, 254));
+                }
+                ui.add_space(2.0);
+            }
+            for (i, st) in items.iter().enumerate() {
+                let it = c.item(st.item);
+                let st = *st;
+                let clicked = row(ui, &|p, r| {
+                    let icon = Rect::from_min_size(r.min + Vec2::new(4.0, 4.0), Vec2::splat(32.0));
+                    p.rect_filled(icon, 3.0, Color32::from_black_alpha(160));
+                    crate::survival::item_icon(p, icon, c, st.item);
+                    p.rect_stroke(
+                        icon,
+                        3.0,
+                        Stroke::new(1.0_f32, theme::quality_color(it.quality)),
+                        egui::StrokeKind::Inside,
+                    );
+                    if st.count > 1 {
+                        p.text(
+                            icon.right_bottom() + Vec2::new(-2.0, -1.0),
+                            Align2::RIGHT_BOTTOM,
+                            st.count.to_string(),
+                            theme::body_font(12.0),
+                            Color32::WHITE,
+                        );
+                    }
+                    p.text(
+                        Pos2::new(icon.right() + 8.0, r.center().y),
+                        Align2::LEFT_CENTER,
+                        it.name,
+                        theme::body_font(15.0),
+                        theme::quality_color(it.quality),
+                    );
+                });
+                if clicked {
+                    out.push(RpgCmd::Loot(id, i as u8));
+                }
+                ui.add_space(2.0);
+            }
+            ui.add_space(4.0);
+            ui.vertical_centered(|ui| {
+                if ui
+                    .button(
+                        RichText::new("Take All")
+                            .font(theme::title_font(13.0))
+                            .color(theme::GOLD),
+                    )
+                    .clicked()
+                {
+                    out.push(RpgCmd::Loot(id, 255));
+                }
+            });
+        });
+    if !open {
+        out.push(RpgCmd::CloseLoot);
+    }
+    out
 }

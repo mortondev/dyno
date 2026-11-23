@@ -33,6 +33,8 @@ pub enum EntityKind {
     Item(Stack),
     /// a friendly character from the content, by NPC ID
     Npc(u16),
+    /// a fallen creature; `loot` while it still holds something
+    Corpse { creature: u16, loot: bool },
 }
 
 /// One quest in a player's log: counts per objective.
@@ -51,7 +53,7 @@ pub enum EnvDamage {
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 12;
+pub const PROTOCOL_VERSION: u32 = 13;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -218,6 +220,22 @@ pub enum ClientMsg {
     /// Sell a bag slot's stack to the NPC you are talking to.
     Sell {
         from: u8,
+    },
+    /// Open a corpse's loot (`all`: take everything at once).
+    Loot {
+        id: u32,
+        all: bool,
+    },
+    /// Take one thing from an open corpse: an item slot, 254 the money, 255 all.
+    LootTake {
+        id: u32,
+        slot: u8,
+    },
+    /// Buy from a merchant (an NPC entity).
+    Buy {
+        npc: u32,
+        item: u16,
+        count: u8,
     },
 }
 
@@ -509,6 +527,16 @@ pub enum ServerMsg {
         entity: Option<u32>,
         amount: f32,
         crit: bool,
+    },
+    /// A corpse's contents for you (nothing and no money: the window closes).
+    Loot {
+        id: u32,
+        money: u32,
+        items: Vec<Stack>,
+    },
+    /// Rested XP you have banked: kills give double XP until it runs out.
+    Rested {
+        pool: u32,
     },
 }
 

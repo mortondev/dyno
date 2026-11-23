@@ -11,6 +11,7 @@ pub mod creatures;
 pub mod events;
 pub mod game;
 pub mod gear;
+pub mod loot;
 pub mod migrate;
 pub mod professions;
 pub mod rpg;
@@ -237,6 +238,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         zone_clock: 0.0,
         depleted: HashMap::new(),
         incursion: None,
+        corpses: Default::default(),
+        rested_clock: 0.0,
         weather: (0, 0.0, 240.0),
     };
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
@@ -659,7 +662,7 @@ impl Server {
         log(format!("{me} ran {line}"));
         let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(id, "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /reload"),
+            "/help" => st.tell(id, "Commands: /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
             "/who" => {
                 let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
@@ -753,6 +756,43 @@ impl Server {
                         let keys: Vec<String> = st.content.creatures.iter().map(|c| c.key.clone()).collect();
                         st.tell(id, format!("Usage: /summon <{}>", keys.join("|")));
                     }
+                }
+            }
+            "/slay" => {
+                if !op {
+                    return st.tell(id, "Only the world's owner can slay creatures.");
+                }
+                // the nearest creature within 20 blocks falls, as if you had killed it
+                let me_at = st.players[&id].pose.pos;
+                let near = st
+                    .entities
+                    .iter()
+                    .filter(|(_, e)| e.mob.is_some())
+                    .map(|(eid, e)| (*eid, game::dist(e.pos, me_at)))
+                    .filter(|(_, d)| *d < 20.0)
+                    .min_by(|a, b| a.1.total_cmp(&b.1));
+                match near {
+                    Some((eid, _)) => {
+                        if let Some(m) = st.entities.get_mut(&eid).and_then(|e| e.mob.as_mut()) {
+                            m.last_hit = Some((id, std::time::Instant::now()));
+                        }
+                        st.kill_mob_by(eid);
+                    }
+                    None => st.tell(id, "No creature near enough."),
+                }
+            }
+            "/money" => {
+                if !op {
+                    return st.tell(id, "Only the world's owner can mint coins.");
+                }
+                match arg.trim().parse::<u32>() {
+                    Ok(n) => {
+                        if let Some(p) = st.players.get_mut(&id) {
+                            p.money = p.money.saturating_add(n);
+                        }
+                        st.send_character(id);
+                    }
+                    Err(_) => st.tell(id, "Usage: /money <copper>"),
                 }
             }
             "/time" => {
