@@ -1475,8 +1475,26 @@ fn build_person(l: &Look) -> [Person; 3] {
     })
 }
 
+#[cfg(test)]
+thread_local! {
+    /// While baking: the grids the builders made, in order.
+    static SNAPSHOTS: std::cell::RefCell<Vec<bake::Snapshot>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+fn snapshot(v: &Vox) {
+    SNAPSHOTS.with(|s| s.borrow_mut().push(bake::Snapshot::of(v)));
+}
+#[cfg(not(test))]
+fn snapshot(_: &Vox) {}
+
+#[cfg(test)]
+#[path = "bake.rs"]
+mod bake;
+
 /// A model at full, half and quarter detail.
 fn lods<T>(v: &Vox, mesh: impl Fn(&Vox) -> T) -> [T; 3] {
+    snapshot(v);
     let half = v.half();
     let quarter = half.half();
     [mesh(v), mesh(&half), mesh(&quarter)]
@@ -2563,6 +2581,10 @@ fn build_wisp(color: [f32; 3]) -> [Wisp; 3] {
         p
     };
     let puffs = [0, 1, 2, 3].map(puff);
+    snapshot(&v);
+    for p in &puffs {
+        snapshot(p);
+    }
     let tails = [
         puffs[0].half(),
         puffs[1].half(),
@@ -3786,6 +3808,7 @@ fn build_held(kind: Kind, color: [f32; 3], quality: u8, glows: bool, frame: u8) 
             (0.36, 26.0, 0.0)
         }
     };
+    snapshot(&v);
     Held {
         mesh: v.mesh(1, [0.0; 3]),
         unit: real / span,

@@ -29,6 +29,10 @@ macro_rules! anims {
                     $(Anim::$v => stringify!($v)),*
                 }
             }
+            /// The animation with this name ("Idle", "Attack1H"...).
+            pub fn by_name(name: &str) -> Option<Anim> {
+                Anim::ALL.iter().copied().find(|a| a.name() == name)
+            }
         }
     };
 }
@@ -331,6 +335,21 @@ pub mod key {
 
 pub const MAX_BONES: usize = 16;
 
+#[cfg(test)]
+thread_local! {
+    /// While baking clips: the Euler angles each pose function gave each
+    /// bone (x, y, z; the bone's own order).
+    pub static CAPTURE: std::cell::RefCell<[[f32; 3]; MAX_BONES]> =
+        const { std::cell::RefCell::new([[0.0; 3]; MAX_BONES]) };
+}
+
+#[cfg(test)]
+fn cap(i: usize, e: [f32; 3]) {
+    CAPTURE.with(|c| c.borrow_mut()[i] = e);
+}
+#[cfg(not(test))]
+fn cap(_: usize, _: [f32; 3]) {}
+
 /// A pose: for each bone a rotation about its pivot and an offset of the
 /// pivot (in model voxels), plus shape keys ([`key`]).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -522,6 +541,17 @@ impl B {
         p.rot[CAPE] = Quat::from_rotation_x(self.cape);
         p.k[key::FLOW] = self.flow;
         p.k[key::SHAPE] = self.flap;
+        cap(PELVIS, self.pelvis);
+        cap(SPINE, self.spine);
+        cap(HEAD, self.head);
+        for i in 0..2 {
+            cap(ARM_U[i], self.arm[i]);
+            cap(ARM_L[i], self.fore[i]);
+            cap(THIGH[i], self.thigh[i]);
+            cap(SHIN[i], [self.shin[i], 0.0, 0.0]);
+        }
+        cap(GRIP, self.grip);
+        cap(CAPE, [self.cape, 0.0, 0.0]);
         p
     }
 
@@ -1457,9 +1487,14 @@ pub fn wraith(a: Anim, at: &At) -> Pose {
         }
     }
     p.off[BODY] = lift;
+    let roll = 2.0 * p.rot[BODY].z.atan2(p.rot[BODY].w);
+    cap(BODY, [lean, turn * 0.3, roll]);
+    cap(HOOD, [nod + lean * 0.4, turn, 0.0]);
     p.rot[BODY] = Quat::from_rotation_y(turn * 0.3) * Quat::from_rotation_x(lean) * p.rot[BODY];
     p.rot[HOOD] = euler(nod + lean * 0.4, turn, 0.0);
     for (i, s) in SIDES.into_iter().enumerate() {
+        cap(ARM_U[i], [arm[i][0], arm[i][1] * s, arm[i][2] * s]);
+        cap(ARM_L[i], [fore[i], 0.0, 0.0]);
         p.rot[ARM_U[i]] = euler(arm[i][0], arm[i][1] * s, arm[i][2] * s);
         p.rot[ARM_L[i]] = Quat::from_rotation_x(fore[i]);
     }
@@ -1738,7 +1773,10 @@ pub fn quadruped(a: Anim, at: &At, rig: &QuadRig) -> Pose {
     p.off[BODY] = off;
     p.rot[BODY] = euler(pitch, yaw, roll);
     p.rot[HEAD] = euler(head[0], head[1], 0.0);
+    cap(BODY, [pitch, yaw, roll]);
+    cap(HEAD, [head[0], head[1], 0.0]);
     for (i, l) in legs.iter().enumerate() {
+        cap(LEGS[i], [l[0], 0.0, l[1] * side(i)]);
         p.rot[LEGS[i]] = Quat::from_rotation_x(l[0]) * Quat::from_rotation_z(l[1] * side(i));
     }
     p.k[key::FLOW] = flow;
@@ -2013,8 +2051,14 @@ pub fn multileg(a: Anim, at: &At, rig: &MultiRig) -> Pose {
     }
     p.off[BODY] = off;
     p.rot[BODY] = Quat::from_rotation_y(-FRAC_PI_2 * face) * euler(pitch, 0.0, roll);
+    cap(BODY, [pitch, -FRAC_PI_2 * face, roll]);
     for (i, l) in rig.legs.iter().take(n).enumerate() {
         let s = l.side;
+        if rig.sideways {
+            cap(LEG0 + i, [-s * (lift[i] * 0.4 + swing[i] * 0.22), 0.0, 0.0]);
+        } else {
+            cap(LEG0 + i, [0.0, -s * swing[i] * 0.38, s * lift[i] * 0.3]);
+        }
         p.rot[LEG0 + i] = if rig.sideways {
             Quat::from_rotation_x(-s * (lift[i] * 0.4 + swing[i] * 0.22))
         } else {
@@ -2023,6 +2067,7 @@ pub fn multileg(a: Anim, at: &At, rig: &MultiRig) -> Pose {
     }
     for i in 0..rig.claws.min(2) {
         let s = SIDES[i];
+        cap(CLAW[i], [0.0, s * (-0.2 + pinch[i]), claw[i]]);
         p.rot[CLAW[i]] =
             Quat::from_rotation_z(claw[i]) * Quat::from_rotation_y(s * (-0.2 + pinch[i]));
     }
@@ -2146,6 +2191,7 @@ pub fn wisp(a: Anim, at: &At) -> Pose {
     }
     p.off[ROOT] = off;
     p.rot[ROOT] = Quat::from_rotation_x(tilt);
+    cap(ROOT, [tilt, 0.0, 0.0]);
     p.off[VEIL] = Vec3::splat(veil);
     p.k[key::SHAPE] = size;
     p.k[key::SPREAD] = spread;
@@ -2286,6 +2332,38 @@ impl Animator {
                 let w = smooth(t / ACTION_IN).min(smooth((d - t) / ACTION_OUT));
                 let q = pose(a, &At { t, ..at });
                 let mask = if self.base.moving() { upper } else { u32::MAX };
+                p = p.blend(&q, w, mask);
+            }
+        }
+        p.k[key::CLOCK] = now;
+        p
+    }
+}
+
+impl Animator {
+    /// The pose at `now` from a figure's clips: the base state crossfading
+    /// from the last, and the action layered on (upper body only while the
+    /// legs move).
+    pub fn pose_clips(&mut self, now: f32, set: &crate::clip::ClipSet) -> Pose {
+        let mut p = set.pose(self.base, (now - self.since).max(0.0), self.stride, self.seed);
+        if let Some((from, start)) = &self.from {
+            let w = (now - start) / FADE;
+            if w < 1.0 {
+                p = from.blend(&p, smooth(w), u32::MAX);
+            } else {
+                self.from = None;
+            }
+        }
+        self.last = Some(p);
+        if let Some((a, start)) = self.action {
+            let t = now - start;
+            let d = set.duration(a).unwrap_or(0.0);
+            if t >= d || t < 0.0 {
+                self.action = None;
+            } else {
+                let w = smooth(t / ACTION_IN).min(smooth((d - t) / ACTION_OUT));
+                let q = set.pose(a, t, self.stride, self.seed);
+                let mask = if self.base.moving() { set.upper } else { u32::MAX };
                 p = p.blend(&q, w, mask);
             }
         }

@@ -64,6 +64,36 @@ pub fn load_dir(root: &Path) -> std::io::Result<usize> {
     Ok(n)
 }
 
+/// Until a server pack arrives: load the local `content/` pack, found from
+/// `DYNO_CONTENT`, the working directory or the program's own place in the
+/// source tree. Does nothing if the store already holds files. Returns how
+/// many files were loaded.
+pub fn load_local() -> usize {
+    if !store().read().unwrap().is_empty() {
+        return 0;
+    }
+    let mut dirs: Vec<std::path::PathBuf> = Vec::new();
+    if let Ok(d) = std::env::var("DYNO_CONTENT") {
+        dirs.push(d.into());
+    }
+    dirs.push("content".into());
+    if let Ok(exe) = std::env::current_exe() {
+        // target/<profile>/dyno → the workspace's content/
+        for up in exe.ancestors().skip(1).take(4) {
+            dirs.push(up.join("content"));
+        }
+    }
+    dirs.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content"));
+    for d in dirs {
+        if d.join("figures.json").is_file()
+            && let Ok(n) = load_dir(&d)
+        {
+            return n;
+        }
+    }
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

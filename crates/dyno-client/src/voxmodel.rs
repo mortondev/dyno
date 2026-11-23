@@ -216,6 +216,17 @@ impl Vox {
         }
     }
 
+    /// The ink and part at a voxel, if it is solid.
+    pub fn voxel(&self, x: i32, y: i32, z: i32) -> Option<(Ink, u8)> {
+        let i = self.idx(x, y, z)?;
+        (self.cells[i] != 0).then(|| (self.cells[i], self.parts[i]))
+    }
+
+    /// The colour of an ink and whether it glows.
+    pub fn color(&self, ink: Ink) -> ([f32; 3], bool) {
+        self.palette[ink as usize]
+    }
+
     pub fn solid(&self, x: i32, y: i32, z: i32) -> bool {
         self.get(x, y, z) != 0
     }
