@@ -74,7 +74,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         settings,
         gfx: None,
         audio: Audio::new(),
-        egui_ctx: egui::Context::default(),
+        egui_ctx: crate::theme::new_context(),
         egui_state: None,
         screen: Screen::Menu,
         host: None,
@@ -2653,6 +2653,11 @@ impl App {
             && let Some(st) = &self.stage
         {
             if !self.stage_loaded {
+                gfx.set_focus(Vec3::new(
+                    st.hearth[0] as f32,
+                    st.hearth[1] as f32,
+                    st.hearth[2] as f32,
+                ));
                 gfx.load_world(&st.world, &st.light);
                 self.stage_loaded = true;
             }
@@ -2711,6 +2716,7 @@ impl App {
             let proj = glam::Mat4::from_translation(Vec3::new(shift, 0.0, 0.0))
                 * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt.max(1.0), 0.05, far);
             view = Some((proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y), eye, far));
+            gfx.update_lod(&st.world, &st.light, eye);
             gfx.water.look_from(&st.world, eye.into(), st.hearth);
         }
         if let Screen::Playing(p) = &mut self.screen {
@@ -3318,7 +3324,7 @@ impl App {
                     },
                     _ => ([0.3, 0.9, 0.35], 0.7),
                 };
-                render::push_ground_ring_on(&mut boxes, &p.world, e.pos(), r, col);
+                render::push_ground_ring_on(&mut boxes, &p.world, &p.ground, e.pos(), r, col);
             }
             // creatures
             let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
@@ -5258,7 +5264,7 @@ fn hud(
         let label = if m.online {
             format!(
                 "{}{}  {}",
-                if m.leader { "♛ " } else { "" },
+                if m.leader { "* " } else { "" },
                 m.name,
                 m.level
             )
@@ -5594,6 +5600,7 @@ impl ApplicationHandler for App {
                 g.water.quality = self.settings.water_quality;
                 eprintln!("graphics: {}", g.adapter_info);
                 g.cover.set_quality(self.settings.ground_cover);
+                crate::foliage::set_detail(self.settings.leaf_detail);
                 crate::theme::apply(&self.egui_ctx);
                 self.egui_ctx.style_mut(|s| {
                     s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
@@ -5824,6 +5831,11 @@ pub fn shot_front(
         light,
         hearth,
     } = pack_stage().ok_or("the pack has no title stage (content/stage)")?;
+    gfx.set_focus(Vec3::new(
+        hearth[0] as f32,
+        hearth[1] as f32,
+        hearth[2] as f32,
+    ));
     gfx.load_world(&world, &light);
     let recent = if addr.is_empty() {
         Vec::new()
@@ -5896,7 +5908,7 @@ pub fn shot_front(
     let vp = glam::Mat4::from_translation(Vec3::new(f.preview_offset(), 0.0, 0.0))
         * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     crate::theme::apply(&ctx);
     ctx.style_mut(|s| s.animation_time = 0.0);
     let raw = || egui::RawInput {
@@ -6013,7 +6025,7 @@ pub fn shot_with_ui(
     // the world is drawn as play draws it: lit and meshed on the world
     // thread, uploaded within a budget each frame, frames rendered at ~60 Hz
     gfx.begin_world(&p.world);
-    let fctx = egui::Context::default();
+    let fctx = crate::theme::new_context();
     let mut frames: Vec<(f64, f64)> = Vec::new();
     let mut land_at: Option<Duration> = None;
     let started = Instant::now();
@@ -6277,6 +6289,7 @@ pub fn shot_with_ui(
         // the meshes built bit by bit, against the whole view at once
         let built = gfx.world_vertices();
         let whole = Light::new(&p.world);
+        gfx.set_focus(p.player.eye());
         gfx.load_world(&p.world, &whole);
         let again = gfx.world_vertices();
         eprintln!(
@@ -6562,7 +6575,7 @@ pub fn shot_with_ui(
             }
         }
     }
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     crate::theme::apply(&ctx);
     ctx.style_mut(|s| {
         s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
@@ -6602,6 +6615,14 @@ pub fn shot_with_ui(
         let (vo, vt) = gfx.world_vertices();
         eprintln!(
             "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
+        );
+        let (gv, levels) = gfx.ground_stats();
+        eprintln!("ground: {gv} vertices; sections by voxels a metre {levels:?}");
+        let (sections, ms) = crate::render::mesh_cost();
+        eprintln!(
+            "meshing: {sections} sections in {ms:.0} ms on the world thread's cores ({:.2} ms a section); vertex memory {:.0} MB",
+            ms / sections.max(1) as f64,
+            (vo + vt) as f64 * std::mem::size_of::<crate::render::Vertex>() as f64 / 1048576.0
         );
     }
     let mut creatures: Vec<String> = p

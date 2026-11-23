@@ -42,6 +42,13 @@ struct FoliageFile {
     depth: f32,
     /// how much each cube's brightness strays from its colour
     vary: f32,
+    /// crowns are drawn in clumps within this many metres of the camera;
+    /// beyond it, a block of leaves is one cube (a quarter of the faces)
+    near: f32,
+    /// seen close, each face of a cube breaks into this many squares a side,
+    /// of slightly different brightness (0: plain faces), by this much
+    grain: u8,
+    grain_vary: f32,
     /// colours (sRGB, 0 to 255) per leaf block key; each cube takes one
     leaves: BTreeMap<String, Vec<[u8; 3]>>,
     /// the blocks trees are made of: leaves near one take their tone from
@@ -60,6 +67,9 @@ impl Default for FoliageFile {
             under: 0.7,
             depth: 4.0,
             vary: 0.1,
+            near: 48.0,
+            grain: 0,
+            grain_vary: 0.0,
             leaves: BTreeMap::new(),
             trunks: Vec::new(),
             areas: BTreeMap::new(),
@@ -103,6 +113,9 @@ pub struct Foliage {
     under: f32,
     depth: f32,
     vary: f32,
+    near: f32,
+    grain: f32,
+    grain_vary: f32,
     /// per block ID
     palettes: Vec<Palette>,
     trunks: [bool; 256],
@@ -160,6 +173,9 @@ impl Foliage {
             under: f.under.clamp(0.0, 1.0),
             depth: f.depth.max(1.0),
             vary: f.vary.clamp(0.0, 0.5),
+            near: f.near.max(0.0),
+            grain: f.grain.min(8) as f32,
+            grain_vary: f.grain_vary.clamp(0.0, 0.9),
             palettes,
             trunks,
             areas,
@@ -170,6 +186,49 @@ impl Foliage {
     pub fn voxels(&self) -> bool {
         self.cells > 0
     }
+
+    /// Whether a section is drawn in clumps for a camera at `focus` (always,
+    /// without one). `was` is how it is drawn now, if it is: a section keeps
+    /// its level a little past the line, so walking along it changes nothing.
+    pub fn fine(&self, focus: Option<[f32; 3]>, section: [i32; 3], was: Option<bool>) -> bool {
+        let Some(cam) = focus else { return true };
+        let near = self.near * detail();
+        if near <= 0.0 {
+            return false;
+        }
+        let n = N as f32;
+        let d = (0..3)
+            .map(|i| ((section[i] as f32 + 0.5) * n - cam[i]).powi(2))
+            .sum::<f32>()
+            .sqrt();
+        match was {
+            Some(true) => d < near + 8.0,
+            Some(false) => d < near - 8.0,
+            None => d < near,
+        }
+    }
+}
+
+static DETAIL: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1000);
+
+/// The player's setting for leaf detail: scales how far from the camera
+/// crowns are drawn in clumps (0: nowhere; 1: the pack's distance).
+pub fn set_detail(setting: f32) {
+    DETAIL.store(
+        (setting.clamp(0.0, 4.0) * 1000.0) as u32,
+        std::sync::atomic::Ordering::Relaxed,
+    );
+}
+
+/// The setting, unless `DYNO_LEAVES` says otherwise (tools).
+fn detail() -> f32 {
+    static TOOL: std::sync::OnceLock<Option<f32>> = std::sync::OnceLock::new();
+    TOOL.get_or_init(|| {
+        std::env::var("DYNO_LEAVES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+    })
+    .unwrap_or_else(|| DETAIL.load(std::sync::atomic::Ordering::Relaxed) as f32 / 1000.0)
 }
 
 /// The foliage in the pack now, read again only when the file changes.
@@ -246,9 +305,14 @@ fn nearest_trunk(f: &Foliage, g: &Grid, c: [i32; 3]) -> Option<(i32, i32)> {
     None
 }
 
-/// Draw the section's leaf blocks as clumps of cubes.
-pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo) {
-    let n = f.cells;
+/// Draw the section's leaf blocks as clumps of cubes (`fine`), or each
+/// block as one cube (for the distance).
+pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo, fine: bool) {
+    let n = if fine { f.cells } else { 1 };
+    let erode = if fine { f.erode } else { 0.0 };
+    geo.leaves_fine = Some(fine);
+    let own =
+        |x: i32, y: i32, z: i32| (0..N).contains(&x) && (0..N).contains(&y) && (0..N).contains(&z);
     // which cubes are there, for the section's blocks and one block round them
     let dim = ((N + 2) * n) as usize;
     let idx = |x: i32, y: i32, z: i32| {
@@ -264,6 +328,12 @@ pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo) {
                     continue;
                 }
                 let leaf = fl & F_LEAVES != 0;
+                // whole blocks cannot tell how a neighbouring section drew
+                // its leaves (it may be in clumps, with gaps): the faces
+                // towards it are drawn
+                if leaf && !fine && !own(bx, by, bz) {
+                    continue;
+                }
                 // the open sides of the block
                 let open = |d: i32, axis: usize| {
                     let mut p = [bx, by, bz];
@@ -293,7 +363,7 @@ pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo) {
                                             || (c[*a] == n - 1 && sides[*a][1])
                                     })
                                     .count();
-                                let chance = f.erode * [0.0, 0.25, 0.85, 1.25][exposed];
+                                let chance = erode * [0.0, 0.25, 0.85, 1.25][exposed];
                                 let (wx, wy, wz) = (
                                     (g.o[0] + bx) * n + i,
                                     (g.o[1] + by) * n + j,
@@ -348,7 +418,11 @@ pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo) {
                     over += 1;
                 }
                 let layer = t.face(b, 0);
-                let tex = [1.0, 0.0, KIND_FOLIAGE + layer as f32, 0.0];
+                // seen close a face breaks into `grain` squares a side: the
+                // shader tells them apart by the face's own coordinates,
+                // which start at a whole number that differs face to face
+                let grain = if fine { f.grain } else { 0.0 };
+                let anim = grain + f.grain_vary.min(0.99);
                 for j in 0..n {
                     for k in 0..n {
                         for i in 0..n {
@@ -376,13 +450,20 @@ pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo) {
                                     [q[0].div_euclid(n), q[1].div_euclid(n), q[2].div_euclid(n)];
                                 let (bl, sl) = g.light(light, lb);
                                 let o = [0, 1, 2].map(|a| p[a] + nrm[a].max(0));
+                                let seed = hash(
+                                    cx,
+                                    cy,
+                                    cz,
+                                    3 + nrm[0].unsigned_abs() + 2 * nrm[1].unsigned_abs(),
+                                );
+                                let (su0, sv0) = ((seed & 31) as f32, ((seed >> 5) & 31) as f32);
                                 let mut quad = [Vertex {
                                     pos: [0.0; 3],
                                     normal: [nrm[0] as f32, nrm[1] as f32, nrm[2] as f32],
                                     color: [rgb[0], rgb[1], rgb[2], 1.0],
                                     light: bl / 15.0,
                                     sky: sl / 15.0,
-                                    tex,
+                                    tex: [0.0, 0.0, KIND_FOLIAGE + layer as f32, anim],
                                 }; 4];
                                 let mut ao = [0u8; 4];
                                 for (vi, (a, b2)) in
@@ -407,6 +488,9 @@ pub(crate) fn mesh(f: &Foliage, g: &Grid, light: &Light, geo: &mut SectionGeo) {
                                         g.o[ax] as f32 + (o[ax] + a * u[ax] + b2 * v[ax]) as f32 * s
                                     });
                                     quad[vi].color[3] = shade * crease;
+                                    // tex.x from 1 up marks leaves as cubes
+                                    quad[vi].tex[0] = 1.0 + su0 + a as f32;
+                                    quad[vi].tex[1] = sv0 + b2 as f32;
                                 }
                                 // split so the shading runs evenly across the face
                                 let order = if ao[0] + ao[2] > ao[1] + ao[3] {
@@ -491,7 +575,7 @@ mod tests {
                 for sx in 0..3 {
                     let g = Grid::load(&world, &light, [sx * N, sy * N, sz * N]);
                     let mut geo = SectionGeo::default();
-                    mesh(&f, &g, &light, &mut geo);
+                    mesh(&f, &g, &light, &mut geo, true);
                     for tri in geo.opaque.chunks(6) {
                         let mid = tri.iter().fold([0f32; 3], |a, v| {
                             [0, 1, 2].map(|i| a[i] + v.pos[i] * n / 6.0)
@@ -508,6 +592,24 @@ mod tests {
         }
         assert!(faces > 100, "the crown has faces: {faces}");
         assert!(full.is_disjoint(&open), "sections disagree about a cube");
+        // far from the camera a block is one cube: far fewer faces, and a
+        // section far from a camera is drawn that way
+        let mut coarse = 0;
+        for sy in 0..3 {
+            for sz in 0..3 {
+                for sx in 0..3 {
+                    let g = Grid::load(&world, &light, [sx * N, sy * N, sz * N]);
+                    let mut geo = SectionGeo::default();
+                    mesh(&f, &g, &light, &mut geo, false);
+                    assert_eq!(geo.leaves_fine, Some(false));
+                    coarse += geo.opaque.len() / 6;
+                }
+            }
+        }
+        assert!(coarse > 50 && coarse * 2 < faces, "{coarse} of {faces}");
+        assert!(f.fine(None, [0, 0, 0], None));
+        assert!(f.fine(Some([8.0, 8.0, 8.0]), [0, 0, 0], None));
+        assert!(!f.fine(Some([8.0, 8.0, 8.0]), [40, 0, 0], None));
         // and the whole world meshed as one piece gives the same faces
         let mut again = 0;
         for sy in 0..3 {

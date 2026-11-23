@@ -198,10 +198,22 @@ struct Worker {
     urgent: HashSet<SectionPos>,
     cam: [f32; 3],
     dir: [f32; 3],
+    /// levels of detail of the ground, from the camera
+    lods: crate::fine::Lods,
+    /// the level each built section was meshed at
+    built_lod: std::collections::HashMap<SectionPos, crate::fine::Lod>,
+    /// the camera has been told (until then leaves are meshed in full)
+    focused: bool,
+    /// sections with leaves drawn as cubes: whether in clumps (near the
+    /// camera) or a cube a block; remeshed when the camera makes it the other
+    leafy: std::collections::HashMap<SectionPos, bool>,
+    /// where the camera was when `leafy` was last looked through
+    leafy_at: [f32; 3],
 }
 
 impl Worker {
     fn new(world: World) -> Worker {
+        let dims = world.section_dims();
         let held = world.held_list();
         let at = Instant::now() - WHOLE_WAIT;
         Worker {
@@ -213,6 +225,11 @@ impl Worker {
             urgent: HashSet::new(),
             cam: [0.0; 3],
             dir: [0.0, 0.0, -1.0],
+            lods: crate::fine::Lods::new(dims),
+            built_lod: std::collections::HashMap::new(),
+            focused: false,
+            leafy: std::collections::HashMap::new(),
+            leafy_at: [f32::MAX; 3],
         }
     }
 
@@ -233,6 +250,8 @@ impl Worker {
                     self.world.drop_section(s);
                     self.light.forget(s);
                     self.built.remove(&s);
+                    self.built_lod.remove(&s);
+                    self.leafy.remove(&s);
                     self.todo.remove(&s);
                     self.urgent.remove(&s);
                     self.unlit.retain(|(u, _)| *u != s);
@@ -258,6 +277,16 @@ impl Worker {
             Job::Focus(cam, dir) => {
                 self.cam = cam;
                 self.dir = dir;
+                self.focused = true;
+                self.leaves_again();
+                // ground whose level of detail changed is meshed again
+                if self.lods.update(cam) {
+                    for (s, l) in &self.built_lod {
+                        if *l != self.lods.lod(*s) {
+                            self.todo.insert(*s);
+                        }
+                    }
+                }
             }
         }
     }
@@ -274,6 +303,26 @@ impl Worker {
                 for sx in s0(lo[0], 0)..=s1(hi[0], 0) {
                     self.urgent.insert([sx, sy, sz]);
                 }
+            }
+        }
+    }
+
+    /// Remesh the sections whose leaves should now be drawn finer or
+    /// coarser, the camera having moved on.
+    fn leaves_again(&mut self) {
+        let moved: f32 = (0..3)
+            .map(|i| (self.cam[i] - self.leafy_at[i]).powi(2))
+            .sum();
+        if moved < 16.0 {
+            return;
+        }
+        self.leafy_at = self.cam;
+        let Some(f) = crate::foliage::current() else {
+            return;
+        };
+        for (s, fine) in &self.leafy {
+            if f.fine(Some(self.cam), *s, Some(*fine)) != *fine && self.built.contains(s) {
+                self.todo.insert(*s);
             }
         }
     }
@@ -429,7 +478,26 @@ impl Worker {
         // the open sky, and rock all round, draw nothing: no need to mesh
         let (empty, solid): (Vec<SectionPos>, Vec<SectionPos>) =
             list.into_iter().partition(|s| self.nothing_to_draw(*s));
-        let geos = render::mesh_many(&self.world, &self.light, &solid);
+        // each with how its leaves are drawn now, and its ground at the
+        // level of detail the camera calls for
+        let with: Vec<_> = solid
+            .iter()
+            .map(|s| (*s, self.leafy.get(s).copied(), self.lods.lod(*s)))
+            .collect();
+        for (s, _, l) in &with {
+            self.built_lod.insert(*s, *l);
+        }
+        let focus = self.focused.then_some(self.cam);
+        let geos = render::mesh_many_at(&self.world, &self.light, &with, focus);
+        for s in &empty {
+            self.leafy.remove(s);
+        }
+        for (s, g) in solid.iter().zip(&geos) {
+            match g.leaves_fine {
+                Some(fine) => self.leafy.insert(*s, fine),
+                None => self.leafy.remove(s),
+            };
+        }
         empty
             .into_iter()
             .map(|s| (s, SectionGeo::default()))
@@ -567,7 +635,24 @@ mod tests {
         }
         let all = game.held_list();
         assert_eq!(meshes.len(), all.len(), "every section meshed");
-        let once = render::mesh_many(&game, &whole, &all);
+        // each at the level of detail the worker chose for it
+        let at: Vec<_> = all.iter().map(|s| (*s, meshes[s].lod)).collect();
+        let once = render::mesh_many(&game, &whole, &at);
+        // the ground's faces merge by light, and a section may be meshed
+        // before the light next door has settled: compare the area it
+        // covers, which is its shape
+        let area = |g: &SectionGeo| -> f64 {
+            g.ground
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|q| {
+                    let a = glam::Vec3::from(q[1].pos) - glam::Vec3::from(q[0].pos);
+                    let b = glam::Vec3::from(q[3].pos) - glam::Vec3::from(q[0].pos);
+                    a.cross(b).length() as f64
+                })
+                .sum()
+        };
         for (s, g) in all.iter().zip(once) {
             let m = &meshes[s];
             assert_eq!(
@@ -575,6 +660,7 @@ mod tests {
                 (g.opaque.len(), g.trans.len()),
                 "section {s:?}"
             );
+            assert!((area(m) - area(&g)).abs() < 1e-3, "section {s:?}: ground");
         }
     }
 }
