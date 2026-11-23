@@ -148,7 +148,7 @@ impl Fetch {
             .collect();
         self.progress
             .total
-            .store(files.iter().map(|f| f.size as u64).sum(), Ordering::Relaxed);
+            .store(files.iter().map(|f| f.wire as u64).sum(), Ordering::Relaxed);
         self.progress.done.store(0, Ordering::Relaxed);
         let mut seen = HashSet::new();
         let mut want = Vec::new();
@@ -156,12 +156,12 @@ impl Fetch {
             // the same bytes under two paths, or the rules we already hold
             let held = !seen.insert(f.hash) || (old_rules == Some(f.hash) && self.rules.is_some());
             if held {
-                self.add_done(f.size as u64);
+                self.add_done(f.wire as u64);
                 continue;
             }
             match self.cache.read(&f) {
                 Some(b) => {
-                    self.add_done(f.size as u64);
+                    self.add_done(f.wire as u64);
                     self.store(&f.hash, b);
                 }
                 None => {
@@ -216,8 +216,16 @@ impl Fetch {
         if have < total as usize {
             return;
         }
-        let bytes = self.partial.remove(&hash).unwrap_or_default();
+        let data = self.partial.remove(&hash).unwrap_or_default();
         self.waiting.remove(&hash);
+        // as it travelled: decode to the file, at most its size
+        let bytes = self
+            .manifest
+            .files
+            .iter()
+            .find(|f| f.hash == hash)
+            .and_then(|f| proto::wire::decode(f.codec, &data, f.size as usize))
+            .unwrap_or_default();
         if cache::sha256(&bytes) != hash {
             eprintln!("pack file {} arrived damaged", proto::hex(&hash));
             return;

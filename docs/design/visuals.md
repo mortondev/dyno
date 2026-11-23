@@ -115,26 +115,36 @@ seed:
 
 ### What was built
 
-- **Detail mesher** (`crates/dyno-client/src/detail.rs`). A small kit of
-  boxes, bevelled boxes, solids of revolution and free polygons, in a
-  per-block frame that can be turned, with light and occlusion blended
-  from the cells round each vertex. Shapes:
-  - roofs: straight slopes, four shingle courses a block (two for thatch),
-    eaves reaching a third of a block past the wall with fascia boards and
-    rafter ends, ridge caps or a ridge roll, barge boards and closed ends
-    at the gables, a planked underside, and the gable wall carried up under
-    the slope;
-  - timber: proud beams in walls (the wall stays closed), slim chamfered
-    posts on stone footings with caps, fence rails, beams over gates;
-  - round tree trunks with root flare that thin into the canopy;
-  - stone pillars with plinth, swelling shaft and capital (also the quest
-    beacons);
-  - barrels, crates, hay bales with twine, an anvil on a stump, a brazier
-    on legs with glowing coals, flower boxes, lanterns (on posts, hanging,
-    or on wall brackets), thin banners with rods and swallowtails, windows
-    with jambs, mullions, sills and glass, plank doors with iron straps;
-  - cloth: awnings sag between their posts with scalloped flaps; tents
-    slope like roofs.
+- **Detail shapes are pack data** (`crates/dyno-client/src/shapes.rs`,
+  `content/blocks.json`, `content/shapes/*.vox`). The hand-built kit
+  (`detail.rs`) was baked to MagicaVoxel models at 16 voxels a block and
+  deleted; each shaped block names a rule set that picks a class and turn
+  from its neighbours and, per part, a model. The engine draws the voxels,
+  and what it does with them is data too:
+  - **slopes:** a 45° run of voxel steps of one colour becomes one sloped
+    polygon (lit by its own normal, textured along the slope: a repeat per
+    block of rise), merged greedily; the faces across it are cut to the
+    same line and merged row by row into trapezoids, so a roof is a few
+    polygons per cell, not hundreds of steps. `"slope": false` on a colour
+    keeps its steps (the dark lip of each course of shingles);
+  - **round parts:** `"round"` on a part draws its voxels as a solid of
+    revolution with the same area slice by slice (trunks with 8 sides,
+    posts, barrels, pillar shafts, the anvil's stump, the ridge roll),
+    with the texture wrapped round it (`wrap`, `vscale`), smooth or flat
+    sided, capped only where an end stops inside the cell;
+  - **texture:** faces take their texture by place in the cell, or with
+    `"uv": "fit"` on a colour stretched over that colour's bounds in the
+    model (crates, hay bales, doors, the anvil, flowers);
+  - **variation per place:** a class's `spin` (a trunk's twist) and
+    `jitter` (props set a little askew), a part's `lift` (one flower bed's
+    flowers higher than the next), all hashed from the column;
+  - **joins:** a part with `"joins": true` drops its faces on the cell's
+    sides where the next cell is the same block, class and turn (the
+    inside of a long roof, a run of windows).
+  The shapes keep the look of the old kit: roofs with shingle courses,
+  eaves with fascia and rafter ends, barge boards and closed gables, ridge
+  rolls; timber posts and beams; tree trunks; pillars; props; windows and
+  doors; cloth awnings and tents.
 - **Paving as ground.** Cobble, mossy cobble and flagstones lying flush
   with the ground join the smooth surface, so paths and the plaza blend
   into grass along a ragged painted edge.
@@ -179,6 +189,15 @@ best of nine runs, frame and load are medians over six shots per camera.
 The town's sections cost about 30–50% more to mesh than before: that is
 the detail geometry (about twice the town's vertices). Load and frame
 time are within about 25%.
+
+After the bake to voxels (slopes and round parts in the mesher, cleaner
+roof, eave, gable, post, window and flower-bed models), measured back to
+back with the pre-bake build on the town test (`town_remesh_cost`, best of
+nine per section, on a loaded 16-core machine): average 0.47–0.50 ms
+against 0.45–0.46 ms; worst section 1.76–1.80 ms against 1.15–1.51 ms (the
+densest red roof); 1.62 M vertices against 1.36 M. The baked voxels as first
+drawn, one quad per run of steps, were 0.84 ms average, 8.9 ms worst and
+5.18 M vertices.
 
 ### Still to do
 

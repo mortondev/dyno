@@ -8,6 +8,14 @@
 //! (`hold` keeps its last frame); a loop has a `loop` length. Locomotion
 //! clips also have `stride` channels keyed by the fraction of a stride cycle,
 //! added to the timed ones, so the feet follow the ground covered.
+//!
+//! A clip with `"mirror": true` may play mirrored left for right (a hit
+//! react flinches either way): the file's `mirror_pairs` name the bones that
+//! swap (`[["thigh.l", "thigh.r"], ...]`), the figure's x axis is its
+//! left-right, and the animator picks the side each time the clip starts.
+//!
+//! The server streams the compact form (`anims/<skeleton>.clips`,
+//! `dyno_protocol::clips`), which decodes to the same JSON.
 
 use crate::anim::{Anim, MAX_BONES, Pose, key};
 use glam::{EulerRot, Quat, Vec3};
@@ -89,6 +97,8 @@ pub struct Clip {
     pub looping: Option<f32>,
     /// holds its last frame when done (a death)
     pub hold: bool,
+    /// may play mirrored, left for right
+    pub mirror: bool,
     pub time: Vec<(Target, Channel)>,
     pub stride: Vec<(Target, Channel)>,
 }
@@ -104,6 +114,8 @@ pub struct ClipSet {
     /// the per-figure seed the clips were made at: loops of a figure with
     /// another seed start further in
     pub seed: f32,
+    /// each bone's mirror image (itself when it has no pair)
+    pub mirror: [usize; MAX_BONES],
 }
 
 impl ClipSet {
@@ -119,6 +131,17 @@ impl ClipSet {
     /// The pose of `a` at `t` seconds in, at stride phase `stride`
     /// (radians) for a figure with seed `seed`.
     pub fn pose(&self, a: Anim, t: f32, stride: f32, seed: f32) -> Pose {
+        self.pose_side(a, t, stride, seed, false)
+    }
+
+    /// Whether `a` may play mirrored.
+    pub fn mirrors(&self, a: Anim) -> bool {
+        self.clip(a).is_some_and(|c| c.mirror)
+    }
+
+    /// [`ClipSet::pose`], mirrored left for right when `mirrored` and the
+    /// clip allows it.
+    pub fn pose_side(&self, a: Anim, t: f32, stride: f32, seed: f32, mirrored: bool) -> Pose {
         let Some(c) = self.clip(a) else {
             return Pose::REST;
         };
@@ -146,6 +169,16 @@ impl ClipSet {
         };
         apply(&c.time, t, false);
         apply(&c.stride, u, true);
+        if mirrored && c.mirror {
+            // reflect through the figure's left-right (x) plane: bones swap
+            // with their pairs, turns about y and z and moves along x flip
+            let (e0, o0) = (euler, p.off);
+            for b in 0..MAX_BONES {
+                let m = self.mirror[b];
+                euler[m] = [e0[b][0], -e0[b][1], -e0[b][2]];
+                p.off[m] = Vec3::new(-o0[b].x, o0[b].y, o0[b].z);
+            }
+        }
         for (b, e) in euler.iter().enumerate() {
             if e != &[0.0; 3] {
                 p.rot[b] = rotation(self.order[b], *e);
@@ -264,6 +297,7 @@ pub fn parse_clip(sk: &SkeletonSpec, v: &Value) -> Result<Clip, String> {
         duration: num("duration"),
         looping: num("loop"),
         hold: v.get("hold").and_then(|h| h.as_bool()).unwrap_or(false),
+        mirror: v.get("mirror").and_then(|h| h.as_bool()).unwrap_or(false),
         time: channels(sk, v.get("time"))?,
         stride: channels(sk, v.get("stride"))?,
     })
@@ -273,6 +307,32 @@ pub fn parse_clip(sk: &SkeletonSpec, v: &Value) -> Result<Clip, String> {
 /// set `default` for clips it does not give.
 pub fn parse_sets(sk: &SkeletonSpec, v: &Value) -> Result<HashMap<String, Rc<ClipSet>>, String> {
     let seed = v.get("seed").and_then(|s| s.as_f64()).unwrap_or(0.0) as f32;
+    let mut mirror: [usize; MAX_BONES] = std::array::from_fn(|i| i);
+    for pair in v
+        .get("mirror_pairs")
+        .and_then(|m| m.as_array())
+        .into_iter()
+        .flatten()
+    {
+        let names: Vec<&str> = pair
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|n| n.as_str())
+            .collect();
+        let [a, b] = names[..] else {
+            return Err("clips: a mirror pair is two bone names".into());
+        };
+        let bone = |n: &str| {
+            sk.bone(n)
+                .ok_or_else(|| format!("clips: mirror: no bone {n}"))
+        };
+        let (a, b) = (bone(a)?, bone(b)?);
+        if a < MAX_BONES && b < MAX_BONES {
+            mirror[a] = b;
+            mirror[b] = a;
+        }
+    }
     let sets = v
         .get("sets")
         .and_then(|s| s.as_object())
@@ -303,6 +363,7 @@ pub fn parse_sets(sk: &SkeletonSpec, v: &Value) -> Result<HashMap<String, Rc<Cli
                 order: sk.orders(),
                 upper: sk.upper_mask(),
                 seed,
+                mirror,
             };
             (name, Rc::new(set))
         })
