@@ -579,7 +579,6 @@ mod tests {
             got[0]
         );
         // a block changes in a far tile while the viewer stays where they are
-        let mut world = world;
         let g = world.surface(20, 20);
         world.set(20, g + 1, 20, dyno_world::STONE_BRICKS);
         let changed: HashSet<TilePos> = world

@@ -139,6 +139,8 @@ struct Play {
     far: crate::farview::FarTiles,
     far_dirty: std::collections::HashSet<[i32; 2]>,
     far_centre: Option<[f32; 2]>,
+    /// the slowest far tile made and uploaded (for `dyno shot` stats)
+    far_worst: Duration,
     /// the land round you has not all streamed in and been meshed yet (a
     /// join, a long teleport): a loading veil is shown
     land_wait: bool,
@@ -1496,8 +1498,10 @@ fn far_uploads(p: &mut Play, gfx: &mut Gfx, cam: Vec3, budget: Duration) -> Dura
     for t in todo {
         p.far_dirty.remove(&t);
         if p.far.contains_key(&t) {
+            let one = Instant::now();
             let verts = crate::farview::mesh_tile(&p.far, t, centre, cut);
             gfx.put_far(t, &verts);
+            p.far_worst = p.far_worst.max(one.elapsed());
         }
         if t0.elapsed() >= budget {
             break;
@@ -1548,6 +1552,7 @@ fn new_play(j: Joined) -> Play {
         far: Default::default(),
         far_dirty: Default::default(),
         far_centre: None,
+        far_worst: Duration::ZERO,
         world: j.world,
         land_wait: true,
         conn: j.conn,
@@ -6623,8 +6628,9 @@ pub fn shot_with_ui(
         let (vo, vt) = gfx.world_vertices();
         let (ft, fv) = gfx.far_stats();
         eprintln!(
-            "stats: far view {ft} tiles, {fv} vertices, {:.1} MB on the GPU",
-            (fv as usize * std::mem::size_of::<Vertex>()) as f64 / 1048576.0
+            "stats: far view {ft} tiles, {fv} vertices, {:.1} MB on the GPU; slowest tile made and uploaded {:.1} ms",
+            (fv as usize * std::mem::size_of::<crate::render::FarVertex>()) as f64 / 1048576.0,
+            p.far_worst.as_secs_f64() * 1e3
         );
         eprintln!(
             "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"

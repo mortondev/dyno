@@ -17,7 +17,7 @@
 //! near land. Cells beyond `COARSE` metres are drawn 8 m wide (2 × 2 cells
 //! as one: the lowest ground, the highest top), a quarter of the vertices.
 
-use crate::render::{Vertex, srgb};
+use crate::render::{FarVertex, srgb};
 use dyno_world::BlockId;
 use dyno_world::far::{CELL, FarTile, TILE, TILE_CELLS, TilePos};
 use std::cell::RefCell;
@@ -33,10 +33,13 @@ pub const FADE: f32 = 32.0;
 /// Beyond this, cells are drawn 8 m wide.
 pub const COARSE: f32 = 400.0;
 
-/// Shader code (render.rs): the ground tone path, lit like the land.
-const K_GROUND: f32 = -2.0;
-/// Shader code: the same, dithered in from tex.x over tex.y metres.
-const K_FADE_IN: f32 = -5.0;
+/// How a vertex is drawn (render.rs `vs_far`): the ground, or what stands
+/// on it, dithered in past its `fade` distance over `FADE` metres.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Kind {
+    Ground,
+    Standing(f32),
+}
 
 /// A cell, or a 2 × 2 block of cells: (ground, its block, top, its block).
 type Cell = (f32, BlockId, f32, BlockId);
@@ -68,9 +71,12 @@ fn cell_at(tiles: &FarTiles, cx: i32, cz: i32, step: i32) -> Option<Cell> {
     out
 }
 
+/// Mean colours of block faces, and the texture set they were made from.
+type Means = (u64, HashMap<(BlockId, usize), [f32; 3]>);
+
 thread_local! {
     /// mean colours of block faces, for the texture set they were made from
-    static MEANS: RefCell<(u64, HashMap<(BlockId, usize), [f32; 3]>)> = RefCell::new((u64::MAX, HashMap::new()));
+    static MEANS: RefCell<Means> = RefCell::new((u64::MAX, HashMap::new()));
 }
 
 /// The mean colour (linear) of a block's face texture (0 top, 1 side), or
@@ -89,7 +95,7 @@ fn face_colour(b: BlockId, face: usize) -> [f32; 3] {
             let mut sum = [0.0f32; 3];
             let mut n = 0.0;
             if let Some(px) = t.layers.get(layer) {
-                for p in px.chunks_exact(4).filter(|p| p[3] > 128) {
+                for p in px.as_chunks::<4>().0.iter().filter(|p| p[3] > 128) {
                     sum[0] += lin(p[0]);
                     sum[1] += lin(p[1]);
                     sum[2] += lin(p[2]);
@@ -98,7 +104,19 @@ fn face_colour(b: BlockId, face: usize) -> [f32; 3] {
             }
             // the near land shows its texture (times the ground's tone):
             // its mean, or the block's plain colour with no texture yet
-            if n > 0.0 && t.layers.len() > 1 {
+            // water: the colour the near view's water shader paints it
+            // (render settings, between shallow and deep); other
+            // see-through blocks: their own colour
+            if b == dyno_world::WATER {
+                let w = crate::look::settings().water;
+                return [
+                    (w.shallow[0] + w.deep[0]) * 0.5,
+                    (w.shallow[1] + w.deep[1]) * 0.5,
+                    (w.shallow[2] + w.deep[2]) * 0.5,
+                ];
+            }
+            let clear = crate::render::block_color(b).1 < 0.99;
+            if n > 0.0 && t.layers.len() > 1 && !clear {
                 [sum[0] / n, sum[1] / n, sum[2] / n]
             } else {
                 srgb(crate::render::block_color(b).0)
@@ -107,15 +125,24 @@ fn face_colour(b: BlockId, face: usize) -> [f32; 3] {
     })
 }
 
-fn quad(out: &mut Vec<Vertex>, p: [[f32; 3]; 4], n: [f32; 3], rgb: [f32; 3], tex: [f32; 4]) {
+fn quad(out: &mut Vec<FarVertex>, p: [[f32; 3]; 4], n: [f32; 3], rgb: [f32; 3], kind: Kind) {
+    let byte = |v: f32| (v.clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
+    let (w, fade) = match kind {
+        Kind::Ground => (0, 0.0),
+        Kind::Standing(f) => (1, f),
+    };
+    let normal = [
+        (n[0] * 127.0) as i8,
+        (n[1] * 127.0) as i8,
+        (n[2] * 127.0) as i8,
+        w,
+    ];
     for i in [0, 1, 2, 0, 2, 3] {
-        out.push(Vertex {
+        out.push(FarVertex {
             pos: p[i],
-            normal: n,
-            color: [rgb[0], rgb[1], rgb[2], 1.0],
-            light: 0.0,
-            sky: 1.0,
-            tex,
+            color: [byte(rgb[0]), byte(rgb[1]), byte(rgb[2]), 255],
+            normal,
+            fade,
         });
     }
 }
@@ -123,13 +150,13 @@ fn quad(out: &mut Vec<Vertex>, p: [[f32; 3]; 4], n: [f32; 3], rgb: [f32; 3], tex
 /// A box's top and the sides of it that show above each neighbour's height.
 #[allow(clippy::too_many_arguments)]
 fn column(
-    out: &mut Vec<Vertex>,
+    out: &mut Vec<FarVertex>,
     (x0, z0, w): (f32, f32, f32),
     bottom: f32,
     top: f32,
     neighbours: [Option<f32>; 4],
     colours: ([f32; 3], [f32; 3]),
-    tex: [f32; 4],
+    kind: Kind,
 ) {
     let (x1, z1) = (x0 + w, z0 + w);
     let y = top;
@@ -138,7 +165,7 @@ fn column(
         [[x0, y, z0], [x0, y, z1], [x1, y, z1], [x1, y, z0]],
         [0.0, 1.0, 0.0],
         colours.0,
-        tex,
+        kind,
     );
     let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)];
     for (k, (dx, dz)) in dirs.into_iter().enumerate() {
@@ -165,13 +192,14 @@ fn column(
                 [0.0, 0.0, -1.0],
             ),
         };
-        quad(out, p, n, colours.1, tex);
+        quad(out, p, n, colours.1, kind);
     }
 }
 
 /// The mesh of one tile, as seen from `centre` (x, z): the ground beyond
-/// `GROUND_FROM`, and what stands on it beyond `cut` (faded in over `FADE`).
-pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> Vec<Vertex> {
+/// `GROUND_FROM`, and what stands on it beyond `cut` (faded in over
+/// `FADE`). Past the fade, one layer: the tops, with no ground under them.
+pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> Vec<FarVertex> {
     let mut out = Vec::new();
     if !tiles.contains_key(&at) {
         return out;
@@ -187,8 +215,7 @@ pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> V
         1
     };
     let w = (CELL * step) as f32;
-    let fade = [cut, FADE, K_FADE_IN, 0.0];
-    let ground = [0.0, 0.0, K_GROUND, 0.0];
+    let standing = Kind::Standing(cut);
     for lz in (0..TILE_CELLS).step_by(step as usize) {
         for lx in (0..TILE_CELLS).step_by(step as usize) {
             let (gx, gz) = (at[0] * TILE_CELLS + lx, at[1] * TILE_CELLS + lz);
@@ -199,6 +226,21 @@ pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> V
             let dist = (x0 + w * 0.5 - centre[0]).hypot(z0 + w * 0.5 - centre[1]);
             let near = [(step, 0), (-step, 0), (0, step), (0, -step)]
                 .map(|(dx, dz)| cell_at(tiles, gx + dx, gz + dz, step));
+            let stands = h > g + 0.5;
+            if dist >= cut + FADE {
+                // out here a heightmap of the tops is all there is to see
+                let (top, b) = if stands { (h, hb) } else { (g - 0.5, gb) };
+                column(
+                    &mut out,
+                    (x0, z0, w),
+                    top - 8.0,
+                    top,
+                    near.map(|c| c.map(|c| if c.2 > c.0 + 0.5 { c.2 } else { c.0 - 0.5 })),
+                    (face_colour(b, 0), face_colour(b, 1)),
+                    if stands { standing } else { Kind::Ground },
+                );
+                continue;
+            }
             // the ground: hidden under the near land, carrying on past it
             if dist >= GROUND_FROM && g > 0.0 {
                 let y = g - 0.5;
@@ -209,11 +251,11 @@ pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> V
                     y,
                     near.map(|c| c.map(|c| c.0 - 0.5)),
                     (face_colour(gb, 0), face_colour(gb, 1)),
-                    ground,
+                    Kind::Ground,
                 );
             }
             // what stands on it: beyond the near view only, faded in
-            if dist >= cut && h > g + 0.5 {
+            if dist >= cut && stands {
                 column(
                     &mut out,
                     (x0, z0, w),
@@ -221,7 +263,7 @@ pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> V
                     h,
                     near.map(|c| c.map(|c| c.2)),
                     (face_colour(hb, 0), face_colour(hb, 1)),
-                    fade,
+                    standing,
                 );
             }
         }
@@ -248,7 +290,7 @@ mod tests {
         assert!(all.len() >= 256 * 6, "{}", all.len());
         // near the camera: only the ground (under the near land), nothing standing
         let cut = mesh_tile(&tiles, [0, 0], [32.0, 32.0], 200.0);
-        assert!(cut.iter().all(|v| v.tex[2] == K_GROUND));
+        assert!(cut.iter().all(|v| v.normal[3] == 0), "only the ground");
         assert!(
             cut.iter()
                 .all(|v| (v.pos[0] - 32.0).hypot(v.pos[2] - 32.0) >= GROUND_FROM - 6.0)
@@ -263,6 +305,8 @@ mod tests {
         );
         // the ground never stands above the top
         assert!(all.iter().all(|v| v.pos[1] <= 64.0));
+        // a far vertex is small
+        assert_eq!(std::mem::size_of::<FarVertex>(), 24);
         assert!(mesh_tile(&tiles, [5, 5], [0.0, 0.0], 0.0).is_empty());
     }
 }
