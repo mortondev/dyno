@@ -66,6 +66,8 @@ pub struct Player {
     pub money: u32,
     /// banked rested XP
     pub rested: u32,
+    /// keeps movement honest
+    pub moves: crate::movement::MoveCheck,
     /// the phases this player is in, one bit each
     pub phases: u64,
     /// rested XP not yet a whole point
@@ -168,6 +170,8 @@ pub struct State {
     pub day: u32,
     pub default_mode: Mode,
     pub ops: Vec<String>,
+    /// accept any movement (tests that teleport players about)
+    pub trust_movement: bool,
     /// the first player on a new world; may use operator commands
     pub owner: Option<String>,
     pub light: dyno_world::light::Light,
@@ -729,6 +733,7 @@ impl State {
             xp: data.xp,
             money: data.money,
             rested: rested_now,
+            moves: crate::movement::MoveCheck::new(data.pos),
             phases: 0,
             rested_carry: 0.0,
             quests: data
@@ -1008,13 +1013,14 @@ impl State {
         match msg {
             ClientMsg::Pose(pose) => {
                 let p = self.players.get_mut(&id).unwrap();
-                if pose
+                let ok = pose
                     .pos
                     .iter()
                     .chain([pose.yaw, pose.pitch].iter())
                     .all(|v| v.is_finite())
-                    && !p.dead
-                {
+                    && !p.dead;
+                if ok && self.check_pose(id, pose) {
+                    let p = self.players.get_mut(&id).unwrap();
                     p.pose = pose;
                     p.last_pose_at = Instant::now();
                 }

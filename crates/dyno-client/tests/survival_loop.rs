@@ -19,6 +19,7 @@ fn start_server(dir: &std::path::Path) -> dyno_server::Handle {
         world_path: dir.join("world.dynw"),
         world_size: [48, 48, 48],
         content_path: Some(survival),
+        trust_movement: true,
         ..Default::default()
     };
     dyno_server::start(cfg).expect("server starts")
@@ -97,6 +98,7 @@ fn night_brings_shades() {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [192, 48, 192],
+        trust_movement: true,
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
@@ -455,6 +457,7 @@ fn quests_give_xp_and_rewards() {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [96, 48, 96],
+        trust_movement: true,
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
@@ -871,6 +874,7 @@ fn corpses_are_looted_and_merchants_sell() {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [96, 48, 96],
+        trust_movement: true,
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
@@ -1177,6 +1181,64 @@ fn crowded_areas_are_spread_across_shards() {
         matches!(m, ServerMsg::Shard { .. }).then_some(())
     });
     assert_eq!(a_moved, None, "the first arrival stays");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The server keeps movement honest: walking is fine, teleporting and
+/// flying put you back where you stood.
+#[test]
+fn cheating_movement_is_put_back() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-moves-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let j = net::connect(&addr, "mover", 3001, false, Duration::from_secs(5)).expect("join");
+    let mut pack = vec![None; 36];
+    let start = j.spawn;
+    std::thread::sleep(Duration::from_millis(300));
+    // a short step is accepted: no correction comes back
+    pose(&j, [start[0] + 0.4, start[1], start[2]]);
+    let fixed = wait_opt(&j, &mut pack, 0.6, |m| {
+        matches!(m, ServerMsg::Teleport { .. }).then_some(())
+    });
+    assert_eq!(fixed, None, "walking is fine");
+    // a 40-block jump is refused and the player is put back
+    pose(&j, [start[0] + 40.0, start[1], start[2]]);
+    let back = wait(&j, &mut pack, 2.0, |m, _| match m {
+        ServerMsg::Teleport { pos } => Some(*pos),
+        _ => None,
+    });
+    assert!(
+        (back[0] - start[0]).abs() < 2.0,
+        "put back near the start: {back:?}"
+    );
+    // hanging high in the air for seconds is flying: back to the ground
+    std::thread::sleep(Duration::from_millis(1500));
+    let mut at = [start[0] + 0.4, start[1], start[2]];
+    let mut grounded = None;
+    for _ in 0..30 {
+        std::thread::sleep(Duration::from_millis(150));
+        if at[1] < start[1] + 8.0 {
+            at[1] += 1.0;
+        }
+        pose(&j, at);
+        if let Some(p) = wait_opt(&j, &mut pack, 0.02, |m| match m {
+            ServerMsg::Teleport { pos } => Some(*pos),
+            _ => None,
+        }) {
+            grounded = Some(p);
+            break;
+        }
+    }
+    let g = grounded.expect("flying is noticed");
+    assert!(g[1] < start[1] + 3.0, "put back on the ground: {g:?}");
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

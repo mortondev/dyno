@@ -13,6 +13,7 @@ pub mod game;
 pub mod gear;
 pub mod loot;
 pub mod migrate;
+pub mod movement;
 pub mod party;
 pub mod professions;
 pub mod rpg;
@@ -79,6 +80,8 @@ pub struct Config {
     pub area_cap: usize,
     /// most shards one server runs
     pub max_shards: usize,
+    /// accept any movement from clients (tests only)
+    pub trust_movement: bool,
 }
 
 impl Default for Config {
@@ -97,6 +100,7 @@ impl Default for Config {
             shard_cap: 40,
             area_cap: 16,
             max_shards: 16,
+            trust_movement: false,
         }
     }
 }
@@ -261,6 +265,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         clock: if meta.day == 0 { 0.02 } else { meta.clock },
         day: meta.day.max(1),
         default_mode: cfg.default_mode,
+        trust_movement: cfg.trust_movement,
         ops: cfg.ops.clone(),
         owner: meta.owner,
         light,
