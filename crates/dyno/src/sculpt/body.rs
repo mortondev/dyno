@@ -153,7 +153,8 @@ impl Body {
 
     pub fn hand(&self, m: Vec3) -> f32 {
         let q = self.hand_local(m);
-        let k = if self.female { 0.82 } else { 1.0 };
+        // big hands, which read at a distance
+        let k = if self.female { 0.96 } else { 1.16 };
         let q = q / k;
         let palm = rbox(q, vec3(0.0, 1.8, 0.15), vec3(0.8, 1.75, 1.55), 0.65);
         // the fingers curl in towards the palm

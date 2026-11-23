@@ -172,33 +172,32 @@ impl Scene<'_> {
 /// tree or a plant, with whether anything hangs over it. Water counts.
 /// None where the world has not arrived.
 pub fn column(world: &World, x: i32, z: i32) -> Option<(i32, BlockId, bool)> {
-    let top = world.section_dims()[1] * w::SECTION - 1;
     let mut covered = false;
-    let mut known = false;
-    for y in (0..=top).rev() {
-        if y % w::SECTION == w::SECTION - 1 || !known {
-            known = world.known(x, y, z);
-            if !known {
-                // a missing section below loaded ones: nothing to stand on
-                if covered {
-                    return None;
-                }
+    // a section at a time, so sky and land that has not arrived cost little
+    for sy in (0..world.section_dims()[1]).rev() {
+        let y0 = sy * w::SECTION;
+        if !world.known(x, y0, z) {
+            // a missing section below loaded ones: nothing to stand on
+            if covered {
+                return None;
+            }
+            continue;
+        }
+        for y in (y0..y0 + w::SECTION).rev() {
+            let b = world.get(x, y, z);
+            if b == w::AIR {
                 continue;
             }
+            if w::is_leaves(b) || b == w::LOG || b == w::BIRCH_LOG {
+                covered = true;
+                continue;
+            }
+            if !w::is_solid(b) && b != w::WATER {
+                // torches, lanterns, plants
+                continue;
+            }
+            return Some((y, b, covered));
         }
-        let b = world.get(x, y, z);
-        if b == w::AIR {
-            continue;
-        }
-        if w::is_leaves(b) || b == w::LOG || b == w::BIRCH_LOG {
-            covered = true;
-            continue;
-        }
-        if !w::is_solid(b) && b != w::WATER {
-            // torches, lanterns, plants
-            continue;
-        }
-        return Some((y, b, covered));
     }
     None
 }
@@ -342,6 +341,8 @@ pub struct Counts {
     /// milliseconds spent on the effects and on the critters
     pub particles_ms: f32,
     pub critters_ms: f32,
+    /// milliseconds the last look at the squares of land took (critters)
+    pub populate_ms: f32,
 }
 
 /// All the ambient life round one camera.

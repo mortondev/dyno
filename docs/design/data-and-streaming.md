@@ -479,7 +479,7 @@ kind of traffic fell.
   frames still rose to 20–40 ms in a few join runs while their world work
   stayed under 10 ms: the rest is rendering and scheduling.
 
-### The 2 km world (protocol 21)
+### The 2 km world (protocol 21; the far view's ground and seam: 23)
 
 For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
 
@@ -507,13 +507,31 @@ For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
 - **Far view** (`dyno_world::far`, `dyno-client/src/farview.rs`). Beyond
   the streamed 160 m, the server sends a coarse heightmap in tiles of
   64 m: for each 4 × 4 m cell, the top of its highest block and that
-  block's kind (`ServerMsg::Far`, about 300 bytes a tile), after the near
-  view and within the same budget, out to 800 m (`--far`), remade and sent
-  again only when a block in the tile changed (the sum of its sections'
-  counts of changes). The client draws each cell as a column (a top, and
-  the sides it shows above its neighbours) coloured by its block, outside
-  the near view; the fog then ends at 900 m. A tower, a windmill, a
-  headframe or a hero tree wins its cell, so landmarks stand out.
+  block's kind, and the ground (the lowest top of the land in the cell,
+  trees and water left out) and its kind (`ServerMsg::Far`, about 600
+  bytes a tile), after the near view and within the same budget, out to
+  800 m (`--far`). A tile is sent again when a block in it changes, even
+  if its holder stays put: the world notes changed sections
+  (`World::log_changes`) and each tick the shard resends the tiles they
+  fall in to those who hold them. The client draws it so the seam with
+  the near view does not show:
+  - the ground layer from 64 m out, half a metre low: never above the
+    near land (it is each cell's lowest ground), so the near land hides it,
+    and where the near view ends, however raggedly, it carries on with no
+    gap;
+  - what stands on the ground (trees, roofs, a tower, a ridge) only past
+    the near view, dithered in over 32 m (`farview::FADE`), so there is no
+    hard line; past that, one layer of tops;
+  - colours are the mean of each block's own texture (water: the render
+    settings' water colours), toned, lit and fogged by the land's own
+    shader, so the far land matches the near; the fog ends at 900 m;
+  - cells beyond 400 m are drawn 8 m wide;
+  - its own compact vertices (24 bytes: place, colour, normal, fade) and
+    pipeline (`vs_far`), a third the size of the land's.
+  A tower, a windmill, a headframe or a hero tree wins its cell, so
+  landmarks stand out. Measured on the 2 km world from 46 m up: 490 tiles,
+  813,870 vertices, 18.6 MB on the GPU (86 MB before compact vertices and
+  one layer past the fade); the slowest tile made and uploaded 0.6–6 ms.
   `--world-size WxHxD` makes a new world of that size.
 
 Measured on 2048 × 256 × 2048 (today's generator; release; a machine shared
@@ -529,6 +547,41 @@ with other builds, load average 30–50 on 16 cores):
 | Server start from the save | 22 s; 234 MB resident, the whole process |
 | Join on the 2 km world, a camera 46 m up | the land round it drawn after 1.3–1.5 s; world work on the main thread a frame: median 0, 95% 4–5 ms, max 7–9 ms (one run had a single far tile upload of 44 ms under that load) |
 | Meshes streamed bit by bit against the whole view at once | identical (4,286,718 + 42,768 vertices) |
+
+**Joins on the layout world** (2048 × 256 × 2048 from `layout.json`,
+columns 16 sections tall) against the old 384 × 96 × 384 world, a warm
+file cache (a first-ever join adds the 3.8 MB pack, about 1.9 s here).
+Release builds, load average 30–110, so medians (and the best) of six
+interleaved runs; `tests/world_measure.rs measure_join` for the bytes,
+`dyno shot --ui hud` with `DYNO_SHOT_STATS` for the times (join, then
+the land round the camera lit, meshed and drawn, with the world thread's
+light and mesh time):
+
+| | old 384 m | 2 km, Hearthstead | 2 km, Miner's Rest (640 m out) | 2 km, Fisher's Landing (700 m out) |
+|---|---|---|---|---|
+| World before play | 102 KB (235 sections) | 94 KB (2,280) | 96 KB (1,840) | 95 KB (1,970) |
+| The whole near view | 727 KB (1,890 sections) | 141 KB (5,040) | 220 KB (5,024) | 168 KB (4,992) |
+| ... of which all one block | 47% | 83% | 82% | 84% |
+| Far view | 28 KB (36 tiles) | 313 KB (486 tiles) | 251 KB (388) | 234 KB (378) |
+| Join, then land drawn, before | 528 (347) ms | 1,138 (564) ms | 1,052 (741) ms | 700 (617) ms |
+| ... after lighting only up to the open sky | 565 (308) ms | 480 (378) ms | 597 (392) ms | 428 (308) ms |
+
+The bytes did not grow (a section all one block is 3 bytes; the new land
+is smoother, so the near view is smaller), but the client lit every
+column all 256 cells tall: 12.6 ms a column at the spawn, 24.6 ms at
+Miner's Rest, against 6.6 ms on the old world. Light is now worked out
+only up to a section above the highest layer of sections with anything
+in them (over every column the light could come from); above it is open
+sky, stored as one level (`Light::compute`; the same light as worked out
+cell by cell, `the_open_sky_is_lit_as_if_worked_out`). Now 3.3 ms a
+column at the spawn and 4.1 ms at Miner's Rest (`light_round_a_point`,
+the best of five). (Lighting the whole world at server start is about
+the same: its tiles of 128 × 128 columns nearly always reach a high
+point somewhere.) Section and far tile bytes are as sent: they are their
+own encoding (a section all one block is 3 bytes) and are not compressed
+again. The far view (a quarter of a megabyte on the 2 km
+world, against 28 KB) comes after the near view at the play rate, so it
+fills in over about a second after play starts.
 
 ## 5. World building as data
 

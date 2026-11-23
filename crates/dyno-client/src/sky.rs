@@ -4,7 +4,7 @@
 //! built of cells like everything else, and far ridges fading into haze.
 //! Every colour and size is the pack's (`render.json`: `sky`, `dome`).
 
-use crate::atmos::{self, Frame};
+use crate::atmos::Frame;
 use crate::look::{self, RenderSettings};
 use crate::mood;
 use crate::render::Sky;
@@ -338,6 +338,8 @@ fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
         rim: l.rim,
         rim_strength: l.rim_night + (l.rim_day - l.rim_night) * k,
         rim_power: l.rim_power,
+        point: l.point,
+        point_reach: l.point_reach,
         haze: lerp(haze, m.haze_color, m.haze_color_mix),
         haze_follow: a_.haze_follow * (1.0 - m.haze_color_mix),
         haze_density: a_.haze_density * m.haze,
@@ -365,13 +367,6 @@ fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
         cover: 0.0,
         env,
     }
-}
-
-/// The frame's `Env` block for a sky, when no shadows are drawn (tools).
-pub fn env_without_shadows(sky: &Sky) -> atmos::EnvUniform {
-    let mut s = *sky;
-    s.env.shadow = 0.0;
-    atmos::EnvUniform::pack(&s, &[(glam::Mat4::IDENTITY, 1.0); 3], 1)
 }
 
 /// The sky shader, after the `U` block and `atmos::ENV_WGSL`.

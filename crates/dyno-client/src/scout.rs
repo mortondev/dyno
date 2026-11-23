@@ -70,6 +70,8 @@ struct Landmark {
     anchor: Option<Vec<f32>>,
     /// time of day of its shot, 0 to 1
     time: f64,
+    /// the class of the stand-in hero of its shot
+    hero: Option<String>,
     #[serde(flatten)]
     limits: Limits,
 }
@@ -653,7 +655,7 @@ pub fn scout(o: ScoutOptions) -> Result<String, String> {
             let v = v - h;
             [r1(v.x), r1(v.y), r1(v.z)]
         };
-        let entry = serde_json::json!({
+        let mut entry = serde_json::json!({
             "name": l.name,
             "stand": rel(c.feet),
             "face": rel(c.face),
@@ -661,6 +663,9 @@ pub fn scout(o: ScoutOptions) -> Result<String, String> {
             "pitch": c.pitch,
             "time": l.time,
         });
+        if let Some(h) = &l.hero {
+            entry["hero"] = h.as_str().into();
+        }
         match cameras.iter_mut().find(|e| e["name"] == l.name.as_str()) {
             Some(e) => *e = entry,
             None => cameras.push(entry),
@@ -678,8 +683,9 @@ pub fn scout(o: ScoutOptions) -> Result<String, String> {
     let lines: Vec<String> = cameras
         .iter()
         .map(|c| {
-            let fields: Vec<String> = ["name", "stand", "face", "zoom", "pitch", "time"]
+            let fields: Vec<String> = ["name", "stand", "face", "zoom", "pitch", "time", "hero"]
                 .iter()
+                .filter(|k| !c[**k].is_null())
                 .map(|k| format!("\"{k}\": {}", c[*k]))
                 .collect();
             format!("  {{{}}}", fields.join(", "))
