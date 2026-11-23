@@ -3880,7 +3880,8 @@
      4
     ],
     "area": "hearthstead"
-   }
+   },
+   "image": "icons/grain_sack.png"
   },
   {
    "key": "ride_logging_camp",
@@ -3900,7 +3901,8 @@
      13
     ],
     "area": "logging_camp"
-   }
+   },
+   "image": "icons/grain_sack.png"
   },
   {
    "key": "ride_windmill",
@@ -3920,7 +3922,8 @@
      14
     ],
     "area": "windmill"
-   }
+   },
+   "image": "icons/grain_sack.png"
   },
   {
    "key": "ride_fishers_landing",
@@ -3940,7 +3943,8 @@
      -4
     ],
     "area": "fishers_landing"
-   }
+   },
+   "image": "icons/grain_sack.png"
   },
   {
    "key": "ride_miners_rest",
@@ -3960,7 +3964,8 @@
      -4
     ],
     "area": "miners_rest"
-   }
+   },
+   "image": "icons/grain_sack.png"
   }
  ],
  "blocks": {
@@ -4047,7 +4052,7 @@
      "chance": 1.0
     }
    ],
-   "respawn": 240,
+   "respawn": 120,
    "skill": [
     "mining",
     1

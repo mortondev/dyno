@@ -70,6 +70,9 @@ for a in r["areas"]:
             if c["rare"]["name"] == "Greatfleece":
                 c["rare"]["chance"] = 0.03
 
+# a second player at a seam found it mined out for four minutes
+r["blocks"]["coal_ore"]["respawn"] = 120
+
 json.dump(r, open(PATH, "w"), indent=1)
 open(PATH, "a").write("\n")
 print("applied")

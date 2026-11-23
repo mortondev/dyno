@@ -1329,6 +1329,7 @@
    "radius": 10,
    "stamps": [
     {"stamp": "coal_seam", "at": [0, 0], "rot": 3, "fit": "ground"},
+    {"stamp": "coal_seam", "at": [-9, -7], "rot": 1, "fit": "ground"},
     {"stamp": "boulders", "at": [-6, 6], "fit": "ground"}
    ]
   },

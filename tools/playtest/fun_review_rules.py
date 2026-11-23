@@ -137,7 +137,7 @@ RIDES = {  # hub area: (name, place, where you get off, the carter)
 for akey, (name, place, at) in RIDES.items():
     r["items"].append({
         "key": f"ride_{akey}", "name": f"Cart ride to {name}", "color": [0.62, 0.45, 0.25],
-        "icon": "lump", "stack": 1, "quality": 1,
+        "icon": "lump", "image": "icons/grain_sack.png", "stack": 1, "quality": 1,
         "ride": {"place": place, "at": at, "area": akey}})
 PRICE = {"hearthstead": 15, "logging_camp": 30, "windmill": 30, "fishers_landing": 40, "miners_rest": 40}
 
