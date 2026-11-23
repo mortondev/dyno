@@ -14,13 +14,13 @@
 //! ```
 //!
 //! The scenes are those of `dyno bench` (`tools/bench/scenes.json`): the
-//! world of its seed as a fresh server builds it, the sections within the
-//! server's view of where each camera's figure stands, lit and meshed by
-//! the world worker for a camera there, at the default settings.
+//! world as a fresh server builds it from the pack's layout, the sections
+//! within the server's view of where each camera's figure stands, lit and
+//! meshed by the world worker for a camera there, at the default settings.
 
 use dyno_client::worldwork::WorldWork;
 use dyno_client::{cover, net, render, shot};
-use dyno_world::{self as w, World};
+use dyno_world::World;
 use glam::Vec3;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -32,14 +32,7 @@ const TOLERANCE: f64 = 0.15;
 
 #[derive(Deserialize)]
 struct Scenes {
-    world: WorldSpec,
     cameras: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct WorldSpec {
-    size: [u32; 3],
-    seed: u32,
 }
 
 #[derive(Deserialize)]
@@ -134,12 +127,11 @@ fn weigh(world: &World, at: [f32; 3], eye: Vec3, dir: Vec3) -> Counts {
 fn the_fixed_scenes_keep_their_weight() {
     let scenes: Scenes = read(&root().join("tools/bench/scenes.json"));
     let cameras: Cameras = read(&root().join("tools/concepts/cameras.json"));
-    // the world as a fresh server builds it
-    let mut world = World::generate(scenes.world.size, scenes.world.seed);
-    let hearth = world.ensure_spawn_hearth(None);
-    w::village::build_hearthstead(&mut world, hearth);
-    w::zones::build_world_features(&mut world, hearth);
-    let h = hearth.map(|v| v as f32);
+    // the world as a fresh server builds it: the whole of the pack's layout
+    let pack = dyno_server::pack::Pack::builtin();
+    let layout = pack.layout.as_ref().expect("the pack has a layout");
+    let (world, built) = dyno_world::worldgen::build(layout, &pack.stamps, layout.size).unwrap();
+    let h = built.hearth.map(|v| v as f32);
     let mut now = BTreeMap::new();
     for name in &scenes.cameras {
         let cam = cameras

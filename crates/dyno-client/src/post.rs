@@ -85,6 +85,8 @@ pub struct Quality {
     pub shadow_size: u32,
     pub ssao: bool,
     pub bloom: bool,
+    /// how many lamps light the picture as lights of their own
+    pub lights: usize,
 }
 
 impl Quality {
@@ -97,37 +99,53 @@ impl Quality {
                 shadow_size: 1024,
                 ssao: false,
                 bloom: false,
+                lights: 0,
             },
             1 => Quality {
                 shadow_size: 1536,
                 ssao: false,
                 bloom: true,
+                lights: 8,
             },
             2 => Quality {
                 shadow_size: 2048,
                 ssao: true,
                 bloom: true,
+                lights: 16,
             },
             _ => Quality {
                 shadow_size: 4096,
                 ssao: true,
                 bloom: true,
+                lights: crate::atmos::MAX_LIGHTS,
             },
         }
     }
 
-    /// `DYNO_GRAPHICS=low|medium|high|ultra` overrides the saved setting
-    /// (shots and measurements).
-    pub fn from_env(saved: u8) -> Quality {
+    /// The tier to run at: `DYNO_GRAPHICS=low|medium|high|ultra` (shots and
+    /// measurements), else the saved setting, else (nothing chosen yet) a
+    /// tier the adapter should manage, so a first run on a weak machine is
+    /// not a slideshow: high on a discrete card, medium on integrated
+    /// graphics, low on a software renderer or the GL fallback.
+    pub fn tier(saved: u8, adapter: &wgpu::AdapterInfo) -> u8 {
         let forced = FORCED.load(std::sync::atomic::Ordering::Relaxed);
         if forced != u8::MAX {
-            return Self::level(forced);
+            return forced;
         }
-        let n = std::env::var("DYNO_GRAPHICS")
+        if let Some(i) = std::env::var("DYNO_GRAPHICS")
             .ok()
             .and_then(|v| Self::NAMES.iter().position(|n| *n == v.trim()))
-            .map_or(saved, |i| i as u8);
-        Self::level(n)
+        {
+            return i as u8;
+        }
+        if saved <= 3 {
+            return saved;
+        }
+        match (adapter.device_type, adapter.backend) {
+            (wgpu::DeviceType::Cpu, _) | (_, wgpu::Backend::Gl) => 0,
+            (wgpu::DeviceType::DiscreteGpu, _) => 2,
+            _ => 1,
+        }
     }
 
     /// Renderers made from now on use this level whatever the settings and
@@ -649,6 +667,15 @@ impl Post {
             from_ao,
             from_mip,
         }
+    }
+
+    /// Change what the passes may spend.
+    pub fn set_quality(&mut self, q: Quality) {
+        self.quality = Quality {
+            // without a float picture the occlusion has nowhere to keep distances
+            ssao: q.ssao && self.format == wgpu::TextureFormat::Rgba16Float,
+            ..q
+        };
     }
 
     /// The picture changed size (and with it the depth it is drawn against).

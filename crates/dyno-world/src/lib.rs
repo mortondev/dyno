@@ -10,10 +10,28 @@
 
 pub mod content;
 pub mod far;
+pub mod layout;
 pub mod light;
-pub mod poi;
-pub mod village;
-pub mod zones;
+pub mod stamp;
+pub mod worldgen;
+
+/// The starting town on a piece of land, for tests and tools that used to
+/// call the town builder: the hub of the workspace pack's layout, put
+/// down round `hearth`. Places are data now; see [`worldgen`].
+pub mod village {
+    pub fn build_hearthstead(world: &mut crate::World, hearth: [i32; 3]) -> bool {
+        crate::worldgen::dev::hub(world, hearth)
+    }
+}
+
+/// Kept for callers of the old zone builder. The zone is built from the
+/// pack's layout when a world is made ([`worldgen::build`]); nothing is
+/// added to an existing world.
+pub mod zones {
+    pub fn build_world_features(_world: &mut crate::World, _hearth: [i32; 3]) -> bool {
+        false
+    }
+}
 
 use std::io::Write;
 use std::path::Path;
@@ -763,6 +781,8 @@ pub struct World {
     /// a count per section, bumped by every change in it (so the server can
     /// keep sections encoded until they change)
     revs: Vec<u32>,
+    /// sections changed since `take_changes` (when `log_changes` is on)
+    changes: Option<Vec<u32>>,
 }
 
 /// Run-length encode cells: (block, varint count) pairs.
@@ -841,6 +861,7 @@ impl World {
             streamed,
             rev: 0,
             revs: vec![0; n],
+            changes: None,
         }
     }
 
@@ -1222,8 +1243,30 @@ impl World {
         };
         if changed {
             self.revs[i] = self.revs[i].wrapping_add(1);
+            if let Some(log) = &mut self.changes
+                && log.last() != Some(&(i as u32))
+            {
+                log.push(i as u32);
+            }
         }
         true
+    }
+
+    /// Keep a list of the sections that change (the server: to send the far
+    /// view's tiles again), drained by `take_changes`.
+    pub fn log_changes(&mut self, on: bool) {
+        self.changes = on.then(Vec::new);
+    }
+
+    /// The sections changed since the last call (with `log_changes` on).
+    pub fn take_changes(&mut self) -> Vec<SectionPos> {
+        let Some(log) = self.changes.as_mut() else {
+            return Vec::new();
+        };
+        let mut list = std::mem::take(log);
+        list.sort_unstable();
+        list.dedup();
+        list.into_iter().map(|i| self.pos_of(i as usize)).collect()
     }
 
     /// Fill a row of cells (x0..x1, one y and z) with a block: loading.

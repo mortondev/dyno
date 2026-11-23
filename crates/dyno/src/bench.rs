@@ -4,7 +4,8 @@
 //!
 //! The scenes are data (`tools/bench/scenes.json`): six of the gauntlet's
 //! gameplay cameras (`tools/concepts/cameras.json`), a camera flight, the
-//! tiers and the world they are measured on. Each still scene is the stand
+//! picture size. The tiers are the options panel's presets, the world a
+//! fresh one of the pack's layout (`--local`). Each still scene is the stand
 //! shot of `dyno shot --stand` with nothing that moves in the saved picture,
 //! so two builds' pictures can be compared.
 
@@ -18,8 +19,6 @@ pub const USAGE: &str = "usage: dyno bench <address>|--local [--port 7720] [--sc
 
 #[derive(Deserialize)]
 struct Scenes {
-    /// a new local world's size and seed
-    world: WorldSpec,
     size: [u32; 2],
     /// frames measured at each still camera
     frames: usize,
@@ -28,13 +27,26 @@ struct Scenes {
     flight: Flight,
     /// the tier whose budgets the game is held to
     default_tier: String,
-    tiers: Vec<Tier>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-struct WorldSpec {
-    size: [u32; 3],
-    seed: u32,
+/// The quality tiers a player can choose, as the options panel presets
+/// them (`options::Graphics::preset`).
+fn tiers() -> Vec<Tier> {
+    dyno_client::post::Quality::NAMES
+        .iter()
+        .enumerate()
+        .map(|(i, name)| {
+            let g = dyno_client::options::Graphics::preset(i as u8);
+            Tier {
+                name: name.to_string(),
+                graphics: g.tier,
+                ground_cover: g.cover,
+                leaf_detail: g.leaves,
+                life: g.life,
+                water_quality: g.water,
+            }
+        })
+        .collect()
 }
 
 #[derive(Deserialize)]
@@ -60,7 +72,7 @@ pub struct Report {
     pub build: String,
     pub adapter: String,
     pub size: [u32; 2],
-    /// the world measured: "local 384x96x384 seed 20261122" or an address
+    /// the world measured: a fresh local one, or an address
     pub world: String,
     /// the machine's load average when the run began (times are noisy when
     /// it is busy; counts are not)
@@ -118,11 +130,9 @@ fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, String> {
 pub fn run(o: Options) -> Result<String, String> {
     let scenes: Scenes = read(&o.scenes)?;
     let cameras: Cameras = read(&o.cameras)?;
-    let tiers: Vec<Tier> = scenes
-        .tiers
-        .iter()
+    let tiers: Vec<Tier> = tiers()
+        .into_iter()
         .filter(|t| o.tier == "all" || t.name == o.tier)
-        .cloned()
         .collect();
     if tiers.is_empty() {
         return Err(format!("no tier called {}", o.tier));
@@ -141,18 +151,12 @@ pub fn run(o: Options) -> Result<String, String> {
         let cfg = dyno_server::Config {
             bind: ([127, 0, 0, 1], o.port).into(),
             world_path: dir.join("world.dynw"),
-            world_size: scenes.world.size,
-            seed: scenes.world.seed,
             ..Default::default()
         };
         let h = dyno_server::start(cfg).map_err(|e| e.to_string())?;
         let addr = format!("127.0.0.1:{}", h.local_addr.port());
         _server = Some((h, dir));
-        let [x, y, z] = scenes.world.size;
-        (
-            addr,
-            format!("local {x}x{y}x{z} seed {}", scenes.world.seed),
-        )
+        (addr, "a fresh local world of the pack's layout".into())
     } else {
         let a = o.addr.clone().ok_or("give a server address or --local")?;
         (a.clone(), a)

@@ -1107,7 +1107,7 @@ impl Gpu {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     /// The pack's cover file reads, every kind it names has models, and
@@ -1147,6 +1147,38 @@ mod tests {
             let [full, lite] = &m.lods;
             assert!(!full.indices.is_empty() && full.verts.len() < 60_000);
             assert!(!lite.indices.is_empty() && lite.indices.len() <= full.indices.len());
+        }
+    }
+
+    /// The area keys of the pack's rules (for the files that name areas).
+    pub(crate) fn rule_areas() -> Vec<String> {
+        crate::shapes::pack();
+        let json = |path: &str| -> serde_json::Value {
+            let text = assets::text(path).unwrap_or_else(|| panic!("no {path}"));
+            serde_json::from_str(&text).unwrap()
+        };
+        let rules = json("pack.json")["entries"]["rules"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        json(&rules)["areas"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| a["key"].as_str().unwrap().to_string())
+            .collect()
+    }
+
+    /// Every area a rule names is an area of the rules: a renamed area
+    /// would silently lose its cover.
+    #[test]
+    fn the_areas_named_exist() {
+        let areas = rule_areas();
+        let file: CoverFile = serde_json::from_str(&assets::text(COVER_JSON).unwrap()).unwrap();
+        for l in &file.layers {
+            for key in l.areas.keys() {
+                assert!(areas.contains(key), "{}: no area '{key}'", l.name);
+            }
         }
     }
 

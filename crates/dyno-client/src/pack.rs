@@ -18,8 +18,8 @@
 //! - **light and sky:** ten bits each;
 //! - **texture coordinates:** steps of 1/2048 tile within ±16 tiles
 //!   (blocks and shapes), or of 1/64 (leaves, whose faces count squares);
-//!   fine voxel ground keeps its voxels a metre, saturation (hundredths)
-//!   and jitter (thousandths) whole instead;
+//!   fine voxel ground keeps its voxels a metre, the way its face looks,
+//!   its saturation (hundredths) and jitter (thousandths) whole instead;
 //! - **animation** (`tex[3]`): a whole part up to 15 and a fraction in 255
 //!   steps: of 1/10000 for textures (frames, and seconds a frame in
 //!   hundredths: up to 15 frames, 2.55 s a frame), of 1/100 for leaves
@@ -115,8 +115,11 @@ fn unpack(v: PIn) -> Plain {
   var anim = whole + part / 10000.0;
   var uv = vec2<f32>(v.uv) / 2048.0;
   if (kz >= 16384.0) {
-    // fine voxel ground: voxels a metre; saturation in hundredths plus jitter
-    uv = vec2<f32>(f32(v.uv.y >> 10u), f32(v.uv.x) + f32(v.uv.y & 1023) / 1000.0);
+    // fine voxel ground: voxels a metre plus 32 times the way the face
+    // looks; saturation in hundredths plus jitter
+    uv = vec2<f32>(
+      f32(v.uv.y >> 10u) + 32.0 * f32(v.uv.x >> 9u),
+      f32(v.uv.x & 511) + f32(v.uv.y & 1023) / 1000.0);
   } else if (kz >= 8192.0 && kz < 12288.0) {
     uv = vec2<f32>(v.uv) / 64.0;
     anim = whole + part / 100.0;
@@ -145,13 +148,13 @@ pub fn pack(v: &Vertex, origin: [f32; 3]) -> Packed {
     };
     let (hi, lo) = (shade / 254, (shade % 254) as i32 - 127);
     let uv = if kz >= KIND_VOXEL {
-        // voxels a metre; saturation in hundredths, jitter in thousandths
-        let sat = v.tex[1].floor();
-        let jit = ((v.tex[1] - sat) * 1000.0).round().min(1023.0) as i16;
-        [
-            clamp_i16(sat),
-            ((v.tex[0].round() as i16).clamp(0, 31) << 10) | jit,
-        ]
+        // voxels a metre and the way the face looks (32 times it);
+        // saturation in hundredths, jitter in thousandths
+        let dir = (v.tex[0] / 32.0).floor().clamp(0.0, 7.0);
+        let per = (v.tex[0] - dir * 32.0).round().clamp(0.0, 31.0) as i16;
+        let sat = v.tex[1].floor().clamp(0.0, 511.0);
+        let jit = ((v.tex[1] - sat) * 1000.0).round().clamp(0.0, 1023.0) as i16;
+        [sat as i16 | (dir as i16) << 9, per << 10 | jit]
     } else if foliage {
         [clamp_i16(v.tex[0] * 64.0), clamp_i16(v.tex[1] * 64.0)]
     } else {
@@ -190,8 +193,8 @@ pub fn unpack(p: &Packed, origin: [f32; 3]) -> Vertex {
     let anim = (p.light >> 20 & 15) as f32 + (p.light >> 24) as f32 / steps;
     let uv = if kz >= KIND_VOXEL {
         [
-            (p.uv[1] >> 10) as f32,
-            p.uv[0] as f32 + (p.uv[1] & 1023) as f32 / 1000.0,
+            (p.uv[1] >> 10) as f32 + 32.0 * (p.uv[0] >> 9) as f32,
+            (p.uv[0] & 511) as f32 + (p.uv[1] & 1023) as f32 / 1000.0,
         ]
     } else if foliage {
         [p.uv[0] as f32 / 64.0, p.uv[1] as f32 / 64.0]
@@ -383,7 +386,7 @@ mod tests {
             if leaves { 0.0051 } else { 0.000051 },
         )?;
         if kz >= KIND_VOXEL {
-            near("voxels a metre", a.tex[0], b.tex[0], 0.0)?;
+            near("voxels a metre and facing", a.tex[0], b.tex[0], 0.0)?;
             near("saturation and jitter", a.tex[1], b.tex[1], 0.0006)?;
         } else if (KIND_FOLIAGE..KIND_WATER).contains(&kz) {
             near("u", a.tex[0], b.tex[0], 0.5 / 64.0)?;
@@ -405,7 +408,7 @@ mod tests {
             color: [1.1, 1.06, 0.68, 0.7031],
             light: 14.0 / 15.0,
             sky: 0.4,
-            tex: [8.0, 135.13, KIND_VOXEL + 7.0, 0.0],
+            tex: [8.0 + 32.0 * 5.0, 135.13, KIND_VOXEL + 7.0, 0.0],
         };
         let back = unpack(&pack(&ground, o), o);
         assert_eq!(back.pos, ground.pos);

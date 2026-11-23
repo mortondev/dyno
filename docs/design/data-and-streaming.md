@@ -24,7 +24,7 @@ This document is the contract every part of the migration builds to.
 | The content pack (`include_str!` of hearthblock.json) | Sent by the server only |
 | Title-screen stage (client calls `World::generate` and `build_hearthstead`) | A small baked stage scene streamed like any other asset |
 | Block table (`dyno-world/src/lib.rs`) | `blocks.json` |
-| World builders (`village.rs`, `poi.rs`, `zones.rs`, worldgen trees) | Stamps (block volumes) and a layout file; terrain shaping as data operations |
+| World builders (`village.rs`, `poi.rs`, `zones.rs`, worldgen trees) | Stamps (block volumes) and a layout file; terrain shaping as data operations (**done**, §5) |
 
 Size floor: a stripped, size-optimised program with only wgpu, egui, winit,
 rodio and TLS WebSockets is **5.7 MB**. Today's `dyno` is 20.6 MB with the
@@ -314,8 +314,9 @@ when one of them is replaced.
     stand on or walk round belongs in the world as blocks.
 - **Foliage** (`foliage.json`; `dyno-client/src/foliage.rs`): leaf crowns as
   clumps of cubes. `cells` cubes along a block (0: the smooth canopy), `erode`
-  (how much of a crown's outside is worn away), `crease`, `under`, `depth`
-  and `vary` (shading), `leaves` (colours per leaf block key), `trunks` (the
+  (how much of a crown's outside is worn away), `crease`, `under`, `depth`,
+  `top`, `vary` and `clump` (cubes along a clump of one colour; shading: the brightness of the topmost clumps, falling
+  to `under` at `depth` blocks down), `leaves` (colours per leaf block key), `trunks` (the
   blocks trees are made of) and `areas` (per area key: the `blocks` that
   turn, and `tones` with the `share` of trees each takes: autumn, blossom).
   Which cells hold leaves stays the world's business.
@@ -478,7 +479,7 @@ kind of traffic fell.
   frames still rose to 20–40 ms in a few join runs while their world work
   stayed under 10 ms: the rest is rendering and scheduling.
 
-### The 2 km world (protocol 21)
+### The 2 km world (protocol 21; the far view's ground and seam: 23)
 
 For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
 
@@ -506,13 +507,31 @@ For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
 - **Far view** (`dyno_world::far`, `dyno-client/src/farview.rs`). Beyond
   the streamed 160 m, the server sends a coarse heightmap in tiles of
   64 m: for each 4 × 4 m cell, the top of its highest block and that
-  block's kind (`ServerMsg::Far`, about 300 bytes a tile), after the near
-  view and within the same budget, out to 800 m (`--far`), remade and sent
-  again only when a block in the tile changed (the sum of its sections'
-  counts of changes). The client draws each cell as a column (a top, and
-  the sides it shows above its neighbours) coloured by its block, outside
-  the near view; the fog then ends at 900 m. A tower, a windmill, a
-  headframe or a hero tree wins its cell, so landmarks stand out.
+  block's kind, and the ground (the lowest top of the land in the cell,
+  trees and water left out) and its kind (`ServerMsg::Far`, about 600
+  bytes a tile), after the near view and within the same budget, out to
+  800 m (`--far`). A tile is sent again when a block in it changes, even
+  if its holder stays put: the world notes changed sections
+  (`World::log_changes`) and each tick the shard resends the tiles they
+  fall in to those who hold them. The client draws it so the seam with
+  the near view does not show:
+  - the ground layer from 64 m out, half a metre low: never above the
+    near land (it is each cell's lowest ground), so the near land hides it,
+    and where the near view ends, however raggedly, it carries on with no
+    gap;
+  - what stands on the ground (trees, roofs, a tower, a ridge) only past
+    the near view, dithered in over 32 m (`farview::FADE`), so there is no
+    hard line; past that, one layer of tops;
+  - colours are the mean of each block's own texture (water: the render
+    settings' water colours), toned, lit and fogged by the land's own
+    shader, so the far land matches the near; the fog ends at 900 m;
+  - cells beyond 400 m are drawn 8 m wide;
+  - its own compact vertices (24 bytes: place, colour, normal, fade) and
+    pipeline (`vs_far`), a third the size of the land's.
+  A tower, a windmill, a headframe or a hero tree wins its cell, so
+  landmarks stand out. Measured on the 2 km world from 46 m up: 490 tiles,
+  813,870 vertices, 18.6 MB on the GPU (86 MB before compact vertices and
+  one layer past the fade); the slowest tile made and uploaded 0.6–6 ms.
   `--world-size WxHxD` makes a new world of that size.
 
 Measured on 2048 × 256 × 2048 (today's generator; release; a machine shared
@@ -531,17 +550,26 @@ with other builds, load average 30–50 on 16 cores):
 
 ## 5. World building as data
 
-The live world contains migrated player builds, so it is never regenerated.
-For new worlds and rebuilds:
+**Status: built** (docs/design/world-layout.md is the reference).
 
-- `World::generate` (terrain from a seed) stays code: it is an engine
-  generator driven by parameters in `layout.json`.
-- Every building, site and town is a **stamp**, placed by `layout.json`
-  with position, rotation and a ground-fitting rule.
-- Today's builders are run once by a bake tool to produce the stamps, and
-  are then deleted.
-- Vegetation comes from species tables (size ranges and crown shapes) in
-  `layout.json`.
+- The world is built from `world/layout.json` (size, land, river and lake,
+  zones, tree species and vegetation rules, roads, places) and
+  `stamps/*.dstamp` (every building, prop, ruin and dug-out place), by
+  `dyno_world::worldgen::build`. The engine keeps only general abilities:
+  shaping land from the layout's primitives, laying roads, placing stamps,
+  scattering vegetation by rules.
+- The old builders (`village.rs`, `poi.rs`, `zones.rs`) are gone. The
+  Hollow Mines, the Old Barrow and the Sunken Shrine were baked from them
+  into stamps; every building was drawn again at heroic proportions
+  (docs/design/scale.md) by the recipes in `tools/stamps/`.
+- The rules place areas, camps, NPCs and objectives at places of the
+  layout; the pack build resolves them into hearth offsets.
+- Layout and stamps stay on the server: they are not in the manifest.
+- A saved world records the layout version it was built from. A new
+  version (or a world from before layouts) is rebuilt once, with backups,
+  and every character is moved to its place (`migrate::rebuild`).
+- `World::generate` (terrain from a seed) stays for worlds without a
+  layout (builder worlds, tests).
 
 ## 6. Authoritative movement (last)
 
@@ -626,7 +654,7 @@ For new worlds and rebuilds:
    image diff (`dyno shot`, the animation sheet) matches:
    - textures, sounds, fonts and render settings;
    - models, rigs, clips and detail shapes.
-3. World streaming and area of interest **(done)**; stamps and layout.
+3. World streaming and area of interest **(done)**; stamps and layout **(done)**.
 4. Authoritative movement.
 
 Every step keeps `dyno shot`, the bots and the protocol tests working.

@@ -66,6 +66,8 @@ pub enum FrontCmd {
     StopHost,
     /// remember this world address (Options)
     SetWorld(String),
+    /// the graphics options changed (options.rs)
+    Graphics,
     Quit,
 }
 
@@ -457,7 +459,7 @@ fn title(
 /// and hosting a local world. Players normally never come here.
 fn realms(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
     let screen = ctx.content_rect();
-    let r = Rect::from_center_size(screen.center(), Vec2::new(620.0, 360.0));
+    let r = Rect::from_center_size(screen.center(), Vec2::new(620.0, 560.0));
     let hosting = f.hosting;
     panel(ctx, "options", r, |ui| {
         ui.vertical_centered(|ui| {
@@ -501,6 +503,10 @@ fn realms(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
                     .font(theme::body_font(13.0))
                     .color(theme::TEXT),
             );
+        }
+        ui.add_space(8.0);
+        if crate::options::panel(ui) {
+            out.push(FrontCmd::Graphics);
         }
         // hosting a local world is for the dev build (`dyno`), not the player client
         if cfg!(feature = "host") {
