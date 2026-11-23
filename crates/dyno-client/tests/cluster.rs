@@ -103,7 +103,7 @@ fn wait<T>(
                 }
             }
             Ok(NetEvent::Closed(_)) => return None,
-            Err(_) => {}
+            _ => {}
         }
     }
     None
@@ -416,6 +416,103 @@ fn an_instance_on_a_different_version_drains() {
     let ada = net::connect(&a.addr, "ada", 62, false, Duration::from_secs(10)).expect("joins a");
     assert_eq!(a.handle.server.player_count(), 1);
     drop(ada);
+    a.handle.kill();
+    b.kill();
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_relayed_player_downloads_the_pack_from_the_edge() {
+    let root = std::env::temp_dir().join(format!("dyno-cl-pack-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let a = node(&root, "a", None);
+    let b = node(&root, "b", Some(a.cluster_port));
+    assert!(wait_for(10.0, || {
+        b.handle
+            .cluster()
+            .unwrap()
+            .shared
+            .machine
+            .read()
+            .unwrap()
+            .members
+            .len()
+            == 2
+    }));
+    std::thread::sleep(Duration::from_millis(1500));
+    // bo plays on b; ada reaches a, which relays her to b's busier shard
+    let bo = net::connect(&b.addr, "bo", 81, false, Duration::from_secs(10)).expect("bo joins");
+    assert!(wait_for(5.0, || hosted_here(&b) == 1));
+    std::thread::sleep(Duration::from_millis(1500));
+    let cache = root.join("cache");
+    let opts = |token| net::JoinOptions {
+        token,
+        cache: Some(dyno_client::cache::Cache::at(&cache)),
+        ..Default::default()
+    };
+    let ada = net::connect_with(&a.addr, "ada", opts(82), Duration::from_secs(10))
+        .expect("ada joins through a");
+    assert!(wait_for(5.0, || hosted_here(&b) == 2), "ada lives on b");
+    assert_eq!(hosted_here(&a), 0, "a only relays");
+    // the edge named its own pack and sent every file
+    let pack = a.handle.server.pack();
+    assert_eq!(ada.manifest, pack.manifest);
+    assert_eq!(ada.downloaded, pack.manifest.download_bytes());
+    assert_eq!(ada.content.name, pack.content.name);
+    // and play goes on through the relay
+    let mut bags = vec![None; 36];
+    assert_eq!(who(&ada, &mut bags), Some(2));
+    // a second relayed join with the same cache downloads nothing
+    let cy = net::connect_with(&a.addr, "cy", opts(83), Duration::from_secs(10))
+        .expect("cy joins through a");
+    assert_eq!(cy.downloaded, 0);
+    drop((bo, ada, cy));
+    a.handle.kill();
+    b.handle.kill();
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn an_instance_with_a_different_pack_drains() {
+    // same rules (name and version), one more file in the pack
+    let root = std::env::temp_dir().join(format!("dyno-cl-packdrain-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let a = node(&root, "a", None);
+    let packdir = root.join("b/pack");
+    for (path, bytes) in dyno_server::pack::Pack::builtin().files() {
+        let p = packdir.join(&path);
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        std::fs::write(p, &bytes[..]).unwrap();
+    }
+    std::fs::create_dir_all(packdir.join("textures")).unwrap();
+    std::fs::write(packdir.join("textures/new.png"), b"not really a png").unwrap();
+    let cluster_port = free_port();
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: root.join("b/world.dynw"),
+        world_size: [96, 48, 96],
+        content_path: Some(packdir),
+        cluster: Some(ClusterConfig {
+            listen: format!("127.0.0.1:{cluster_port}").parse().unwrap(),
+            advertise: None,
+            join: Some(format!("127.0.0.1:{}", a.cluster_port)),
+            secret: b"a test secret of some length".to_vec(),
+            dir: root.join("b/cluster"),
+        }),
+        ..Default::default()
+    };
+    let b = dyno_server::start(cfg).expect("b starts");
+    assert_eq!(
+        b.server.pack().content.version,
+        a.handle.server.pack().content.version
+    );
+    assert_ne!(b.server.pack().hash, a.handle.server.pack().hash);
+    let b_addr = format!("127.0.0.1:{}", b.local_addr.port());
+    std::thread::sleep(Duration::from_millis(1500));
+    // b takes no one while its pack differs from the leader's
+    let refused = net::connect(&b_addr, "cy", 91, false, Duration::from_secs(10));
+    let why = refused.err().unwrap_or_default();
+    assert!(why.contains("updating"), "{why}");
     a.handle.kill();
     b.kill();
     let _ = std::fs::remove_dir_all(&root);

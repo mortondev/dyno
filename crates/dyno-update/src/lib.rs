@@ -47,8 +47,47 @@ pub struct Manifest {
     pub version: String,
     /// Network protocol version of this release.
     pub protocol: u32,
-    /// One entry per target triple.
+    /// The `dyno` binary, one entry per target triple. Every updater before
+    /// 0.7 reads only this, so it stays the `dyno` binary for good.
     pub assets: BTreeMap<String, Asset>,
+    /// Every program by name (`dyno`, `hearthblock`), then target triple.
+    #[serde(default)]
+    pub programs: BTreeMap<String, BTreeMap<String, Asset>>,
+}
+
+/// The program an executable is, from its file name: `hearthblock` for the
+/// player client, else `dyno` (servers, tools, the dev client), whatever
+/// it was renamed to.
+pub fn program_of(exe: &Path) -> &'static str {
+    // the last part of the path, split on either separator
+    let path = exe.to_string_lossy().to_lowercase();
+    let name = path.rsplit(['/', '\\']).next().unwrap_or_default();
+    if name.starts_with("hearthblock") {
+        "hearthblock"
+    } else {
+        "dyno"
+    }
+}
+
+/// The program this executable is.
+pub fn program() -> &'static str {
+    exe_path().map(|p| program_of(&p)).unwrap_or("dyno")
+}
+
+/// The release file for a program on a target. A player client never falls
+/// back to the `dyno` binary.
+pub fn pick<'a>(m: &'a Manifest, program: &str, target: &str) -> Result<&'a Asset, Error> {
+    let found = if program == "dyno" {
+        m.assets.get(target)
+    } else {
+        m.programs.get(program).and_then(|t| t.get(target))
+    };
+    found.ok_or_else(|| {
+        err(format!(
+            "release {} has no {program} build for {target}",
+            m.version
+        ))
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -163,12 +202,9 @@ pub fn check_and_update(force: bool, timeout: Duration) -> Result<Outcome, Error
     if !is_newer(&manifest.version, VERSION) {
         return Ok(Outcome::UpToDate(VERSION.to_string()));
     }
-    let asset = manifest.assets.get(TARGET).ok_or_else(|| {
-        err(format!(
-            "release {} has no build for {TARGET}",
-            manifest.version
-        ))
-    })?;
+    // the artifact named like this executable: `dyno` stays `dyno` (the live
+    // server updates itself this way), `hearthblock` stays `hearthblock`
+    let asset = pick(&manifest, program(), TARGET)?;
     if asset.size > MAX_BINARY {
         return Err(err("release binary is too large"));
     }
@@ -291,6 +327,96 @@ mod tests {
         let m = br#"{"version":"9.9.9","protocol":1,"assets":{}}"#;
         assert!(verify_manifest(m, &[0u8; 64]).is_err());
         assert!(verify_manifest(m, &[0u8; 3]).is_err());
+    }
+
+    /// A manifest as .github/scripts/manifest.py writes it from 0.7 on.
+    const BOTH: &str = r#"{
+ "version": "0.7.0", "protocol": 16,
+ "assets": {
+  "x86_64-unknown-linux-gnu": {"name": "dyno-x86_64-unknown-linux-gnu", "size": 10, "sha256": "aa"},
+  "x86_64-pc-windows-msvc": {"name": "dyno-x86_64-pc-windows-msvc.exe", "size": 11, "sha256": "bb"}
+ },
+ "programs": {
+  "dyno": {
+   "x86_64-unknown-linux-gnu": {"name": "dyno-x86_64-unknown-linux-gnu", "size": 10, "sha256": "aa"},
+   "x86_64-pc-windows-msvc": {"name": "dyno-x86_64-pc-windows-msvc.exe", "size": 11, "sha256": "bb"}
+  },
+  "hearthblock": {
+   "x86_64-unknown-linux-gnu": {"name": "hearthblock-x86_64-unknown-linux-gnu", "size": 5, "sha256": "cc"},
+   "x86_64-pc-windows-msvc": {"name": "hearthblock-x86_64-pc-windows-msvc.exe", "size": 6, "sha256": "dd"}
+  }
+ }
+}"#;
+
+    #[test]
+    fn picks_the_artifact_named_like_the_executable() {
+        let m: Manifest = serde_json::from_str(BOTH).unwrap();
+        let linux = "x86_64-unknown-linux-gnu";
+        let win = "x86_64-pc-windows-msvc";
+        let name = |exe: &str, target: &str| {
+            pick(&m, program_of(Path::new(exe)), target)
+                .map(|a| a.name.clone())
+                .unwrap_or_default()
+        };
+        // the live server runs `dyno server --auto-update`: it stays dyno
+        assert_eq!(
+            name("/usr/local/bin/dyno", linux),
+            "dyno-x86_64-unknown-linux-gnu"
+        );
+        assert_eq!(
+            name(r"C:\Games\dyno.exe", win),
+            "dyno-x86_64-pc-windows-msvc.exe"
+        );
+        // a downloaded or renamed dyno is still dyno
+        assert_eq!(
+            name("/opt/dyno-x86_64-unknown-linux-gnu", linux),
+            "dyno-x86_64-unknown-linux-gnu"
+        );
+        assert_eq!(
+            name("/home/a/bin/my-server", linux),
+            "dyno-x86_64-unknown-linux-gnu"
+        );
+        // the player client updates as the player client
+        assert_eq!(
+            name("/home/a/bin/hearthblock", linux),
+            "hearthblock-x86_64-unknown-linux-gnu"
+        );
+        assert_eq!(
+            name(r"C:\Games\Hearthblock.exe", win),
+            "hearthblock-x86_64-pc-windows-msvc.exe"
+        );
+        assert_eq!(
+            name("/tmp/hearthblock-x86_64-unknown-linux-gnu", linux),
+            "hearthblock-x86_64-unknown-linux-gnu"
+        );
+        // no hearthblock build for a target: an error, never the dyno binary
+        assert!(pick(&m, "hearthblock", "aarch64-apple-darwin").is_err());
+        let mut old = m.clone();
+        old.programs.clear();
+        assert!(pick(&old, "hearthblock", linux).is_err());
+        assert!(pick(&old, "dyno", linux).is_ok());
+    }
+
+    #[test]
+    fn updaters_before_the_split_still_get_dyno() {
+        // the shape every released updater up to 0.6 parses (serde ignores `programs`)
+        #[derive(Deserialize)]
+        struct OldManifest {
+            version: String,
+            assets: BTreeMap<String, Asset>,
+        }
+        let old: OldManifest = serde_json::from_str(BOTH).unwrap();
+        assert_eq!(old.version, "0.7.0");
+        assert_eq!(
+            old.assets["x86_64-unknown-linux-gnu"].name,
+            "dyno-x86_64-unknown-linux-gnu"
+        );
+        // and a manifest from before the split parses with today's struct
+        let m: Manifest = serde_json::from_str(
+            r#"{"version":"0.6.0","protocol":15,"assets":{"t":{"name":"dyno-t","size":1,"sha256":"x"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(pick(&m, "dyno", "t").unwrap().name, "dyno-t");
     }
 
     #[test]

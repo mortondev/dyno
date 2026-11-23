@@ -16,6 +16,7 @@ pub mod gear;
 pub mod loot;
 pub mod migrate;
 pub mod movement;
+pub mod pack;
 pub mod party;
 pub mod professions;
 pub mod rpg;
@@ -70,8 +71,14 @@ pub struct Config {
     pub max_players: usize,
     /// mode for players who join for the first time
     pub default_mode: Mode,
-    /// content JSON; None uses the built-in Hearthblock pack
+    /// the content pack: a pack directory, or a rules JSON file (the
+    /// built-in pack with those rules); None uses the built-in pack
     pub content_path: Option<PathBuf>,
+    /// bytes per second of pack files each session may send (left over from play)
+    pub asset_rate: usize,
+    /// the same before the player starts playing (on the loading screen,
+    /// nothing competes with the download)
+    pub join_asset_rate: usize,
     /// names allowed to use /gamemode, /time, /reload and /give. Empty: the
     /// world's owner (its first player) only.
     pub ops: Vec<String>,
@@ -100,6 +107,8 @@ impl Default for Config {
             max_players: 32,
             default_mode: Mode::Survival,
             content_path: None,
+            asset_rate: 256 * 1024,
+            join_asset_rate: 2 * 1024 * 1024,
             ops: Vec::new(),
             webhook: None,
             shard_cap: 40,
@@ -170,6 +179,8 @@ pub struct Server {
     relay_opens: cluster::link::Waiters<Result<(), String>>,
     /// the base world, as served to instances that join
     base_bytes: Vec<u8>,
+    /// the content pack clients download (its rules are what the shards run)
+    pack: RwLock<Arc<pack::Pack>>,
 }
 
 /// A running server. Dropping it does not stop it; call `stop`.
@@ -204,26 +215,22 @@ impl Handle {
     }
 }
 
-fn load_content(path: &Option<PathBuf>) -> Result<Content, String> {
-    match path {
-        Some(p) => {
-            let text = std::fs::read_to_string(p).map_err(|e| format!("{}: {e}", p.display()))?;
-            Content::from_json(&text)
-        }
-        None => Ok(Content::default_pack()),
-    }
+/// What instances of a cluster must agree on: the rules and every pack file.
+fn content_identity(p: &pack::Pack) -> String {
+    format!("{} v{} pack {}", p.content.name, p.content.version, p.id())
 }
 
 /// Start the server in background threads and return at once.
 pub fn start(cfg: Config) -> std::io::Result<Handle> {
-    let content = load_content(&cfg.content_path).map_err(std::io::Error::other)?;
+    let pack = pack::Pack::load(cfg.content_path.as_deref()).map_err(std::io::Error::other)?;
+    let content: Content = pack.content.clone();
     // cluster mode: join (or found) the cluster first; a new instance takes
     // the base world from the cluster, checked against its hash
     let cluster = match &cfg.cluster {
         Some(cc) => {
             let me = cluster::Load {
                 protocol: proto::PROTOCOL_VERSION,
-                content: format!("{} v{}", content.name, content.version),
+                content: content_identity(&pack),
                 version: env!("CARGO_PKG_VERSION").into(),
                 capacity: (cfg.shard_cap.max(1) * cfg.max_shards.max(1)) as u32,
                 ..Default::default()
@@ -331,12 +338,17 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     let saved = store::load_players(&store::players_path(&cfg.world_path));
     let containers = store::load_chests(&content, &store::chests_path(&cfg.world_path));
     log(format!(
-        "Content: {} v{} ({} items, {} recipes, {} creatures)",
+        "Content: {} v{} ({} items, {} recipes, {} creatures); pack {} v{}: {} files, {} KB, {}",
         content.name,
         content.version,
         content.items.len(),
         content.recipes.len(),
-        content.creatures.len()
+        content.creatures.len(),
+        pack.manifest.pack,
+        pack.manifest.version,
+        pack.manifest.files.len(),
+        pack.bytes() / 1024,
+        pack.id()
     ));
     let mut state = State {
         world,
@@ -448,6 +460,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         adoptions: Default::default(),
         relay_opens: Default::default(),
         base_bytes,
+        pack: RwLock::new(Arc::new(pack)),
     });
     if server.cluster.is_some() {
         clustered::attach(&server);
@@ -500,6 +513,15 @@ fn send(ws: &mut WebSocket<TcpStream>, msg: &ServerMsg) -> Result<(), String> {
 }
 
 impl Server {
+    /// The pack clients download now.
+    pub fn pack(&self) -> Arc<pack::Pack> {
+        self.pack.read().unwrap().clone()
+    }
+
+    fn manifest(&self) -> proto::Manifest {
+        self.pack().manifest.clone()
+    }
+
     pub fn player_count(&self) -> usize {
         self.shard_list()
             .iter()
@@ -1378,7 +1400,7 @@ impl Server {
                         .map(|(i, p)| st.player_info(*i, p))
                         .collect(),
                     mode: Mode::Creative,
-                    content: Box::new(st.content.clone()),
+                    manifest: self.manifest(),
                 };
                 (id, vec![welcome], st.world.encode())
             } else {
@@ -1400,8 +1422,9 @@ impl Server {
                 self.joining.lock().unwrap().remove(&name.to_lowercase());
                 match joined {
                     Ok((id, mut msgs)) => {
-                        if let Some(ServerMsg::Welcome { motd, .. }) = msgs.first_mut() {
+                        if let Some(ServerMsg::Welcome { motd, manifest, .. }) = msgs.first_mut() {
                             *motd = self.cfg.motd.clone();
+                            *manifest = self.manifest();
                         }
                         let display = st
                             .players
@@ -1471,6 +1494,11 @@ impl Server {
         world_data: Option<Vec<u8>>,
         rx: Receiver<Arc<Vec<u8>>>,
     ) -> Result<(), String> {
+        // a relayed session's welcome comes from the host: it names this
+        // edge's pack, since this edge serves the files
+        let mut patch_welcome = world_data.is_none();
+        let mut outbox = pack::Outbox::new(self.cfg.join_asset_rate.max(self.cfg.asset_rate));
+        let mut playing = false;
         let mut first = first.into_iter();
         if let Some(welcome) = first.next() {
             send(ws, &welcome)?;
@@ -1510,26 +1538,34 @@ impl Server {
                 return Err("dropped".into());
             }
             match ws.read() {
-                Ok(Message::Binary(b)) if self.relay_host(conn).is_some() => {
-                    // the player lives on another instance: pass it on untouched
-                    last_msg = Instant::now();
-                    msgs += 1;
-                    self.relay_up(conn, b.to_vec());
-                }
                 Ok(Message::Binary(b)) => {
                     last_msg = Instant::now();
                     msgs += 1;
-                    let msg =
-                        proto::decode::<ClientMsg>(&b).map_err(|e| format!("bad message: {e}"))?;
-                    if matches!(msg, ClientMsg::Hello { .. } | ClientMsg::Session { .. }) {
-                        return Err("second hello".into());
+                    let msg = proto::decode::<ClientMsg>(&b);
+                    // pack files come from this instance, wherever the player lives
+                    let want = matches!(msg, Ok(ClientMsg::Want { .. }));
+                    if !want && !playing {
+                        // the player is in the world now: play comes first
+                        playing = true;
+                        outbox.set_rate(self.cfg.asset_rate);
                     }
-                    if let ClientMsg::Chat { .. } = msg {
-                        chats += 1;
+                    if let Ok(ClientMsg::Want { hashes }) = &msg {
+                        outbox.want(hashes, &self.pack());
+                    } else if self.relay_host(conn).is_some() {
+                        // the player lives on another instance: pass it on untouched
+                        self.relay_up(conn, b.to_vec());
+                    } else {
+                        let msg = msg.map_err(|e| format!("bad message: {e}"))?;
+                        if matches!(msg, ClientMsg::Hello { .. } | ClientMsg::Session { .. }) {
+                            return Err("second hello".into());
+                        }
+                        if let ClientMsg::Chat { .. } = msg {
+                            chats += 1;
+                        }
+                        // the player id changes if they moved away and came back
+                        let id = self.local_id(conn).unwrap_or(id);
+                        self.client_msg(id, msg, chats)?;
                     }
-                    // the player id changes if they moved away and came back
-                    let id = self.local_id(conn).unwrap_or(id);
-                    self.client_msg(id, msg, chats)?;
                 }
                 Ok(Message::Close(_)) => return Ok(()),
                 Ok(_) => last_msg = Instant::now(),
@@ -1552,9 +1588,23 @@ impl Server {
             }
             let mut wrote = false;
             while let Ok(bytes) = rx.try_recv() {
+                let bytes = if patch_welcome {
+                    patch_welcome = false;
+                    self.edge_welcome(bytes)
+                } else {
+                    bytes
+                };
                 ws.write(Message::Binary((*bytes).clone().into()))
                     .map_err(|e| format!("write: {e}"))?;
                 wrote = true;
+            }
+            // then pack files, with what the budget leaves
+            if !outbox.is_empty() {
+                for m in outbox.chunks(&self.pack()) {
+                    ws.write(Message::Binary(proto::encode(&m).into()))
+                        .map_err(|e| format!("write: {e}"))?;
+                    wrote = true;
+                }
             }
             if wrote {
                 match ws.flush() {
@@ -1564,6 +1614,32 @@ impl Server {
                     Err(e) => return Err(format!("flush: {e}")),
                 }
             }
+        }
+    }
+
+    /// A relayed welcome, naming this edge's pack.
+    fn edge_welcome(&self, bytes: Arc<Vec<u8>>) -> Arc<Vec<u8>> {
+        match proto::decode::<ServerMsg>(&bytes) {
+            Ok(ServerMsg::Welcome {
+                your_id,
+                server_version,
+                motd,
+                size,
+                spawn,
+                players,
+                mode,
+                ..
+            }) => Arc::new(proto::encode(&ServerMsg::Welcome {
+                your_id,
+                server_version,
+                motd,
+                size,
+                spawn,
+                players,
+                mode,
+                manifest: self.manifest(),
+            })),
+            _ => bytes,
         }
     }
 
@@ -1824,10 +1900,13 @@ impl Server {
                 if !op {
                     return st.tell(id, "Only server operators can reload content.");
                 }
-                match load_content(&self.cfg.content_path) {
-                    Ok(c) => {
+                match pack::Pack::load(self.cfg.content_path.as_deref()) {
+                    Ok(pk) => {
+                        let c = pk.content.clone();
                         let summary = format!("{} v{}: {} items, {} recipes", c.name, c.version, c.items.len(), c.recipes.len());
-                        st.replace_content(c);
+                        let manifest = pk.manifest.clone();
+                        *self.pack.write().unwrap() = Arc::new(pk);
+                        st.replace_content(c, manifest);
                         st.broadcast(&ServerMsg::System { text: format!("{me} reloaded content ({summary})") }, None);
                     }
                     Err(e) => st.tell(id, format!("Reload failed: {e}")),

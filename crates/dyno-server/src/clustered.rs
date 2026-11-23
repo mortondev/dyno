@@ -476,8 +476,10 @@ impl Server {
             let _ = tx.send(Arc::new(proto::encode(m)));
         };
         if let Some(mut w) = msgs.next() {
-            if let ServerMsg::Welcome { motd, .. } = &mut w {
+            if let ServerMsg::Welcome { motd, manifest, .. } = &mut w {
                 *motd = self.cfg.motd.clone();
+                // the edge serves the files and names its own pack
+                *manifest = self.manifest();
             }
             send(&w);
         }

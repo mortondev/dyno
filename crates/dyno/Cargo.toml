@@ -5,11 +5,11 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-description = "Dyno: live, script-defined multiplayer engine (bootstrap build)"
+description = "Dyno: server, tools, bots and a dev client (hosts local worlds)"
 
 [dependencies]
 dyno-bot = { path = "../dyno-bot" }
-dyno-client = { path = "../dyno-client" }
+dyno-client = { path = "../dyno-client", features = ["host"] }
 dyno-protocol = { path = "../dyno-protocol" }
 dyno-server = { path = "../dyno-server" }
 dyno-update = { path = "../dyno-update" }

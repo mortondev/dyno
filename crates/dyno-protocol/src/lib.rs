@@ -128,9 +128,84 @@ pub enum EnvDamage {
     Drown,
 }
 
+/// One file of a content pack, by path, with its SHA-256 and size.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AssetRef {
+    pub path: String,
+    pub hash: [u8; 32],
+    pub size: u32,
+}
+
+/// Every file of the content pack the server runs (docs/design/data-and-streaming.md).
+/// `files[0]` is the rules JSON. The client asks for the hashes it lacks.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct Manifest {
+    pub pack: String,
+    pub version: u32,
+    pub files: Vec<AssetRef>,
+    /// path prefixes streamed when first needed instead of before play
+    pub stream: Vec<String>,
+}
+
+impl Manifest {
+    /// The rules file (items, creatures, quests, classes…).
+    pub fn rules(&self) -> Option<&AssetRef> {
+        self.files.first()
+    }
+
+    /// A file by pack path.
+    pub fn file(&self, path: &str) -> Option<&AssetRef> {
+        self.files.iter().find(|f| f.path == path)
+    }
+
+    /// Whether a file is fetched before entering the world.
+    /// The pack description, the rules and the block table always come
+    /// first: texture layer numbers depend on `blocks.json`, and nothing
+    /// remeshes if it arrives late.
+    pub fn preload(&self, path: &str) -> bool {
+        if path == "pack.json"
+            || path == "blocks.json"
+            || self.rules().is_some_and(|r| r.path == path)
+        {
+            return true;
+        }
+        !self.stream.iter().any(|p| path.starts_with(p.as_str()))
+    }
+
+    /// Bytes a join with an empty cache downloads: the files fetched before
+    /// play, each distinct file (by hash) once.
+    pub fn download_bytes(&self) -> u64 {
+        let mut seen = std::collections::HashSet::new();
+        self.files
+            .iter()
+            .filter(|f| self.preload(&f.path) && seen.insert(f.hash))
+            .map(|f| f.size as u64)
+            .sum()
+    }
+
+    /// Total bytes of the files fetched before play.
+    pub fn preload_bytes(&self) -> u64 {
+        self.files
+            .iter()
+            .filter(|f| self.preload(&f.path))
+            .map(|f| f.size as u64)
+            .sum()
+    }
+}
+
+/// Lower-case hex of a hash (cache file names, logs).
+pub fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// Largest asset chunk the server sends in one message.
+pub const MAX_ASSET_CHUNK: usize = 64 * 1024;
+/// Most hashes in one `Want`.
+pub const MAX_WANT: usize = 1024;
+
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 16;
+pub const PROTOCOL_VERSION: u32 = 17;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -318,6 +393,11 @@ pub enum ClientMsg {
     Trade(TradeOp),
     /// Play an emote for everyone nearby (an index into `Anim::ALL`).
     Emote(u8),
+    /// Send me these pack files (by SHA-256). The server answers with
+    /// `Asset` chunks, sent only with bandwidth that play leaves over.
+    Want {
+        hashes: Vec<[u8; 32]>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -404,7 +484,8 @@ pub enum ServerMsg {
         spawn: [f32; 3],
         players: Vec<PlayerInfo>,
         mode: Mode,
-        content: Box<Content>,
+        /// the content pack: the rules are its first file
+        manifest: Manifest,
     },
     /// The connection is refused. The server closes it after this message.
     Reject {
@@ -487,8 +568,15 @@ pub enum ServerMsg {
     Milestone {
         title: String,
     },
-    /// New content (after /reload).
-    Content(Box<Content>),
+    /// The pack changed (after /reload): fetch what you lack.
+    Manifest(Manifest),
+    /// Part of a pack file you asked for: `data` starts at `offset` of `total` bytes.
+    Asset {
+        hash: [u8; 32],
+        offset: u32,
+        total: u32,
+        data: Vec<u8>,
+    },
     /// Dusk is coming (`dusk`), or a new day started (`day` is its number).
     DayEvent {
         dusk: bool,
