@@ -1058,3 +1058,125 @@ fn phasing_shows_each_player_their_own_world() {
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Shards: a full copy of the world opens another; a party is drawn
+/// together; nobody reconnects or reloads.
+#[test]
+fn shards_fill_split_and_parties_meet() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-shards-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        shard_cap: 2,
+        area_cap: 100,
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "ada", 1001, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "bo", 1002, false, Duration::from_secs(5)).expect("join");
+    let c = net::connect(&addr, "cy", 1003, false, Duration::from_secs(5)).expect("join");
+    assert_eq!(
+        server.server.shard_count(),
+        2,
+        "the third player opens a second shard"
+    );
+    let (mut pa, mut pb, mut pc) = (vec![None; 36], vec![None; 36], vec![None; 36]);
+    // in different shards, they cannot see each other
+    let mut b_sees_c = false;
+    wait_opt(&b, &mut pb, 0.5, |m| {
+        if let ServerMsg::PlayerJoined(i) = m
+            && i.name == "cy"
+        {
+            b_sees_c = true;
+        }
+        None::<()>
+    });
+    assert!(!b_sees_c);
+    // ada invites cy (across shards); cy accepts and is drawn into ada's shard
+    send(
+        &a,
+        ClientMsg::Chat {
+            text: "/invite cy".into(),
+        },
+    );
+    wait(&c, &mut pc, 3.0, |m, _| {
+        matches!(m, ServerMsg::Invite { from } if from == "ada").then_some(())
+    });
+    send(
+        &c,
+        ClientMsg::Chat {
+            text: "/accept".into(),
+        },
+    );
+    let (shard, names) = wait(&c, &mut pc, 8.0, |m, _| match m {
+        ServerMsg::Shard { shard, players, .. } => Some((
+            *shard,
+            players.iter().map(|p| p.name.clone()).collect::<Vec<_>>(),
+        )),
+        _ => None,
+    });
+    assert_eq!(shard, 0);
+    assert!(names.contains(&"ada".to_string()), "{names:?}");
+    // the party frames list both
+    let party = wait(&a, &mut pa, 3.0, |m, _| match m {
+        ServerMsg::Party { members } if members.len() == 2 => Some(members.clone()),
+        _ => None,
+    });
+    assert!(party[0].leader && party[0].name == "ada");
+    // still connected: cy can act in the new shard
+    send(
+        &c,
+        ClientMsg::Chat {
+            text: "/who".into(),
+        },
+    );
+    wait(&c, &mut pc, 3.0, |m, _| match m {
+        ServerMsg::System { text } if text.starts_with("3 online") => Some(()),
+        _ => None,
+    });
+    // the second shard empties and closes after a while (not waited for here)
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Crowding is managed per area, not just per world: too many people in one
+/// place are spread across copies of that place.
+#[test]
+fn crowded_areas_are_spread_across_shards() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-areas-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        shard_cap: 40,
+        area_cap: 1,
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let a = net::connect(&addr, "ada", 2001, false, Duration::from_secs(5)).expect("join");
+    let b = net::connect(&addr, "bo", 2002, false, Duration::from_secs(5)).expect("join");
+    assert_eq!(
+        server.server.shard_count(),
+        1,
+        "plenty of room in the world"
+    );
+    let (mut pa, mut pb) = (vec![None; 36], vec![None; 36]);
+    // both stand in town: one of them (the later arrival) is moved
+    let moved = wait(&b, &mut pb, 10.0, |m, _| match m {
+        ServerMsg::Shard { shard, .. } => Some(*shard),
+        _ => None,
+    });
+    assert_ne!(moved, 0);
+    assert_eq!(server.server.shard_count(), 2);
+    let a_moved = wait_opt(&a, &mut pa, 0.5, |m| {
+        matches!(m, ServerMsg::Shard { .. }).then_some(())
+    });
+    assert_eq!(a_moved, None, "the first arrival stays");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}

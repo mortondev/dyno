@@ -224,6 +224,12 @@ struct Play {
     intro: Option<Instant>,
     /// F3: version, address, position, frame rate
     show_info: bool,
+    /// my party (empty: none)
+    party: Vec<dyno_protocol::PartyMember>,
+    /// someone has invited me to their party
+    invite: Option<String>,
+    /// which copy of the world I am in
+    shard: u32,
     level: u8,
     xp: u32,
     xp_next: u32,
@@ -1160,6 +1166,9 @@ fn new_play(j: Joined) -> Play {
         world_event: None,
         intro: None,
         show_info: false,
+        party: Vec::new(),
+        invite: None,
+        shard: 0,
         ground: Default::default(),
         hearth,
         level: 1,
@@ -1439,6 +1448,50 @@ impl App {
                         }
                         ServerMsg::PlayerLeft { id } => {
                             p.remotes.remove(&id);
+                        }
+                        // moved to another copy of the world: same place, new company
+                        ServerMsg::Shard {
+                            shard,
+                            players,
+                            blocks,
+                        } => {
+                            p.shard = shard;
+                            p.entities.clear();
+                            p.remotes.clear();
+                            p.focus = None;
+                            p.hover = None;
+                            p.loot = None;
+                            if matches!(
+                                p.panel,
+                                Some(rpg_ui::Panel::Dialog { .. } | rpg_ui::Panel::Vendor { .. })
+                            ) {
+                                p.panel = None;
+                            }
+                            for info in players {
+                                if info.id != p.my_id {
+                                    let mut r = Remote::new(info.name, info.pose);
+                                    r.look = info.look;
+                                    r.color = info.color;
+                                    p.remotes.insert(info.id, r);
+                                }
+                            }
+                            p.ground.clear();
+                            for (pos, block) in blocks {
+                                if p.world.get(pos[0], pos[1], pos[2]) != block {
+                                    p.world.set(pos[0], pos[1], pos[2], block);
+                                    p.minimap.block_changed(pos);
+                                    p.light.changed(&p.world, pos);
+                                    if let Some(g) = self.gfx.as_mut() {
+                                        g.block_changed(&p.world, &p.light, pos, 15);
+                                    }
+                                }
+                            }
+                        }
+                        ServerMsg::Party { members } => p.party = members,
+                        ServerMsg::Invite { from } => {
+                            p.invite = Some(from);
+                            self.audio.play(Sfx::Click, 0.8);
+                            release = true;
                         }
                         ServerMsg::Block { pos, block } => {
                             p.ground.clear();
@@ -4323,6 +4376,91 @@ fn hud(
         p.panel = Some(panel);
         if !cmds.is_empty() {
             actions.push(Action::Rpg(cmds));
+        }
+    }
+    // party frames, under my own
+    let others: Vec<&dyno_protocol::PartyMember> =
+        p.party.iter().filter(|m| m.name != p.my_name).collect();
+    for (i, m) in others.iter().enumerate() {
+        let r = Rect::from_min_size(
+            Pos2::new(screen.left() + 14.0, screen.top() + 96.0 + i as f32 * 40.0),
+            Vec2::new(170.0, 34.0),
+        );
+        painter.rect_filled(r, 4.0, Color32::from_rgba_unmultiplied(20, 14, 10, 200));
+        painter.rect_stroke(
+            r,
+            4.0,
+            Stroke::new(1.0_f32, crate::theme::GOLD_DARK),
+            egui::StrokeKind::Inside,
+        );
+        let col = m
+            .class
+            .and_then(|c| p.content.class(c))
+            .map(|c| {
+                Color32::from_rgb(
+                    (c.color[0] * 255.0) as u8,
+                    (c.color[1] * 255.0) as u8,
+                    (c.color[2] * 255.0) as u8,
+                )
+            })
+            .unwrap_or(crate::theme::TEXT);
+        let label = if m.online {
+            format!(
+                "{}{}  {}",
+                if m.leader { "♛ " } else { "" },
+                m.name,
+                m.level
+            )
+        } else {
+            format!("{} (offline)", m.name)
+        };
+        painter.text(
+            r.left_top() + Vec2::new(8.0, 3.0),
+            Align2::LEFT_TOP,
+            label,
+            crate::theme::body_font(13.0),
+            if m.online {
+                col
+            } else {
+                Color32::from_gray(130)
+            },
+        );
+        let bar = Rect::from_min_size(r.left_top() + Vec2::new(8.0, 21.0), Vec2::new(154.0, 7.0));
+        painter.rect_filled(bar, 2.0, Color32::from_black_alpha(200));
+        let f = (m.health / m.max.max(1.0)).clamp(0.0, 1.0);
+        painter.rect_filled(
+            Rect::from_min_size(bar.min, Vec2::new(bar.width() * f, bar.height())),
+            2.0,
+            Color32::from_rgb(60, 180, 70),
+        );
+    }
+    // a party invitation
+    if let Some(from) = p.invite.clone() {
+        let mut answer = None;
+        egui::Window::new("Party invitation")
+            .id(egui::Id::new("party-invite"))
+            .title_bar(false)
+            .resizable(false)
+            .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 120.0))
+            .frame(crate::theme::window_frame())
+            .show(ctx, |ui| {
+                ui.label(
+                    RichText::new(format!("{from} invites you to join their party."))
+                        .font(crate::theme::body_font(16.0))
+                        .color(crate::theme::TEXT),
+                );
+                ui.horizontal(|ui| {
+                    if ui.button("Accept").clicked() {
+                        answer = Some("/accept");
+                    }
+                    if ui.button("Decline").clicked() {
+                        answer = Some("/decline");
+                    }
+                });
+            });
+        if let Some(a) = answer {
+            let _ = p.conn.tx.send(ClientMsg::Chat { text: a.into() });
+            p.invite = None;
         }
     }
     // an open corpse

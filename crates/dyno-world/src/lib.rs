@@ -437,6 +437,37 @@ impl World {
 
     /// Block at a position. Outside the world: air above, stone below.
     #[inline]
+    /// Blocks where `other` (the same size) differs from this world, with
+    /// `other`'s value. Fast when the two are nearly the same.
+    pub fn diff(&self, other: &World) -> Vec<([i32; 3], BlockId)> {
+        let mut out = Vec::new();
+        if self.size != other.size {
+            return out;
+        }
+        let (w, d) = (self.size[0] as usize, self.size[2] as usize);
+        const RUN: usize = 4096;
+        for (k, (a, b)) in self
+            .cells
+            .chunks(RUN)
+            .zip(other.cells.chunks(RUN))
+            .enumerate()
+        {
+            if a == b {
+                continue;
+            }
+            for (j, (x, y)) in a.iter().zip(b).enumerate() {
+                if x != y {
+                    let i = k * RUN + j;
+                    // cells are laid out x fastest, then z, then y
+                    let (px, rest) = (i % w, i / w);
+                    let (pz, py) = (rest % d, rest / d);
+                    out.push(([px as i32, py as i32, pz as i32], *y));
+                }
+            }
+        }
+        out
+    }
+
     pub fn get(&self, x: i32, y: i32, z: i32) -> BlockId {
         match self.index(x, y, z) {
             Some(i) => self.cells[i],
