@@ -2,14 +2,15 @@
 //! and braziers ("light is safety"). Fonts, global egui visuals, and painter
 //! helpers for frames, bars and action slots. Everything is drawn with shapes.
 //!
-//! Fonts (SIL Open Font License 1.1, see `assets/fonts/OFL-*.txt`):
-//! Cinzel for titles, Crimson Text for body text.
+//! The fonts come from the pack (`fonts/fonts.json`); egui's own font
+//! stands in until they arrive.
 
 use egui::epaint::{Mesh, Shadow};
 use egui::{
     Align2, Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Pos2, Rect,
     Sense, Shape, Stroke, StrokeKind, Vec2,
 };
+use std::collections::HashMap;
 use std::f32::consts::TAU;
 use std::sync::{Arc, LazyLock};
 
@@ -63,58 +64,113 @@ pub fn bold_font(size: f32) -> FontId {
     FontId::new(size, BOLD.clone())
 }
 
-/// Install the fonts and the dark, gilded visuals. Call once per `egui::Context`,
-/// before its first frame.
-pub fn apply(ctx: &egui::Context) {
+/// The pack file that names the fonts.
+pub const FONTS_JSON: &str = "fonts/fonts.json";
+
+/// `fonts/fonts.json`: font files by name, and the families built from them.
+#[derive(serde::Deserialize)]
+pub struct FontsFile {
+    pub faces: HashMap<String, FontFace>,
+    /// "proportional", "body", "body-bold" and "title": face names, first
+    /// choice first
+    pub families: HashMap<String, Vec<String>>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct FontFace {
+    pub file: String,
+    #[serde(default = "one")]
+    pub scale: f32,
+}
+
+fn one() -> f32 {
+    1.0
+}
+
+/// The font set from the pack, as far as it has arrived; egui's own fonts
+/// stand in for the rest and stay as fallbacks (symbols, emoji). Also
+/// returns the bytes it was built from, to tell when to build it again.
+fn pack_fonts() -> (FontDefinitions, Vec<usize>) {
     let mut fonts = FontDefinitions::default();
-    let tweak = |scale: f32| egui::FontTweak {
-        scale,
-        ..Default::default()
-    };
-    fonts.font_data.insert(
-        "cinzel".into(),
-        Arc::new(FontData::from_static(include_bytes!(
-            "../assets/fonts/Cinzel-wght.ttf"
-        ))),
-    );
-    fonts.font_data.insert(
-        "crimson".into(),
-        Arc::new(
-            FontData::from_static(include_bytes!("../assets/fonts/CrimsonText-Regular.ttf"))
-                .tweak(tweak(1.14)),
-        ),
-    );
-    fonts.font_data.insert(
-        "crimson-semibold".into(),
-        Arc::new(
-            FontData::from_static(include_bytes!("../assets/fonts/CrimsonText-SemiBold.ttf"))
-                .tweak(tweak(1.14)),
-        ),
-    );
-    // egui's own fonts stay as fallbacks (symbols, emoji)
+    let addr = |b: &Option<Arc<[u8]>>| b.as_ref().map(|b| b.as_ptr() as usize).unwrap_or(0);
+    let json = crate::assets::get(FONTS_JSON);
+    let mut source = vec![addr(&json)];
+    let file: Option<FontsFile> = json.and_then(|b| serde_json::from_slice(&b).ok());
+    let mut lists: HashMap<String, Vec<String>> = HashMap::new();
+    if let Some(f) = file {
+        let mut faces: Vec<_> = f.faces.iter().collect();
+        faces.sort_by_key(|(name, _)| *name);
+        for (name, face) in faces {
+            let bytes = crate::assets::get(&face.file);
+            source.push(addr(&bytes));
+            if let Some(b) = bytes {
+                let tweak = egui::FontTweak {
+                    scale: face.scale,
+                    ..Default::default()
+                };
+                fonts.font_data.insert(
+                    name.clone(),
+                    Arc::new(FontData::from_owned(b.to_vec()).tweak(tweak)),
+                );
+            }
+        }
+        for (family, names) in f.families {
+            let have = names
+                .into_iter()
+                .filter(|n| fonts.font_data.contains_key(n))
+                .collect();
+            lists.insert(family, have);
+        }
+    }
     let fallback = fonts
         .families
         .get(&FontFamily::Proportional)
         .cloned()
         .unwrap_or_default();
-    let with = |first: &[&str]| -> Vec<String> {
-        first
-            .iter()
-            .map(|s| s.to_string())
-            .chain(fallback.iter().cloned())
-            .collect()
+    let mut put = |family: FontFamily, key: &str| {
+        let first = lists.get(key).cloned().unwrap_or_default();
+        let list = first.into_iter().chain(fallback.iter().cloned()).collect();
+        fonts.families.insert(family, list);
     };
-    fonts
-        .families
-        .insert(FontFamily::Proportional, with(&["crimson"]));
-    fonts.families.insert(BODY.clone(), with(&["crimson"]));
-    fonts
-        .families
-        .insert(BOLD.clone(), with(&["crimson-semibold"]));
-    fonts
-        .families
-        .insert(TITLE.clone(), with(&["cinzel", "crimson"]));
-    ctx.set_fonts(fonts);
+    put(FontFamily::Proportional, "proportional");
+    put(BODY.clone(), "body");
+    put(BOLD.clone(), "body-bold");
+    put(TITLE.clone(), "title");
+    (fonts, source)
+}
+
+/// What a context's fonts were built from: the asset store's generation
+/// when last checked, and the font files' bytes.
+#[derive(Clone, Default)]
+struct FontsFrom {
+    generation: u64,
+    source: Vec<usize>,
+}
+
+fn set_pack_fonts(ctx: &egui::Context, force: bool) {
+    let id = egui::Id::new("dyno-pack-fonts");
+    let was: FontsFrom = ctx.data(|d| d.get_temp(id)).unwrap_or_default();
+    let generation = crate::assets::generation();
+    if !force && was.generation == generation {
+        return;
+    }
+    let (fonts, source) = pack_fonts();
+    if force || source != was.source {
+        ctx.set_fonts(fonts);
+    }
+    ctx.data_mut(|d| d.insert_temp(id, FontsFrom { generation, source }));
+}
+
+/// Install the pack's fonts if more of them have arrived since the last
+/// call. Cheap; call every frame.
+pub fn refresh_fonts(ctx: &egui::Context) {
+    set_pack_fonts(ctx, false);
+}
+
+/// Install the fonts and the dark, gilded visuals. Call once per `egui::Context`,
+/// before its first frame.
+pub fn apply(ctx: &egui::Context) {
+    set_pack_fonts(ctx, true);
 
     ctx.set_theme(egui::Theme::Dark);
     ctx.set_visuals(visuals());
