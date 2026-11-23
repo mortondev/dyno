@@ -18,6 +18,8 @@ USAGE:
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
                                [--ui hud|pack|dig|dead|talk|log|char|bags|spells|skills] [--as NAME]
                                Join, render one frame off-screen to an image, leave
+  dyno shot --anim-sheet <out.ppm|out.png>
+                               Render animation contact sheets (no server needed)
   dyno bot <address> [name] [seconds]
                                Join as a bot that walks in a circle (demos, tests)
   dyno fill <address> x,y,z x,y,z <block>
@@ -101,6 +103,20 @@ fn main() {
                         }
                     }
                 }
+                Err(e) => {
+                    eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "shot" if args.get(1).is_some_and(|a| a == "--anim-sheet") => {
+            // no server needed: every figure in every key pose
+            let out = args
+                .get(2)
+                .cloned()
+                .unwrap_or_else(|| "anim-sheet.ppm".into());
+            match dyno_client::sheet::anim_sheet(std::path::Path::new(&out)) {
+                Ok(msg) => println!("{msg}"),
                 Err(e) => {
                     eprintln!("FAILED: {e}");
                     std::process::exit(1);

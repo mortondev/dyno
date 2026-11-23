@@ -1,6 +1,7 @@
 //! Character, NPC, creature and held-item models: fine voxel figures, built
 //! in code, meshed once per look and posed part by part each frame.
 
+use crate::anim::{self, Anim, Animator, BipedRig, Grip, Pose, Skeleton};
 use crate::render::{Vertex, push_block_cube};
 pub use crate::voxmodel::set_view;
 use crate::voxmodel::{
@@ -1461,7 +1462,7 @@ fn build_person(l: &Look) -> [Person; 3] {
         torso: v.mesh(P_TORSO, [0.0, WAIST_Y, 0.0]),
         flap_f: v.mesh(P_FLAP_F, [0.0, FLAP_Y, 0.0]),
         flap_b: v.mesh(P_FLAP_B, [0.0, FLAP_Y, 0.0]),
-        skirt: v.mesh(P_SKIRT, [0.0; 3]),
+        skirt: v.mesh(P_SKIRT, [0.0, HIP_Y, 0.0]),
         arm_u: [0, 1].map(|i| v.mesh(P_ARM_U[i], [sides[i] * arm_x, SHOULDER_Y, 0.0])),
         arm_l: [0, 1].map(|i| v.mesh(P_ARM_L[i], [sides[i] * arm_x, ELBOW_Y, 0.0])),
         thigh: [0, 1].map(|i| v.mesh(P_THIGH[i], [sides[i] * LEG_X, HIP_Y, 0.0])),
@@ -1534,8 +1535,51 @@ fn rx(a: f32) -> Mat3 {
     Mat3::from_rotation_x(a)
 }
 
+/// A bone's frame: `parent`, moved to `pivot` plus the pose's offset for the
+/// bone, and turned by its rotation.
+fn bone(parent: &Affine3A, pivot: Vec3, pose: &Pose, i: usize) -> Affine3A {
+    *parent * Affine3A::from_rotation_translation(pose.rot[i], pivot + pose.off[i])
+}
+
+/// A pose for callers with no animation state: idle, or walking at `phase`
+/// by `walk` (0..1), `phase / 9` seconds in.
+fn simple_pose(walk: f32, phase: f32, pose: impl Fn(Anim, &anim::At) -> Pose) -> Pose {
+    let at = anim::At {
+        t: phase / 9.0,
+        stride: phase,
+        seed: 0.3,
+    };
+    let idle = pose(Anim::Idle, &at);
+    let mut p = if walk > 0.0 {
+        idle.blend(&pose(Anim::Walk, &at), walk.min(1.0), u32::MAX)
+    } else {
+        idle
+    };
+    p.k[anim::key::CLOCK] = at.t;
+    p
+}
+
+/// What a person holds, as a grip.
+fn grip_of(held: Option<(Kind, [f32; 3])>) -> Grip {
+    match held.map(|(k, _)| k) {
+        None => Grip::Empty,
+        Some(Kind::BattleAxe | Kind::Staff | Kind::Polearm) => Grip::TwoHand,
+        Some(Kind::Bow) => Grip::Bow,
+        Some(_) => Grip::OneHand,
+    }
+}
+
+/// The rig of a person in `look`, holding its weapon.
+pub fn person_rig(look: &Look) -> BipedRig {
+    BipedRig {
+        grip: grip_of(look.weapon.map(|(k, c)| (weapon_kind(k), c))),
+        robe: look.robe,
+    }
+}
+
 /// Draw a person in an outfit. Proportions are heroic: big hands, head and
 /// shoulders. `phase` drives the stride, `walk` is 0 standing to 1 walking.
+/// (Figures with animation state use [`push_person_anim`].)
 #[allow(clippy::too_many_arguments)]
 pub fn push_person(
     out: &mut Vec<Vertex>,
@@ -1548,6 +1592,8 @@ pub fn push_person(
     walk: f32,
 ) {
     let held = look.weapon.map(|(kind, color)| (weapon_kind(kind), color));
+    let rig = person_rig(look);
+    let pose = simple_pose(walk, phase, |a, at| anim::biped(a, at, &rig));
     draw_person(
         out,
         feet,
@@ -1555,13 +1601,44 @@ pub fn push_person(
         pitch,
         look,
         Paint::lit(light),
-        phase,
-        walk,
+        &pose,
         held,
+        1.0,
     );
 }
 
-/// A person, lit and tinted by `paint`, with `held` in the right hand.
+/// Draw a person posed by its animator at `now` (seconds).
+#[allow(clippy::too_many_arguments)]
+pub fn push_person_anim(
+    out: &mut Vec<Vertex>,
+    feet: Vec3,
+    yaw: f32,
+    pitch: f32,
+    look: &Look,
+    light: f32,
+    animator: &mut Animator,
+    now: f32,
+) {
+    let held = look.weapon.map(|(kind, color)| (weapon_kind(kind), color));
+    let rig = person_rig(look);
+    let pose = animator.pose(now, Skeleton::Biped.upper(), |a, at| {
+        anim::biped(a, at, &rig)
+    });
+    draw_person(
+        out,
+        feet,
+        yaw,
+        pitch,
+        look,
+        Paint::lit(light),
+        &pose,
+        held,
+        1.0,
+    );
+}
+
+/// A person, lit and tinted by `paint`, posed, with `held` in the right
+/// hand, `scale` times life size.
 #[allow(clippy::too_many_arguments)]
 fn draw_person(
     out: &mut Vec<Vertex>,
@@ -1570,79 +1647,78 @@ fn draw_person(
     pitch: f32,
     look: &Look,
     paint: Paint,
-    phase: f32,
-    walk: f32,
+    pose: &Pose,
     held: Option<(Kind, [f32; 3])>,
+    scale: f32,
 ) {
+    use anim::biped::*;
     let m = PEOPLE.with(|c| c.get(look.key(), || build_person(look)));
     let m = &m[lod_at(feet)];
-    let (sin, cos) = phase.sin_cos();
-    let swing = sin * 0.7 * walk;
-    let breath = (phase * 0.5).sin();
-    let bob = cos.abs() * 0.8 * walk;
-    let base = root(feet, yaw, FINE) * Affine3A::from_translation(Vec3::Y * bob);
-    // legs: the knee bends as the foot comes forward
-    let reach = if look.robe { 0.3 } else { 1.0 };
+    let base = root(feet, yaw, FINE / scale);
+    // the pelvis carries the legs, the skirts and the body
+    let pelvis = bone(&base, Vec3::new(0.0, HIP_Y, 0.0), pose, PELVIS);
     for (i, s) in [1.0f32, -1.0].into_iter().enumerate() {
-        let a = swing * s * reach;
-        let knee = (-cos * s).max(0.0) * 0.8 * walk * reach;
-        let hip = joint(&base, Vec3::new(s * LEG_X, HIP_Y, 0.0), rx(a));
+        let hip = bone(&pelvis, Vec3::new(s * LEG_X, 0.0, 0.0), pose, THIGH[i]);
         emit(out, &m.thigh[i], &hip, paint);
-        let shin = joint(&hip, Vec3::new(0.0, KNEE_Y - HIP_Y, 0.0), rx(knee));
+        let shin = bone(&hip, Vec3::new(0.0, KNEE_Y - HIP_Y, 0.0), pose, SHIN[i]);
         emit(out, &m.shin[i], &shin, paint);
     }
-    emit(out, &m.skirt, &base, paint);
+    emit(out, &m.skirt, &pelvis, paint);
     // the tunic's skirts lift with the stride
-    let lift = swing.abs() * 0.6;
-    let flap = joint(&base, Vec3::new(0.0, FLAP_Y, 0.0), rx(-lift));
+    let lift = pose.k[anim::key::SHAPE];
+    let flap = joint(&pelvis, Vec3::new(0.0, FLAP_Y - HIP_Y, 0.0), rx(-lift));
     emit(out, &m.flap_f, &flap, paint);
-    let flap = joint(&base, Vec3::new(0.0, FLAP_Y, 0.0), rx(lift));
+    let flap = joint(&pelvis, Vec3::new(0.0, FLAP_Y - HIP_Y, 0.0), rx(lift));
     emit(out, &m.flap_b, &flap, paint);
-    // torso leans into the walk
-    let body = joint(&base, Vec3::new(0.0, WAIST_Y, 0.0), rx(-0.07 * walk));
+    let body = bone(&pelvis, Vec3::new(0.0, WAIST_Y - HIP_Y, 0.0), pose, SPINE);
     emit(out, &m.torso, &body, paint);
     // cape: three hinged lengths, streaming back at speed
-    let mut frame = body;
-    let mut at = Vec3::new(0.0, CAPE_Y[0] - WAIST_Y, CAPE_Z);
+    let flow = pose.k[anim::key::FLOW];
+    let clock = pose.k[anim::key::CLOCK];
+    let mut frame = bone(
+        &body,
+        Vec3::new(0.0, CAPE_Y[0] - WAIST_Y, CAPE_Z),
+        pose,
+        CAPE,
+    );
     for (i, seg) in m.cape.iter().enumerate() {
         if seg.is_empty() {
             break;
         }
         let k = i as f32;
         let a = [0.07, 0.05, 0.06][i]
-            + walk * [0.26, 0.16, 0.12][i]
-            + (phase * 0.5 - k * 0.9).sin() * (0.025 + 0.02 * k) * (1.0 + walk);
+            + flow * [0.26, 0.16, 0.12][i]
+            + (clock * 4.5 - k * 0.9).sin() * (0.025 + 0.02 * k) * (1.0 + flow);
+        let at = if i == 0 {
+            Vec3::ZERO
+        } else {
+            Vec3::new(0.0, -13.0, 0.0)
+        };
         frame = joint(&frame, at, rx(a));
         emit(out, seg, &frame, paint);
-        at = Vec3::new(0.0, -13.0, 0.0);
     }
-    // arms swing against the legs; elbows a little bent
     for (i, s) in [1.0f32, -1.0].into_iter().enumerate() {
-        let armed = i == 0 && held.is_some();
-        let (a, bend) = if armed {
-            (-0.45 - swing * 0.25 + breath * 0.02, -0.95)
-        } else {
-            (
-                -swing * 0.8 * s + breath * 0.025 * s,
-                -0.12 - 0.4 * walk - (swing * s).max(0.0) * 0.3,
-            )
-        };
-        let shoulder = joint(
+        let shoulder = bone(
             &body,
             Vec3::new(s * m.arm_x, SHOULDER_Y - WAIST_Y, 0.0),
-            rx(a) * Mat3::from_rotation_z(0.05 * s),
+            pose,
+            ARM_U[i],
         );
         emit(out, &m.arm_u[i], &shoulder, paint);
-        let fore = joint(
+        let fore = bone(
             &shoulder,
             Vec3::new(0.0, ELBOW_Y - SHOULDER_Y, 0.0),
-            rx(bend),
+            pose,
+            ARM_L[i],
         );
         emit(out, &m.arm_l[i], &fore, paint);
-        if armed && let Some((kind, color)) = held {
+        if i == 0
+            && let Some((kind, color)) = held
+        {
             // gripped in the fist, pointing up and ahead
             let lean = Mat3::from_rotation_z(-0.22);
-            let grip = joint(&fore, Vec3::new(0.0, 20.5 - ELBOW_Y, 0.5), rx(1.25) * lean);
+            let grip = joint(&fore, Vec3::new(0.0, 20.5 - ELBOW_Y, 0.5), rx(1.25) * lean)
+                * Affine3A::from_quat(pose.rot[GRIP]);
             let m = held_model(kind, color, 1, false);
             let fit = Mat3::from_rotation_y(m.carry_turn)
                 * Mat3::from_diagonal(Vec3::splat(m.unit * FINE));
@@ -1650,11 +1726,8 @@ fn draw_person(
         }
     }
     // head, tilted by pitch
-    let head = joint(
-        &body,
-        Vec3::new(0.0, NECK_Y - WAIST_Y + breath * 0.15, 0.0),
-        rx(-pitch * 0.55),
-    );
+    let head = bone(&body, Vec3::new(0.0, NECK_Y - WAIST_Y, 0.0), pose, HEAD)
+        * Affine3A::from_mat3(rx(-pitch * 0.55));
     emit(out, &m.head, &head, paint);
 }
 
@@ -2587,8 +2660,8 @@ fn candlekin_look(color: [f32; 3]) -> Look {
 }
 
 thread_local! {
-    static BEASTS: Cache<[Beast; 3]> = Cache::default();
-    static CRAWLERS: Cache<[Crawler; 3]> = Cache::default();
+    static BEASTS: Cache<([Beast; 3], anim::QuadRig)> = Cache::default();
+    static CRAWLERS: Cache<([Crawler; 3], anim::MultiRig)> = Cache::default();
     static SHADES: Cache<[Shade; 3]> = Cache::default();
     static WISPS: Cache<[Wisp; 3]> = Cache::default();
 }
@@ -2602,11 +2675,92 @@ fn color_key(variant: u8, c: [f32; 3]) -> u64 {
     ])
 }
 
+/// The rig of a beast, measured from its meshes.
+fn quad_rig(m: &Beast) -> anim::QuadRig {
+    // the widest part of it, legs and all: how high it lies on its side
+    let widest = |mesh: &Mesh, x: f32| {
+        mesh.verts
+            .iter()
+            .map(|v| (v.pos[0] + x).abs())
+            .fold(0.0f32, f32::max)
+    };
+    let half_width = m
+        .legs
+        .iter()
+        .zip(&m.legs_at)
+        .map(|(l, (x, _))| widest(l, *x))
+        .fold(widest(&m.body, 0.0).max(widest(&m.head, 0.0)), f32::max)
+        .max(4.0);
+    let half_length = m
+        .legs_at
+        .iter()
+        .map(|(_, z)| z.abs())
+        .fold(0.0f32, f32::max);
+    anim::QuadRig {
+        grazes: m.grazes,
+        hip_y: m.hip_y,
+        half_width,
+        half_length,
+    }
+}
+
+/// The rig of a crawler, measured from its meshes.
+fn multi_rig(m: &Crawler) -> anim::MultiRig {
+    let height = m.body.verts.iter().map(|v| v.pos[1]).fold(0.0f32, f32::max);
+    // the front pair: the foremost leg on each side
+    let front = |l: &Limb| {
+        !m.legs
+            .iter()
+            .any(|o| o.side == l.side && o.pivot[2] > l.pivot[2] + 0.1)
+    };
+    anim::MultiRig {
+        legs: m
+            .legs
+            .iter()
+            .map(|l| anim::LegRig {
+                side: l.side,
+                phase: l.phase,
+                front: front(l),
+            })
+            .collect(),
+        claws: m.claws.len(),
+        sideways: m.sideways,
+        height,
+    }
+}
+
+/// What a humanoid creature looks like and holds: Ashcloak bandit, Ashcloak
+/// leader, Candlekin.
+fn humanoid_look(variant: u8, color: [f32; 3]) -> (Look, (Kind, [f32; 3])) {
+    match variant {
+        1 => (
+            ashcloak_look(color, false),
+            (Kind::Dagger, [0.62, 0.63, 0.68]),
+        ),
+        2 => (
+            ashcloak_look(color, true),
+            (Kind::BattleAxe, [0.55, 0.56, 0.62]),
+        ),
+        _ => (candlekin_look(color), (Kind::Pickaxe, [0.50, 0.50, 0.55])),
+    }
+}
+
+/// The attack a creature makes: its weapon for those that hold one, else
+/// its natural attack (bite, gore, claw snap, rake, bolt).
+pub fn creature_attack(model: dyno_world::content::Model, variant: u8) -> Anim {
+    match Skeleton::of(model, variant) {
+        Skeleton::Biped => anim::attack_for(grip_of(Some(humanoid_look(variant, [0.5; 3]).1))),
+        Skeleton::Wraith | Skeleton::Quadruped | Skeleton::Multileg | Skeleton::Wisp => {
+            Anim::AttackUnarmed
+        }
+    }
+}
+
 /// Draw a creature. `variant` picks the look within its model kind:
 /// quadrupeds are 0 Grazer, 1 Thornboar, 2 Mirepincher, 3 Websnare;
 /// humanoids 0 Shade, 1 Ashcloak bandit, 2 Ashcloak leader, 3 Candlekin; the
-/// orb is the Gloomwisp. `flash` (0 to 1) whitens it when hit; `t` is a clock
-/// in seconds.
+/// orb is the Gloomwisp. `flash` (0 to 1) whitens it when hit; `scale` is its
+/// size. It is posed by `animator` at `now` (seconds).
 #[allow(clippy::too_many_arguments)]
 pub fn push_creature(
     out: &mut Vec<Vertex>,
@@ -2616,155 +2770,114 @@ pub fn push_creature(
     yaw: f32,
     color: [f32; 3],
     light: f32,
-    phase: f32,
-    walk: f32,
     flash: f32,
-    t: f32,
+    scale: f32,
+    animator: &mut Animator,
+    now: f32,
 ) {
-    use dyno_world::content::Model;
     let paint = Paint {
         flash,
         ..Paint::lit(if flash > 0.0 { 1.0 } else { light })
     };
     let lod = lod_at(feet);
     let key = color_key(variant, color);
-    match (model, variant) {
-        (Model::Quadruped, 2 | 3) => {
+    let skeleton = Skeleton::of(model, variant);
+    let upper = skeleton.upper();
+    let base = root(feet, yaw, FINE / scale);
+    match skeleton {
+        Skeleton::Multileg => {
             let m = CRAWLERS.with(|c| {
                 c.get(key, || {
-                    if variant == 2 {
+                    let m = if variant == 2 {
                         build_mirepincher(color)
                     } else {
                         build_websnare(color)
-                    }
+                    };
+                    let rig = multi_rig(&m[0]);
+                    (m, rig)
                 })
             });
-            let m = &m[lod];
-            let bob = (phase * 2.0).sin() * 0.5 * walk + (t * 1.6 + phase * 0.01).sin() * 0.35;
-            let base = root(feet, yaw, FINE) * Affine3A::from_translation(Vec3::Y * bob);
-            emit(out, &m.body, &base, paint);
-            for leg in &m.legs {
-                // each leg lifts as it comes forward, and twitches at rest
-                let (sin, cos) = (phase + leg.phase).sin_cos();
-                let lift = cos.max(0.0) * walk;
-                let idle = (t * 1.3 + leg.phase + leg.pivot[0] + leg.pivot[2]).sin() * 0.03;
-                let rot = if m.sideways {
-                    rx(-leg.side * (lift * 0.4 + sin * walk * 0.22 + idle))
-                } else {
-                    Mat3::from_rotation_y(-leg.side * sin * walk * 0.38)
-                        * Mat3::from_rotation_z(leg.side * (lift * 0.3 + idle))
-                };
-                emit(out, &leg.mesh, &joint(&base, leg.pivot.into(), rot), paint);
+            let (m, rig) = (&m.0[lod], &m.1);
+            let pose = animator.pose(now, upper, |a, at| anim::multileg(a, at, rig));
+            use anim::multi::*;
+            let body = bone(&base, Vec3::ZERO, &pose, BODY);
+            emit(out, &m.body, &body, paint);
+            for (i, leg) in m.legs.iter().take(MAX_LEGS).enumerate() {
+                let at = Vec3::from(leg.pivot);
+                emit(out, &leg.mesh, &bone(&body, at, &pose, LEG0 + i), paint);
             }
-            for claw in &m.claws {
-                // claws weigh the air, and rise when it runs
-                let a = 0.12 + (t * 1.7 + claw.phase).sin() * 0.14 + walk * 0.2;
-                let rot = Mat3::from_rotation_z(a) * Mat3::from_rotation_y(claw.side * -0.2);
-                emit(
-                    out,
-                    &claw.mesh,
-                    &joint(&base, claw.pivot.into(), rot),
-                    paint,
-                );
+            for (i, claw) in m.claws.iter().take(2).enumerate() {
+                let at = Vec3::from(claw.pivot);
+                emit(out, &claw.mesh, &bone(&body, at, &pose, CLAW[i]), paint);
             }
         }
-        (Model::Quadruped, _) => {
+        Skeleton::Quadruped => {
             let m = BEASTS.with(|c| {
                 c.get(key, || {
-                    if variant == 1 {
+                    let m = if variant == 1 {
                         build_thornboar(color)
                     } else {
                         build_grazer(color)
-                    }
+                    };
+                    let rig = quad_rig(&m[0]);
+                    (m, rig)
                 })
             });
-            let m = &m[lod];
-            // a trot: the body bobs and rocks a little
-            let bob = (phase * 2.0).sin().abs() * 0.6 * walk;
-            let base = root(feet, yaw, FINE)
-                * Affine3A::from_translation(Vec3::Y * bob)
-                * Affine3A::from_mat3(rx((phase * 2.0).cos() * 0.02 * walk));
+            let (m, rig) = (&m.0[lod], &m.1);
+            let pose = animator.pose(now, upper, |a, at| anim::quadruped(a, at, rig));
+            use anim::quad::*;
+            // the body turns about the middle of its back at hip height
+            let mid = Vec3::new(0.0, m.hip_y, 0.0);
+            let body = bone(&base, mid, &pose, BODY) * Affine3A::from_translation(-mid);
             for (i, (lx, lz)) in m.legs_at.iter().enumerate() {
-                // diagonal pairs move together
-                let ph = if i == 0 || i == 3 {
-                    0.0
-                } else {
-                    std::f32::consts::PI
-                };
-                let a = (phase + ph).sin() * 0.55 * walk;
-                let hip = joint(&base, Vec3::new(*lx, m.hip_y, *lz), rx(a));
+                let hip = bone(&body, Vec3::new(*lx, m.hip_y, *lz), &pose, LEGS[i]);
                 emit(out, &m.legs[i], &hip, paint);
             }
-            emit(out, &m.body, &base, paint);
-            let nod = (phase).sin() * 0.06 * walk;
-            let tilt = if m.grazes {
-                // grazing dips the head now and then when standing
-                let graze = if walk < 0.15 {
-                    ((t * 0.7 + phase * 0.1).sin() - 0.55).max(0.0) * 1.6
-                } else {
-                    0.0
-                };
-                let chew = if graze > 0.3 {
-                    (t * 9.0).sin() * 0.04
-                } else {
-                    0.0
-                };
-                graze * 1.25 + chew
-            } else {
-                // head low, rooting and tossing
-                0.12 + (t * 1.9 + phase * 0.07).sin() * 0.07 - walk * 0.1
-            };
-            let head = joint(&base, Vec3::from(m.neck), rx(tilt + nod));
+            emit(out, &m.body, &body, paint);
+            let head = bone(&body, Vec3::from(m.neck), &pose, HEAD);
             emit(out, &m.head, &head, paint);
         }
-        (Model::Humanoid, 1..=3) => {
-            let (look, held) = match variant {
-                1 => (
-                    ashcloak_look(color, false),
-                    (Kind::Dagger, [0.62, 0.63, 0.68]),
-                ),
-                2 => (
-                    ashcloak_look(color, true),
-                    (Kind::BattleAxe, [0.55, 0.56, 0.62]),
-                ),
-                _ => (candlekin_look(color), (Kind::Pickaxe, [0.50, 0.50, 0.55])),
+        Skeleton::Biped => {
+            let (look, held) = humanoid_look(variant, color);
+            let rig = BipedRig {
+                grip: grip_of(Some(held)),
+                robe: look.robe,
             };
-            draw_person(out, feet, yaw, 0.0, &look, paint, phase, walk, Some(held));
+            let pose = animator.pose(now, upper, |a, at| anim::biped(a, at, &rig));
+            draw_person(out, feet, yaw, 0.0, &look, paint, &pose, Some(held), scale);
         }
-        (Model::Humanoid, _) => {
+        Skeleton::Wraith => {
             let m = SHADES.with(|c| c.get(key, || build_shade(color)));
             let m = &m[lod];
-            let swing = phase.sin() * 0.6 * walk;
-            let bob = (t * 2.1 + phase * 0.05).sin() * 2.2;
-            let lean = 0.22 * walk + (t * 1.3).sin() * 0.03;
-            let base = root(feet, yaw, FINE) * Affine3A::from_translation(Vec3::Y * (4.0 + bob));
-            let body = joint(&base, Vec3::from(S_WAIST), rx(-lean));
+            let pose = animator.pose(now, upper, anim::wraith);
+            use anim::wraith::*;
+            let clock = pose.k[anim::key::CLOCK];
+            let flow = pose.k[anim::key::FLOW];
+            let hover = Vec3::Y * 4.0;
+            let body = bone(&base, Vec3::from(S_WAIST) + hover, &pose, BODY);
             emit(out, &m.body, &body, paint);
             // the rags trail behind and sway on their own
             for (i, rag) in m.tatters.iter().enumerate() {
                 let k = i as f32;
-                let sway = (t * 3.0 + k * 2.1).sin();
-                let trail = 0.12 + 0.55 * walk + (t * 2.3 + k * 1.3).sin() * 0.1;
+                let sway = (clock * 3.0 + k * 2.1).sin();
+                let trail = flow + (clock * 2.3 + k * 1.3).sin() * 0.1;
                 let rot = rx(trail) * Mat3::from_rotation_z(sway * 0.14);
                 let at = Vec3::new(S_TATTER_X[i], S_HEM_Y - S_WAIST[1], 0.0);
                 emit(out, rag, &joint(&body, at, rot), paint);
             }
-            let hood = joint(
+            let hood = bone(
                 &body,
                 Vec3::new(0.0, S_NECK[1] - S_WAIST[1], 0.0),
-                rx(lean * 0.6 + (t * 1.7).sin() * 0.04),
+                &pose,
+                HOOD,
             );
             emit(out, &m.hood, &hood, paint);
-            // the eyes glow whatever the light, and blink shut now and then
-            let blink = if (t * 0.37 + phase * 0.013).fract() < 0.03 {
-                0.15
-            } else {
-                1.0
-            };
+            // the eyes glow whatever the light, and shut when it blinks or dies
+            let open = pose.k[anim::key::SHAPE].clamp(0.1, 1.5);
             let eyes = joint(
                 &hood,
                 Vec3::new(0.0, S_EYE[1] - S_NECK[1], S_EYE[2]),
-                Mat3::from_diagonal(Vec3::new(1.0, blink, 1.0)),
+                Mat3::from_diagonal(Vec3::new(1.0, open, 1.0)),
             );
             emit(
                 out,
@@ -2777,60 +2890,65 @@ pub fn push_creature(
                 },
             );
             // long reaching arms
-            let reach = 0.75 + 0.5 * walk;
             for (i, s) in [1.0f32, -1.0].into_iter().enumerate() {
-                let a = -(reach + (t * 2.4 + s).sin() * 0.12 + swing * s * 0.3);
-                let shoulder = joint(
+                let shoulder = bone(
                     &body,
                     Vec3::new(s * S_SHOULDER.0, S_SHOULDER.1 - S_WAIST[1], 0.0),
-                    rx(a) * Mat3::from_rotation_z(0.12 * s),
+                    &pose,
+                    ARM_U[i],
                 );
                 emit(out, &m.arm_u[i], &shoulder, paint);
-                let bend = -0.55 - (t * 2.0 + s * 2.0).sin() * 0.15;
-                let fore = joint(
+                let fore = bone(
                     &shoulder,
                     Vec3::new(0.0, S_ELBOW_Y - S_SHOULDER.1, 0.0),
-                    rx(bend),
+                    &pose,
+                    ARM_L[i],
                 );
                 emit(out, &m.arm_l[i], &fore, paint);
             }
         }
-        (Model::Orb, _) => {
+        Skeleton::Wisp => {
             let m = WISPS.with(|c| c.get(key, || build_wisp(color)));
             let m = &m[lod];
+            let pose = animator.pose(now, upper, anim::wisp);
+            use anim::wisp::*;
+            let t = pose.k[anim::key::CLOCK];
             let glow = Paint {
                 glow: true,
                 ..paint
             };
-            // it drifts: a slow bob with a quicker waver on top
-            let bob = (t * 1.7).sin() * 0.15 + (t * 4.3 + phase * 0.02).sin() * 0.03;
-            let base = root(feet + Vec3::Y * (0.85 + bob), yaw, FINE);
-            let pulse = 1.0 + (t * 4.0).sin() * 0.07;
+            let base = bone(&base, Vec3::new(0.0, 0.85 * FINE, 0.0), &pose, ROOT);
+            let size = pose.k[anim::key::SHAPE].max(0.2);
             let spin = Mat3::from_rotation_y(t * 0.9) * Mat3::from_rotation_x(0.3);
-            let core = base * Affine3A::from_mat3(spin * Mat3::from_diagonal(Vec3::splat(pulse)));
+            let core = base * Affine3A::from_mat3(spin * Mat3::from_diagonal(Vec3::splat(size)));
             emit(out, &m.core, &core, glow);
             let veil = Mat3::from_rotation_y(-t * 0.6)
-                * Mat3::from_diagonal(Vec3::splat(1.0 + (t * 2.3).sin() * 0.08));
+                * Mat3::from_diagonal(Vec3::splat(pose.off[VEIL].x.max(0.2)));
             emit(out, &m.veil, &(base * Affine3A::from_mat3(veil)), glow);
             // motes circle on tilted rings
+            let spread = pose.k[anim::key::SPREAD].max(0.2);
             for k in 0..5 {
                 let kf = k as f32;
                 let a = t * (1.1 + kf * 0.23) + kf * 1.9;
-                let r = 9.5 + kf * 1.2;
+                let r = (9.5 + kf * 1.2) * spread;
                 let p = Mat3::from_rotation_z(0.5 * kf - 1.0)
                     * Vec3::new(a.cos() * r, (a * 1.7).sin() * 2.0, a.sin() * r);
                 let spin = Mat3::from_rotation_y(a * 2.0) * Mat3::from_rotation_x(a);
                 emit(out, &m.mote, &joint(&base, p, spin), glow);
             }
             // the tail hangs below at rest and streams behind when it moves
-            let back = 0.25 + walk * 0.9;
-            let dir = Vec3::new(0.0, -(1.0 - walk * 0.6), -back).normalize();
+            let flow = pose.k[anim::key::FLOW];
+            let back = flow.max(0.0);
+            let dir =
+                Vec3::new(0.0, -(1.0 - (flow - 0.25).max(0.0) * 0.66), -back).normalize_or_zero();
+            let fade = size.min(1.0);
             for (i, puff) in m.tail.iter().enumerate() {
                 let kf = i as f32;
                 let sway = (t * 3.1 - kf * 0.9).sin() * (1.0 + kf * 0.8);
-                let p = dir * (6.0 + kf * 4.4) + Vec3::new(sway, 0.0, (t * 2.3 - kf).cos() * 0.6);
-                let size = 1.0 + (t * 5.0 - kf * 1.3).sin() * 0.1;
-                let rot = Mat3::from_rotation_y(t + kf) * Mat3::from_diagonal(Vec3::splat(size));
+                let p = dir * (6.0 + kf * 4.4) * fade
+                    + Vec3::new(sway, 0.0, (t * 2.3 - kf).cos() * 0.6);
+                let s = (1.0 + (t * 5.0 - kf * 1.3).sin() * 0.1) * fade;
+                let rot = Mat3::from_rotation_y(t + kf) * Mat3::from_diagonal(Vec3::splat(s));
                 emit(out, puff, &joint(&base, p, rot), glow);
             }
         }
@@ -3969,7 +4087,9 @@ mod tests {
                 (dyno_world::content::Model::Humanoid, _) => [0.16, 0.12, 0.22],
                 (dyno_world::content::Model::Orb, _) => [0.35, 0.85, 1.0],
             };
-            push_creature(b, m, variant, at, yaw, color, 0.0, 1.0, walk, flash, t);
+            let base = if walk > 0.1 { Anim::Walk } else { Anim::Idle };
+            let mut a = Animator::still(base, t * 9.0);
+            push_creature(b, m, variant, at, yaw, color, 0.0, flash, 1.0, &mut a, t);
         };
         let creature = |b: &mut Vec<Vertex>, m, at: Vec3, yaw: f32, walk: f32, flash: f32, t| {
             beast(b, m, 0, at, yaw, walk, flash, t)
@@ -4455,5 +4575,328 @@ mod tests {
                 },
             );
         }
+    }
+}
+
+/// The animation contract, checked against every model.
+#[cfg(test)]
+mod anim_tests {
+    use super::*;
+    use dyno_world::content::{Content, Model};
+
+    /// When to sample an animation: through a one-shot and well past its
+    /// end, or across several seconds of a loop.
+    fn times(a: Anim) -> Vec<f32> {
+        match a.duration() {
+            Some(d) => vec![0.0, d * 0.3, d * 0.5, d * 0.8, d, d * 3.0],
+            None => vec![0.0, 0.7, 2.3, 4.6, 7.9, 30.1],
+        }
+    }
+
+    /// Geometry was made, every vertex is a number, and the figure stays in
+    /// its box: nothing under the ground, nothing flung far off. `loose`
+    /// allows half a block under: swimmers sit low in the water, and a
+    /// figure getting up from the ground passes through it for a moment.
+    /// Problems are collected in `bad`.
+    fn check(
+        out: &[Vertex],
+        feet: Vec3,
+        scale: f32,
+        loose: bool,
+        what: &str,
+        bad: &mut Vec<String>,
+    ) {
+        if out.is_empty() {
+            bad.push(format!("{what}: no geometry"));
+            return;
+        }
+        let (mut lo, mut hi) = (Vec3::splat(f32::MAX), Vec3::splat(f32::MIN));
+        for v in out {
+            let p = Vec3::from(v.pos);
+            if !p.is_finite() {
+                bad.push(format!("{what}: a vertex is not a number"));
+                return;
+            }
+            lo = lo.min(p);
+            hi = hi.max(p);
+        }
+        let (lo, hi) = ((lo - feet) / scale, (hi - feet) / scale);
+        let floor = if loose { -0.5 } else { -0.13 };
+        if lo.y < floor {
+            bad.push(format!("{what}: sinks {:.2} blocks underground", -lo.y));
+        }
+        if hi.y > 3.0 {
+            bad.push(format!("{what}: reaches {:.2} blocks up", hi.y));
+        }
+        for d in [lo.x, lo.z, hi.x, hi.z] {
+            if d.abs() > 2.6 {
+                bad.push(format!("{what}: reaches {d:.2} blocks out"));
+            }
+        }
+    }
+
+    fn report(bad: &[String]) {
+        for b in bad {
+            println!("{b}");
+        }
+        assert!(
+            bad.is_empty(),
+            "{} problems, the first: {}",
+            bad.len(),
+            bad[0]
+        );
+    }
+
+    fn people() -> Vec<(&'static str, Look)> {
+        let mut list = Vec::new();
+        for (name, weapon) in [
+            ("unarmed", None),
+            ("sword", Some(WeaponKind::Sword)),
+            ("axe", Some(WeaponKind::Axe)),
+            ("staff", Some(WeaponKind::Staff)),
+            ("bow", Some(WeaponKind::Bow)),
+        ] {
+            let mut l = Look::player(3, [0.6, 0.2, 0.2]);
+            l.weapon = weapon.map(|k| (k, [0.6, 0.6, 0.65]));
+            l.cape = Some([0.3, 0.2, 0.5]);
+            list.push((name, l));
+        }
+        let mut robed = Look::player(9, [0.2, 0.3, 0.7]);
+        robed.robe = true;
+        list.push(("robed", robed));
+        list.push(("npc", Look::npc("maren", [0.4, 0.5, 0.6])));
+        list
+    }
+
+    /// Every creature in the game's content and every kind of player
+    /// performs every animation.
+    #[test]
+    fn every_figure_performs_every_animation() {
+        set_view(None);
+        let content = Content::default_pack();
+        let feet = Vec3::new(100.0, 50.0, 100.0);
+        let mut out = Vec::new();
+        let mut bad = Vec::new();
+        for c in &content.creatures {
+            for &a in Anim::ALL {
+                for t in times(a) {
+                    let mut an = Animator::still(a, 1.3 + t * 5.0);
+                    out.clear();
+                    push_creature(
+                        &mut out, c.model, c.variant, feet, 0.4, c.color, 1.0, 0.0, c.scale,
+                        &mut an, t,
+                    );
+                    let what = format!("{} {a:?} at {t:.2}s", c.key);
+                    check(&out, feet, c.scale, a == Anim::Swim, &what, &mut bad);
+                }
+            }
+        }
+        for (name, look) in people() {
+            for &a in Anim::ALL {
+                for t in times(a) {
+                    let mut an = Animator::still(a, 1.3 + t * 5.0);
+                    out.clear();
+                    push_person_anim(&mut out, feet, 0.4, 0.1, &look, 1.0, &mut an, t);
+                    let what = format!("{name} {a:?} at {t:.2}s");
+                    check(&out, feet, 1.0, a == Anim::Swim, &what, &mut bad);
+                }
+            }
+        }
+        report(&bad);
+    }
+
+    /// Changing state halfway through anything stays well formed: every
+    /// pair of animations, crossfading, with an action layered on top.
+    #[test]
+    fn crossfades_stay_well_formed() {
+        set_view(None);
+        let content = Content::default_pack();
+        let feet = Vec3::new(10.0, 5.0, 10.0);
+        let mut out = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut bad = Vec::new();
+        for c in &content.creatures {
+            if !seen.insert(Skeleton::of(c.model, c.variant)) {
+                continue;
+            }
+            for &from in Anim::ALL {
+                for &to in Anim::ALL {
+                    let mut an = Animator::new(5, 0.0);
+                    an.drive(0.0, from, 0.0, 1.0);
+                    out.clear();
+                    push_creature(
+                        &mut out, c.model, c.variant, feet, 0.0, c.color, 1.0, 0.0, 1.0, &mut an,
+                        0.6,
+                    );
+                    an.drive(0.7, to, 0.4, 1.0);
+                    an.play(0.7, Anim::HitReact);
+                    out.clear();
+                    push_creature(
+                        &mut out,
+                        c.model,
+                        c.variant,
+                        feet,
+                        0.0,
+                        c.color,
+                        1.0,
+                        0.0,
+                        1.0,
+                        &mut an,
+                        0.7 + anim::FADE * 0.5,
+                    );
+                    let what = format!("{} {from:?} to {to:?}", c.key);
+                    check(&out, feet, 1.0, true, &what, &mut bad);
+                }
+            }
+        }
+        report(&bad);
+    }
+
+    /// No animation is a silent copy of standing idle: each skeleton is
+    /// rigged to do something for every one.
+    #[test]
+    fn every_skeleton_animates_every_animation() {
+        let person = BipedRig {
+            grip: Grip::OneHand,
+            robe: false,
+        };
+        let beast = quad_rig(&build_grazer([0.8, 0.8, 0.7])[0]);
+        let crab = multi_rig(&build_mirepincher([0.4, 0.4, 0.2])[0]);
+        let spider = multi_rig(&build_websnare([0.8, 0.8, 0.7])[0]);
+        type PoseFn<'a> = Box<dyn Fn(Anim, &anim::At) -> Pose + 'a>;
+        let rigs: Vec<(&str, PoseFn)> = vec![
+            ("biped", Box::new(|a, at| anim::biped(a, at, &person))),
+            ("wraith", Box::new(anim::wraith)),
+            (
+                "quadruped",
+                Box::new(|a, at| anim::quadruped(a, at, &beast)),
+            ),
+            ("crab", Box::new(|a, at| anim::multileg(a, at, &crab))),
+            ("spider", Box::new(|a, at| anim::multileg(a, at, &spider))),
+            ("wisp", Box::new(anim::wisp)),
+        ];
+        for (name, pose) in &rigs {
+            for &a in Anim::ALL.iter().filter(|a| **a != Anim::Idle) {
+                let differs = times(a).iter().any(|&t| {
+                    let at = anim::At {
+                        t,
+                        stride: 1.0 + t * 3.0,
+                        seed: 0.3,
+                    };
+                    let p = pose(a, &at);
+                    assert!(p.is_finite(), "{name} {a:?}: not a number");
+                    p.distance(&pose(Anim::Idle, &at)) > 0.05
+                });
+                assert!(differs, "{name} does nothing for {a:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn creatures_have_a_skeleton_and_an_attack() {
+        let content = Content::default_pack();
+        for c in &content.creatures {
+            let s = Skeleton::of(c.model, c.variant);
+            assert!(!s.bones().is_empty());
+            let a = creature_attack(c.model, c.variant);
+            assert!(
+                a.duration().is_some(),
+                "{}: attack must be a one-shot",
+                c.key
+            );
+        }
+        assert_eq!(Skeleton::of(Model::Orb, 0), Skeleton::Wisp);
+    }
+
+    /// The best of several runs of 60 frames (steady under a loaded
+    /// machine): 20 walking players and 48 creatures, all animated.
+    /// `cargo test -p dyno-client --release animated_crowd -- --nocapture`
+    #[test]
+    fn animated_crowd_cost() {
+        fn best(mut f: impl FnMut(f32)) -> f64 {
+            let mut best = f64::MAX;
+            for r in 0..7 {
+                let start = std::time::Instant::now();
+                for i in 0..60 {
+                    f((r * 60 + i) as f32 * 0.016);
+                }
+                best = best.min(start.elapsed().as_secs_f64() * 1000.0 / 60.0);
+            }
+            best
+        }
+        let content = Content::default_pack();
+        let looks: Vec<Look> = (0..20)
+            .map(|i| Look::player(i, crate::game::player_color(i)))
+            .collect();
+        let mut out = Vec::new();
+        set_view(Some((Vec3::new(-2.0, 1.6, 3.0), Vec3::new(0.4, 0.8, 0.3))));
+        let mut people: Vec<Animator> = (0..20).map(|i| Animator::new(i, 0.0)).collect();
+        let p = best(|t| {
+            out.clear();
+            for (i, l) in looks.iter().enumerate() {
+                let at = Vec3::new(i as f32 * 0.6, 0.0, (i % 3) as f32);
+                people[i].drive(t, Anim::Walk, 0.07, 1.0);
+                push_person_anim(&mut out, at, i as f32, 0.1, l, 0.8, &mut people[i], t);
+            }
+        });
+        let pv = out.len();
+        let n = content.creatures.len();
+        let mut beasts: Vec<Animator> = (0..n * 4).map(|i| Animator::new(i as u32, 0.0)).collect();
+        let c = best(|t| {
+            out.clear();
+            for k in 0..4 {
+                for (i, c) in content.creatures.iter().enumerate() {
+                    let at = Vec3::new(i as f32 * 1.5, 0.0, k as f32 * 2.0);
+                    let a = &mut beasts[k * n + i];
+                    a.drive(t, Anim::Walk, 0.05, 1.0);
+                    push_creature(
+                        &mut out, c.model, c.variant, at, i as f32, c.color, 0.8, 0.0, 1.0, a, t,
+                    );
+                }
+            }
+        });
+        println!(
+            "AB people: {p:.3} ms ({pv} verts); creatures: {c:.3} ms ({} verts)",
+            out.len()
+        );
+        set_view(None);
+    }
+
+    /// Prints the cost of drawing a crowd of every creature, animated.
+    /// `cargo test -p dyno-client --release creature_crowd -- --nocapture`
+    #[test]
+    fn creature_crowd_is_cheap() {
+        let content = Content::default_pack();
+        let mut out = Vec::new();
+        set_view(Some((Vec3::new(-2.0, 1.6, 3.0), Vec3::new(0.4, 0.8, 0.3))));
+        let n = content.creatures.len() * 4;
+        let mut anims: Vec<Animator> = (0..n).map(|i| Animator::new(i as u32, 0.0)).collect();
+        let mut draw = |out: &mut Vec<Vertex>, t: f32| {
+            out.clear();
+            for k in 0..4 {
+                for (i, c) in content.creatures.iter().enumerate() {
+                    let at = Vec3::new(i as f32 * 1.5, 0.0, k as f32 * 2.0);
+                    let a = &mut anims[k * content.creatures.len() + i];
+                    let base = [Anim::Walk, Anim::Run, Anim::Ready, Anim::Idle][k];
+                    a.drive(t, base, 0.05, 1.0);
+                    push_creature(
+                        out, c.model, c.variant, at, i as f32, c.color, 0.8, 0.0, 1.0, a, t,
+                    );
+                }
+            }
+        };
+        draw(&mut out, 0.0);
+        let frames = 300;
+        let start = std::time::Instant::now();
+        for i in 0..frames {
+            draw(&mut out, i as f32 * 0.1);
+        }
+        let per = start.elapsed().as_secs_f64() * 1000.0 / frames as f64;
+        println!(
+            "{n} creatures: {} vertices, {per:.3} ms per frame",
+            out.len()
+        );
+        set_view(None);
+        assert!(!out.is_empty());
     }
 }
