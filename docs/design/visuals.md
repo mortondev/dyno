@@ -218,8 +218,10 @@ so natural ground is no longer a smooth surface: each terrain block is drawn
 as a sub-grid of fine voxels, 8 a metre near the camera. The world keeps its
 1 m blocks for storage, light, physics, picking, saves and the server.
 
-Before (left, main) and after (right), the 18 gauntlet cameras
-(`tools/concepts/shots.py`, `dyno shot --stand`), same server and world:
+Before (left, main with the smooth ground, before its water pass) and
+after (right, fine voxels with the warmer ground colours, after the water
+pass), the 18 gauntlet cameras (`tools/concepts/shots.py`, `dyno shot
+--stand`), same seed:
 
 ![Hearthstead plaza](visuals/terrain/hearthstead_plaza.jpg)
 ![Hearthstead street](visuals/terrain/hearthstead_street.jpg)
@@ -263,8 +265,10 @@ Before (left, main) and after (right), the 18 gauntlet cameras
   hard stepped edge that follows its ragged outline.
 - **Colour per voxel**, in the shader: the block's texture at the voxel's
   centre on the mip level with one texel a voxel, times a hashed brightness
-  and hue jitter (`jitter`), times the slow world tone. Geometry only knows
-  the kind of ground.
+  and hue jitter (`jitter`), saturated (`saturation`) and tinted (`tint`)
+  per block (warm golden sand, yellow-green grass, warm earth, toward the
+  concepts), times the slow world tone. Geometry only knows the kind of
+  ground.
 - **Meshing.** Faces are culled against filled voxels (ground, or built
   blocks: ground touching anything another mesher draws keeps that side
   whole, so the other side's hidden face never shows), merged greedily
@@ -277,20 +281,23 @@ Before (left, main) and after (right), the 18 gauntlet cameras
   64 m, 2 to 104 m, then 1 (data: `lod`). A column turns coarser only a
   little past its line. Where neighbouring columns differ, the outermost
   voxels near the surface show their sides (a skirt) so no crack opens.
-  The world worker chooses the levels from its camera and remeshes columns
-  that change; a whole (not streamed) world does the same in `Gfx`.
+  The world worker chooses the levels from its camera, the same focus that
+  sets how finely leaves are drawn (`foliage.rs`): a section is meshed
+  again when either its ground ring or its leaf level should change. A
+  whole (not streamed) world does the same for the ground in `Gfx`.
 - **Feet** stand on the top of the fine column under them
   (`terrain_mesh::Ground`); the target ring follows it too. Picking and the
   block highlight stay per block.
 - **Water** is unchanged; its surface still runs on under the shore block,
   so it meets eroded banks without a gap.
 - **Cover** (`cover.rs`) grows on the open, fairly level ground tops the
-  mesher reports, with corners at the tops of the fine columns.
+  mesher reports; each plant or stone is then seated on the top of the
+  fine column it stands in.
 
 All of it is data in `blocks.json` (`terrain`): voxels a metre, the levels
 of detail, noise and strata strength and size, edge reach and size, cover
-depth, jitter, and per block `under`, `jitter`, `edge` and `inset`. The
-mesher is generic.
+depth, jitter, and per block `under`, `jitter`, `tint`, `saturation`,
+`edge` and `inset`. The mesher is generic.
 
 ### Rules that keep it seamless
 
@@ -339,7 +346,5 @@ planes rather than block by block.
   occlusion from built blocks only; per-voxel corner occlusion would read
   more like Cube World but defeats merging.
 - Leaves are not part of this (the vegetation pass draws voxel clumps).
-- Cover on stepped ground is placed by the cell's four corner heights, so
-  a plant can sit up to a step off the voxel top.
 - Collision stays on the 1 m grid: feet are drawn on the fine surface, up
   to 0.7 m from where the body stands.

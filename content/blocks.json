@@ -18,8 +18,8 @@
     "blocks": {
       "grass": {"under": "dirt", "jitter": 0.13, "tint": [1.1, 1.06, 0.68], "saturation": 1.35},
       "snow": {"under": "stone", "jitter": 0.04},
-      "sand": {"jitter": 0.07, "tint": [1.16, 1.04, 0.74], "saturation": 1.45},
-      "dirt": {"jitter": 0.1, "tint": [1.14, 0.96, 0.76], "saturation": 1.3},
+      "sand": {"jitter": 0.07, "tint": [1.1, 1.02, 0.82], "saturation": 1.2},
+      "dirt": {"jitter": 0.1, "tint": [1.08, 0.96, 0.82], "saturation": 1.1},
       "stone": {"jitter": 0.1, "tint": [1.04, 1.0, 0.93], "saturation": 1.05},
       "cobble": {"jitter": 0.1, "edge": 0.6, "inset": 0.125},
       "mossy_cobble": {"jitter": 0.1, "edge": 0.6, "inset": 0.125},
