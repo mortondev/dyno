@@ -678,6 +678,15 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         }
         _ => None,
     };
+    let me = rpg_ui::Me {
+        content: &p.content,
+        money: p.money,
+        level: p.level,
+        log: &p.quest_log,
+        done: &p.quests_done,
+        pos: p.player.pos.into(),
+        hearth: p.hearth,
+    };
     for (id, e) in &p.entities {
         let pos = p.ground.feet(&p.world, e.pos());
         let step = Vec3::from(e.to) - Vec3::from(e.from);
@@ -708,6 +717,10 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             a.drive_at(now, base, pos, models::person_step(speed));
             let look = models::Look::npc(&npc.key, npc.color);
             models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
+            if let Some(m) = me.marker(n) {
+                let turn = p.player.yaw + p.cam_orbit;
+                push_marker(boxes, pos + Vec3::Y * (2.45 + 0.06 * (now * 2.2).sin()), turn, m);
+            }
             continue;
         }
         let EntityKind::Creature(cid) = e.kind else {
@@ -753,6 +766,32 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         p.tops.borrow_mut().insert(*id, top - pos.y);
     }
     push_corpses(boxes, p, book, clock);
+}
+
+/// A quest marker over an NPC's head, built of small shining cubes and
+/// turned to the camera: a gold "!" (a quest to take), a gold "?" (one to
+/// hand in), a grey "?" (one of yours, not finished).
+fn push_marker(out: &mut Vec<Vertex>, at: Vec3, turn: f32, m: rpg_ui::Marker) {
+    const BANG: [&str; 7] = [".##.", ".##.", ".##.", ".##.", ".##.", "....", ".##."];
+    const ASK: [&str; 7] = [".##.", "#..#", "...#", "..#.", ".#..", "....", ".#.."];
+    let (rows, rgb) = match m {
+        rpg_ui::Marker::Available => (BANG, [1.0, 0.82, 0.16]),
+        rpg_ui::Marker::Ready => (ASK, [1.0, 0.82, 0.16]),
+        rpg_ui::Marker::Waiting => (ASK, [0.66, 0.66, 0.66]),
+    };
+    let (s, c) = turn.sin_cos();
+    let right = Vec3::new(c, 0.0, -s);
+    let axes = [right, Vec3::Y, Vec3::new(s, 0.0, c)];
+    let u = 0.085;
+    for (row, line) in rows.iter().enumerate() {
+        for (col, ch) in line.bytes().enumerate() {
+            if ch != b'#' {
+                continue;
+            }
+            let centre = at + right * ((col as f32 - 1.5) * u) + Vec3::Y * ((6 - row) as f32 * u);
+            render::push_oriented_box(out, centre, axes, Vec3::splat(u * 0.5), rgb, true, 1.0);
+        }
+    }
 }
 
 /// An NPC's routine says what it does now: a looping animation is held
@@ -4320,22 +4359,8 @@ fn hud(
                     Color32::from_rgb(200, 50, 40),
                 );
             }
-            if let Some(mk) = marker {
-                let (t, c) = match mk {
-                    rpg_ui::Marker::Available => ("!", Color32::from_rgb(255, 210, 40)),
-                    rpg_ui::Marker::Ready => ("?", Color32::from_rgb(255, 210, 40)),
-                    rpg_ui::Marker::Waiting => ("?", Color32::from_gray(170)),
-                };
-                let at = pos - Vec2::new(0.0, 18.0);
-                painter.text(
-                    at + Vec2::new(2.0, 2.0),
-                    Align2::CENTER_BOTTOM,
-                    t,
-                    FontId::proportional(34.0),
-                    Color32::from_black_alpha(200),
-                );
-                painter.text(at, Align2::CENTER_BOTTOM, t, FontId::proportional(34.0), c);
-            }
+            // the quest marker itself floats in the world (push_marker)
+            let _ = marker;
         }
     }
     let map = p.minimap.show(

@@ -204,10 +204,12 @@ pub struct Particles {
     scatter_eye: Vec3,
     /// sections of the ring looked at so far (the first pass goes faster)
     scanned: usize,
+    /// the world's count of arrivals when the pass began
+    world_rev: u64,
 }
 
 /// Sections looked at per frame, and during the first pass after joining.
-const SCAN_PER_FRAME: usize = 3;
+const SCAN_PER_FRAME: usize = 1;
 const SCAN_AT_FIRST: usize = 24;
 
 impl Particles {
@@ -328,6 +330,12 @@ impl Particles {
         self.sections
             .retain(|k, _| (k[0] - cx).abs() <= r && (k[2] - cz).abs() <= r);
         if !self.by_block.is_empty() && ring > 0 {
+            // sections arrived or left: go round again quickly
+            let rev = s.world.revision();
+            if rev != self.world_rev {
+                self.world_rev = rev;
+                self.scanned = 0;
+            }
             let n = if self.scan_all {
                 ring
             } else if self.scanned < ring {

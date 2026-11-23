@@ -176,9 +176,9 @@
   ],
 
   "critters": {
-    "bird": { "model": "models/critters/bird.vox", "unit": 0.11, "behave": "flock",
+    "bird": { "model": "models/critters/bird.vox", "unit": 0.14, "behave": "flock",
       "speed": 7.0, "range": 15, "fps": 5, "height": [13, 22], "reach": 150 },
-    "gull": { "model": "models/critters/gull.vox", "unit": 0.11, "behave": "flock",
+    "gull": { "model": "models/critters/gull.vox", "unit": 0.14, "behave": "flock",
       "speed": 6.0, "range": 13, "fps": 4, "height": [8, 15], "reach": 150 },
     "bat": { "model": "models/critters/bird.vox", "unit": 0.05, "behave": "flock",
       "speed": 6.0, "range": 5, "fps": 10, "height": [3, 6], "reach": 50 },

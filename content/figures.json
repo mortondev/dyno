@@ -6269,6 +6269,10 @@
     "jory": {"hold": ["hoe", [0.55, 0.55, 0.6]]},
     "marl": {"hold": ["rod", [0.55, 0.38, 0.22]]},
     "dag": {"hold": ["pickaxe", [0.6, 0.6, 0.66]]},
+    "calder": {"hold": ["torch", [1.0, 0.75, 0.35]]},
+    "tess": {"hold": ["rod", [0.55, 0.38, 0.22]]},
+    "mira": {"hold": ["torch", [1.0, 0.75, 0.35]]},
+    "pell": {"hold": ["pickaxe", [0.6, 0.6, 0.66]]},
     "*": {
       "colors": {
         "cape": null

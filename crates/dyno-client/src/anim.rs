@@ -563,6 +563,14 @@ impl Book {
 mod tests {
     use super::*;
 
+    /// The server names animations by the protocol's list (`Act::Emote`
+    /// carries an index): it is this list, in this order.
+    #[test]
+    fn the_protocol_names_the_same_animations() {
+        let mine: Vec<&str> = Anim::ALL.iter().map(|a| a.name()).collect();
+        assert_eq!(mine, dyno_protocol::ANIMS);
+    }
+
     #[test]
     fn locomotion_reads_direction() {
         let yaw = 0.0; // facing -z

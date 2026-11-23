@@ -117,6 +117,7 @@ impl State {
             let free = |y: i32| {
                 w::is_solid(self.world.get(x, y - 1, z))
                     && !w::is_solid(self.world.get(x, y, z))
+                    && self.world.get(x, y, z) != w::WATER
                     && !w::is_solid(self.world.get(x, y + 1, z))
             };
             let y = (0..12)

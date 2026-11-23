@@ -1415,7 +1415,13 @@ impl Server {
                     hearth: st.spawn_hearth,
                     view: st.stream.view,
                 };
-                (id, vec![welcome])
+                // a tool sees what stands in the world (in no story phase),
+                // as it sees the world itself
+                let mut first = vec![welcome];
+                for (eid, e) in st.entities.iter().filter(|(_, e)| e.phase.is_none()) {
+                    first.extend(st.entity_intro(*eid, e));
+                }
+                (id, first)
             } else {
                 if self.routes.lock().unwrap().len() >= self.cfg.max_players.max(self.cap()) {
                     drop(st);
