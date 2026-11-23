@@ -137,6 +137,9 @@ pub struct Telemetry {
     pub fights: Vec<Fight>,
     pub deaths: Vec<Death>,
     pub stuck: Vec<StuckAt>,
+    /// teleports we did not ask for (movement-check rubber-bands): from, to
+    #[serde(default)]
+    pub rubberbands: Vec<StuckAt>,
     pub blockers: Vec<Blocker>,
     pub unreachable: Vec<String>,
     pub abilities: BTreeMap<String, u32>,

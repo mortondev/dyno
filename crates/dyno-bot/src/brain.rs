@@ -25,15 +25,18 @@ pub enum Personality {
     Social,
     /// short sessions, wanders off, takes breaks
     Casual,
+    /// quests in a party of two: a leader and a follower who share kills
+    Party,
 }
 
 impl Personality {
-    pub const ALL: [Personality; 5] = [
+    pub const ALL: [Personality; 6] = [
         Personality::Completionist,
         Personality::Grinder,
         Personality::Explorer,
         Personality::Social,
         Personality::Casual,
+        Personality::Party,
     ];
 
     pub fn key(self) -> &'static str {
@@ -43,6 +46,7 @@ impl Personality {
             Personality::Explorer => "explorer",
             Personality::Social => "social",
             Personality::Casual => "casual",
+            Personality::Party => "party",
         }
     }
 
@@ -52,7 +56,8 @@ impl Personality {
             .find(|p| p.key().starts_with(&s.to_ascii_lowercase()))
     }
 
-    /// The i-th bot of a mixed swarm: a third completionists, then the rest.
+    /// The i-th bot of a mixed swarm: completionists (the solo baseline),
+    /// grinders, explorers, social and casual players, and a party of two.
     pub fn mix(i: usize) -> Personality {
         const ORDER: [Personality; 10] = [
             Personality::Completionist,
@@ -62,9 +67,9 @@ impl Personality {
             Personality::Social,
             Personality::Casual,
             Personality::Completionist,
-            Personality::Social,
             Personality::Grinder,
-            Personality::Casual,
+            Personality::Party,
+            Personality::Party,
         ];
         ORDER[i % ORDER.len()]
     }
@@ -175,6 +180,31 @@ pub struct Scripted {
     /// what the current task is for
     purpose: Purpose,
     last_node: Option<Cell>,
+    /// in a party of two (Party brains)
+    pub party: Option<PartyRole>,
+    next_invite: Instant,
+}
+
+/// What a party leader is doing, for its follower to copy.
+#[derive(Clone, Debug, Default)]
+pub struct LeaderView {
+    pub pos: Vec3,
+    pub fight: Option<u32>,
+    pub talk: Option<u16>,
+    pub resting: bool,
+    /// an NPC the follower has quest business with (the leader goes there too)
+    pub follower_npc: Option<u16>,
+}
+
+pub type Link = std::sync::Arc<std::sync::Mutex<LeaderView>>;
+
+/// A bot's place in a party of two.
+#[derive(Clone, Debug)]
+pub struct PartyRole {
+    pub leader: bool,
+    /// the other member's name
+    pub mate: String,
+    pub link: Link,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -207,7 +237,198 @@ impl Scripted {
             quit: false,
             purpose: Purpose::None,
             last_node: None,
+            party: None,
+            next_invite: Instant::now() + Duration::from_secs(3),
         }
+    }
+
+    /// A party member: the leader invites, the follower accepts and copies.
+    pub fn with_party(mut self, role: PartyRole) -> Scripted {
+        self.party = Some(role);
+        self
+    }
+
+    fn in_party(&self, a: &Agent) -> bool {
+        self.party
+            .as_ref()
+            .is_some_and(|r| a.body.party.iter().any(|m| m.eq_ignore_ascii_case(&r.mate)))
+    }
+
+    fn mate_pos(&self, a: &Agent) -> Option<Vec3> {
+        let r = self.party.as_ref()?;
+        a.body
+            .players
+            .values()
+            .find(|(n, _)| n.eq_ignore_ascii_case(&r.mate))
+            .map(|(_, p)| *p)
+    }
+
+    /// Deals to do at one NPC: hand in what is ready there, take what is offered.
+    fn deals_at(&self, a: &Agent, npc: u16) -> Vec<Deal> {
+        let b = &a.body;
+        let mut out: Vec<Deal> = b
+            .quests
+            .iter()
+            .filter(|q| {
+                a.quest_ready(q.quest) && b.content.quest(q.quest).is_some_and(|x| x.ender == npc)
+            })
+            .map(|q| Deal::Complete(q.quest, a.best_choice(q.quest)))
+            .collect();
+        out.extend(
+            b.content
+                .quests
+                .iter()
+                .filter(|q| q.giver == npc && a.can_take(q.id))
+                .map(|q| Deal::Accept(q.id)),
+        );
+        out
+    }
+
+    /// Party upkeep every tick. Returns true when it set the task.
+    fn party_tick(&mut self, a: &mut Agent) -> bool {
+        let Some(role) = self.party.clone() else {
+            return false;
+        };
+        let now = Instant::now();
+        let grouped = self.in_party(a);
+        if grouped {
+            a.tel.note("grouped in a party of two");
+        }
+        if role.leader {
+            if !grouped && now >= self.next_invite && self.mate_pos(a).is_some() {
+                self.next_invite = now + Duration::from_secs(15);
+                a.body.say(&format!("/invite {}", role.mate));
+            }
+            // publish what we do
+            let mut v = role.link.lock().unwrap();
+            v.pos = a.body.pos();
+            v.fight = match &a.task {
+                Some(Task::Fight { target, .. }) => Some(*target),
+                _ => None,
+            };
+            v.talk = match &a.task {
+                Some(Task::Talk { npc, .. }) => Some(*npc),
+                _ => None,
+            };
+            v.resting = matches!(a.task, Some(Task::Rest { .. }));
+            drop(v);
+            // do not run off: wait for the follower to catch up
+            if grouped
+                && matches!(a.task, Some(Task::Goto { .. }) | Some(Task::Gather { .. }))
+                && self.mate_pos(a).is_some_and(|p| a.body.dist(p) > 28.0)
+            {
+                a.doing = format!("waiting for {}", role.mate);
+                a.set(Task::wait(1.5, false));
+                return true;
+            }
+            return false;
+        }
+        // the follower
+        if a.body.invite.take().is_some() {
+            a.body.say("/accept");
+        }
+        let want = self.wanted_npc(a);
+        role.link.lock().unwrap().follower_npc = want;
+        let v = role.link.lock().unwrap().clone();
+        if let Some(t) = v.fight
+            && !matches!(&a.task, Some(Task::Fight { target, .. }) if *target == t)
+            && !matches!(a.task, Some(Task::Loot { .. }))
+            && let Some(e) = a.body.ents.get(&t)
+            && let Some(c) = e.creature()
+            && a.body.dist(e.pos) < 40.0
+        {
+            let lvl = e.level;
+            a.doing = format!("helping {} fight {}", role.mate, a.cname(c));
+            a.set(Task::fight(t, c, lvl));
+            return true;
+        }
+        if let Some(npc) = v.talk
+            && !matches!(a.task, Some(Task::Talk { .. }) | Some(Task::Fight { .. }))
+        {
+            let deals = self.deals_at(a, npc);
+            if !deals.is_empty() {
+                a.doing = format!("with {} at an NPC", role.mate);
+                self.purpose = Purpose::Npc(npc);
+                a.set(Task::talk(npc, deals));
+                return true;
+            }
+        }
+        false
+    }
+
+    /// The nearest NPC we have quest business with.
+    fn wanted_npc(&self, a: &Agent) -> Option<u16> {
+        let me = a.body.pos();
+        a.body
+            .content
+            .npcs
+            .iter()
+            .filter(|n| self.bad_npc.get(&n.id).copied().unwrap_or(0) < 3)
+            .filter(|n| !self.deals_at(a, n.id).is_empty())
+            .filter_map(|n| a.body.npc_pos(n.id).map(|p| (n.id, p.distance(me))))
+            .min_by(|x, y| x.1.partial_cmp(&y.1).unwrap())
+            .map(|x| x.0)
+    }
+
+    /// The leader takes the follower to an NPC it needs (if it needs one).
+    fn lead_choice(&mut self, a: &mut Agent) -> Option<Task> {
+        let role = self.party.clone()?;
+        if !role.leader || !self.in_party(a) {
+            return None;
+        }
+        let npc = role.link.lock().unwrap().follower_npc?;
+        // already there: the follower can do its business
+        if a.body.npc_pos(npc).is_none_or(|p| a.body.dist(p) < 8.0) {
+            return None;
+        }
+        let name = a.body.content.npc(npc)?.name.clone();
+        a.doing = format!("taking {} to {name}", role.mate);
+        self.purpose = Purpose::Npc(npc);
+        Some(Task::talk(npc, self.deals_at(a, npc)))
+    }
+
+    /// The follower's own choices: stay close, rest with the leader.
+    fn follow_choice(&mut self, a: &mut Agent) -> Option<Option<Task>> {
+        let role = self.party.clone()?;
+        if role.leader {
+            return None;
+        }
+        let v = role.link.lock().unwrap().clone();
+        let lead = self.mate_pos(a).unwrap_or(v.pos);
+        // our own quest business first (the leader comes along)
+        if let Some(npc) = self.wanted_npc(a) {
+            let deals = self.deals_at(a, npc);
+            a.doing = format!(
+                "quest business with {}",
+                a.body
+                    .content
+                    .npc(npc)
+                    .map(|n| n.name.as_str())
+                    .unwrap_or("?")
+            );
+            self.purpose = Purpose::Npc(npc);
+            return Some(Some(Task::talk(npc, deals)));
+        }
+        if a.body.dist(lead) > 9.0 {
+            a.doing = format!("following {}", role.mate);
+            return Some(Some(Task::Goto {
+                to: Target::Pos(lead),
+                range: 4.0,
+                why: "following".into(),
+            }));
+        }
+        if v.resting {
+            a.doing = "resting with the party".into();
+            return Some(Some(Task::rest(0.95)));
+        }
+        // gather for our own collect quests only near the leader
+        if let Some(t) = self.objective(a)
+            && matches!(t, Task::Gather { .. })
+        {
+            return Some(Some(t));
+        }
+        a.doing = format!("with {}", role.mate);
+        Some(Some(Task::wait(1.0, false)))
     }
 
     fn avoided(&self, id: u32) -> bool {
@@ -235,6 +456,9 @@ impl Scripted {
             return;
         }
         self.chatter(a);
+        if self.party_tick(a) {
+            return;
+        }
         // being hit: fight back (unless already fighting)
         let attacked = a
             .body
@@ -344,6 +568,7 @@ impl Scripted {
         // stuck again and again: use /spawn to get home, like a player would
         if self.nav_fails >= 5 {
             self.nav_fails = 0;
+            a.body.expect_teleport(3.0);
             a.body.say("/spawn");
             a.tel.note("used /spawn to get unstuck");
             a.tel.stuck.push(crate::telemetry::StuckAt {
@@ -444,7 +669,14 @@ impl Scripted {
         if !a.equip_upgrades().is_empty() {
             return Some(Task::wait(0.3, false));
         }
-        // 4. help a friend
+        // 4. a follower stays with the leader; a leader brings the follower along
+        if let Some(t) = self.follow_choice(a) {
+            return t;
+        }
+        if let Some(t) = self.lead_choice(a) {
+            return Some(t);
+        }
+        // help a friend
         if self.kind == Personality::Social
             && let Some(t) = self.assist_target(a)
         {

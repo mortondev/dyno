@@ -119,6 +119,8 @@ pub struct Aggregate {
     pub money_in: u64,
     pub money_out: u64,
     pub stuck_per_hour: f64,
+    pub rubberbands: usize,
+    pub rubberbands_per_hour: f64,
     pub disconnects: usize,
     pub latency_p50_ms: Option<f64>,
     pub latency_p95_ms: Option<f64>,
@@ -143,6 +145,8 @@ pub struct Report {
     pub notes: Vec<Count>,
     /// creatures seen on tree canopies (out of melee and loot reach)
     pub canopy: Vec<Count>,
+    /// unasked-for teleports (movement-check rubber-bands), with examples
+    pub rubberbands: Vec<String>,
     /// fight outcomes by creature: "Thornboar lv3-4: lost (it fled home and healed)"
     pub fights: Vec<Count>,
     pub telemetry: Vec<Telemetry>,
@@ -373,6 +377,8 @@ pub fn aggregate(ts: &[Telemetry]) -> Aggregate {
         money_in: ts.iter().map(|t| t.money_in).sum(),
         money_out: ts.iter().map(|t| t.money_out).sum(),
         stuck_per_hour: ts.iter().map(|t| t.stuck.len()).sum::<usize>() as f64 / hours,
+        rubberbands: ts.iter().map(|t| t.rubberbands.len()).sum(),
+        rubberbands_per_hour: ts.iter().map(|t| t.rubberbands.len()).sum::<usize>() as f64 / hours,
         disconnects: ts.iter().map(|t| t.disconnects.len()).sum(),
         latency_p50_ms: percentile(&lat, 0.5),
         latency_p95_ms: percentile(&lat, 0.95),
@@ -628,6 +634,16 @@ pub fn checks(a: &Aggregate) -> Vec<Check> {
             true,
         ),
     ];
+    v.push(grade(
+        "rubberband",
+        "Moves the server refused (rubber-bands) per bot-hour, walking with real physics",
+        (a.bot_minutes > 1.0).then_some(a.rubberbands_per_hour),
+        "/h",
+        "<= 0.5 pass, > 2 fail",
+        0.5,
+        2.0,
+        true,
+    ));
     // money: earning should outpace spending in the first hour
     v.push(grade(
         "economy",
@@ -777,6 +793,18 @@ pub fn build(title: &str, server: &str, ts: Vec<Telemetry>) -> Report {
         notes,
         canopy,
         fights,
+        rubberbands: ts
+            .iter()
+            .flat_map(|t| {
+                t.rubberbands.iter().map(move |r| {
+                    format!(
+                        "{} at {:?} sent back to {:?}: {} ({})",
+                        t.name, r.at, r.goal, r.why, r.doing
+                    )
+                })
+            })
+            .take(40)
+            .collect(),
         telemetry: ts,
     }
 }
@@ -939,6 +967,15 @@ pub fn markdown(r: &Report) -> String {
             for e in &c.examples {
                 let _ = writeln!(s, "  - {e}");
             }
+        }
+    }
+    if !r.rubberbands.is_empty() {
+        let _ = writeln!(
+            s,
+            "\n## Rubber-bands (moves the server refused; hearth-relative)\n"
+        );
+        for e in &r.rubberbands {
+            let _ = writeln!(s, "- {e}");
         }
     }
     list(&mut s, "Notes", &r.notes);

@@ -3,7 +3,7 @@
 
 use crate::agent::Agent;
 use crate::body::{Body, TICK};
-use crate::brain::{Personality, Scripted};
+use crate::brain::{Link, PartyRole, Personality, Scripted};
 use crate::report;
 use crate::telemetry::Telemetry;
 use dyno_protocol::Appearance;
@@ -90,6 +90,7 @@ pub fn run_bot(
     end: Instant,
     stop: Arc<AtomicBool>,
     board: Option<Board>,
+    party: Option<PartyRole>,
 ) -> Telemetry {
     let mut tries = 0;
     let body = loop {
@@ -121,6 +122,9 @@ pub fn run_bot(
     }
     a.baseline();
     let mut brain = Scripted::new(kind, crate::body::token_for(name));
+    if let Some(role) = party {
+        brain = brain.with_party(role);
+    }
     let mut next_board = Instant::now();
     loop {
         let t0 = Instant::now();
@@ -214,14 +218,46 @@ pub fn run(o: Options) -> Result<report::Report, String> {
     let start = Instant::now();
     let end = start + Duration::from_secs_f32(o.minutes * 60.0 + o.stagger * o.count as f32);
     let mut handles = Vec::new();
+    let kinds: Vec<Personality> = (0..o.count)
+        .map(|i| fixed.unwrap_or_else(|| Personality::mix(i)))
+        .collect();
+    let names: Vec<String> = kinds
+        .iter()
+        .enumerate()
+        .map(|(i, k)| {
+            let mut n = format!("{}{}{:02}{}", o.prefix, id, i, &k.key()[..3]);
+            n.truncate(dyno_protocol::MAX_NAME);
+            n
+        })
+        .collect();
+    // party brains go in twos: the first of each pair leads
+    let mut roles: Vec<Option<PartyRole>> = vec![None; o.count];
+    let party: Vec<usize> = (0..o.count)
+        .filter(|i| kinds[*i] == Personality::Party)
+        .collect();
+    for pair in party.chunks(2) {
+        if let [l, f] = pair {
+            let link: Link = Default::default();
+            roles[*l] = Some(PartyRole {
+                leader: true,
+                mate: names[*f].clone(),
+                link: link.clone(),
+            });
+            roles[*f] = Some(PartyRole {
+                leader: false,
+                mate: names[*l].clone(),
+                link,
+            });
+        }
+    }
     for i in 0..o.count {
-        let kind = fixed.unwrap_or_else(|| Personality::mix(i));
+        let kind = kinds[i];
         let class = o
             .class
             .clone()
             .unwrap_or_else(|| CLASSES[i % CLASSES.len()].to_string());
-        let mut name = format!("{}{}{:02}{}", o.prefix, id, i, &kind.key()[..3]);
-        name.truncate(dyno_protocol::MAX_NAME);
+        let name = names[i].clone();
+        let role = roles[i].clone();
         let addr = addr.clone();
         let stop = stop.clone();
         let board = board.clone();
@@ -231,7 +267,19 @@ pub fn run(o: Options) -> Result<report::Report, String> {
         handles.push(
             std::thread::Builder::new()
                 .name(name.clone())
-                .spawn(move || run_bot(&addr, &name, kind, &class, i, my_end, stop, Some(board)))
+                .spawn(move || {
+                    run_bot(
+                        &addr,
+                        &name,
+                        kind,
+                        &class,
+                        i,
+                        my_end,
+                        stop,
+                        Some(board),
+                        role,
+                    )
+                })
                 .map_err(|e| e.to_string())?,
         );
         if i + 1 < o.count {

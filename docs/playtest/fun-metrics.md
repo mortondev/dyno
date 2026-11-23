@@ -27,9 +27,12 @@ dyno play 127.0.0.1:7400 --as Wren --class priest            # stdin
 dyno play 127.0.0.1:7400 --as Wren --script first-quests.txt # a script
 ```
 
-Brains (`--brain`): `mix` (default: a third completionists, then grinders,
-explorers, social players and casual players), `completionist`, `grinder`,
-`explorer`, `social`, `casual`. Bots join with fresh characters (a run id in
+Brains (`--brain`): `mix` (default, per 10 bots: 3 completionists, 2
+grinders, an explorer, a social and a casual player, and a party of two),
+`completionist`, `grinder`, `explorer`, `social`, `casual`, `party` (bots
+pair up: the first of each pair leads and `/invite`s, the second `/accept`s,
+follows, joins its fights and talks to the same NPCs). Compare `party` with
+`completionist` in the "By brain" table to see whether grouping pays. Bots join with fresh characters (a run id in
 their names), rotating through the classes.
 
 In `dyno play`, type `help` for the commands. Every answer ends with a
@@ -93,6 +96,7 @@ with nothing alive to fight), stuck, dead, idle.
 | `economy`: copper earned per copper spent | >= 1.5 | < 1 | New players should be able to afford food and repairs. |
 | `latency`: action round trip p95 (talk, start attack) | <= 150 ms | > 400 ms | The server must feel instant. |
 | `disconnects`: unexpected disconnects | 0 | > 1 | |
+| `rubberband`: moves the server refused per bot-hour | <= 0.5 | > 2 | Bots walk with the real client physics, so every rubber-band (an unasked-for `Teleport`) is a movement-check false positive. The report lists each one with where it happened. |
 
 ## What else the report lists
 
@@ -113,6 +117,8 @@ with nothing alive to fight), stuck, dead, idle.
   questing and a pessimistic one for anything that needs judgement.
 - Many bots in one zone compete for the same camps. That is realistic for a
   launch day, but it lowers the pace; compare runs with the same bot count.
+- The action round trip is measured at the bots' 50 ms tick, so it cannot
+  read below about 50 ms.
 - A 10-minute run never sees night (a day is about 16 minutes: 10.8 day and 5
   night), so night-only quests show up as blockers unless the run is longer
   or the time is set with an operator command (label such runs).

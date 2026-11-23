@@ -102,7 +102,8 @@ pub enum Ev {
         text: String,
     },
     WorldEvent(String),
-    Teleport,
+    /// the server moved us: (from, to)
+    Teleport(Vec3, Vec3),
     Invite(String),
     Dialog(u16),
     Loot {
@@ -215,6 +216,8 @@ pub struct Body {
     got_pack: bool,
     got_character: bool,
 
+    /// until then a teleport is ours (respawn, recall, charge, /spawn)
+    pub teleport_ok_until: Instant,
     pub nav: Nav,
     pub stuck_log: Vec<Stuck>,
     pub distance: f32,
@@ -352,6 +355,7 @@ impl Body {
             got_quests: false,
             got_pack: false,
             got_character: false,
+            teleport_ok_until: now + Duration::from_secs(5),
             nav: Nav::default(),
             stuck_log: Vec::new(),
             distance: 0.0,
@@ -381,6 +385,11 @@ impl Body {
         if self.tx.send(m).is_err() && self.closed.is_none() {
             self.closed = Some("connection closed".into());
         }
+    }
+
+    /// Expect the server to move us within `secs` (not a rubber-band).
+    pub fn expect_teleport(&mut self, secs: f32) {
+        self.teleport_ok_until = Instant::now() + Duration::from_secs_f32(secs);
     }
 
     pub fn say(&mut self, text: &str) {
@@ -653,11 +662,12 @@ impl Body {
         }
         match m {
             ServerMsg::Teleport { pos } => {
+                let from = self.player.pos;
                 self.player.pos = pos.into();
                 self.player.vel = Vec3::ZERO;
                 self.fall_from = None;
                 self.nav.path.clear();
-                self.ev(Ev::Teleport);
+                self.ev(Ev::Teleport(from, pos.into()));
             }
             ServerMsg::Block { pos, block } => {
                 self.world.set(pos[0], pos[1], pos[2], block);

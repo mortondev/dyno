@@ -517,7 +517,32 @@ impl Agent {
                 Ev::WorldEvent(title) => self.say(format!("World event: {title}")),
                 Ev::Invite(from) => self.say(format!("{from} invites you to a party")),
                 Ev::Closed(r) => self.say(format!("Disconnected: {r}")),
-                Ev::Teleport | Ev::Dialog(_) | Ev::Loot { .. } | Ev::Money(_) => {}
+                Ev::Teleport(from, to) => {
+                    if Instant::now() > self.body.teleport_ok_until && self.body.dead.is_none() {
+                        // the movement check put us back
+                        let (f, t2) = (self.rel(from), self.rel(to));
+                        let v = self.body.player.vel;
+                        self.tel.rubberbands.push(crate::telemetry::StuckAt {
+                            t,
+                            at: f,
+                            goal: t2,
+                            why: format!(
+                                "moved back {:.1} blocks (on ground {}, in water {})",
+                                from.distance(to),
+                                self.body.player.on_ground,
+                                self.body.world.get(
+                                    from.x.floor() as i32,
+                                    from.y.floor() as i32,
+                                    from.z.floor() as i32
+                                ) == dyno_world::WATER
+                            ),
+                            doing: self.doing.clone(),
+                        });
+                        let _ = v;
+                        self.say("(the server moved you back)");
+                    }
+                }
+                Ev::Dialog(_) | Ev::Loot { .. } | Ev::Money(_) => {}
             }
         }
         let lvl = self.body.level;
@@ -725,6 +750,9 @@ impl Agent {
     fn cast(&mut self, a: &Ability, target: Option<u32>) {
         let name = ability_name(a);
         *self.tel.abilities.entry(name).or_insert(0) += 1;
+        if a.charge || a.blink > 0.0 {
+            self.body.expect_teleport(1.5);
+        }
         self.body.send(ClientMsg::Cast {
             ability: a.id,
             target,
@@ -1239,6 +1267,7 @@ impl Agent {
                 None => {
                     *sent = Some(Instant::now());
                     self.body.stop();
+                    self.body.expect_teleport(12.0);
                     self.body.send(ClientMsg::Recall);
                     *self.tel.abilities.entry("Recall".into()).or_insert(0) += 1;
                     Outcome::Running
@@ -1261,6 +1290,7 @@ impl Agent {
                 }
                 if Instant::now() >= *at {
                     *at = Instant::now() + Duration::from_secs(3);
+                    self.body.expect_teleport(5.0);
                     self.body.send(ClientMsg::Respawn);
                 }
                 Outcome::Running
