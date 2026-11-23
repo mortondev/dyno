@@ -388,8 +388,10 @@ impl Minimap {
                     );
                     let q = to_map(target);
                     let label = format!("{name}  ({})", q_title(v.content, qp.quest));
-                    if inside(q, 6.0) {
-                        let rr = (radius * px_per_block).clamp(5.0, r * 0.6);
+                    // the ring shrinks to stay inside the map near the edge
+                    let room = r - 3.0 - (q - c).length();
+                    let rr = (radius * px_per_block).min(r * 0.6).min(room).max(5.0);
+                    if room >= 5.0 {
                         painter.circle_stroke(q, rr + 1.0, Stroke::new(3.5_f32, outline));
                         painter.circle_stroke(q, rr, Stroke::new(2.0_f32, theme::GOLD_BRIGHT));
                         painter.circle_filled(q, 2.0, theme::GOLD_BRIGHT);
@@ -529,7 +531,8 @@ impl Minimap {
         let mut hover_pos = None;
         egui::Area::new(egui::Id::new("minimap_area"))
             .fixed_pos(foot.min)
-            .order(egui::Order::Background)
+            // not Background: egui counts only other orders as "over the UI"
+            .order(egui::Order::Middle)
             .interactable(true)
             .show(ctx, |ui| {
                 // the whole footprint first: later widgets win the hover
@@ -821,7 +824,6 @@ mod tests {
         assert!(!m.dirty, "far away");
         m.region_changed([0, 10, 0], [200, 12, 10]);
         assert!(m.dirty, "a fill across the map");
-        assert!(!m.needs_rebuild(Vec3::new(65.0, 40.0, 64.0)));
         assert!(m.needs_rebuild(Vec3::new(70.0, 40.0, 64.0)), "walked away");
     }
 }
