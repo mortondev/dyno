@@ -832,8 +832,10 @@ version = "0.7.1"
 dependencies = [
  "dyno-sim",
  "dyno-world",
+ "miniz_oxide 0.8.9",
  "postcard",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

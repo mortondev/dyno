@@ -6,6 +6,9 @@
 
 use serde::{Deserialize, Serialize};
 
+pub mod clips;
+pub mod wire;
+
 pub use dyno_sim::Stack;
 pub use dyno_world::content::{Content, ItemId};
 
@@ -128,12 +131,18 @@ pub enum EnvDamage {
     Drown,
 }
 
-/// One file of a content pack, by path, with its SHA-256 and size.
+/// One file of a content pack, by path, with its SHA-256 and size, and how
+/// it travels ([`wire`]): its codec and its size on the wire. The hash and
+/// `size` are of the original bytes, which is what the client keeps.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AssetRef {
     pub path: String,
     pub hash: [u8; 32],
     pub size: u32,
+    /// [`wire::RAW`], [`wire::DEFLATE`] or [`wire::PCM16`]
+    pub codec: u8,
+    /// bytes on the wire (what `ServerMsg::Asset` chunks add up to)
+    pub wire: u32,
 }
 
 /// Every file of the content pack the server runs (docs/design/data-and-streaming.md).
@@ -172,14 +181,14 @@ impl Manifest {
         !self.stream.iter().any(|p| path.starts_with(p.as_str()))
     }
 
-    /// Bytes a join with an empty cache downloads: the files fetched before
-    /// play, each distinct file (by hash) once.
+    /// Bytes a join with an empty cache downloads (on the wire): the files
+    /// fetched before play, each distinct file (by hash) once.
     pub fn download_bytes(&self) -> u64 {
         let mut seen = std::collections::HashSet::new();
         self.files
             .iter()
             .filter(|f| self.preload(&f.path) && seen.insert(f.hash))
-            .map(|f| f.size as u64)
+            .map(|f| f.wire as u64)
             .sum()
     }
 
@@ -205,7 +214,7 @@ pub const MAX_WANT: usize = 1024;
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 17;
+pub const PROTOCOL_VERSION: u32 = 18;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -570,7 +579,8 @@ pub enum ServerMsg {
     },
     /// The pack changed (after /reload): fetch what you lack.
     Manifest(Manifest),
-    /// Part of a pack file you asked for: `data` starts at `offset` of `total` bytes.
+    /// Part of a pack file you asked for, as it travels (`AssetRef::codec`):
+    /// `data` starts at `offset` of `total` (`AssetRef::wire`) bytes.
     Asset {
         hash: [u8; 32],
         offset: u32,

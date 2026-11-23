@@ -190,7 +190,7 @@
   "figures": {
     "gloomwisp": {
       "clips": "default",
-      "file": "models/gloomwisp.vox",
+      "file": "models/creatures/gloomwisp.vox",
       "grids": [
         {
           "groups": [
@@ -326,7 +326,7 @@
     },
     "grazer": {
       "clips": "grazer",
-      "file": "models/grazer.vox",
+      "file": "models/creatures/grazer.vox",
       "grids": [
         {
           "groups": [
@@ -408,7 +408,7 @@
       "skeleton": "quadruped"
     },
     "held.battle_axe": {
-      "file": "models/held.battle_axe.vox",
+      "file": "models/held/battle_axe.vox",
       "grids": [
         {
           "groups": [
@@ -484,7 +484,7 @@
       ]
     },
     "held.berries": {
-      "file": "models/held.berries.vox",
+      "file": "models/held/berries.vox",
       "grids": [
         {
           "groups": [
@@ -531,7 +531,7 @@
       ]
     },
     "held.bow": {
-      "file": "models/held.bow.vox",
+      "file": "models/held/bow.vox",
       "grids": [
         {
           "groups": [
@@ -631,7 +631,7 @@
       ]
     },
     "held.dagger": {
-      "file": "models/held.dagger.vox",
+      "file": "models/held/dagger.vox",
       "grids": [
         {
           "groups": [
@@ -748,7 +748,7 @@
       ]
     },
     "held.dust": {
-      "file": "models/held.dust.vox",
+      "file": "models/held/dust.vox",
       "grids": [
         {
           "groups": [
@@ -789,7 +789,7 @@
       ]
     },
     "held.garment": {
-      "file": "models/held.garment.vox",
+      "file": "models/held/garment.vox",
       "grids": [
         {
           "groups": [
@@ -883,7 +883,7 @@
       ]
     },
     "held.gem": {
-      "file": "models/held.gem.vox",
+      "file": "models/held/gem.vox",
       "grids": [
         {
           "groups": [
@@ -937,7 +937,7 @@
       ]
     },
     "held.hand": {
-      "file": "models/held.hand.vox",
+      "file": "models/held/hand.vox",
       "grids": [
         {
           "groups": [
@@ -979,7 +979,7 @@
       ]
     },
     "held.hatchet": {
-      "file": "models/held.hatchet.vox",
+      "file": "models/held/hatchet.vox",
       "grids": [
         {
           "groups": [
@@ -1055,7 +1055,7 @@
       ]
     },
     "held.helm": {
-      "file": "models/held.helm.vox",
+      "file": "models/held/helm.vox",
       "grids": [
         {
           "groups": [
@@ -1144,7 +1144,7 @@
       ]
     },
     "held.hoe": {
-      "file": "models/held.hoe.vox",
+      "file": "models/held/hoe.vox",
       "grids": [
         {
           "groups": [
@@ -1200,7 +1200,7 @@
       ]
     },
     "held.ingot": {
-      "file": "models/held.ingot.vox",
+      "file": "models/held/ingot.vox",
       "grids": [
         {
           "groups": [
@@ -1241,7 +1241,7 @@
       ]
     },
     "held.lump": {
-      "file": "models/held.lump.vox",
+      "file": "models/held/lump.vox",
       "grids": [
         {
           "groups": [
@@ -1282,7 +1282,7 @@
       ]
     },
     "held.mace": {
-      "file": "models/held.mace.vox",
+      "file": "models/held/mace.vox",
       "grids": [
         {
           "groups": [
@@ -1408,7 +1408,7 @@
       ]
     },
     "held.meat": {
-      "file": "models/held.meat.vox",
+      "file": "models/held/meat.vox",
       "grids": [
         {
           "groups": [
@@ -1452,7 +1452,7 @@
       ]
     },
     "held.pickaxe": {
-      "file": "models/held.pickaxe.vox",
+      "file": "models/held/pickaxe.vox",
       "grids": [
         {
           "groups": [
@@ -1511,7 +1511,7 @@
       ]
     },
     "held.polearm": {
-      "file": "models/held.polearm.vox",
+      "file": "models/held/polearm.vox",
       "grids": [
         {
           "groups": [
@@ -1573,7 +1573,7 @@
       ]
     },
     "held.ring": {
-      "file": "models/held.ring.vox",
+      "file": "models/held/ring.vox",
       "grids": [
         {
           "groups": [
@@ -1659,7 +1659,7 @@
       ]
     },
     "held.shield": {
-      "file": "models/held.shield.vox",
+      "file": "models/held/shield.vox",
       "grids": [
         {
           "groups": [
@@ -1754,7 +1754,7 @@
       ]
     },
     "held.shovel": {
-      "file": "models/held.shovel.vox",
+      "file": "models/held/shovel.vox",
       "grids": [
         {
           "groups": [
@@ -1810,7 +1810,7 @@
       ]
     },
     "held.staff": {
-      "file": "models/held.staff.vox",
+      "file": "models/held/staff.vox",
       "grids": [
         {
           "groups": [
@@ -1932,7 +1932,7 @@
       ]
     },
     "held.stick": {
-      "file": "models/held.stick.vox",
+      "file": "models/held/stick.vox",
       "grids": [
         {
           "groups": [
@@ -1969,7 +1969,7 @@
       ]
     },
     "held.sword": {
-      "file": "models/held.sword.vox",
+      "file": "models/held/sword.vox",
       "grids": [
         {
           "groups": [
@@ -2086,7 +2086,7 @@
       ]
     },
     "held.tome": {
-      "file": "models/held.tome.vox",
+      "file": "models/held/tome.vox",
       "grids": [
         {
           "groups": [
@@ -2178,7 +2178,7 @@
       ]
     },
     "held.torch": {
-      "file": "models/held.torch.vox",
+      "file": "models/held/torch.vox",
       "grids": [
         {
           "groups": [
@@ -2249,7 +2249,7 @@
       ]
     },
     "held.wand": {
-      "file": "models/held.wand.vox",
+      "file": "models/held/wand.vox",
       "grids": [
         {
           "groups": [
@@ -2365,7 +2365,7 @@
     },
     "mirepincher": {
       "clips": "mirepincher",
-      "file": "models/mirepincher.vox",
+      "file": "models/creatures/mirepincher.vox",
       "grids": [
         {
           "groups": [
@@ -7085,7 +7085,7 @@
     },
     "shade": {
       "clips": "shade",
-      "file": "models/shade.vox",
+      "file": "models/creatures/shade.vox",
       "grids": [
         {
           "groups": [
@@ -7161,7 +7161,7 @@
     },
     "thornboar": {
       "clips": "thornboar",
-      "file": "models/thornboar.vox",
+      "file": "models/creatures/thornboar.vox",
       "grids": [
         {
           "groups": [
@@ -7244,7 +7244,7 @@
     },
     "websnare": {
       "clips": "websnare",
-      "file": "models/websnare.vox",
+      "file": "models/creatures/websnare.vox",
       "grids": [
         {
           "groups": [

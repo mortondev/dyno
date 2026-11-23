@@ -276,6 +276,10 @@ pub struct Animator {
     last: Option<Pose>,
     stride: f32,
     seed: f32,
+    /// actions started so far, and whether this one plays mirrored (for
+    /// clips that may: a flinch goes either way)
+    plays: u32,
+    mirrored: bool,
     last_pos: Option<Vec3>,
     /// when this was last driven, for pruning
     pub touched: f32,
@@ -292,6 +296,8 @@ impl Animator {
             from: None,
             last: None,
             stride: 0.0,
+            plays: 0,
+            mirrored: false,
             last_pos: None,
             seed: (h >> 8) as f32 / (1u32 << 24) as f32,
             touched: now,
@@ -345,6 +351,12 @@ impl Animator {
     pub fn play(&mut self, now: f32, action: Anim) {
         self.action = Some((action, now));
         self.action_len = None;
+        // the side, from the figure and the count of plays: the same for
+        // the same history, so sheets and tests stay put
+        self.plays = self.plays.wrapping_add(1);
+        let h =
+            (self.seed.to_bits() ^ self.plays.wrapping_mul(0x9E37_79B9)).wrapping_mul(0x85EB_CA6B);
+        self.mirrored = (h >> 15) & 1 == 1;
     }
 
     /// Start a one-shot unless another began in the last quarter second.
@@ -392,7 +404,7 @@ impl Animator {
                 self.action = None;
             } else {
                 let w = smooth(t / ACTION_IN).min(smooth((d - t) / ACTION_OUT));
-                let q = set.pose(a, t, self.stride, self.seed);
+                let q = set.pose_side(a, t, self.stride, self.seed, self.mirrored);
                 let mask = if self.base.moving() {
                     set.upper
                 } else {
