@@ -781,6 +781,8 @@ pub struct World {
     /// a count per section, bumped by every change in it (so the server can
     /// keep sections encoded until they change)
     revs: Vec<u32>,
+    /// sections changed since `take_changes` (when `log_changes` is on)
+    changes: Option<Vec<u32>>,
 }
 
 /// Run-length encode cells: (block, varint count) pairs.
@@ -859,6 +861,7 @@ impl World {
             streamed,
             rev: 0,
             revs: vec![0; n],
+            changes: None,
         }
     }
 
@@ -1240,8 +1243,30 @@ impl World {
         };
         if changed {
             self.revs[i] = self.revs[i].wrapping_add(1);
+            if let Some(log) = &mut self.changes
+                && log.last() != Some(&(i as u32))
+            {
+                log.push(i as u32);
+            }
         }
         true
+    }
+
+    /// Keep a list of the sections that change (the server: to send the far
+    /// view's tiles again), drained by `take_changes`.
+    pub fn log_changes(&mut self, on: bool) {
+        self.changes = on.then(Vec::new);
+    }
+
+    /// The sections changed since the last call (with `log_changes` on).
+    pub fn take_changes(&mut self) -> Vec<SectionPos> {
+        let Some(log) = self.changes.as_mut() else {
+            return Vec::new();
+        };
+        let mut list = std::mem::take(log);
+        list.sort_unstable();
+        list.dedup();
+        list.into_iter().map(|i| self.pos_of(i as usize)).collect()
     }
 
     /// Fill a row of cells (x0..x1, one y and z) with a block: loading.

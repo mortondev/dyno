@@ -13,6 +13,22 @@ use std::sync::Arc;
 
 pub const SECTION: i32 = 16;
 
+/// A vertex of the far view (farview.rs): a third the size of `Vertex`,
+/// since there may be a million of them and they need only a place, a
+/// colour, a normal and where they fade in.
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable, Debug)]
+pub struct FarVertex {
+    pub pos: [f32; 3],
+    /// linear colour, 0-255
+    pub color: [u8; 4],
+    /// the normal (-127..127); w: 1 for what stands on the ground (faded in
+    /// past `fade`), 0 for the ground
+    pub normal: [i8; 4],
+    /// distance from the camera where a standing column starts to show
+    pub fade: f32,
+}
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub struct Vertex {
@@ -39,7 +55,8 @@ pub const KIND_FOLIAGE: f32 = 8192.0;
 /// The water surface: waves, shore foam (`normal[0]` is how near the shore is).
 pub const KIND_WATER: f32 = 12288.0;
 /// Fine voxel ground: one colour per voxel, from the layer at the voxel's
-/// centre. `tex[0]` is voxels a metre; `tex[1]` the saturation in
+/// centre. `tex[0]` is voxels a metre plus 32 times the face's direction
+/// (+x -x +y -y +z -z: the normal may be bent towards the slope); `tex[1]` the saturation in
 /// hundredths plus the brightness jitter (below 1); `color.rgb` a tint.
 pub const KIND_VOXEL: f32 = 16384.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
@@ -130,7 +147,9 @@ struct Look { leaf_under: vec4<f32>, leaf_over: vec4<f32>, tone_low: vec4<f32>, 
 @group(0) @binding(5) var<uniform> look: Look;
 
 // What a vertex is, from tex.z (see the KIND constants in render.rs):
-//   below 0: untextured (-1 plain, -2 ground cover (cover.rs), -3 ground decal, -4 halo)
+//   below 0: untextured (-1 plain, -2 ground cover (cover.rs) and the far
+//   view's ground, -3 ground decal, -4 halo, -5 the far view's columns,
+//   dithered in from tex.x over tex.y metres)
 //   0..: textured with its own UVs
 //   8192..: foliage, textured by world position, swaying
 //   12288..: water surface
@@ -251,6 +270,29 @@ struct VOut {
   return o;
 }
 
+// The far view (farview.rs): compact vertices, drawn by the same fragment
+// shader as the land; the ground on the ground's path (-2), what stands on
+// it dithered in from `fade` over 32 m (farview::FADE) (-5)
+struct FarIn {
+  @location(0) pos: vec3<f32>,
+  @location(1) color: vec4<f32>,
+  @location(2) normal: vec4<f32>,
+  @location(3) fade: f32,
+};
+
+@vertex fn vs_far(v: FarIn) -> VOut {
+  var o: VOut;
+  o.clip = u.view_proj * vec4<f32>(v.pos, 1.0);
+  o.wpos = v.pos;
+  o.normal = normalize(v.normal.xyz);
+  o.color = vec4<f32>(v.color.rgb, 1.0);
+  o.light = 0.0;
+  o.sky = 1.0;
+  o.tex = vec4<f32>(v.fade, 32.0, select(-2.0, -5.0, v.normal.w > 0.5), 0.0);
+  o.tone = world_tone(v.pos.xz);
+  return o;
+}
+
 // The layer to show now: animated layers step through their frames.
 fn anim_layer(layer: f32, anim: f32) -> i32 {
   var l = layer;
@@ -307,6 +349,12 @@ fn ground_tone(m: f32) -> vec3<f32> {
   }
   let tx0 = textureSample(tex_array, tex_samp, uv0, l0);
   let d = distance(i.wpos, u.cam.xyz);
+  // the far view's standing columns fade in past the near view: a fine
+  // dither (world-space, so it holds still), from tex.x over tex.y metres
+  if (kz < -4.5 && kz > -5.5) {
+    let k = clamp((d - i.tex.x) / max(i.tex.y, 1.0), 0.0, 1.0);
+    if (hash3(floor(i.wpos * 3.0)) > k) { discard; }
+  }
   let has_n = dot(i.normal, i.normal) > 0.25;
   var n = vec3<f32>(0.0, 1.0, 0.0);
   if (has_n) { n = normalize(i.normal); }
@@ -333,13 +381,16 @@ fn ground_tone(m: f32) -> vec3<f32> {
   if (kz >= K_VOXEL) {
     // fine voxel ground: one colour a voxel, the layer's texel at the
     // voxel's centre on the mip level with a texel a voxel, jittered
-    let r = i.tex.x;
-    let an = abs(n);
-    var ax = vec3<f32>(0.0, sign(n.y), 0.0);
-    if (an.x > an.y && an.x > an.z) {
-      ax = vec3<f32>(sign(n.x), 0.0, 0.0);
-    } else if (an.z > an.y) {
-      ax = vec3<f32>(0.0, 0.0, sign(n.z));
+    // tex.x: voxels a metre plus 32 times the face's direction (+x -x +y
+    // -y +z -z), as the normal may be bent towards the slope
+    let dir = floor(i.tex.x / 32.0);
+    let r = i.tex.x - dir * 32.0;
+    let sgn = select(-1.0, 1.0, (i32(dir) & 1) == 0);
+    var ax = vec3<f32>(0.0, sgn, 0.0);
+    if (dir < 1.5) {
+      ax = vec3<f32>(sgn, 0.0, 0.0);
+    } else if (dir > 3.5) {
+      ax = vec3<f32>(0.0, 0.0, sgn);
     }
     let vox = floor(i.wpos * r - ax * 0.5);
     let ctr = (vox + 0.5) / r;
@@ -386,7 +437,8 @@ fn ground_tone(m: f32) -> vec3<f32> {
     // darker underneath and inside
     dim = dim * (0.74 + 0.26 * smoothstep(-0.6, 0.5, n.y));
     wrap = 0.55;
-  } else if (kz < -1.5 && kz > -2.5) {
+  } else if ((kz < -1.5 && kz > -2.5) || (kz < -4.5 && kz > -5.5)) {
+    // ground cover, and the far view: toned like the land
     base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
     if (tx0.a < 0.5) { discard; }
@@ -1056,6 +1108,8 @@ struct SectionMesh {
     cover: Vec<crate::cover::Spot>,
     /// meshed (possibly to nothing) since the section last arrived
     built: bool,
+    /// the lamps standing here: the nearest light the picture (atmos.rs)
+    lamps: Vec<Glow>,
 }
 
 pub struct Gfx {
@@ -1069,6 +1123,8 @@ pub struct Gfx {
     pub egui: egui_wgpu::Renderer,
     depth: wgpu::TextureView,
     opaque_pipe: wgpu::RenderPipeline,
+    /// the far view: its own compact vertices, the land's fragment shader
+    far_pipe: wgpu::RenderPipeline,
     trans_pipe: wgpu::RenderPipeline,
     line_pipe: wgpu::RenderPipeline,
     glow_pipe: wgpu::RenderPipeline,
@@ -1112,6 +1168,8 @@ pub struct Gfx {
     /// ground cover: grass, flowers and stones near the camera
     pub cover: crate::cover::Gpu,
     pub adapter_info: String,
+    /// the quality tier in use: the saved one, or the one picked for the adapter
+    pub graphics_tier: u8,
     /// When set, the next frame is saved to this path as a PPM image.
     pub screenshot: Option<std::path::PathBuf>,
     started: std::time::Instant,
@@ -1268,7 +1326,9 @@ impl Gfx {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        let quality = crate::post::Quality::from_env(crate::settings::Settings::peek().graphics);
+        let graphics_tier =
+            crate::post::Quality::tier(crate::settings::Settings::peek().graphics, &info);
+        let quality = crate::post::Quality::level(graphics_tier);
         let vlayout = crate::shadows::vertex_layout();
         let shadows = crate::shadows::Shadows::new(&device, quality.shadow_size, &vlayout);
         let depth = depth_view(&device, config.width, config.height);
@@ -1429,6 +1489,46 @@ impl Gfx {
             })
         };
         let opaque_pipe = make("fs", wgpu::PrimitiveTopology::TriangleList, None, true);
+        let far_layout = wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<FarVertex>() as u64,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Unorm8x4, 2 => Snorm8x4, 3 => Float32],
+        };
+        let far_pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("far"),
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_far"),
+                compilation_options: Default::default(),
+                buffers: std::slice::from_ref(&far_layout),
+            },
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                cull_mode: None,
+                ..Default::default()
+            },
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DEPTH,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::LessEqual,
+                stencil: Default::default(),
+                bias: Default::default(),
+            }),
+            multisample: Default::default(),
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: post.format,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            multiview: None,
+            cache: None,
+        });
         let mut cover = crate::cover::Gpu::new(&device, &shader, &layout, post.format, DEPTH);
         cover.set_quality(1.0);
         let trans_pipe = make(
@@ -1533,6 +1633,7 @@ impl Gfx {
             egui,
             depth,
             opaque_pipe,
+            far_pipe,
             trans_pipe,
             line_pipe,
             glow_pipe,
@@ -1558,6 +1659,7 @@ impl Gfx {
             far: Default::default(),
             cover,
             adapter_info,
+            graphics_tier,
             screenshot: None,
             started: std::time::Instant::now(),
             fx: Vec::new(),
@@ -1596,6 +1698,68 @@ impl Gfx {
         self.cover.changed();
     }
 
+    /// The lamps nearest the camera, at most `most`, fading out towards
+    /// the edge of their range so none pops in or out.
+    fn lamps_near(&self, cam: Vec3, most: usize) -> Vec<crate::atmos::Lamp> {
+        const RANGE: f32 = 48.0;
+        if most == 0 {
+            return Vec::new();
+        }
+        let reach = RANGE + SECTION as f32;
+        let mut near: Vec<(f32, &Glow)> = Vec::new();
+        for (at, s) in &self.sections {
+            if s.lamps.is_empty() {
+                continue;
+            }
+            let c = Vec3::new(
+                (at[0] * SECTION + SECTION / 2) as f32,
+                (at[1] * SECTION + SECTION / 2) as f32,
+                (at[2] * SECTION + SECTION / 2) as f32,
+            );
+            if (c - cam).abs().max_element() > reach {
+                continue;
+            }
+            for g in &s.lamps {
+                let d = Vec3::from(g.pos).distance(cam);
+                if d < RANGE {
+                    near.push((d, g));
+                }
+            }
+        }
+        near.sort_by(|a, b| a.0.total_cmp(&b.0));
+        near.truncate(most);
+        // the farthest kept sets the edge: lamps fade to nothing there
+        let edge = if near.len() == most {
+            near.last().map_or(RANGE, |l| l.0).max(8.0)
+        } else {
+            RANGE
+        };
+        near.iter()
+            .map(|(d, g)| crate::atmos::Lamp {
+                pos: g.pos,
+                color: g.color,
+                weight: ((edge - d) / (edge * 0.25)).clamp(0.0, 1.0),
+            })
+            .collect()
+    }
+
+    /// Change the quality tier (0 low .. 3 ultra) of the costly passes.
+    pub fn set_graphics(&mut self, tier: u8) {
+        let q = crate::post::Quality::level(tier);
+        self.graphics_tier = tier.min(3);
+        self.post.set_quality(q);
+        if q.shadow_size != self.shadows.size {
+            self.shadows = crate::shadows::Shadows::new(
+                &self.device,
+                q.shadow_size,
+                &crate::shadows::vertex_layout(),
+            );
+            // the world's bindings hold the shadow maps: made again with
+            // the textures on the next frame
+            self.tex_gen = u64::MAX;
+        }
+    }
+
     pub fn resize(&mut self, w: u32, h: u32) {
         if w == 0 || h == 0 {
             return;
@@ -1608,6 +1772,21 @@ impl Gfx {
         self.depth = depth_view(&self.device, w, h);
         self.post.resize(&self.device, w, h, &self.depth);
         self.water.resize(&self.device, &self.depth, w, h);
+    }
+
+    fn upload_far(&self, v: &[FarVertex]) -> Option<(wgpu::Buffer, u32)> {
+        if v.is_empty() {
+            return None;
+        }
+        let bytes: &[u8] = bytemuck::cast_slice(v);
+        let buf = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("far"),
+            size: bytes.len() as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        self.queue.write_buffer(&buf, 0, bytes);
+        Some((buf, v.len() as u32))
     }
 
     fn upload(&self, v: &[Vertex]) -> Option<(wgpu::Buffer, u32)> {
@@ -1679,6 +1858,7 @@ impl Gfx {
                 lod,
                 cover,
                 built: true,
+                lamps: glows,
             },
         );
     }
@@ -1801,8 +1981,8 @@ impl Gfx {
     }
 
     /// Store (upload) a far tile's mesh (an empty mesh removes it).
-    pub fn put_far(&mut self, at: [i32; 2], verts: &[Vertex]) {
-        match self.upload(verts) {
+    pub fn put_far(&mut self, at: [i32; 2], verts: &[FarVertex]) {
+        match self.upload_far(verts) {
             Some(b) => {
                 self.far.insert(at, b);
             }
@@ -1996,6 +2176,7 @@ impl Gfx {
                 sky,
                 &cascades.map(|c| (c.vp, c.texel)),
                 self.shadows.size,
+                &self.lamps_near(cam, self.post.quality.lights),
             );
             self.queue
                 .write_buffer(&self.env_buf, 0, bytemuck::bytes_of(&env));
@@ -2113,6 +2294,7 @@ impl Gfx {
                     }
                 }
                 // the far view, round and beyond the near
+                rp.set_pipeline(&self.far_pipe);
                 for (at, (b, n)) in &self.far {
                     if self.far_visible(*at, vp, dist) {
                         rp.set_vertex_buffer(0, b.slice(..));
