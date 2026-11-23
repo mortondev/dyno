@@ -9842,15 +9842,17 @@
      "respawn": 50,
      "rare": {
       "name": "Greatfleece",
-      "chance": 0.08,
+      "chance": 0.03,
       "power": 1.5,
       "levels": 0,
       "drops": [
        {
-        "item": "grazer_hide_leggings"
+        "item": "grazer_hide_leggings",
+        "chance": 0.5
        },
        {
-        "item": "woolen_cloak"
+        "item": "woolen_cloak",
+        "chance": 0.35
        }
       ]
      }
@@ -10041,7 +10043,8 @@
       "levels": 1,
       "drops": [
        {
-        "item": "old_tusk_mantle"
+        "item": "old_tusk_mantle",
+        "chance": 0.5
        }
       ]
      }
@@ -10111,7 +10114,8 @@
       "levels": 1,
       "drops": [
        {
-        "item": "silkmother_gloves"
+        "item": "silkmother_gloves",
+        "chance": 0.5
        }
       ]
      }
@@ -10198,12 +10202,14 @@
       "levels": 1,
       "drops": [
        {
-        "item": "mireshell_buckler"
+        "item": "mireshell_buckler",
+        "chance": 0.5
        },
        {
         "item": "pincher_shell",
         "min": 2,
-        "max": 3
+        "max": 3,
+        "chance": 0.35
        }
       ]
      }
@@ -10298,7 +10304,8 @@
       "levels": 1,
       "drops": [
        {
-        "item": "drowned_lamp_staff"
+        "item": "drowned_lamp_staff",
+        "chance": 0.5
        }
       ]
      }
@@ -10328,12 +10335,14 @@
       "levels": 1,
       "drops": [
        {
-        "item": "ashcloak_hatchet"
+        "item": "ashcloak_hatchet",
+        "chance": 0.5
        },
        {
         "item": "coin_purse",
         "min": 2,
-        "max": 3
+        "max": 3,
+        "chance": 0.35
        }
       ]
      }

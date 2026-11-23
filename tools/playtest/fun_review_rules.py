@@ -24,7 +24,8 @@ classes = {c["key"]: c for c in r["classes"]}
 r["world"]["discovery_xp"] = [30, 20]
 
 # ---------------------------------------------------------------- classes
-# the plate and mail sets (Ironbound, Wildstalker) had no class that could wear them
+# no class could wear plate (the Ironbound set), and the hunter could not wear
+# the mail set made for it (Wildstalker)
 classes["warrior"]["armor"] = "plate"
 classes["paladin"]["armor"] = "plate"
 classes["hunter"]["armor"] = "mail"

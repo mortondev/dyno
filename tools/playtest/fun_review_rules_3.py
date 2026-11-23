@@ -60,6 +60,16 @@ quests["coal_for_the_watch"]["text"] = (
     "the west gate, and more at the Old Quarry north-west of the town: look for black-flecked "
     "stone and bring me 6 coal. Your wooden pick will do for coal.")
 
+# rares roll at every spawn point on every respawn, so a farmed flock shows
+# its rare every couple of minutes: rarer, and the prize is not certain
+for a in r["areas"]:
+    for c in a.get("camps", []):
+        if c.get("rare"):
+            for d in c["rare"].get("drops", []):
+                d["chance"] = 0.5 if d is c["rare"]["drops"][0] else 0.35
+            if c["rare"]["name"] == "Greatfleece":
+                c["rare"]["chance"] = 0.03
+
 json.dump(r, open(PATH, "w"), indent=1)
 open(PATH, "a").write("\n")
 print("applied")

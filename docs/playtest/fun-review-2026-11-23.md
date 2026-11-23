@@ -10,7 +10,9 @@ hunter and a priest after. How the numbers are graded:
 
 All runs shared a machine with other builds (load average about 70 on 16
 cores), so read differences of 10% as noise. The swarm's own spread between
-two identical runs is in the table.
+two identical runs is in the table. The "after" runs were made on the
+branch before its last merge of main (which added starter clothes, four
+townsfolk and streaming changes); POSTMERGE
 
 ## The short version
 
@@ -35,8 +37,9 @@ camp sizes were still tuned for the small one.
   (there, back to Maren, there again).
 - Nothing happened on the road. No XP for finding a place, no reason to
   step off the path, no way back but walking.
-- The level 8 armour sets dropped nowhere, and no class could wear the
-  plate or the mail ones. The three rare elites dropped nothing of their own.
+- The level 8 armour sets dropped nowhere. No class could wear plate (the
+  Ironbound set) and the hunter could not wear the mail set made for it. The
+  three rare elites dropped nothing of their own.
 - Bosses took a random level from their area's band (the level 10 Hollow
   Foreman could appear at level 5).
 
@@ -77,6 +80,13 @@ final content, run twice at once on two servers.
 | Solo: first kill / level 2 / pace / travel / deaths per hour | 95 s / 374 s / 0.96× / 86% / 0 | 61 s / 117 s / 1.54× / 68% / 0 |
 | Party: first kill / level 2 / pace / travel / deaths per hour | 112 s / 206 s / 1.17× / 82% / 0 | 50 s / 141 s / 1.29× / 78% / 0 |
 | Party: kills lost to another tag | 0% | 0% |
+
+The after-runs are not quite like for like: the bots changed too (they find
+resource nodes away from the hearth, and rest at 60% health, not 50%), and
+the 23 new named areas each count as a rewarding moment the first time, which
+flatters "seconds between rewards" and "blocks per reward". First kill,
+level 2, XP per hour, the time split and kills lost depend on neither;
+deaths do depend on the rest threshold (below).
 
 Three things in these tables need saying plainly.
 
@@ -135,14 +145,14 @@ it.
 Tilda sent me to Ostrin for flour. That is 490 m. I ran it in 75 seconds,
 passing nothing I could interact with, arrived at dusk, and Ostrin had no
 quest for a level 2. So I ran 500 m back to hand in the Grazers (96 seconds
-with the detour round the flock), and was level 3 at minute 17. The North
+with the detour round the flock), and was level 3 at 12 minutes 40. The North
 Watch then cost three more minutes of road for two conversations. When I
 went back to Ostrin's at level 3 it was night, I found no Ashcloak in his
 fields in the minute I looked (they were there by day in the later run), and
 I walked on to Fisher's Landing with two untouched quests in my log.
 
-After half an hour I had been in four fights that I remember and I knew the
-south road very well.
+After half an hour I had killed thirteen things, all but one of them
+Grazers, and I knew the south road very well.
 
 What was good even then: the first two levels come at a satisfying rhythm
 once you are at a flock; loot goes straight to the bags and a pair of
@@ -165,16 +175,20 @@ Then I learned things about the game that the running had hidden:
   seconds and both got 85% of the XP. This is the tag system working as
   written, and it is the swarm's "kills lost" number (19% before, 27–31%
   after, none in parties). It is the worst thing left in the first ten minutes.
-- **I died four times as the hunter in 25 minutes.** Once because Quick Shot
-  had emptied my 52 mana by the fourth Grazer and I kept pulling; once to my
-  own new rare, Greatfleece, which `attack grazer` picked as the nearest
-  Grazer (it had 6 health left; I came back and it dropped a cloak and
-  leggings, the best moment of the hour); once to a Shade at the west gate at
-  night, walking home at 16 health; once to a pack of boars at Old Tusk's
-  camp. Two of those are on me. The Shade and the boars are the game.
+- **I died five times as the hunter** (I played her twice: twice in the
+  first five minutes of the first try, three times in 26 minutes of the
+  second). Once because Quick Shot had emptied my 52 mana by the fourth
+  Grazer and I kept pulling; once to my own new rare, Greatfleece, which
+  `attack grazer` picked as the nearest Grazer (it had 6 health left; I came
+  back and it dropped a cloak and leggings, the best moment of the hour);
+  once to a Shade at the west gate at night, walking home at 16 health; once
+  to a boar at Old Tusk's camp; once more to a Shade. The first two are on
+  me. The Shades and the boar are the game.
 - **The night is where it turns from tense to unfair.** It comes every 16
   minutes and lasts five. Odile was killing boars in Birchrise when it fell;
-  three Shades walked in while she was mid-fight and that was that. At level
+  three Shades were closing while she was mid-fight, and the boar finished
+  her before they arrived. (She died once more, to a Websnare at the Hollow
+  Oak, a level 3 in a level 3 to 4 wood.) At level
   3 with 50 health there is no answer except to already be standing at a
   fire.
 
@@ -219,11 +233,15 @@ Shades on the way there, paid Carter Nan 15 copper and was in Hearthstead.
 That was the first time in any of the six runs that the night made me make
 a decision and not just lose health.
 
-One honest gap: `dyno play`'s `gather log` matched my new "Cart ride to
-Garrick's Logging Camp" item, so neither character did Kindling or the coal
-chain in this last run (the hunter did, a round earlier, before the ride
-existed in her world's rules: ten coal at the quarry in a minute). The item
-is renamed and the command now prefers an exact key; I did not replay it.
+One honest gap: once the ride items existed, `dyno play`'s `gather log`
+matched "ride_logging_camp" and not the log block, so none of the four
+"after" characters did Kindling, and Coal for the Watch needs Kindling first.
+The coal itself I did dig (the hunter took ten at the quarry in a minute,
+the warrior seven at the West Gate Rocks). The swarm's bots do
+both quests in the final runs: Kindling 15 and 16 of 16, Coal for the Watch
+7 of 15 and 7 of 16. No bot finished Iron for Hollis (6 and 7 took it): it
+needs Mining 5 and the quarry, and 12 minutes is not enough. The command now prefers an exact key; I did not replay the chain by
+hand.
 
 ## Critique by heading
 
@@ -233,10 +251,10 @@ is renamed and the command now prefers an exact key; I did not replay it.
 | **Pace to 2 and 5** | Swarm: level 2 at 361 s, 0.45× the design. By hand, alone: level 2 at 4 min, level 3 at 12.7 | Swarm: level 2 at about 175 s, 1.3× to 1.4×. By hand: under 3 min and 9 to 10.5 min. Level 5 not reached in any run (the longest was 26 minutes, level 4) | Bots are an optimistic bound; watch real players before cutting more |
 | **Quest variety and clarity** | 34 quests; objectives: 16 collect, 11 kill, 6 talk, 4 explore. Kill and collect quests do not say where | 40 quests; 14 explore objectives; texts name the place ("outside the west gate", "up the north road, on the left") | No use-item, escort or defend objectives: those need engine work. Kill quests still count any creature of the kind anywhere |
 | **Travel against things to do** | 89% of time; hub to hub is 2.5 minutes of nothing | About half; 23 named places pay XP when found; packs within sight of every road out of Hearthstead; carts between the five hubs once found | Past the first ring the roads are still quiet. No wandering patrols or roadside events (engine) |
-| **Combat feel and class identity** | Most-used ability 90% of casts | 74–79%: fights are frequent enough that the second button comes out | Hunter ran dry in four fights (costs cut 30%); Rogue Low Blow still never chosen; party bots press one button (88%) |
+| **Combat feel and class identity** | Most-used ability 90% of casts | 74–79%: fights are frequent enough that the second button comes out | Hunter ran dry in four fights (costs cut 30%); Rogue Low Blow still never chosen; the warrior has little to decide before level 3 |
 | **Danger** | 0.8 deaths an hour, because nobody reached a fight | 2.8 to 3.7 an hour in the swarm, none in the solo and party runs or in my last two characters' first 15 minutes; four for my hunter in 25 | Mages and hunters die most. Boar packs add a second boar often |
 | **Grouping** | A pair ran at 1.17× the design against 0.96× solo | A pair gets 85% each and loses almost no kills (0% against 27–31%) | The elites (Rook Varn, the Barrow Warden, the Foreman) now keep their level and say "bring a friend", but nothing in the first hour needs a group |
-| **Rewards** | Green quest rewards to level 5; level 8 sets unobtainable; plate and mail sets unwearable; rares drop nothing | Level 8 pieces from seven quests, belts from mine and shrine creatures and from Bree; six rares each drop their own item; warriors and paladins wear plate, hunters mail | Money has nothing to buy before the carts and Bree's belts. No treasure chests (needs a lootable-object block) |
+| **Rewards** | Green quest rewards to level 5; level 8 sets unobtainable; plate unwearable by anyone and the hunter's mail set by hunters; rares drop nothing | Level 8 pieces from seven quests, belts from mine and shrine creatures and from Bree; six rares each have their own drops (50% and 35%); warriors and paladins wear plate, hunters mail | Money has nothing to buy before the carts and Bree's belts. No treasure chests (needs a lootable-object block) |
 | **Exploration** | Nothing | XP for every named place, once (15 + 10 a level); "Know the Vale" sends you to the four corners for a level 8 set piece | The map does not show what you have found (client) |
 | **The night** | Half of all deaths in the last 2.5 minutes of every run | Shades at 40 health and 3 damage (were 44 and 4); incursion waves of 3, 4 and 5 unless level 3+ players are in town | Still the main killer. A night every 16 minutes is too often for a zone this size |
 
@@ -253,6 +271,7 @@ is renamed and the command now prefers an exact key; I did not replay it.
 | A camp may set `levels`, narrower than its area's band (bosses) | `content.rs` `Camp`, `camps.rs` |
 | Nightfall Incursion waves grow with the defenders of level 3 and up near the town, not with everyone | `events.rs` |
 | `DYNO_TICK_STATS=1` also logs the whole tick: mean and worst each minute | `lib.rs` `tick_loop` |
+| Bots rest below 60% health, not 50%; `dyno play` matches an exact item or block key before a partial name | `dyno-bot` `brain.rs`, `play.rs` |
 | Bots and `dyno play` list resource nodes round where they stand and again as they move (they listed them once at join, when only the 160 m round the hearth had been streamed, so every gather quest outside the town showed as "no source in reach") | `dyno-bot` `brain.rs` `Nodes` |
 
 No protocol change: the rules reach clients as JSON, and the new fields are
