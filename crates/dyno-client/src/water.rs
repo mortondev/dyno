@@ -282,8 +282,10 @@ pub(crate) fn surface(
     let mut vs = [water_vertex(layer); 4];
     // is any water round here at another level? (most water is level)
     let mut stepped = false;
-    'look: for dz in -SPLASH - 1..=SPLASH + 1 {
-        for dx in -SPLASH - 1..=SPLASH + 1 {
+    // (the cell may lie one outside the section, see `side`: no further
+    // than the corners below read, which is as far as the grid goes)
+    'look: for dz in -SPLASH..=SPLASH {
+        for dx in -SPLASH..=SPLASH {
             if step_at(g, x + dx, y, z + dz) != 0 {
                 stepped = true;
                 break 'look;
@@ -946,7 +948,7 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   let calm = (1.0 - smoothstep(0.02, 0.2, length(flow))) * (1.0 - smoothstep(0.0, 0.15, white));
   let shallows = 1.0 - smoothstep(1.2, 2.2, max(dvq, baked * 0.6));
   let lilies = K.life.x * calm * shallows * (1.0 - foam) * smoothstep(0.2, 0.4, max(dvq, baked));
-  if (lilies > 0.001 && g < 0.6) {
+  if (lilies > 0.001 && g < 0.3) {
     {
       {
         let spot = floor(q / 0.9);
@@ -1423,6 +1425,54 @@ mod tests {
         });
         assert!(hi > 11.0 && lo < 9.0 - WATER_DROP, "{lo} {hi}");
         assert!(sheet.iter().all(|v| v.pos[0] > 25.0));
+    }
+
+    #[test]
+    fn the_surface_carries_on_round_a_post_at_the_edge_of_a_section() {
+        // a pool with posts standing in it just outside a section, on
+        // every side: the mesh reads no further than its grid
+        let mut world = World::empty([64, 32, 64]);
+        for z in 0..64 {
+            for x in 0..64 {
+                for y in 0..8 {
+                    world.set(x, y, z, w::STONE);
+                }
+                world.set(x, 8, z, w::WATER);
+            }
+        }
+        let post = (1..w::BLOCK_COUNT)
+            .find(|b| w::shape(*b) == w::Shape::Post)
+            .expect("a post block");
+        // (a pair side by side: the second is drawn from its far side, by
+        // the section it lies just outside of)
+        let posts = [
+            (15, 20),
+            (20, 32),
+            (32, 32),
+            (15, 40),
+            (16, 40),
+            (40, 15),
+            (40, 16),
+        ];
+        for (x, z) in posts {
+            world.set(x, 8, z, post);
+        }
+        let all: Vec<Vertex> = (0..16)
+            .flat_map(|i| water_of(&world, [i % 4, 0, i / 4]))
+            .collect();
+        // each post's cell has its surface (two triangles), drawn once
+        for (x, z) in posts {
+            let (x, z) = (x as f32, z as f32);
+            let over = all
+                .chunks(3)
+                .filter(|t| {
+                    t.iter().all(|v| {
+                        (x..=x + 1.0).contains(&v.pos[0]) && (z..=z + 1.0).contains(&v.pos[2])
+                    })
+                })
+                .count();
+            assert_eq!(over, 2, "post at {x}, {z}");
+        }
     }
 
     #[test]

@@ -226,7 +226,9 @@ when one of them is replaced.
   - the base look: `deep`, `shallow` and `foam` colours, `depth` (metres of
     water at which the colour is fully deep), `clarity` (metres you see
     through), `foam_width`, `reflect`, `ripple`, `sparkle`, `flow` (metres a
-    second along a course), and `fog` with `fog_density` for eyes under water;
+    second along a course), `fog` with `fog_density` for eyes under water,
+    and `lilies` (how thick lily pads lie on calm shallows) with the `lily`
+    and `lily_flower` colours;
   - `kinds`: named kinds of water, each changing what it names of the base
     (the river, the shrine's turquoise, Barrowwood's dark water);
   - `areas`: still water of a kind, an ellipse `at` a place with a `radius`,
