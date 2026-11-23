@@ -2947,6 +2947,51 @@ impl Gfx {
 mod tests {
     use super::*;
 
+    /// What is left out of a shadow map could not have shadowed the
+    /// picture: wherever a point of a shadow's path lies in view,
+    /// `casts_into` says so.
+    #[test]
+    fn nothing_that_shadows_the_view_is_left_out() {
+        let eye = Vec3::new(10.0, 2.0, -5.0);
+        let vp = Mat4::perspective_rh(1.2, 16.0 / 9.0, 0.05, 900.0)
+            * Mat4::look_to_rh(eye, Vec3::new(0.3, -0.2, -1.0).normalize(), Vec3::Y);
+        let planes = view_planes(vp);
+        let inside = |p: Vec3| planes.iter().all(|pl| pl.truncate().dot(p) + pl.w > 0.0);
+        // the planes are the view's: a point ahead is in, one behind is out
+        assert!(inside(eye + Vec3::new(3.0, -2.0, -10.0)));
+        assert!(!inside(eye + Vec3::new(0.0, 0.0, 10.0)));
+        let unit = |n: u32| terrain_mesh::hash3(n as i32, 7, 13) as f32 / u32::MAX as f32;
+        let (mut kept, mut left) = (0, 0);
+        for i in 0..4000u32 {
+            let c = eye
+                + Vec3::new(
+                    unit(i * 5) - 0.5,
+                    (unit(i * 5 + 1) - 0.5) * 0.3,
+                    unit(i * 5 + 2) - 0.5,
+                ) * 300.0;
+            let light = Vec3::new(
+                unit(i * 5 + 3) - 0.5,
+                0.06 + unit(i * 5 + 4),
+                unit(i * 7 + 1) - 0.5,
+            )
+            .normalize();
+            let casts = casts_into(&planes, c, 1.0, light);
+            // its shadow falls away from the light
+            let shadows_view = (0..600).any(|t| inside(c - light * t as f32 * 0.5));
+            assert!(
+                casts || !shadows_view,
+                "left out a caster at {c:?}, light {light:?}"
+            );
+            if casts {
+                kept += 1;
+            } else {
+                left += 1;
+            }
+        }
+        // and it does leave some out
+        assert!(kept > 500 && left > 500, "{kept} kept, {left} left out");
+    }
+
     /// Timing on the real starting world: Hearthstead and the zones, as a
     /// fresh server builds them. Run with:
     /// `cargo test --release -p dyno-client town_meshing_speed -- --ignored --nocapture`

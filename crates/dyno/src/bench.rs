@@ -605,7 +605,7 @@ mod tests {
             load: String::new(),
             default_tier: "high".into(),
             flight_seconds: 60.0,
-            tiers: Vec::new(),
+            tiers: tiers().into_iter().filter(|t| t.name == "high").collect(),
             scenes: vec![SceneResult {
                 name: "meadow".into(),
                 tier: "high".into(),

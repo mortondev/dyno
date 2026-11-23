@@ -129,8 +129,26 @@ fn unpack(v: PIn) -> Plain {
 }
 "#;
 
+/// Values that did not fit their field and were cut to its range.
+static CUT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// How many values did not fit their packed field so far (a position past
+/// the reach, a texture coordinate past its range, a colour over 1.28...):
+/// none on the pack's content, which a test holds (`tests/budget.rs`).
+pub fn cut() -> u64 {
+    CUT.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// `v` within `lo..=hi`, counted when it was not.
+fn fit(v: f32, lo: f32, hi: f32) -> f32 {
+    if !(lo..=hi).contains(&v) {
+        CUT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    v.clamp(lo, hi)
+}
+
 fn clamp_i16(v: f32) -> i16 {
-    v.round().clamp(i16::MIN as f32, i16::MAX as f32) as i16
+    fit(v.round(), i16::MIN as f32, i16::MAX as f32) as i16
 }
 
 /// Pack a vertex of the section whose corner is at `origin` (metres).
@@ -140,19 +158,19 @@ pub fn pack(v: &Vertex, origin: [f32; 3]) -> Packed {
     let foliage = (KIND_FOLIAGE..KIND_WATER).contains(&kz);
     let n = v.normal.map(|c| (c.clamp(-1.0, 1.0) * 127.0).round() as i8);
     let c = [0, 1, 2]
-        .map(|i| ((v.color[i].clamp(0.0, COLOR_MAX) / COLOR_MAX).sqrt() * 1023.0).round() as u32);
+        .map(|i| ((fit(v.color[i], 0.0, COLOR_MAX) / COLOR_MAX).sqrt() * 1023.0).round() as u32);
     let shade = if v.color[3] >= 1.9 {
         SHADE_GLOW
     } else {
-        ((v.color[3].max(0.0) * SHADE_STEPS).round() as u32).min(SHADE_GLOW - 1)
+        (fit(v.color[3], 0.0, (SHADE_GLOW - 1) as f32 / SHADE_STEPS) * SHADE_STEPS).round() as u32
     };
     let (hi, lo) = (shade / 254, (shade % 254) as i32 - 127);
     let uv = if kz >= KIND_VOXEL {
         // voxels a metre and the way the face looks (32 times it);
         // saturation in hundredths, jitter in thousandths
-        let dir = (v.tex[0] / 32.0).floor().clamp(0.0, 7.0);
+        let dir = fit((v.tex[0] / 32.0).floor(), 0.0, 7.0);
         let per = (v.tex[0] - dir * 32.0).round().clamp(0.0, 31.0) as i16;
-        let sat = v.tex[1].floor().clamp(0.0, 511.0);
+        let sat = fit(v.tex[1].floor(), 0.0, 511.0);
         let jit = ((v.tex[1] - sat) * 1000.0).round().clamp(0.0, 1023.0) as i16;
         [sat as i16 | (dir as i16) << 9, per << 10 | jit]
     } else if foliage {
@@ -160,9 +178,9 @@ pub fn pack(v: &Vertex, origin: [f32; 3]) -> Packed {
     } else {
         [clamp_i16(v.tex[0] * 2048.0), clamp_i16(v.tex[1] * 2048.0)]
     };
-    let whole = v.tex[3].max(0.0).floor().min(15.0);
+    let whole = fit(v.tex[3].floor(), 0.0, 15.0);
     let steps = if foliage { 100.0 } else { 10000.0 };
-    let part = (((v.tex[3].max(0.0) - whole) * steps).round() as u32).min(255);
+    let part = fit(((v.tex[3].max(0.0) - whole) * steps).round(), 0.0, 255.0) as u32;
     let ten = |x: f32| (x.clamp(0.0, 1.0) * 1023.0).round() as u32;
     Packed {
         pos: [p[0], p[1], p[2], clamp_i16(kz)],

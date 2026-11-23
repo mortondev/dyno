@@ -6387,6 +6387,14 @@ pub fn shot_with_ui(
             .focus(p.player.eye().into(), p.player.look_dir().into());
         if land_at.is_none() && land_ready(&p, gfx, p.player.pos, LAND_RADIUS) {
             land_at = Some(started.elapsed());
+            if stats {
+                eprintln!(
+                    "land: drawn after {} ms, holding {} sections; the worker so far: {}",
+                    started.elapsed().as_millis(),
+                    p.world.held_sections().0,
+                    crate::worldwork::work_stats()
+                );
+            }
         }
         if stats || run.is_some() {
             // a frame of the world, as the game draws it

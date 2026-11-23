@@ -153,10 +153,18 @@ impl Vox {
                         let c = self.palette[ink as usize].0;
                         ((c[0] + c[1] + c[2]) / 3.0 * 100.0) as i32
                     };
-                    // on a tie a strong dark detail wins (eyes, mouths);
-                    // between near tones the lighter does (stripes, folds)
+                    // on a tie a crisp ink wins over a plain one (trim and
+                    // devices hold their width at a distance); then a strong
+                    // dark detail wins (eyes, mouths), and between near
+                    // tones the lighter does (stripes, folds)
                     let top = seen[..kinds].iter().map(|s| s.2).max().unwrap_or(0);
-                    let tied = || seen[..kinds].iter().filter(|s| s.2 == top);
+                    let crisp = |s: &&(u8, u8, u8)| self.crisp[s.0 as usize];
+                    let any = seen[..kinds].iter().any(|s| s.2 == top && crisp(&s));
+                    let tied = || {
+                        seen[..kinds]
+                            .iter()
+                            .filter(|s| s.2 == top && (!any || crisp(s)))
+                    };
                     let lo = tied().map(|s| lum(s.0)).min().unwrap_or(0);
                     let hi = tied().map(|s| lum(s.0)).max().unwrap_or(0);
                     let best = if hi - lo > 30 {

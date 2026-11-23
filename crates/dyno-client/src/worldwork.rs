@@ -21,7 +21,7 @@ use dyno_world::light::{Light, SectionLight};
 use dyno_world::{BlockId, SECTION, SectionData, SectionPos, World};
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, TryRecvError, channel};
 use std::time::{Duration, Instant};
 
@@ -45,6 +45,26 @@ const LIGHT_COLUMNS: usize = 6;
 const MESH_BATCH: usize = 16;
 /// A column waits this long to be whole before it is lit anyway.
 const WHOLE_WAIT: Duration = Duration::from_millis(500);
+
+/// What the worker has done so far (for `DYNO_SHOT_STATS`): columns lit,
+/// microseconds lighting, sections meshed, microseconds meshing.
+pub static WORK_STATS: [AtomicU64; 4] = [const { AtomicU64::new(0) }; 4];
+
+fn count(i: usize, n: u64) {
+    WORK_STATS[i].fetch_add(n, Ordering::Relaxed);
+}
+
+/// `WORK_STATS` as words.
+pub fn work_stats() -> String {
+    let g = |i: usize| WORK_STATS[i].load(Ordering::Relaxed);
+    format!(
+        "{} columns lit in {} ms, {} sections meshed in {} ms",
+        g(0),
+        g(1) / 1000,
+        g(2),
+        g(3) / 1000
+    )
+}
 
 /// The game's side of the worker.
 pub struct WorldWork {
@@ -373,7 +393,10 @@ impl Worker {
             }
             !take
         });
+        let t = Instant::now();
         self.light.arrived(&self.world, &batch);
+        count(0, cols.len() as u64);
+        count(1, t.elapsed().as_micros() as u64);
         // what each arrival makes ready: itself and its neighbours not yet
         // meshed (no built mesh read it, and light reaches less than a
         // section), and what lies below it in its column (the sky's light
@@ -488,7 +511,10 @@ impl Worker {
             self.built_lod.insert(*s, *l);
         }
         let focus = self.focused.then_some(self.cam);
+        let t = Instant::now();
         let geos = render::mesh_many_packed(&self.world, &self.light, &with, focus);
+        count(2, with.len() as u64);
+        count(3, t.elapsed().as_micros() as u64);
         for s in &empty {
             self.leafy.remove(s);
         }

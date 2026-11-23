@@ -136,8 +136,8 @@ pub fn sculpt() -> (Vec<Grid>, Palette) {
     let mut head = Grid::new(
         "head",
         2.5,
-        vec3(-7.5, 43.5, -8.5),
-        vec3(7.5, 66.0, 8.5),
+        vec3(-10.0, 43.5, -10.5),
+        vec3(10.0, 66.0, 9.5),
         &["head"],
     );
     let bodies = bodies();
@@ -324,7 +324,8 @@ pub fn rig(bodies: &[Body; 2]) -> Value {
         {"bone": "socket.offhand", "held": "offhand"},
         {"bone": "socket.shield", "held": "shield"},
         {"bone": "socket.back", "held": "back"},
-        {"bone": "head", "grid": "head", "part": "head", "pivot": pivot(&|b| b.head)}
+        // a slightly large head, which reads from the play camera
+        {"bone": "head", "grid": "head", "part": "head", "pivot": pivot(&|b| b.head), "shape": {"scale": [1.14, 1.14, 1.14]}}
     ]);
     json!({"bones": bones, "parts": parts})
 }
