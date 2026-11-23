@@ -106,6 +106,8 @@ enum Screen {
     Menu,
     Joining {
         rx: Receiver<Result<Joined, String>>,
+        /// the address being joined (for logs; players never see it)
+        #[allow(dead_code)]
         label: String,
         since: Instant,
     },
@@ -2919,6 +2921,10 @@ impl App {
                     }
                     FrontCmd::Host => self.act(Action::Host),
                     FrontCmd::StopHost => self.act(Action::StopHost),
+                    FrontCmd::SetWorld(addr) => {
+                        self.settings.remember_server(&addr);
+                        let _ = self.settings.save();
+                    }
                     FrontCmd::Quit => std::process::exit(0),
                 }
             }
@@ -3359,7 +3365,7 @@ fn ui(
             );
             actions.extend(cmds.into_iter().map(Action::Front));
         }
-        Screen::Joining { label, since, .. } => {
+        Screen::Joining { since, .. } => {
             // the loading screen: the zone's name over the town, a tip, a burning fuse
             let screen = ctx.content_rect();
             let p = ctx.layer_painter(egui::LayerId::new(
@@ -3420,7 +3426,7 @@ fn ui(
                 &p,
                 Pos2::new(screen.center().x, screen.bottom() - 40.0),
                 Align2::CENTER_CENTER,
-                &format!("Entering {label}"),
+                "Entering Ashfall Vale",
                 crate::theme::body_font(13.0),
                 crate::theme::TEXT_DIM,
             );
