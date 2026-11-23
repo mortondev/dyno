@@ -357,7 +357,7 @@ flowchart TD
 ```mermaid
 flowchart LR
   Dev[commit + tag vX.Y.Z] --> CI[GitHub Actions<br/>fmt · clippy · tests]
-  CI --> Build[build dyno + hearthblock<br/>Linux / macOS / Windows<br/>client: no content strings, under 8 MB]
+  CI --> Build[build dyno + hearthblock<br/>Linux / macOS / Windows<br/>client: no content strings, under 10 MB]
   Build --> Sign[sign manifest<br/>Ed25519]
   Sign --> Rel[GitHub Release]
   Rel --> Srv[servers: --auto-update<br/>restart in place]

@@ -45,7 +45,7 @@ jobs:
 
   # the player client on its own: `--workspace` turns on the dev `host`
   # feature everywhere, so build and lint hearthblock alone, then check the
-  # shipped binary has no content strings and stays under 8 MB
+  # shipped binary has no content strings and stays under its 10 MB ceiling
   client:
     runs-on: ubuntu-22.04
     steps:

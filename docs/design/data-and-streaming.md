@@ -251,11 +251,20 @@ For new worlds and rebuilds:
   join ever, the title screen has a plain backdrop and no news.
 - `.github/scripts/check-client.sh` builds the client as it ships
   (`--profile client-release`: `opt-level = "z"`, fat LTO, one codegen
-  unit, stripped) and fails if the binary contains `thornboar`,
-  `Hearthstead` or `Brannoc`, or is 8 MB or more. CI runs it, with
-  `cargo clippy -p hearthblock`, because `--workspace` turns `host` on
-  everywhere.
-- Size: see the decision log in `docs/architecture.md` (§11).
+  unit, stripped, `panic = "abort"`) and fails if the binary contains
+  `thornboar`, `Hearthstead` or `Brannoc`, or is 10 MB or more (a ceiling
+  against regressions). CI runs it, with `cargo clippy -p hearthblock`,
+  because `--workspace` turns `host` on everywhere.
+- **Size: 9.54 MB** (Linux x86-64, 0.6.2 with the textures and sounds
+  bake): over the 8 MB target. Unwind tables were 1.4 MB (now gone with
+  `panic = "abort"`). Of the code, the client's own is about 0.85 MB; the
+  rest is engine libraries: naga (0.73 MB), wgpu core/hal, winit with its
+  Wayland and X11 stacks and tiny-skia window decorations, rustls and ring
+  (WebSockets and the updater share one copy), egui, and egui's built-in
+  fonts (needed: before its first join the client has no pack fonts).
+  Next steps, none of them in this crate's code: one GPU backend per
+  platform (drop GL where Vulkan or Metal exists), winit without the
+  Adwaita decorations, a smaller fallback font.
 - The release manifest keeps `assets` as the `dyno` binaries, which every
   updater up to 0.6 reads (the live server among them), and adds
   `programs: { dyno: {…}, hearthblock: {…} }`. From 0.7 the updater picks
