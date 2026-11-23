@@ -30,7 +30,7 @@
       "glow": 0.2, "glow_alpha": 0.75, "fade": [0.05, 0.4], "reach": 60
     },
     "forge_sparks": {
-      "rate": 6, "life": [0.4, 0.9],
+      "rate": 1.1, "burst": 7, "life": [0.4, 0.9],
       "spawn": [0.35, 0.3, 0.35],
       "velocity": [0, 1.6, 0], "spread": [1.4, 1.2, 1.4], "accel": [0, -6.5, 0],
       "size": [0.06, 0.025],
@@ -128,6 +128,14 @@
       "colors": [[1.0, 1.0, 0.88]],
       "fade": [0.2, 0.2], "time": [0.03, 0.46], "reach": 36
     },
+    "splash": {
+      "rate": 0.09, "burst": 8, "life": [0.45, 0.8],
+      "spawn": [0.12, 0.02, 0.12],
+      "velocity": [0, 2.3, 0], "spread": [0.9, 0.7, 0.9], "accel": [0, -9.5, 0],
+      "size": [0.09, 0.04],
+      "colors": [[0.95, 0.98, 1.0], [0.7, 0.86, 0.96]],
+      "fade": [0.02, 0.4], "reach": 50
+    },
     "mine_dust": {
       "rate": 0.9, "life": [5.0, 8.0],
       "spawn": [4.0, 1.8, 4.0],
@@ -169,6 +177,8 @@
       "areas": ["barrowwood"] },
     { "effect": "pollen", "cell": 13, "chance": 0.45, "height": [0.6, 1.6],
       "ground": ["grass"], "open": true, "not_areas": ["barrowwood", "hollow_mines"] },
+    { "effect": "splash", "cell": 9, "chance": 0.4, "height": [0.0, 0.05],
+      "ground": ["water"], "beside": ["sand", "grass", "dirt"], "beside_r": 6 },
     { "effect": "mine_dust", "cell": 10, "chance": 0.6, "height": [0.8, 2.5],
       "areas": ["hollow_mines", "miners_rest"] },
     { "effect": "shrine_motes", "cell": 6, "chance": 0.55, "height": [0.3, 1.2],
@@ -236,7 +246,7 @@
       "ground": ["grass"],
       "areas": ["birchrise", "hollow_oak", "barrowwood", "east_road"],
       "not_areas": ["hearthstead", "logging_camp", "miners_rest"] },
-    { "critter": "sheep", "cell": 9, "chance": 0.5, "group": [1, 2], "spread": 2.5,
-      "ground": ["grass"], "open": true, "areas": ["windmill"] }
+    { "critter": "sheep", "cell": 8, "chance": 0.7, "group": [1, 2], "spread": 2.5,
+      "ground": ["grass"], "open": true, "beside": ["hay_bale"], "beside_r": 6 }
   ]
 }

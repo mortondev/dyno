@@ -1204,10 +1204,7 @@ impl Content {
                 if let Some(b) = &st.near
                     && crate::block_by_key(b).is_none()
                 {
-                    return Err(format!(
-                        "NPC '{}': routine near unknown block '{b}'",
-                        n.key
-                    ));
+                    return Err(format!("NPC '{}': routine near unknown block '{b}'", n.key));
                 }
                 if st.secs[1] < st.secs[0] || st.secs[0] < 0.0 {
                     return Err(format!("NPC '{}': routine secs {:?}", n.key, st.secs));

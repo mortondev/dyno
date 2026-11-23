@@ -101,7 +101,11 @@ fn resolve(world: &World, home: [f32; 3], st: &RoutineStep) -> Option<Spot> {
                     stand(world, x, b[1], z, 2).map(|y| [x, y, z])
                 })
                 .min_by_key(|c| (c[0] - hx).pow(2) + (c[2] - hz).pow(2))?;
-            let pos = [beside[0] as f32 + 0.5, beside[1] as f32, beside[2] as f32 + 0.5];
+            let pos = [
+                beside[0] as f32 + 0.5,
+                beside[1] as f32,
+                beside[2] as f32 + 0.5,
+            ];
             yaw = yaw.or(Some(yaw_to(
                 pos,
                 [b[0] as f32 + 0.5, pos[1], b[2] as f32 + 0.5],
@@ -124,7 +128,10 @@ impl Routine {
     /// The round of an NPC standing at `home`. None when it has none (or no
     /// spot of it exists in this world).
     pub fn new(world: &World, home: [f32; 3], steps: &[RoutineStep], seed: u32) -> Option<Routine> {
-        let spots: Vec<Spot> = steps.iter().filter_map(|s| resolve(world, home, s)).collect();
+        let spots: Vec<Spot> = steps
+            .iter()
+            .filter_map(|s| resolve(world, home, s))
+            .collect();
         if spots.is_empty() {
             return None;
         }
@@ -205,7 +212,14 @@ impl State {
 
 /// Advance one NPC. `roll` is a fresh number in 0..1; `act` announces an
 /// animation (0, the first of the list, lets a held one go).
-fn step(r: &mut Routine, e: &mut Entity, world: &World, dt: f32, roll: f32, act: &mut dyn FnMut(u8)) {
+fn step(
+    r: &mut Routine,
+    e: &mut Entity,
+    world: &World,
+    dt: f32,
+    roll: f32,
+    act: &mut dyn FnMut(u8),
+) {
     let spot = &r.spots[r.at];
     match &mut r.doing {
         Doing::Staying { left } => {
@@ -343,7 +357,10 @@ mod tests {
         let hammer = proto::anim_index("Hammer").unwrap();
         assert!(seen_hammer_at.is_some());
         // hammered, let go, waved at the other spot, came back
-        assert!(acts.iter().filter(|a| **a == hammer).count() >= 2, "{acts:?}");
+        assert!(
+            acts.iter().filter(|a| **a == hammer).count() >= 2,
+            "{acts:?}"
+        );
         assert!(acts.contains(&0));
         assert!(acts.contains(&proto::anim_index("Wave").unwrap()));
     }

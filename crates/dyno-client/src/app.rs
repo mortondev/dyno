@@ -719,7 +719,12 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
             if let Some(m) = me.marker(n) {
                 let turn = p.player.yaw + p.cam_orbit;
-                push_marker(boxes, pos + Vec3::Y * (2.45 + 0.06 * (now * 2.2).sin()), turn, m);
+                push_marker(
+                    boxes,
+                    pos + Vec3::Y * (2.45 + 0.06 * (now * 2.2).sin()),
+                    turn,
+                    m,
+                );
             }
             continue;
         }
@@ -6473,7 +6478,17 @@ pub fn shot_with_ui(
     // ambient life, as play draws it (DYNO_LIFE=0 leaves it out)
     let life_quality = crate::life::quality(2);
     let figures = boxes.len();
-    push_life(&mut p, gfx, &mut boxes, eye, dir, t, 0.0, life_quality, true);
+    push_life(
+        &mut p,
+        gfx,
+        &mut boxes,
+        eye,
+        dir,
+        t,
+        0.0,
+        life_quality,
+        true,
+    );
     let (fx, fx_glow) = (gfx.fx.clone(), gfx.fx_glow.clone());
     for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let pose = r.current();
@@ -6580,7 +6595,17 @@ pub fn shot_with_ui(
     for i in 1..=more {
         std::thread::sleep(Duration::from_millis(100));
         let mut boxes = boxes[..figures].to_vec();
-        push_life(&mut p, gfx, &mut boxes, eye, dir, t, 0.1, life_quality, false);
+        push_life(
+            &mut p,
+            gfx,
+            &mut boxes,
+            eye,
+            dir,
+            t,
+            0.1,
+            life_quality,
+            false,
+        );
         let o = ctx.run(raw(), |_| {});
         let stem = out.with_extension("");
         gfx.screenshot = Some(format!("{}-{i:02}.ppm", stem.display()).into());
@@ -6597,7 +6622,17 @@ pub fn shot_with_ui(
             let o = ctx.run(raw(), |_| {});
             let mut boxes = boxes[..figures].to_vec();
             let t1 = Instant::now();
-            push_life(&mut p, gfx, &mut boxes, eye, dir, t, 0.016, life_quality, false);
+            push_life(
+                &mut p,
+                gfx,
+                &mut boxes,
+                eye,
+                dir,
+                t,
+                0.016,
+                life_quality,
+                false,
+            );
             life_ms += t1.elapsed().as_secs_f64() * 1e3;
             gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
             gfx.wait_idle();

@@ -1205,6 +1205,14 @@ impl Server {
                     st.day = main_clock.1;
                 }
                 st.tick(dt);
+                // DYNO_TICK_STATS: what the NPC routines cost, once a minute
+                if n.is_multiple_of(1200) && std::env::var_os("DYNO_TICK_STATS").is_some() {
+                    let (mean, walked) = st.routine_cost();
+                    log(format!(
+                        "routines: {walked} NPCs, {:.1} microseconds a tick",
+                        mean.as_secs_f64() * 1e6
+                    ));
+                }
                 if n.is_multiple_of(10) {
                     snaps.extend(st.snapshot());
                 }

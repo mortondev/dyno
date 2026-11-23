@@ -115,8 +115,14 @@ impl Default for Spawn {
 #[derive(Clone, Copy, PartialEq)]
 enum Doing {
     /// standing (feeding when `alt`) until the clock passes this
-    Stand { until: f64, alt: bool },
-    Go { to: Vec3, run: bool },
+    Stand {
+        until: f64,
+        alt: bool,
+    },
+    Go {
+        to: Vec3,
+        run: bool,
+    },
 }
 
 struct Critter {
@@ -271,17 +277,17 @@ impl Critters {
                         continue;
                     }
                     let mut rng = Rng(life::hash2(0xC417 + ri as u32, cx, cz));
-                    if rng.next() >= rule.chance * thin {
+                    if rng.unit() >= rule.chance * thin {
                         self.cells.insert(key, false);
                         continue;
                     }
-                    let (x, z) = ((cx as f32 + rng.next()) * c, (cz as f32 + rng.next()) * c);
+                    let (x, z) = ((cx as f32 + rng.unit()) * c, (cz as f32 + rng.unit()) * c);
                     if life::column(s.world, x.floor() as i32, z.floor() as i32).is_none() {
                         // the land is not here yet: ask again later
                         continue;
                     }
                     let n = rule.group[0]
-                        + (rng.next() * (rule.group[1].saturating_sub(rule.group[0]) + 1) as f32)
+                        + (rng.unit() * (rule.group[1].saturating_sub(rule.group[0]) + 1) as f32)
                             as u8;
                     let mut any = false;
                     if rule.place.area_ok(s, x, z) {
@@ -304,11 +310,11 @@ impl Critters {
                                 cell: (cx, cz),
                                 home,
                                 pos: home,
-                                yaw: rng.next() * std::f32::consts::TAU,
+                                yaw: rng.unit() * std::f32::consts::TAU,
                                 seed: rng.0,
                                 doing: Doing::Stand {
-                                    until: clock + (rng.next() * 6.0) as f64,
-                                    alt: rng.next() < 0.5,
+                                    until: clock + (rng.unit() * 6.0) as f64,
+                                    alt: rng.unit() < 0.5,
                                 },
                                 frame: 0,
                                 lift: 0.0,
@@ -404,32 +410,40 @@ fn heading(v: Vec3) -> f32 {
 
 /// Turn `yaw` towards `to` by at most `max` radians.
 fn turn(yaw: f32, to: f32, max: f32) -> f32 {
-    let d = (to - yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
-        - std::f32::consts::PI;
+    let d =
+        (to - yaw + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU) - std::f32::consts::PI;
     yaw + d.clamp(-max, max)
 }
 
 fn step(c: &mut Critter, k: &Kind, place: &Place, s: &Scene, clock: f64, dt: f32) {
     let mut r = Rng(c.seed);
-    let (p1, p2, p3) = (r.next() * 6.3, r.next() * 6.3, r.next() * 6.3);
+    let (p1, p2, p3) = (r.unit() * 6.3, r.unit() * 6.3, r.unit() * 6.3);
     let t = clock as f32;
     match k.behave {
         Behave::Flock => {
             // the flock's point drifts; each bird rides its own circle
             let centre = c.home
                 + Vec3::new((t * 0.021 + p3).sin(), 0.0, (t * 0.017 + p3 * 1.7).cos()) * k.range;
-            let radius = k.range * (0.35 + 0.5 * r.next());
+            let radius = k.range * (0.35 + 0.5 * r.unit());
             let w = k.speed / radius * if c.seed & 2 == 0 { 1.0 } else { -1.0 };
             let a = p1 + t * w;
             let at = |a: f32| {
                 centre
-                    + Vec3::new(a.cos() * radius, (a * 0.7 + p2).sin() * 1.5, a.sin() * radius * 0.8)
+                    + Vec3::new(
+                        a.cos() * radius,
+                        (a * 0.7 + p2).sin() * 1.5,
+                        a.sin() * radius * 0.8,
+                    )
             };
             c.pos = at(a);
             c.yaw = heading(at(a + 0.05 * w.signum()) - c.pos);
             // flap, then glide a while
             let glide = ((t * 0.23 + p2).sin()) > 0.55;
-            c.frame = if glide { 0 } else { cycle(clock, k.fps, c.seed) };
+            c.frame = if glide {
+                0
+            } else {
+                cycle(clock, k.fps, c.seed)
+            };
         }
         Behave::Flutter => {
             let at = |t: f32| {
@@ -481,16 +495,24 @@ fn walk(c: &mut Critter, k: &Kind, place: &Place, s: &Scene, clock: f64, dt: f32
     }
     match c.doing {
         Doing::Stand { until, alt } => {
-            c.frame = if alt && k.behave != Behave::Swim { 3 } else { 0 };
+            c.frame = if alt && k.behave != Behave::Swim {
+                3
+            } else {
+                0
+            };
             c.lift = 0.0;
             if k.behave == Behave::Swim {
                 c.lift = 0.02 * ((clock as f32) * 1.3 + c.seed as f32).sin();
             }
             if clock >= until {
-                let a = pick.next() * std::f32::consts::TAU;
-                let d = k.range * (0.3 + 0.7 * pick.next());
+                let a = pick.unit() * std::f32::consts::TAU;
+                let d = k.range * (0.3 + 0.7 * pick.unit());
                 // crabs dash sideways and short
-                let d = if k.behave == Behave::Scuttle { d * 0.5 } else { d };
+                let d = if k.behave == Behave::Scuttle {
+                    d * 0.5
+                } else {
+                    d
+                };
                 c.doing = Doing::Go {
                     to: c.home + Vec3::new(a.cos(), 0.0, a.sin()) * d,
                     run: false,
@@ -513,8 +535,8 @@ fn walk(c: &mut Critter, k: &Kind, place: &Place, s: &Scene, clock: f64, dt: f32
             };
             let ok = place.step_at(s, next.x.floor() as i32, feet, next.z.floor() as i32);
             let stand = |pick: &mut Rng| Doing::Stand {
-                until: clock + (1.5 + pick.next() * if run { 2.0 } else { 9.0 }) as f64,
-                alt: pick.next() < 0.6,
+                until: clock + (1.5 + pick.unit() * if run { 2.0 } else { 9.0 }) as f64,
+                alt: pick.unit() < 0.6,
             };
             match ok {
                 Some((y, b)) if dist > 0.05 => {

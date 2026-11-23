@@ -139,10 +139,7 @@ impl Scene<'_> {
             .areas
             .iter()
             .filter(|a| {
-                let (dx, dz) = (
-                    x - (h[0] + a.at[0]) as f32,
-                    z - (h[2] + a.at[1]) as f32,
-                );
+                let (dx, dz) = (x - (h[0] + a.at[0]) as f32, z - (h[2] + a.at[1]) as f32);
                 dx * dx + dz * dz <= a.radius * a.radius
             })
             .min_by(|a, b| a.radius.total_cmp(&b.radius))
@@ -156,10 +153,7 @@ impl Scene<'_> {
             return false;
         };
         self.content.areas.iter().any(|a| {
-            let (dx, dz) = (
-                x - (h[0] + a.at[0]) as f32,
-                z - (h[2] + a.at[1]) as f32,
-            );
+            let (dx, dz) = (x - (h[0] + a.at[0]) as f32, z - (h[2] + a.at[1]) as f32);
             a.key == key && dx * dx + dz * dz <= a.radius * a.radius
         })
     }
@@ -326,16 +320,16 @@ pub fn hash2(seed: u32, x: i32, z: i32) -> u32 {
 pub struct Rng(pub u32);
 
 impl Rng {
-    pub fn next(&mut self) -> f32 {
+    pub fn unit(&mut self) -> f32 {
         self.0 = hash(self.0, 0x51ED_270B);
         (self.0 >> 8) as f32 / 16_777_216.0
     }
     /// between -1 and 1
     pub fn signed(&mut self) -> f32 {
-        self.next() * 2.0 - 1.0
+        self.unit() * 2.0 - 1.0
     }
     pub fn range(&mut self, r: [f32; 2]) -> f32 {
-        r[0] + (r[1] - r[0]) * self.next()
+        r[0] + (r[1] - r[0]) * self.unit()
     }
 }
 
@@ -473,7 +467,11 @@ mod tests {
             place(&r.place);
         }
         for r in &d.wildlife {
-            assert!(d.critters.contains_key(&r.critter), "no critter {}", r.critter);
+            assert!(
+                d.critters.contains_key(&r.critter),
+                "no critter {}",
+                r.critter
+            );
             place(&r.place);
         }
         for (name, k) in &d.critters {

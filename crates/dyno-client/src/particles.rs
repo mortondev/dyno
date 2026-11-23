@@ -58,6 +58,9 @@ pub struct Effect {
     pub time: Option<[f32; 2]>,
     /// how far away it is still drawn, metres
     pub reach: f32,
+    /// cubes born together each time (a splash, a shower of sparks);
+    /// `rate` then counts the bursts
+    pub burst: u8,
 }
 
 impl Default for Effect {
@@ -81,6 +84,7 @@ impl Default for Effect {
             fade: [0.1, 0.3],
             time: None,
             reach: 64.0,
+            burst: 1,
         }
     }
 }
@@ -299,9 +303,8 @@ impl Particles {
             }
         }
         if !r.near.is_empty() {
-            let found = (0..=r.near_down).any(|d| {
-                (-1..=1).any(|dx| (-1..=1).any(|dz| r.near.contains(&get(dx, -d, dz))))
-            });
+            let found = (0..=r.near_down)
+                .any(|d| (-1..=1).any(|dx| (-1..=1).any(|dz| r.near.contains(&get(dx, -d, dz)))));
             if !found {
                 return None;
             }
@@ -399,14 +402,11 @@ impl Particles {
                         continue;
                     }
                     let mut rng = Rng(life::hash2(0x5CA7 + ri as u32, cx, cz));
-                    if rng.next() >= sc.chance {
+                    if rng.unit() >= sc.chance {
                         self.cells.insert(key, None);
                         continue;
                     }
-                    let (x, z) = (
-                        (cx as f32 + rng.next()) * c,
-                        (cz as f32 + rng.next()) * c,
-                    );
+                    let (x, z) = ((cx as f32 + rng.unit()) * c, (cz as f32 + rng.unit()) * c);
                     let (bx, bz) = (x.floor() as i32, z.floor() as i32);
                     if life::column(s.world, bx, bz).is_none() {
                         // not here yet: ask again later
@@ -491,18 +491,19 @@ fn emit(s: &Scene, fx: &Effect, e: &Emitter, clock: f64, thin: f32, wind: Vec3, 
     } else {
         s.light_at(e.pos)
     };
-    for j in 0..n {
-        let i = newest - j;
-        let mut r = Rng(life::hash(e.seed, i as u32));
-        let born = (i as f64 + r.next() as f64) * period;
+    let burst = fx.burst.max(1) as i64;
+    for j in 0..n * burst {
+        let (i, b) = (newest - j / burst, j % burst);
+        // the cubes of a burst are born at the same moment
+        let born = (i as f64 + Rng(life::hash(e.seed, i as u32)).unit() as f64) * period;
+        let mut r = Rng(life::hash(life::hash(e.seed, i as u32), b as u32 + 1));
         let age = (clock - born) as f32;
         let life = r.range(fx.life);
         if age < 0.0 || age >= life {
             continue;
         }
         let u = age / life;
-        let mut pos = e.pos
-            + Vec3::new(r.signed(), r.signed(), r.signed()) * Vec3::from(fx.spawn);
+        let mut pos = e.pos + Vec3::new(r.signed(), r.signed(), r.signed()) * Vec3::from(fx.spawn);
         let v = Vec3::from(fx.velocity)
             + Vec3::new(r.signed(), r.signed(), r.signed()) * Vec3::from(fx.spread);
         pos += if fx.drag > 0.0 {
@@ -513,7 +514,7 @@ fn emit(s: &Scene, fx: &Effect, e: &Emitter, clock: f64, thin: f32, wind: Vec3, 
         pos += Vec3::from(fx.accel) * (0.5 * age * age) + wind * (fx.wind * age);
         if fx.wander[0] > 0.0 {
             let f = fx.wander[1] * std::f32::consts::TAU;
-            let (p1, p2, p3) = (r.next() * 6.3, r.next() * 6.3, r.next() * 6.3);
+            let (p1, p2, p3) = (r.unit() * 6.3, r.unit() * 6.3, r.unit() * 6.3);
             pos += Vec3::new(
                 (age * f + p1).sin() + 0.5 * (age * f * 0.37 + p3).sin(),
                 0.45 * (age * f * 1.31 + p2).sin(),
@@ -529,14 +530,11 @@ fn emit(s: &Scene, fx: &Effect, e: &Emitter, clock: f64, thin: f32, wind: Vec3, 
         };
         let mut k = fade * gate;
         if fx.blink > 0.0 {
-            let b = (age * fx.blink * std::f32::consts::TAU + r.next() * 6.3).sin();
+            let b = (age * fx.blink * std::f32::consts::TAU + r.unit() * 6.3).sin();
             k *= ((b + 0.3) * 1.6).clamp(0.0, 1.0);
         }
-        let size = (fx.size[0] + (fx.size[1] - fx.size[0]) * u) * if fx.glow > 0.0 {
-            0.5 + 0.5 * k
-        } else {
-            k
-        };
+        let size = (fx.size[0] + (fx.size[1] - fx.size[0]) * u)
+            * if fx.glow > 0.0 { 0.5 + 0.5 * k } else { k };
         if size < 0.004 {
             continue;
         }
@@ -546,7 +544,8 @@ fn emit(s: &Scene, fx: &Effect, e: &Emitter, clock: f64, thin: f32, wind: Vec3, 
         let (a, t) = ((at as usize).min(cs.len() - 1), at.fract());
         let b = (a + 1).min(cs.len() - 1);
         let shade = 1.0 + fx.shade * r.signed();
-        let rgb = [0, 1, 2].map(|c| ((cs[a][c] + (cs[b][c] - cs[a][c]) * t) * shade).clamp(0.0, 1.0));
+        let rgb =
+            [0, 1, 2].map(|c| ((cs[a][c] + (cs[b][c] - cs[a][c]) * t) * shade).clamp(0.0, 1.0));
         let lin = rgb.map(|c| c.powf(2.2));
         if fx.glow > 0.0 {
             cube(out.fx, s.eye, pos, size * 0.5, lin, 2.0, 1.0, 1.0);
@@ -554,7 +553,16 @@ fn emit(s: &Scene, fx: &Effect, e: &Emitter, clock: f64, thin: f32, wind: Vec3, 
                 halo(out.glow, pos, lin, fx.glow, fx.glow_alpha * k);
             }
         } else {
-            cube(out.fx, s.eye, pos, size * 0.5, lin, 1.0, block_light, sky_light);
+            cube(
+                out.fx,
+                s.eye,
+                pos,
+                size * 0.5,
+                lin,
+                1.0,
+                block_light,
+                sky_light,
+            );
         }
     }
 }
