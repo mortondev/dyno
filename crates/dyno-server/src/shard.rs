@@ -80,9 +80,14 @@ impl State {
     }
 
     /// Take in a player from another shard. `blocks` are the blocks that
-    /// differ from the world they left.
+    /// differ from the world they left, in the sections their client holds
+    /// (it keeps them: nothing else of the world is sent again).
     pub fn attach(&mut self, id: PlayerId, mut p: Player, blocks: Vec<([i32; 3], u8)>) {
         p.phases = self.phases_of(&p);
+        // the client forgets every creature and player it knew: the interest
+        // pass introduces those near here
+        p.known.borrow_mut().clear();
+        p.near.clear();
         let players = self
             .players
             .iter()
@@ -93,13 +98,6 @@ impl State {
             players,
             blocks,
         });
-        for (eid, e) in &self.entities {
-            if self.sees(p.phases, *eid) {
-                for m in self.entity_intro(*eid, e) {
-                    p.send(&m);
-                }
-            }
-        }
         p.send(&self.time_msg());
         p.send(&ServerMsg::Weather {
             kind: self.weather.0,
@@ -137,6 +135,7 @@ pub struct ForkSeed {
     spawn_hearth: [i32; 3],
     weather: (u8, f32, f32),
     seed: u64,
+    stream: crate::stream::StreamConfig,
 }
 
 impl State {
@@ -156,6 +155,7 @@ impl State {
             spawn_hearth: self.spawn_hearth,
             weather: self.weather,
             seed: self.next_entity as u64 ^ 0x5eed_0000,
+            stream: self.stream,
         }
     }
 
@@ -199,6 +199,7 @@ impl State {
             corpses: Default::default(),
             rested_clock: 0.0,
             weather: seed.weather,
+            stream: seed.stream,
         };
         st.spawn_points = crate::camps::plan_spawn_points(&st.world, &st.content, st.spawn_hearth);
         st.spawn_npcs();

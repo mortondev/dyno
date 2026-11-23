@@ -99,6 +99,8 @@ pub enum App {
         conn: u64,
         /// blocks the old host's world changed from the base
         changed: Vec<[i32; 3]>,
+        /// the sections the client holds (it keeps them)
+        held: Vec<[i32; 3]>,
     },
     AdoptResult {
         req: u64,

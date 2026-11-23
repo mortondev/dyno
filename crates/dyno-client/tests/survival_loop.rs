@@ -458,6 +458,11 @@ fn quests_give_xp_and_rewards() {
         world_path: dir.join("world.dynw"),
         world_size: [96, 48, 96],
         trust_movement: true,
+        // the whole (small) world is of interest: every NPC is met at once
+        stream: dyno_server::stream::StreamConfig {
+            aoi: 200.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");

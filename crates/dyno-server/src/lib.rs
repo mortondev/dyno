@@ -22,9 +22,10 @@ pub mod professions;
 pub mod rpg;
 pub mod shard;
 pub mod store;
+pub mod stream;
 pub mod trade;
 
-use dyno_protocol::{self as proto, ClientMsg, Mode, PlayerId, Pose, ServerMsg};
+use dyno_protocol::{self as proto, ClientMsg, Mode, PlayerId, ServerMsg};
 use dyno_sim::rng::Rng;
 use dyno_world::World;
 use dyno_world::content::Content;
@@ -94,6 +95,8 @@ pub struct Config {
     pub trust_movement: bool,
     /// run as one instance of a cluster (absent: a stand-alone server)
     pub cluster: Option<cluster::ClusterConfig>,
+    /// world streaming and area of interest: view radius, budgets
+    pub stream: stream::StreamConfig,
 }
 
 impl Default for Config {
@@ -116,6 +119,7 @@ impl Default for Config {
             max_shards: 16,
             trust_movement: false,
             cluster: None,
+            stream: Default::default(),
         }
     }
 }
@@ -386,6 +390,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         corpses: Default::default(),
         rested_clock: 0.0,
         weather: (0, 0.0, 240.0),
+        stream: cfg.stream,
     };
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
     state.spawn_npcs();
@@ -632,6 +637,11 @@ impl Server {
 
     /// Move a player to another shard, if they can go now. They stay
     /// connected; their client is told what changed.
+    /// The spawn hearth of the main shard (content positions are relative to it).
+    pub fn main_hearth(&self) -> [i32; 3] {
+        self.main_shard().state.lock().unwrap().spawn_hearth
+    }
+
     pub fn transfer(&self, id: PlayerId, to: u32) -> bool {
         let Some(from) = self.routes.lock().unwrap().get(&id).map(|r| r.shard) else {
             return false;
@@ -656,7 +666,13 @@ impl Server {
         let Some(p) = ga.detach(id) else {
             return false;
         };
-        let blocks = ga.world.diff(&gb.world);
+        // only what differs in the sections the client holds
+        let blocks = ga
+            .world
+            .diff(&gb.world)
+            .into_iter()
+            .filter(|(at, _)| p.view.holds_cell(*at))
+            .collect();
         gb.attach(id, p, blocks);
         drop((ga, gb));
         if let Some(r) = self.routes.lock().unwrap().get_mut(&id) {
@@ -1188,26 +1204,11 @@ impl Server {
                 if n.is_multiple_of(10) {
                     snaps.extend(st.snapshot());
                 }
-                // poses of everyone else, to each player; everyone to observers
-                if !st.players.is_empty() {
-                    let all: Vec<(PlayerId, Pose)> = st
-                        .players
-                        .iter()
-                        .filter(|(_, p)| !p.dead)
-                        .map(|(i, p)| (*i, p.pose))
-                        .collect();
-                    for (id, p) in &st.players {
-                        let list: Vec<(PlayerId, Pose)> =
-                            all.iter().filter(|(o, _)| o != id).copied().collect();
-                        if !list.is_empty() {
-                            let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Poses(list))));
-                        }
-                    }
-                    let bytes = Arc::new(proto::encode(&ServerMsg::Poses(all)));
-                    for tx in st.observers.values() {
-                        let _ = tx.send(bytes.clone());
-                    }
-                }
+                // poses of the players near each player; everyone to observers
+                st.send_poses();
+                // the world and the entities around each player (stream.rs)
+                st.update_interest();
+                st.stream_sections(dt);
                 if n.is_multiple_of(2)
                     && let Some(m) = st.entity_moves()
                 {
@@ -1338,7 +1339,7 @@ impl Server {
                 log(format!(
                     "{name} joined from {peer} (dyno {version}), relayed to instance {host}"
                 ));
-                let result = self.session(&mut ws, 0, conn, Vec::new(), None, rx);
+                let result = self.session(&mut ws, 0, conn, Vec::new(), false, rx);
                 self.close_conn(conn, "left");
                 log(format!(
                     "{name} left ({})",
@@ -1350,7 +1351,7 @@ impl Server {
             }
         }
 
-        let (id, first, world_data) = {
+        let (id, first) = {
             if !observer {
                 let playing = self
                     .routes
@@ -1387,7 +1388,13 @@ impl Server {
             let mut st = sh.state.lock().unwrap();
             if observer {
                 let id = st.next_id.fetch_add(1, Ordering::SeqCst);
-                st.observers.insert(id, tx);
+                st.observers.insert(
+                    id,
+                    game::Observer {
+                        tx,
+                        view: Default::default(),
+                    },
+                );
                 let welcome = ServerMsg::Welcome {
                     your_id: id,
                     server_version: env!("CARGO_PKG_VERSION").into(),
@@ -1401,8 +1408,10 @@ impl Server {
                         .collect(),
                     mode: Mode::Creative,
                     manifest: self.manifest(),
+                    hearth: st.spawn_hearth,
+                    view: st.stream.view,
                 };
-                (id, vec![welcome], st.world.encode())
+                (id, vec![welcome])
             } else {
                 if self.routes.lock().unwrap().len() >= self.cfg.max_players.max(self.cap()) {
                     drop(st);
@@ -1441,7 +1450,7 @@ impl Server {
                                 edge: None,
                             },
                         );
-                        (id, msgs, st.world.encode())
+                        (id, msgs)
                     }
                     Err(reason) => {
                         drop(st);
@@ -1464,7 +1473,7 @@ impl Server {
                 self.player_count()
             ));
         }
-        let result = self.session(&mut ws, id, conn, first, Some(world_data), rx);
+        let result = self.session(&mut ws, id, conn, first, true, rx);
         if self.relays_out.lock().unwrap().contains_key(&conn) {
             // the player moved to another instance during the session
             self.close_conn(conn, "left");
@@ -1491,20 +1500,21 @@ impl Server {
         id: PlayerId,
         conn: u64,
         first: Vec<ServerMsg>,
-        world_data: Option<Vec<u8>>,
+        // the player lives here (false: relayed to another instance)
+        local: bool,
         rx: Receiver<Arc<Vec<u8>>>,
     ) -> Result<(), String> {
         // a relayed session's welcome comes from the host: it names this
         // edge's pack, since this edge serves the files
-        let mut patch_welcome = world_data.is_none();
+        let mut patch_welcome = !local;
         let mut outbox = pack::Outbox::new(self.cfg.join_asset_rate.max(self.cfg.asset_rate));
         let mut playing = false;
         let mut first = first.into_iter();
         if let Some(welcome) = first.next() {
             send(ws, &welcome)?;
         }
-        if let Some(data) = world_data {
-            send(ws, &ServerMsg::World { data })?;
+        if local {
+            // the world follows section by section (stream.rs)
             let time = self
                 .shard_of(id)
                 .unwrap_or_else(|| self.main_shard())
@@ -1628,6 +1638,8 @@ impl Server {
                 spawn,
                 players,
                 mode,
+                hearth,
+                view,
                 ..
             }) => Arc::new(proto::encode(&ServerMsg::Welcome {
                 your_id,
@@ -1638,6 +1650,8 @@ impl Server {
                 players,
                 mode,
                 manifest: self.manifest(),
+                hearth,
+                view,
             })),
             _ => bytes,
         }
@@ -1673,7 +1687,11 @@ impl Server {
                 return Err("second hello".into());
             }
             other => {
-                if let Some(sh) = self.shard_of(id) {
+                // observers (tools) live on the main shard, outside the routes
+                let sh = self.shard_of(id).or_else(|| {
+                    matches!(other, ClientMsg::ViewAt { .. }).then(|| self.main_shard())
+                });
+                if let Some(sh) = sh {
                     sh.state.lock().unwrap().handle(id, other)?;
                 }
             }

@@ -95,6 +95,9 @@ pub struct Remote {
     /// how they chose to look, and their class colour
     pub look: dyno_protocol::Appearance,
     pub color: [f32; 3],
+    /// out of your area of interest: no poses come, so they are not drawn
+    /// (they start so, until their first pose arrives)
+    pub far: bool,
     from: Pose,
     to: Pose,
     at: Instant,
@@ -106,6 +109,7 @@ impl Remote {
             name,
             look: Default::default(),
             color: [0.5, 0.5, 0.6],
+            far: true,
             from: pose,
             to: pose,
             at: Instant::now(),
@@ -113,6 +117,14 @@ impl Remote {
     }
 
     pub fn set(&mut self, pose: Pose) {
+        if self.far {
+            // back in view: appear where they are, not slide in from where they were
+            self.far = false;
+            self.from = pose;
+            self.to = pose;
+            self.at = Instant::now();
+            return;
+        }
         self.from = self.current();
         self.to = pose;
         self.at = Instant::now();

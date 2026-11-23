@@ -192,6 +192,8 @@ pub struct Scripted {
     /// in a party of two (Party brains)
     pub party: Option<PartyRole>,
     next_invite: Instant,
+    /// camps we reached and found empty (we only see creatures near us), and when
+    empty_camps: Vec<([i32; 2], Instant)>,
 }
 
 /// What a party leader is doing, for its follower to copy.
@@ -248,6 +250,7 @@ impl Scripted {
             last_node: None,
             party: None,
             next_invite: Instant::now() + Duration::from_secs(3),
+            empty_camps: Vec::new(),
         }
     }
 
@@ -949,19 +952,36 @@ impl Scripted {
             return Some((d, task, format!("kill {}", c.name)));
         }
         let b = &a.body;
-        // none alive in sight: go to their camp and wait for them
-        let camps: Vec<Vec3> = b
+        // none alive in sight (we hear only of what is near): go to their
+        // camp; one found empty, try the next before waiting at the nearest
+        let camps: Vec<([i32; 2], Vec3)> = b
             .content
             .areas
             .iter()
             .flat_map(|ar| ar.camps.iter())
             .filter(|cp| cp.creature == creature)
-            .map(|cp| b.rel2(cp.at))
+            .map(|cp| (cp.at, b.rel2(cp.at)))
             .collect();
         let me = b.pos();
-        if let Some(p) = camps
+        self.empty_camps
+            .retain(|(_, t)| t.elapsed() < Duration::from_secs(45));
+        if let Some((at, _)) = camps.iter().find(|(_, p)| b.dist(*p) <= 10.0)
+            && !self.empty_camps.iter().any(|(c, _)| c == at)
+        {
+            self.empty_camps.push((*at, Instant::now()));
+        }
+        let fresh: Vec<&([i32; 2], Vec3)> = camps
             .iter()
-            .min_by(|x, y| x.distance(me).partial_cmp(&y.distance(me)).unwrap())
+            .filter(|(at, _)| !self.empty_camps.iter().any(|(c, _)| c == at))
+            .collect();
+        let pool: Vec<&([i32; 2], Vec3)> = if fresh.is_empty() {
+            camps.iter().collect()
+        } else {
+            fresh
+        };
+        if let Some((_, p)) = pool
+            .into_iter()
+            .min_by(|x, y| x.1.distance(me).partial_cmp(&y.1.distance(me)).unwrap())
         {
             let d = b.dist(*p);
             if d > 10.0 {

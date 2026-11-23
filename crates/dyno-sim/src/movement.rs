@@ -72,6 +72,15 @@ impl Player {
     }
 
     pub fn update(&mut self, world: &World, input: Input, dt: f32) {
+        // where the world has not streamed in yet, wait for it in place
+        if !world.known(
+            self.pos.x.floor() as i32,
+            (self.pos.y - 0.5).floor() as i32,
+            self.pos.z.floor() as i32,
+        ) {
+            self.vel = Vec3::ZERO;
+            return;
+        }
         let dt = dt.min(0.05);
         let (sy, cy) = self.yaw.sin_cos();
         let fwd = Vec3::new(-sy, 0.0, -cy);
@@ -198,11 +207,11 @@ impl Player {
             (-HALF_W, HALF_W),
             (HALF_W, HALF_W),
         ] {
-            if w::is_solid(world.get(
+            if world.solid(
                 (p.x + dx * 0.98).floor() as i32,
                 y,
                 (p.z + dz * 0.98).floor() as i32,
-            )) {
+            ) {
                 return true;
             }
         }
@@ -215,7 +224,8 @@ impl Player {
         for y in min.y.floor() as i32..=(max.y - 1e-4).floor() as i32 {
             for z in min.z.floor() as i32..=(max.z - 1e-4).floor() as i32 {
                 for x in min.x.floor() as i32..=(max.x - 1e-4).floor() as i32 {
-                    if w::is_solid(world.get(x, y, z)) {
+                    // ground that has not streamed in yet holds you up
+                    if world.solid(x, y, z) {
                         return true;
                     }
                 }

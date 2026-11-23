@@ -411,10 +411,12 @@ impl Server {
                 edge,
                 conn,
                 changed,
+                held,
             } => {
                 let s = self.clone();
                 std::thread::spawn(move || {
-                    let result = s.host_adopt(&name, token, epoch, *data, edge, conn, changed);
+                    let result =
+                        s.host_adopt(&name, token, epoch, *data, edge, conn, changed, held);
                     if let Err(e) = &result {
                         log(format!(
                             "Cluster: could not take {name} from instance {from}: {e}"
@@ -483,9 +485,7 @@ impl Server {
             }
             send(&w);
         }
-        send(&ServerMsg::World {
-            data: st.world.encode(),
-        });
+        // the world follows section by section (stream.rs)
         send(&st.time_msg());
         for m in msgs {
             send(&m);
@@ -669,7 +669,7 @@ impl Server {
             .ok_or("not held here")?;
         let sh = self.shard_of(id).ok_or("no shard")?;
         // freeze: out of the shard, remembered, nothing else touches them
-        let (player, data, changed, token) = {
+        let (player, data, changed, token, held) = {
             let mut st = sh.state.lock().unwrap();
             if !st.movable(id) {
                 return Err("not now (in combat or busy)".into());
@@ -690,7 +690,8 @@ impl Server {
                 .map(|(p, _)| p)
                 .collect();
             let token = p.token;
-            (p, data, changed, token)
+            let held: Vec<[i32; 3]> = p.view.held.iter().copied().collect();
+            (p, data, changed, token, held)
         };
         self.routes.lock().unwrap().remove(&id);
         if let Some(edge) = route.edge {
@@ -769,6 +770,7 @@ impl Server {
                 edge,
                 conn: route.conn,
                 changed,
+                held,
             },
         );
         let adopted = rx
@@ -869,6 +871,7 @@ impl Server {
         edge: NodeId,
         conn: u64,
         changed: Vec<[i32; 3]>,
+        held: Vec<[i32; 3]>,
     ) -> Result<(), String> {
         self.cluster_ready()?;
         let key = name.to_lowercase();
@@ -899,14 +902,20 @@ impl Server {
             Some(ServerMsg::Welcome { players, .. }) => players,
             _ => Vec::new(),
         };
+        // the client keeps the sections it holds: send only what differs in them
+        let view = crate::stream::View::holding(held);
         let mut spots: BTreeSet<[i32; 3]> = changed.into_iter().collect();
         for (p, _) in self.base.diff(&st.world) {
             spots.insert(p);
         }
         let blocks = spots
             .into_iter()
+            .filter(|p| view.holds_cell(*p))
             .map(|p| (p, st.world.get(p[0], p[1], p[2])))
             .collect();
+        if let Some(p) = st.players.get_mut(&id) {
+            p.view = view;
+        }
         let display = st
             .players
             .get(&id)

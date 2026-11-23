@@ -205,7 +205,7 @@ pub const MAX_WANT: usize = 1024;
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 17;
+pub const PROTOCOL_VERSION: u32 = 18;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -398,6 +398,11 @@ pub enum ClientMsg {
     Want {
         hashes: Vec<[u8; 32]>,
     },
+    /// Observers (tools such as `dyno shot`): stream the world around this
+    /// point instead of the spawn. Players' views follow their pose.
+    ViewAt {
+        pos: [f32; 3],
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -486,20 +491,30 @@ pub enum ServerMsg {
         mode: Mode,
         /// the content pack: the rules are its first file
         manifest: Manifest,
+        /// the spawn hearth: content positions are relative to it
+        hearth: [i32; 3],
+        /// how far around you the world streams (metres, horizontally)
+        view: f32,
     },
     /// The connection is refused. The server closes it after this message.
     Reject {
         reason: String,
     },
-    /// The whole world, run-length encoded (see `dyno_world::World::encode`).
-    World {
-        data: Vec<u8>,
-    },
+    /// Sections of the world (16³ cells), each run-length encoded (see
+    /// `dyno_world::World::encode_section`), nearest first. The server
+    /// streams those within your view radius as you move; block edits come
+    /// only for sections you hold.
+    Sections(Vec<([i32; 3], Vec<u8>)>),
+    /// Sections now out of your view: forget them.
+    SectionsGone(Vec<[i32; 3]>),
+    /// Players out of your area of interest: stop drawing them until a pose
+    /// of theirs comes again (they are still online).
+    PlayersFar(Vec<PlayerId>),
     PlayerJoined(PlayerInfo),
     PlayerLeft {
         id: PlayerId,
     },
-    /// Poses of all other players, sent 20 times per second.
+    /// Poses of the other players near you (your area of interest), sent 20 times per second.
     Poses(Vec<(PlayerId, Pose)>),
     /// One cell changed.
     Block {

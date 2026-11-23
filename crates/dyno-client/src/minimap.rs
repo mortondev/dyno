@@ -320,7 +320,7 @@ impl Minimap {
             hover.push((q, rad + 2.0, name));
         }
         // other players: blue dots
-        for rm in v.remotes.values() {
+        for rm in v.remotes.values().filter(|r| !r.far) {
             let q = to_map(Vec3::from(rm.current().pos));
             if !inside(q, 3.0) {
                 continue;
@@ -650,7 +650,7 @@ fn palette() -> [[f32; 3]; 256] {
 /// colour of the highest block in its column, lit from the north-west by the
 /// slope around it, a little brighter on high ground, and water darkens with
 /// depth. `origin` is the world x, z of the top-left corner, `bpt` the blocks
-/// per texel.
+/// per texel. Columns of a streamed world that have not arrived are dark.
 pub fn render(world: &World, origin: [f32; 2], bpt: f32, n: usize) -> ColorImage {
     let pal = palette();
     let height = world.size[1] as i32;
@@ -665,7 +665,8 @@ pub fn render(world: &World, origin: [f32; 2], bpt: f32, n: usize) -> ColorImage
     let inside_x = |x: i32| x >= 0 && x < world.size[0] as i32;
     let inside_z = |z: i32| z >= 0 && z < world.size[2] as i32;
     let scan = |x: i32, z: i32| {
-        if !inside_x(x) || !inside_z(z) {
+        // outside the world, and land that has not streamed in, is dark
+        if !inside_x(x) || !inside_z(z) || !world.known(x, height - 1, z) {
             return (0u8, -1i16, 0u8);
         }
         let mut y = height - 1;
@@ -777,6 +778,26 @@ mod tests {
         let sea = img.pixels[16 * 32 + 24];
         assert!(land.g() > land.b(), "grass should be green: {land:?}");
         assert!(sea.b() > sea.r() && sea.b() > sea.g(), "water: {sea:?}");
+    }
+
+    #[test]
+    fn land_not_streamed_in_is_dark() {
+        let world = World::generate([128, 64, 128], 3);
+        let mut streamed = World::sparse(world.size);
+        // only the western half has arrived
+        for s in world.held_list().into_iter().filter(|s| s[0] < 4) {
+            streamed.put_section(s, &world.encode_section(s)).unwrap();
+        }
+        let whole = render(&world, [0.0, 0.0], 1.0, 128);
+        let img = render(&streamed, [0.0, 0.0], 1.0, 128);
+        let dark = Color32::from_rgb(12, 9, 7);
+        assert_eq!(img.pixels[64 * 128 + 100], dark, "the east is unknown");
+        assert_ne!(whole.pixels[64 * 128 + 100], dark);
+        assert_eq!(
+            img.pixels[64 * 128 + 20],
+            whole.pixels[64 * 128 + 20],
+            "the west is drawn"
+        );
     }
 
     #[test]

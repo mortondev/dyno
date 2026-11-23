@@ -130,7 +130,12 @@ struct Chat {
 struct Play {
     /// the drawn (smooth) height of the ground, for feet
     ground: crate::terrain_mesh::Ground,
+    /// the sections the server has streamed (a sparse world)
     world: World,
+    /// sections that arrived and are not lit and meshed yet
+    arrived: Vec<[i32; 3]>,
+    /// how far the world streams around you (metres)
+    view: f32,
     conn: net::Connection,
     my_id: PlayerId,
     server_version: String,
@@ -935,7 +940,7 @@ fn animate_caster(p: &mut Play, from: Vec3, color: [f32; 3]) {
         p.anims.last_swing = now;
         return;
     }
-    for (id, r) in &p.remotes {
+    for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let at = Vec3::from(r.current().pos);
         if from.distance(at + Vec3::Y * 1.4) < 1.6 {
             let a = if shot { Anim::Shoot } else { Anim::CastRelease };
@@ -1345,12 +1350,8 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
 fn new_play(j: Joined) -> Play {
     let rpg_world = j.content.world.protected;
     let light = Light::new(&j.world);
-    let hearth = j.world.find_near(
-        w::HEARTH,
-        j.world.size[0] as i32 / 2,
-        j.world.size[2] as i32 / 2,
-        24,
-    );
+    // the server names it: the world around it may not have streamed in
+    let hearth = Some(j.hearth);
     Play {
         player: Player::new(j.spawn),
         anims: Anims::default(),
@@ -1370,7 +1371,9 @@ fn new_play(j: Joined) -> Play {
             from: None,
             text: j.motd.clone(),
         }],
+        view: j.view,
         world: j.world,
+        arrived: Vec::new(),
         conn: j.conn,
         my_id: j.your_id,
         server_version: j.server_version,
@@ -1911,6 +1914,31 @@ impl App {
                                 }
                             }
                         }
+                        // the world streams in around you (and is let go behind you)
+                        ServerMsg::Sections(list) => {
+                            for (s, data) in list {
+                                if p.world.put_section(s, &data).is_ok() {
+                                    p.arrived.push(s);
+                                }
+                            }
+                        }
+                        ServerMsg::SectionsGone(list) => {
+                            for s in list {
+                                p.world.drop_section(s);
+                                p.light.forget(s);
+                                p.arrived.retain(|a| *a != s);
+                                if let Some(g) = self.gfx.as_mut() {
+                                    g.section_gone(s);
+                                }
+                            }
+                        }
+                        ServerMsg::PlayersFar(ids) => {
+                            for id in ids {
+                                if let Some(r) = p.remotes.get_mut(&id) {
+                                    r.far = true;
+                                }
+                            }
+                        }
                         ServerMsg::Chat { from, text } => {
                             self.audio.play(Sfx::Chat, 0.6);
                             p.chat.push(Chat {
@@ -2370,6 +2398,21 @@ impl App {
                     },
                 }
             }
+            // light and mesh what arrived, a frame's worth at a time
+            if !p.arrived.is_empty() {
+                let n = p.arrived.len().min(384);
+                let batch: Vec<[i32; 3]> = p.arrived.drain(..n).collect();
+                p.light.arrived(&p.world, &batch);
+                p.ground.clear();
+                for s in &batch {
+                    let lo = [s[0] * 16, s[1] * 16, s[2] * 16];
+                    p.minimap
+                        .region_changed(lo, [lo[0] + 15, lo[1] + 15, lo[2] + 15]);
+                }
+                if let Some(g) = self.gfx.as_mut() {
+                    g.sections_arrived(&p.world, &p.light, &batch);
+                }
+            }
             if p.combat_log.len() > 300 {
                 p.combat_log.drain(..150);
             }
@@ -2421,6 +2464,12 @@ impl App {
                 self.settings.view_distance * (1.0 - 0.3 * p.weather_mix)
             }
             _ => self.settings.view_distance,
+        };
+        // no further than the world streams (less a section, whose
+        // neighbours must arrive before it is drawn)
+        let far = match &self.screen {
+            Screen::Playing(p) => far.min((p.view - 16.0).max(48.0)),
+            _ => far,
         };
 
         // DYNO_SCREENSHOT=path saves the view every 3 seconds while playing (scripted tests, agents)
@@ -2762,7 +2811,7 @@ impl App {
             let mut book = std::mem::take(&mut p.anims);
             let now = book.now();
             book.prune(now);
-            for (id, r) in &p.remotes {
+            for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
                 let pose = r.current();
                 let base = p.ground.feet(&p.world, Vec3::from(pose.pos));
                 let bl = light_at(&p.light, base + Vec3::Y);
@@ -3890,10 +3939,20 @@ fn ui(
                 Vec2::new(520.0, 10.0),
             );
             p.rect_filled(bar, 4.0, Color32::from_black_alpha(200));
-            // the pack download when there is one, else a fuse that slows as it nears the end
+            // the pack download when there is one, then the land around
+            // you, else a fuse that slows as it nears the end
             let downloading = progress.fraction().filter(|f| *f < 1.0);
-            let f =
-                downloading.unwrap_or_else(|| 1.0 - (-since.elapsed().as_secs_f32() / 3.0).exp());
+            let (have, need) = (
+                progress.sections.load(std::sync::atomic::Ordering::Relaxed),
+                progress
+                    .sections_needed
+                    .load(std::sync::atomic::Ordering::Relaxed),
+            );
+            let land = (downloading.is_none() && need > 0 && have < need)
+                .then(|| have as f32 / need as f32);
+            let f = downloading
+                .or(land)
+                .unwrap_or_else(|| 1.0 - (-since.elapsed().as_secs_f32() / 3.0).exp());
             p.rect_filled(
                 Rect::from_min_size(bar.min, Vec2::new(bar.width() * f, bar.height())),
                 4.0,
@@ -3930,6 +3989,7 @@ fn ui(
                         )
                     }
                 }
+                None if land.is_some() => format!("Loading the land around you: {have} of {need}"),
                 None if title.is_empty() => "Entering the world".to_string(),
                 None => format!("Entering {title}"),
             };
@@ -3986,7 +4046,7 @@ fn hud(
     }
     // name tags
     if let Some(vp) = vp {
-        for r in p.remotes.values() {
+        for r in p.remotes.values().filter(|r| !r.far) {
             let pose = r.current();
             let head = glam::Vec3::from(pose.pos) + glam::Vec3::Y * 2.0;
             let clip = vp * head.extend(1.0);
@@ -5736,10 +5796,22 @@ pub fn shot_with_ui(
     if let Some(z) = zoom {
         p.zoom = z;
     }
-    let until = Instant::now() + Duration::from_millis(700);
-    while Instant::now() < until {
+    // a moment for the rest of the view to stream in (until it goes quiet)
+    let started = Instant::now();
+    let mut last_section = Instant::now();
+    while started.elapsed() < Duration::from_millis(700)
+        || (last_section.elapsed() < Duration::from_millis(250)
+            && started.elapsed() < Duration::from_secs(4))
+    {
         match p.conn.rx.recv_timeout(Duration::from_millis(30)) {
             Ok(NetEvent::Msg(m)) => match m {
+                m @ (ServerMsg::Sections(_)
+                | ServerMsg::SectionsGone(_)
+                | ServerMsg::Block { .. }
+                | ServerMsg::Fill { .. }) => {
+                    net::apply_world(&mut p.world, &m);
+                    last_section = Instant::now();
+                }
                 ServerMsg::Pack(s) => p.pack = s,
                 ServerMsg::Status {
                     health,
@@ -5837,6 +5909,7 @@ pub fn shot_with_ui(
             Err(_) => {}
         }
     }
+    p.light = Light::new(&p.world);
     if let Some(pos) = pos {
         p.player.pos = pos.into();
     }
@@ -6023,7 +6096,7 @@ pub fn shot_with_ui(
     let mut book = std::mem::take(&mut p.anims);
     push_creatures(&mut boxes, &p, &mut book, 1.3);
     p.anims = book;
-    for (id, r) in &p.remotes {
+    for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let pose = r.current();
         let base = Vec3::from(pose.pos);
         models::push_avatar(

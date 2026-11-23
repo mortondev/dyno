@@ -12,6 +12,8 @@ USAGE:
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
                                [--creative] [--content PACK_DIR|RULES.json] [--op NAME]...
                                [--asset-rate 256] [--join-asset-rate 2048] (KB/s of pack files per player, in play / loading)
+                               [--view 160] [--aoi 100] (metres: the world streamed round each player; what they hear of)
+                               [--section-rate 256] [--join-section-rate 2048] (KB/s of world sections per player)
                                [--webhook DISCORD_URL] (or DYNO_WEBHOOK)
                                [--shard-cap 40] [--area-cap 16] [--max-shards 16]
                                [--cluster HOST:PORT] [--join HOST:PORT] [--advertise HOST:PORT]
@@ -449,6 +451,30 @@ fn run_server(args: &[String]) {
                     .parse()
                     .unwrap_or_else(|_| fail("--join-asset-rate needs KB per second"));
                 cfg.join_asset_rate = kb.max(1) * 1024;
+                i += 1;
+            }
+            "--view" | "--aoi" => {
+                let m: f32 = val()
+                    .parse()
+                    .ok()
+                    .filter(|m: &f32| m.is_finite() && *m >= 16.0)
+                    .unwrap_or_else(|| fail(&format!("{} needs metres (16 or more)", args[i])));
+                if args[i] == "--view" {
+                    cfg.stream.view = m;
+                } else {
+                    cfg.stream.aoi = m;
+                }
+                i += 1;
+            }
+            "--section-rate" | "--join-section-rate" => {
+                let kb: usize = val()
+                    .parse()
+                    .unwrap_or_else(|_| fail(&format!("{} needs KB per second", args[i])));
+                if args[i] == "--section-rate" {
+                    cfg.stream.rate = kb.max(1) * 1024;
+                } else {
+                    cfg.stream.join_rate = kb.max(1) * 1024;
+                }
                 i += 1;
             }
             "--webhook" => {
