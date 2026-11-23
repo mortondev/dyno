@@ -1,9 +1,20 @@
 # Art direction and references
 
-Hearthblock Online aims for a **hand-painted, stylised high-fantasy look** in
-the spirit of classic World of Warcraft zones (Elwynn Forest, Westfall,
-Duskwood). Every visual change and every new piece of content is judged
-against the concept art in this folder.
+Hearthblock Online is a **Cube World × World of Warcraft hybrid**, and the
+world stays **voxel**: every surface reads as voxels, never smooth polygons.
+
+- **From Cube World:** the clean, charming voxel look; chunky but finely
+  shaped voxel forms (about 8 voxels per metre for terrain and buildings,
+  finer for props and details); soft, bright, colourful light with gentle
+  ambient occlusion; puffy canopies built from many voxel leaf clumps;
+  voxel flowers, grass and mushrooms; a cosy adventure mood.
+- **From World of Warcraft:** the art direction and world design: heroic,
+  chunky fantasy architecture, readable landmarks and silhouettes, zone
+  moods (golden meadows, eerie night woods, misty lakes), warm/cool
+  contrast, light shafts, aerial haze and distant hills.
+
+Every visual change and every new piece of content is judged against the
+concept art in this folder.
 
 - `concepts/` — what each existing location should look like: AI concept art
   generated from real game screenshots (`reference/`), keeping each
@@ -22,7 +33,8 @@ plan" page (also `.tracker/visual-plan.html`).
 | Light | Warm golden key light, soft long shadows, light shafts through canopies, cool blue shade; warm lantern pools and lit windows at night |
 | Atmosphere | Blue aerial haze with distance, layered clouds, distant hills and forests beyond the playable edge |
 | Colour | Saturated but harmonious; warm/cool contrast; greens with yellow highlights and deep shadowed interiors |
-| Foliage | Distinct leaf clumps with visible branches and trunks, several species per scene, dense undergrowth: ferns, flowers, long grass, mushrooms |
+| Voxels | Everything is voxels at a finer scale than today (about 8 per metre for terrain and buildings, finer for details); shapes read as sculpted but stay cubic |
+| Foliage | Voxel canopies of many leaf clumps with visible voxel branches and gnarled trunks, several species per scene, dense voxel undergrowth: ferns, flowers, grass tufts, mushrooms |
 | Terrain | Painterly ground with colour variation, worn dirt paths with pebbles and edges, wet sand at shores, boulders, layered rock strata on cliffs |
 | Water | Deep blue with specular glints, foam at banks and rapids, reflections of sky and trees |
 | Architecture | Timber framing, shingled and mossy roofs, chimneys, lit windows, arched stonework, wear and moss |
