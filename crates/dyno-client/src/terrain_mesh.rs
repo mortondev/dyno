@@ -110,6 +110,9 @@ pub struct SectionGeo {
     pub tops: Vec<crate::cover::Top>,
     /// plants and stones standing on the ground (`cover.rs`)
     pub cover: Vec<crate::cover::Spot>,
+    /// leaves drawn as cubes: in clumps (true) or a cube a block (false);
+    /// None with no leaves, or smooth ones
+    pub leaves_fine: Option<bool>,
     pub glows: Vec<Glow>,
     /// the level of detail its ground was meshed at
     pub lod: Lod,
@@ -952,6 +955,20 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
 
 /// Build everything drawn for one 16³ section, its ground at `lod`.
 pub fn mesh_lod(world: &World, light: &Light, sx: i32, sy: i32, sz: i32, lod: Lod) -> SectionGeo {
+    mesh_at(world, light, [sx, sy, sz], None, None, lod)
+}
+
+/// Build a section as seen from a camera at `focus`: leaves far from it are
+/// drawn coarser (`foliage.rs`; `was` is how its leaves are drawn now), and
+/// its ground at the level of detail `lod` (`fine.rs`).
+pub fn mesh_at(
+    world: &World,
+    light: &Light,
+    [sx, sy, sz]: [i32; 3],
+    focus: Option<[f32; 3]>,
+    was: Option<bool>,
+    lod: Lod,
+) -> SectionGeo {
     let mut geo = SectionGeo {
         lod,
         ..SectionGeo::default()
@@ -985,7 +1002,10 @@ pub fn mesh_lod(world: &World, light: &Light, sx: i32, sy: i32, sz: i32, lod: Lo
     if own & F_LEAVES != 0 {
         // as clumps of cubes when the pack says so (`foliage.rs`), else smooth
         match crate::foliage::current().filter(|f| f.voxels()) {
-            Some(f) => crate::foliage::mesh(&f, &g, light, &mut geo),
+            Some(f) => {
+                let fine = f.fine(focus, [sx, sy, sz], was);
+                crate::foliage::mesh(&f, &g, light, &mut geo, fine)
+            }
             None => Nets::new(&g).run(light, &mut geo),
         }
     }
