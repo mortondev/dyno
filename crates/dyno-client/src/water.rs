@@ -757,7 +757,7 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   var vis = 1.0;
   if (have) { vis = sun_visible(p, vec3<f32>(0.0, 1.0, 0.0)); }
   let lit = max(u.light.rgb * (0.5 + 0.5 * vis) * (sl * 0.97 + 0.03), vec3<f32>(1.0, 0.80, 0.55) * bl);
-  let fogk = clamp((d - u.fog.w * 0.55) / (u.fog.w * 0.45), 0.0, 1.0);
+  // haze, fog and the fade at the edge of the world: as on land (atmos.rs)
 
   // the way the water runs: along its course, and down a step
   let run = clamp(i.course.z + white, 0.0, 1.0);
@@ -836,7 +836,7 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   var body = mix(K.shallow.rgb, K.deep.rgb, cover_dp) * lit;
   body = body * (1.0 + 0.16 * (h0 - 0.5) + 0.55 * crest - 0.12 * trough) + crest * lit * 0.03;
   var alpha = clamp(max(cover_sh, cover_dp), 0.0, 1.0);
-  var col = grade(mix(body, u.fog.rgb, fogk));
+  var col = grade(atmosphere(body, i.wpos));
   if (have) {
     col = mix(bed_c, col, alpha);
     // crests catch the light over clear water too
@@ -853,7 +853,7 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
     let foot = 1.0 - smoothstep(0.1, 0.55, i.flow.w + (hc - 0.5) * 0.25);
     let k = clamp(max(smoothstep(0.35, 0.75, streak * 0.65 + hc * 0.45), foot), 0.0, 1.0);
     let sheet_c = mix(K.shallow.rgb * 1.25, K.foam.rgb, k) * (lit * 0.92 + u.light.rgb * 0.08);
-    let c = grade(mix(sheet_c, u.fog.rgb, fogk));
+    let c = grade(atmosphere(sheet_c, i.wpos));
     let a = mix(0.72, 0.97, k);
     if (have) { return vec4<f32>(mix(behind, c, a), 1.0); }
     return vec4<f32>(c, a);
@@ -939,7 +939,7 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
   }
   let churn = hash2(cell + vec2<f32>(floor(t * 7.0) * 5.0, 1.0));
   foam = max(foam, smoothstep(0.42, 0.52, white * (0.55 + 0.75 * fn1) + (churn - 0.5) * 0.25 * white));
-  let foam_c = grade(mix(K.foam.rgb * (lit * 0.94 + u.light.rgb * 0.06), u.fog.rgb, fogk));
+  let foam_c = grade(atmosphere(K.foam.rgb * (lit * 0.94 + u.light.rgb * 0.06), i.wpos));
   col = mix(col, foam_c, foam);
   alpha = max(alpha, foam);
 
@@ -964,7 +964,7 @@ fn ripples(cell: vec2<f32>, g: f32, t: f32, flow: vec2<f32>, many: f32, seed: f3
             var pad = wu.lily.rgb * (0.82 + 0.36 * hash2(cell + vec2<f32>(9.0, 4.0)));
             if (length(r) > rad - g * 1.1) { pad = pad * 0.72; }
             if (hash2(spot + vec2<f32>(8.0, 8.0)) < 0.35 && max(abs(r.x), abs(r.y)) < 0.095) { pad = wu.lily_flower.rgb; }
-            col = grade(mix(pad * (lit * 0.95 + u.light.rgb * 0.05), u.fog.rgb, fogk));
+            col = grade(atmosphere(pad * (lit * 0.95 + u.light.rgb * 0.05), i.wpos));
             alpha = 1.0;
           }
         }

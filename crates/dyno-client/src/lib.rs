@@ -23,6 +23,7 @@ pub(crate) mod fine;
 pub mod models;
 pub mod mood;
 pub mod net;
+pub mod options;
 pub mod post;
 pub mod particles;
 pub mod render;

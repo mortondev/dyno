@@ -3691,6 +3691,19 @@ impl App {
                 }
             }
             Action::CancelJoin => self.screen = Screen::Menu,
+            Action::Graphics => {
+                // the options panel changed something: apply and save
+                if let Some(o) = crate::options::get() {
+                    o.into(&mut self.settings);
+                    let _ = self.settings.save();
+                    if let Some(g) = &mut self.gfx {
+                        g.set_graphics(o.tier);
+                        g.water.quality = o.water;
+                        g.cover.set_quality(o.cover);
+                    }
+                    crate::foliage::set_detail(o.leaves);
+                }
+            }
             Action::Resume => {
                 if let Screen::Playing(p) = &mut self.screen {
                     p.menu_open = false;
@@ -3722,6 +3735,7 @@ impl App {
                         self.settings.remember_server(&addr);
                         let _ = self.settings.save();
                     }
+                    FrontCmd::Graphics => self.act(Action::Graphics),
                     FrontCmd::Quit => std::process::exit(0),
                 }
             }
@@ -4065,6 +4079,8 @@ enum Action {
     Tunnel,
     CancelJoin,
     Resume,
+    /// the graphics options changed (options.rs)
+    Graphics,
     Disconnect,
     Capture,
     Front(FrontCmd),
@@ -5622,6 +5638,10 @@ fn hud(
                 actions.push(Action::Resume);
             }
             ui.add_space(6.0);
+            if crate::options::panel(ui) {
+                actions.push(Action::Graphics);
+            }
+            ui.add_space(6.0);
             host_panel(ui, host, actions);
             ui.add_space(6.0);
             ui.label(RichText::new(format!("Connected to {}", p.url)).small().weak());
@@ -5672,10 +5692,18 @@ impl ApplicationHandler for App {
         };
         match Gfx::new(window.clone()) {
             Ok(mut g) => {
-                g.water.quality = self.settings.water_quality;
                 eprintln!("graphics: {}", g.adapter_info);
-                g.cover.set_quality(self.settings.ground_cover);
-                crate::foliage::set_detail(self.settings.leaf_detail);
+                // nothing chosen yet: the tier picked for this adapter, and
+                // what goes with it
+                if self.settings.graphics > 3 {
+                    crate::options::Graphics::preset(g.graphics_tier).into(&mut self.settings);
+                    let _ = self.settings.save();
+                }
+                let opts = crate::options::Graphics::of(&self.settings);
+                crate::options::set(opts);
+                g.water.quality = opts.water;
+                g.cover.set_quality(opts.cover);
+                crate::foliage::set_detail(opts.leaves);
                 crate::theme::apply(&self.egui_ctx);
                 self.egui_ctx.style_mut(|s| {
                     s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
