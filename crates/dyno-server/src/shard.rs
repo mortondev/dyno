@@ -164,8 +164,14 @@ impl State {
     }
 
     /// A new shard: a fresh copy of `world`, with its own creatures and NPCs.
-    pub fn fork(seed: ForkSeed, shard: u32, world: dyno_world::World) -> State {
-        let light = dyno_world::light::Light::new(&world);
+    /// `light` is the light of `world` (shared, as the world's sections
+    /// are, until this shard changes them).
+    pub fn fork(
+        seed: ForkSeed,
+        shard: u32,
+        world: dyno_world::World,
+        light: dyno_world::light::Light,
+    ) -> State {
         let hearths = crate::creatures::find_hearths(&world);
         let mut st = State {
             world,
@@ -205,6 +211,7 @@ impl State {
             weather: seed.weather,
             stream: seed.stream,
             encoded: Default::default(),
+            far_encoded: Default::default(),
         };
         st.spawn_points = crate::camps::plan_spawn_points(&st.world, &st.content, st.spawn_hearth);
         st.spawn_npcs();

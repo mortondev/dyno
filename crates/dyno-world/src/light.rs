@@ -6,20 +6,70 @@
 //! in the high nibble). A section that is all open sky with no block light
 //! (the air above the land, and everything not yet streamed) costs nothing.
 
-use crate::{self as w, SECTION, SECTION_CELLS, SectionPos, World};
+use crate::{self as w, Packed, SECTION, SECTION_CELLS, SectionPos, World};
+use std::sync::Arc;
 
+#[derive(Clone)]
 pub struct Light {
     size: [i32; 3],
     dims: [i32; 3],
-    secs: Vec<Option<Box<[u8; SECTION_CELLS]>>>,
+    secs: Vec<SectionLight>,
     /// sections whose light may have changed since `take_changed`
     changed: Vec<bool>,
     changed_list: Vec<usize>,
 }
 
-/// One section's light, packed (None: all open sky), as copied between
-/// threads (`Light::section`, `Light::set_section`).
-pub type SectionLight = Option<Box<[u8; SECTION_CELLS]>>;
+/// One section's light (both levels packed in a byte a cell), as copied
+/// between threads (`Light::section`, `Light::set_section`). A section all
+/// at one level (open sky; the dark under the ground) costs nothing.
+///
+/// Sections are shared between copies of the light (shards) until one of
+/// them changes (copy on write), and packed with a palette when they hold
+/// few levels.
+#[derive(Clone, Debug, PartialEq)]
+pub enum SectionLight {
+    Uniform(u8),
+    Packed(Arc<Packed>),
+    Cells(Arc<[u8; SECTION_CELLS]>),
+}
+
+impl SectionLight {
+    /// The smallest form of these levels.
+    fn compacted(c: &[u8; SECTION_CELLS]) -> SectionLight {
+        if c.iter().all(|&v| v == c[0]) {
+            return SectionLight::Uniform(c[0]);
+        }
+        match Packed::pack(c) {
+            Some(p) => SectionLight::Packed(Arc::new(p)),
+            None => SectionLight::Cells(Arc::new(*c)),
+        }
+    }
+
+    fn cells(&self) -> [u8; SECTION_CELLS] {
+        match self {
+            SectionLight::Uniform(v) => [*v; SECTION_CELLS],
+            SectionLight::Packed(p) => p.unpack(),
+            SectionLight::Cells(c) => **c,
+        }
+    }
+
+    #[inline]
+    fn get(&self, l: usize) -> u8 {
+        match self {
+            SectionLight::Uniform(v) => *v,
+            SectionLight::Packed(p) => p.get(l),
+            SectionLight::Cells(c) => c[l],
+        }
+    }
+
+    fn bytes(&self) -> usize {
+        match self {
+            SectionLight::Uniform(_) => 0,
+            SectionLight::Packed(p) => p.bytes(),
+            SectionLight::Cells(_) => SECTION_CELLS,
+        }
+    }
+}
 
 const R: i32 = 15;
 
@@ -47,7 +97,7 @@ impl Light {
         Light {
             size,
             dims,
-            secs: vec![None; n],
+            secs: vec![SectionLight::Uniform(OPEN); n],
             changed: vec![false; n],
             changed_list: Vec::new(),
         }
@@ -59,10 +109,45 @@ impl Light {
             let held = world.held_list();
             l.arrived(world, &held);
         } else {
-            let size = l.size;
-            l.recompute(world, [0, 0, 0], [size[0] - 1, size[1] - 1, size[2] - 1]);
+            l.whole(world);
         }
         l
+    }
+
+    /// Light a whole world, in tiles of columns on every core (a tile's
+    /// scratch is a few megabytes; the whole of a big world at once would
+    /// be gigabytes).
+    fn whole(&mut self, world: &World) {
+        const TILE: i32 = 128;
+        let [sx, _, sz] = self.size;
+        let mut tiles = Vec::new();
+        for z in (0..sz).step_by(TILE as usize) {
+            for x in (0..sx).step_by(TILE as usize) {
+                tiles.push((
+                    [x, 0, z],
+                    [(x + TILE).min(sx) - 1, 0, (z + TILE).min(sz) - 1],
+                ));
+            }
+        }
+        let threads = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+            .clamp(1, 8);
+        for group in tiles.chunks(threads) {
+            let this = &*self;
+            let patches: Vec<Patch> = std::thread::scope(|sc| {
+                let jobs: Vec<_> = group
+                    .iter()
+                    .map(|(a, b)| sc.spawn(move || this.compute(world, *a, *b)))
+                    .collect();
+                jobs.into_iter()
+                    .filter_map(|j| j.join().expect("a light thread panicked"))
+                    .collect()
+            });
+            for p in patches {
+                self.apply(p);
+            }
+        }
     }
 
     /// Light the columns of sections that arrived in a streamed world (and
@@ -130,7 +215,7 @@ impl Light {
     /// Free the light of a section that left a streamed world.
     pub fn forget(&mut self, s: SectionPos) {
         if let Some(i) = self.sect(s[0], s[1], s[2]) {
-            self.secs[i] = None;
+            self.secs[i] = SectionLight::Uniform(OPEN);
             self.mark(i);
         }
     }
@@ -158,7 +243,7 @@ impl Light {
     /// A copy of one section's light.
     pub fn section(&self, s: SectionPos) -> SectionLight {
         self.sect(s[0], s[1], s[2])
-            .and_then(|i| self.secs[i].clone())
+            .map_or(SectionLight::Uniform(OPEN), |i| self.secs[i].clone())
     }
 
     /// Store one section's light, worked out elsewhere.
@@ -170,7 +255,7 @@ impl Light {
 
     /// Bytes of light held (for measurements).
     pub fn bytes(&self) -> usize {
-        self.secs.iter().flatten().count() * SECTION_CELLS
+        self.secs.iter().map(SectionLight::bytes).sum()
     }
 
     #[inline]
@@ -189,30 +274,8 @@ impl Light {
             return None;
         }
         let i = self.sect(x / SECTION, y / SECTION, z / SECTION)?;
-        Some(match &self.secs[i] {
-            None => OPEN,
-            Some(c) => {
-                let l = ((y % SECTION * SECTION + z % SECTION) * SECTION + x % SECTION) as usize;
-                c[l]
-            }
-        })
-    }
-
-    #[inline]
-    fn put(&mut self, x: i32, y: i32, z: i32, v: u8) {
-        let Some(i) = self.sect(x / SECTION, y / SECTION, z / SECTION) else {
-            return;
-        };
         let l = ((y % SECTION * SECTION + z % SECTION) * SECTION + x % SECTION) as usize;
-        match &mut self.secs[i] {
-            Some(c) => c[l] = v,
-            None if v == OPEN => {}
-            slot @ None => {
-                let mut c = Box::new([OPEN; SECTION_CELLS]);
-                c[l] = v;
-                *slot = Some(c);
-            }
-        }
+        Some(self.secs[i].get(l))
     }
 
     /// Block light level 0..=15 at a cell.
@@ -389,38 +452,38 @@ impl Light {
         Some(Patch { lo, hi, light: out })
     }
 
-    /// Store worked-out light.
+    /// Store worked-out light, a section at a time, each in its smallest form.
     fn apply(&mut self, p: Patch) {
         let Patch { lo, hi, light } = p;
+        let (w, d) = ((hi[0] - lo[0] + 1) as usize, (hi[2] - lo[2] + 1) as usize);
+        let sy_all = self.size[1];
         for sy in 0..self.dims[1] {
             for sz in lo[2] / SECTION..=hi[2] / SECTION {
                 for sx in lo[0] / SECTION..=hi[0] / SECTION {
-                    if let Some(i) = self.sect(sx, sy, sz) {
-                        self.mark(i);
+                    let Some(i) = self.sect(sx, sy, sz) else {
+                        continue;
+                    };
+                    self.mark(i);
+                    let (x0, x1) = (
+                        (sx * SECTION).max(lo[0]),
+                        (sx * SECTION + SECTION - 1).min(hi[0]),
+                    );
+                    let (z0, z1) = (
+                        (sz * SECTION).max(lo[2]),
+                        (sz * SECTION + SECTION - 1).min(hi[2]),
+                    );
+                    let (y0, y1) = (sy * SECTION, (sy * SECTION + SECTION - 1).min(sy_all - 1));
+                    let mut c = self.secs[i].cells();
+                    for y in y0..=y1 {
+                        for z in z0..=z1 {
+                            let row = (y as usize * d + (z - lo[2]) as usize) * w;
+                            let l = ((y % SECTION * SECTION + z % SECTION) * SECTION) as usize;
+                            for x in x0..=x1 {
+                                c[l + (x % SECTION) as usize] = light[row + (x - lo[0]) as usize];
+                            }
+                        }
                     }
-                }
-            }
-        }
-        let mut k = 0;
-        for y in 0..self.size[1] {
-            for z in lo[2]..=hi[2] {
-                for x in lo[0]..=hi[0] {
-                    self.put(x, y, z, light[k]);
-                    k += 1;
-                }
-            }
-        }
-        // sections left all open sky need no storage
-        for sy in 0..self.dims[1] {
-            for sz in lo[2] / SECTION..=hi[2] / SECTION {
-                for sx in lo[0] / SECTION..=hi[0] / SECTION {
-                    if let Some(i) = self.sect(sx, sy, sz)
-                        && self.secs[i]
-                            .as_ref()
-                            .is_some_and(|c| c.iter().all(|&v| v == OPEN))
-                    {
-                        self.secs[i] = None;
-                    }
+                    self.secs[i] = SectionLight::compacted(&c);
                 }
             }
         }
