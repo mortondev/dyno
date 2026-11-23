@@ -21,6 +21,9 @@
   ],
   "toast": "Right-click Old Brannoc (the gold !) to begin"
  },
+ "classes": {
+  "prompt": "The Great Hearth has gone out and Shades walk the valley. Who will you be?"
+ },
  "news": {
   "title": "The Living Vale",
   "lines": [

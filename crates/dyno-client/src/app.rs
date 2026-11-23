@@ -4843,7 +4843,7 @@ fn hud(
         .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
         .show(ctx, |ui| {
             ui.set_width(640.0);
-            ui.label("The Great Hearth has gone out and Shades walk the valley. Who will you be?");
+            ui.label(pack_text("classes", "prompt"));
             ui.add_space(8.0);
             ui.columns(p.content.classes.len().max(1), |cols| {
                 for (k, c) in p.content.classes.iter().enumerate() {
