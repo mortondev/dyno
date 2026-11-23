@@ -171,6 +171,10 @@ struct Play {
     fps: (Instant, u32, u32),
     light: Light,
     particles: Vec<Particle>,
+    /// ambient effects and critters (life.rs)
+    life: crate::life::Life,
+    /// what NPCs are busy with: the animation each holds (their routines)
+    entity_hold: HashMap<u32, Anim>,
     /// time of day at `time_at`, and day length in seconds
     time: f32,
     day_seconds: f32,
@@ -681,6 +685,15 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         }
         _ => None,
     };
+    let me = rpg_ui::Me {
+        content: &p.content,
+        money: p.money,
+        level: p.level,
+        log: &p.quest_log,
+        done: &p.quests_done,
+        pos: p.player.pos.into(),
+        hearth: p.hearth,
+    };
     for (id, e) in &p.entities {
         let pos = p.ground.feet(&p.world, e.pos());
         let step = Vec3::from(e.to) - Vec3::from(e.from);
@@ -702,13 +715,24 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             let base = if talking == Some(*id) {
                 Anim::Talk
             } else {
-                anim::locomotion(vel, e.yaw, 4.0).unwrap_or(Anim::Idle)
+                anim::locomotion(vel, e.yaw, 4.0)
+                    .or(p.entity_hold.get(id).copied())
+                    .unwrap_or(Anim::Idle)
             };
             let speed = Vec3::new(vel.x, 0.0, vel.z).length();
             let (a, _) = book.entity(*id, now);
             a.drive_at(now, base, pos, models::person_step(speed));
             let look = models::Look::npc(&npc.key, npc.color);
             models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
+            if let Some(m) = me.marker(n) {
+                let turn = p.player.yaw + p.cam_orbit;
+                push_marker(
+                    boxes,
+                    pos + Vec3::Y * (2.45 + 0.06 * (now * 2.2).sin()),
+                    turn,
+                    m,
+                );
+            }
             continue;
         }
         let EntityKind::Creature(cid) = e.kind else {
@@ -754,6 +778,92 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         p.tops.borrow_mut().insert(*id, top - pos.y);
     }
     push_corpses(boxes, p, book, clock);
+}
+
+/// A quest marker over an NPC's head, built of small shining cubes and
+/// turned to the camera: a gold "!" (a quest to take), a gold "?" (one to
+/// hand in), a grey "?" (one of yours, not finished).
+fn push_marker(out: &mut Vec<Vertex>, at: Vec3, turn: f32, m: rpg_ui::Marker) {
+    const BANG: [&str; 7] = [".##.", ".##.", ".##.", ".##.", ".##.", "....", ".##."];
+    const ASK: [&str; 7] = [".##.", "#..#", "...#", "..#.", ".#..", "....", ".#.."];
+    let (rows, rgb) = match m {
+        rpg_ui::Marker::Available => (BANG, [1.0, 0.82, 0.16]),
+        rpg_ui::Marker::Ready => (ASK, [1.0, 0.82, 0.16]),
+        rpg_ui::Marker::Waiting => (ASK, [0.66, 0.66, 0.66]),
+    };
+    let (s, c) = turn.sin_cos();
+    let right = Vec3::new(c, 0.0, -s);
+    let axes = [right, Vec3::Y, Vec3::new(s, 0.0, c)];
+    let u = 0.085;
+    for (row, line) in rows.iter().enumerate() {
+        for (col, ch) in line.bytes().enumerate() {
+            if ch != b'#' {
+                continue;
+            }
+            let centre = at + right * ((col as f32 - 1.5) * u) + Vec3::Y * ((6 - row) as f32 * u);
+            render::push_oriented_box(out, centre, axes, Vec3::splat(u * 0.5), rgb, true, 1.0);
+        }
+    }
+}
+
+/// An NPC's routine says what it does now: a looping animation is held
+/// until the next one (the first of the list lets it go), a one-shot is
+/// returned to be played.
+fn entity_emote(p: &mut Play, entity: u32, n: u8) -> Option<Anim> {
+    match Anim::ALL.get(n as usize).copied() {
+        Some(Anim::Idle) | None => {
+            p.entity_hold.remove(&entity);
+            None
+        }
+        Some(a) if a.one_shot() => Some(a),
+        Some(a) => {
+            p.entity_hold.insert(entity, a);
+            None
+        }
+    }
+}
+
+/// Ambient life round the camera: smoke, fireflies, birds, deer (life.rs).
+/// Critters go into `boxes`; the effects into the renderer's own lists.
+#[allow(clippy::too_many_arguments)]
+fn push_life(
+    p: &mut Play,
+    gfx: &mut Gfx,
+    boxes: &mut Vec<Vertex>,
+    eye: Vec3,
+    dir: Vec3,
+    time: f32,
+    dt: f32,
+    quality: u8,
+    settle: bool,
+) {
+    let mut people: Vec<Vec3> = vec![p.player.pos];
+    people.extend(
+        p.remotes
+            .iter()
+            .filter(|(_, r)| !r.far)
+            .map(|(_, r)| Vec3::from(r.current().pos)),
+    );
+    let scene = crate::life::Scene {
+        world: &p.world,
+        light: &p.light,
+        content: &p.content,
+        hearth: p.hearth,
+        time,
+        eye,
+        dir,
+        people: &people,
+    };
+    let clock = p.anims.now() as f64 + 600.0;
+    if settle {
+        p.life.settle(&scene, clock, quality);
+    }
+    let mut out = crate::life::Out {
+        boxes,
+        fx: &mut gfx.fx,
+        glow: &mut gfx.fx_glow,
+    };
+    p.life.frame(&scene, clock, dt, quality, &mut out);
 }
 
 /// The fallen: a creature that died a moment ago plays its death, one found
@@ -1119,44 +1229,11 @@ fn pick_entity(p: &Play) -> Option<u32> {
     best.map(|(id, _)| id)
 }
 
-/// Sky, sun and light for a time of day: 0.0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight.
+/// Sky, sun and light for a time of day (0.0 sunrise, 0.25 noon, 0.5 sunset,
+/// 0.75 midnight) in no particular place: the title screen and model sheets.
+/// In the world, `sky::sky_at` adds the mood of where you stand.
 pub(crate) fn sky(t: f32) -> render::Sky {
-    let a = t * std::f32::consts::TAU;
-    let e = a.sin();
-    let sun = Vec3::new(a.cos(), e, 0.3).normalize();
-    let k = ((e + 0.1) / 0.42).clamp(0.0, 1.0);
-    let k = k * k * (3.0 - 2.0 * k);
-    let g = (-(e / 0.17).powi(2)).exp();
-    let lerp = |a: [f32; 3], b: [f32; 3], t: f32| {
-        [
-            a[0] + (b[0] - a[0]) * t,
-            a[1] + (b[1] - a[1]) * t,
-            a[2] + (b[2] - a[2]) * t,
-        ]
-    };
-    let add = |a: [f32; 3], b: [f32; 3], t: f32| {
-        [
-            (a[0] + b[0] * t).min(1.0),
-            (a[1] + b[1] * t).min(1.0),
-            (a[2] + b[2] * t).min(1.0),
-        ]
-    };
-    // the colours come from the pack's render settings
-    let p = crate::look::settings().sky;
-    let mut top = lerp(p.night_top, p.day_top, k);
-    let mut horizon = lerp(p.night_horizon, p.day_horizon, k);
-    horizon = lerp(horizon, p.sunset_horizon, g * 0.75);
-    top = add(top, p.sunset_top, g * 0.6);
-    let mut light = lerp(p.night_light, p.day_light, k);
-    light = lerp(light, p.sunset_light, g * 0.55);
-    render::Sky {
-        top,
-        horizon,
-        light,
-        sun_dir: sun.into(),
-        stars: 1.0 - k,
-        cover: 0.0,
-    }
+    crate::sky::sky_at(t, None)
 }
 
 /// Weather on a sky: clouds close in, colours grey out, light dims.
@@ -1523,6 +1600,8 @@ fn land_ready(p: &Play, gfx: &Gfx, at: Vec3, r: f32) -> bool {
 
 /// Play state for a freshly joined server.
 fn new_play(j: Joined) -> Play {
+    // the moods of its places (mood.rs)
+    crate::mood::set_world(j.hearth, &j.content.areas);
     let rpg_world = j.content.world.protected;
     // worked out on the world thread and copied back as it changes
     let light = Light::blank(&j.world);
@@ -1571,6 +1650,8 @@ fn new_play(j: Joined) -> Play {
         fps: (Instant::now(), 0, 0),
         light,
         particles: Vec::new(),
+        life: Default::default(),
+        entity_hold: HashMap::new(),
         time: 0.05,
         day_seconds: 1200.0,
         time_at: Instant::now(),
@@ -2045,6 +2126,7 @@ impl App {
                                         dyno_protocol::Act::Swing => Some(Anim::AttackUnarmed),
                                         dyno_protocol::Act::Special => Some(Anim::Special),
                                         dyno_protocol::Act::Shoot => Some(Anim::Shoot),
+                                        dyno_protocol::Act::Emote(n) => entity_emote(p, eid, n),
                                         _ => None,
                                     };
                                     if let Some(a) = a {
@@ -2650,7 +2732,10 @@ impl App {
         // time of day (also drawn behind the menu)
         let sky_now = match &self.screen {
             Screen::Playing(p) => weathered(
-                sky(p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds),
+                crate::sky::sky_at(
+                    p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds,
+                    Some(p.player.eye()),
+                ),
                 p.weather.0,
                 p.weather_mix,
             ),
@@ -3344,6 +3429,10 @@ impl App {
             let mut book = std::mem::take(&mut p.anims);
             push_creatures(&mut boxes, p, &mut book, clock);
             p.anims = book;
+            // smoke, fireflies, birds, deer
+            let tod = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
+            let quality = crate::life::quality(self.settings.life);
+            push_life(p, gfx, &mut boxes, eye, dir, tod, dt, quality, false);
             // items lying in the world: small spinning cubes
             for e in p.entities.values() {
                 if let EntityKind::Item(s) = e.kind {
@@ -4375,22 +4464,8 @@ fn hud(
                     Color32::from_rgb(200, 50, 40),
                 );
             }
-            if let Some(mk) = marker {
-                let (t, c) = match mk {
-                    rpg_ui::Marker::Available => ("!", Color32::from_rgb(255, 210, 40)),
-                    rpg_ui::Marker::Ready => ("?", Color32::from_rgb(255, 210, 40)),
-                    rpg_ui::Marker::Waiting => ("?", Color32::from_gray(170)),
-                };
-                let at = pos - Vec2::new(0.0, 18.0);
-                painter.text(
-                    at + Vec2::new(2.0, 2.0),
-                    Align2::CENTER_BOTTOM,
-                    t,
-                    FontId::proportional(34.0),
-                    Color32::from_black_alpha(200),
-                );
-                painter.text(at, Align2::CENTER_BOTTOM, t, FontId::proportional(34.0), c);
-            }
+            // the quest marker itself floats in the world (push_marker)
+            let _ = marker;
         }
     }
     let map = p.minimap.show(
@@ -6133,6 +6208,24 @@ pub fn shot_with_ui(
                         p.money = money;
                         p.max_health = max_health;
                     }
+                    ServerMsg::EntityMoves(list) => {
+                        for (id, pos, yaw) in list {
+                            if let Some(e) = p.entities.get_mut(&id) {
+                                e.from = pos;
+                                e.to = pos;
+                                e.yaw = yaw;
+                            }
+                        }
+                    }
+                    ServerMsg::EntityGone { id, .. } => {
+                        p.entities.remove(&id);
+                    }
+                    ServerMsg::Act {
+                        actor: dyno_protocol::Actor::Entity(id),
+                        act: dyno_protocol::Act::Emote(n),
+                    } => {
+                        entity_emote(&mut p, id, n);
+                    }
                     ServerMsg::Weather { kind, strength } => {
                         p.weather = (kind, strength);
                         p.weather_mix = strength;
@@ -6230,7 +6323,7 @@ pub fn shot_with_ui(
                 p.player.eye().into(),
                 p.hearth.unwrap_or_default(),
             );
-            let sky_now = sky(p.time);
+            let sky_now = crate::sky::sky_at(p.time, Some(p.player.eye()));
             let out = fctx.run(egui::RawInput::default(), |_| {});
             gfx.frame(
                 Some((vp, p.player.eye(), see)),
@@ -6445,7 +6538,11 @@ pub fn shot_with_ui(
     }
     let t = time.unwrap_or(p.time);
     p.time = t;
-    let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
+    let sky_now = weathered(
+        crate::sky::sky_at(t, Some(p.player.eye())),
+        p.weather.0,
+        p.weather_mix,
+    );
     let load_ms = started.elapsed().as_secs_f64() * 1e3;
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
     let far = if p.far.is_empty() { 160.0 } else { FAR_SEE };
@@ -6519,9 +6616,25 @@ pub fn shot_with_ui(
             0.0,
         );
     }
+    let before_creatures = boxes.len();
     let mut book = std::mem::take(&mut p.anims);
     push_creatures(&mut boxes, &p, &mut book, 1.3);
     p.anims = book;
+    // ambient life, as play draws it (DYNO_LIFE=0 leaves it out)
+    let life_quality = crate::life::quality(2);
+    let figures = boxes.len();
+    push_life(
+        &mut p,
+        gfx,
+        &mut boxes,
+        eye,
+        dir,
+        t,
+        0.0,
+        life_quality,
+        true,
+    );
+    let (fx, fx_glow) = (gfx.fx.clone(), gfx.fx_glow.clone());
     for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let pose = r.current();
         let base = Vec3::from(pose.pos);
@@ -6606,6 +6719,8 @@ pub fn shot_with_ui(
             hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
         }
     });
+    gfx.fx = fx.clone();
+    gfx.fx_glow = fx_glow.clone();
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
     let second = ctx.run(raw(), |ctx| {
         if !stand {
@@ -6613,14 +6728,85 @@ pub fn shot_with_ui(
         }
     });
     gfx.screenshot = Some(out.clone());
+    gfx.fx = fx;
+    gfx.fx_glow = fx_glow;
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, second);
+    // DYNO_SHOT_FRAMES=n: n more pictures a tenth of a second apart
+    // (out-01.ppm ...), to see what moves
+    let more: usize = std::env::var("DYNO_SHOT_FRAMES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0);
+    for i in 1..=more {
+        std::thread::sleep(Duration::from_millis(100));
+        // what moved meanwhile
+        while let Ok(ev) = p.conn.rx.try_recv() {
+            match ev {
+                NetEvent::Msg(ServerMsg::EntityMoves(list)) => {
+                    for (id, pos, yaw) in list {
+                        if let Some(e) = p.entities.get_mut(&id) {
+                            e.from = e.pos().into();
+                            e.to = pos;
+                            e.yaw = yaw;
+                            e.at = Instant::now();
+                        }
+                    }
+                }
+                NetEvent::Msg(ServerMsg::Act {
+                    actor: dyno_protocol::Actor::Entity(id),
+                    act: dyno_protocol::Act::Emote(n),
+                }) => {
+                    if let Some(a) = entity_emote(&mut p, id, n) {
+                        let now = p.anims.now();
+                        p.anims.play_entity(id, now, a);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut boxes = boxes[..before_creatures].to_vec();
+        let mut book = std::mem::take(&mut p.anims);
+        push_creatures(&mut boxes, &p, &mut book, 1.3);
+        p.anims = book;
+        push_life(
+            &mut p,
+            gfx,
+            &mut boxes,
+            eye,
+            dir,
+            t,
+            0.1,
+            life_quality,
+            false,
+        );
+        let o = ctx.run(raw(), |_| {});
+        let stem = out.with_extension("");
+        gfx.screenshot = Some(format!("{}-{i:02}.ppm", stem.display()).into());
+        gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
+    }
     if stats {
-        // frame time on the headless path: the world only, GPU waited on
+        // frame time on the headless path: the world, the figures and the
+        // ambient life made anew each frame, GPU waited on
         gfx.wait_idle();
         let n = 30;
+        let mut life_ms = 0.0;
         let t0 = Instant::now();
         for _ in 0..n {
             let o = ctx.run(raw(), |_| {});
+            let mut boxes = boxes[..figures].to_vec();
+            let t1 = Instant::now();
+            push_life(
+                &mut p,
+                gfx,
+                &mut boxes,
+                eye,
+                dir,
+                t,
+                0.016,
+                life_quality,
+                false,
+            );
+            life_ms += t1.elapsed().as_secs_f64() * 1e3;
             gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
             gfx.wait_idle();
         }
@@ -6632,8 +6818,15 @@ pub fn shot_with_ui(
             (fv as usize * std::mem::size_of::<crate::render::FarVertex>()) as f64 / 1048576.0,
             p.far_worst.as_secs_f64() * 1e3
         );
+        let c = p.life.counts;
         eprintln!(
-            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
+            "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent; life (quality {life_quality}): {:.3} ms a frame on the CPU (effects {:.3}, critters {:.3}), {} emitters, {} particles, {} critters",
+            life_ms / n as f64,
+            c.particles_ms,
+            c.critters_ms,
+            c.emitters,
+            c.particles,
+            c.critters
         );
         let (gv, levels) = gfx.ground_stats();
         eprintln!("ground: {gv} vertices; sections by voxels a metre {levels:?}");

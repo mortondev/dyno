@@ -94,6 +94,52 @@ pub enum Actor {
     Entity(u32),
 }
 
+/// The standard animations by name, in the order of the client's list:
+/// `Act::Emote` carries an index into it. New ones go at the end.
+pub const ANIMS: &[&str] = &[
+    "Idle",
+    "Walk",
+    "Run",
+    "Backpedal",
+    "StrafeLeft",
+    "StrafeRight",
+    "JumpStart",
+    "JumpAir",
+    "Fall",
+    "JumpLand",
+    "Swim",
+    "Ready",
+    "Attack1H",
+    "Attack2H",
+    "AttackUnarmed",
+    "Shoot",
+    "Special",
+    "CastDirected",
+    "CastOmni",
+    "Channel",
+    "CastRelease",
+    "HitReact",
+    "Stun",
+    "Death",
+    "Dead",
+    "Sit",
+    "Kneel",
+    "Talk",
+    "Wave",
+    "Bow",
+    "Cheer",
+    "Point",
+    "Chop",
+    "Hammer",
+    "Fish",
+    "Sweep",
+];
+
+/// The index of an animation, for `Act::Emote`.
+pub fn anim_index(name: &str) -> Option<u8> {
+    ANIMS.iter().position(|a| *a == name).map(|i| i as u8)
+}
+
 /// A visible action, for animation.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum Act {
@@ -214,7 +260,7 @@ pub const MAX_WANT: usize = 1024;
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 21;
+pub const PROTOCOL_VERSION: u32 = 23;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;

@@ -3,6 +3,10 @@
   "mirror_pairs": [["leg.fl","leg.fr"],["leg.bl","leg.br"]],
   "sets": {
     "default": {
+      "Chop": {"loop":4.0,"time":{"body.oy":-10.0232,"head.rx":8.4956,"head.ry":11.3529,"leg.bl.rx":-83.0789,"leg.br.rx":-83.0789,"leg.fl.rx":83.0789,"leg.fr.rx":83.0789}},
+      "Hammer": {"loop":4.0,"time":{"body.oy":-10.0232,"head.rx":8.4956,"head.ry":11.3529,"leg.bl.rx":-83.0789,"leg.br.rx":-83.0789,"leg.fl.rx":83.0789,"leg.fr.rx":83.0789}},
+      "Fish": {"loop":4.0,"time":{"body.oy":-10.0232,"head.rx":8.4956,"head.ry":11.3529,"leg.bl.rx":-83.0789,"leg.br.rx":-83.0789,"leg.fl.rx":83.0789,"leg.fr.rx":83.0789}},
+      "Sweep": {"loop":4.0,"time":{"body.oy":-10.0232,"head.rx":8.4956,"head.ry":11.3529,"leg.bl.rx":-83.0789,"leg.br.rx":-83.0789,"leg.fl.rx":83.0789,"leg.fr.rx":83.0789}},
       "Attack1H": {
         "duration": 0.7,
         "time": {

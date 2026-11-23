@@ -19,6 +19,7 @@ pub mod movement;
 pub mod pack;
 pub mod party;
 pub mod professions;
+pub mod routines;
 pub mod rpg;
 pub mod shard;
 pub mod store;
@@ -398,6 +399,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         weather: (0, 0.0, 240.0),
         stream: cfg.stream,
         encoded: HashMap::new(),
+        routines: HashMap::new(),
+        routine_cost: Default::default(),
         far_encoded: HashMap::new(),
     };
     state.spawn_points = camps::plan_spawn_points(&state.world, &state.content, state.spawn_hearth);
@@ -1211,6 +1214,14 @@ impl Server {
                     st.day = main_clock.1;
                 }
                 st.tick(dt);
+                // DYNO_TICK_STATS: what the NPC routines cost, once a minute
+                if n.is_multiple_of(1200) && std::env::var_os("DYNO_TICK_STATS").is_some() {
+                    let (mean, walked) = st.routine_cost();
+                    log(format!(
+                        "routines: {walked} NPCs, {:.1} microseconds a tick",
+                        mean.as_secs_f64() * 1e6
+                    ));
+                }
                 if n.is_multiple_of(10) {
                     snaps.extend(st.snapshot());
                 }
@@ -1421,7 +1432,13 @@ impl Server {
                     hearth: st.spawn_hearth,
                     view: st.stream.view,
                 };
-                (id, vec![welcome])
+                // a tool sees what stands in the world (in no story phase),
+                // as it sees the world itself
+                let mut first = vec![welcome];
+                for (eid, e) in st.entities.iter().filter(|(_, e)| e.phase.is_none()) {
+                    first.extend(st.entity_intro(*eid, e));
+                }
+                (id, first)
             } else {
                 if self.routes.lock().unwrap().len() >= self.cfg.max_players.max(self.cap()) {
                     drop(st);

@@ -213,6 +213,8 @@ impl State {
             weather: seed.weather,
             stream: seed.stream,
             encoded: Default::default(),
+            routines: Default::default(),
+            routine_cost: Default::default(),
             far_encoded: Default::default(),
         };
         st.spawn_points = crate::camps::plan_spawn_points(&st.world, &st.content, st.spawn_hearth);

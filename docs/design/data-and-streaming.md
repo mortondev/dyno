@@ -198,6 +198,31 @@ when one of them is replaced.
 
 ## 3. Formats
 
+- **Render settings** (`render.json`; parsed by `look.rs`, every part
+  optional, neutral when left out). Besides leaves, ground tone, the grade
+  and water:
+  - `sky`: the palette through the day, with a `dusk` phase after sunset;
+  - `light` (`atmos.rs`): sun tint, sky light by day and night, lamp light,
+    glowing blocks (above 1 they bloom), rim light, shadow strength, the
+    moon's path;
+  - `atmosphere`: aerial haze (start, density, colours) and fog in low
+    ground (height, falloff, thicker at dawn);
+  - `dome` (`sky.rs`): sun, moon, stars, cloud cells and the far ridges
+    beyond the edge of the world;
+  - `post` (`post.rs`): exposure, bloom, ambient occlusion;
+  - `mood` and `moods` (`mood.rs`): how a place tints all of the above. A
+    region is a circle round an area of the rules (`"area": "<key>"`) or a
+    point relative to the hearth (`at`, `radius`), with a `feather` to fade
+    over and an `order` where regions overlap. A mood may also pull the
+    hour of the sky towards its own (`time`, `time_pull`): only the look
+    moves, the clock stays the server's.
+
+  The engine draws the world into a float picture, with three shadow
+  cascades (`shadows.rs`), then occlusion, bloom and the grade. The
+  player's `graphics` setting (0 low .. 3 ultra, default 2;
+  `DYNO_GRAPHICS=low|medium|high|ultra` overrides it) sets the shadow map
+  size and whether occlusion and bloom run.
+
 - **Blocks** (`blocks.json`): per block id
   - name, solid, opaque, light emitted, material (sounds)
   - textures per face (pack paths)
@@ -219,6 +244,32 @@ when one of them is replaced.
   blends and layers as `anim.rs` does today. Bake today's procedural poses
   into keyframes by sampling them. A **pack test** fails if any figure lacks
   any standard animation, replacing the compile-time check.
+- **Ambient life** (`life.json`; `life.rs`, `particles.rs`, `critters.rs`):
+  decoration each client makes for itself, at no cost to the server.
+  - `effects`: streams of small cubes (rate, life, start box, velocity and
+    spread, push, drag, wind, meander, size and colours through life,
+    `glow` for a shining cube with a halo, `blink`, a time-of-day window).
+    A particle is a pure function of its emitter, its number and the
+    clock: nothing is stored, any moment can be drawn.
+  - `emitters`: block rules (`block`, `above`, `below`, `alone`, `near`,
+    `chance`, and a `where`: areas, ground, cover, time of day): a brazier, the top of a lone stone column by a roof
+    (a chimney), birch leaves over open air in the autumn woods.
+  - `ambient`: effects scattered over the land by area, ground, cover and
+    time (fireflies, wisps, pollen, dust).
+  - `critters`: a `.vox` with frames `idle`, `move1`, `move2`, `alt`; metres
+    per voxel; one behaviour the engine knows (`flock`, `flutter`, `swim`,
+    `wade`, `graze`, `scuttle`); speed, range, how near people may come.
+  - `wildlife`: where each kind lives (areas, ground, beside what, time,
+    group size). The land is cut into squares; the same squares always
+    hold the same life.
+  - Quality: `Settings::life` (0 none, 1 less and near, 2 all), or
+    `DYNO_LIFE=0|1|2`.
+  - The models and tables are written by `tools/life/*.py`.
+- **Routines** (rules, per NPC: `routine`): the stops of an NPC's round.
+  Each is a spot (`at`, blocks from where the NPC stands, or `near`: beside
+  the nearest block of a kind), an `anim` held there, `emotes`, `secs`. The
+  server walks them (`routines.rs`) and tells clients with `EntityMoves`
+  and `Act::Emote`; what an NPC holds is `hold` in `figures.json`.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.
@@ -427,7 +478,7 @@ kind of traffic fell.
   frames still rose to 20–40 ms in a few join runs while their world work
   stayed under 10 ms: the rest is rendering and scheduling.
 
-### The 2 km world (protocol 21)
+### The 2 km world (protocol 21; the far view's ground and seam: 23)
 
 For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
 
