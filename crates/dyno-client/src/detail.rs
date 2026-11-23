@@ -1289,7 +1289,10 @@ fn beam(k: &mut Kit, c: usize) {
         if g.fl[q] & F_OPAQUE != 0 || is_roof(g.ids[q]) {
             continue;
         }
-        k.mark(["skin+x", "skin-x", "skin+y", "skin-y", "skin+z", "skin-z"][axis * 2 + usize::from(!pos)]);
+        k.mark(
+            ["skin+x", "skin-x", "skin+y", "skin-y", "skin+z", "skin-z"]
+                [axis * 2 + usize::from(!pos)],
+        );
         let (mut lo, mut hi) = (Vec3::ZERO, Vec3::ONE);
         if pos {
             lo[axis] = 1.0;
@@ -1499,7 +1502,11 @@ fn trunk(k: &mut Kit, c: usize) {
         [0.5, 0.5],
         &prof,
         8,
-        if baking() { 0.0 } else { (h & 255) as f32 / 40.0 },
+        if baking() {
+            0.0
+        } else {
+            (h & 255) as f32 / 40.0
+        },
         false,
         2.0,
         mat(b, 1),

@@ -34,23 +34,33 @@ const OLD_TERRAIN: [BlockId; 12] = [
 const OLD_PAVING: [BlockId; 3] = [w::COBBLE, w::FLAGSTONES, 19];
 const WOOL: std::ops::RangeInclusive<BlockId> = 23..=32;
 
-fn snake(b: BlockId) -> String {
-    let n = w::block(b).name.to_lowercase();
-    let mut s: String = n
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '_' })
-        .collect();
-    while s.contains("__") {
-        s = s.replace("__", "_");
-    }
-    s.trim_matches('_').to_string()
+fn content_root() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content")
 }
 
+/// The pack's `blocks.json` as it stands (textures and all).
+fn blocks_json() -> Value {
+    let t = std::fs::read_to_string(content_root().join("blocks.json")).expect("blocks.json");
+    serde_json::from_str(&t).unwrap()
+}
+
+/// A block's key in `blocks.json`.
 fn name_of(b: BlockId) -> String {
-    // block names must be unique keys
-    let s = snake(b);
-    let dup = (0..w::BLOCK_COUNT).filter(|o| snake(*o) == s).count() > 1;
-    if dup { format!("{s}_{b}") } else { s }
+    static KEYS: std::sync::OnceLock<HashMap<u64, String>> = std::sync::OnceLock::new();
+    KEYS.get_or_init(|| {
+        blocks_json()["blocks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| {
+                (
+                    e["id"].as_u64().unwrap(),
+                    e["key"].as_str().unwrap().to_string(),
+                )
+            })
+            .collect()
+    })[&(b as u64)]
+        .clone()
 }
 
 // ---------------------------------------------------------- conditions
@@ -99,7 +109,10 @@ fn sloped(g: &str, cloth: bool) -> Vec<ClassSpec> {
     let top = if cloth {
         Some(all(vec![
             not(at_([0, 1, 0], "solid")),
-            any(vec![not(at_([0, -1, 0], "solid")), at_([0, -1, 0], "cloth")]),
+            any(vec![
+                not(at_([0, -1, 0], "solid")),
+                at_([0, -1, 0], "cloth"),
+            ]),
         ]))
     } else {
         None
@@ -275,7 +288,10 @@ fn stone() -> Vec<ClassSpec> {
     vec![
         class(
             json!({"class": "pillar", "fills": false, "when": pillar}),
-            vec![at_([0, -1, 0], "class:pillar"), at_([0, 1, 0], "class:pillar")],
+            vec![
+                at_([0, -1, 0], "class:pillar"),
+                at_([0, 1, 0], "class:pillar"),
+            ],
         ),
         cube(),
     ]
@@ -290,7 +306,10 @@ fn prop(jitter: f32, features: Vec<Value>) -> Vec<ClassSpec> {
 
 fn lantern() -> Vec<ClassSpec> {
     let f = vec![
-        all(vec![at_([0, -1, 0], "solid"), not(at_([0, -1, 0], "banner"))]),
+        all(vec![
+            at_([0, -1, 0], "solid"),
+            not(at_([0, -1, 0], "banner")),
+        ]),
         at_([0, 1, 0], "solid"),
     ];
     vec![
@@ -416,7 +435,10 @@ fn sets() -> Vec<SetSpec> {
         SetSpec {
             name: "log",
             classes: timber(true),
-            variants: vec![(LOG, "log", vec![LOG]), (BIRCH_LOG, "birch_log", vec![BIRCH_LOG])],
+            variants: vec![
+                (LOG, "log", vec![LOG]),
+                (BIRCH_LOG, "birch_log", vec![BIRCH_LOG]),
+            ],
             palette: vec![
                 (AIR, 7.0),
                 (SELF, 3.0),
@@ -493,12 +515,7 @@ fn sets() -> Vec<SetSpec> {
             name: "door",
             classes: pane(true),
             variants: vec![(WOODEN_DOOR, "door", vec![WOODEN_DOOR])],
-            palette: vec![
-                (AIR, 4.0),
-                (SELF, 3.0),
-                (PLASTER, 2.0),
-                (TIMBER_BEAM, 1.0),
-            ],
+            palette: vec![(AIR, 4.0), (SELF, 3.0), (PLASTER, 2.0), (TIMBER_BEAM, 1.0)],
             samples: 3000,
         },
     ];
@@ -565,11 +582,17 @@ fn voxelize(tris: &[Tri]) -> Vec<([i32; 3], u32)> {
     };
     let n = (size.x * size.y * size.z) as usize;
     let mut solid = vec![false; n];
-    let mut votes: Vec<HashMap<u32, f32>> = vec![HashMap::new(); n];
+    let mut votes: HashMap<usize, Vec<(u32, f32)>> = HashMap::new();
     // surfaces
     for t in tris {
-        let e = [(t.p[1] - t.p[0]).length(), (t.p[2] - t.p[1]).length(), (t.p[0] - t.p[2]).length()];
-        let steps = (e.iter().fold(0.0f32, |a, b| a.max(*b)) / 0.25).ceil().max(1.0) as i32;
+        let e = [
+            (t.p[1] - t.p[0]).length(),
+            (t.p[2] - t.p[1]).length(),
+            (t.p[0] - t.p[2]).length(),
+        ];
+        let steps = (e.iter().fold(0.0f32, |a, b| a.max(*b)) / 0.25)
+            .ceil()
+            .max(1.0) as i32;
         let un = t.n.normalize_or_zero();
         for i in 0..=steps {
             for j in 0..=steps - i {
@@ -578,7 +601,11 @@ fn voxelize(tris: &[Tri]) -> Vec<([i32; 3], u32)> {
                 let v = p.floor().as_ivec3();
                 if let Some(k) = idx([v.x, v.y, v.z]) {
                     solid[k] = true;
-                    *votes[k].entry(t.mat).or_default() += 1.0;
+                    let v = votes.entry(k).or_default();
+                    match v.iter_mut().find(|e| e.0 == t.mat) {
+                        Some(e) => e.1 += 1.0,
+                        None => v.push((t.mat, 1.0)),
+                    }
                 }
             }
         }
@@ -610,7 +637,9 @@ fn voxelize(tris: &[Tri]) -> Vec<([i32; 3], u32)> {
                 for v in (vmin - 0.5).ceil() as i32..=(vmax - 0.5).floor() as i32 {
                     let (pu, pv) = (u as f32 + 0.5, v as f32 + 0.5);
                     // 2D barycentric
-                    let d = |a: Vec3, b: Vec3| (b[ua] - a[ua]) * (pv - a[va]) - (b[va] - a[va]) * (pu - a[ua]);
+                    let d = |a: Vec3, b: Vec3| {
+                        (b[ua] - a[ua]) * (pv - a[va]) - (b[va] - a[va]) * (pu - a[ua])
+                    };
                     let w0 = d(t.p[1], t.p[2]);
                     let w1 = d(t.p[2], t.p[0]);
                     let w2 = d(t.p[0], t.p[1]);
@@ -652,14 +681,13 @@ fn voxelize(tris: &[Tri]) -> Vec<([i32; 3], u32)> {
         }
     }
     // materials: the most voted, spread inward to voxels no surface touched
-    let mut mat: Vec<Option<u32>> = votes
-        .iter()
-        .map(|m| {
-            m.iter()
-                .max_by(|a, b| a.1.total_cmp(b.1).then(b.0.cmp(a.0)))
-                .map(|(k, _)| *k)
-        })
-        .collect();
+    let mut mat: Vec<Option<u32>> = vec![None; n];
+    for (k, v) in &votes {
+        mat[*k] = v
+            .iter()
+            .max_by(|a, b| a.1.total_cmp(&b.1).then(b.0.cmp(&a.0)))
+            .map(|e| e.0);
+    }
     let mut queue: VecDeque<usize> = (0..n).filter(|i| solid[*i] && mat[*i].is_some()).collect();
     let (sx, sy, sz) = (size.x as usize, size.y as usize, size.z as usize);
     while let Some(i) = queue.pop_front() {
@@ -742,7 +770,10 @@ struct Learned {
     geoms: Vec<Vec<([i32; 3], u32)>>,
     geom_index: HashMap<Vec<([i32; 3], u32)>, u32>,
     /// class -> part -> feature bits -> (geometry per variant, glow) -> count
-    seen: BTreeMap<String, BTreeMap<String, HashMap<u64, HashMap<(Vec<u32>, Option<[i32; 3]>), u32>>>>,
+    seen: BTreeMap<
+        String,
+        BTreeMap<String, HashMap<u64, HashMap<(Vec<u32>, Option<[i32; 3]>), u32>>>,
+    >,
     /// class -> how many samples
     classes: BTreeMap<String, u32>,
     mismatch: u32,
@@ -861,21 +892,33 @@ fn bake_cell(
                     }
                     match layer_owner(
                         layer,
-                        &[w::TIMBER_BEAM, 20, w::STONE_BRICKS, w::BRAZIER, w::LOG, w::LANTERN, w::HAY_BALE],
+                        &[
+                            w::TIMBER_BEAM,
+                            20,
+                            w::STONE_BRICKS,
+                            w::BRAZIER,
+                            w::LOG,
+                            w::LANTERN,
+                            w::HAY_BALE,
+                        ],
                     ) {
                         Some((b, f)) => (format!("block:{}", name_of(b)), f),
                         None => ("self".to_string(), 1),
                     }
                 })();
-                let tint = [v.color[0], v.color[1], v.color[2]].map(|x| (x * 1000.0).round() as i32);
+                let tint =
+                    [v.color[0], v.color[1], v.color[2]].map(|x| (x * 1000.0).round() as i32);
                 let m = l.mat(MatKey {
                     src,
                     tint,
                     glow,
                     clear,
                 });
-                let p = [0, 1, 2].map(|i| unturn(Vec3::from(tri[i].pos) - base, q) * 16.0);
-                let nw = Vec3::from(tri[0].normal) + Vec3::from(tri[1].normal) + Vec3::from(tri[2].normal);
+                let snap = |v: Vec3| (v * 4096.0).round() / 4096.0;
+                let p = [0, 1, 2].map(|i| snap(unturn(Vec3::from(tri[i].pos) - base, q)) * 16.0);
+                let nw = Vec3::from(tri[0].normal)
+                    + Vec3::from(tri[1].normal)
+                    + Vec3::from(tri[2].normal);
                 let n = unturn(nw + Vec3::new(0.5, 0.0, 0.5), q) - Vec3::new(0.5, 0.0, 0.5);
                 let n = if n.length() < 1e-4 {
                     (p[1] - p[0]).cross(p[2] - p[0])
@@ -909,7 +952,11 @@ fn bake_cell(
     let _ = feats;
     let _ = class_name;
     // the lamp's glow goes with its lamp (or its body)
-    let glow_part = if labels.contains(&"lamp") { "lamp" } else { "body" };
+    let glow_part = if labels.contains(&"lamp") {
+        "lamp"
+    } else {
+        "body"
+    };
     let glow = old.glow.map(|gl| {
         let p = unturn(Vec3::from(gl.pos) - base, q) * 16.0;
         p.round().as_ivec3().to_array()
@@ -941,11 +988,21 @@ fn bake_cell(
 /// The parts each set's classes may draw.
 fn labels_of(set: &str, class: &str) -> Vec<&'static str> {
     match (set, class) {
-        ("roof" | "cloth", "slope") => vec!["rows", "under", "eave", "ends", "wedge", "wedge_back", "cap"],
+        ("roof" | "cloth", "slope") => vec![
+            "rows",
+            "under",
+            "eave",
+            "ends",
+            "wedge",
+            "wedge_back",
+            "cap",
+        ],
         ("roof" | "cloth", "peak") => vec!["rows", "under", "ends", "wedge", "ridge"],
         ("cloth", "sheet") => vec!["sheet", "flap0", "flap1", "flap2", "flap3"],
         (_, "beam") => vec!["skin+x", "skin-x", "skin+y", "skin-y", "skin+z", "skin-z"],
-        (_, "stick") => vec!["post", "foot", "cap", "base", "arm0", "arm1", "arm2", "arm3", "beam"],
+        (_, "stick") => vec![
+            "post", "foot", "cap", "base", "arm0", "arm1", "arm2", "arm3", "beam",
+        ],
         (_, "trunk") => vec!["trunk"],
         (_, "pillar") => vec!["foot", "head", "shaft"],
         ("lantern", _) => vec!["bracket", "hanger", "lamp"],
@@ -998,11 +1055,40 @@ fn scatter(world: &mut World, c: [i32; 3], pal: &[(BlockId, f32)], me: BlockId, 
 #[test]
 #[ignore = "writes content/blocks.json and content/shapes/"]
 fn bake_shapes() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+    let root = content_root();
+    crate::assets::load_local_pack();
+    let mut pack_json = blocks_json();
+    // the ground tags first: today's code reads them while it runs
+    {
+        let mut pre = pack_json.clone();
+        for e in pre["blocks"].as_array_mut().unwrap() {
+            let b = e["id"].as_u64().unwrap() as BlockId;
+            let mut tags = Vec::new();
+            if OLD_TERRAIN.contains(&b) {
+                tags.push("terrain");
+            }
+            if OLD_PAVING.contains(&b) {
+                tags.push("paving");
+            }
+            if crate::detail::stands_on_paving(b) {
+                tags.push("on_paving");
+            }
+            e["tags"] = json!(tags);
+        }
+        crate::assets::insert(
+            "blocks.json",
+            serde_json::to_string(&pre).unwrap().into_bytes(),
+        );
+        assert!(crate::terrain_mesh::is_terrain(w::GRASS));
+    }
     let specs = sets();
     // 1. tags and the rules without tables
-    let old_detail = |b: BlockId| specs.iter().any(|s| s.variants.iter().any(|v| v.2.contains(&b)));
-    let mut blocks = serde_json::Map::new();
+    let old_detail = |b: BlockId| {
+        specs
+            .iter()
+            .any(|s| s.variants.iter().any(|v| v.2.contains(&b)))
+    };
+    let mut blocks: HashMap<u64, Value> = HashMap::new();
     for b in 1..w::BLOCK_COUNT {
         let mut tags: Vec<String> = old_groups(b).into_iter().map(String::from).collect();
         if OLD_TERRAIN.contains(&b) {
@@ -1026,7 +1112,7 @@ fn bake_shapes() {
         if chamfer {
             tags.push("chamfer".into());
         }
-        let mut e = json!({"id": b, "tags": tags});
+        let mut e = json!({"tags": tags});
         for s in &specs {
             for (_, stem, users) in &s.variants {
                 if users.contains(&b) {
@@ -1034,7 +1120,21 @@ fn bake_shapes() {
                 }
             }
         }
-        blocks.insert(name_of(b), e);
+        blocks.insert(b as u64, e);
+    }
+    // the tags and shapes go into the pack's own block entries
+    for e in pack_json["blocks"].as_array_mut().unwrap() {
+        let id = e["id"].as_u64().unwrap();
+        e.as_object_mut().unwrap().remove("tags");
+        e.as_object_mut().unwrap().remove("shape");
+        if let Some(add) = blocks.get(&id) {
+            for (k, v) in add.as_object().unwrap() {
+                if k == "tags" && v.as_array().is_some_and(|a| a.is_empty()) {
+                    continue;
+                }
+                e[k] = v.clone();
+            }
+        }
     }
     let rules_stage = |tables: Option<&BTreeMap<String, Value>>| -> Value {
         let mut out = serde_json::Map::new();
@@ -1056,11 +1156,15 @@ fn bake_shapes() {
                     r
                 })
                 .collect();
-            out.insert(s.name.to_string(), json!({"models": [], "classes": classes}));
+            out.insert(
+                s.name.to_string(),
+                json!({"models": [], "classes": classes}),
+            );
         }
         Value::Object(out)
     };
-    let stage1 = json!({"blocks": blocks, "shape_rules": rules_stage(None)});
+    let mut stage1 = pack_json.clone();
+    stage1["shape_rules"] = rules_stage(None);
     let text = serde_json::to_string(&stage1).unwrap();
     crate::assets::insert("blocks.json", text.clone().into_bytes());
     let pk = crate::shapes::parse_pack(&text).expect("stage one parses");
@@ -1071,11 +1175,24 @@ fn bake_shapes() {
     let mut palettes: serde_json::Map<String, Value> = serde_json::Map::new();
     let _ = std::fs::create_dir_all(root.join("shapes"));
     let mut rng = 0x9E37_79B9_7F4A_7C15u64;
+    let only = std::env::var("BAKE_ONLY").ok();
     for s in &specs {
+        if only
+            .as_ref()
+            .is_some_and(|o| !o.split(',').any(|x| x == s.name))
+        {
+            continue;
+        }
         let mut l = Learned::default();
         let n_var = s.variants.len();
         let per_world = 16 * 16;
-        let worlds = s.samples.div_ceil(per_world);
+        let scale: f32 = std::env::var("BAKE_SCALE")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1.0);
+        let worlds = ((s.samples as f32 * scale) as usize)
+            .div_ceil(per_world)
+            .max(1);
         // the town too: what is really built
         let town = {
             let mut world = World::generate([128, 64, 128], 7);
@@ -1111,23 +1228,26 @@ fn bake_shapes() {
             // town sites keep their own block; bake them as the first variant
             jobs.push((town, sites));
         }
-        for (world, sites) in jobs {
+        let n_jobs = jobs.len();
+        for (ji, (world, sites)) in jobs.into_iter().enumerate() {
+            let t0 = std::time::Instant::now();
+            let n_sites = sites.len();
             // every variant over the same neighbourhoods
             let mut per_var: Vec<(World, Light)> = Vec::new();
-            for (vi, (vb, _, users)) in s.variants.iter().enumerate() {
+            for (vb, _, _) in &s.variants {
                 let mut wv = world.clone();
                 for c in &sites {
-                    let here = wv.get(c[0], c[1], c[2]);
-                    if users.contains(&here) || vi > 0 || here == s.variants[0].0 {
-                        wv.set(c[0], c[1], c[2], *vb);
-                    }
+                    wv.set(c[0], c[1], c[2], *vb);
                 }
                 let light = Light::new(&wv);
                 per_var.push((wv, light));
             }
             let mut by_section: BTreeMap<[i32; 3], Vec<[i32; 3]>> = BTreeMap::new();
             for c in &sites {
-                by_section.entry(c.map(|v| v.div_euclid(N))).or_default().push(*c);
+                by_section
+                    .entry(c.map(|v| v.div_euclid(N)))
+                    .or_default()
+                    .push(*c);
             }
             for (sec, cells) in by_section {
                 let o = sec.map(|v| v * N);
@@ -1147,6 +1267,23 @@ fn bake_shapes() {
                                     l.cells += 1;
                                     if (ga.fl[k] ^ gb.fl[k]) & F_OPAQUE != 0 {
                                         l.mismatch += 1;
+                                        if l.mismatch <= 6 {
+                                            let around: Vec<BlockId> = (-1..=1)
+                                                .flat_map(|dy| {
+                                                    (-1..=1).flat_map(move |dz| {
+                                                        (-1..=1).map(move |dx| [dx, dy, dz])
+                                                    })
+                                                })
+                                                .map(|d| ga.ids[at(x + d[0], y + d[1], z + d[2])])
+                                                .collect();
+                                            eprintln!(
+                                                "fill mismatch: block {} old opaque {} new {:?}; around {around:?}",
+                                                ga.ids[k],
+                                                ga.fl[k] & F_OPAQUE != 0,
+                                                crate::shapes::features_at(&pk, &gb, k)
+                                                    .map(|f| (f.0, f.1))
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -1172,7 +1309,9 @@ fn bake_shapes() {
                         }
                         let labels = labels_of(s.name, &cname);
                         let light = &per_var[vi].1;
-                        geoms.push(bake_cell(&mut l, ga, light, k, c, &cname, q, &feats, &labels));
+                        geoms.push(bake_cell(
+                            &mut l, ga, light, k, c, &cname, q, &feats, &labels,
+                        ));
                     }
                     let Some((cname, bits)) = key else { continue };
                     if geoms.len() != n_var {
@@ -1194,6 +1333,11 @@ fn bake_shapes() {
                     }
                 }
             }
+            eprintln!(
+                "{} job {ji}/{n_jobs}: {n_sites} sites in {:.1} s",
+                s.name,
+                t0.elapsed().as_secs_f32()
+            );
         }
         // 3. tables: for each part, the fewest features that decide it
         let mut models: Vec<String> = Vec::new();
@@ -1214,6 +1358,66 @@ fn bake_shapes() {
                 for (bits, outs) in by_bits {
                     if outs.len() > 1 {
                         conflicts += 1;
+                        if conflicts <= 8 {
+                            let sizes: Vec<(Vec<usize>, u32)> = outs
+                                .iter()
+                                .map(|((t, _), n)| {
+                                    let v = t
+                                        .iter()
+                                        .map(|g| {
+                                            if *g == NONE_GEOM {
+                                                0
+                                            } else {
+                                                l.geoms[*g as usize].len()
+                                            }
+                                        })
+                                        .collect();
+                                    (v, *n)
+                                })
+                                .collect();
+                            let mut it = outs.keys();
+                            let a = it.next().unwrap();
+                            let b = it.next().unwrap();
+                            let diff = |x: u32, y: u32| -> usize {
+                                let e = Vec::new();
+                                let gx = if x == NONE_GEOM {
+                                    &e
+                                } else {
+                                    &l.geoms[x as usize]
+                                };
+                                let gy = if y == NONE_GEOM {
+                                    &e
+                                } else {
+                                    &l.geoms[y as usize]
+                                };
+                                let sx: std::collections::HashSet<_> = gx.iter().collect();
+                                let sy: std::collections::HashSet<_> = gy.iter().collect();
+                                sx.symmetric_difference(&sy).count()
+                            };
+                            let bbox = |x: u32| {
+                                if x == NONE_GEOM {
+                                    return ([0; 3], [0; 3]);
+                                }
+                                let g = &l.geoms[x as usize];
+                                let mut lo = [i32::MAX; 3];
+                                let mut hi = [i32::MIN; 3];
+                                for (p, _) in g {
+                                    for k in 0..3 {
+                                        lo[k] = lo[k].min(p[k]);
+                                        hi[k] = hi[k].max(p[k]);
+                                    }
+                                }
+                                (lo, hi)
+                            };
+                            eprintln!("  boxes {:?} {:?}", bbox(a.0[0]), bbox(b.0[0]));
+                            eprintln!(
+                                "conflict {cname}/{label} bits {:b}: {sizes:?}, first two differ in {} voxels (glow {:?} {:?})",
+                                bits,
+                                diff(a.0[0], b.0[0]),
+                                a.1,
+                                b.1
+                            );
+                        }
                     }
                     let (o, _) = outs
                         .iter()
@@ -1221,7 +1425,10 @@ fn bake_shapes() {
                         .unwrap();
                     best.insert(*bits, o.clone());
                 }
-                if best.values().all(|(t, _)| t.iter().all(|g| *g == NONE_GEOM)) {
+                if best
+                    .values()
+                    .all(|(t, _)| t.iter().all(|g| *g == NONE_GEOM))
+                {
                     continue;
                 }
                 let nf = c.features.len();
@@ -1299,7 +1506,11 @@ fn bake_shapes() {
         }
         used.sort();
         assert!(used.len() < 255, "{}: {} materials", s.name, used.len());
-        let pal_index: HashMap<u32, u8> = used.iter().enumerate().map(|(i, m)| (*m, i as u8 + 1)).collect();
+        let pal_index: HashMap<u32, u8> = used
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (*m, i as u8 + 1))
+            .collect();
         for (vi, (_, stem, _)) in s.variants.iter().enumerate() {
             let mut file = crate::vox::File::default();
             let mut pal = serde_json::Map::new();
@@ -1344,7 +1555,10 @@ fn bake_shapes() {
                 let voxels = if g == NONE_GEOM {
                     Vec::new()
                 } else {
-                    l.geoms[g as usize].iter().map(|(p, m)| (*p, pal_index[m])).collect()
+                    l.geoms[g as usize]
+                        .iter()
+                        .map(|(p, m)| (*p, pal_index[m]))
+                        .collect()
                 };
                 file.models.push(crate::vox::Model {
                     name: name.clone(),
@@ -1352,7 +1566,9 @@ fn bake_shapes() {
                 });
             }
             let bytes = crate::vox::write(&file).expect("vox");
-            std::fs::write(root.join(format!("shapes/{stem}.vox")), bytes).unwrap();
+            if std::env::var("BAKE_ONLY").is_err() {
+                std::fs::write(root.join(format!("shapes/{stem}.vox")), bytes).unwrap();
+            }
             palettes.insert(format!("shapes/{stem}.vox"), json!({"palette": pal}));
         }
         println!(
@@ -1365,12 +1581,43 @@ fn bake_shapes() {
             l.mismatch,
             l.cells
         );
-        tables.insert(s.name.to_string(), json!({"models": models, "classes": classes_json}));
+        tables.insert(
+            s.name.to_string(),
+            json!({"models": models, "classes": classes_json}),
+        );
     }
-    let out = json!({
-        "blocks": blocks,
-        "shape_rules": rules_stage(Some(&tables)),
-        "shape_files": palettes,
-    });
-    std::fs::write(root.join("blocks.json"), serde_json::to_string_pretty(&out).unwrap() + "\n").unwrap();
+    let mut out = pack_json;
+    out["shape_rules"] = rules_stage(Some(&tables));
+    out["shape_files"] = Value::Object(palettes);
+    if std::env::var("BAKE_ONLY").is_err() {
+        std::fs::write(root.join("blocks.json"), compact(&out)).unwrap();
+    }
+}
+
+/// `blocks.json` written one block to a line, like the rest of the pack.
+fn compact(v: &Value) -> String {
+    let mut out = String::from("{\n");
+    let obj = v.as_object().unwrap();
+    let n = obj.len();
+    for (i, (k, val)) in obj.iter().enumerate() {
+        out += &format!("  {}: ", serde_json::to_string(k).unwrap());
+        match (k.as_str(), val) {
+            ("blocks", Value::Array(a)) => {
+                out += "[\n";
+                for (j, e) in a.iter().enumerate() {
+                    out += "    ";
+                    out += &serde_json::to_string(e).unwrap();
+                    out += if j + 1 < a.len() { ",\n" } else { "\n" };
+                }
+                out += "  ]";
+            }
+            _ => {
+                out += &serde_json::to_string_pretty(val)
+                    .unwrap()
+                    .replace("\n", "\n  ")
+            }
+        }
+        out += if i + 1 < n { ",\n" } else { "\n" };
+    }
+    out + "}\n"
 }

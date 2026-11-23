@@ -62,8 +62,7 @@ pub fn is_terrain(b: BlockId) -> bool {
 }
 
 pub(crate) fn flags() -> &'static [u8; 256] {
-    static T: std::sync::OnceLock<[u8; 256]> = std::sync::OnceLock::new();
-    T.get_or_init(|| flags_with(crate::shapes::is_detail, is_terrain))
+    &crate::shapes::pack().flags
 }
 
 /// The flags of every block, given which are shaped and which are ground.
@@ -238,7 +237,9 @@ impl Grid {
     fn pave(&mut self, lut: &[u8; 256]) {
         // props and posts may stand on paving; anything else on it is a wall
         let built = |b: BlockId| {
-            lut[b as usize] & F_OPAQUE != 0 && !is_paving(b) && !crate::shapes::has(b, crate::shapes::tag::ON_PAVING)
+            lut[b as usize] & F_OPAQUE != 0
+                && !is_paving(b)
+                && !crate::shapes::has(b, crate::shapes::tag::ON_PAVING)
         };
         let mut set = Vec::new();
         for y in -3..N + 3 {
@@ -1694,6 +1695,63 @@ mod tests {
             compared > 10_000 && detail > 200,
             "{compared} cells, {detail} detail"
         );
+    }
+
+    /// Remesh cost of the town's sections (best of nine runs each) and the
+    /// vertices they make:
+    /// `cargo test -p dyno-client --release town_remesh_cost -- --ignored --nocapture`
+    #[test]
+    #[ignore = "a measurement"]
+    fn town_remesh_cost() {
+        let world = town();
+        let light = Light::new(&world);
+        let (mut times, mut verts) = (Vec::new(), 0usize);
+        for sy in 0..4 {
+            for sz in 0..8 {
+                for sx in 0..8 {
+                    let mut best = f64::MAX;
+                    let mut n = 0;
+                    for _ in 0..9 {
+                        let t = std::time::Instant::now();
+                        let geo = mesh(&world, &light, sx, sy, sz);
+                        best = best.min(t.elapsed().as_secs_f64() * 1000.0);
+                        n = geo.opaque.len() + geo.trans.len();
+                    }
+                    if n > 0 {
+                        times.push(best);
+                        verts += n;
+                    }
+                }
+            }
+        }
+        let avg = times.iter().sum::<f64>() / times.len() as f64;
+        let worst = times.iter().fold(0.0f64, |a, b| a.max(*b));
+        let all = {
+            let t = std::time::Instant::now();
+            for sy in 0..4 {
+                for sz in 0..8 {
+                    for sx in 0..8 {
+                        let _ = mesh(&world, &light, sx, sy, sz);
+                    }
+                }
+            }
+            t.elapsed().as_secs_f64() * 1000.0
+        };
+        println!(
+            "town: {} sections, remesh avg {avg:.3} ms, worst {worst:.3} ms, all {all:.1} ms, {verts} vertices",
+            times.len()
+        );
+        crate::shapes::STATS.with(|s| {
+            let mut v: Vec<_> = s
+                .borrow()
+                .iter()
+                .map(|(k, v)| (v.1, v.0, k.clone()))
+                .collect();
+            v.sort_by(|a, b| b.cmp(a));
+            for (verts, cells, (b, class)) in v.iter().take(12) {
+                println!("  block {b} {class}: {cells} cells, {verts} vertices");
+            }
+        });
     }
 
     #[test]

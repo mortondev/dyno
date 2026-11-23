@@ -13,8 +13,9 @@
 //! `blocks.json`:
 //!
 //! ```json
-//! { "blocks": { "red_roof_tiles": { "id": 49, "tags": ["roof", "chamfer"],
-//!                 "shape": { "rules": "roof", "vox": "shapes/roof_red.vox" } } },
+//! { "blocks": [ { "id": 49, "key": "red_roof_tiles", "textures": {...},
+//!                  "tags": ["roof", "chamfer"],
+//!                  "shape": { "rules": "roof", "vox": "shapes/roof_red.vox" } } ],
 //!   "shape_rules": { "roof": { "models": ["rows.0", ...], "classes": [
 //!       { "class": "slope", "fills": false, "turns": [1, 3, 0, 2], "pick": "best",
 //!         "score": [[2, {"at": [0, 1, 1], "is": "roof"}], ...], "min": 1,
@@ -35,9 +36,7 @@
 
 use crate::light::Light;
 use crate::render::{self, Vertex};
-use crate::terrain_mesh::{
-    DX, DY, DZ, F_DETAIL, F_OPAQUE, Glow, Grid, SectionGeo, at, hash3,
-};
+use crate::terrain_mesh::{DX, DY, DZ, F_DETAIL, F_OPAQUE, Glow, Grid, SectionGeo, at, hash3};
 use dyno_world::{self as w, BlockId};
 use glam::Vec3;
 use serde::Deserialize;
@@ -52,7 +51,7 @@ pub const FINE: f32 = 16.0;
 
 #[derive(Deserialize)]
 struct FileJson {
-    blocks: BTreeMap<String, BlockJson>,
+    blocks: Vec<BlockJson>,
     #[serde(default)]
     shape_rules: BTreeMap<String, RuleSetJson>,
     #[serde(default)]
@@ -62,6 +61,7 @@ struct FileJson {
 #[derive(Deserialize)]
 struct BlockJson {
     id: u16,
+    key: String,
     #[serde(default)]
     tags: Vec<String>,
     #[serde(default)]
@@ -249,6 +249,8 @@ pub(crate) struct Pack {
     file_palettes: BTreeMap<String, BTreeMap<String, MatJson>>,
     names: HashMap<String, BlockId>,
     classes: Vec<String>,
+    /// the meshers' flags of each block (`terrain_mesh::F_*`)
+    pub(crate) flags: [u8; 256],
 }
 
 /// Tag bits the engine itself reads.
@@ -287,6 +289,7 @@ impl Pack {
             file_palettes: BTreeMap::new(),
             names: HashMap::new(),
             classes: vec![String::new()],
+            flags: [0; 256],
         };
         for t in ENGINE_TAGS {
             p.tag_bit(t);
@@ -341,12 +344,12 @@ impl Pack {
     fn parse(text: &str) -> Result<Pack, String> {
         let f: FileJson = serde_json::from_str(text).map_err(|e| format!("blocks.json: {e}"))?;
         let mut p = Pack::empty();
-        for (name, b) in &f.blocks {
+        for b in &f.blocks {
             if b.id < 256 {
-                p.names.insert(name.clone(), b.id as BlockId);
+                p.names.insert(b.key.clone(), b.id as BlockId);
             }
         }
-        for b in f.blocks.values() {
+        for b in &f.blocks {
             let id = b.id as usize;
             if id >= 256 {
                 continue;
@@ -361,7 +364,11 @@ impl Pack {
             for c in &s.classes {
                 let id = p.class_id(&c.class);
                 let when = c.when.as_ref().map(|w| compile(w, &mut p));
-                let score = c.score.iter().map(|(k, w)| (*k, compile(w, &mut p))).collect();
+                let score = c
+                    .score
+                    .iter()
+                    .map(|(k, w)| (*k, compile(w, &mut p)))
+                    .collect();
                 let mut parts = Vec::new();
                 for part in &c.parts {
                     let features = part.features.iter().map(|f| compile(f, &mut p)).collect();
@@ -404,14 +411,18 @@ impl Pack {
             .iter()
             .map(|(k, v)| (k.clone(), v.palette.clone()))
             .collect();
-        for b in f.blocks.values() {
+        for b in &f.blocks {
             let (Some(s), true) = (&b.shape, b.id < 256) else {
                 continue;
             };
             let Some(set) = set_index.get(&s.rules).copied() else {
                 continue;
             };
-            let file = match p.files.iter().position(|(v, k, _)| *v == s.vox && *k == set) {
+            let file = match p
+                .files
+                .iter()
+                .position(|(v, k, _)| *v == s.vox && *k == set)
+            {
                 Some(i) => i,
                 None => {
                     p.files.push((s.vox.clone(), set, OnceLock::new()));
@@ -420,6 +431,10 @@ impl Pack {
             };
             p.shape[b.id as usize] = Some((set, file as u16));
         }
+        p.flags = crate::terrain_mesh::flags_with(
+            |b| p.shape[b as usize].is_some(),
+            |b| p.tags[b as usize] & tag::TERRAIN != 0,
+        );
         Ok(p)
     }
 
@@ -461,19 +476,54 @@ impl Pack {
 }
 
 /// The pack's block table and shapes.
+///
+/// Read again when the asset store changes (a pack arriving from the
+/// server); each thread keeps the one it last saw, so asking is cheap.
 pub(crate) fn pack() -> &'static Pack {
-    static P: OnceLock<Pack> = OnceLock::new();
-    P.get_or_init(|| {
-        crate::assets::ensure_local_pack();
-        match crate::assets::text("blocks.json").map(|t| Pack::parse(&t)) {
-            Some(Ok(p)) => p,
-            Some(Err(e)) => {
-                eprintln!("{e}");
-                Pack::empty()
-            }
-            None => Pack::empty(),
+    thread_local! {
+        static LOCAL: std::cell::Cell<Option<(u64, &'static Pack)>> =
+            const { std::cell::Cell::new(None) };
+    }
+    let g = crate::assets::generation();
+    if let Some((seen, p)) = LOCAL.with(|l| l.get())
+        && seen == g
+    {
+        return p;
+    }
+    static CURRENT: std::sync::Mutex<Option<(u64, &'static Pack)>> = std::sync::Mutex::new(None);
+    let mut cur = CURRENT.lock().unwrap_or_else(|e| e.into_inner());
+    crate::assets::load_local_pack();
+    let g = crate::assets::generation();
+    let text = crate::assets::get("blocks.json");
+    let hash = {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        text.as_deref().hash(&mut h);
+        h.finish()
+    };
+    let p = match *cur {
+        Some((h, p)) if h == hash => p,
+        _ => {
+            let parsed = match text
+                .as_deref()
+                .map(|t| Pack::parse(&String::from_utf8_lossy(t)))
+            {
+                Some(Ok(p)) => p,
+                Some(Err(e)) => {
+                    eprintln!("{e}");
+                    Pack::empty()
+                }
+                None => Pack::empty(),
+            };
+            // packs change rarely (once a join); the old one may still be
+            // in use on another thread, so it is kept
+            let p: &'static Pack = Box::leak(Box::new(parsed));
+            *cur = Some((hash, p));
+            p
         }
-    })
+    };
+    LOCAL.with(|l| l.set(Some((g, p))));
+    p
 }
 
 /// Whether a block carries one of the engine's tags ([`tag`]).
@@ -542,7 +592,12 @@ fn decide(p: &Pack, g: &Grid, c: usize, set: &RuleSet) -> Option<(usize, u8)> {
                 if cl.when.as_ref().is_some_and(|k| !x.eval(k)) {
                     continue;
                 }
-                let s: f32 = cl.score.iter().filter(|(_, k)| x.eval(k)).map(|(w, _)| w).sum();
+                let s: f32 = cl
+                    .score
+                    .iter()
+                    .filter(|(_, k)| x.eval(k))
+                    .map(|(w, _)| w)
+                    .sum();
                 if best.is_none_or(|b| s > b.0) {
                     best = Some((s, q));
                 }
@@ -783,9 +838,7 @@ impl Shade<'_> {
             Lit {
                 bl: bl as u8,
                 sl: sl as u8,
-                occ: u8::from(
-                    fl & F_DETAIL != 0 && fl & crate::terrain_mesh::F_DARK != 0,
-                ),
+                occ: u8::from(fl & F_DETAIL != 0 && fl & crate::terrain_mesh::F_DARK != 0),
                 known: true,
             }
         };
@@ -894,6 +947,12 @@ fn resolve(m: &Mat, x: &Ctx, face: usize) -> Look {
     }
 }
 
+#[cfg(test)]
+thread_local! {
+    /// (block, class) -> (cells, vertices) drawn, for measuring
+    pub(crate) static STATS: std::cell::RefCell<HashMap<(BlockId, String), (usize, usize)>> = Default::default();
+}
+
 /// Draw the section's own shaped blocks.
 pub(crate) fn mesh(g: &Grid, light: &Light, geo: &mut SectionGeo) {
     let p = pack();
@@ -923,7 +982,18 @@ pub(crate) fn mesh(g: &Grid, light: &Light, geo: &mut SectionGeo) {
                     continue;
                 }
                 let wp = [g.o[0] + x, g.o[1] + y, g.o[2] + z];
+                #[cfg(test)]
+                let before = geo.opaque.len() + geo.trans.len();
                 emit(p, g, &shade, c, wp, cl, q, file, b, geo);
+                #[cfg(test)]
+                STATS.with(|s| {
+                    let mut s = s.borrow_mut();
+                    let e = s
+                        .entry((b, p.classes[cl.id as usize].clone()))
+                        .or_insert((0, 0));
+                    e.0 += 1;
+                    e.1 += geo.opaque.len() + geo.trans.len() - before;
+                });
             }
         }
     }
@@ -960,12 +1030,15 @@ fn emit(
     let dir = |v: Vec3| Vec3::new(v.x * cos + v.z * sin, v.y, -v.x * sin + v.z * cos);
     let place = |v: Vec3| base + Vec3::new(0.5, 0.0, 0.5) + dir(v - Vec3::new(0.5, 0.0, 0.5));
     let models = p.models(file);
-    let mut looks: [Option<[Look; 3]>; 256] = [None; 256];
-    // which of the cell's own faces another opaque cell covers
+    let mut looks: Vec<(usize, [Look; 3])> = Vec::with_capacity(8);
+    // which of the cell's own faces the cell beside covers: an opaque one,
+    // or the same shape going on (a roof or a trunk continuing)
     let mut covered = [false; 6];
     if jitter == 0.0 {
         for (f, s) in STEPS.iter().enumerate() {
-            covered[f] = g.fl[step(c, turn(*s, q))] & F_OPAQUE != 0;
+            let n = step(c, turn(*s, q));
+            covered[f] = g.fl[n] & F_OPAQUE != 0
+                || (g.ids[n] == b && g.cls.get(n) == g.cls.get(c) && g.fl[n] & F_DETAIL != 0);
         }
     }
     for part in &cl.parts {
@@ -1001,14 +1074,14 @@ fn emit(
                 continue;
             }
             let pal = quad.pal as usize;
-            let look = match looks[pal] {
-                Some(l) => l,
+            let look = match looks.iter().find(|l| l.0 == pal) {
+                Some(l) => l.1,
                 None => {
                     let Some(Some(m)) = models.palette.get(pal) else {
                         continue;
                     };
                     let l = [0, 1, 2].map(|f| resolve(m, &x, f));
-                    looks[pal] = Some(l);
+                    looks.push((pal, l));
                     l
                 }
             };
@@ -1056,12 +1129,37 @@ fn emit(
 
 /// Bits of a table key as the JSON writes them: feature 0 first.
 pub(crate) fn bits_key(bits: u32, n: usize) -> String {
-    (0..n).map(|i| if bits >> i & 1 == 1 { '1' } else { '0' }).collect()
+    (0..n)
+        .map(|i| if bits >> i & 1 == 1 { '1' } else { '0' })
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Prints the quads of each shape model, heaviest first:
+    /// `cargo test -p dyno-client shape_weights -- --ignored --nocapture`
+    #[test]
+    #[ignore = "a measurement"]
+    fn shape_weights() {
+        let p = pack();
+        let mut all = Vec::new();
+        for (i, (path, set, _)) in p.files.iter().enumerate() {
+            let m = p.models(i as u16);
+            for (k, q) in m.models.iter().enumerate() {
+                all.push((
+                    q.len(),
+                    path.clone(),
+                    p.sets[*set as usize].models[k].clone(),
+                ));
+            }
+        }
+        all.sort_by(|a, b| b.cmp(a));
+        for (n, path, name) in all.iter().take(25) {
+            println!("{n:5} {path} {name}");
+        }
+    }
 
     /// The pack test for shapes: `blocks.json` reads, every rule set's
     /// models are in each shape file that uses it, every table names a
