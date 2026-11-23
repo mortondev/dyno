@@ -1166,6 +1166,12 @@ impl State {
     }
 
     pub fn set_block(&mut self, pos: [i32; 3], block: u8) {
+        self.set_block_as(pos, block, true);
+    }
+
+    /// Change a block; `persist` false for changes that need no world save
+    /// (a worked-out ore node and its regrowth live in the meta's regrow list).
+    pub fn set_block_as(&mut self, pos: [i32; 3], block: u8, persist: bool) {
         let old = self.world.get(pos[0], pos[1], pos[2]);
         if old == w::HEARTH {
             self.hearths.retain(|h| *h != pos);
@@ -1177,7 +1183,11 @@ impl State {
             self.world.set(pos[0], pos[1], pos[2], block);
             self.light.changed(&self.world, pos);
         }
-        self.dirty = true;
+        if persist {
+            self.dirty = true;
+        } else {
+            self.meta_dirty = true;
+        }
         self.broadcast(&ServerMsg::Block { pos, block }, None);
     }
 

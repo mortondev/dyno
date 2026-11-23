@@ -565,11 +565,8 @@ impl State {
             return;
         };
         let Some(mob) = e.mob.as_mut() else { return };
-        mob.health -= amount;
-        mob.last_hit = Some((pid, now));
-        mob.claim(pid);
-        mob.target = Some(pid);
-        if mob.evading {
+        // an evading creature takes no damage (it heals on the way home)
+        if !mob.take_hit(pid, amount) {
             return;
         }
         let boost = 1.0;

@@ -1117,6 +1117,104 @@ impl Session {
                 });
                 None
             }
+            "npcs" => {
+                // where every NPC stands, against the content and the ground there
+                let mut t = String::new();
+                for n in &b.content.npcs {
+                    let Some(e) = b.npc_ent(n.id) else {
+                        t += &format!("  {} not in sight (content at {:?})\n", n.name, n.at);
+                        continue;
+                    };
+                    let (x, z) = (e.pos.x.floor() as i32, e.pos.z.floor() as i32);
+                    let y = e.pos.y.floor() as i32 - b.hearth[1];
+                    let g = crate::body::ground(&b.world, x, z) - b.hearth[1];
+                    let start = crate::nav::node_at(&b.world, b.pos().into());
+                    let reach = start
+                        .and_then(|st| {
+                            crate::nav::find_path(
+                                &b.world,
+                                st,
+                                crate::nav::Goal::new(e.pos.into(), 3.0),
+                                150_000,
+                            )
+                        })
+                        .map(|p| {
+                            if p.partial {
+                                "partial path"
+                            } else {
+                                "reachable"
+                            }
+                        })
+                        .unwrap_or("NO PATH");
+                    t += &format!(
+                        "  {} at {},{},{} (content {:?}), ground {g}: {reach}\n",
+                        n.name,
+                        x - b.hearth[0],
+                        y,
+                        z - b.hearth[2],
+                        n.at
+                    );
+                }
+                Some(t)
+            }
+            "nodes" => {
+                // where the nodes for an item are: nearest ten, and how deep
+                let Some(item) = self.find_item(rest, false) else {
+                    return Some(format!("No item matches '{rest}'."));
+                };
+                let me = b.pos();
+                let mut v: Vec<(f32, [i32; 3], i32, bool)> = Vec::new();
+                for (blk, list) in &self.nodes.as_ref()?.by_block {
+                    let r = b.content.rule(*blk);
+                    if !(r.drops.iter().any(|d| d.item == item)
+                        || (r.drops.is_empty() && *blk as u16 == item))
+                    {
+                        continue;
+                    }
+                    for c in list {
+                        let p = Vec3::new(c[0] as f32 + 0.5, c[1] as f32, c[2] as f32 + 0.5);
+                        let depth = crate::body::ground(&b.world, c[0], c[2]) - c[1];
+                        v.push((p.distance(me), *c, depth, stand_for(&b.world, *c).is_some()));
+                    }
+                }
+                v.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap());
+                let total = v.len();
+                let reachable = v.iter().filter(|x| x.3).count();
+                let mut t =
+                    format!("{total} nodes, {reachable} with a standing place near the surface\n");
+                // exposed: in a hill face or on the surface, where a player can see it
+                let open: Vec<&(f32, [i32; 3], i32, bool)> = v
+                    .iter()
+                    .filter(|x| {
+                        let c = x.1;
+                        [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, 0, 1), (0, 0, -1)]
+                            .iter()
+                            .any(|(dx, dy, dz)| {
+                                !dyno_world::is_solid(b.world.get(c[0] + dx, c[1] + dy, c[2] + dz))
+                            })
+                    })
+                    .collect();
+                t += &format!("{} exposed to the air; nearest exposed:\n", open.len());
+                for (d, c, depth, ok) in open.iter().take(8) {
+                    t += &format!(
+                        "  {d:.0}m at {},{},{}: {depth} below the ground{}\n",
+                        c[0] - b.hearth[0],
+                        c[1] - b.hearth[1],
+                        c[2] - b.hearth[2],
+                        if *ok { "" } else { " (no place to stand)" }
+                    );
+                }
+                t += "nearest of all:\n";
+                for (d, c, depth, ok) in v.iter().take(10) {
+                    let (x, z) = (c[0] - b.hearth[0], c[2] - b.hearth[2]);
+                    t += &format!(
+                        "  {d:.0}m at {x},{},{z}: {depth} below the ground{}\n",
+                        c[1] - b.hearth[1],
+                        if *ok { "" } else { " (no place to stand)" }
+                    );
+                }
+                Some(t)
+            }
             "probe" => {
                 // debugging: the ground around a place and whether we can walk there
                 let nums: Vec<i32> = rest
@@ -1256,7 +1354,9 @@ impl Session {
         let pick = cands
             .into_iter()
             .take(30)
-            .find_map(|(_, c)| stand_for(&b.world, c).map(|s| (c, s)));
+            .filter_map(|(_, c)| stand_for(&b.world, c).map(|s| (c, s)))
+            .take(10)
+            .find(|(_, s)| crate::brain::reachable(&b.world, me, *s));
         if let Some((c, _)) = pick {
             self.gathered.insert(c, Instant::now());
         }

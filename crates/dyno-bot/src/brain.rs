@@ -133,6 +133,15 @@ impl Nodes {
     }
 }
 
+/// Can we walk from `from` to stand at `to`?
+pub fn reachable(world: &World, from: Vec3, to: Cell) -> bool {
+    let Some(start) = nav::node_at(world, from.into()) else {
+        return false;
+    };
+    let goal = nav::Goal::new([to[0] as f32 + 0.5, to[1] as f32, to[2] as f32 + 0.5], 0.6);
+    nav::find_path(world, start, goal, 30_000).is_some_and(|p| !p.partial)
+}
+
 /// A place to stand to gather `node` (eye within reach), if there is one.
 pub fn stand_for(world: &World, node: Cell) -> Option<Cell> {
     let c = Vec3::new(
@@ -151,7 +160,7 @@ pub fn stand_for(world: &World, node: Cell) -> Option<Cell> {
                 let eye = Vec3::new(s[0] as f32 + 0.5, s[1] as f32 + 1.62, s[2] as f32 + 0.5);
                 let d = eye.distance(c);
                 // stand on open ground, not in a cave under it
-                let open = crate::body::ground(world, s[0], s[2]) + 1 >= s[1] - 1;
+                let open = s[1] > crate::body::ground(world, s[0], s[2]);
                 if open && d <= 6.0 && best.is_none_or(|(b, _)| d < b) {
                     best = Some((d, s));
                 }
@@ -1229,8 +1238,15 @@ impl Scripted {
             }
         }
         cands.sort_by(|x, y| x.0.partial_cmp(&y.0).unwrap());
+        let mut tried = 0;
         for (d, c) in cands.into_iter().take(40) {
-            if let Some(stand) = stand_for(&a.body.world, c) {
+            let stand = stand_for(&a.body.world, c).filter(|st| {
+                // a few path searches at most: stands inside sealed houses
+                // and caves are common
+                tried += 1;
+                tried <= 8 && reachable(&a.body.world, a.body.pos(), *st)
+            });
+            if let Some(stand) = stand {
                 // do not come back to this one soon (it rests after gathering)
                 self.avoid_node.insert(c, now + Duration::from_secs(200));
                 self.last_node = Some(c);

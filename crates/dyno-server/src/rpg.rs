@@ -436,7 +436,7 @@ impl State {
             self.regrow.retain(|(p, _, _)| *p != pos);
             let here = self.world.get(pos[0], pos[1], pos[2]);
             if here == w::AIR || here == w::STONE {
-                self.set_block(pos, b);
+                self.set_block_as(pos, b, false);
             }
         }
     }

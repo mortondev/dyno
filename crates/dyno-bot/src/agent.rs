@@ -1040,6 +1040,27 @@ impl Agent {
                 }
                 let range = self.fight_range();
                 let d = self.body.dist3(e.pos);
+                // DYNO_BOT_TRACE=1: a line per second of every fight, for diagnosis
+                if std::env::var_os("DYNO_BOT_TRACE").is_some()
+                    && start.elapsed().as_millis() % 1000 < 50
+                {
+                    let me = self.body.pos();
+                    eprintln!(
+                        "[trace] {} t={:.0} {} #{t} hp {:.0}/{:.0} me {:.0}/{:.0} d={:.1} dy={:.1} at {:?} me at {:?} attacking {:?}",
+                        self.body.name,
+                        start.elapsed().as_secs_f32(),
+                        self.cname(*creature),
+                        e.health,
+                        e.max,
+                        self.body.health,
+                        self.body.max_health,
+                        d,
+                        e.pos.y - me.y,
+                        self.rel(e.pos),
+                        self.rel(me),
+                        self.body.attacking,
+                    );
+                }
                 if !self.body.is_casting() {
                     if d > range {
                         self.body.go_to(e.pos, (range - 0.5).max(1.5));
