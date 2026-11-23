@@ -1278,11 +1278,28 @@ impl Server {
         let mut last_time = Instant::now();
         let mut last_tick = Instant::now();
         let mut n: u64 = 0;
+        // DYNO_TICK_STATS: what a whole tick costs (sum, worst, ticks), once a minute
+        let tick_stats = std::env::var_os("DYNO_TICK_STATS").is_some();
+        let mut cost = (Duration::ZERO, Duration::ZERO, 0u32);
         while !self.stop.load(Ordering::SeqCst) {
             std::thread::sleep(Duration::from_millis(50));
             n += 1;
             let dt = last_tick.elapsed().as_secs_f32().min(0.25);
             last_tick = Instant::now();
+            if tick_stats && cost.2 >= 1200 {
+                let players: usize = self
+                    .shard_list()
+                    .iter()
+                    .map(|sh| sh.state.lock().unwrap().players.len())
+                    .sum();
+                log(format!(
+                    "tick: mean {:.2} ms, worst {:.1} ms over {} ticks, {players} players",
+                    cost.0.as_secs_f64() * 1e3 / cost.2 as f64,
+                    cost.1.as_secs_f64() * 1e3,
+                    cost.2
+                ));
+                cost = (Duration::ZERO, Duration::ZERO, 0);
+            }
             let mut snaps = Vec::new();
             let main_clock = {
                 let st = self.main_shard();
@@ -1333,6 +1350,9 @@ impl Server {
                     st.broadcast(&st.time_msg(), None);
                 }
             }
+            // the save is not part of the tick's cost: it runs every 10 s
+            let spent = last_tick.elapsed();
+            cost = (cost.0 + spent, cost.1.max(spent), cost.2 + 1);
             if last_save.elapsed() > Duration::from_secs(10) {
                 last_save = Instant::now();
                 self.save();

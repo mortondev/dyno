@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "size": [2048, 256, 2048],
  "design": [2048, 256, 2048],
  "seed": 20261123,
@@ -1304,6 +1304,32 @@
    "stamps": [
     {"stamp": "cairn", "at": [2, -6], "fit": "ground"},
     {"stamp": "boulders", "at": [-5, 8], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "old_quarry",
+   "kind": "site",
+   "at": [-150, -150],
+   "name": "The Old Quarry",
+   "radius": 22,
+   "stamps": [
+    {"stamp": "coal_seam", "at": [0, 0], "fit": "ground"},
+    {"stamp": "coal_seam", "at": [12, 5], "rot": 1, "fit": "ground"},
+    {"stamp": "coal_seam", "at": [-4, 13], "rot": 2, "fit": "ground"},
+    {"stamp": "iron_vein", "at": [-13, 2], "fit": "ground"},
+    {"stamp": "boulders", "at": [9, -9], "fit": "ground"},
+    {"stamp": "ore_cart", "at": [3, -12], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "beacon_rocks",
+   "kind": "wayside",
+   "at": [45, -275],
+   "name": "Beacon Rocks",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "coal_seam", "at": [0, 0], "rot": 1, "fit": "ground"},
+    {"stamp": "boulders", "at": [7, 5], "fit": "ground"}
    ]
   }
  ],

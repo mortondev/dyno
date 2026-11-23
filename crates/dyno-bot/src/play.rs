@@ -89,7 +89,7 @@ impl Session {
             std::thread::sleep(Duration::from_secs_f32(TICK));
         }
         a.baseline();
-        let nodes = Some(Nodes::scan(&a.body.world, &a.body.content));
+        let nodes = Some(Nodes::scan(&a.body.world, &a.body.content, a.body.pos()));
         Session {
             a,
             nodes,
@@ -1163,6 +1163,7 @@ impl Session {
                     return Some(format!("No item matches '{rest}'."));
                 };
                 let me = b.pos();
+                Nodes::fresh(&mut self.nodes, &b.world, &b.content, me);
                 let mut v: Vec<(f32, [i32; 3], i32, bool)> = Vec::new();
                 for (blk, list) in &self.nodes.as_ref()?.by_block {
                     let r = b.content.rule(*blk);
@@ -1333,9 +1334,12 @@ impl Session {
     }
 
     fn gather_node(&mut self, item: u16) -> Option<([i32; 3], [i32; 3])> {
-        if self.nodes.is_none() {
-            self.nodes = Some(Nodes::scan(&self.a.body.world, &self.a.body.content));
-        }
+        Nodes::fresh(
+            &mut self.nodes,
+            &self.a.body.world,
+            &self.a.body.content,
+            self.a.body.pos(),
+        );
         let b = &self.a.body;
         let me = b.pos();
         let mut cands: Vec<(f32, [i32; 3])> = Vec::new();

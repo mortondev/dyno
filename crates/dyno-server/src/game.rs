@@ -101,6 +101,8 @@ pub struct Player {
     pub auras: Vec<crate::abilities::Aura>,
     /// the named area you stand in
     pub area: Option<usize>,
+    /// keys of the named areas you have found (discovery XP, rides)
+    pub discovered: std::collections::HashSet<String>,
     /// how the player chose to look
     pub look: proto::Appearance,
     /// the sections of the world this player's client holds (stream.rs)
@@ -827,6 +829,7 @@ impl State {
             xp: data.xp,
             money: data.money,
             rested: rested_now,
+            discovered: data.discovered.iter().cloned().collect(),
             moves: crate::movement::MoveCheck::new(data.pos),
             party: Vec::new(),
             phases: 0,
@@ -1069,6 +1072,11 @@ impl State {
             xp: p.xp,
             money: p.money,
             rested: p.rested,
+            discovered: {
+                let mut d: Vec<String> = p.discovered.iter().cloned().collect();
+                d.sort();
+                d
+            },
             class: p
                 .class
                 .and_then(|c| self.content.class(c))

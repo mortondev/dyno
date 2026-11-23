@@ -106,21 +106,31 @@ impl Rng {
     }
 }
 
-/// Resource nodes in the world (blocks that regrow after gathering).
+/// Resource nodes in the world round where we stood when we looked (blocks
+/// that regrow after gathering). The world is streamed, so the bot only
+/// holds what is near it: the list is made again as it moves on.
 #[derive(Clone, Debug, Default)]
 pub struct Nodes {
     pub by_block: HashMap<u8, Vec<Cell>>,
+    /// where we stood (x, z)
+    pub at: [i32; 2],
 }
 
 impl Nodes {
-    pub fn scan(world: &World, content: &dyno_world::content::Content) -> Nodes {
+    /// how far round the bot the nodes are listed, and how far it may walk
+    /// before the list is made again
+    const REACH: i32 = 112;
+    const STALE: i32 = 48;
+
+    pub fn scan(world: &World, content: &dyno_world::content::Content, me: Vec3) -> Nodes {
         let mut by_block: HashMap<u8, Vec<Cell>> = HashMap::new();
         let gatherable: Vec<bool> = (0..=255u8)
             .map(|b| (b as usize) < content.blocks.len() && content.rule(b).respawn > 0)
             .collect();
         let [sx, sy, sz] = world.size;
-        for z in 0..sz as i32 {
-            for x in 0..sx as i32 {
+        let at = [me.x.floor() as i32, me.z.floor() as i32];
+        for z in (at[1] - Self::REACH).max(0)..(at[1] + Self::REACH).min(sz as i32) {
+            for x in (at[0] - Self::REACH).max(0)..(at[0] + Self::REACH).min(sx as i32) {
                 for y in 0..sy as i32 {
                     let b = world.get(x, y, z);
                     if b != w::AIR && gatherable[b as usize] {
@@ -129,7 +139,25 @@ impl Nodes {
                 }
             }
         }
-        Nodes { by_block }
+        Nodes { by_block, at }
+    }
+
+    /// Have we walked far enough that the list should be made again?
+    pub fn stale(&self, me: Vec3) -> bool {
+        (me.x.floor() as i32 - self.at[0]).abs() > Self::STALE
+            || (me.z.floor() as i32 - self.at[1]).abs() > Self::STALE
+    }
+
+    /// The list for where the bot stands now.
+    pub fn fresh(
+        nodes: &mut Option<Nodes>,
+        world: &World,
+        content: &dyno_world::content::Content,
+        me: Vec3,
+    ) {
+        if nodes.as_ref().is_none_or(|n| n.stale(me)) {
+            *nodes = Some(Nodes::scan(world, content, me));
+        }
     }
 }
 
@@ -1155,9 +1183,7 @@ impl Scripted {
         if blocks.is_empty() {
             return Ok(None);
         }
-        if self.nodes.is_none() {
-            self.nodes = Some(Nodes::scan(&a.body.world, &a.body.content));
-        }
+        Nodes::fresh(&mut self.nodes, &a.body.world, &a.body.content, a.body.pos());
         let now = Instant::now();
         let me = a.body.pos();
         let mut why_not = None;

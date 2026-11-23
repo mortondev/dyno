@@ -301,6 +301,15 @@ impl State {
         else {
             return;
         };
+        // a ride: it takes you there, and nothing goes into your bags
+        if let Some(ride) = self
+            .content
+            .items
+            .get(item.wrapping_sub(dyno_world::content::FIRST_ITEM) as usize)
+            .and_then(|i| i.ride.clone())
+        {
+            return self.take_ride(pid, item, price, &ride);
+        }
         let max = self.content.item(item).stack.max(1);
         let count = count.clamp(1, max);
         let Some(p) = self.players.get_mut(&pid) else {
@@ -333,6 +342,55 @@ impl State {
         if self.update_quests(pid) {
             self.send_quests(pid);
         }
+    }
+}
+
+impl State {
+    /// A ride bought from a merchant: to a place you have already found.
+    fn take_ride(
+        &mut self,
+        pid: PlayerId,
+        item: u16,
+        price: u32,
+        ride: &dyno_world::content::Ride,
+    ) {
+        let h = self.spawn_hearth;
+        let (x, z) = (h[0] + ride.at[0], h[2] + ride.at[1]);
+        let Some(p) = self.players.get(&pid) else {
+            return;
+        };
+        if p.combat_until > Instant::now() {
+            return self.tell(pid, "You cannot leave in the middle of a fight.");
+        }
+        if ride.area.as_ref().is_some_and(|a| !p.discovered.contains(a)) {
+            return self.tell(
+                pid,
+                "You have not found that place yet. Walk there once, and the ride is yours.",
+            );
+        }
+        if p.money < price {
+            return self.tell(pid, "You cannot afford that.");
+        }
+        if !self.world.in_bounds([x, 1, z]) {
+            return;
+        }
+        let to = [
+            x as f32 + 0.5,
+            (self.world.ground(x, z) + 1) as f32,
+            z as f32 + 0.5,
+        ];
+        let name = self.content.item(item).name.to_string();
+        let p = self.players.get_mut(&pid).unwrap();
+        p.money -= price;
+        p.pose.pos = to;
+        p.send(&ServerMsg::Teleport { pos: to });
+        p.send(&ServerMsg::System {
+            text: format!(
+                "{name}: you pay {} and climb aboard.",
+                dyno_sim::progression::money_text(price)
+            ),
+        });
+        self.send_character(pid);
     }
 }
 
