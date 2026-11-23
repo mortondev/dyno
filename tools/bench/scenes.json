@@ -1,6 +1,6 @@
 {
  "note": "The fixed scenes of the performance budget (docs/design/performance.md), measured by `dyno bench`. cameras: names in tools/concepts/cameras.json (the gauntlet's gameplay cameras). flight: straight runs between points, metres from the world's hearth (x east, z south), a few metres over the ground. tiers: the player's settings each tier pins (crates/dyno-client/src/settings.rs); default_tier is what a new player gets and what the budgets hold. world: the size and seed of the world `--local` builds.",
- "world": {"size": [384, 96, 384], "seed": 20261122},
+ "world": {"size": [0, 0, 0], "seed": 20261122},
  "size": [1920, 1080],
  "frames": 120,
  "cameras": ["hearthstead_plaza", "logging_camp", "hollow_oak", "windmill_farm", "mirrormere", "miners_rest"],
