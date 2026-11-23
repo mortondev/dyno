@@ -32,6 +32,8 @@ for pid in $(pgrep -u "$me" -x dyno); do
   esac
 done
 for pid in $(pgrep -u "$me" -f "until .*do sleep"); do
+  # only loops started from Claude's shells or task files, never anyone else's
+  grep -q "claude" /proc/$pid/cmdline 2>/dev/null || continue
   a=$(age $pid); [ -z "$a" ] && continue
   [ "$a" -gt 3600 ] && stop $pid "polling loop, $((a / 60)) min"
 done
