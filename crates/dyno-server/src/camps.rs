@@ -97,7 +97,14 @@ impl State {
                 }
                 continue;
             }
-            if sp.ready_at > now || !players.iter().any(|p| dist(*p, sp.pos) < WAKE) {
+            // a tool looking at a camp (`dyno shot`) wakes it as a player
+            // there would, so pictures show the world as it is played
+            let watched = self.observers.values().any(|o| {
+                o.view
+                    .center
+                    .is_some_and(|c| (c[0] - sp.pos[0]).hypot(c[2] - sp.pos[2]) < WAKE)
+            });
+            if sp.ready_at > now || !(watched || players.iter().any(|p| dist(*p, sp.pos) < WAKE)) {
                 continue;
             }
             // never spawn on top of someone

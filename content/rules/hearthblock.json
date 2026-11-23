@@ -5319,7 +5319,23 @@
     0,
     14
    ],
-   "greeting": "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+   "greeting": "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point",
+      "Bow"
+     ]
+    }
+   ]
   },
   {
    "key": "maren",
@@ -5335,7 +5351,23 @@
     0,
     -12
    ],
-   "greeting": "Keep your blade close and your torch closer. The dark has teeth now."
+   "greeting": "Keep your blade close and your torch closer. The dark has teeth now.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point",
+      "Wave"
+     ]
+    }
+   ]
   },
   {
    "key": "tilda",
@@ -5357,6 +5389,22 @@
     "cooked_meat:6",
     "berries:2",
     "miners_stew"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Cheer"
+     ]
+    }
    ]
   },
   {
@@ -5389,6 +5437,34 @@
     "stone_axe:20",
     "iron_pickaxe:150",
     "iron_axe:150"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      24
+     ],
+     "near": "anvil",
+     "within": 6,
+     "anim": "Hammer"
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
    ]
   },
   {
@@ -5405,7 +5481,22 @@
     -7,
     -49
    ],
-   "greeting": "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+   "greeting": "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
+   ]
   },
   {
    "key": "garrick",
@@ -5421,7 +5512,23 @@
     -3,
     -84
    ],
-   "greeting": "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold."
+   "greeting": "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point",
+      "Wave"
+     ]
+    }
+   ]
   },
   {
    "key": "ostrin",
@@ -5441,6 +5548,21 @@
    "sells": [
     "hearth_bread",
     "berries:2"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
    ]
   },
   {
@@ -5457,7 +5579,23 @@
     -11,
     138
    ],
-   "greeting": "The lake gives and the lake takes. Lately it only takes."
+   "greeting": "The lake gives and the lake takes. Lately it only takes.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
   },
   {
    "key": "bree",
@@ -5480,6 +5618,21 @@
     "woolen_cloak",
     "grazer_hide_leggings",
     "iron_pickaxe:150"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
    ]
   },
   {
@@ -5496,7 +5649,23 @@
     -4,
     8
    ],
-   "greeting": "Something lit candles down in the Hollow. Something that isn't us."
+   "greeting": "Something lit candles down in the Hollow. Something that isn't us.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Cheer",
+      "Point"
+     ]
+    }
+   ]
   },
   {
    "key": "ansel",
@@ -5518,6 +5687,1055 @@
     "hearth_bread",
     "miners_stew"
    ]
+  },
+  {
+   "key": "nell",
+   "name": "Nell",
+   "title": "Street Sweeper",
+   "color": [
+    0.5,
+    0.42,
+    0.6
+   ],
+   "at": [
+    3,
+    0,
+    -7
+   ],
+   "greeting": "Mind the dust. And the boots. Especially the boots.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sweep"
+    },
+    {
+     "at": [
+      4,
+      -5
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sweep"
+    },
+    {
+     "at": [
+      -3,
+      -8
+     ],
+     "secs": [
+      4,
+      7
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      -4,
+      -2
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sweep"
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "odo",
+   "name": "Odo",
+   "title": "Greengrocer",
+   "color": [
+    0.35,
+    0.55,
+    0.3
+   ],
+   "at": [
+    -6,
+    0,
+    -12
+   ],
+   "greeting": "Fresh from Ostrin's fields this morning. Well. Yesterday morning.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      16,
+      30
+     ],
+     "near": "crate",
+     "within": 8,
+     "anim": "Talk",
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "bram",
+   "name": "Bram",
+   "title": "Townsman",
+   "color": [
+    0.6,
+    0.35,
+    0.25
+   ],
+   "at": [
+    2,
+    0,
+    5
+   ],
+   "greeting": "Three hundred years that hearth burned. I give it three more, with you about.",
+   "routine": [
+    {
+     "at": [
+      5,
+      3
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      -5,
+      6
+     ],
+     "secs": [
+      5,
+      9
+     ]
+    },
+    {
+     "at": [
+      -6,
+      -4
+     ],
+     "secs": [
+      6,
+      12
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      4,
+      -5
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "ilsa",
+   "name": "Ilsa",
+   "title": "Townswoman",
+   "color": [
+    0.7,
+    0.45,
+    0.5
+   ],
+   "at": [
+    4,
+    0,
+    11
+   ],
+   "greeting": "Sit a while. The stones are still warm if you believe hard enough.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      25,
+      45
+     ],
+     "anim": "Sit"
+    },
+    {
+     "at": [
+      -5,
+      -3
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Wave",
+      "Cheer"
+     ]
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "tam",
+   "name": "Tam",
+   "title": "Lumberjack",
+   "color": [
+    0.6,
+    0.3,
+    0.2
+   ],
+   "at": [
+    -2,
+    -3,
+    -2
+   ],
+   "greeting": "Birch splits clean. Oak fights back. I respect oak.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "near": "log",
+     "within": 10,
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      3,
+      2
+     ],
+     "secs": [
+      4,
+      7
+     ],
+     "emotes": [
+      "Cheer"
+     ]
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "near": "birch_log",
+     "within": 12,
+     "anim": "Chop"
+    }
+   ],
+   "area": "logging_camp"
+  },
+  {
+   "key": "wyn",
+   "name": "Wyn",
+   "title": "Lumberjack",
+   "color": [
+    0.3,
+    0.45,
+    0.3
+   ],
+   "at": [
+    5,
+    -3,
+    -4
+   ],
+   "greeting": "Garrick says axes down. Garrick isn't the one behind on his cords.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "near": "birch_log",
+     "within": 12,
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      2,
+      3
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Sit"
+    },
+    {
+     "at": [
+      -3,
+      4
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "near": "log",
+     "within": 8,
+     "anim": "Chop"
+    }
+   ],
+   "area": "logging_camp"
+  },
+  {
+   "key": "edric",
+   "name": "Guard Edric",
+   "title": "North Watch",
+   "color": [
+    0.25,
+    0.35,
+    0.6
+   ],
+   "at": [
+    -2,
+    -7,
+    5
+   ],
+   "greeting": "Quiet night. I don't trust quiet nights.",
+   "routine": [
+    {
+     "at": [
+      6,
+      0
+     ],
+     "secs": [
+      4,
+      8
+     ]
+    },
+    {
+     "at": [
+      6,
+      6
+     ],
+     "secs": [
+      4,
+      8
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      -4,
+      6
+     ],
+     "secs": [
+      4,
+      8
+     ]
+    },
+    {
+     "at": [
+      -4,
+      0
+     ],
+     "secs": [
+      4,
+      8
+     ]
+    }
+   ],
+   "area": "north_watch"
+  },
+  {
+   "key": "jory",
+   "name": "Jory",
+   "title": "Farmhand",
+   "color": [
+    0.7,
+    0.6,
+    0.3
+   ],
+   "at": [
+    4,
+    -10,
+    6
+   ],
+   "greeting": "Ostrin says the mill grinds, the hands rake. So I rake.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      18
+     ],
+     "near": "hay_bale",
+     "within": 12,
+     "anim": "Sweep"
+    },
+    {
+     "at": [
+      -4,
+      3
+     ],
+     "secs": [
+      10,
+      16
+     ],
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      2,
+      -3
+     ],
+     "secs": [
+      4,
+      7
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "windmill"
+  },
+  {
+   "key": "marl",
+   "name": "Old Marl",
+   "title": "Fisherman",
+   "color": [
+    0.3,
+    0.45,
+    0.6
+   ],
+   "at": [
+    -3,
+    -11,
+    -2
+   ],
+   "greeting": "Hush. You'll scare the supper.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      45,
+      90
+     ],
+     "near": "water",
+     "within": 12,
+     "anim": "Fish"
+    },
+    {
+     "at": [
+      1,
+      1
+     ],
+     "secs": [
+      5,
+      8
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "fishers_landing"
+  },
+  {
+   "key": "dag",
+   "name": "Dag",
+   "title": "Miner",
+   "color": [
+    0.45,
+    0.4,
+    0.35
+   ],
+   "at": [
+    -4,
+    -4,
+    -3
+   ],
+   "greeting": "Coal's shallow here. Iron's deep. Candlekin are deeper. Guess which I dig.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      22
+     ],
+     "near": "coal_ore",
+     "within": 14,
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      -2,
+      3
+     ],
+     "secs": [
+      8,
+      14
+     ],
+     "anim": "Sit"
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      18
+     ],
+     "near": "iron_ore",
+     "within": 14,
+     "anim": "Chop"
+    }
+   ],
+   "area": "miners_rest"
+  },
+  {
+   "key": "sela",
+   "name": "Sela",
+   "title": "Wayfarer",
+   "color": [
+    0.5,
+    0.3,
+    0.55
+   ],
+   "at": [
+    9,
+    -6,
+    -5
+   ],
+   "greeting": "East road's no place to walk alone. So I walk it quickly.",
+   "routine": [
+    {
+     "at": [
+      -9,
+      0
+     ],
+     "secs": [
+      4,
+      8
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    },
+    {
+     "at": [
+      9,
+      0
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
+   ],
+   "area": "east_road"
+  },
+  {
+   "key": "hobb",
+   "name": "Carter Hobb",
+   "title": "Carter",
+   "color": [
+    0.55,
+    0.45,
+    0.3
+   ],
+   "at": [
+    -36,
+    -6,
+    -14
+   ],
+   "greeting": "A good wagon, that was. Forty years. Then Ashcloaks.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "near": "crate",
+     "within": 10,
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      3,
+      -2
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Point"
+     ]
+    }
+   ],
+   "area": "east_road"
+  },
+  {
+   "key": "tolan",
+   "name": "Guard Tolan",
+   "title": "Hearthstead Watch",
+   "color": [
+    0.25,
+    0.35,
+    0.6
+   ],
+   "at": [
+    15,
+    1,
+    -18
+   ],
+   "greeting": "Tower's sound. It's the roads I'd watch.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      -5,
+      3
+     ],
+     "secs": [
+      5,
+      9
+     ]
+    },
+    {
+     "at": [
+      -2,
+      -5
+     ],
+     "secs": [
+      5,
+      9
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "hearthstead"
+  },
+  {
+   "key": "rysa",
+   "name": "Rysa",
+   "title": "Hunter",
+   "color": [
+    0.3,
+    0.5,
+    0.3
+   ],
+   "at": [
+    -21,
+    -8,
+    -3
+   ],
+   "greeting": "Webs between the roots, thick as rope. Don't touch them.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      10,
+      18
+     ],
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      3,
+      -3
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      -2,
+      3
+     ],
+     "secs": [
+      6,
+      10
+     ]
+    }
+   ],
+   "area": "hollow_oak"
+  },
+  {
+   "key": "anwen",
+   "name": "Anwen",
+   "title": "Lorekeeper",
+   "color": [
+    0.5,
+    0.4,
+    0.65
+   ],
+   "at": [
+    -14,
+    -6,
+    20
+   ],
+   "greeting": "The stones are older than the hearth. Whatever sleeps under them is older still.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      20
+     ],
+     "near": "mossy_cobble",
+     "within": 8,
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      2,
+      2
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Point",
+      "Bow"
+     ]
+    }
+   ],
+   "area": "barrowwood"
+  },
+  {
+   "key": "calder",
+   "name": "Brother Calder",
+   "title": "Lamplighter",
+   "color": [
+    0.6,
+    0.5,
+    0.3
+   ],
+   "at": [
+    -3,
+    -9,
+    12
+   ],
+   "greeting": "A light at the door, every night. It's all that keeps them in.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      10,
+      18
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      -3,
+      2
+     ],
+     "secs": [
+      8,
+      12
+     ],
+     "anim": "Kneel"
+    },
+    {
+     "at": [
+      2,
+      3
+     ],
+     "secs": [
+      6,
+      10
+     ]
+    }
+   ],
+   "area": "barrowwood"
+  },
+  {
+   "key": "tess",
+   "name": "Tess",
+   "title": "Angler",
+   "color": [
+    0.35,
+    0.5,
+    0.55
+   ],
+   "at": [
+    13,
+    -11,
+    -9
+   ],
+   "greeting": "Mirrormere gives if you're patient. Takes, if you wade.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      45,
+      90
+     ],
+     "near": "water",
+     "within": 12,
+     "anim": "Fish"
+    },
+    {
+     "at": [
+      2,
+      -2
+     ],
+     "secs": [
+      5,
+      8
+     ],
+     "emotes": [
+      "Wave"
+     ]
+    }
+   ],
+   "area": "mirrormere"
+  },
+  {
+   "key": "oswin",
+   "name": "Oswin",
+   "title": "Pilgrim",
+   "color": [
+    0.75,
+    0.72,
+    0.6
+   ],
+   "at": [
+    25,
+    -10,
+    16
+   ],
+   "greeting": "They built it to stand in the water. I like to think they knew why.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      24
+     ],
+     "anim": "Kneel",
+     "emotes": [
+      "Bow"
+     ]
+    },
+    {
+     "at": [
+      -3,
+      3
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "emotes": [
+      "Bow",
+      "Point"
+     ]
+    }
+   ],
+   "area": "mirrormere"
+  },
+  {
+   "key": "mira",
+   "name": "Mira",
+   "title": "Night Watch",
+   "color": [
+    0.25,
+    0.3,
+    0.45
+   ],
+   "at": [
+    -25,
+    -11,
+    44
+   ],
+   "greeting": "Six by the fire, two on the gate. Stay behind my light.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      14,
+      24
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      3,
+      -2
+     ],
+     "secs": [
+      6,
+      10
+     ],
+     "anim": "Kneel"
+    }
+   ],
+   "area": "east_road"
+  },
+  {
+   "key": "pell",
+   "name": "Pell",
+   "title": "Surveyor",
+   "color": [
+    0.5,
+    0.45,
+    0.3
+   ],
+   "at": [
+    -11,
+    -6,
+    37
+   ],
+   "greeting": "Shaft's sound enough. It's what moved in that isn't.",
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      18
+     ],
+     "near": "coal_ore",
+     "within": 10,
+     "anim": "Chop"
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      8,
+      14
+     ],
+     "emotes": [
+      "Point"
+     ]
+    },
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      12,
+      18
+     ],
+     "near": "iron_ore",
+     "within": 10,
+     "anim": "Chop"
+    }
+   ],
+   "area": "hollow_mines"
   }
  ],
  "quests": [
