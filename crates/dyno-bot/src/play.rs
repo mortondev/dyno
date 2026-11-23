@@ -1354,7 +1354,9 @@ impl Session {
         let pick = cands
             .into_iter()
             .take(30)
-            .find_map(|(_, c)| stand_for(&b.world, c).map(|s| (c, s)));
+            .filter_map(|(_, c)| stand_for(&b.world, c).map(|s| (c, s)))
+            .take(10)
+            .find(|(_, s)| crate::brain::reachable(&b.world, me, *s));
         if let Some((c, _)) = pick {
             self.gathered.insert(c, Instant::now());
         }
