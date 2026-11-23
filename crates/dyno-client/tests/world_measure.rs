@@ -463,3 +463,94 @@ fn measure_world_streaming() {
     drop((j, light));
     std::thread::sleep(Duration::from_millis(300));
 }
+
+/// A real client's join at a point (the spawn, or a far hub): how long until
+/// it can play, how many bytes that took, and what the whole view and the
+/// far view cost after.
+///
+/// ```sh
+/// DYNO_MEASURE_ADDR=127.0.0.1:7661 DYNO_MEASURE_AT=x,y,z DYNO_CACHE_DIR=… \
+///   cargo test --release -p dyno-client --test world_measure measure_join -- --ignored --nocapture
+/// ```
+#[test]
+#[ignore]
+fn measure_join() {
+    let Ok(addr) = std::env::var("DYNO_MEASURE_ADDR") else {
+        eprintln!("set DYNO_MEASURE_ADDR (and DYNO_MEASURE_AT=x,y,z for a point)");
+        return;
+    };
+    let at: Option<[f32; 3]> = std::env::var("DYNO_MEASURE_AT").ok().and_then(|v| {
+        let n: Vec<f32> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+        (n.len() == 3).then(|| [n[0], n[1], n[2]])
+    });
+    let tag = std::process::id() % 100_000;
+    let t0 = Instant::now();
+    let j = dyno_client::net::connect_with(
+        &addr,
+        &format!("Join{tag}"),
+        dyno_client::net::JoinOptions {
+            token: 9_300_000 + tag as u64,
+            observer: true,
+            view_at: at,
+            ..Default::default()
+        },
+        Duration::from_secs(120),
+    )
+    .expect("joins");
+    let play = t0.elapsed();
+    let (before, pack) = (j.world_bytes, j.downloaded);
+    let held0 = j.world.held_sections().0;
+    // the rest of the view and the far view, until nothing arrives for a second
+    let (mut sec_bytes, mut uniform, mut mixed, mut far_bytes, mut far_tiles) =
+        (0u64, 0u32, 0u32, 0u64, 0u32);
+    let mut quiet = Instant::now();
+    let mut last = Instant::now();
+    while quiet.elapsed() < Duration::from_secs(2) {
+        if let Ok(dyno_client::net::NetEvent::Msg(m)) =
+            j.conn.rx.recv_timeout(Duration::from_millis(20))
+        {
+            match m {
+                ServerMsg::Sections(l) => {
+                    for (_, d) in &l {
+                        sec_bytes += d.len() as u64 + 12;
+                        if d.len() <= 3 {
+                            uniform += 1;
+                        } else {
+                            mixed += 1;
+                        }
+                    }
+                    quiet = Instant::now();
+                    last = Instant::now();
+                }
+                ServerMsg::Far(l) => {
+                    for (_, d) in &l {
+                        far_bytes += d.len() as u64 + 12;
+                        far_tiles += 1;
+                    }
+                    quiet = Instant::now();
+                    last = Instant::now();
+                }
+                _ => {}
+            }
+        }
+    }
+    eprintln!(
+        "JOIN at {:?} (spawn {:?}, hearth {:?}): playable after {} ms ({} KB of sections, {} sections; pack {} KB); \
+         the rest of the view {} KB ({} sections: {} all one block, {} mixed); \
+         far view {} KB ({} tiles); everything after {} ms",
+        at,
+        j.spawn,
+        j.hearth,
+        play.as_millis(),
+        before / 1024,
+        held0,
+        pack / 1024,
+        sec_bytes / 1024,
+        uniform + mixed,
+        uniform,
+        mixed,
+        far_bytes / 1024,
+        far_tiles,
+        (last - t0).as_millis()
+    );
+}

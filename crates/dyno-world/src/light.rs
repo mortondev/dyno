@@ -77,6 +77,9 @@ const R: i32 = 15;
 struct Patch {
     lo: [i32; 3],
     hi: [i32; 3],
+    /// the cells worked out are those below this height (a whole number
+    /// of sections); above it, all open sky
+    top: i32,
     /// packed levels, y then z then x
     light: Vec<u8>,
 }
@@ -318,6 +321,17 @@ impl Light {
 
     /// The light of the columns of the box [lo, hi], worked out but not stored.
     fn compute(&self, world: &World, lo: [i32; 3], hi: [i32; 3]) -> Option<Patch> {
+        self.compute_with(world, lo, hi, true)
+    }
+
+    /// `compute`, working out the open sky cell by cell too if not `clamp`.
+    fn compute_with(
+        &self,
+        world: &World,
+        lo: [i32; 3],
+        hi: [i32; 3],
+        clamp: bool,
+    ) -> Option<Patch> {
         let sy = self.size[1];
         let lo = [lo[0].max(0), 0, lo[2].max(0)];
         let hi = [
@@ -334,6 +348,28 @@ impl Light {
             sy - 1,
             (hi[2] + R).min(self.size[2] - 1),
         ];
+        // the open sky over the land (layers of sections all air, or all of
+        // some clear block that gives no light, over every column the light
+        // could come from) is lit by the sky alone: work out the light up
+        // to a section above the highest layer with anything in it (light
+        // from a block reaches less than a section), and leave the rest open
+        let clear = |s: SectionPos| {
+            let b = if world.has_section(s) {
+                world.section_uniform(s)
+            } else {
+                Some(w::AIR) // not here yet: air, as `World::get` reads it
+            };
+            b.is_some_and(|b| !w::is_opaque(b) && w::emission(b) == 0)
+        };
+        let mut highest = self.dims[1] - 1;
+        while clamp
+            && highest >= 0
+            && (elo[2] / SECTION..=ehi[2] / SECTION)
+                .all(|z| (elo[0] / SECTION..=ehi[0] / SECTION).all(|x| clear([x, highest, z])))
+        {
+            highest -= 1;
+        }
+        let sy = ((highest + 2) * SECTION).min(sy);
         let (ex, ez) = (ehi[0] - elo[0] + 1, ehi[2] - elo[2] + 1);
         // the scratch box with a border of one opaque cell all round, so the
         // fill needs no bounds checks (light never leaves the box)
@@ -449,12 +485,17 @@ impl Light {
                 }
             }
         }
-        Some(Patch { lo, hi, light: out })
+        Some(Patch {
+            lo,
+            hi,
+            top: sy,
+            light: out,
+        })
     }
 
     /// Store worked-out light, a section at a time, each in its smallest form.
     fn apply(&mut self, p: Patch) {
-        let Patch { lo, hi, light } = p;
+        let Patch { lo, hi, top, light } = p;
         let (w, d) = ((hi[0] - lo[0] + 1) as usize, (hi[2] - lo[2] + 1) as usize);
         let sy_all = self.size[1];
         for sy in 0..self.dims[1] {
@@ -473,6 +514,32 @@ impl Light {
                         (sz * SECTION + SECTION - 1).min(hi[2]),
                     );
                     let (y0, y1) = (sy * SECTION, (sy * SECTION + SECTION - 1).min(sy_all - 1));
+                    if y0 >= top {
+                        // open sky
+                        if self.secs[i] == SectionLight::Uniform(OPEN) {
+                            continue;
+                        }
+                        self.mark(i);
+                        let whole = x0 == sx * SECTION
+                            && x1 == sx * SECTION + SECTION - 1
+                            && z0 == sz * SECTION
+                            && z1 == sz * SECTION + SECTION - 1;
+                        if whole {
+                            self.secs[i] = SectionLight::Uniform(OPEN);
+                            continue;
+                        }
+                        let mut c = self.secs[i].cells();
+                        for y in y0..=y1 {
+                            for z in z0..=z1 {
+                                let l = ((y % SECTION * SECTION + z % SECTION) * SECTION) as usize;
+                                for x in x0..=x1 {
+                                    c[l + (x % SECTION) as usize] = OPEN;
+                                }
+                            }
+                        }
+                        self.secs[i] = SectionLight::compacted(&c);
+                        continue;
+                    }
                     let mut c = self.secs[i].cells();
                     for y in y0..=y1 {
                         for z in z0..=z1 {
@@ -546,6 +613,180 @@ mod tests {
         let t = std::time::Instant::now();
         let _ = Light::new(&world);
         eprintln!("the whole world: {:.0} ms", t.elapsed().as_secs_f64() * 1e3);
+    }
+
+    /// Lighting the columns a client gets round a point of a saved world,
+    /// as the client's worker does (six columns at a time, nearest first):
+    ///
+    /// ```sh
+    /// DYNO_BENCH_WORLD=world.dynw DYNO_BENCH_AT=1024,1024 \
+    ///   cargo test --release -p dyno-world light_round_a_point -- --ignored --nocapture
+    /// ```
+    #[test]
+    #[ignore]
+    fn light_round_a_point() {
+        let Ok(path) = std::env::var("DYNO_BENCH_WORLD") else {
+            eprintln!("set DYNO_BENCH_WORLD (and DYNO_BENCH_AT=x,z)");
+            return;
+        };
+        let world = World::decode(&std::fs::read(path).unwrap()).unwrap();
+        let d = world.section_dims();
+        let at: Vec<f32> = std::env::var("DYNO_BENCH_AT")
+            .map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect())
+            .unwrap_or_else(|_| vec![world.size[0] as f32 / 2.0, world.size[2] as f32 / 2.0]);
+        let col = [(at[0] as i32) / SECTION, (at[1] as i32) / SECTION];
+        // what each layer is made of, over the 9 × 9 columns round the point
+        let mut layers = Vec::new();
+        for y in 0..d[1] {
+            let (mut open, mut solid, mut mixed) = (0, 0, 0);
+            for z in col[1] - 4..=col[1] + 4 {
+                for x in col[0] - 4..=col[0] + 4 {
+                    match world.section_uniform([x, y, z]) {
+                        Some(b) if w::is_opaque(b) => solid += 1,
+                        Some(_) => open += 1,
+                        None => mixed += 1,
+                    }
+                }
+            }
+            layers.push(format!("{y}:{open}/{solid}/{mixed}"));
+        }
+        eprintln!("layers (open/solid/mixed of 81): {}", layers.join(" "));
+        // the columns within 48 m, nearest first
+        let mut cols: Vec<(f32, [i32; 2])> = Vec::new();
+        for z in col[1] - 4..=col[1] + 4 {
+            for x in col[0] - 4..=col[0] + 4 {
+                let dx = (x * SECTION + SECTION / 2) as f32 - at[0];
+                let dz = (z * SECTION + SECTION / 2) as f32 - at[1];
+                let h = dx.hypot(dz);
+                if h <= 48.0 && x >= 0 && z >= 0 && x < d[0] && z < d[2] {
+                    cols.push((h, [x, z]));
+                }
+            }
+        }
+        cols.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut c = World::sparse(world.size);
+        for (_, [x, z]) in &cols {
+            for y in 0..d[1] {
+                c.put_section([*x, y, *z], &world.encode_section([*x, y, *z]))
+                    .unwrap();
+            }
+        }
+        let mut best = f64::MAX;
+        for _ in 0..5 {
+            let mut l = Light::blank(&c);
+            let t = std::time::Instant::now();
+            for part in cols.chunks(6) {
+                let batch: Vec<SectionPos> = part
+                    .iter()
+                    .flat_map(|(_, [x, z])| (0..d[1]).map(move |y| [*x, y, *z]))
+                    .collect();
+                l.arrived(&c, &batch);
+            }
+            best = best.min(t.elapsed().as_secs_f64() * 1e3);
+        }
+        eprintln!(
+            "{} columns {} sections tall lit in {best:.0} ms ({:.1} ms a column, the best of 5)",
+            cols.len(),
+            d[1],
+            best / cols.len() as f64
+        );
+        // the sections a client's view holds (160 m), and the share all one block
+        for r in [40.0f32, 160.0] {
+            let (mut n, mut one) = (0, 0);
+            for z in 0..d[2] {
+                for x in 0..d[0] {
+                    let dx = (x * SECTION + SECTION / 2) as f32 - at[0];
+                    let dz = (z * SECTION + SECTION / 2) as f32 - at[1];
+                    if dx.hypot(dz) <= r {
+                        for y in 0..d[1] {
+                            n += 1;
+                            one += world.section_uniform([x, y, z]).is_some() as usize;
+                        }
+                    }
+                }
+            }
+            eprintln!("within {r} m: {n} sections, {one} all one block");
+        }
+        if std::env::var_os("DYNO_BENCH_WHOLE").is_some() {
+            let t = std::time::Instant::now();
+            let _ = Light::new(&world);
+            eprintln!("the whole world lit in {:.1} s", t.elapsed().as_secs_f64());
+        }
+    }
+
+    /// The open sky over the land is not worked out cell by cell, and the
+    /// light is the same as if it were: under an overhang high up, round a
+    /// glowing block just under the open sky and one alone in it.
+    #[test]
+    fn the_open_sky_is_lit_as_if_worked_out() {
+        let mut world = World::generate([64, 128, 64], 11);
+        let top = (0..64)
+            .flat_map(|z| (0..64).map(move |x| (x, z)))
+            .filter_map(|(x, z)| world.column_top(x, z))
+            .map(|(y, _)| y)
+            .max()
+            .unwrap();
+        // a roof two sections over the land, a lamp under it at the edge of
+        // its section, and a lamp alone in the sky
+        let roof = (top / SECTION + 2) * SECTION;
+        assert!(roof + 2 * SECTION < 128, "room over the land ({top})");
+        for z in 10..30 {
+            for x in 10..30 {
+                world.set(x, roof, z, w::STONE);
+            }
+        }
+        let lamp = w::BLOCK_COUNT as usize;
+        let glow = (0..lamp as u16)
+            .map(|b| b as w::BlockId)
+            .find(|b| w::emission(*b) >= 14)
+            .expect("a glowing block");
+        world.set(40, roof - 1, 40, glow);
+        world.set(20, roof + SECTION + 15, 50, glow);
+        world.set(50, roof + 1, 12, glow);
+        world.compact();
+        let lit = Light::new(&world);
+        let mut full = Light::blank(&world);
+        let p = full
+            .compute_with(&world, [0, 0, 0], [63, 127, 63], false)
+            .unwrap();
+        full.apply(p);
+        for y in 0..128 {
+            for z in 0..64 {
+                for x in 0..64 {
+                    assert_eq!(lit.sky(x, y, z), full.sky(x, y, z), "sky at {x},{y},{z}");
+                    assert_eq!(lit.get(x, y, z), full.get(x, y, z), "light at {x},{y},{z}");
+                }
+            }
+        }
+        // and streamed in, a column at a time
+        let mut c = World::sparse(world.size);
+        let mut l = Light::new(&c);
+        let d = world.section_dims();
+        for z in 0..d[2] {
+            for x in 0..d[0] {
+                let col: Vec<SectionPos> = (0..d[1]).map(|y| [x, y, z]).collect();
+                for s in &col {
+                    c.put_section(*s, &world.encode_section(*s)).unwrap();
+                }
+                l.arrived(&c, &col);
+            }
+        }
+        for y in 0..128 {
+            for z in 0..64 {
+                for x in 0..64 {
+                    assert_eq!(
+                        l.sky(x, y, z),
+                        full.sky(x, y, z),
+                        "streamed sky at {x},{y},{z}"
+                    );
+                    assert_eq!(
+                        l.get(x, y, z),
+                        full.get(x, y, z),
+                        "streamed light at {x},{y},{z}"
+                    );
+                }
+            }
+        }
     }
 
     #[test]

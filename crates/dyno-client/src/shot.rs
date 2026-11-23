@@ -207,6 +207,7 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
         let view_at = crate::app::shot_run()
             .map(|r| [r.0[0], 40.0, r.0[1]])
             .or(o.pos);
+        let joining = Instant::now();
         let j = net::connect_with(
             &o.addr,
             &name,
@@ -219,6 +220,21 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
             },
             Duration::from_secs(10),
         )?;
+        if std::env::var_os("DYNO_SHOT_STATS").is_some() {
+            eprintln!(
+                "join: {} ms, {} KB of the world before play ({} sections held, {} needed), {} KB of files",
+                joining.elapsed().as_millis(),
+                j.world_bytes / 1024,
+                j.world.held_sections().0,
+                net::sections_around(
+                    &j.world,
+                    view_at.unwrap_or(j.spawn),
+                    net::LOAD_RADIUS.min(j.view)
+                )
+                .len(),
+                j.downloaded / 1024
+            );
+        }
         let mut g = Gfx::new_headless(o.width, o.height)?;
         let ui = if o.ui == "none" { "hud" } else { &o.ui };
         return crate::app::shot_with_ui(
