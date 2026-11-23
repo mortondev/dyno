@@ -316,9 +316,10 @@ pub const BLOCKS: &[BlockDef] = &[
     },
     BlockDef {
         name: "Leaded window",
-        color: [0.55, 0.70, 0.80],
+        // lit from within: a warm glow at dusk and by night
+        color: [0.98, 0.80, 0.48],
         alpha: 0.6,
-        emission: 0,
+        emission: 8,
         material: Glass,
     },
     BlockDef {

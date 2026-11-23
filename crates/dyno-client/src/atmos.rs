@@ -404,8 +404,6 @@ fn sky_backdrop(dir: vec3<f32>) -> vec4<f32> {
       c = mix(env.ridge_near.rgb, sky_c, env.ridge_far.w * 0.3);
       land = 1.0;
     }
-    // haze lies along the foot of the hills
-    c = mix(c, u.fog.rgb, land * (1.0 - smoothstep(0.0, 0.02 * hs, h)) * 0.6);
   }
   // the fog of the low ground, seen all the way to the horizon
   if (env.fog.w > 0.0) {

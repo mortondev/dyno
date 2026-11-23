@@ -25,6 +25,9 @@ pub struct DomeLook {
     pub moon: [f32; 3],
     pub moon_bright: f32,
     pub moon_size: f32,
+    /// the moon is drawn this much lower than its light falls from (1: where
+    /// it is; less brings it down into view)
+    pub moon_height: f32,
     /// the glow low in the sky on the sun's side at sunrise and sunset
     pub glow: [f32; 3],
     pub glow_strength: f32,
@@ -74,6 +77,7 @@ impl Default for DomeLook {
             moon: [0.85, 0.88, 0.95],
             moon_bright: 1.0,
             moon_size: 2.0,
+            moon_height: 1.0,
             glow: [1.0, 0.75, 0.45],
             glow_strength: 0.0,
             glow_tight: 3.0,
@@ -309,7 +313,9 @@ fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
         moon: d.moon,
         moon_bright: d.moon_bright,
         moon_size: d.moon_size,
-        moon_dir: moon_dir.into(),
+        moon_dir: Vec3::new(moon_dir.x, moon_dir.y * d.moon_height, moon_dir.z)
+            .normalize_or(Vec3::Y)
+            .into(),
         moon_shown: 1.0 - k,
         cloud_lit: mul(cloud_lit, m.sky_tint),
         cloud_shade: mul(cloud_shade, m.sky_tint),
@@ -449,7 +455,7 @@ fn cloud_row(az: f32, el: f32, base: f32, cs: f32, seed: f32, thr: f32) -> vec2<
     let t = u.cam.w * env.cloud.x;
     for (var r = 0; r < 3; r++) {
       let k = f32(r);
-      let row = cloud_row(az + t * (0.5 + 0.25 * k), el, 0.06 + 0.10 * k + 0.02 * k * k, cs * (0.6 + 0.25 * k), 11.3 + 37.7 * k, thr + 0.02 * (2.0 - k));
+      let row = cloud_row(az + t * (0.5 + 0.25 * k), el, 0.15 + 0.11 * k + 0.02 * k * k, cs * (0.6 + 0.25 * k), 11.3 + 37.7 * k, thr + 0.02 * (2.0 - k));
       if (row.y > 0.0) {
         let col = mix(env.cloud_shade.rgb, env.cloud_lit.rgb, row.x);
         // far rows sink into the haze
