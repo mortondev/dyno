@@ -550,12 +550,14 @@ fn quests_give_xp_and_rewards() {
         ServerMsg::Gain { xp, money } => Some((*xp, *money)),
         _ => None,
     });
-    assert_eq!((xp, money), (120, 10));
+    // the numbers come from the content
+    let first = c.quests.iter().find(|q| q.key == "cold_hearth").unwrap();
+    assert_eq!((xp, money), (first.xp, first.money));
     let (lvl, have) = wait(&j, &mut pack, 3.0, |m, _| match m {
         ServerMsg::Character { level, xp, .. } => Some((*level, *xp)),
         _ => None,
     });
-    assert_eq!((lvl, have), (1, 120));
+    assert_eq!((lvl, have), (1, first.xp));
     // a collect quest: Tilda wants raw meat; it is taken and cooked meat given
     go(npc("tilda"));
     send(
@@ -564,15 +566,21 @@ fn quests_give_xp_and_rewards() {
             quest: quest("meat_for_the_pot"),
         },
     );
+    let pot = c
+        .quests
+        .iter()
+        .find(|q| q.key == "meat_for_the_pot")
+        .unwrap();
+    let need = pot.objectives[0].need() as u32;
     send(
         &j,
         ClientMsg::Chat {
-            text: "/give raw_meat 5".into(),
+            text: format!("/give raw_meat {}", need + 1),
         },
     );
     let meat = c.item_by_key("raw_meat").unwrap();
     wait(&j, &mut pack, 3.0, |_, p| {
-        (count(p, meat) == 5).then_some(())
+        (count(p, meat) == need + 1).then_some(())
     });
     // the server recounts collect objectives every second
     std::thread::sleep(Duration::from_millis(1200));
@@ -588,7 +596,11 @@ fn quests_give_xp_and_rewards() {
     wait(&j, &mut pack, 3.0, |_, p| {
         (count(p, cooked) == 4).then_some(())
     });
-    assert_eq!(count(&pack, meat), 1, "four raw meat were handed in");
+    assert_eq!(
+        count(&pack, meat),
+        1,
+        "the asked-for raw meat was handed in"
+    );
     // classes: pick Mage, then cast Fireball at a summoned Grazer
     let ember = c.classes.iter().find(|k| k.key == "mage").unwrap().id;
     send(&j, ClientMsg::ChooseClass { class: ember });

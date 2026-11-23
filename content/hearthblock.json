@@ -2762,6 +2762,12 @@
      "min": 1,
      "max": 1,
      "chance": 0.012
+    },
+    {
+     "item": "raw_iron",
+     "min": 1,
+     "max": 1,
+     "chance": 0.35
     }
    ],
    "hostile": true,
@@ -3269,7 +3275,7 @@
     0.3
    ],
    "at": [
-    12,
+    8,
     -10,
     97
    ],
@@ -3581,7 +3587,7 @@
    "requires": [
     "coal_for_the_watch"
    ],
-   "text": "The iron seams run deeper than coal: rust-red flecks in the stone. You'll want a stone pickaxe (Old Brannoc gives one for kindling, or I sell them) and a little practice: dig coal until your Mining reaches 5, and the iron will come away for you. Bring me 6 raw iron and I'll show you what a forge can do.",
+   "text": "The iron seams run deeper than coal: rust-red flecks in cave walls and cut hillsides. You'll want a stone pickaxe (Old Brannoc gives one for kindling, or I sell them) and a little practice: dig coal until your Mining reaches 5. Or take it back from the Ashcloak bandits on the East Road, who rob the miners' carts. Bring me 6 raw iron and I'll show you what a forge can do.",
    "done": "Good ore. Here, a proper pick, from my own anvil.",
    "objectives": [
     {
