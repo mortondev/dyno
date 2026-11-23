@@ -281,20 +281,45 @@ when one of them is replaced.
   through, the minimap shows it dark), `solid` answers true and movement
   stops in place where the ground has not arrived (`dyno-sim` movement), so
   nobody falls through land that is still on its way. `Light` is stored
-  per section, both levels in one byte, open sky not stored; arrivals are
-  lit a whole column at a time once the column is here (`Light::arrived`,
-  scattered columns on every core). A section is meshed once it and its 26
-  neighbours are here (the mesh and the light read past its edge), so an
-  arrival meshes only the neighbours it made ready (and remeshes those
-  below it, whose sky it may shade); dropped sections free their mesh and
-  light. The draw distance is capped at the view less a section. The
-  minimap redraws as land arrives.
+  per section, both levels in one byte, open sky not stored.
+- **The world thread** (`dyno-client/src/worldwork.rs`). Lighting and
+  meshing never run on the main thread in play. The game keeps its own
+  copy of the world (movement, picking, minimap) and of its light (figures
+  are lit by it); a worker thread keeps another copy of both and is sent
+  every section that arrives or leaves, every block edit and, when it moves
+  or turns, where the camera is. It lights whole columns once they are here
+  (`Light::arrived`, scattered columns on every core), meshes the sections
+  that are ready (a section and its 26 neighbours are here: the mesh and
+  the light read past its edge), edits first, then nearest the camera and
+  in front of it, 16 at a time, and sends back the meshes and copies of the
+  light sections it changed (`Light::take_changed`). An arrival meshes only
+  the neighbours it made ready (and remeshes those below it, whose sky it
+  may shade). The main thread copies the light in and uploads meshes until
+  3 ms of the frame are spent (`world_uploads` in `app.rs`); each section is
+  one vertex buffer (opaque, translucent, then lamp halos) filled through
+  the queue's staging memory. Meshes for a section dropped since are
+  ignored. `DYNO_WORLD_INLINE=1` does the same work on the main thread, a
+  step a frame (as before the worker), to compare. The mesher's interface
+  (`terrain_mesh::mesh`) is unchanged. The draw distance is capped at the
+  view less a section; the minimap redraws as land arrives.
+- **Loading veil.** After a join, and after any teleport (recall, respawn,
+  `/tp`) into land the client does not hold, a dark veil with "Loading the
+  land around you" covers the game until every section within 24 m of the
+  player is here and drawn. The server streams that land at the join rate:
+  a view whose own column is not held goes back to the join budget until
+  it is full again (`View::replan`).
 - **Join.** `net::connect_with` returns once the pack files and every
   section of the columns within `LOAD_RADIUS` (40 m) of the spawn are here
   (the loading screen shows "Loading the land around you"); the rest
-  arrives during play. Tools: `dyno shot` joins as an observer with
-  `JoinOptions::view_at` (`ClientMsg::ViewAt`) set to its camera, and waits
-  until the view stops arriving. Bots apply sections like the game
+  arrives during play. Tools: `dyno shot` asks for the world round its
+  camera with `JoinOptions::view_at` (`ClientMsg::ViewAt`), as an observer
+  or as a player (`--as NAME --pos …`: the server then streams the world
+  and what is near round that point instead of the character; the world and
+  what stands in it were never secret, since before streaming every client
+  heard of everything), lights and meshes it through the world thread as
+  play does, and waits until the view stops arriving. `DYNO_SHOT_STATS=1`
+  prints frame times; `DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]"` flies the camera
+  across the map while frames are measured. Bots apply sections like the game
   (`net::apply_world`); their path finder treats unknown land as not
   standable and walks partial paths towards far goals, and since they hear
   of creatures only within 100 m, a bot that finds a camp empty tries the
@@ -329,12 +354,23 @@ kind of traffic fell.
   50 ms), because each section is encoded once per shard and kept until it
   changes (`World::section_rev`); without the cache it was 384 ms.
 - Client: light for a column that arrives takes 2.9 ms (the whole world:
-  109 ms, from 374 ms before the fill read its box once). Arrivals are lit
-  and meshed a few whole columns at a time within about 8 ms of a frame;
-  after a join, the rest of the view (1,655 sections) takes about 50
-  batches of typically 17–30 ms (worst seen 140 ms on a busy machine).
-  Meshes built bit by bit equal those of the whole view built at once
-  (`DYNO_SHOT_VERIFY`).
+  109 ms, from 374 ms before the fill read its box once). Meshes built on
+  the world thread bit by bit equal those of the whole view built at once
+  (`DYNO_SHOT_VERIFY`: 4,092,207 + 32,922 vertices round the spawn).
+- Frames (`dyno shot` with `DYNO_SHOT_STATS`, frames rendered at about
+  60 Hz, 960 × 540, one machine shared with other builds; "world work" is
+  the main thread's time on sections, light copies and uploads):
+
+  | | World work on the main thread, a frame (median / 95% / max) | Frames over 20 ms | Land round the camera drawn after |
+  |---|---|---|---|
+  | Join, inline (as before) | 8–13 / 13–55 / 62–156 ms | 1–54 | 0.9–3.0 s |
+  | Join, world thread | 0.3–0.7 / 3.0–3.4 / 3.5–10.5 ms | 0–1 | 0.16–0.41 s |
+  | Running across the map (304 m at 7 m/s), inline | 0 / 3.0 / 75.7 ms | 30 of 2,575 | |
+  | The same, world thread | 0 / 0 / 3.2 ms | 0 of 2,700 | |
+
+  Under heavy load (other builds, load average 25–60 on 16 cores) single
+  frames still rose to 20–40 ms in a few join runs while their world work
+  stayed under 10 ms: the rest is rendering and scheduling.
 
 ## 5. World building as data
 

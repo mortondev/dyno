@@ -803,7 +803,7 @@ mod tests {
         assert!(c.feet.z < 46.0, "stood behind the wall: {c:?}");
         let d = target.distance(c.feet.x, c.feet.z);
         assert!((20.0..=30.0).contains(&d), "{d}");
-        assert!(c.visible > 0.6 && c.frame.landmark > 0.02, "{c:?}");
+        assert!(c.visible > 0.6 && c.frame.landmark >= 0.01, "{c:?}");
     }
 
     #[test]

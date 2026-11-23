@@ -165,7 +165,7 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
         let near_y = st.near_y.map(|y| y + h[1]);
         let face = [st.face[0] + h[0], st.face[1] + h[1], st.face[2] + h[2]];
         // the height is settled once the ground has streamed in
-        let pos = [at[0], near_y.unwrap_or(f32::NAN), at[1]];
+        let pos = [at[0], near_y.unwrap_or(-1.0), at[1]];
         if rel {
             // the hearth is known only now: move the view there
             let _ = j.conn.tx.send(ClientMsg::ViewAt {
@@ -188,15 +188,17 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
     if o.ui != "none" || o.player.is_some() {
         let name = o.player.clone().unwrap_or_else(|| o.name.clone());
         let observer = o.player.is_none();
-        // an observer streams the world around the camera; a player sees
-        // what streams around their character
+        // the world streams round the camera (or where a camera flight starts)
+        let view_at = crate::app::shot_run()
+            .map(|r| [r.0[0], 40.0, r.0[1]])
+            .or(o.pos);
         let j = net::connect_with(
             &o.addr,
             &name,
             net::JoinOptions {
                 token: crate::settings::tool_token(&name),
                 observer,
-                view_at: o.pos,
+                view_at,
                 ..Default::default()
             },
             Duration::from_secs(10),
