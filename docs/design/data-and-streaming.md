@@ -255,16 +255,21 @@ For new worlds and rebuilds:
   `thornboar`, `Hearthstead` or `Brannoc`, or is 10 MB or more (a ceiling
   against regressions). CI runs it, with `cargo clippy -p hearthblock`,
   because `--workspace` turns `host` on everywhere.
-- **Size: 9.54 MB** (Linux x86-64, 0.6.2 with the textures and sounds
-  bake): over the 8 MB target. Unwind tables were 1.4 MB (now gone with
-  `panic = "abort"`). Of the code, the client's own is about 0.85 MB; the
+- **Size: 9.32 MB** (Linux x86-64, 0.6.2 with the textures and sounds
+  bake): over the 8 MB target. It was 10.89 MB before the bake merge, and
+  9.54 MB after it with `panic = "abort"`; dropping egui-winit's `links`
+  feature (webbrowser) took off 0.22 MB. In a symbol breakdown of the
+  pre-merge build, unwind tables were 1.4 MB, the client's own code about
+  0.85 MB and naga 0.73 MB; the
   rest is engine libraries: naga (0.73 MB), wgpu core/hal, winit with its
   Wayland and X11 stacks and tiny-skia window decorations, rustls and ring
   (WebSockets and the updater share one copy), egui, and egui's built-in
   fonts (needed: before its first join the client has no pack fonts).
-  Next steps, none of them in this crate's code: one GPU backend per
-  platform (drop GL where Vulkan or Metal exists), winit without the
-  Adwaita decorations, a smaller fallback font.
+  Next steps are product calls, not code: one GPU backend per platform
+  (drop GL where Vulkan or Metal exists: `glow` and naga's GLSL output come
+  from wgpu's default `gles`), winit without the Adwaita window decorations
+  on Wayland (tiny-skia), a smaller fallback font. The size gate fails only
+  on Linux, where it was measured; other targets warn.
 - The release manifest keeps `assets` as the `dyno` binaries, which every
   updater up to 0.6 reads (the live server among them), and adds
   `programs: { dyno: {…}, hearthblock: {…} }`. From 0.7 the updater picks

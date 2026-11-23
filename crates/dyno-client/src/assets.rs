@@ -70,6 +70,9 @@ pub fn load_local_pack() -> usize {
     {
         dirs.push(d);
     }
+    // the source tree: debug builds and tests only (a release `dyno` has the
+    // built-in pack, and no build path is compiled into release binaries)
+    #[cfg(debug_assertions)]
     dirs.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content"));
     for d in dirs {
         if d.join("blocks.json").is_file()
