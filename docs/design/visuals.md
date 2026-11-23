@@ -348,3 +348,47 @@ planes rather than block by block.
 - Leaves are not part of this (the vegetation pass draws voxel clumps).
 - Collision stays on the 1 m grid: feet are drawn on the fine surface, up
   to 0.7 m from where the body stands.
+
+## Light, air and the graphics options
+
+The world is drawn into a float picture with three shadow cascades, then
+ambient occlusion, bloom and the grade (`post.rs`, `shadows.rs`,
+`atmos.rs`, `sky.rs`, `mood.rs`; the strengths are in `render.json`, see
+docs/design/data-and-streaming.md §3). The lamps nearest the camera also
+light the picture as lights of their own (`light.point`, `point_reach`):
+a pool round each on the faces turned to it, only where the voxel light of
+lamps reaches, so none shines through a wall.
+
+**Options** (the title's Options page and the pause menu, applied at once
+and saved; `options.rs`):
+
+| Tier | Shadow map (each of 3) | Occlusion | Bloom | Lamps as lights | Preset: water, cover, leaves |
+|---|---|---|---|---|---|
+| Low | 1024 | no | no | 0 | plain, 0.5, 0.5 |
+| Medium | 1536 | no | yes | 8 | clear, 1, 1 |
+| High | 2048 | yes | yes | 16 | mirrored, 1, 1 |
+| Ultra | 4096 | yes | yes | 24 | mirrored, 1.5, 2 |
+
+A first run picks the tier from the graphics adapter: high on a discrete
+card, medium on integrated graphics, low on a software renderer or the GL
+fallback. `DYNO_GRAPHICS=low|medium|high|ultra` overrides it.
+
+**Frame time** (release build, 1920 × 1080, the town by day, RTX 3080,
+`DYNO_SHOT_STATS=1 dyno shot --ui hud`: 30 frames, each waited on the
+GPU; 8 interleaved runs a tier). The machine and its GPU were shared with
+other builds and shots throughout (load average 30 to 40), so these are
+not clean: the minimum is the nearest thing to the true cost and the
+medians mostly measure contention. To be measured again on a quiet
+machine.
+
+| Tier | Minimum | Median |
+|---|---|---|
+| Low | 11.9 ms | 18.0 ms |
+| Medium | 6.6 ms | 16.1 ms |
+| High | 5.5 ms | 19.2 ms |
+| Ultra | 6.5 ms | 24.9 ms |
+
+Before the far view, fine terrain and ground cover were merged, the same
+measurement on debug builds gave about 2.0 to 2.8 ms for the old renderer
+and 3.5 to 3.8 ms on high: the light and post passes themselves cost
+about 1 to 1.5 ms a frame at this size on this card.
