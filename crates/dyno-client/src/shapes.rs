@@ -239,6 +239,7 @@ struct Mat {
     cond: Option<(Cond, Box<Mat>)>,
 }
 
+#[derive(Clone)]
 struct Entry {
     model: u16,
     glow: Option<[f32; 3]>,
@@ -247,6 +248,8 @@ struct Entry {
 struct Part {
     features: Vec<Cond>,
     table: HashMap<u32, Option<Entry>>,
+    /// `table` for every pattern, when there are few features
+    dense: Vec<Option<Entry>>,
     lift: Option<VaryJson>,
     joins: bool,
 }
@@ -431,6 +434,24 @@ impl Pack {
                         });
                         table.insert(key, e);
                     }
+                    // every pattern of a few features, looked up directly;
+                    // one never seen when baked takes the nearest that was
+                    let nearest = |bits: u32| {
+                        table
+                            .iter()
+                            .min_by_key(|(k, _)| ((*k ^ bits).count_ones(), **k))
+                            .and_then(|(_, e)| e.clone())
+                    };
+                    let dense: Vec<Option<Entry>> = if part.features.len() <= 12 {
+                        (0..1u32 << part.features.len())
+                            .map(|b| match table.get(&b) {
+                                Some(e) => e.clone(),
+                                None => nearest(b),
+                            })
+                            .collect()
+                    } else {
+                        Vec::new()
+                    };
                     if let Some(r) = &part.round {
                         for e in part.table.values().flatten() {
                             if let Some(m) = s.models.iter().position(|m| *m == e.model) {
@@ -441,6 +462,7 @@ impl Pack {
                     parts.push(Part {
                         features,
                         table,
+                        dense,
                         lift: part.lift,
                         joins: part.joins,
                     });
@@ -1836,7 +1858,11 @@ fn emit(
                 bits |= 1 << i;
             }
         }
-        let entry = match part.table.get(&bits) {
+        let entry = match part
+            .dense
+            .get(bits as usize)
+            .or_else(|| part.table.get(&bits))
+        {
             Some(e) => e.as_ref(),
             // never seen when baked: the nearest pattern that was
             None => part
