@@ -21,6 +21,7 @@ pub mod survival;
 pub mod terrain_mesh;
 pub mod textures;
 pub mod theme;
+pub mod vox;
 pub mod voxmodel;
 
 /// Open the game window. `prefill` sets the server address field.
