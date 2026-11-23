@@ -148,8 +148,8 @@
   },
 
   "emitters": [
-    {"effect": "chimney_smoke", "block": "stone_bricks", "above": "air", "below": "stone_bricks", "alone": 2, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 3, "offset": [0.5, 1.05, 0.5]},
-    {"effect": "chimney_smoke", "block": "cobble", "above": "air", "below": "stone_bricks", "alone": 1, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 3, "offset": [0.5, 1.05, 0.5]},
+    {"effect": "chimney_smoke", "block": "stone_bricks", "above": "air", "below": "stone_bricks", "alone": 2, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 8, "offset": [0.5, 1.05, 0.5]},
+    {"effect": "chimney_smoke", "block": "cobble", "above": "air", "below": "stone_bricks", "alone": 1, "near": ["red_roof_tiles", "slate_roof", "thatch"], "near_down": 8, "offset": [0.5, 1.05, 0.5]},
     {"effect": "fire_embers", "block": "brazier", "offset": [0.5, 0.8, 0.5]},
     {"effect": "fire_smoke", "block": "brazier", "above": "air", "offset": [0.5, 1.0, 0.5]},
     {"effect": "fire_embers", "block": "hearth", "above": "air", "offset": [0.5, 1.0, 0.5]},
