@@ -1344,6 +1344,8 @@ impl Gfx {
         width: u32,
         height: u32,
     ) -> Result<Self, String> {
+        // every way into the renderer (game, shots, sheets) sees the pack
+        crate::assets::load_local_pack();
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::from_env()
                 .unwrap_or(wgpu::Backends::PRIMARY | wgpu::Backends::GL),

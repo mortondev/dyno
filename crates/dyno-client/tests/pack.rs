@@ -142,9 +142,14 @@ fn no_texture_painting_or_sound_synthesis_left() {
             );
         }
     }
-    let tex =
-        std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("src/textures.rs"))
-            .unwrap();
+    // item icons are pictures from the pack, not shapes drawn per kind
+    let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let survival = std::fs::read_to_string(src.join("survival.rs")).unwrap();
+    for kind in ["Stick", "Lump", "Ingot", "Gem", "Dust", "Berries", "Meat"] {
+        let m = format!("Icon::{kind}");
+        assert!(!survival.contains(&m), "survival.rs still draws `{m}`");
+    }
+    let tex = std::fs::read_to_string(src.join("textures.rs")).unwrap();
     assert!(
         tex.lines().count() < 400,
         "textures.rs should only load textures, not paint them"
