@@ -443,7 +443,7 @@ pub fn choose(world: &World, s: &Site, paths: &[BlockId]) -> (Option<Choice>, Ta
             let score = 3.0 * seen
                 + 2.0 * framed
                 + 10.0 * f.landmark.min(0.3)
-                + 0.4 * on_path as u8 as f32
+                + 0.7 * on_path as u8 as f32
                 + 0.2 * open as u8 as f32
                 - 6.0 * f.clutter
                 - 0.1 * k as f32

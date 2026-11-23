@@ -12,7 +12,7 @@
   {"name": "hollow_oak", "at": [-100, -55], "half": [8, 8], "height": 22, "anchor": [-87, -53], "time": 0.36},
   {"name": "old_barrow", "at": [-130, 10], "half": [13, 13], "height": 12, "anchor": [-116, 10], "time": 0.4},
   {"name": "barrow_crypt", "at": [-118, 10], "half": [5, 4], "height": 5, "anchor": [-114, 10], "time": 0.62, "near": 8, "far": 22},
-  {"name": "wrecked_caravan", "at": [50, -12], "half": [5, 3], "height": 4, "anchor": [50, -9], "time": 0.3, "near": 6, "far": 22},
+  {"name": "wrecked_caravan", "at": [50, -12], "half": [5, 3], "height": 4, "anchor": [50, -9], "time": 0.3, "near": 10, "far": 22},
   {"name": "emberford_bridge", "at": [95, 0], "half": [10, 3], "height": 5, "anchor": [84, 3], "time": 0.29},
   {"name": "windmill_farm", "at": [15, 95], "half": [6, 6], "height": 18, "anchor": [10, 95], "time": 0.26},
   {"name": "fishers_landing", "at": [-30, 135], "half": [8, 8], "height": 6, "anchor": [-28, 136], "time": 0.45},
