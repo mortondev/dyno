@@ -53,9 +53,6 @@ const LEAF_OUT: f32 = 0.08;
 const CLIFF_KEEP: f32 = 0.55;
 /// How far the water surface sits below the top of its block.
 pub const WATER_DROP: f32 = 0.2;
-/// Per cent of open grass blocks that grow a tuft.
-const TUFT_PER_CENT: u32 = 62;
-
 /// Natural ground: drawn smooth (the pack's `terrain` tag).
 pub fn is_terrain(b: BlockId) -> bool {
     crate::shapes::has(b, crate::shapes::tag::TERRAIN)
@@ -97,15 +94,6 @@ pub(crate) fn flags_with(
     }
 }
 
-/// A tuft of grass (or a flower) to draw near the camera.
-#[derive(Clone, Copy)]
-pub struct Tuft {
-    pub pos: [f32; 3],
-    pub light: f32,
-    pub sky: f32,
-    pub seed: u32,
-}
-
 /// A soft halo around a lamp.
 #[derive(Clone, Copy)]
 pub struct Glow {
@@ -118,7 +106,11 @@ pub struct Glow {
 pub struct SectionGeo {
     pub opaque: Vec<Vertex>,
     pub trans: Vec<Vertex>,
-    pub tufts: Vec<Tuft>,
+    /// the open tops of the ground, for the cover to grow on (emptied once
+    /// it has)
+    pub tops: Vec<crate::cover::Top>,
+    /// plants and stones standing on the ground (`cover.rs`)
+    pub cover: Vec<crate::cover::Spot>,
     pub glows: Vec<Glow>,
 }
 
@@ -823,23 +815,20 @@ impl<'a> Nets<'a> {
                     put(ps[i], ns[i], ls[i], 0.0);
                 }
             }
-            // grass tufts on open, fairly level grass
-            if b == w::GRASS && q.dir == 2 {
+            // the open, fairly level tops of the ground: cover grows there
+            if q.dir == 2 {
                 // (earth painted as grass never gets here: its top is covered)
                 let [x, y, z] = [q.cell[0] as i32, q.cell[1] as i32, q.cell[2] as i32];
-                let (wx, wy, wz) = (g.o[0] + x, g.o[1] + y, g.o[2] + z);
-                let h = hash3(wx, wy, wz);
                 let up = (ns[0] + ns[1] + ns[2] + ns[3]).normalize_or_zero();
-                if h % 100 < TUFT_PER_CENT && g.ids[at(x, y + 1, z)] == w::AIR && up.y > 0.8 {
+                if g.ids[at(x, y + 1, z)] == w::AIR && up.y > 0.8 {
+                    let (wx, wy, wz) = (g.o[0] + x, g.o[1] + y, g.o[2] + z);
                     // QUAD order on the top face: (x, z), (x+1, z), (x+1, z+1), (x, z+1)
-                    let fx = 0.15 + 0.7 * ((h >> 8) & 255) as f32 / 255.0;
-                    let fz = 0.15 + 0.7 * ((h >> 16) & 255) as f32 / 255.0;
-                    let p = ps[0].lerp(ps[1], fx).lerp(ps[3].lerp(ps[2], fx), fz);
-                    geo.tufts.push(Tuft {
-                        pos: p.into(),
+                    geo.tops.push(crate::cover::Top {
+                        cell: q.cell,
+                        block: g.ids[at(x, y, z)],
+                        corners: ps.map(|p| p.into()),
                         light: light.get(wx, wy + 1, wz) as f32 / 15.0,
                         sky: light.sky(wx, wy + 1, wz) as f32 / 15.0,
-                        seed: h,
                     });
                 }
             }
@@ -1291,7 +1280,11 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
         Nets::new(&g, false).run(light, &mut geo);
     }
     if own & F_LEAVES != 0 {
-        Nets::new(&g, true).run(light, &mut geo);
+        // as clumps of cubes when the pack says so (`foliage.rs`), else smooth
+        match crate::foliage::current().filter(|f| f.voxels()) {
+            Some(f) => crate::foliage::mesh(&f, &g, light, &mut geo),
+            None => Nets::new(&g, true).run(light, &mut geo),
+        }
     }
     let has_water = all & F_WATER != 0;
     if own & (F_PIN | F_WATER) != 0 || (has_water && own & F_TERRAIN != 0) {
@@ -1300,6 +1293,8 @@ pub fn mesh(world: &World, light: &Light, sx: i32, sy: i32, sz: i32) -> SectionG
     if own & F_DETAIL != 0 {
         crate::shapes::mesh(&g, light, &mut geo);
     }
+    let tops = std::mem::take(&mut geo.tops);
+    crate::cover::scatter(&g, &tops, &mut geo.cover);
     geo
 }
 
