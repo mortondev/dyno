@@ -931,31 +931,77 @@ pub fn grow(sp: &Species, r: u32) -> Vec<TreeBlock> {
     }
     if sp.roots {
         // buttress roots at the foot
-        let n = if girth >= 3 { 2 } else { 1 };
+        let n = if girth >= 2 { 2 } else { 1 };
         for k in 0..girth {
             for (dx, dz) in [(-1, k), (girth, k), (k, -1), (k, girth)] {
                 if !hash(dx * 5 + k, dz * 3, r ^ 0x51).is_multiple_of(3) {
                     for y in 1..=n {
                         wood(&mut out, [dx, y, dz]);
                     }
+                    // and a toe beyond, where the foot flares
+                    if sp.flare && hash(dx * 3 - k, dz * 7 + k, r ^ 0x77).is_multiple_of(2) {
+                        let toe = if dx < 0 {
+                            [dx - 1, 1, dz]
+                        } else if dx >= girth {
+                            [dx + 1, 1, dz]
+                        } else if dz < 0 {
+                            [dx, 1, dz - 1]
+                        } else {
+                            [dx, 1, dz + 1]
+                        };
+                        wood(&mut out, toe);
+                    }
                 }
             }
         }
     }
     let Some(leaves) = leaves else {
-        // a snag: a broken limb or two
-        for (n, (dx, dz)) in [(1, 0), (0, 1), (-1, 0), (0, -1)].into_iter().enumerate() {
-            if (r >> (12 + n)) & 1 == 0 {
+        // a dead tree: bare branches that reach out and up, some forked
+        // (with no `limbs`, a snag with a broken stub or two)
+        let n = sp.limbs.max(1) as i32;
+        for k in 0..n {
+            let pick = hash(k, 21, r);
+            if sp.limbs == 0 && pick & 1 == 0 {
                 continue;
             }
-            let y = h - 2 - (n as i32 % 3);
-            let (ex, ez) = (
-                if dx > 0 { girth } else { dx },
-                if dz > 0 { girth } else { dz },
-            );
-            wood(&mut out, [ex, y, ez]);
-            if (r >> (16 + n)) & 1 == 1 {
-                wood(&mut out, [ex + dx, y + 1, ez + dz]);
+            let (dx, dz) =
+                [(1, 0), (0, 1), (-1, 0), (0, -1)][((r >> 12) as usize + k as usize) % 4];
+            let mut at = [
+                if dx > 0 {
+                    girth
+                } else if dx < 0 {
+                    -1
+                } else {
+                    (pick >> 4) as i32 % girth
+                },
+                (h as f32 * (0.5 + 0.38 * k as f32 / n as f32)) as i32,
+                if dz > 0 {
+                    girth
+                } else if dz < 0 {
+                    -1
+                } else {
+                    (pick >> 4) as i32 % girth
+                },
+            ];
+            let len = if sp.limbs == 0 {
+                1
+            } else {
+                2 + (pick >> 8) as i32 % 3
+            };
+            for step in 0..len {
+                wood(&mut out, at);
+                // out, and up every other step
+                at[0] += dx;
+                at[2] += dz;
+                if step % 2 == 0 {
+                    wood(&mut out, at);
+                    at[1] += 1;
+                }
+            }
+            if sp.limbs > 0 && (pick >> 16) & 1 == 1 {
+                // a fork: a twig to one side of the tip
+                wood(&mut out, [at[0] - dx + dz, at[1], at[2] - dz + dx]);
+                wood(&mut out, [at[0] - dx + dz, at[1] + 1, at[2] - dz + dx]);
             }
         }
         return out;
@@ -982,7 +1028,7 @@ pub fn grow(sp: &Species, r: u32) -> Vec<TreeBlock> {
                 let t = (h - y) as f32 / (h - skirt).max(1) as f32;
                 let mut rad = 0.7 + (half - 0.7) * t;
                 if (h - y) % 3 == 0 {
-                    rad *= 0.72;
+                    rad *= 0.5 + 0.22 * (1.0 - sp.crown.gaps).clamp(0.0, 1.0);
                 }
                 for dz in lo..=hi {
                     for dx in lo..=hi {
@@ -996,24 +1042,59 @@ pub fn grow(sp: &Species, r: u32) -> Vec<TreeBlock> {
             leaf(&mut out, [mid.floor() as i32, h, mid.floor() as i32]);
         }
         _ => {
-            // a dome of leaf clumps: one big one on top of the trunk and
-            // smaller ones round it, each on a limb
+            // leaf clumps: one on top of the trunk and others round it,
+            // each on a limb; how many, how big, how high and how far apart
+            // is the species' (a spreading oak, a slender birch)
+            let c = &sp.crown;
             let depth = (h - skirt) as f32;
-            let mut clumps = vec![(mid, h as f32 - depth * 0.5, mid, half * 0.8, depth * 0.5)];
-            let lobes = 3 + (r >> 20) % 3 + if width >= 13 { 2 } else { 0 };
+            let unit = |k: i32, salt: i32| (hash(k, salt, r) % 1000) as f32 / 1000.0;
+            let tall = c.shape == "tall";
+            let core = half * c.core;
+            let mut clumps = vec![if tall {
+                (mid, h as f32 - core, mid, core, core.max(1.5))
+            } else {
+                (mid, h as f32 - depth * 0.5, mid, core, depth * 0.5)
+            }];
+            if tall {
+                // and a fuller one at the waist, where the crown is widest
+                let cy = skirt as f32 + depth * 0.4;
+                clumps.push((mid, cy, mid, half * 0.92, (depth * 0.28).max(1.6)));
+            }
+            let span = c.clumps[1].saturating_sub(c.clumps[0]) + 1;
+            let lobes = c.clumps[0] + (r >> 20) % span + if width >= 13 { 2 } else { 0 };
             for k in 0..lobes {
-                let ang =
-                    k as f32 / lobes as f32 * std::f32::consts::TAU + (r % 628) as f32 / 100.0;
-                let rr = half * (0.42 + 0.12 * (hash(k as i32, 3, r) % 100) as f32 / 100.0);
-                let out_by = half - rr;
-                let cy = skirt as f32
-                    + depth * (0.3 + 0.25 * (hash(k as i32, 5, r) % 100) as f32 / 100.0);
+                let ki = k as i32;
+                // round the trunk; a tall crown winds its clumps up it
+                let turn = if tall {
+                    2.4
+                } else {
+                    std::f32::consts::TAU / lobes as f32
+                };
+                let ang = k as f32 * turn + (r % 628) as f32 / 100.0;
+                let rr = (half * (c.lump[0] + (c.lump[1] - c.lump[0]) * unit(ki, 3))).max(1.2);
+                let up = if tall {
+                    (k as f32 + 0.5) / lobes as f32
+                } else {
+                    c.rise[0] + (c.rise[1] - c.rise[0]) * unit(ki, 5)
+                };
+                let out_by = if tall {
+                    (half - rr) * (1.0 - 0.5 * up)
+                } else {
+                    half - rr
+                }
+                .max(0.0);
+                let cy = skirt as f32 + depth * up;
+                let ry = if tall {
+                    (depth / lobes as f32 * 0.8).max(1.6)
+                } else {
+                    (depth * 0.34).max(2.0)
+                };
                 clumps.push((
                     mid + ang.cos() * out_by,
-                    cy,
+                    cy.min(h as f32 - ry * 0.5),
                     mid + ang.sin() * out_by,
                     rr,
-                    (depth * 0.34).max(2.0),
+                    ry,
                 ));
                 // the limb that carries it
                 if (k as u8) < sp.limbs {
@@ -1022,7 +1103,8 @@ pub fn grow(sp: &Species, r: u32) -> Vec<TreeBlock> {
                         let t = s as f32 / steps.max(1) as f32;
                         let x = mid + ang.cos() * out_by * t;
                         let z = mid + ang.sin() * out_by * t;
-                        let y = skirt as f32 - 1.0 + (cy - skirt as f32 + 1.0) * t;
+                        let y0 = if tall { cy - 1.0 } else { skirt as f32 - 1.0 };
+                        let y = y0 + (cy - y0) * t;
                         wood(
                             &mut out,
                             [x.round() as i32, y.round() as i32, z.round() as i32],
@@ -1030,6 +1112,8 @@ pub fn grow(sp: &Species, r: u32) -> Vec<TreeBlock> {
                     }
                 }
             }
+            let edge = 0.8 - c.gaps.clamp(0.0, 0.5);
+            let mut lowest = std::collections::HashMap::new();
             for y in skirt - 1..=h {
                 for dz in lo..=hi {
                     for dx in lo..=hi {
@@ -1037,11 +1121,26 @@ pub fn grow(sp: &Species, r: u32) -> Vec<TreeBlock> {
                             let a =
                                 ((dx as f32 - cx).powi(2) + (dz as f32 - cz).powi(2)) / (rr * rr);
                             let b = (y as f32 - cy) / ry;
-                            a + b * b <= 0.8 + 0.3 * jit(dx, y, dz)
+                            a + b * b <= edge + 0.3 * jit(dx, y, dz)
                         });
                         if inside {
                             leaf(&mut out, [dx, y, dz]);
+                            lowest.entry((dx, dz)).or_insert(y);
                         }
+                    }
+                }
+            }
+            if c.shape == "weeping" && c.droop[1] > 0 {
+                // curtains of leaves hang from the rim of the dome
+                for ((dx, dz), y) in lowest {
+                    let d = ((dx as f32 - mid).powi(2) + (dz as f32 - mid).powi(2)).sqrt();
+                    if d < half * 0.5 || jit(dx, 77, dz) < 0.35 {
+                        continue;
+                    }
+                    let len = c.droop[0]
+                        + (jit(dz, 91, dx) * (c.droop[1] - c.droop[0] + 1) as f32) as i32;
+                    for yy in (y - len).max(2)..y {
+                        leaf(&mut out, [dx, yy, dz]);
                     }
                 }
             }
@@ -1326,7 +1425,37 @@ mod tests {
             r#"{"trunk":"log","leaves":"pine_leaves","height":[15,21],"girth":[1,2],
                 "crown":{"shape":"cone","width":[7,9]},"skirt":0.25}"#,
         );
-        for (sp, name) in [(&oak, "oak"), (&hero, "hero"), (&pine, "pine")] {
+        let birch = species(
+            r#"{"trunk":"birch_log","leaves":"birch_leaves","height":[11,15],"girth":[1,1],
+                "crown":{"shape":"tall","width":[5,7],"clumps":[4,6],"core":0.6,
+                "lump":[0.5,0.7],"gaps":0.1},"skirt":0.4,"limbs":6}"#,
+        );
+        let willow = species(
+            r#"{"trunk":"log","leaves":"birch_leaves","height":[11,14],"girth":[2,2],
+                "crown":{"shape":"weeping","width":[10,12],"droop":[3,6]},
+                "skirt":0.45,"limbs":4,"roots":true,"flare":true}"#,
+        );
+        // a willow's curtains hang well below where its dome begins
+        let w = grow(&willow, 7);
+        let low = w.iter().filter(|b| !b.wood).map(|b| b.at[1]).min().unwrap();
+        assert!(low <= 4, "the willow weeps to {low}");
+        // a dead tree has branches off its trunk
+        let dead = species(
+            r#"{"trunk":"log","height":[8,11],"girth":[1,2],"crown":{"shape":"none"},"limbs":4}"#,
+        );
+        let d = grow(&dead, 11);
+        assert!(d.iter().all(|b| b.wood));
+        assert!(
+            d.iter().any(|b| b.at[0] < -1 || b.at[0] > 2),
+            "it has branches"
+        );
+        for (sp, name) in [
+            (&oak, "oak"),
+            (&hero, "hero"),
+            (&pine, "pine"),
+            (&birch, "birch"),
+            (&willow, "willow"),
+        ] {
             let mut seen = (i32::MAX, 0);
             for r in 0..200u32 {
                 let t = grow(sp, r.wrapping_mul(2_654_435_761));

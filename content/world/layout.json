@@ -135,14 +135,20 @@
     "trunk": "log",
     "leaves": "leaves",
     "height": [11, 16],
-    "girth": [1, 2],
+    "girth": [2, 2],
     "crown": {
      "shape": "round",
-     "width": [8, 12]
+     "width": [9, 12],
+     "clumps": [5, 7],
+     "core": 0.5,
+     "lump": [0.34, 0.46],
+     "rise": [0.1, 0.85],
+     "gaps": 0.12
     },
-    "skirt": 0.45,
-    "limbs": 3,
-    "roots": true
+    "skirt": 0.42,
+    "limbs": 5,
+    "roots": true,
+    "flare": true
    },
    "birch": {
     "trunk": "birch_log",
@@ -150,24 +156,34 @@
     "height": [11, 15],
     "girth": [1, 1],
     "crown": {
-     "shape": "round",
-     "width": [8, 9]
+     "shape": "tall",
+     "width": [8, 9],
+     "clumps": [4, 6],
+     "core": 0.55,
+     "lump": [0.55, 0.75],
+     "gaps": 0.0
     },
-    "skirt": 0.5,
-    "limbs": 2
+    "skirt": 0.4,
+    "limbs": 6
    },
    "willow": {
     "trunk": "log",
     "leaves": "birch_leaves",
     "height": [11, 14],
-    "girth": [1, 2],
+    "girth": [2, 2],
     "crown": {
-     "shape": "round",
-     "width": [10, 12]
+     "shape": "weeping",
+     "width": [10, 12],
+     "clumps": [4, 6],
+     "core": 0.6,
+     "lump": [0.38, 0.5],
+     "rise": [0.4, 0.8],
+     "droop": [3, 6]
     },
-    "skirt": 0.22,
+    "skirt": 0.45,
     "limbs": 4,
-    "roots": true
+    "roots": true,
+    "flare": true
    },
    "pine": {
     "trunk": "log",
@@ -176,29 +192,40 @@
     "girth": [1, 2],
     "crown": {
      "shape": "cone",
-     "width": [7, 9]
+     "width": [7, 9],
+     "gaps": 0.6
     },
-    "skirt": 0.22
+    "skirt": 0.25
    },
    "dark_oak": {
     "trunk": "log",
     "leaves": "pine_leaves",
     "height": [11, 15],
-    "girth": [1, 2],
+    "girth": [2, 2],
     "crown": {
      "shape": "round",
-     "width": [8, 11]
+     "width": [9, 12],
+     "clumps": [4, 6],
+     "core": 0.5,
+     "lump": [0.36, 0.5],
+     "rise": [0.1, 0.8],
+     "gaps": 0.15
     },
-    "skirt": 0.5,
-    "limbs": 4,
+    "skirt": 0.45,
+    "limbs": 5,
     "roots": true,
-    "thin": 0.12
+    "thin": 0.08,
+    "flare": true
    },
    "snag": {
     "trunk": "log",
     "height": [8, 11],
-    "girth": [1, 1],
-    "crown": {"shape": "none"}
+    "girth": [1, 2],
+    "crown": {
+     "shape": "none"
+    },
+    "limbs": 4,
+    "roots": true
    },
    "hero_oak": {
     "trunk": "log",
@@ -207,11 +234,17 @@
     "girth": [2, 3],
     "crown": {
      "shape": "round",
-     "width": [14, 18]
+     "width": [14, 18],
+     "clumps": [7, 9],
+     "core": 0.5,
+     "lump": [0.3, 0.42],
+     "rise": [0.1, 0.9],
+     "gaps": 0.1
     },
     "skirt": 0.42,
-    "limbs": 5,
-    "roots": true
+    "limbs": 7,
+    "roots": true,
+    "flare": true
    }
   },
   "mixes": {
