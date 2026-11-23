@@ -98,6 +98,9 @@ pub(crate) struct BlockJson {
     /// how far it reaches into other ground and they into it (0: a crisp
     /// block edge), as a multiple of `edge`
     edge: Option<f32>,
+    /// how far its top sits below the ground round it, metres, where it
+    /// lies open to the sky (a path worn into the grass, with a stepped edge)
+    inset: Option<f32>,
 }
 
 /// Grass and flowers near the camera, as fine voxels.
@@ -191,6 +194,7 @@ pub(crate) struct Params {
     under: [BlockId; 256],
     jitter: [f32; 256],
     edge_of: [f32; 256],
+    inset: [f32; 256],
     pub tufts: TuftsJson,
     pub tuft_on: [bool; 256],
 }
@@ -211,6 +215,7 @@ impl Params {
             under: [0; 256],
             jitter: [j.jitter; 256],
             edge_of: [1.0; 256],
+            inset: [0.0; 256],
             tufts: j.tufts.clone(),
             tuft_on: [false; 256],
         };
@@ -235,6 +240,9 @@ impl Params {
             }
             if let Some(v) = b.edge {
                 p.edge_of[id] = v.max(0.0);
+            }
+            if let Some(v) = b.inset {
+                p.inset[id] = v.clamp(0.0, 0.5);
             }
         }
         for key in &j.tufts.on {
@@ -662,7 +670,10 @@ impl<'a> Fine<'a> {
             }
         }
         let pins = if terrain { self.pins(c) } else { 0 };
-        if terrain && lo > 0.0 {
+        // ground that sits lower than the ground round it (a worn path),
+        // where it lies open to the sky: decided per fine column below
+        let sinks = terrain && g.fl[c + DY] & !F_WATER == 0 && self.near_inset(c);
+        if terrain && lo > 0.0 && !sinks {
             return SOLID;
         }
         if !terrain && hi <= 0.0 {
@@ -744,6 +755,19 @@ impl<'a> Fine<'a> {
                 }
             }
         }
+        if sinks {
+            // each column takes the depth of the kind painted on its top,
+            // so the step follows the ragged edge between path and grass
+            for k in 0..r {
+                for i in 0..r {
+                    let kind = self.paint(x * r + i, y * r + r - 1, z * r + k, false);
+                    let deep = ((p.inset[kind as usize] * r as f32 + 0.25).floor() as i32).min(r - 1);
+                    for j in r - deep..r {
+                        self.pool[base + (j * r + k) as usize] &= !(1u16 << i);
+                    }
+                }
+            }
+        }
         #[cfg(test)]
         prof(0, t0.elapsed().as_secs_f64() * 1e3, 1.0);
         let rows = &self.pool[base..base + rr];
@@ -773,6 +797,31 @@ impl<'a> Fine<'a> {
             }
         }
         bits
+    }
+
+    /// Whether a ground cell or one beside it on its layer sits lower
+    /// than the ground round it (`inset`).
+    fn near_inset(&mut self, c: usize) -> bool {
+        let p = self.p;
+        if p.inset[self.material(c) as usize] > 0.0 {
+            return true;
+        }
+        if !self.is_ragged(c) {
+            return false;
+        }
+        let g = self.g;
+        [
+            c - DX - DZ,
+            c - DZ,
+            c + DX - DZ,
+            c - DX,
+            c + DX,
+            c - DX + DZ,
+            c + DZ,
+            c + DX + DZ,
+        ]
+        .into_iter()
+        .any(|q| g.fl[q] & F_TERRAIN != 0 && p.inset[self.material(q) as usize] > 0.0)
     }
 
     /// Row (j, k) of a cell: bits along x.

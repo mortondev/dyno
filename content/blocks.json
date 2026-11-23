@@ -9,7 +9,7 @@
   },
   "terrain": {
     "per_metre": 8,
-    "lod": [{"beyond": 48, "per_metre": 4}, {"beyond": 80, "per_metre": 2}, {"beyond": 112, "per_metre": 1}],
+    "lod": [{"beyond": 40, "per_metre": 4}, {"beyond": 64, "per_metre": 2}, {"beyond": 104, "per_metre": 1}],
     "noise": 0.05, "noise_size": 1.0,
     "strata": 0.06, "strata_height": 0.375,
     "edge": 0.32, "edge_size": 0.5,
@@ -21,9 +21,9 @@
       "sand": {"jitter": 0.07},
       "dirt": {"jitter": 0.1},
       "stone": {"jitter": 0.1},
-      "cobble": {"jitter": 0.1, "edge": 0.6},
-      "mossy_cobble": {"jitter": 0.1, "edge": 0.6},
-      "flagstones": {"jitter": 0.06, "edge": 0.4},
+      "cobble": {"jitter": 0.1, "edge": 0.6, "inset": 0.125},
+      "mossy_cobble": {"jitter": 0.1, "edge": 0.6, "inset": 0.125},
+      "flagstones": {"jitter": 0.06, "edge": 0.4, "inset": 0.125},
       "coal_ore": {"edge": 0},
       "iron_ore": {"edge": 0},
       "emberstone": {"edge": 0, "jitter": 0.0}
