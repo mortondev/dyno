@@ -191,7 +191,7 @@ What changed, all of it data or the sculpt tool:
 | **A thicker cape with a broad border**, so it holds together at a distance. | `clothes.rs` `cape` |
 | **A slightly large head** (1.14, the rig's `shape` on the head part) and **bigger hands**. | `person.rs` `rig`, `body.rs` `hand` |
 | **Hats**: `helm` 5 is a wide straw hat, 6 a miner's hard hat with a lit lamp. | `gear.rs` `helm` |
-| **Carried weapons 1.3 to 1.45 times life size** (the first-person size is unchanged). | `figures.json` `held.kinds.*.unit`, `fp` |
+| **Carried weapons 1.2 to 1.45 times life size** (the first-person size is unchanged). | `figures.json` `held.kinds.*.unit`, `fp` |
 | **Starter kits per class**: two garments each, in place of the worn tunic. Warrior: red tabard over mail, iron pauldrons. Paladin: blue tabard with a golden sun, bright pauldrons. Hunter: green tabard over a jerkin, a hood and a quiver. Rogue: dark jerkin, red cowl and scarf. Priest: white and gold robe and hood. Mage: blue and gold robe and mantle. | `rules/hearthblock.json` items and `classes[].starter`; `figures.json` `equip` |
 | **Townsfolk dressed for their trades**: the Watch (Holt, Ansel) in mail, blue tabards and helms with spears; Captain Maren in plate with a cape; Hollis in a leather apron with a hammer; Ostrin and Wenna in straw hats; Dunmore in a hard hat with a lamp and a pickaxe; Garrick with a felling axe; Bree with a ledger; Brannoc with a staff. | `figures.json` `npcs` |
 | **A hero per class** for the stand shots: a showcase set named by the class key (`dyno shot --stand --hero KEY`; the landmark list names each place's hero, as its concept shows). | `figures.json` `showcase`; `tools/concepts/landmarks.json` `hero` |

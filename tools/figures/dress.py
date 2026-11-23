@@ -269,8 +269,8 @@ NPCS = {
 
 # carried weapons are this much bigger than life (the first-person size
 # is kept)
-BIG = {'sword': 1.4, 'staff': 1.3, 'mace': 1.45, 'battle_axe': 1.35, 'bow': 1.3,
-       'polearm': 1.3, 'dagger': 1.35, 'shield': 1.2}
+BIG = {'sword': 1.4, 'staff': 1.2, 'mace': 1.45, 'battle_axe': 1.35, 'bow': 1.3,
+       'polearm': 1.2, 'dagger': 1.35, 'shield': 1.2}
 # their size at life size, as the pack had them
 LIFE = {'sword': 0.01854838617146015, 'staff': 0.020652173087000847, 'mace': 0.01899999938905239,
         'battle_axe': 0.0223214291036129, 'bow': 0.02045454643666744,
@@ -295,28 +295,55 @@ def rules():
         else:
             r['items'].append(it)
     for c in r['classes']:
-        kit = KITS[c['key']]
+        kit = KITS.get(c['key'])
+        if kit is None:
+            continue
         own = {k for ks in KITS.values() for k in ks}
         rest = [s for s in c['starter'] if s[0] != 'worn_tunic' and s[0] not in own]
         at = next((i for i, s in enumerate(rest) if s[0] == 'worn_trousers'), len(rest))
         c['starter'] = rest[:at] + [[k, 1] for k in kit] + rest[at:]
     open(path, 'w').write(json.dumps(r, indent=1))
+    return r
 
 
-def figures():
+def figures(r):
     path = os.path.join(PACK, 'figures.json')
     f = json.load(open(path))
     for key, spec in STARTERS.items():
         f['equip']['items'][key] = spec[5]
-    star = f['npcs']['*']
-    f['npcs'] = {'*': star, **NPCS}
+    # townsfolk others have added stay as they are
+    f['npcs'].update(NPCS)
     show = f['showcase']
-    people = [p for p in show['people'] if not p.get('hero') and 'npc' not in p]
-    sets = [s for s in show['sets'] if not s.get('hero') and s['name'] != 'Named townsfolk']
+    # the people and sets of this script are rebuilt; the rest are kept
+    # (sets name people by index, so people are only ever appended)
+    old = show['people']
+    keep = [i for i, p in enumerate(old) if not p.get('hero') and 'npc' not in p]
+    people = [old[i] for i in keep]
+    sets = []
+    for s in show['sets']:
+        if s.get('hero') or s['name'] == 'Named townsfolk':
+            continue
+        if 'on' in s:
+            s['on'] = [keep.index(i) for i in s['on'] if i in keep]
+        sets.append(s)
+    named = [k for k in f['npcs'] if k != '*']
     base = len(people)
-    for i, key in enumerate(NPCS):
+    for key in named:
         people.append({'name': key.capitalize(), 'npc': key, 'color': [0.4, 0.5, 0.6]})
-    sets.append({'name': 'Named townsfolk', 'on': list(range(base, base + len(NPCS)))})
+    sets.append({'name': 'Named townsfolk', 'on': list(range(base, base + len(named)))})
+    # a new character of each class, in its starter kit
+    items = {it['key']: it for it in r['items']}
+    for i, c in enumerate(r['classes']):
+        wear, weapon = [], None
+        for key, _ in c['starter']:
+            w = items.get(key, {}).get('gear', {}).get('weapon')
+            if w and weapon is None and w['kind'] not in ('shield', 'offhand'):
+                weapon = [w['kind'].capitalize(), items[key]['color']]
+            wear.append(key)
+        s = {'name': f"Starter: {c['name']}", 'hero': True, 'on': [i % 4], 'wear': wear}
+        if weapon:
+            s['weapon'] = weapon
+        sets.append(s)
     for key, (who, look) in HEROES.items():
         people.append({**who, 'hero': True})
         sets.append({'name': key, 'hero': True, 'on': [len(people) - 1], **look})
@@ -328,6 +355,5 @@ def figures():
     open(path, 'w').write(json.dumps(f, indent=1))
 
 
-rules()
-figures()
+figures(rules())
 print('dressed', PACK)

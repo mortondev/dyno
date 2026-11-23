@@ -2165,8 +2165,9 @@ mod tests {
         };
         assert!(count(&l) > count(&bare), "armour adds voxels");
         // old looks keep composing through the derived features
-        let maren = Look::npc("maren", [0.4, 0.5, 0.6]);
-        assert_eq!(fig.derived(&maren).feature("chest"), 3);
+        let mut old = Look::from_appearance(&Default::default(), [0.5; 3]);
+        old.set("armor", 2);
+        assert_eq!(fig.derived(&old).feature("chest"), 3);
     }
 
     /// Both bodies stand about 1.78 m (bald, bare-headed).

@@ -6668,9 +6668,9 @@
       "polearm": {
         "carry_turn": 0,
         "figure": "held.polearm",
-        "fp": [0.2769,0.4,0.15,0],
+        "fp": [0.3,0.4,0.15,0],
         "grip": "two_hand",
-        "unit": 0.028437499515712263
+        "unit": 0.026249999552965163
       },
       "ring": {
         "carry_turn": 0,
@@ -6696,9 +6696,9 @@
       "staff": {
         "carry_turn": 0,
         "figure": "held.staff",
-        "fp": [0.2769,0.4,0.15,0],
+        "fp": [0.3,0.4,0.15,0],
         "grip": "two_hand",
-        "unit": 0.026847825013101102
+        "unit": 0.024782607704401015
       },
       "stick": {
         "carry_turn": 0,
@@ -7322,18 +7322,28 @@
       },
       {
         "color": [0.4,0.5,0.6],
+        "name": "Ansel",
+        "npc": "ansel"
+      },
+      {
+        "color": [0.4,0.5,0.6],
         "name": "Brannoc",
         "npc": "brannoc"
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Maren",
-        "npc": "maren"
+        "name": "Bree",
+        "npc": "bree"
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Tilda",
-        "npc": "tilda"
+        "name": "Dunmore",
+        "npc": "dunmore"
+      },
+      {
+        "color": [0.4,0.5,0.6],
+        "name": "Garrick",
+        "npc": "garrick"
       },
       {
         "color": [0.4,0.5,0.6],
@@ -7347,13 +7357,8 @@
       },
       {
         "color": [0.4,0.5,0.6],
-        "name": "Ansel",
-        "npc": "ansel"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Garrick",
-        "npc": "garrick"
+        "name": "Maren",
+        "npc": "maren"
       },
       {
         "color": [0.4,0.5,0.6],
@@ -7362,18 +7367,13 @@
       },
       {
         "color": [0.4,0.5,0.6],
+        "name": "Tilda",
+        "npc": "tilda"
+      },
+      {
+        "color": [0.4,0.5,0.6],
         "name": "Wenna",
         "npc": "wenna"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Bree",
-        "npc": "bree"
-      },
-      {
-        "color": [0.4,0.5,0.6],
-        "name": "Dunmore",
-        "npc": "dunmore"
       },
       {
         "color": [0.5,0.5,0.5],
@@ -7729,6 +7729,104 @@
       {
         "name": "Named townsfolk",
         "on": [4,5,6,7,8,9,10,11,12,13,14]
+      },
+      {
+        "hero": true,
+        "name": "Starter: Warrior",
+        "on": [0],
+        "weapon": [
+          "Sword",
+          [0.72,0.72,0.78]
+        ],
+        "wear": [
+          "worn_shortsword",
+          "battered_buckler",
+          "recruits_tabard",
+          "recruits_pauldrons",
+          "worn_trousers",
+          "worn_boots"
+        ]
+      },
+      {
+        "hero": true,
+        "name": "Starter: Paladin",
+        "on": [1],
+        "weapon": [
+          "Mace",
+          [0.55,0.45,0.35]
+        ],
+        "wear": [
+          "rough_maul",
+          "initiates_tabard",
+          "initiates_pauldrons",
+          "worn_trousers",
+          "worn_boots"
+        ]
+      },
+      {
+        "hero": true,
+        "name": "Starter: Hunter",
+        "on": [2],
+        "weapon": [
+          "Bow",
+          [0.6,0.45,0.28]
+        ],
+        "wear": [
+          "hunting_bow",
+          "woodsman_hatchet",
+          "trackers_jerkin",
+          "trackers_hood",
+          "worn_trousers",
+          "worn_boots"
+        ]
+      },
+      {
+        "hero": true,
+        "name": "Starter: Rogue",
+        "on": [3],
+        "weapon": [
+          "Dagger",
+          [0.6,0.5,0.45]
+        ],
+        "wear": [
+          "rusty_dagger",
+          "footpads_jerkin",
+          "footpads_cowl",
+          "worn_trousers",
+          "worn_boots"
+        ]
+      },
+      {
+        "hero": true,
+        "name": "Starter: Priest",
+        "on": [0],
+        "weapon": [
+          "Mace",
+          [0.55,0.42,0.3]
+        ],
+        "wear": [
+          "oak_mace",
+          "acolytes_robe",
+          "acolytes_hood",
+          "worn_trousers",
+          "worn_boots"
+        ]
+      },
+      {
+        "hero": true,
+        "name": "Starter: Mage",
+        "on": [1],
+        "weapon": [
+          "Staff",
+          [0.5,0.38,0.26]
+        ],
+        "wear": [
+          "apprentice_staff",
+          "novices_robe",
+          "novices_mantle",
+          "worn_trousers",
+          "worn_boots"
+        ]
       },
       {
         "carry": {
