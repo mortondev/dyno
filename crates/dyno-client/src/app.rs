@@ -1,5 +1,6 @@
 //! Window, input, screens (connect, joining, playing) and the HUD.
 
+use crate::anim::{self, Anim, Book as Anims, Skeleton};
 use crate::audio::{Audio, Sfx};
 use crate::front::{self, Front, FrontCmd};
 use crate::game::{self, Input, Player, Remote, Remotes, Target};
@@ -128,6 +129,8 @@ struct Play {
     url: String,
     player: Player,
     remotes: Remotes,
+    /// everyone's animation state
+    anims: Anims,
     chat: Vec<Chat>,
     chat_open: bool,
     chat_text: String,
@@ -606,31 +609,44 @@ fn quest_finished(c: &dyno_world::content::Content, q: &dyno_protocol::QuestProg
     })
 }
 
-/// Draw every creature, lit by the block light where it stands.
-fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
+/// Draw every creature and NPC, lit by the block light where it stands and
+/// animated from what it is doing (see `docs/design/animation.md`).
+fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f32) {
+    let now = book.now();
+    let talking = match &p.panel {
+        Some(rpg_ui::Panel::Dialog { entity, .. } | rpg_ui::Panel::Vendor { entity, .. }) => {
+            Some(*entity)
+        }
+        _ => None,
+    };
     for (id, e) in &p.entities {
+        let pos = p.ground.feet(&p.world, e.pos());
+        let step = Vec3::from(e.to) - Vec3::from(e.from);
+        let vel = if e.at.elapsed().as_secs_f32() < 0.25 {
+            step / 0.1
+        } else {
+            Vec3::ZERO
+        };
+        let at = pos + Vec3::Y;
+        let light = p.light.get(
+            at.x.floor() as i32,
+            at.y.floor() as i32,
+            at.z.floor() as i32,
+        ) as f32
+            / 15.0;
         if let EntityKind::Npc(n) = e.kind
             && let Some(npc) = p.content.npc(n)
         {
-            let pos = p.ground.feet(&p.world, e.pos());
-            let at = pos + Vec3::Y;
-            let light = p.light.get(
-                at.x.floor() as i32,
-                at.y.floor() as i32,
-                at.z.floor() as i32,
-            ) as f32
-                / 15.0;
+            let base = if talking == Some(*id) {
+                Anim::Talk
+            } else {
+                anim::locomotion(vel, e.yaw, 4.0).unwrap_or(Anim::Idle)
+            };
+            let speed = Vec3::new(vel.x, 0.0, vel.z).length();
+            let (a, _) = book.entity(*id, now);
+            a.drive_at(now, base, pos, Skeleton::Biped.step(speed, 1.0));
             let look = models::Look::npc(&npc.key, npc.color);
-            models::push_person(
-                boxes,
-                pos,
-                e.yaw,
-                0.0,
-                &look,
-                light.max(0.35),
-                clock * 2.0,
-                0.0,
-            );
+            models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
             continue;
         }
         let EntityKind::Creature(cid) = e.kind else {
@@ -639,54 +655,37 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
         let Some(c) = p.content.creature(cid) else {
             continue;
         };
-        let pos = p.ground.feet(&p.world, e.pos());
-        let step = Vec3::from(e.to) - Vec3::from(e.from);
-        let moving = e.at.elapsed().as_secs_f32() < 0.25;
-        let walk = if moving {
-            (Vec3::new(step.x, 0.0, step.z).length() / 0.1 / c.speed.max(0.5)).min(1.0)
-        } else {
-            0.0
-        };
         let flash = e
             .hurt_at
             .map(|t| (1.0 - t.elapsed().as_secs_f32() / 0.12).max(0.0))
             .unwrap_or(0.0);
-        let at = pos + Vec3::Y;
-        let light = p.light.get(
-            at.x.floor() as i32,
-            at.y.floor() as i32,
-            at.z.floor() as i32,
-        ) as f32
-            / 15.0;
-        let start = boxes.len();
-        models::push_creature(
-            boxes,
-            c.model,
-            c.variant,
-            pos,
-            e.yaw,
-            c.color,
-            light,
-            clock * 9.0 + *id as f32,
-            walk,
-            flash,
-            clock + *id as f32 * 0.37,
-        );
         // size: the creature's own scale, and rare elites are a quarter larger
         let scale = c.scale * if e.name.is_some() { 1.25 } else { 1.0 };
-        if (scale - 1.0).abs() > 0.01 {
-            for v in &mut boxes[start..] {
-                let q = (Vec3::from(v.pos) - pos) * scale + pos;
-                v.pos = q.into();
-            }
-        }
+        let skeleton = Skeleton::of(c.model, c.variant);
+        // in a fight: hit lately, or a hostile that has you targeted
+        let fighting = e
+            .hurt_at
+            .is_some_and(|t| t.elapsed() < Duration::from_secs(8))
+            || (c.hostile && p.attacking == Some(*id));
+        let base = anim::locomotion(vel, e.yaw, c.speed.max(0.5)).unwrap_or(if fighting {
+            Anim::Ready
+        } else {
+            Anim::Idle
+        });
+        let speed = Vec3::new(vel.x, 0.0, vel.z).length();
+        let (a, _) = book.entity(*id, now);
+        a.drive_at(now, base, pos, skeleton.step(speed, scale));
+        models::push_creature(
+            boxes, c.model, c.variant, pos, e.yaw, c.color, light, flash, scale, a, now,
+        );
     }
-    push_corpses(boxes, p, clock);
+    push_corpses(boxes, p, book, clock);
 }
 
-/// The fallen: the creature on its side (it topples as it dies), with a
-/// glint of gold while it still holds loot.
-fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
+/// The fallen: a creature that died a moment ago plays its death, one found
+/// lying there is simply dead; a glint of gold while it still holds loot.
+fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f32) {
+    let now = book.now();
     for (id, e) in &p.entities {
         let EntityKind::Corpse { creature, loot } = e.kind else {
             continue;
@@ -702,7 +701,17 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             at.z.floor() as i32,
         ) as f32
             / 15.0;
-        let start = boxes.len();
+        let fresh = book.fresh_corpse(pos, now);
+        let (a, new) = book.entity(*id, now);
+        let base = if new && fresh {
+            Anim::Death
+        } else if new {
+            Anim::Dead
+        } else {
+            a.base()
+        };
+        a.drive_at(now, base, pos, 1.0);
+        let dying = base == Anim::Death && a.base_time(now) < 1.5;
         models::push_creature(
             boxes,
             c.model,
@@ -712,25 +721,11 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
             [c.color[0] * 0.75, c.color[1] * 0.75, c.color[2] * 0.75],
             light,
             0.0,
-            0.0,
-            0.0,
-            *id as f32 * 0.37,
+            c.scale,
+            a,
+            now,
         );
-        // topple onto its side over a moment, then lie still
-        let t = (e.born.elapsed().as_secs_f32() / 0.45).min(1.0);
-        let fall = t * t * (3.0 - 2.0 * t);
-        let half = c.scale * 0.5;
-        let forward = Vec3::new(-e.yaw.sin(), 0.0, -e.yaw.cos());
-        let rot = glam::Quat::from_axis_angle(forward, std::f32::consts::FRAC_PI_2 * 0.96 * fall);
-        // lie on the ground: the body's half-width lifts it as it rolls
-        let lift = Vec3::Y * (0.12 * c.scale * fall);
-        let sink = Vec3::Y * (-half * 0.15 * fall);
-        for v in &mut boxes[start..] {
-            let q = (Vec3::from(v.pos) - pos) * c.scale;
-            v.pos = (rot * q + pos + lift + sink).into();
-            v.normal = (rot * Vec3::from(v.normal)).into();
-        }
-        if loot && fall >= 1.0 {
+        if loot && !dying {
             // a few motes of gold drifting up
             for k in 0..5 {
                 let ph = clock * 0.6 + k as f32 * 0.2 + *id as f32 * 0.13;
@@ -752,6 +747,155 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, clock: f32) {
                 );
             }
         }
+    }
+}
+
+/// Your own figure's state, from your movement, casting, fighting and the
+/// emote you hold.
+fn my_anim(p: &Play, book: &mut Anims, look: &models::Look, now: f32) -> Anim {
+    book.grip = models::person_rig(look).grip;
+    let pl = &p.player;
+    let wet = |y: f32| {
+        p.world.get(
+            pl.pos.x.floor() as i32,
+            (pl.pos.y + y).floor() as i32,
+            pl.pos.z.floor() as i32,
+        ) == w::WATER
+    };
+    let swimming = wet(0.9) && wet(0.3);
+    let airborne = !pl.on_ground && !pl.flying && !swimming;
+    // the moment of leaving the ground, and of landing
+    if airborne && book.grounded {
+        book.air_since = now;
+        if pl.vel.y > 0.5 {
+            book.me(now).play(now, Anim::JumpStart);
+        }
+    } else if !airborne && !book.grounded && now - book.air_since > 0.3 {
+        book.me(now).play(now, Anim::JumpLand);
+    }
+    book.grounded = !airborne;
+    let moving = anim::locomotion(pl.vel, pl.yaw, pl.run_speed);
+    if moving.is_some() || airborne || p.dead.is_some() {
+        book.hold = None;
+    }
+    if p.dead.is_some() {
+        Anim::Death
+    } else if swimming {
+        Anim::Swim
+    } else if airborne {
+        if pl.vel.y < -7.0 || now - book.air_since > 0.9 {
+            Anim::Fall
+        } else {
+            Anim::JumpAir
+        }
+    } else if let Some((a, _, _)) = p.my_cast {
+        cast_anim(&p.content, a)
+    } else if p.loot.is_some() {
+        Anim::Kneel
+    } else if let Some(m) = moving {
+        m
+    } else if let Some(h) = book.hold {
+        h
+    } else if p.attacking.is_some() {
+        Anim::Ready
+    } else {
+        Anim::Idle
+    }
+}
+
+/// How a figure looks while casting an ability: gathering kneels, heals and
+/// recall raise the arms, the rest gather power in front.
+fn cast_anim(content: &dyno_world::content::Content, ability: u16) -> Anim {
+    if ability == dyno_protocol::GATHER {
+        return Anim::Kneel;
+    }
+    match content.ability(ability) {
+        Some(a) if a.damage[1] > 0.0 => Anim::CastDirected,
+        Some(a) if a.heal[1] > 0.0 || a.recall || a.hot[0] > 0.0 => Anim::CastOmni,
+        Some(_) => Anim::Channel,
+        None => Anim::CastOmni,
+    }
+}
+
+/// Another player's state, from their motion and what they are casting or
+/// breaking.
+fn remote_anim(p: &Play, book: &mut Anims, id: u32, r: &Remote, feet: Vec3, now: f32) -> Anim {
+    let pose = r.current();
+    let vel = r.velocity();
+    let high = pose.pos[1] - feet.y > 0.45;
+    if let Some(since) = book.digging.get(&id).copied() {
+        // a swing every 0.7 s while they break a block
+        let a = book.player(id, now);
+        if (now - since).rem_euclid(0.7) < 0.05 && a.action(now).is_none() {
+            a.play(now, Anim::Attack1H);
+        }
+    }
+    if high {
+        if vel.y < -6.0 {
+            Anim::Fall
+        } else {
+            Anim::JumpAir
+        }
+    } else if let Some(&(a, _)) = book.casts.get(&id) {
+        cast_anim(&p.content, a)
+    } else {
+        anim::locomotion(vel, pose.yaw, 4.4).unwrap_or(Anim::Idle)
+    }
+}
+
+/// A spell left `from`: whoever stands there plays its release (a creature,
+/// its attack).
+fn animate_caster(p: &mut Play, from: Vec3) {
+    let now = p.anims.now();
+    if from.distance(p.player.eye()) < 1.6 {
+        p.anims.me(now).play_fresh(now, Anim::CastRelease);
+        return;
+    }
+    for (id, r) in &p.remotes {
+        let at = Vec3::from(r.current().pos);
+        if from.distance(at + Vec3::Y * 1.4) < 1.6 {
+            p.anims.player(*id, now).play_fresh(now, Anim::CastRelease);
+            return;
+        }
+    }
+    let caster = p
+        .entities
+        .iter()
+        .filter_map(|(id, e)| match e.kind {
+            EntityKind::Creature(c) => Some((*id, e.pos().distance(from), c)),
+            _ => None,
+        })
+        .filter(|(_, d, _)| *d < 2.5)
+        .min_by(|a, b| a.1.total_cmp(&b.1));
+    if let Some((id, _, cid)) = caster
+        && let Some(c) = p.content.creature(cid)
+    {
+        let swing = models::creature_attack(c.model, c.variant);
+        p.anims.play_entity(id, now, swing);
+    }
+}
+
+/// You were hit: you flinch, and the nearest hostile in reach strikes.
+fn animate_blow(p: &mut Play) {
+    let now = p.anims.now();
+    p.anims.me(now).play_fresh(now, Anim::HitReact);
+    let me = p.player.pos;
+    let striker = p
+        .entities
+        .iter()
+        .filter_map(|(id, e)| match e.kind {
+            EntityKind::Creature(c) => p
+                .content
+                .creature(c)
+                .filter(|c| c.hostile)
+                .map(|c| (*id, e.pos().distance(me) - c.scale, c)),
+            _ => None,
+        })
+        .filter(|(_, d, _)| *d < 3.0)
+        .min_by(|a, b| a.1.total_cmp(&b.1));
+    if let Some((id, _, c)) = striker {
+        let swing = models::creature_attack(c.model, c.variant);
+        p.anims.play_entity(id, now, swing);
     }
 }
 
@@ -1062,6 +1206,7 @@ fn new_play(j: Joined) -> Play {
     );
     Play {
         player: Player::new(j.spawn),
+        anims: Anims::default(),
         remotes: j
             .players
             .iter()
@@ -1585,6 +1730,13 @@ impl App {
                             }
                         }
                         ServerMsg::EntityGone { id, picked_by } => {
+                            if let Some(e) = p.entities.get(&id)
+                                && let EntityKind::Creature(_) = e.kind
+                            {
+                                let at = p.ground.feet(&p.world, e.pos());
+                                let now = p.anims.now();
+                                p.anims.creature_gone(at, now);
+                            }
                             if let Some(e) = p.entities.remove(&id)
                                 && let EntityKind::Creature(cid) = e.kind
                                 && let Some(c) = p.content.creature(cid)
@@ -1625,6 +1777,15 @@ impl App {
                             if player == p.my_id {
                                 p.my_cast = ability.map(|a| (a, Instant::now(), secs));
                             }
+                            let now = p.anims.now();
+                            match ability {
+                                Some(a) => {
+                                    p.anims.casts.insert(player, (a, now));
+                                }
+                                None => {
+                                    p.anims.casts.remove(&player);
+                                }
+                            }
                         }
                         ServerMsg::Cooldowns { list, global } => {
                             let now = Instant::now();
@@ -1641,6 +1802,7 @@ impl App {
                             radius,
                         } => {
                             let (a, b) = (Vec3::from(from), Vec3::from(to));
+                            animate_caster(p, a);
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
                                 self.audio.play(Sfx::Dissolve, 0.5);
@@ -1704,6 +1866,11 @@ impl App {
                             amount,
                             crit,
                         } => {
+                            if entity.is_some() {
+                                let now = p.anims.now();
+                                let swing = anim::attack_for(p.anims.grip);
+                                p.anims.me(now).play_fresh(now, swing);
+                            }
                             let (text, col) = match entity {
                                 Some(_) if crit => {
                                     (format!("{:.0}!", amount), Color32::from_rgb(255, 230, 80))
@@ -1766,6 +1933,12 @@ impl App {
                             max,
                         } => {
                             if let Some(e) = p.entities.get_mut(&id) {
+                                // a real blow (EntityHurt also comes on regen)
+                                if e.info.is_some_and(|(_, h, _)| health < h - 0.01) && health > 0.0
+                                {
+                                    let now = p.anims.now();
+                                    p.anims.play_entity(id, now, Anim::HitReact);
+                                }
                                 e.info = Some((level, health, max));
                             }
                         }
@@ -1824,6 +1997,7 @@ impl App {
                             }
                         }
                         ServerMsg::Hurt { amount, push } => {
+                            animate_blow(p);
                             p.hurt_flash = (0.4 + amount * 0.08).min(1.0);
                             p.player.vel += Vec3::from(push);
                             self.audio.play(Sfx::Break(w::Material::Cloth), 0.9);
@@ -1839,7 +2013,14 @@ impl App {
                             self.audio.play(Sfx::Join, 0.7);
                         }
                         ServerMsg::Content(c) => p.content = *c,
-                        ServerMsg::Digging { .. } => {}
+                        ServerMsg::Digging { player, pos } => {
+                            let now = p.anims.now();
+                            if pos.is_some() {
+                                p.anims.digging.entry(player).or_insert(now);
+                            } else {
+                                p.anims.digging.remove(&player);
+                            }
+                        }
                         ServerMsg::Reject { reason } => closed = Some(reason),
                         _ => {}
                     },
@@ -2230,25 +2411,21 @@ impl App {
             let light_at = |l: &Light, v: Vec3| {
                 l.get(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32) as f32 / 15.0
             };
-            let anim_t = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
+            let mut book = std::mem::take(&mut p.anims);
+            let now = book.now();
+            book.prune(now);
             for (id, r) in &p.remotes {
                 let pose = r.current();
                 let base = p.ground.feet(&p.world, Vec3::from(pose.pos));
                 let bl = light_at(&p.light, base + Vec3::Y);
-                let walk = (r.speed() / 4.0).min(1.0);
-                let _ = id;
+                let state = remote_anim(p, &mut book, *id, r, base, now);
+                let step = Skeleton::Biped.step(r.speed(), 1.0);
+                let a = book.player(*id, now);
+                a.drive_at(now, state, base, step);
                 let look = models::Look::from_appearance(&r.look, r.color);
-                models::push_person(
-                    &mut boxes,
-                    base,
-                    pose.yaw,
-                    pose.pitch,
-                    &look,
-                    bl,
-                    anim_t * 9.0,
-                    walk,
-                );
+                models::push_person_anim(&mut boxes, base, pose.yaw, pose.pitch, &look, bl, a, now);
             }
+            p.anims = book;
             // night ambience: fireflies and crickets
             let night = sky_now.stars;
             if night > 0.5 {
@@ -2529,16 +2706,27 @@ impl App {
                         .unwrap_or([0.5, 0.5, 0.6]),
                 );
                 look.weapon = models::weapon_look(&p.content, held_item.map(|s| s.item));
-                models::push_person(
+                let mut book = std::mem::take(&mut p.anims);
+                let now = book.now();
+                let feet = p.ground.feet(&p.world, p.player.pos);
+                let state = my_anim(p, &mut book, &look, now);
+                let step = Skeleton::Biped.step(speed, 1.0);
+                let me = book.me(now);
+                if p.dig.is_some() && me.action(now).is_none() {
+                    me.play(now, Anim::Attack1H);
+                }
+                me.drive_at(now, state, feet, step);
+                models::push_person_anim(
                     &mut boxes,
-                    p.ground.feet(&p.world, p.player.pos),
+                    feet,
                     p.player.yaw,
                     p.player.pitch,
                     &look,
                     light_at(&p.light, p.player.pos + Vec3::Y),
-                    p.bob * 2.2,
-                    (speed / 4.0).min(1.0),
+                    me,
+                    now,
                 );
+                p.anims = book;
             }
             // block in hand, with a swing when breaking or placing
             let sw = (p.swing * std::f32::consts::PI).sin();
@@ -2571,7 +2759,9 @@ impl App {
             }
             // creatures
             let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
-            push_creatures(&mut boxes, p, clock);
+            let mut book = std::mem::take(&mut p.anims);
+            push_creatures(&mut boxes, p, &mut book, clock);
+            p.anims = book;
             // items lying in the world: small spinning cubes
             for e in p.entities.values() {
                 if let EntityKind::Item(s) = e.kind {
@@ -3974,7 +4164,16 @@ fn hud(
                 let cancel = ui.input(|i| i.key_pressed(egui::Key::Escape));
                 if send {
                     let t = p.chat_text.trim().to_string();
-                    if !t.is_empty() {
+                    // emotes play on your own figure (others cannot see them yet)
+                    let emote = t.starts_with('/').then(|| Anim::emote(&t)).flatten();
+                    if let Some(e) = emote {
+                        let now = p.anims.now();
+                        if e.duration().is_some() {
+                            p.anims.me(now).play(now, e);
+                        } else {
+                            p.anims.hold = Some(e);
+                        }
+                    } else if !t.is_empty() {
                         let _ = p.conn.tx.send(ClientMsg::Chat { text: t });
                     }
                     p.chat_text.clear();
@@ -5096,7 +5295,9 @@ pub fn shot_with_ui(
             0.0,
         );
     }
-    push_creatures(&mut boxes, &p, 1.3);
+    let mut book = std::mem::take(&mut p.anims);
+    push_creatures(&mut boxes, &p, &mut book, 1.3);
+    p.anims = book;
     for (id, r) in &p.remotes {
         let pose = r.current();
         let base = Vec3::from(pose.pos);

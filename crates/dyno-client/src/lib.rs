@@ -1,5 +1,6 @@
 //! Dyno game client (bootstrap).
 
+pub mod anim;
 pub mod app;
 pub mod audio;
 pub mod front;
@@ -11,6 +12,7 @@ pub mod render;
 pub mod rpg_ui;
 pub mod screens;
 pub mod settings;
+pub mod sheet;
 pub mod shot;
 pub mod survival;
 pub mod terrain_mesh;
