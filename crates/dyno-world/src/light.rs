@@ -188,13 +188,30 @@ impl Light {
         let n = (es[0] * es[1] * es[2]) as usize;
         let mut bl = vec![0u8; n];
         let mut sk = vec![0u8; n];
+        // the box's cells read once (the fill below visits each many times):
+        // bit 7 opaque, low bits the light it gives
+        let mut lut = [0u8; 256];
+        for (b, v) in lut.iter_mut().enumerate().take(w::BLOCK_COUNT as usize) {
+            let b = b as w::BlockId;
+            *v = w::emission(b).min(15) | if w::is_opaque(b) { 0x80 } else { 0 };
+        }
+        let mut cell = vec![0u8; n];
+        for y in 0..sy {
+            for z in elo[2]..=ehi[2] {
+                let row = ((y * es[2] + (z - elo[2])) * es[0]) as usize;
+                for x in elo[0]..=ehi[0] {
+                    cell[row + (x - elo[0]) as usize] = lut[world.get(x, y, z) as usize];
+                }
+            }
+        }
+        let opaque = |i: usize| cell[i] & 0x80 != 0;
         // highest opaque cell of each column
         let mut top = vec![-1i32; (es[0] * es[2]) as usize];
         for z in elo[2]..=ehi[2] {
             for x in elo[0]..=ehi[0] {
                 let mut t = -1;
                 for y in (0..sy).rev() {
-                    if w::is_opaque(world.get(x, y, z)) {
+                    if opaque(eidx(x, y, z).unwrap()) {
                         t = y;
                         break;
                     }
@@ -231,7 +248,7 @@ impl Light {
                     }
                 }
                 for y in 0..sy {
-                    let e = w::emission(world.get(x, y, z));
+                    let e = cell[eidx(x, y, z).unwrap()] & 0x0f;
                     if e > 0 {
                         bl[eidx(x, y, z).unwrap()] = e;
                         qb.push_back((x, y, z));
@@ -255,7 +272,7 @@ impl Light {
                 ] {
                     let (nx, ny, nz) = (x + dx, y + dy, z + dz);
                     let Some(j) = eidx(nx, ny, nz) else { continue };
-                    if buf[j] >= l - 1 || w::is_opaque(world.get(nx, ny, nz)) {
+                    if buf[j] >= l - 1 || opaque(j) {
                         continue;
                     }
                     buf[j] = l - 1;
@@ -319,6 +336,31 @@ mod tests {
         l.changed(&world, [6, 2, 6]);
         assert_eq!(l.get(6, 3, 6), 14);
         assert_eq!(l.get(8, 3, 6), 12);
+    }
+
+    /// cargo test --release -p dyno-world light_speed -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn light_speed() {
+        let world = World::generate([384, 96, 384], 20261122);
+        let mut c = World::sparse(world.size);
+        for s in world.held_list() {
+            c.put_section(s, &world.encode_section(s)).unwrap();
+        }
+        let mut l = Light::new(&c);
+        let t = std::time::Instant::now();
+        let n = 20;
+        for i in 0..n {
+            let col: Vec<SectionPos> = (0..6).map(|y| [2 + i, y, 12]).collect();
+            l.arrived(&c, &col);
+        }
+        eprintln!(
+            "one column arriving: {:.1} ms",
+            t.elapsed().as_secs_f64() * 1e3 / n as f64
+        );
+        let t = std::time::Instant::now();
+        let _ = Light::new(&world);
+        eprintln!("the whole world: {:.0} ms", t.elapsed().as_secs_f64() * 1e3);
     }
 
     #[test]

@@ -509,6 +509,14 @@ impl State {
         }
         let pose_of = |pid: &PlayerId| self.players.get(pid).map(|p| p.pose.pos);
         let to = match msg {
+            // states, not moments: a body must not stay down (or a cast bar
+            // up) for someone who was near when it began
+            ServerMsg::Act {
+                actor: proto::Actor::Player(_),
+                act: proto::Act::Died | proto::Act::Revived,
+            }
+            | ServerMsg::Casting { ability: None, .. }
+            | ServerMsg::Digging { pos: None, .. } => To::All,
             ServerMsg::EntitySpawn { id, pos, .. } => To::Meets(*id, *pos),
             ServerMsg::EntityHurt { id }
             | ServerMsg::EntityInfo { id, .. }

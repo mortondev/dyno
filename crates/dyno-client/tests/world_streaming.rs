@@ -261,6 +261,47 @@ fn the_world_streams_around_each_player_and_so_do_entities_and_players() {
     assert!(a.near.contains(&b.j.your_id));
     assert!(!b.known.is_empty(), "the spawn's creatures are back");
 
+    // 6. b dies beside a far from the spawn and comes back to life at the
+    //    spawn: a hears it get up, and is told b went far (no body is left
+    //    lying where a can see it)
+    for _ in 0..40 {
+        a.go(far);
+        b.go([far[0] + 2.0, far[1], far[2]]);
+        a.pump(0.05);
+        b.pump(0.05);
+    }
+    a.pump(0.5);
+    assert!(a.near.contains(&b.j.your_id));
+    b.j.conn
+        .tx
+        .send(ClientMsg::Chat {
+            text: "/kill".into(),
+        })
+        .unwrap();
+    let bid = b.j.your_id;
+    let saw = |c: &Client, from: usize, act: dyno_protocol::Act| {
+        c.log[from..].iter().any(|m| {
+            matches!(m, ServerMsg::Act { actor: dyno_protocol::Actor::Player(p), act: x }
+                if *p == bid && *x == act)
+        })
+    };
+    let since = a.log.len();
+    a.go(far);
+    a.pump(1.0);
+    assert!(saw(&a, since, dyno_protocol::Act::Died), "a sees b fall");
+    b.j.conn.tx.send(ClientMsg::Respawn).unwrap();
+    for _ in 0..20 {
+        a.go(far);
+        a.pump(0.05);
+        b.pump(0.05);
+    }
+    a.pump(0.5);
+    assert!(
+        saw(&a, since, dyno_protocol::Act::Revived),
+        "a hears b get up"
+    );
+    assert!(!a.near.contains(&bid), "and that b is far away now");
+
     drop((a, b));
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);

@@ -1346,6 +1346,59 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
     Ok(Tunnel { child, url, error })
 }
 
+/// Sections that arrived: kept now, lit and meshed by `take_arrivals`.
+fn sections_in(p: &mut Play, list: Vec<([i32; 3], Vec<u8>)>) {
+    for (s, data) in list {
+        if p.world.put_section(s, &data).is_ok() {
+            p.arrived.push(s);
+        }
+    }
+}
+
+/// Sections the server let go of: forget them and stop drawing them.
+fn sections_out(p: &mut Play, mut gfx: Option<&mut Gfx>, list: Vec<[i32; 3]>) {
+    for s in list {
+        p.world.drop_section(s);
+        p.light.forget(s);
+        p.arrived.retain(|a| *a != s);
+        if let Some(g) = gfx.as_deref_mut() {
+            g.section_gone(s);
+        }
+    }
+}
+
+/// Light and mesh what arrived, a frame's worth at a time. Returns how long it took.
+fn take_arrivals(p: &mut Play, gfx: Option<&mut Gfx>) -> Duration {
+    let t0 = Instant::now();
+    if p.arrived.is_empty() {
+        return Duration::ZERO;
+    }
+    let cap: usize = std::env::var("DYNO_ARRIVAL_BATCH")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(384);
+    let n = p.arrived.len().min(cap);
+    let batch: Vec<[i32; 3]> = p.arrived.drain(..n).collect();
+    let tl = Instant::now();
+    p.light.arrived(&p.world, &batch);
+    if std::env::var_os("DYNO_ARRIVAL_DEBUG").is_some() {
+        eprintln!(
+            "arrivals: {n} sections, light {:.0} ms",
+            tl.elapsed().as_secs_f64() * 1e3
+        );
+    }
+    p.ground.clear();
+    for s in &batch {
+        let lo = [s[0] * 16, s[1] * 16, s[2] * 16];
+        p.minimap
+            .region_changed(lo, [lo[0] + 15, lo[1] + 15, lo[2] + 15]);
+    }
+    if let Some(g) = gfx {
+        g.sections_arrived(&p.world, &p.light, &batch);
+    }
+    t0.elapsed()
+}
+
 /// Play state for a freshly joined server.
 fn new_play(j: Joined) -> Play {
     let rpg_world = j.content.world.protected;
@@ -1915,23 +1968,8 @@ impl App {
                             }
                         }
                         // the world streams in around you (and is let go behind you)
-                        ServerMsg::Sections(list) => {
-                            for (s, data) in list {
-                                if p.world.put_section(s, &data).is_ok() {
-                                    p.arrived.push(s);
-                                }
-                            }
-                        }
-                        ServerMsg::SectionsGone(list) => {
-                            for s in list {
-                                p.world.drop_section(s);
-                                p.light.forget(s);
-                                p.arrived.retain(|a| *a != s);
-                                if let Some(g) = self.gfx.as_mut() {
-                                    g.section_gone(s);
-                                }
-                            }
-                        }
+                        ServerMsg::Sections(list) => sections_in(p, list),
+                        ServerMsg::SectionsGone(list) => sections_out(p, self.gfx.as_mut(), list),
                         ServerMsg::PlayersFar(ids) => {
                             for id in ids {
                                 if let Some(r) = p.remotes.get_mut(&id) {
@@ -2399,20 +2437,7 @@ impl App {
                 }
             }
             // light and mesh what arrived, a frame's worth at a time
-            if !p.arrived.is_empty() {
-                let n = p.arrived.len().min(384);
-                let batch: Vec<[i32; 3]> = p.arrived.drain(..n).collect();
-                p.light.arrived(&p.world, &batch);
-                p.ground.clear();
-                for s in &batch {
-                    let lo = [s[0] * 16, s[1] * 16, s[2] * 16];
-                    p.minimap
-                        .region_changed(lo, [lo[0] + 15, lo[1] + 15, lo[2] + 15]);
-                }
-                if let Some(g) = self.gfx.as_mut() {
-                    g.sections_arrived(&p.world, &p.light, &batch);
-                }
-            }
+            take_arrivals(p, self.gfx.as_mut());
             if p.combat_log.len() > 300 {
                 p.combat_log.drain(..150);
             }
@@ -5796,6 +5821,14 @@ pub fn shot_with_ui(
     if let Some(z) = zoom {
         p.zoom = z;
     }
+    let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
+    // the land the join waited for, then the rest of the view as it streams
+    // in, taken exactly as play takes it (lit and meshed in batches)
+    let load_start = Instant::now();
+    gfx.load_world(&p.world, &p.light);
+    let first_ms = load_start.elapsed().as_secs_f64() * 1e3;
+    let first_sections = p.world.held_sections().0;
+    let (mut batches, mut worst, mut streamed) = (0u32, Duration::ZERO, Duration::ZERO);
     // a moment for the rest of the view to stream in (until it goes quiet)
     let started = Instant::now();
     let mut last_section = Instant::now();
@@ -5805,12 +5838,16 @@ pub fn shot_with_ui(
     {
         match p.conn.rx.recv_timeout(Duration::from_millis(30)) {
             Ok(NetEvent::Msg(m)) => match m {
-                m @ (ServerMsg::Sections(_)
-                | ServerMsg::SectionsGone(_)
-                | ServerMsg::Block { .. }
-                | ServerMsg::Fill { .. }) => {
-                    net::apply_world(&mut p.world, &m);
+                ServerMsg::Sections(list) => {
+                    sections_in(&mut p, list);
                     last_section = Instant::now();
+                }
+                ServerMsg::SectionsGone(list) => sections_out(&mut p, Some(&mut *gfx), list),
+                m @ (ServerMsg::Block { .. } | ServerMsg::Fill { .. }) => {
+                    net::apply_world(&mut p.world, &m);
+                    if let ServerMsg::Block { pos, .. } | ServerMsg::Fill { a: pos, .. } = m {
+                        p.arrived.push(w::section_of(pos));
+                    }
                 }
                 ServerMsg::Pack(s) => p.pack = s,
                 ServerMsg::Status {
@@ -5908,8 +5945,45 @@ pub fn shot_with_ui(
             Ok(NetEvent::Closed(r)) => return Err(r),
             Err(_) => {}
         }
+        let took = take_arrivals(&mut p, Some(&mut *gfx));
+        if took > Duration::ZERO {
+            // the time spent here is not the stream going quiet
+            last_section = Instant::now();
+            batches += 1;
+            worst = worst.max(took);
+            streamed += took;
+        }
     }
-    p.light = Light::new(&p.world);
+    while !p.arrived.is_empty() {
+        let took = take_arrivals(&mut p, Some(&mut *gfx));
+        batches += 1;
+        worst = worst.max(took);
+        streamed += took;
+    }
+    if stats {
+        eprintln!(
+            "stats: first view {first_ms:.0} ms ({first_sections} sections); then {} more in {batches} batches as the view streamed in: {:.0} ms in all, worst batch {:.0} ms",
+            p.world.held_sections().0 - first_sections,
+            streamed.as_secs_f64() * 1e3,
+            worst.as_secs_f64() * 1e3
+        );
+    }
+    if std::env::var_os("DYNO_SHOT_VERIFY").is_some() {
+        // the meshes built bit by bit, against the whole view at once
+        let built = gfx.world_vertices();
+        let whole = Light::new(&p.world);
+        gfx.load_world(&p.world, &whole);
+        let again = gfx.world_vertices();
+        eprintln!(
+            "verify: streamed meshes {built:?} vertices, the same view at once {again:?}{}",
+            if built == again {
+                " (the same)"
+            } else {
+                " (DIFFERENT)"
+            }
+        );
+        p.light = whole;
+    }
     if let Some(pos) = pos {
         p.player.pos = pos.into();
     }
@@ -6029,9 +6103,6 @@ pub fn shot_with_ui(
     let t = time.unwrap_or(p.time);
     p.time = t;
     let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
-    let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
-    let load_start = Instant::now();
-    gfx.load_world(&p.world, &p.light);
     let load_ms = load_start.elapsed().as_secs_f64() * 1e3;
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
     let far = 160.0;

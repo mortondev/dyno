@@ -271,16 +271,17 @@ impl State {
             return;
         }
         let cfg = self.stream;
-        let all: Vec<(PlayerId, Pose)> = self
+        // the dead send no poses, but still come and go: a body left behind
+        // by someone who respawned far away is told to go (PlayersFar)
+        let all: Vec<(PlayerId, Pose, bool)> = self
             .players
             .iter()
-            .filter(|(_, p)| !p.dead)
-            .map(|(i, p)| (*i, p.pose))
+            .map(|(i, p)| (*i, p.pose, p.dead))
             .collect();
         for (id, p) in self.players.iter_mut() {
             let mut list = Vec::new();
             let mut far = Vec::new();
-            for (o, pose) in &all {
+            for (o, pose, dead) in &all {
                 if o == id {
                     continue;
                 }
@@ -288,14 +289,16 @@ impl State {
                 let near = p.near.contains(o);
                 if d <= cfg.aoi || (near && d <= cfg.aoi + cfg.aoi_keep) {
                     p.near.insert(*o);
-                    list.push((*o, *pose));
+                    if !dead {
+                        list.push((*o, *pose));
+                    }
                 } else if near {
                     p.near.remove(o);
                     far.push(*o);
                 }
             }
-            // dead (not posing) or gone: forgotten quietly, the roster says why
-            p.near.retain(|o| all.iter().any(|(i, _)| i == o));
+            // gone from the shard: the roster says so (PlayerLeft)
+            p.near.retain(|o| all.iter().any(|(i, ..)| i == o));
             if !far.is_empty() {
                 p.send(&ServerMsg::PlayersFar(far));
             }
@@ -304,6 +307,11 @@ impl State {
             }
         }
         if !self.observers.is_empty() {
+            let all = all
+                .into_iter()
+                .filter(|(.., dead)| !dead)
+                .map(|(i, pose, _)| (i, pose))
+                .collect();
             let bytes = std::sync::Arc::new(dyno_protocol::encode(&ServerMsg::Poses(all)));
             for o in self.observers.values() {
                 let _ = o.tx.send(bytes.clone());
