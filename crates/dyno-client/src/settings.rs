@@ -23,6 +23,9 @@ pub struct Settings {
     /// what the costly parts of the picture may spend (shadow detail,
     /// ambient occlusion, bloom): 0 low, 1 medium, 2 high, 3 ultra
     pub graphics: u8,
+    /// 0 plain water; 1 the bed seen through it and the far land mirrored;
+    /// 2 everything on screen mirrored (water.rs)
+    pub water_quality: u8,
     /// random ID of this install; servers bind your name to it
     pub token: u64,
 }
@@ -40,6 +43,7 @@ impl Default for Settings {
             hotbar: dyno_world::HOTBAR.to_vec(),
             volume: 0.8,
             graphics: 2,
+            water_quality: 2,
             token: 0,
         }
     }

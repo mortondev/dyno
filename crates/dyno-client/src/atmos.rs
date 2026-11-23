@@ -88,6 +88,8 @@ pub struct Atmosphere {
     pub fog_falloff: f32,
     pub fog_density: f32,
     pub fog_max: f32,
+    /// the fog begins this far from the eye (metres): the foreground stays clear
+    pub fog_start: f32,
     pub fog_day: [f32; 3],
     pub fog_night: [f32; 3],
     /// the fog is this many times thicker at dawn
@@ -110,6 +112,7 @@ impl Default for Atmosphere {
             fog_falloff: 0.2,
             fog_density: 0.0,
             fog_max: 0.0,
+            fog_start: 0.0,
             fog_day: [0.8; 3],
             fog_night: [0.1; 3],
             fog_dawn: 1.0,
@@ -147,6 +150,7 @@ pub struct Frame {
     pub fog_height: f32,
     pub fog_falloff: f32,
     pub fog_max: f32,
+    pub fog_start: f32,
     pub edge: f32,
     /// the sky dome (sky.rs)
     pub dome: crate::sky::Dome,
@@ -197,7 +201,7 @@ pub struct EnvUniform {
     haze2: [f32; 4],
     /// rgb: fog; w: density
     fog: [f32; 4],
-    /// height, falloff, max, 0
+    /// height, falloff, max, start
     fog2: [f32; 4],
     dome: crate::sky::DomeUniform,
 }
@@ -244,7 +248,12 @@ impl EnvUniform {
             haze: v4(haze, f.haze_density),
             haze2: [f.haze_start, f.haze_max, f.edge, 0.0],
             fog: v4(fog, f.fog_density),
-            fog2: [f.fog_height, f.fog_falloff.max(0.001), f.fog_max, 0.0],
+            fog2: [
+                f.fog_height,
+                f.fog_falloff.max(0.001),
+                f.fog_max,
+                f.fog_start,
+            ],
             dome: f.dome.uniform(horizon, top, light),
         }
     }
@@ -456,6 +465,8 @@ fn atmosphere_under(c: vec3<f32>, wpos: vec3<f32>, sl: f32) -> vec3<f32> {
     let dy = dir.y * k;
     var t = d;
     if (abs(dy) > 0.0001) { t = (1.0 - exp(-clamp(dy * d, -20.0, 20.0))) / dy; }
+    // the stretch nearest the eye is clear
+    t = t * max(d - env.fog2.w, 0.0) / max(d, 0.001);
     let fg = 1.0 - exp(-env.fog.w * exp(-y0) * max(t, 0.0));
     o = mix(o, env.fog.rgb, min(fg, env.fog2.z) * open);
   }

@@ -247,6 +247,23 @@ when one of them is replaced.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.
+- **Water** (`render.json`, `water`; drawn by `water.rs`):
+  - the base look: `deep`, `shallow` and `foam` colours, `depth` (metres of
+    water at which the colour is fully deep), `clarity` (metres you see
+    through), `foam_width`, `reflect`, `ripple`, `sparkle`, `flow` (metres a
+    second along a course), `fog` with `fog_density` for eyes under water,
+    and `lilies` (how thick lily pads lie on calm shallows) with the `lily`
+    and `lily_flower` colours;
+  - `kinds`: named kinds of water, each changing what it names of the base
+    (the river, the shrine's turquoise, Barrowwood's dark water);
+  - `areas`: still water of a kind, an ellipse `at` a place with a `radius`,
+    from the spawn hearth;
+  - `courses`: running water of a kind along `points` (x, z, half width, from
+    the spawn hearth); it flows in the order of the points.
+
+  The shader holds the base look and seven kinds, eight areas and 32 course
+  points. The courses repeat the river layout that the world builder still
+  has in code; they move to the world layout file with it (§5).
 - **Ground cover** (`cover.json`, `cover/*.vox`; `dyno-client/src/cover.rs`):
   grass tufts, flowers, ferns, reeds, bushes, pebbles and small rocks.
   - `kinds`: a `.vox` file each, every model in it a variant; `voxel`

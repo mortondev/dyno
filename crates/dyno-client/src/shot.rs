@@ -280,6 +280,7 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
             0.6,
         );
     }
+    g.water.look_from(&j.world, player.eye().into(), j.hearth);
     g.screenshot = Some(o.out.clone());
     let ctx = egui::Context::default();
     let out = ctx.run(egui::RawInput::default(), |_| {});

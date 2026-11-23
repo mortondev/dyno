@@ -348,6 +348,7 @@ fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
         fog_height: a_.fog_height + m.fog_lift,
         fog_falloff: a_.fog_falloff,
         fog_max: a_.fog_max,
+        fog_start: a_.fog_start,
         edge: a_.edge,
         dome,
         exposure: s.post.exposure * m.exposure,

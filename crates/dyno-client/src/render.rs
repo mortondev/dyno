@@ -114,7 +114,10 @@ struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, f
 @group(0) @binding(0) var<uniform> u: U;
 "#;
 
-const SHADER: &str = r#"
+/// The head of the world shader: the uniforms, the look, the grade, the
+/// noise. The water's shader (water.rs) starts with it too; the sun's
+/// shadow, the light and the air come after it from atmos.rs.
+const SHADER_HEAD: &str = r#"
 struct U { view_proj: mat4x4<f32>, inv_view_proj: mat4x4<f32>, cam: vec4<f32>, fog: vec4<f32>, sky_top: vec4<f32>, light: vec4<f32>, sun: vec4<f32>, shadow_vp: mat4x4<f32> };
 @group(0) @binding(0) var<uniform> u: U;
 
@@ -180,6 +183,9 @@ fn swell(p: vec2<f32>, t: f32) -> f32 {
   return sin(p.x * 0.9 + t * 1.3) * 0.03 + sin(p.y * 1.3 - t * 1.1) * 0.025 + sin((p.x + p.y) * 0.45 + t * 0.7) * 0.03;
 }
 
+"#;
+
+const SHADER: &str = r#"
 struct VIn { @location(0) pos: vec3<f32>, @location(1) normal: vec3<f32>, @location(2) color: vec4<f32>, @location(3) light: f32, @location(4) sky: f32, @location(5) tex: vec4<f32> };
 struct VOut {
   @builtin(position) clip: vec4<f32>,
@@ -445,38 +451,8 @@ fn ground_tone(m: f32) -> vec3<f32> {
   var c = i.color.rgb * lit;
   var a = i.color.a;
   if (kz >= K_WATER) {
-    // painted water: deep blue out in the open, clear turquoise in the
-    // shallows, slow swells of light, sky at grazing angles, foam at the shore
-    let t = u.cam.w;
-    let p = i.wpos.xz;
-    let shore = clamp(i.normal.x, 0.0, 1.0);
-    let shallow = smoothstep(0.0, 0.85, shore);
-    var wc = mix(look.water_deep.rgb, look.water_shallow.rgb, shallow);
-    let s1 = vnoise(p * 0.55 + vec2<f32>(t * 0.22, t * 0.13));
-    let s2 = vnoise(p * 1.7 - vec2<f32>(t * 0.25, t * 0.31));
-    // long brush strokes of lighter water, drifting
-    let s3 = vnoise(vec2<f32>(p.x * 0.35 + t * 0.05, p.y * 1.9 - t * 0.12));
-    wc = wc * (0.82 + 0.3 * (s1 * 0.65 + s2 * 0.35) + 0.22 * smoothstep(0.55, 0.9, s3));
-    c = wc * lit;
-    a = mix(0.84, 0.46, shallow);
-    let v = normalize(u.cam.xyz - i.wpos);
-    let fres = pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0);
-    c = mix(c, mix(u.sky_top.rgb, u.fog.rgb, 0.35) * (u.light.rgb * 0.5 + 0.5), fres * 0.5);
-    a = mix(a, 0.88, fres);
-    // the sun glints on the swells
-    let wn = normalize(vec3<f32>((s1 - 0.5) * 0.3, 1.0, (s2 - 0.5) * 0.3));
-    let sd = max(dot(reflect(-v, wn), u.sun.xyz), 0.0);
-    c += vec3<f32>(1.0, 0.85, 0.6) * pow(sd, 90.0) * 0.7 * (1.0 - u.sun.w);
-    // foam where the water laps the shore: a ragged, streaky band
-    if (shore > 0.15) {
-      let fz = vnoise(p * 2.6 + vec2<f32>(t * 0.3, -t * 0.22));
-      let lap = 0.05 * sin(t * 1.4 + p.x * 0.8 + p.y * 0.6);
-      let band = smoothstep(0.42, 0.66, shore + (fz - 0.5) * 0.38 + lap);
-      let streak = 0.5 + 0.5 * smoothstep(0.3, 0.7, vnoise(p * 6.0 - vec2<f32>(t * 0.25, t * 0.4)));
-      let foam = band * streak * 0.75;
-      c = mix(c, look.foam.rgb * (lit * 0.9 + u.light.rgb * 0.1), foam);
-      a = mix(a, 0.92, foam);
-    }
+    // the water has its own pass (water.rs)
+    discard;
   } else if (kz >= 0.0) {
     c = c * tx0.rgb;
     a = tx0.a;
@@ -1125,6 +1101,8 @@ pub struct Gfx {
     shadow_samp: wgpu::Sampler,
     /// the render settings (look.rs), written every frame
     look_buf: wgpu::Buffer,
+    /// the water pass
+    pub water: crate::water::WaterGfx,
     /// the generation of the block textures on the GPU
     tex_gen: u64,
     /// the asset store's generation when last checked for new textures
@@ -1161,7 +1139,7 @@ fn depth_view(device: &wgpu::Device, w: u32, h: u32) -> wgpu::TextureView {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: DEPTH,
-            // the passes after the world read it (post.rs)
+            // the passes after the solid world read it (post.rs, water.rs)
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             view_formats: &[],
         })
@@ -1271,7 +1249,7 @@ impl Gfx {
             label: Some("voxel"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
-                    "{SHADER}{}{}{}",
+                    "{SHADER_HEAD}{SHADER}{}{}{}",
                     crate::cover::VERTEX_SHADER,
                     crate::atmos::ENV_WGSL,
                     crate::atmos::LIGHT_WGSL
@@ -1522,7 +1500,25 @@ impl Gfx {
             config.format,
             egui_wgpu::RendererOptions::default(),
         );
+        // the water draws into the same picture as the world, before the
+        // grade, and reads a copy of it
+        let water = crate::water::WaterGfx::new(
+            &device,
+            &format!(
+                "{SHADER_HEAD}{}{}",
+                crate::atmos::ENV_WGSL,
+                crate::atmos::LIGHT_WGSL
+            ),
+            &bgl,
+            &wgpu::SurfaceConfiguration {
+                format: post.format,
+                usage: config.usage | wgpu::TextureUsages::COPY_SRC,
+                ..config.clone()
+            },
+            &depth,
+        );
         Ok(Gfx {
+            water,
             window,
             surface,
             offscreen,
@@ -1599,6 +1595,7 @@ impl Gfx {
         }
         self.depth = depth_view(&self.device, w, h);
         self.post.resize(&self.device, w, h, &self.depth);
+        self.water.resize(&self.device, &self.depth, w, h);
     }
 
     fn upload(&self, v: &[Vertex]) -> Option<(wgpu::Buffer, u32)> {
@@ -1998,9 +1995,10 @@ impl Gfx {
                 }
             }
             self.post.occlude(&mut enc);
+            // the sky, where nothing stands in front
             {
                 let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("sky and water"),
+                    label: Some("sky"),
                     color_attachments: &[color(wgpu::LoadOp::Load)],
                     depth_stencil_attachment: depth(wgpu::LoadOp::Load),
                     timestamp_writes: None,
@@ -2009,6 +2007,40 @@ impl Gfx {
                 rp.set_bind_group(0, &self.bind, &[]);
                 rp.set_pipeline(&self.sky_pipe);
                 rp.draw(0..3, 0..1);
+            }
+            // the water, over the solid world and the sky (it reads a copy
+            // of that picture and its depth); it lies with the glass in the
+            // translucent part of each mesh
+            {
+                let w = &self.water;
+                let mut rp = w.begin(
+                    &self.queue,
+                    &mut enc,
+                    &settings.water,
+                    &self.post.picture,
+                    &self.post.hdr,
+                    &self.bind,
+                );
+                for s in &shown {
+                    if let Some(b) = &s.buf
+                        && s.trans > 0
+                    {
+                        rp.set_vertex_buffer(0, b.slice(..));
+                        rp.draw(s.opaque..s.opaque + s.trans, 0..1);
+                    }
+                }
+                w.finish(&mut rp);
+            }
+            // glass, halos and lines, over both
+            {
+                let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("translucent"),
+                    color_attachments: &[color(wgpu::LoadOp::Load)],
+                    depth_stencil_attachment: depth(wgpu::LoadOp::Load),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                });
+                rp.set_bind_group(0, &self.bind, &[]);
                 rp.set_pipeline(&self.trans_pipe);
                 for s in &shown {
                     if let Some(b) = &s.buf

@@ -2683,6 +2683,7 @@ impl App {
             let proj = glam::Mat4::from_translation(Vec3::new(shift, 0.0, 0.0))
                 * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt.max(1.0), 0.05, far);
             view = Some((proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y), eye, far));
+            gfx.water.look_from(&st.world, eye.into(), st.hearth);
         }
         if let Screen::Playing(p) = &mut self.screen {
             let k = |c: KeyCode| p.keys.contains(&c);
@@ -3355,6 +3356,8 @@ impl App {
                 }
             }
             view = Some((vp, eye, far));
+            gfx.water
+                .look_from(&p.world, eye.into(), p.hearth.unwrap_or_default());
             p.inv_vp = Some(vp.inverse());
             p.screen_px = (wdt, hgt);
             p.fps.1 += 1;
@@ -5560,6 +5563,7 @@ impl ApplicationHandler for App {
         };
         match Gfx::new(window.clone()) {
             Ok(mut g) => {
+                g.water.quality = self.settings.water_quality;
                 eprintln!("graphics: {}", g.adapter_info);
                 g.cover.set_quality(self.settings.ground_cover);
                 crate::theme::apply(&self.egui_ctx);
@@ -5962,6 +5966,8 @@ pub fn shot_with_ui(
             })
     };
     let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
+    // DYNO_SHOT_STATS=gpu: each frame waits for the GPU, so its time counts
+    let stats_gpu = std::env::var("DYNO_SHOT_STATS").is_ok_and(|v| v == "gpu");
     // the camera: where asked (the server streams the world round it), else
     // the character; DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]" flies it across
     // the map to measure frames while the land streams in
@@ -6166,6 +6172,11 @@ pub fn shot_with_ui(
             let (fw, fh) = (gfx.config.width as f32, gfx.config.height as f32);
             let see = if p.far.is_empty() { 160.0 } else { FAR_SEE };
             let vp = p.player.view_proj(fw / fh, 70.0, see);
+            gfx.water.look_from(
+                &p.world,
+                p.player.eye().into(),
+                p.hearth.unwrap_or_default(),
+            );
             let sky_now = crate::sky::sky_at(p.time, Some(p.player.eye()));
             let out = fctx.run(egui::RawInput::default(), |_| {});
             gfx.frame(
@@ -6176,6 +6187,9 @@ pub fn shot_with_ui(
                 &fctx,
                 out,
             );
+            if stats_gpu {
+                gfx.wait_idle();
+            }
             frames.push((
                 world_t.as_secs_f64() * 1e3,
                 frame_t0.elapsed().as_secs_f64() * 1e3,
@@ -6395,6 +6409,8 @@ pub fn shot_with_ui(
     let up = right.cross(dir);
     let vp = glam::Mat4::perspective_rh(crate::shot::STAND_FOV.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+    gfx.water
+        .look_from(&p.world, eye.into(), p.hearth.unwrap_or_default());
     models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
     let mut boxes = Vec::new();
     let mut lines = Vec::new();

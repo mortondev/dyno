@@ -297,6 +297,8 @@ pub struct Post {
     pub quality: Quality,
     /// the world's picture, before the grade
     pub hdr: wgpu::TextureView,
+    /// the same as a texture, for passes that copy it (water.rs)
+    pub picture: wgpu::Texture,
     bgl: wgpu::BindGroupLayout,
     samp: wgpu::Sampler,
     ubuf: wgpu::Buffer,
@@ -350,6 +352,7 @@ fn target(
 /// What `Post::new` and `Post::resize` build for a picture size.
 struct Targets {
     hdr: wgpu::TextureView,
+    picture: wgpu::Texture,
     ao: wgpu::TextureView,
     mips: Vec<wgpu::TextureView>,
     from_hdr: wgpu::BindGroup,
@@ -517,6 +520,7 @@ impl Post {
             format,
             quality,
             hdr: t.hdr,
+            picture: t.picture,
             bgl,
             samp,
             ubuf,
@@ -551,7 +555,23 @@ impl Post {
         depth: &wgpu::TextureView,
     ) -> Targets {
         let (w, h) = (w.max(1), h.max(1));
-        let hdr = target(device, "picture", w, h, format);
+        let picture = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("picture"),
+            size: wgpu::Extent3d {
+                width: w,
+                height: h,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let hdr = picture.create_view(&wgpu::TextureViewDescriptor::default());
         let ao = target(device, "occlusion", w.div_ceil(2), h.div_ceil(2), ao_format);
         let mips: Vec<wgpu::TextureView> = (0..BLOOM_LEVELS)
             .map(|i| {
@@ -594,6 +614,7 @@ impl Post {
         let from_mip = mips.iter().map(|m| bind(m, m)).collect();
         Targets {
             hdr,
+            picture,
             ao,
             mips,
             from_hdr,
@@ -622,6 +643,7 @@ impl Post {
             depth,
         );
         self.hdr = t.hdr;
+        self.picture = t.picture;
         self.ao = t.ao;
         self.mips = t.mips;
         self.from_hdr = t.from_hdr;

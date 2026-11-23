@@ -37,6 +37,7 @@ pub mod textures;
 pub mod theme;
 pub mod vox;
 pub mod voxmodel;
+pub mod water;
 pub mod worldwork;
 
 /// Open the game window. `prefill` sets the server address field.
