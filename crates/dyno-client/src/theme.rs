@@ -87,11 +87,41 @@ fn one() -> f32 {
     1.0
 }
 
+/// The fonts that stand in before the pack's arrive, and stay as fallbacks:
+/// two of egui's own (text, and arrows and other symbols), not its emoji.
+pub fn base_fonts() -> FontDefinitions {
+    let mut fonts = FontDefinitions::empty();
+    for (name, bytes) in [
+        ("Ubuntu-Light", epaint_default_fonts::UBUNTU_LIGHT),
+        ("Hack", epaint_default_fonts::HACK_REGULAR),
+    ] {
+        fonts
+            .font_data
+            .insert(name.into(), Arc::new(FontData::from_static(bytes)));
+    }
+    fonts.families.insert(
+        FontFamily::Proportional,
+        vec!["Ubuntu-Light".into(), "Hack".into()],
+    );
+    fonts.families.insert(
+        FontFamily::Monospace,
+        vec!["Hack".into(), "Ubuntu-Light".into()],
+    );
+    fonts
+}
+
+/// A new egui context with the stand-in fonts (egui has none of its own here).
+pub fn new_context() -> egui::Context {
+    let ctx = egui::Context::default();
+    ctx.set_fonts(base_fonts());
+    ctx
+}
+
 /// The font set from the pack, as far as it has arrived; egui's own fonts
 /// stand in for the rest and stay as fallbacks (symbols, emoji). Also
 /// returns the bytes it was built from, to tell when to build it again.
 fn pack_fonts() -> (FontDefinitions, Vec<usize>) {
-    let mut fonts = FontDefinitions::default();
+    let mut fonts = base_fonts();
     let addr = |b: &Option<Arc<[u8]>>| b.as_ref().map(|b| b.as_ptr() as usize).unwrap_or(0);
     let json = crate::assets::get(FONTS_JSON);
     let mut source = vec![addr(&json)];

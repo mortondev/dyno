@@ -279,7 +279,7 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
         );
     }
     g.screenshot = Some(o.out.clone());
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     let out = ctx.run(egui::RawInput::default(), |_| {});
     g.frame(Some((vp, player.eye(), far)), &sky, &boxes, &[], &ctx, out);
     Ok(format!(

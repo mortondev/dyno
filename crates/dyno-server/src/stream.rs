@@ -207,6 +207,15 @@ impl View {
         )
     }
 
+    /// Tiles that changed: those held are sent again, before the rest.
+    pub fn far_changed(&mut self, tiles: &HashSet<TilePos>) {
+        for t in tiles {
+            if self.far_held.remove(t).is_some() && !self.far_want.contains(t) {
+                self.far_want.push(*t);
+            }
+        }
+    }
+
     /// The far view, after the near: tiles within `cfg.far`, nearest first,
     /// with what the budget leaves this tick; tiles past it are dropped.
     /// The list is remade when the view moves to another tile (a tile that
@@ -291,6 +300,29 @@ impl State {
     pub fn stream_sections(&mut self, dt: f32) {
         let cfg = self.stream;
         let spawn = self.spawn_point();
+        // far tiles with a block changed since last tick: sent again to
+        // those who hold them (wherever they stand)
+        let changed: HashSet<TilePos> = self
+            .world
+            .take_changes()
+            .into_iter()
+            .map(|s| {
+                [
+                    (s[0] * dyno_world::SECTION).div_euclid(TILE),
+                    (s[2] * dyno_world::SECTION).div_euclid(TILE),
+                ]
+            })
+            .collect();
+        if !changed.is_empty() {
+            for v in self
+                .players
+                .values_mut()
+                .map(|p| &mut p.view)
+                .chain(self.observers.values_mut().map(|o| &mut o.view))
+            {
+                v.far_changed(&changed);
+            }
+        }
         let world = &self.world;
         // each section is encoded once and kept until it changes: many
         // players want the same sections (a restart has everyone join at once)
@@ -510,6 +542,73 @@ mod tests {
             total / ticks as f64,
             worst
         );
+    }
+
+    #[test]
+    fn far_tiles_follow_the_near_view_and_are_sent_again_when_changed() {
+        let mut world = World::generate([256, 48, 256], 3);
+        world.log_changes(true);
+        let cfg = StreamConfig {
+            view: 32.0,
+            far: 200.0,
+            ..Default::default()
+        };
+        let mut v = View::default();
+        let at = [128.0, 30.0, 128.0];
+        let mut tile = |t: TilePos| {
+            (
+                far::tile_rev(&world, t),
+                far::FarTile::build(&world, t).encode(),
+            )
+        };
+        let mut got: Vec<TilePos> = Vec::new();
+        for _ in 0..400 {
+            v.pump(&world, at, 0.05, &cfg);
+            for m in v.pump_far(&world, at, &cfg, &mut tile) {
+                if let ServerMsg::Far(l) = m {
+                    // the near view came first
+                    assert!(v.filled);
+                    got.extend(l.into_iter().map(|(t, _)| t));
+                }
+            }
+        }
+        assert_eq!(got.len(), 16, "every tile of this small world");
+        assert!(
+            [[1, 1], [1, 2], [2, 1], [2, 2]].contains(&got[0]),
+            "the nearest first: {:?}",
+            got[0]
+        );
+        // a block changes in a far tile while the viewer stays where they are
+        let mut world = world;
+        let g = world.surface(20, 20);
+        world.set(20, g + 1, 20, dyno_world::STONE_BRICKS);
+        let changed: HashSet<TilePos> = world
+            .take_changes()
+            .into_iter()
+            .map(|s| {
+                [
+                    (s[0] * dyno_world::SECTION).div_euclid(TILE),
+                    (s[2] * dyno_world::SECTION).div_euclid(TILE),
+                ]
+            })
+            .collect();
+        assert_eq!(changed, HashSet::from([[0, 0]]));
+        v.far_changed(&changed);
+        let mut tile = |t: TilePos| {
+            (
+                far::tile_rev(&world, t),
+                far::FarTile::build(&world, t).encode(),
+            )
+        };
+        let again: Vec<TilePos> = v
+            .pump_far(&world, at, &cfg, &mut tile)
+            .into_iter()
+            .flat_map(|m| match m {
+                ServerMsg::Far(l) => l.into_iter().map(|(t, _)| t).collect(),
+                _ => Vec::new(),
+            })
+            .collect();
+        assert_eq!(again, vec![[0, 0]], "sent again, and only it");
     }
 
     #[test]

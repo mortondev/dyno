@@ -920,7 +920,7 @@ fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
                             .char_limit(16),
                     );
                     if ui
-                        .button(RichText::new("🎲").size(20.0))
+                        .button(RichText::new("?").size(20.0))
                         .on_hover_text("A random name")
                         .clicked()
                     {

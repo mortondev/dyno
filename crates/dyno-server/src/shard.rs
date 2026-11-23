@@ -172,6 +172,8 @@ impl State {
         world: dyno_world::World,
         light: dyno_world::light::Light,
     ) -> State {
+        let mut world = world;
+        world.log_changes(true);
         let hearths = crate::creatures::find_hearths(&world);
         let mut st = State {
             world,

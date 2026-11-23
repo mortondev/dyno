@@ -334,6 +334,8 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
     }
     // built: every section in its smallest form (shards share them)
     world.compact();
+    // changes are noted, so the far view's tiles are sent again (stream.rs)
+    world.log_changes(true);
     let hearths = creatures::find_hearths(&world);
     let light = dyno_world::light::Light::new(&world);
     let webhook = cfg

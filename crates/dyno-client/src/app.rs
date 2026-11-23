@@ -74,7 +74,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         settings,
         gfx: None,
         audio: Audio::new(),
-        egui_ctx: egui::Context::default(),
+        egui_ctx: crate::theme::new_context(),
         egui_state: None,
         screen: Screen::Menu,
         host: None,
@@ -1465,13 +1465,21 @@ fn far_uploads(p: &mut Play, gfx: &mut Gfx, cam: Vec3, budget: Duration) -> Dura
         .is_none_or(|c| (c[0] - here[0]).hypot(c[1] - here[1]) > 16.0)
     {
         p.far_centre = Some(here);
-        // the tiles the edge of the cut can touch
+        // the tiles whose mesh depends on where the camera is: near the start
+        // of the ground, the cut and its fade, or the ring where cells coarsen
+        let edges = [
+            crate::farview::GROUND_FROM,
+            cut,
+            cut + crate::farview::FADE,
+            crate::farview::COARSE,
+        ];
         for t in p.far.keys() {
             let c = [
                 t[0] as f32 * tile + tile * 0.5,
                 t[1] as f32 * tile + tile * 0.5,
             ];
-            if (c[0] - here[0]).hypot(c[1] - here[1]) < cut + tile * 1.5 {
+            let d = (c[0] - here[0]).hypot(c[1] - here[1]);
+            if edges.iter().any(|e| (d - e).abs() < tile * 1.5) {
                 p.far_dirty.insert(*t);
             }
         }
@@ -5255,7 +5263,7 @@ fn hud(
         let label = if m.online {
             format!(
                 "{}{}  {}",
-                if m.leader { "♛ " } else { "" },
+                if m.leader { "* " } else { "" },
                 m.name,
                 m.level
             )
@@ -5892,7 +5900,7 @@ pub fn shot_front(
     let vp = glam::Mat4::from_translation(Vec3::new(f.preview_offset(), 0.0, 0.0))
         * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt, 0.05, far)
         * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     crate::theme::apply(&ctx);
     ctx.style_mut(|s| s.animation_time = 0.0);
     let raw = || egui::RawInput {
@@ -6007,7 +6015,7 @@ pub fn shot_with_ui(
     // the world is drawn as play draws it: lit and meshed on the world
     // thread, uploaded within a budget each frame, frames rendered at ~60 Hz
     gfx.begin_world(&p.world);
-    let fctx = egui::Context::default();
+    let fctx = crate::theme::new_context();
     let mut frames: Vec<(f64, f64)> = Vec::new();
     let mut land_at: Option<Duration> = None;
     let started = Instant::now();
@@ -6546,7 +6554,7 @@ pub fn shot_with_ui(
             }
         }
     }
-    let ctx = egui::Context::default();
+    let ctx = crate::theme::new_context();
     crate::theme::apply(&ctx);
     ctx.style_mut(|s| {
         s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
@@ -6584,6 +6592,11 @@ pub fn shot_with_ui(
         }
         let frame_ms = t0.elapsed().as_secs_f64() * 1e3 / n as f64;
         let (vo, vt) = gfx.world_vertices();
+        let (ft, fv) = gfx.far_stats();
+        eprintln!(
+            "stats: far view {ft} tiles, {fv} vertices, {:.1} MB on the GPU",
+            (fv as usize * std::mem::size_of::<Vertex>()) as f64 / 1048576.0
+        );
         eprintln!(
             "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
         );

@@ -18,7 +18,10 @@ dyno-protocol = { path = "../dyno-protocol" }
 dyno-server = { path = "../dyno-server", optional = true }
 dyno-sim = { path = "../dyno-sim" }
 dyno-world = { path = "../dyno-world" }
-egui = "0.33.3"
+# no built-in fonts: the pack brings the game's; two of egui's own stand in
+# before the first join (theme::base_fonts), not all four (1 MB of emoji)
+egui = { version = "0.33.3", default-features = false }
+epaint_default_fonts = "0.33.3"
 egui-wgpu = "0.33.3"
 # no `links` (webbrowser): the game never opens a browser
 egui-winit = { version = "0.33.3", default-features = false, features = ["clipboard", "wayland", "x11"] }

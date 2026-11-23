@@ -134,7 +134,9 @@ struct Look { leaf_under: vec4<f32>, leaf_over: vec4<f32>, tone_low: vec4<f32>, 
 @group(0) @binding(5) var<uniform> look: Look;
 
 // What a vertex is, from tex.z (see the KIND constants in render.rs):
-//   below 0: untextured (-1 plain, -2 ground cover (cover.rs), -3 ground decal, -4 halo)
+//   below 0: untextured (-1 plain, -2 ground cover (cover.rs) and the far
+//   view's ground, -3 ground decal, -4 halo, -5 the far view's columns,
+//   dithered in from tex.x over tex.y metres)
 //   0..: textured with its own UVs
 //   4096..: smooth ground, textured by world position
 //   8192..: foliage, textured by world position, swaying
@@ -371,6 +373,12 @@ fn ground_tone(m: f32) -> vec3<f32> {
   }
   let tx0 = textureSample(tex_array, tex_samp, uv0, l0);
   let d = distance(i.wpos, u.cam.xyz);
+  // the far view's standing columns fade in past the near view: a fine
+  // dither (world-space, so it holds still), from tex.x over tex.y metres
+  if (kz < -4.5 && kz > -5.5) {
+    let k = clamp((d - i.tex.x) / max(i.tex.y, 1.0), 0.0, 1.0);
+    if (hash3(floor(i.wpos * 3.0)) > k) { discard; }
+  }
   let has_n = dot(i.normal, i.normal) > 0.25;
   var n = vec3<f32>(0.0, 1.0, 0.0);
   if (has_n) { n = normalize(i.normal); }
@@ -441,7 +449,8 @@ fn ground_tone(m: f32) -> vec3<f32> {
       }
     }
     base = c * ground_tone(i.tone);
-  } else if (kz < -1.5 && kz > -2.5) {
+  } else if ((kz < -1.5 && kz > -2.5) || (kz < -4.5 && kz > -5.5)) {
+    // ground cover, and the far view: toned like the land
     base = base * ground_tone(i.tone);
   } else if (kz >= 0.0) {
     if (tx0.a < 0.5) { discard; }
