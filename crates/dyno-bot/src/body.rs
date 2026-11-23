@@ -238,22 +238,6 @@ enum Probe {
     Attack,
 }
 
-/// The spawn hearth, found as the game client finds it.
-pub fn find_hearth(world: &World) -> [i32; 3] {
-    world
-        .find_near(
-            w::HEARTH,
-            world.size[0] as i32 / 2,
-            world.size[2] as i32 / 2,
-            24,
-        )
-        .unwrap_or([
-            world.size[0] as i32 / 2,
-            world.surface(world.size[0] as i32 / 2, world.size[2] as i32 / 2),
-            world.size[2] as i32 / 2,
-        ])
-}
-
 /// A stable token per bot name (so a bot keeps its character).
 pub fn token_for(name: &str) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
@@ -288,7 +272,8 @@ impl Body {
     }
 
     pub fn new(j: Joined) -> Body {
-        let hearth = find_hearth(&j.world);
+        // the server names it: the world round it may not have streamed in
+        let hearth = j.hearth;
         let mut player = Player::new(j.spawn);
         if j.content.world.protected {
             player.auto_step = true;
@@ -411,10 +396,17 @@ impl Body {
 
     /// A hearth-relative content position as a world position (feet level
     /// on the ground, under any tree canopy).
+    /// Land that has not streamed in yet is taken to be at our own height
+    /// until it arrives.
     pub fn rel(&self, at: [i32; 3]) -> Vec3 {
         let (x, z) = (self.hearth[0] + at[0], self.hearth[2] + at[2]);
-        let y = ground(&self.world, x, z) + 1;
-        Vec3::new(x as f32 + 0.5, y as f32, z as f32 + 0.5)
+        let g = ground(&self.world, x, z);
+        let y = if g < 0 && !self.world.known(x, self.world.size[1] as i32 - 1, z) {
+            self.player.pos.y
+        } else {
+            (g + 1) as f32
+        };
+        Vec3::new(x as f32 + 0.5, y, z as f32 + 0.5)
     }
 
     pub fn rel2(&self, at: [i32; 2]) -> Vec3 {
@@ -671,17 +663,12 @@ impl Body {
                 self.nav.path.clear();
                 self.ev(Ev::Teleport(from, pos.into()));
             }
-            ServerMsg::Block { pos, block } => {
-                self.world.set(pos[0], pos[1], pos[2], block);
-            }
-            ServerMsg::Fill { a, b, block } => {
-                for x in a[0]..=b[0] {
-                    for y in a[1]..=b[1] {
-                        for z in a[2]..=b[2] {
-                            self.world.set(x, y, z, block);
-                        }
-                    }
-                }
+            // the world streams in around the bot and is let go behind it
+            m @ (ServerMsg::Sections(_)
+            | ServerMsg::SectionsGone(_)
+            | ServerMsg::Block { .. }
+            | ServerMsg::Fill { .. }) => {
+                net::apply_world(&mut self.world, &m);
             }
             ServerMsg::Shard {
                 players, blocks, ..

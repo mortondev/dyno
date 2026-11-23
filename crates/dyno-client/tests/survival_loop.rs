@@ -77,6 +77,20 @@ fn grass_near(j: &Joined) -> [f32; 3] {
     panic!("no grass near spawn");
 }
 
+/// The world streams in around the player: wait until the land within `r`
+/// of `at` is here (what arrives meanwhile is applied to the world, and
+/// anything else is dropped).
+fn land(j: &mut Joined, at: [f32; 3], r: f32) {
+    let need = net::sections_around(&j.world, at, r);
+    let end = Instant::now() + Duration::from_secs(20);
+    while !need.iter().all(|s| j.world.has_section(*s)) {
+        assert!(Instant::now() < end, "the land around {at:?} streams in");
+        if let Ok(NetEvent::Msg(m)) = j.conn.rx.recv_timeout(Duration::from_millis(20)) {
+            net::apply_world(&mut j.world, &m);
+        }
+    }
+}
+
 fn pose(j: &Joined, pos: [f32; 3]) {
     send(
         j,
@@ -103,7 +117,8 @@ fn night_brings_shades() {
     };
     let server = dyno_server::start(cfg).expect("server starts");
     let addr = format!("127.0.0.1:{}", server.local_addr.port());
-    let j = net::connect(&addr, "nightwatch", 777, false, Duration::from_secs(5)).expect("join");
+    let mut j =
+        net::connect(&addr, "nightwatch", 777, false, Duration::from_secs(5)).expect("join");
     let shade = j
         .content
         .creatures
@@ -111,14 +126,12 @@ fn night_brings_shades() {
         .find(|c| c.key == "shade")
         .unwrap()
         .id;
-    let hearth = j
-        .world
-        .find_near(dyno_world::HEARTH, 96, 96, 24)
-        .expect("a spawn hearth");
+    let hearth = j.hearth;
     let mut pack = vec![None; 36];
     // out in the meadow, beyond the town (where Shades never rise)
     let here = {
         let (x, z) = (hearth[0] + 52, hearth[2]);
+        land(&mut j, [x as f32, 0.0, z as f32], 24.0);
         [
             x as f32 + 0.5,
             j.world.surface(x, z) as f32 + 1.0,
@@ -458,11 +471,16 @@ fn quests_give_xp_and_rewards() {
         world_path: dir.join("world.dynw"),
         world_size: [96, 48, 96],
         trust_movement: true,
+        // the whole (small) world is of interest: every NPC is met at once
+        stream: dyno_server::stream::StreamConfig {
+            aoi: 200.0,
+            ..Default::default()
+        },
         ..Default::default()
     };
     let server = dyno_server::start(cfg).expect("server starts");
     let addr = format!("127.0.0.1:{}", server.local_addr.port());
-    let j = net::connect(&addr, "hero", 4242, false, Duration::from_secs(5)).expect("join");
+    let mut j = net::connect(&addr, "hero", 4242, false, Duration::from_secs(5)).expect("join");
     let c = j.content.clone();
     assert!(c.world.protected, "the built-in content uses RPG rules");
     let mut pack = vec![None; 36];
@@ -707,6 +725,8 @@ fn quests_give_xp_and_rewards() {
     let log = c.item_by_key("log").unwrap();
     let mut node = None;
     let (cx, cz) = (j.spawn[0] as i32, j.spawn[2] as i32);
+    let spawn = j.spawn;
+    land(&mut j, spawn, 48.0);
     'find: for r in 0..48i32 {
         for dz in -r..=r {
             for dx in -r..=r {

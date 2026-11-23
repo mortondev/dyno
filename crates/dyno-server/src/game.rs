@@ -103,6 +103,13 @@ pub struct Player {
     pub area: Option<usize>,
     /// how the player chose to look
     pub look: proto::Appearance,
+    /// the sections of the world this player's client holds (stream.rs)
+    pub view: crate::stream::View,
+    /// entities this player's client knows (area of interest). A cell, so
+    /// `broadcast` can introduce a new entity to those near it at once.
+    pub known: std::cell::RefCell<HashSet<u32>>,
+    /// players near enough that their poses are sent
+    pub near: HashSet<PlayerId>,
 }
 
 impl Player {
@@ -147,6 +154,13 @@ pub struct Entity {
     pub phase: Option<(u8, bool)>,
 }
 
+/// An invisible tool connection (`dyno shot`): it hears everything and
+/// streams the world around the point it asks for.
+pub struct Observer {
+    pub tx: Sender<Arc<Vec<u8>>>,
+    pub view: crate::stream::View,
+}
+
 /// Every chest's slots by position, shared by all shards.
 pub type Chests = Arc<Mutex<HashMap<[i32; 3], Vec<Option<Stack>>>>>;
 
@@ -155,7 +169,7 @@ pub struct State {
     pub content: Content,
     pub players: HashMap<PlayerId, Player>,
     /// invisible tool connections: they receive updates but cannot act
-    pub observers: HashMap<PlayerId, Sender<Arc<Vec<u8>>>>,
+    pub observers: HashMap<PlayerId, Observer>,
     /// player IDs are unique across every shard
     pub next_id: Arc<std::sync::atomic::AtomicU32>,
     pub dirty: bool,
@@ -206,6 +220,11 @@ pub struct State {
     pub rested_clock: f32,
     /// weather kind (0 clear, 1 cloudy, 2 rain, 3 fog), strength, seconds left
     pub weather: (u8, f32, f32),
+    /// view radius, area of interest and section budgets
+    pub stream: crate::stream::StreamConfig,
+    /// sections encoded for streaming, with the world's count of changes
+    /// to each when it was encoded (stream.rs)
+    pub encoded: HashMap<dyno_world::SectionPos, (u32, Vec<u8>)>,
 }
 
 pub fn now_secs() -> u64 {
@@ -476,71 +495,115 @@ impl State {
     }
 
     /// Send to every player and observer, except one player.
+    ///
+    /// This is where area of interest and phasing are enforced
+    /// (docs/architecture.md §4, docs/design/data-and-streaming.md §4):
+    /// a message about an entity goes only to players who know it (near
+    /// enough, and in its phase); an action or a spell effect only to
+    /// players near it; a block edit only to clients that hold its section.
+    /// Observers (tools) hear about every entity and action.
     pub fn broadcast(&self, msg: &ServerMsg, except: Option<PlayerId>) {
-        // phasing: a message about a phased entity goes only to those who see it
-        let about = match msg {
-            ServerMsg::EntitySpawn { id, .. }
-            | ServerMsg::EntityHurt { id }
+        enum To {
+            All,
+            Knows(u32),
+            Meets(u32, [f32; 3]),
+            Near(Vec<[f32; 3]>),
+            Holds([i32; 3], [i32; 3]),
+        }
+        let pose_of = |pid: &PlayerId| self.players.get(pid).map(|p| p.pose.pos);
+        let to = match msg {
+            // states, not moments: a body must not stay down (or a cast bar
+            // up) for someone who was near when it began
+            ServerMsg::Act {
+                actor: proto::Actor::Player(_),
+                act: proto::Act::Died | proto::Act::Revived,
+            }
+            | ServerMsg::Casting { ability: None, .. }
+            | ServerMsg::Digging { pos: None, .. } => To::All,
+            ServerMsg::EntitySpawn { id, pos, .. } => To::Meets(*id, *pos),
+            ServerMsg::EntityHurt { id }
             | ServerMsg::EntityInfo { id, .. }
-            | ServerMsg::EntityName { id, .. } => Some(*id),
-            ServerMsg::Damage {
+            | ServerMsg::EntityName { id, .. }
+            | ServerMsg::EntityGone { id, .. }
+            | ServerMsg::Damage {
                 entity: Some(id), ..
-            } => Some(*id),
-            _ => None,
+            }
+            | ServerMsg::Act {
+                actor: proto::Actor::Entity(id),
+                ..
+            } => To::Knows(*id),
+            ServerMsg::Act {
+                actor: proto::Actor::Player(pid),
+                ..
+            }
+            | ServerMsg::Casting { player: pid, .. }
+            | ServerMsg::Digging { player: pid, .. } => match pose_of(pid) {
+                Some(at) => To::Near(vec![at]),
+                None => To::All,
+            },
+            ServerMsg::Effect { from, to, .. } => To::Near(vec![*from, *to]),
+            ServerMsg::Block { pos, .. } => To::Holds(*pos, *pos),
+            ServerMsg::Fill { a, b, .. } => To::Holds(*a, *b),
+            ServerMsg::EntityMoves(list) => {
+                for (id, p) in &self.players {
+                    if Some(*id) == except {
+                        continue;
+                    }
+                    let mine: Vec<(u32, [f32; 3], f32)> = list
+                        .iter()
+                        .filter(|(eid, ..)| p.known.borrow().contains(eid))
+                        .copied()
+                        .collect();
+                    if !mine.is_empty() {
+                        p.send(&ServerMsg::EntityMoves(mine));
+                    }
+                }
+                let bytes = Arc::new(proto::encode(msg));
+                for (id, o) in &self.observers {
+                    if Some(*id) != except {
+                        let _ = o.tx.send(bytes.clone());
+                    }
+                }
+                return;
+            }
+            _ => To::All,
         };
-        if let Some(phase) = about
-            .and_then(|id| self.entities.get(&id))
-            .and_then(|e| e.phase)
-        {
-            let bytes = Arc::new(proto::encode(msg));
-            for (id, p) in &self.players {
-                if Some(*id) != except && in_phase(p.phases, phase) {
-                    let _ = p.tx.send(bytes.clone());
-                }
-            }
-            for (id, tx) in &self.observers {
-                if Some(*id) != except {
-                    let _ = tx.send(bytes.clone());
-                }
-            }
-            return;
-        }
-        if let ServerMsg::EntityMoves(list) = msg
-            && list
-                .iter()
-                .any(|(id, ..)| self.entities.get(id).is_some_and(|e| e.phase.is_some()))
-        {
-            for (id, p) in &self.players {
-                if Some(*id) == except {
-                    continue;
-                }
-                let mine: Vec<(u32, [f32; 3], f32)> = list
-                    .iter()
-                    .filter(|(eid, ..)| self.sees(p.phases, *eid))
-                    .copied()
-                    .collect();
-                if !mine.is_empty() {
-                    p.send(&ServerMsg::EntityMoves(mine));
-                }
-            }
-            let bytes = Arc::new(proto::encode(msg));
-            for (id, tx) in &self.observers {
-                if Some(*id) != except {
-                    let _ = tx.send(bytes.clone());
-                }
-            }
-            return;
-        }
+        let reach = self.stream.aoi + self.stream.aoi_keep;
         let bytes = Arc::new(proto::encode(msg));
         for (id, p) in &self.players {
-            if Some(*id) != except {
+            if Some(*id) == except {
+                continue;
+            }
+            let send = match &to {
+                To::All => true,
+                To::Knows(e) => p.known.borrow().contains(e),
+                // something new (or changed: a corpse stops glinting): those
+                // who know it hear, and those near who may see it meet it now
+                To::Meets(e, at) => {
+                    p.known.borrow().contains(e)
+                        || ((at[0] - p.pose.pos[0]).hypot(at[2] - p.pose.pos[2]) <= self.stream.aoi
+                            && self.sees(p.phases, *e)
+                            && p.known.borrow_mut().insert(*e))
+                }
+                To::Near(points) => points
+                    .iter()
+                    .any(|at| (at[0] - p.pose.pos[0]).hypot(at[2] - p.pose.pos[2]) <= reach),
+                To::Holds(a, b) => p.view.holds_box(*a, *b),
+            };
+            if send {
                 let _ = p.tx.send(bytes.clone());
             }
         }
-        for (id, tx) in &self.observers {
-            if Some(*id) != except {
-                let _ = tx.send(bytes.clone());
+        for (id, o) in &self.observers {
+            if Some(*id) == except {
+                continue;
             }
+            if let To::Holds(a, b) = &to
+                && !o.view.holds_box(*a, *b)
+            {
+                continue;
+            }
+            let _ = o.tx.send(bytes.clone());
         }
     }
 
@@ -579,23 +642,28 @@ impl State {
         if new == old {
             return;
         }
-        let mut msgs = Vec::new();
-        for (eid, e) in &self.entities {
-            let Some(ph) = e.phase else { continue };
-            let (was, now) = (in_phase(old, ph), in_phase(new, ph));
-            if was && !now {
-                msgs.push(ServerMsg::EntityGone {
-                    id: *eid,
-                    picked_by: None,
-                });
-            } else if now && !was {
-                msgs.extend(self.entity_intro(*eid, e));
-            }
-        }
+        // what left the phase is forgotten now; what entered it is
+        // introduced by the interest pass if it is near (stream.rs)
+        let gone: Vec<u32> = p
+            .known
+            .borrow()
+            .iter()
+            .filter(|eid| {
+                self.entities
+                    .get(eid)
+                    .and_then(|e| e.phase)
+                    .is_some_and(|ph| !in_phase(new, ph))
+            })
+            .copied()
+            .collect();
         let p = self.players.get_mut(&id).unwrap();
         p.phases = new;
-        for m in &msgs {
-            p.send(m);
+        for eid in gone {
+            p.known.borrow_mut().remove(&eid);
+            p.send(&ServerMsg::EntityGone {
+                id: eid,
+                picked_by: None,
+            });
         }
     }
 
@@ -799,6 +867,9 @@ impl State {
             auras: Vec::new(),
             area: None,
             look: data.look,
+            view: Default::default(),
+            known: Default::default(),
+            near: HashSet::new(),
         };
         let others: Vec<PlayerInfo> = self
             .players
@@ -815,15 +886,14 @@ impl State {
             mode: p.mode,
             // the server fills in its pack's manifest
             manifest: Default::default(),
+            hearth: self.spawn_hearth,
+            view: self.stream.view,
         };
         let mut p = p;
         p.phases = self.phases_of(&p);
+        // the world and the entities near you follow at the end of the tick
+        // (stream_sections, update_interest)
         let mut after = vec![ServerMsg::Pack(p.pack.slots.clone()), p.status()];
-        for (eid, e) in &self.entities {
-            if self.sees(p.phases, *eid) {
-                after.extend(self.entity_intro(*eid, e));
-            }
-        }
         {
             let max = match (self.rpg(), p.class.and_then(|c| self.content.class(c))) {
                 (true, Some(class)) => {
@@ -1020,7 +1090,13 @@ impl State {
 
     /// Handle one message. Err disconnects the player (only for bad input).
     pub fn handle(&mut self, id: PlayerId, msg: ClientMsg) -> Result<(), String> {
-        if self.observers.contains_key(&id) {
+        if let Some(o) = self.observers.get_mut(&id) {
+            // tools may only say where to look
+            if let ClientMsg::ViewAt { pos } = msg
+                && pos.iter().all(|v| v.is_finite())
+            {
+                o.view.center = Some(pos);
+            }
             return Ok(());
         }
         if !self.players.contains_key(&id) {
@@ -1142,6 +1218,7 @@ impl State {
             ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
             ClientMsg::Chat { .. }
             | ClientMsg::Want { .. }
+            | ClientMsg::ViewAt { .. }
             | ClientMsg::Hello { .. }
             | ClientMsg::Session { .. }
             | ClientMsg::ListCharacters { .. }

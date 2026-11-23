@@ -43,11 +43,17 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
     if o.ui != "none" || o.player.is_some() {
         let name = o.player.clone().unwrap_or_else(|| o.name.clone());
         let observer = o.player.is_none();
-        let j = net::connect(
+        // an observer streams the world around the camera; a player sees
+        // what streams around their character
+        let j = net::connect_with(
             &o.addr,
             &name,
-            crate::settings::tool_token(&name),
-            observer,
+            net::JoinOptions {
+                token: crate::settings::tool_token(&name),
+                observer,
+                view_at: o.pos,
+                ..Default::default()
+            },
             Duration::from_secs(10),
         )?;
         let mut g = Gfx::new_headless(o.width, o.height)?;
@@ -56,12 +62,36 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
             j, &mut g, o.pos, o.yaw, o.pitch, o.time, ui, o.out, o.zoom,
         );
     }
-    let j = net::connect(&o.addr, &o.name, 0, true, Duration::from_secs(10))?;
+    // the world streams in around the camera
+    let mut j = net::connect_with(
+        &o.addr,
+        &o.name,
+        net::JoinOptions {
+            observer: true,
+            view_at: o.pos,
+            ..Default::default()
+        },
+        Duration::from_secs(10),
+    )?;
     let mut server_time = 0.25;
     let mut poses: Vec<Pose> = j.players.iter().map(|p| p.pose).collect();
-    let until = Instant::now() + Duration::from_millis(400);
-    while Instant::now() < until {
+    // until the rest of the view has streamed in (it goes quiet)
+    let started = Instant::now();
+    let mut last_section = Instant::now();
+    while started.elapsed() < Duration::from_millis(400)
+        || (last_section.elapsed() < Duration::from_millis(250)
+            && started.elapsed() < Duration::from_secs(4))
+    {
         match j.conn.rx.recv_timeout(Duration::from_millis(50)) {
+            Ok(NetEvent::Msg(
+                m @ (ServerMsg::Sections(_)
+                | ServerMsg::SectionsGone(_)
+                | ServerMsg::Block { .. }
+                | ServerMsg::Fill { .. }),
+            )) => {
+                net::apply_world(&mut j.world, &m);
+                last_section = Instant::now();
+            }
             Ok(NetEvent::Msg(ServerMsg::Time { time, .. })) => server_time = time,
             Ok(NetEvent::Msg(ServerMsg::Poses(list))) => {
                 poses = list.into_iter().map(|(_, p)| p).collect()

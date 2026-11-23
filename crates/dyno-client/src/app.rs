@@ -130,7 +130,12 @@ struct Chat {
 struct Play {
     /// the drawn (smooth) height of the ground, for feet
     ground: crate::terrain_mesh::Ground,
+    /// the sections the server has streamed (a sparse world)
     world: World,
+    /// sections that arrived and are not lit and meshed yet, and when
+    arrived: Vec<([i32; 3], Instant)>,
+    /// how far the world streams around you (metres)
+    view: f32,
     conn: net::Connection,
     my_id: PlayerId,
     server_version: String,
@@ -935,7 +940,7 @@ fn animate_caster(p: &mut Play, from: Vec3, color: [f32; 3]) {
         p.anims.last_swing = now;
         return;
     }
-    for (id, r) in &p.remotes {
+    for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let at = Vec3::from(r.current().pos);
         if from.distance(at + Vec3::Y * 1.4) < 1.6 {
             let a = if shot { Anim::Shoot } else { Anim::CastRelease };
@@ -1341,16 +1346,81 @@ fn start_tunnel(port: u16) -> Result<Tunnel, String> {
     Ok(Tunnel { child, url, error })
 }
 
+/// Sections that arrived: kept now, lit and meshed by `take_arrivals`.
+fn sections_in(p: &mut Play, list: Vec<([i32; 3], Vec<u8>)>) {
+    for (s, data) in list {
+        if p.world.put_section(s, &data).is_ok() {
+            p.arrived.push((s, Instant::now()));
+        }
+    }
+}
+
+/// Sections the server let go of: forget them and stop drawing them.
+fn sections_out(p: &mut Play, mut gfx: Option<&mut Gfx>, list: Vec<[i32; 3]>) {
+    for s in list {
+        p.world.drop_section(s);
+        p.light.forget(s);
+        p.arrived.retain(|a| a.0 != s);
+        if let Some(g) = gfx.as_deref_mut() {
+            g.section_gone(s);
+        }
+    }
+}
+
+/// Columns lit and meshed together (a batch costs some milliseconds).
+const ARRIVAL_COLUMNS: usize = 6;
+
+/// Light and mesh the sections of up to `max` columns that arrived.
+/// A column waits until it is whole (the server sends whole columns, and
+/// light is worked out a column at a time), or half a second at most.
+/// Returns how long it took (zero: nothing was ready).
+fn take_arrivals(p: &mut Play, gfx: Option<&mut Gfx>, max: usize) -> Duration {
+    let t0 = Instant::now();
+    if p.arrived.is_empty() {
+        return Duration::ZERO;
+    }
+    let layers = p.world.section_dims()[1];
+    let mut cols: Vec<[i32; 2]> = Vec::new();
+    for (s, at) in &p.arrived {
+        let c = [s[0], s[2]];
+        if cols.len() >= max || cols.contains(&c) {
+            continue;
+        }
+        let whole = (0..layers).all(|y| p.world.has_section([c[0], y, c[1]]));
+        if whole || at.elapsed() > Duration::from_millis(500) {
+            cols.push(c);
+        }
+    }
+    if cols.is_empty() {
+        return Duration::ZERO;
+    }
+    let mut batch = Vec::new();
+    p.arrived.retain(|(s, _)| {
+        let take = cols.contains(&[s[0], s[2]]);
+        if take {
+            batch.push(*s);
+        }
+        !take
+    });
+    p.light.arrived(&p.world, &batch);
+    p.ground.clear();
+    for s in &batch {
+        let lo = [s[0] * 16, s[1] * 16, s[2] * 16];
+        p.minimap
+            .region_changed(lo, [lo[0] + 15, lo[1] + 15, lo[2] + 15]);
+    }
+    if let Some(g) = gfx {
+        g.sections_arrived(&p.world, &p.light, &batch);
+    }
+    t0.elapsed().max(Duration::from_nanos(1))
+}
+
 /// Play state for a freshly joined server.
 fn new_play(j: Joined) -> Play {
     let rpg_world = j.content.world.protected;
     let light = Light::new(&j.world);
-    let hearth = j.world.find_near(
-        w::HEARTH,
-        j.world.size[0] as i32 / 2,
-        j.world.size[2] as i32 / 2,
-        24,
-    );
+    // the server names it: the world around it may not have streamed in
+    let hearth = Some(j.hearth);
     Play {
         player: Player::new(j.spawn),
         anims: Anims::default(),
@@ -1370,7 +1440,9 @@ fn new_play(j: Joined) -> Play {
             from: None,
             text: j.motd.clone(),
         }],
+        view: j.view,
         world: j.world,
+        arrived: Vec::new(),
         conn: j.conn,
         my_id: j.your_id,
         server_version: j.server_version,
@@ -1912,6 +1984,16 @@ impl App {
                                 }
                             }
                         }
+                        // the world streams in around you (and is let go behind you)
+                        ServerMsg::Sections(list) => sections_in(p, list),
+                        ServerMsg::SectionsGone(list) => sections_out(p, self.gfx.as_mut(), list),
+                        ServerMsg::PlayersFar(ids) => {
+                            for id in ids {
+                                if let Some(r) = p.remotes.get_mut(&id) {
+                                    r.far = true;
+                                }
+                            }
+                        }
                         ServerMsg::Chat { from, text } => {
                             self.audio.play(Sfx::Chat, 0.6);
                             p.chat.push(Chat {
@@ -2371,6 +2453,15 @@ impl App {
                     },
                 }
             }
+            // light and mesh what arrived: about 8 ms of it a frame
+            let mut spent = Duration::ZERO;
+            while !p.arrived.is_empty() && spent < Duration::from_millis(8) {
+                let took = take_arrivals(p, self.gfx.as_mut(), ARRIVAL_COLUMNS);
+                if took.is_zero() {
+                    break;
+                }
+                spent += took;
+            }
             if p.combat_log.len() > 300 {
                 p.combat_log.drain(..150);
             }
@@ -2422,6 +2513,12 @@ impl App {
                 self.settings.view_distance * (1.0 - 0.3 * p.weather_mix)
             }
             _ => self.settings.view_distance,
+        };
+        // no further than the world streams (less a section, whose
+        // neighbours must arrive before it is drawn)
+        let far = match &self.screen {
+            Screen::Playing(p) => far.min((p.view - 16.0).max(48.0)),
+            _ => far,
         };
 
         // DYNO_SCREENSHOT=path saves the view every 3 seconds while playing (scripted tests, agents)
@@ -2769,7 +2866,7 @@ impl App {
             let mut book = std::mem::take(&mut p.anims);
             let now = book.now();
             book.prune(now);
-            for (id, r) in &p.remotes {
+            for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
                 let pose = r.current();
                 let base = p.ground.feet(&p.world, Vec3::from(pose.pos));
                 let bl = light_at(&p.light, base + Vec3::Y);
@@ -3898,10 +3995,20 @@ fn ui(
                 Vec2::new(520.0, 10.0),
             );
             p.rect_filled(bar, 4.0, Color32::from_black_alpha(200));
-            // the pack download when there is one, else a fuse that slows as it nears the end
+            // the pack download when there is one, then the land around
+            // you, else a fuse that slows as it nears the end
             let downloading = progress.fraction().filter(|f| *f < 1.0);
-            let f =
-                downloading.unwrap_or_else(|| 1.0 - (-since.elapsed().as_secs_f32() / 3.0).exp());
+            let (have, need) = (
+                progress.sections.load(std::sync::atomic::Ordering::Relaxed),
+                progress
+                    .sections_needed
+                    .load(std::sync::atomic::Ordering::Relaxed),
+            );
+            let land = (downloading.is_none() && need > 0 && have < need)
+                .then(|| have as f32 / need as f32);
+            let f = downloading
+                .or(land)
+                .unwrap_or_else(|| 1.0 - (-since.elapsed().as_secs_f32() / 3.0).exp());
             p.rect_filled(
                 Rect::from_min_size(bar.min, Vec2::new(bar.width() * f, bar.height())),
                 4.0,
@@ -3938,6 +4045,7 @@ fn ui(
                         )
                     }
                 }
+                None if land.is_some() => format!("Loading the land around you: {have} of {need}"),
                 None if title.is_empty() => "Entering the world".to_string(),
                 None => format!("Entering {title}"),
             };
@@ -3994,7 +4102,7 @@ fn hud(
     }
     // name tags
     if let Some(vp) = vp {
-        for r in p.remotes.values() {
+        for r in p.remotes.values().filter(|r| !r.far) {
             let pose = r.current();
             let head = glam::Vec3::from(pose.pos) + glam::Vec3::Y * 2.0;
             let clip = vp * head.extend(1.0);
@@ -5749,10 +5857,36 @@ pub fn shot_with_ui(
     if let Some(z) = zoom {
         p.zoom = z;
     }
-    let until = Instant::now() + Duration::from_millis(700);
-    while Instant::now() < until {
+    let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
+    // the land the join waited for, then the rest of the view as it streams
+    // in, taken exactly as play takes it (lit and meshed in batches)
+    let load_start = Instant::now();
+    gfx.set_focus(p.player.eye());
+    gfx.load_world(&p.world, &p.light);
+    let first_ms = load_start.elapsed().as_secs_f64() * 1e3;
+    let first_sections = p.world.held_sections().0;
+    let (mut batches, mut worst, mut streamed) = (0u32, Duration::ZERO, Duration::ZERO);
+    // a moment for the rest of the view to stream in (until it goes quiet)
+    let started = Instant::now();
+    let mut last_section = Instant::now();
+    while started.elapsed() < Duration::from_millis(700)
+        || (last_section.elapsed() < Duration::from_millis(250)
+            && started.elapsed() < Duration::from_secs(4))
+    {
         match p.conn.rx.recv_timeout(Duration::from_millis(30)) {
             Ok(NetEvent::Msg(m)) => match m {
+                ServerMsg::Sections(list) => {
+                    sections_in(&mut p, list);
+                    last_section = Instant::now();
+                }
+                ServerMsg::SectionsGone(list) => sections_out(&mut p, Some(&mut *gfx), list),
+                m @ (ServerMsg::Block { .. } | ServerMsg::Fill { .. }) => {
+                    net::apply_world(&mut p.world, &m);
+                    if let ServerMsg::Block { pos, .. } | ServerMsg::Fill { a: pos, .. } = m {
+                        p.arrived
+                            .push((w::section_of(pos), Instant::now() - Duration::from_secs(1)));
+                    }
+                }
                 ServerMsg::Pack(s) => p.pack = s,
                 ServerMsg::Status {
                     health,
@@ -5849,6 +5983,49 @@ pub fn shot_with_ui(
             Ok(NetEvent::Closed(r)) => return Err(r),
             Err(_) => {}
         }
+        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_COLUMNS);
+        if took > Duration::ZERO {
+            // the time spent here is not the stream going quiet
+            last_section = Instant::now();
+            batches += 1;
+            worst = worst.max(took);
+            streamed += took;
+        }
+    }
+    while !p.arrived.is_empty() {
+        let took = take_arrivals(&mut p, Some(&mut *gfx), ARRIVAL_COLUMNS);
+        if took.is_zero() {
+            std::thread::sleep(Duration::from_millis(10));
+            continue;
+        }
+        batches += 1;
+        worst = worst.max(took);
+        streamed += took;
+    }
+    if stats {
+        eprintln!(
+            "stats: first view {first_ms:.0} ms ({first_sections} sections); then {} more in {batches} batches as the view streamed in: {:.0} ms in all, worst batch {:.0} ms",
+            p.world.held_sections().0 - first_sections,
+            streamed.as_secs_f64() * 1e3,
+            worst.as_secs_f64() * 1e3
+        );
+    }
+    if std::env::var_os("DYNO_SHOT_VERIFY").is_some() {
+        // the meshes built bit by bit, against the whole view at once
+        let built = gfx.world_vertices();
+        let whole = Light::new(&p.world);
+        gfx.set_focus(p.player.eye());
+        gfx.load_world(&p.world, &whole);
+        let again = gfx.world_vertices();
+        eprintln!(
+            "verify: streamed meshes {built:?} vertices, the same view at once {again:?}{}",
+            if built == again {
+                " (the same)"
+            } else {
+                " (DIFFERENT)"
+            }
+        );
+        p.light = whole;
     }
     if let Some(pos) = pos {
         p.player.pos = pos.into();
@@ -5969,10 +6146,6 @@ pub fn shot_with_ui(
     let t = time.unwrap_or(p.time);
     p.time = t;
     let sky_now = weathered(sky(t), p.weather.0, p.weather_mix);
-    let stats = std::env::var_os("DYNO_SHOT_STATS").is_some();
-    let load_start = Instant::now();
-    gfx.set_focus(p.player.eye());
-    gfx.load_world(&p.world, &p.light);
     let load_ms = load_start.elapsed().as_secs_f64() * 1e3;
     let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
     let far = 160.0;
@@ -6037,7 +6210,7 @@ pub fn shot_with_ui(
     let mut book = std::mem::take(&mut p.anims);
     push_creatures(&mut boxes, &p, &mut book, 1.3);
     p.anims = book;
-    for (id, r) in &p.remotes {
+    for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let pose = r.current();
         let base = Vec3::from(pose.pos);
         models::push_avatar(

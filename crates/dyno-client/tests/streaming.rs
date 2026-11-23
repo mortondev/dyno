@@ -2,6 +2,8 @@
 //! §1, §2): the first join downloads it, a second join with nothing changed
 //! downloads nothing, a changed file is the only one fetched, streamed files
 //! come during play without holding play up, and /reload sends new rules.
+//! The world streams too (§4): sections around the spawn before play, the
+//! rest within a budget that never holds play up.
 
 use dyno_client::cache::Cache;
 use dyno_client::net::{self, JoinOptions, Joined, NetEvent, Progress};
@@ -125,11 +127,13 @@ fn a_second_join_with_nothing_changed_downloads_nothing() {
     assert_eq!(second.downloaded, 0, "nothing changed: nothing downloads");
     assert_eq!(second.content.name, pack.content.name);
     eprintln!(
-        "join bytes: first {} ({} files), second {}",
+        "join bytes: first {} ({} files), second {}; world sections before play: {} bytes",
         first.downloaded,
         pack.manifest.files.len(),
-        second.downloaded
+        second.downloaded,
+        first.world_bytes
     );
+    assert!(first.world_bytes > 0 && first.world.is_sparse());
     // the title screen finds the last pack in the cache
     assert_eq!(
         Cache::at(&cache).last_manifest(),
@@ -270,6 +274,95 @@ fn reload_sends_new_rules_through_the_pack() {
     let after = got.expect("the new rules arrive");
     assert_ne!(after, before);
     assert_eq!(after, server.server.pack().content.version);
+    drop(j);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn the_world_streams_in_without_holding_play_up() {
+    let dir = temp("sections");
+    let rate = 48 * 1024;
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [192, 48, 192],
+        trust_movement: true,
+        // slow on purpose: the view takes seconds to fill
+        stream: dyno_server::stream::StreamConfig {
+            rate,
+            join_rate: rate,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    // the pack in the cache first, so this join waits for the world alone
+    drop(join(&addr, "warm", 2, &dir.join("cache")));
+    let (mut j, _) = join(&addr, "ada", 1, &dir.join("cache"));
+    assert_eq!(j.downloaded, 0);
+    let first = j.world.held_sections().0;
+    let t0 = Instant::now();
+    let mut worst = Duration::ZERO;
+    let mut bytes = j.world_bytes;
+    let mut quiet = Instant::now();
+    let mut asked: Option<Instant> = None;
+    // ask /who over and over while the rest of the view arrives
+    while quiet.elapsed() < Duration::from_secs(1) {
+        assert!(t0.elapsed() < Duration::from_secs(60), "the view fills");
+        if asked.is_none() {
+            j.conn
+                .tx
+                .send(ClientMsg::Chat {
+                    text: "/who".into(),
+                })
+                .unwrap();
+            asked = Some(Instant::now());
+        }
+        match j.conn.rx.recv_timeout(Duration::from_millis(20)) {
+            Ok(NetEvent::Msg(ServerMsg::Sections(list))) => {
+                bytes += list.iter().map(|(_, d)| d.len() as u64 + 12).sum::<u64>();
+                for (p, d) in list {
+                    j.world.put_section(p, &d).unwrap();
+                }
+                quiet = Instant::now();
+            }
+            Ok(NetEvent::Msg(ServerMsg::System { text })) if text.contains("online") => {
+                worst = worst.max(asked.take().unwrap().elapsed());
+            }
+            _ => {}
+        }
+    }
+    let took = (quiet - t0).as_secs_f64();
+    let (n, _) = j.world.held_sections();
+    eprintln!(
+        "streamed {} sections before play and {} after, {} KB in all, the rest in {:.2} s \
+         at {} KB/s; slowest /who reply during it {} ms",
+        first,
+        n - first,
+        bytes / 1024,
+        took,
+        rate / 1024,
+        worst.as_millis()
+    );
+    assert!(n > first, "more of the view arrives during play");
+    let d = j.world.section_dims();
+    assert_eq!(
+        n,
+        (d[0] * d[1] * d[2]) as usize,
+        "a small world fits the view"
+    );
+    // within the budget: no faster than the rate allows (after a 0.1 s bank)
+    let after = bytes - j.world_bytes;
+    assert!(
+        took > (after as f64 / rate as f64 - 0.2) * 0.8,
+        "kept to the budget ({after} bytes in {took:.2} s)"
+    );
+    assert!(
+        worst < Duration::from_millis(300),
+        "play never waits behind the world ({worst:?})"
+    );
     drop(j);
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);

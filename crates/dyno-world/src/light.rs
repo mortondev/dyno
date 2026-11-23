@@ -1,17 +1,30 @@
 //! Light: block light from glowing blocks, and sky light from open sky.
 //! Both fade by one level per cell through air and are recomputed locally
 //! around each change.
+//!
+//! Light is stored per section of 16³, both levels packed in one byte (sky
+//! in the high nibble). A section that is all open sky with no block light
+//! (the air above the land, and everything not yet streamed) costs nothing.
 
-use crate::{self as w, World};
-use std::collections::VecDeque;
+use crate::{self as w, SECTION, SECTION_CELLS, SectionPos, World};
 
 pub struct Light {
     size: [i32; 3],
-    block: Vec<u8>,
-    sky: Vec<u8>,
+    dims: [i32; 3],
+    secs: Vec<Option<Box<[u8; SECTION_CELLS]>>>,
 }
 
 const R: i32 = 15;
+
+/// Light worked out for the columns of a box, ready to store.
+struct Patch {
+    lo: [i32; 3],
+    hi: [i32; 3],
+    /// packed levels, y then z then x
+    light: Vec<u8>,
+}
+/// Sky 15, block 0: the value of every cell of an unallocated section.
+const OPEN: u8 = 0xf0;
 
 impl Light {
     pub fn new(world: &World) -> Self {
@@ -20,29 +33,141 @@ impl Light {
             world.size[1] as i32,
             world.size[2] as i32,
         ];
-        let n = (size[0] * size[1] * size[2]) as usize;
+        let dims = world.section_dims();
         let mut l = Light {
             size,
-            block: vec![0; n],
-            sky: vec![0; n],
+            dims,
+            secs: vec![None; (dims[0] * dims[1] * dims[2]) as usize],
         };
-        l.recompute(world, [0, 0, 0], [size[0] - 1, size[1] - 1, size[2] - 1]);
+        if world.is_sparse() {
+            let held = world.held_list();
+            l.arrived(world, &held);
+        } else {
+            l.recompute(world, [0, 0, 0], [size[0] - 1, size[1] - 1, size[2] - 1]);
+        }
         l
     }
 
+    /// Light the columns of sections that arrived in a streamed world (and
+    /// the edges of their neighbours, which the new cells may shade or light).
+    pub fn arrived(&mut self, world: &World, sections: &[SectionPos]) {
+        let mut cols: Vec<[i32; 2]> = sections.iter().map(|s| [s[0], s[2]]).collect();
+        cols.sort_unstable();
+        cols.dedup();
+        let Some(first) = cols.first() else { return };
+        let (mut lo, mut hi) = (*first, *first);
+        for c in &cols {
+            lo = [lo[0].min(c[0]), lo[1].min(c[1])];
+            hi = [hi[0].max(c[0]), hi[1].max(c[1])];
+        }
+        let area = ((hi[0] - lo[0] + 1) * (hi[1] - lo[1] + 1)) as usize;
+        // a box of columns (whole height), widened by the reach of light
+        let boxed = |a: [i32; 2], b: [i32; 2]| {
+            (
+                [a[0] * SECTION - R, 0, a[1] * SECTION - R],
+                [
+                    b[0] * SECTION + SECTION - 1 + R,
+                    0,
+                    b[1] * SECTION + SECTION - 1 + R,
+                ],
+            )
+        };
+        if area <= cols.len() * 4 {
+            // close together: one pass over the box round them all
+            let (a, b) = boxed(lo, hi);
+            self.recompute(world, a, b);
+            return;
+        }
+        // scattered (a ring round the player): each column on its own, on
+        // every core; overlapping patches agree (the same world made them)
+        let threads = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1)
+            .clamp(1, 8)
+            .min(cols.len());
+        let per = cols.len().div_ceil(threads);
+        let this = &*self;
+        let patches: Vec<Patch> = std::thread::scope(|sc| {
+            let jobs: Vec<_> = cols
+                .chunks(per)
+                .map(|part| {
+                    sc.spawn(move || {
+                        part.iter()
+                            .filter_map(|c| {
+                                let (a, b) = boxed(*c, *c);
+                                this.compute(world, a, b)
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                })
+                .collect();
+            jobs.into_iter()
+                .flat_map(|j| j.join().expect("a light thread panicked"))
+                .collect()
+        });
+        for p in patches {
+            self.apply(p);
+        }
+    }
+
+    /// Free the light of a section that left a streamed world.
+    pub fn forget(&mut self, s: SectionPos) {
+        if let Some(i) = self.sect(s[0], s[1], s[2]) {
+            self.secs[i] = None;
+        }
+    }
+
+    /// Bytes of light held (for measurements).
+    pub fn bytes(&self) -> usize {
+        self.secs.iter().flatten().count() * SECTION_CELLS
+    }
+
     #[inline]
-    fn idx(&self, x: i32, y: i32, z: i32) -> Option<usize> {
-        if x < 0 || y < 0 || z < 0 || x >= self.size[0] || y >= self.size[1] || z >= self.size[2] {
+    fn sect(&self, sx: i32, sy: i32, sz: i32) -> Option<usize> {
+        let d = self.dims;
+        if sx < 0 || sy < 0 || sz < 0 || sx >= d[0] || sy >= d[1] || sz >= d[2] {
             None
         } else {
-            Some(((y * self.size[2] + z) * self.size[0] + x) as usize)
+            Some(((sy * d[2] + sz) * d[0] + sx) as usize)
+        }
+    }
+
+    #[inline]
+    fn packed(&self, x: i32, y: i32, z: i32) -> Option<u8> {
+        if x < 0 || y < 0 || z < 0 || x >= self.size[0] || y >= self.size[1] || z >= self.size[2] {
+            return None;
+        }
+        let i = self.sect(x / SECTION, y / SECTION, z / SECTION)?;
+        Some(match &self.secs[i] {
+            None => OPEN,
+            Some(c) => {
+                let l = ((y % SECTION * SECTION + z % SECTION) * SECTION + x % SECTION) as usize;
+                c[l]
+            }
+        })
+    }
+
+    #[inline]
+    fn put(&mut self, x: i32, y: i32, z: i32, v: u8) {
+        let Some(i) = self.sect(x / SECTION, y / SECTION, z / SECTION) else {
+            return;
+        };
+        let l = ((y % SECTION * SECTION + z % SECTION) * SECTION + x % SECTION) as usize;
+        match &mut self.secs[i] {
+            Some(c) => c[l] = v,
+            None if v == OPEN => {}
+            slot @ None => {
+                let mut c = Box::new([OPEN; SECTION_CELLS]);
+                c[l] = v;
+                *slot = Some(c);
+            }
         }
     }
 
     /// Block light level 0..=15 at a cell.
     #[inline]
     pub fn get(&self, x: i32, y: i32, z: i32) -> u8 {
-        self.idx(x, y, z).map(|i| self.block[i]).unwrap_or(0)
+        self.packed(x, y, z).map(|v| v & 15).unwrap_or(0)
     }
 
     /// Sky light level 0..=15 at a cell. Above the world it is 15.
@@ -51,7 +176,7 @@ impl Light {
         if y >= self.size[1] {
             return 15;
         }
-        self.idx(x, y, z).map(|i| self.sky[i]).unwrap_or(15)
+        self.packed(x, y, z).map(|v| v >> 4).unwrap_or(15)
     }
 
     /// Recompute light after a box of cells changed.
@@ -72,6 +197,13 @@ impl Light {
     /// is spread in scratch buffers that also cover the reach of light, so
     /// sources outside the box still count; then only the box is copied back.
     fn recompute(&mut self, world: &World, lo: [i32; 3], hi: [i32; 3]) {
+        if let Some(p) = self.compute(world, lo, hi) {
+            self.apply(p);
+        }
+    }
+
+    /// The light of the columns of the box [lo, hi], worked out but not stored.
+    fn compute(&self, world: &World, lo: [i32; 3], hi: [i32; 3]) -> Option<Patch> {
         let sy = self.size[1];
         let lo = [lo[0].max(0), 0, lo[2].max(0)];
         let hi = [
@@ -79,47 +211,65 @@ impl Light {
             sy - 1,
             hi[2].min(self.size[2] - 1),
         ];
+        if lo[0] > hi[0] || lo[2] > hi[2] {
+            return None;
+        }
         let elo = [(lo[0] - R).max(0), 0, (lo[2] - R).max(0)];
         let ehi = [
             (hi[0] + R).min(self.size[0] - 1),
             sy - 1,
             (hi[2] + R).min(self.size[2] - 1),
         ];
-        let es = [ehi[0] - elo[0] + 1, sy, ehi[2] - elo[2] + 1];
-        let eidx = |x: i32, y: i32, z: i32| -> Option<usize> {
-            let (lx, lz) = (x - elo[0], z - elo[2]);
-            if lx < 0 || y < 0 || lz < 0 || lx >= es[0] || y >= es[1] || lz >= es[2] {
-                None
-            } else {
-                Some(((y * es[2] + lz) * es[0] + lx) as usize)
-            }
+        let (ex, ez) = (ehi[0] - elo[0] + 1, ehi[2] - elo[2] + 1);
+        // the scratch box with a border of one opaque cell all round, so the
+        // fill needs no bounds checks (light never leaves the box)
+        let (px, pz) = ((ex + 2) as usize, (ez + 2) as usize);
+        let layer = px * pz;
+        let n = layer * (sy + 2) as usize;
+        let at = |x: i32, y: i32, z: i32| -> usize {
+            ((y + 1) as usize * pz + (z - elo[2] + 1) as usize) * px + (x - elo[0] + 1) as usize
         };
-        let n = (es[0] * es[1] * es[2]) as usize;
+        // the box's cells read once (the fill visits each many times):
+        // bit 7 opaque, low bits the light it gives
+        let mut lut = [0u8; 256];
+        for (b, v) in lut.iter_mut().enumerate().take(w::BLOCK_COUNT as usize) {
+            let b = b as w::BlockId;
+            *v = w::emission(b).min(15) | if w::is_opaque(b) { 0x80 } else { 0 };
+        }
+        let mut cell = vec![0x80u8; n];
+        for y in 0..sy {
+            for z in elo[2]..=ehi[2] {
+                let row = at(elo[0], y, z);
+                for (k, x) in (elo[0]..=ehi[0]).enumerate() {
+                    cell[row + k] = lut[world.get(x, y, z) as usize];
+                }
+            }
+        }
         let mut bl = vec![0u8; n];
         let mut sk = vec![0u8; n];
         // highest opaque cell of each column
-        let mut top = vec![-1i32; (es[0] * es[2]) as usize];
+        let mut top = vec![-1i32; (ex * ez) as usize];
         for z in elo[2]..=ehi[2] {
             for x in elo[0]..=ehi[0] {
                 let mut t = -1;
                 for y in (0..sy).rev() {
-                    if w::is_opaque(world.get(x, y, z)) {
+                    if cell[at(x, y, z)] & 0x80 != 0 {
                         t = y;
                         break;
                     }
                 }
-                top[((z - elo[2]) * es[0] + (x - elo[0])) as usize] = t;
+                top[((z - elo[2]) * ex + (x - elo[0])) as usize] = t;
             }
         }
         let top_at = |x: i32, z: i32| -> i32 {
             if x < elo[0] || x > ehi[0] || z < elo[2] || z > ehi[2] {
                 sy
             } else {
-                top[((z - elo[2]) * es[0] + (x - elo[0])) as usize]
+                top[((z - elo[2]) * ex + (x - elo[0])) as usize]
             }
         };
-        let mut qb = VecDeque::new();
-        let mut qs = VecDeque::new();
+        let mut qb: Vec<u32> = Vec::new();
+        let mut qs: Vec<u32> = Vec::new();
         for z in elo[2]..=ehi[2] {
             for x in elo[0]..=ehi[0] {
                 let t = top_at(x, z);
@@ -133,52 +283,84 @@ impl Light {
                 .max()
                 .unwrap_or(t);
                 for y in (t + 1).max(0)..sy {
-                    let i = eidx(x, y, z).unwrap();
+                    let i = at(x, y, z);
                     sk[i] = 15;
                     if y <= nmax {
-                        qs.push_back((x, y, z));
+                        qs.push(i as u32);
                     }
                 }
                 for y in 0..sy {
-                    let e = w::emission(world.get(x, y, z));
+                    let i = at(x, y, z);
+                    let e = cell[i] & 0x0f;
                     if e > 0 {
-                        bl[eidx(x, y, z).unwrap()] = e;
-                        qb.push_back((x, y, z));
+                        bl[i] = e;
+                        qb.push(i as u32);
                     }
                 }
             }
         }
+        let steps = [
+            1isize,
+            -1,
+            px as isize,
+            -(px as isize),
+            layer as isize,
+            -(layer as isize),
+        ];
         for (buf, q) in [(&mut bl, &mut qb), (&mut sk, &mut qs)] {
-            while let Some((x, y, z)) = q.pop_front() {
-                let l = buf[eidx(x, y, z).unwrap()];
+            let mut head = 0;
+            while head < q.len() {
+                let i = q[head] as usize;
+                head += 1;
+                let l = buf[i];
                 if l <= 1 {
                     continue;
                 }
-                for (dx, dy, dz) in [
-                    (1, 0, 0),
-                    (-1, 0, 0),
-                    (0, 1, 0),
-                    (0, -1, 0),
-                    (0, 0, 1),
-                    (0, 0, -1),
-                ] {
-                    let (nx, ny, nz) = (x + dx, y + dy, z + dz);
-                    let Some(j) = eidx(nx, ny, nz) else { continue };
-                    if buf[j] >= l - 1 || w::is_opaque(world.get(nx, ny, nz)) {
+                for d in steps {
+                    let j = (i as isize + d) as usize;
+                    if buf[j] >= l - 1 || cell[j] & 0x80 != 0 {
                         continue;
                     }
                     buf[j] = l - 1;
-                    q.push_back((nx, ny, nz));
+                    q.push(j as u32);
                 }
             }
         }
+        let mut out = Vec::with_capacity(((hi[0] - lo[0] + 1) * (hi[2] - lo[2] + 1) * sy) as usize);
         for y in 0..sy {
             for z in lo[2]..=hi[2] {
                 for x in lo[0]..=hi[0] {
-                    let i = self.idx(x, y, z).unwrap();
-                    let j = eidx(x, y, z).unwrap();
-                    self.block[i] = bl[j];
-                    self.sky[i] = sk[j];
+                    let j = at(x, y, z);
+                    out.push((sk[j] << 4) | bl[j]);
+                }
+            }
+        }
+        Some(Patch { lo, hi, light: out })
+    }
+
+    /// Store worked-out light.
+    fn apply(&mut self, p: Patch) {
+        let Patch { lo, hi, light } = p;
+        let mut k = 0;
+        for y in 0..self.size[1] {
+            for z in lo[2]..=hi[2] {
+                for x in lo[0]..=hi[0] {
+                    self.put(x, y, z, light[k]);
+                    k += 1;
+                }
+            }
+        }
+        // sections left all open sky need no storage
+        for sy in 0..self.dims[1] {
+            for sz in lo[2] / SECTION..=hi[2] / SECTION {
+                for sx in lo[0] / SECTION..=hi[0] / SECTION {
+                    if let Some(i) = self.sect(sx, sy, sz)
+                        && self.secs[i]
+                            .as_ref()
+                            .is_some_and(|c| c.iter().all(|&v| v == OPEN))
+                    {
+                        self.secs[i] = None;
+                    }
                 }
             }
         }
@@ -216,5 +398,61 @@ mod tests {
         l.changed(&world, [6, 2, 6]);
         assert_eq!(l.get(6, 3, 6), 14);
         assert_eq!(l.get(8, 3, 6), 12);
+    }
+
+    /// cargo test --release -p dyno-world light_speed -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn light_speed() {
+        let world = World::generate([384, 96, 384], 20261122);
+        let mut c = World::sparse(world.size);
+        for s in world.held_list() {
+            c.put_section(s, &world.encode_section(s)).unwrap();
+        }
+        let mut l = Light::new(&c);
+        let t = std::time::Instant::now();
+        let n = 20;
+        for i in 0..n {
+            let col: Vec<SectionPos> = (0..6).map(|y| [2 + i, y, 12]).collect();
+            l.arrived(&c, &col);
+        }
+        eprintln!(
+            "one column arriving: {:.1} ms",
+            t.elapsed().as_secs_f64() * 1e3 / n as f64
+        );
+        let t = std::time::Instant::now();
+        let _ = Light::new(&world);
+        eprintln!("the whole world: {:.0} ms", t.elapsed().as_secs_f64() * 1e3);
+    }
+
+    #[test]
+    fn streamed_sections_light_like_the_whole_world() {
+        let world = World::generate([64, 48, 64], 7);
+        let whole = Light::new(&world);
+        let mut c = World::sparse(world.size);
+        let mut l = Light::new(&c);
+        assert_eq!(l.bytes(), 0, "nothing here yet: nothing stored");
+        // sections arrive in two batches, far apart
+        let all: Vec<_> = (0..3)
+            .flat_map(|y| (0..4).flat_map(move |z| (0..4).map(move |x| [x, y, z])))
+            .collect();
+        let (a, b): (Vec<_>, Vec<_>) = all.iter().partition(|s| s[0] < 2);
+        for batch in [a, b] {
+            for s in &batch {
+                c.put_section(*s, &world.encode_section(*s)).unwrap();
+            }
+            l.arrived(&c, &batch);
+        }
+        for y in 0..48 {
+            for z in 0..64 {
+                for x in 0..64 {
+                    assert_eq!(l.sky(x, y, z), whole.sky(x, y, z), "sky at {x},{y},{z}");
+                    assert_eq!(l.get(x, y, z), whole.get(x, y, z), "light at {x},{y},{z}");
+                }
+            }
+        }
+        assert!(l.bytes() < 48 * SECTION_CELLS, "open sky is not stored");
+        l.forget([0, 0, 0]);
+        assert_eq!(l.sky(1, 1, 1), 15);
     }
 }

@@ -192,6 +192,8 @@ pub struct Scripted {
     /// in a party of two (Party brains)
     pub party: Option<PartyRole>,
     next_invite: Instant,
+    /// camps we reached and found empty (we only see creatures near us), and when
+    empty_camps: Vec<([i32; 2], Instant)>,
 }
 
 /// What a party leader is doing, for its follower to copy.
@@ -248,6 +250,7 @@ impl Scripted {
             last_node: None,
             party: None,
             next_invite: Instant::now() + Duration::from_secs(3),
+            empty_camps: Vec::new(),
         }
     }
 
@@ -949,11 +952,12 @@ impl Scripted {
             return Some((d, task, format!("kill {}", c.name)));
         }
         let b = &a.body;
-        // none alive in sight: go to their camp and wait for them
+        // none alive in sight (we hear only of what is near): go to their
+        // camp; one found empty, try the next before waiting at the nearest
         let me = b.pos();
         // like a player reading the zone levels: a camp in a zone for our
         // level beats a nearer one among stronger creatures
-        let camps: Vec<(Vec3, f32)> = b
+        let camps: Vec<([i32; 2], Vec3, f32)> = b
             .content
             .areas
             .iter()
@@ -962,10 +966,29 @@ impl Scripted {
             .map(|cp| {
                 let p = b.rel2(cp.at);
                 let cost = p.distance(me) + if dangerous(b, p) { 400.0 } else { 0.0 };
-                (p, cost)
+                (cp.at, p, cost)
             })
             .collect();
-        if let Some((p, _)) = camps.iter().min_by(|x, y| x.1.partial_cmp(&y.1).unwrap()) {
+        self.empty_camps
+            .retain(|(_, t)| t.elapsed() < Duration::from_secs(45));
+        if let Some((at, ..)) = camps.iter().find(|(_, p, _)| b.dist(*p) <= 10.0)
+            && !self.empty_camps.iter().any(|(c, _)| c == at)
+        {
+            self.empty_camps.push((*at, Instant::now()));
+        }
+        let fresh: Vec<&([i32; 2], Vec3, f32)> = camps
+            .iter()
+            .filter(|(at, ..)| !self.empty_camps.iter().any(|(c, _)| c == at))
+            .collect();
+        let pool: Vec<&([i32; 2], Vec3, f32)> = if fresh.is_empty() {
+            camps.iter().collect()
+        } else {
+            fresh
+        };
+        if let Some((_, p, _)) = pool
+            .into_iter()
+            .min_by(|x, y| x.2.partial_cmp(&y.2).unwrap())
+        {
             let d = b.dist(*p);
             if d > 10.0 {
                 return Some((

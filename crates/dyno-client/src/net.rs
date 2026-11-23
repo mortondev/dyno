@@ -4,6 +4,11 @@
 //! (docs/design/data-and-streaming.md §1): the `Welcome` carries the pack's
 //! manifest, the client asks for missing hashes with `Want`, and the server
 //! streams `Asset` chunks on the same connection with bandwidth play leaves.
+//!
+//! The world streams too (§4): the client holds a sparse [`World`] of the
+//! sections the server sent. A join returns once the sections around the
+//! spawn (`LOAD_RADIUS`) are here; the rest arrive during play as
+//! `ServerMsg::Sections` and go to the game like any other message.
 
 use crate::cache::{self, Cache};
 use dyno_protocol::{
@@ -36,6 +41,63 @@ pub struct Connection {
     pub rx: Receiver<NetEvent>,
 }
 
+/// The join waits for every section of the columns within this many metres
+/// of the spawn (or of the observer's view): enough to stand on and to draw
+/// the first frame. The rest of the view streams in during play.
+pub const LOAD_RADIUS: f32 = 40.0;
+
+/// The sections of the columns whose centre is within `r` metres of `at`
+/// (horizontally), every layer.
+pub fn sections_around(world: &World, at: [f32; 3], r: f32) -> Vec<dyno_world::SectionPos> {
+    let d = world.section_dims();
+    let s = dyno_world::SECTION;
+    let mut out = Vec::new();
+    for sz in 0..d[2] {
+        for sx in 0..d[0] {
+            let (cx, cz) = ((sx * s + s / 2) as f32, (sz * s + s / 2) as f32);
+            if (cx - at[0]).hypot(cz - at[2]) <= r {
+                out.extend((0..d[1]).map(|sy| [sx, sy, sz]));
+            }
+        }
+    }
+    out
+}
+
+/// Take in a world-shaping message (sections arriving or leaving, block
+/// edits). Returns the sections that arrived, or None if the message is not
+/// one of these.
+pub fn apply_world(world: &mut World, m: &ServerMsg) -> Option<Vec<dyno_world::SectionPos>> {
+    match m {
+        ServerMsg::Sections(list) => Some(
+            list.iter()
+                .filter(|(pos, data)| world.put_section(*pos, data).is_ok())
+                .map(|(pos, _)| *pos)
+                .collect(),
+        ),
+        ServerMsg::SectionsGone(list) => {
+            for s in list {
+                world.drop_section(*s);
+            }
+            Some(Vec::new())
+        }
+        ServerMsg::Block { pos, block } => {
+            world.set(pos[0], pos[1], pos[2], *block);
+            Some(Vec::new())
+        }
+        ServerMsg::Fill { a, b, block } => {
+            for x in a[0]..=b[0] {
+                for y in a[1]..=b[1] {
+                    for z in a[2]..=b[2] {
+                        world.set(x, y, z, *block);
+                    }
+                }
+            }
+            Some(Vec::new())
+        }
+        _ => None,
+    }
+}
+
 pub struct Joined {
     pub conn: Connection,
     pub name: String,
@@ -45,7 +107,14 @@ pub struct Joined {
     pub motd: String,
     pub spawn: [f32; 3],
     pub players: Vec<PlayerInfo>,
+    /// the sections streamed so far (a sparse world: see dyno_world)
     pub world: World,
+    /// the spawn hearth: content positions are relative to it
+    pub hearth: [i32; 3],
+    /// how far the server streams the world around you (metres)
+    pub view: f32,
+    /// bytes of world sections received before the join returned
+    pub world_bytes: u64,
     pub mode: Mode,
     pub content: Content,
     /// the content pack this world runs
@@ -63,6 +132,9 @@ pub struct Progress {
     pub total: AtomicU64,
     /// bytes actually downloaded
     pub downloaded: AtomicU64,
+    /// sections around the spawn that have arrived, and how many are needed
+    pub sections: AtomicU64,
+    pub sections_needed: AtomicU64,
 }
 
 impl Progress {
@@ -84,6 +156,8 @@ pub struct JoinOptions {
     /// where pack files are kept (default: the platform cache directory)
     pub cache: Option<Cache>,
     pub progress: Option<Arc<Progress>>,
+    /// observers: stream the world around this point (default: the spawn)
+    pub view_at: Option<[f32; 3]>,
 }
 
 /// Pack files on their way from the server: assembles chunks, checks
@@ -393,6 +467,7 @@ pub fn connect_with(
         create,
         cache,
         progress,
+        view_at,
     } = opts;
     let mut fetch = Fetch::new(cache.unwrap_or_default(), progress.unwrap_or_default());
     let _ = rustls::crypto::ring::default_provider().install_default();
@@ -439,18 +514,32 @@ pub fn connect_with(
         .into(),
     ))
     .map_err(|e| format!("send: {e}"))?;
+    if let Some(pos) = view_at.filter(|_| observer) {
+        ws.send(Message::Binary(
+            proto::encode(&ClientMsg::ViewAt { pos }).into(),
+        ))
+        .map_err(|e| format!("send: {e}"))?;
+    }
 
     let mut welcome = None;
-    let mut world = None;
+    // the sections arrive into a sparse world; the join waits for these
+    let mut world: Option<World> = None;
+    let mut needed: Vec<dyno_world::SectionPos> = Vec::new();
+    let mut world_bytes = 0u64;
+    let near_ready = |world: &Option<World>, needed: &[dyno_world::SectionPos]| {
+        world
+            .as_ref()
+            .is_some_and(|w| needed.iter().all(|s| w.has_section(*s)))
+    };
     // what arrives after the welcome while pack files download, for the game
     let mut backlog = Vec::new();
     let mut last_progress = Instant::now();
     let mut last_ping = Instant::now();
     loop {
-        if world.is_some() && welcome.is_some() && fetch.done() {
+        if welcome.is_some() && fetch.done() && near_ready(&world, &needed) {
             break;
         }
-        if world.is_none() && Instant::now() > deadline + Duration::from_secs(60) {
+        if !near_ready(&world, &needed) && Instant::now() > deadline + Duration::from_secs(60) {
             return Err("The server did not send the world in time.".into());
         }
         if world.is_some() && last_progress.elapsed() > Duration::from_secs(30) {
@@ -475,17 +564,53 @@ pub fn connect_with(
                     players,
                     mode,
                     manifest,
+                    hearth,
+                    view,
                 } => {
                     last_progress = Instant::now();
                     for m in fetch.manifest(manifest.clone()) {
                         ws.send(Message::Binary(proto::encode(&m).into()))
                             .map_err(|e| format!("send: {e}"))?;
                     }
-                    welcome = Some((your_id, server_version, motd, size, spawn, players, mode));
+                    let w = World::sparse(size);
+                    let at = view_at.filter(|_| observer).unwrap_or(spawn);
+                    needed = sections_around(&w, at, LOAD_RADIUS.min(view));
+                    fetch
+                        .progress
+                        .sections_needed
+                        .store(needed.len() as u64, Ordering::Relaxed);
+                    world = Some(w);
+                    welcome = Some((
+                        your_id,
+                        server_version,
+                        motd,
+                        size,
+                        spawn,
+                        players,
+                        mode,
+                        hearth,
+                        view,
+                    ));
                 }
-                ServerMsg::World { data } => {
-                    last_progress = Instant::now();
-                    world = Some(World::decode(&data)?);
+                // the world: applied at once, in order, so an edit never
+                // lands before its section
+                m @ (ServerMsg::Sections(_)
+                | ServerMsg::SectionsGone(_)
+                | ServerMsg::Block { .. }
+                | ServerMsg::Fill { .. }) => {
+                    if let Some(w) = world.as_mut() {
+                        last_progress = Instant::now();
+                        if let ServerMsg::Sections(list) = &m {
+                            world_bytes +=
+                                list.iter().map(|(_, d)| d.len() as u64 + 12).sum::<u64>();
+                        }
+                        apply_world(w, &m);
+                        let have = needed.iter().filter(|s| w.has_section(**s)).count();
+                        fetch
+                            .progress
+                            .sections
+                            .store(have as u64, Ordering::Relaxed);
+                    }
                 }
                 ServerMsg::Asset {
                     hash,
@@ -506,7 +631,8 @@ pub fn connect_with(
             Err(e) => return Err(format!("Connection lost while joining: {e}")),
         }
     }
-    let Some((your_id, server_version, motd, _size, spawn, players, mode)) = welcome else {
+    let Some((your_id, server_version, motd, _size, spawn, players, mode, hearth, view)) = welcome
+    else {
         return Err("The server sent no welcome.".into());
     };
     let world = world.ok_or("The server sent no world.")?;
@@ -548,6 +674,9 @@ pub fn connect_with(
         spawn,
         players,
         world,
+        hearth,
+        view,
+        world_bytes,
         mode,
         content,
         manifest,

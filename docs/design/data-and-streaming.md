@@ -237,6 +237,105 @@ when one of them is replaced.
   shard-move block diff (which becomes "resend the sections you have").
 - The title screen's stage is a small baked scene in the pack.
 
+**Status: built** (protocol 19).
+
+- **Sections on the wire.** `ServerMsg::Sections(Vec<(pos, data)>)`:
+  section positions with each section's cells run-length encoded
+  (`World::encode_section`: (block, varint count) pairs over the 4096
+  cells; open air is 3 bytes). `SectionsGone(Vec<pos>)` drops them.
+  `Welcome` carries the spawn `hearth` (content positions are relative to
+  it, and the client can no longer find it by scanning a world it does not
+  hold) and the `view` radius. `ServerMsg::World` is gone.
+- **Server** (`dyno-server/src/stream.rs`). Each player (and observer) has
+  a `View`: the sections sent, a list of those still wanted (nearest
+  first, the layer you stand in before those above and below; remade only
+  when you cross into another column) and a token bucket. At the end of
+  each tick the shard sends each view one `Sections` batch within its
+  budget, on the player's own ordered queue, so it works unchanged for
+  relayed players (the edge holds no world). A section counts as held when
+  it is queued, and the queue is ordered, so an edit can never overtake
+  its section; `broadcast` sends `Block` and `Fill` only to views that hold
+  the section. Budgets: `join_rate` (2 MB/s) until the first view is
+  complete, then `rate` (256 KB/s); at most a tick's worth plus 0.1 s
+  banked, so a game message waits behind at most one tick's batch. Columns
+  past `view + keep` (160 + 24 m) are dropped. Flags: `--view`,
+  `--section-rate`, `--join-section-rate`.
+- **Area of interest** (`--aoi`, 100 m, forgotten past 112 m). Each
+  player has the set of entities its client knows. The interest pass
+  (every tick) introduces entities that come within range and are visible
+  in the player's phases (`entity_intro`), and sends `EntityGone` for those
+  past the margin. `broadcast` routes every message about an entity
+  (spawn, hurt, info, name, damage, gone, its actions, its moves) only to
+  players who know it, so phasing applies on top; a player's actions,
+  casts and digging, and spell effects, go only to players within range.
+  Poses go only to players within range; `PlayersFar` tells a client to
+  stop drawing those who left it. The roster (`PlayerJoined`/`PlayerLeft`,
+  `Wielding`, level-ups, parties, chat) stays world-wide. Observers (tools)
+  hear every entity and pose, as before.
+- **Shard moves** keep the client's sections: the `Shard` message carries
+  only the blocks that differ in the sections the client holds. Moves
+  between instances pass the held set in the cluster's `Adopt`.
+- **Client.** `World::sparse` holds only the sections that arrived (open
+  air and solid rock as one block per section). A cell whose section has
+  not arrived is *unknown*: `get` answers air (nothing drawn, rays pass
+  through, the minimap shows it dark), `solid` answers true and movement
+  stops in place where the ground has not arrived (`dyno-sim` movement), so
+  nobody falls through land that is still on its way. `Light` is stored
+  per section, both levels in one byte, open sky not stored; arrivals are
+  lit a whole column at a time once the column is here (`Light::arrived`,
+  scattered columns on every core). A section is meshed once it and its 26
+  neighbours are here (the mesh and the light read past its edge), so an
+  arrival meshes only the neighbours it made ready (and remeshes those
+  below it, whose sky it may shade); dropped sections free their mesh and
+  light. The draw distance is capped at the view less a section. The
+  minimap redraws as land arrives.
+- **Join.** `net::connect_with` returns once the pack files and every
+  section of the columns within `LOAD_RADIUS` (40 m) of the spawn are here
+  (the loading screen shows "Loading the land around you"); the rest
+  arrives during play. Tools: `dyno shot` joins as an observer with
+  `JoinOptions::view_at` (`ClientMsg::ViewAt`) set to its camera, and waits
+  until the view stops arriving. Bots apply sections like the game
+  (`net::apply_world`); their path finder treats unknown land as not
+  standable and walks partial paths towards far goals, and since they hear
+  of creatures only within 100 m, a bot that finds a camp empty tries the
+  next one before waiting for spawns.
+
+**Measured** (the full 384 × 96 × 384 world, release builds on one
+machine, `tests/world_measure.rs` against a real server; before is 0.7.1,
+after is 0.7.2 with this work):
+
+| | Before (whole world) | After (sections) |
+|---|---|---|
+| World bytes before play (fresh join) | 1,239,684 (`World`) | 127,516 (the land within 40 m) |
+| Join until the world round the spawn is here | 148 ms | 49–66 ms |
+| World bytes for the whole view (160 m, from the spawn) | — | 731,059 (1,890 of 3,456 sections) |
+| `dyno shot --ui hud` (process start to saved frame; a proxy for the first frame, with fixed waits) | 8.3–10.9 s | 2.2–3.3 s (and it waits for the whole view) |
+| One player running across the map (502 m at 7 m/s), ten others wandering | 8.6 KB/s | 12.5 KB/s: sections 6.7, poses 3.1, entity moves 2.6 |
+| The same, everything but sections | 8.6 KB/s | 5.9 KB/s |
+| The wanderers | 8.7 KB/s | 7.2 KB/s |
+| Server RSS with 11 players (idle before they joined) | 132 MB (89) | 83 MB (78) |
+| Client world + light | 13.5 + 27.0 MB | 3.9 + 4.3 MB |
+
+The view is about 60% of this small map, so the whole view's bytes fall
+only to 59% of the old world message; the gain is in what must arrive
+before play and in memory, and it grows with the map. Running costs more
+bandwidth than before (the land ahead streams in), though every other
+kind of traffic fell.
+
+- A `/who` sent over and over while a view streamed in at a deliberately
+  slow 48 KB/s was answered in at most 12 ms (`tests/streaming.rs`).
+- Forty players joining at once (a restart) on the full world: a tick of
+  section streaming takes 11 ms on average and 36 ms at worst (the tick is
+  50 ms), because each section is encoded once per shard and kept until it
+  changes (`World::section_rev`); without the cache it was 384 ms.
+- Client: light for a column that arrives takes 2.9 ms (the whole world:
+  109 ms, from 374 ms before the fill read its box once). Arrivals are lit
+  and meshed a few whole columns at a time within about 8 ms of a frame;
+  after a join, the rest of the view (1,655 sections) takes about 50
+  batches of typically 17–30 ms (worst seen 140 ms on a busy machine).
+  Meshes built bit by bit equal those of the whole view built at once
+  (`DYNO_SHOT_VERIFY`).
+
 ## 5. World building as data
 
 The live world contains migrated player builds, so it is never regenerated.
@@ -321,7 +420,7 @@ For new worlds and rebuilds:
    image diff (`dyno shot`, the animation sheet) matches:
    - textures, sounds, fonts and render settings;
    - models, rigs, clips and detail shapes.
-3. World streaming and area of interest; stamps and layout.
+3. World streaming and area of interest **(done)**; stamps and layout.
 4. Authoritative movement.
 
 Every step keeps `dyno shot`, the bots and the protocol tests working.

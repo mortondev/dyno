@@ -82,10 +82,10 @@ flowchart TD
 
 | Crate | Owns |
 |---|---|
-| `dyno-world` | The block grid (`World`, 1 m blocks), lighting, the content schema and parser, world generation, and the builders for Hearthstead (`village.rs`), the zones (`zones.rs`) and points of interest (`poi.rs`). |
+| `dyno-world` | The block grid (`World`, 1 m blocks; dense on the server, a sparse store of streamed 16³ sections on clients), lighting (stored per section), the content schema and parser, world generation, and the builders for Hearthstead (`village.rs`), the zones (`zones.rs`) and points of interest (`poi.rs`). |
 | `dyno-sim` | Rules shared by client and server: the XP curve and mob scaling (`progression.rs`), the character sheet and armour maths (`character.rs`), inventory and stacks. |
-| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 17). A version mismatch is refused with a clear reason. |
-| `dyno-server` | The game: shards, players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. The content pack (`pack.rs`: loading, hashing, the built-in pack embedded from `content/`, each session's asset outbox). |
+| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 19). A version mismatch is refused with a clear reason. |
+| `dyno-server` | The game: shards, world streaming and area of interest (`stream.rs`), players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. The content pack (`pack.rs`: loading, hashing, the built-in pack embedded from `content/`, each session's asset outbox). |
 | `dyno-client` | Rendering (wgpu), the UI (egui, themed), input (classic MMO controls), audio, the front end (title, character select and creation), the minimap, headless screenshots. The asset store (`assets.rs`) and the cache of pack files (`cache.rs`). Local hosting only with the `host` feature. |
 | `dyno-update` | Checks GitHub Releases, verifies the signed manifest, picks the artifact named like its own executable (`dyno` or `hearthblock`), swaps the binary. Used by clients and by servers (`--auto-update`). |
 | `dyno` | Server, tools, bots and the dev client (`host` on). |
@@ -106,16 +106,18 @@ sequenceDiagram
   C->>E: Hello + Session{token, create?}
   E->>E: one character, one place (already playing?)
   E->>B: place(name): party's shard, else fullest with room, else open one
-  E->>S: join → Welcome{manifest}, World, entities (phase-filtered)
+  E->>S: join → Welcome{manifest, hearth, view}
   C->>E: Want{hashes the cache lacks}
   E-->>C: Asset chunks (≤ 64 KB, after game messages, 256 KB/s budget)
   Note over C: rules parsed from the pack; files cached by hash
+  S-->>C: Sections nearest first (join budget), until the land round the spawn is here
+  Note over C: loading screen ends
   loop play
     C->>S: Pose, Cast, Talk, Loot, Buy…
-    S-->>C: Poses, EntityMoves, Damage, Quests…
+    S-->>C: Sections/SectionsGone as you move; Poses, EntityMoves… within your area of interest
   end
   B->>S: crowded area / party apart / quiet shard
-  S-->>C: Shard{players, block diffs}  (same connection, no loading)
+  S-->>C: Shard{players, block diffs in the sections you hold}  (same connection, no loading)
 ```
 
 - **Identity:** an install has a random token. A character belongs to the
@@ -125,7 +127,9 @@ sequenceDiagram
 - **Moving between shards** happens only at a quiet moment
   (`State::movable`: alive, not casting, not in combat, nothing hunting
   you). The old shard `detach`es the `Player`, the new one `attach`es it and
-  sends `ServerMsg::Shard` with the people there and the blocks that differ.
+  sends `ServerMsg::Shard` with the people there and the blocks that differ
+  in the sections the client holds (it keeps its sections; the world is
+  never sent again).
   The connection never drops.
 
 ## 4. Shards, areas and phasing
@@ -171,9 +175,12 @@ camps can be shown only in a phase (`"phase": "stockade_taken"`) or only
 outside it (`"!stockade_taken"`). Each player carries a phase mask, updated
 when quests complete.
 
-- **Visibility** is enforced at one chokepoint, `State::broadcast`: messages
+- **Visibility** is enforced at one chokepoint, `State::broadcast`, together
+  with the area of interest (section 6): messages
   about a phased entity go only to players who see it, and `EntityMoves` is
-  filtered per player. Join and `attach` send only visible entities.
+  filtered per player. Entities are introduced to a player only when they
+  are near and visible (`stream.rs`, the interest pass); a phase change
+  forgets what left the phase.
 - **Interaction** is enforced on the server: Talk, Cast, AutoAttack, Loot,
   LootTake and Buy refuse unseen entities; creatures only hunt players who
   see them; area damage skips unseen creatures; a phased creature's corpse
@@ -298,6 +305,13 @@ flowchart LR
   SP --> NPC[NPCs from content]
 ```
 
+- **Streaming** (`stream.rs`, docs/design/data-and-streaming.md §4): the
+  server sends each client the 16³ sections within its view (160 m, whole
+  columns), nearest first, within a per-player budget (2 MB/s until the
+  first view is complete, then 256 KB/s), and `SectionsGone` past view +
+  24 m. Block edits go only to clients that hold the section. A client
+  hears about entities, poses and actions within 100 m (forgotten past
+  112 m). `--view`, `--aoi`, `--section-rate`, `--join-section-rate`.
 - 384 × 96 × 384 blocks; 14 areas with level bands, camps with respawn
   timers and rare elites, a three-level mine.
 - Builders are idempotent: a restart builds nothing and leaves the file
@@ -407,3 +421,4 @@ flowchart LR
 | 16 | The built-in pack is embedded in the server binary | The live server is a lone release binary with no `content/` beside it. |
 | 17 | Two binaries: `hearthblock` (player client, no `host` feature) and `dyno` (server, tools, dev client); one release, the updater picks by executable name, `assets` stays dyno-only | A tiny client with no content in it, while the live server keeps updating as `dyno`. |
 | 18 | The pack hash is part of an instance's content identity | Instances serving different files must not share players. |
+| 19 | The world streams in 16³ sections from the shard's tick (on the player's own ordered queue, a section held from when it is queued); entities, poses and actions by area of interest at the one `broadcast` chokepoint | The client holds only what is near; worlds can grow; no quadratic pose fan-out. Sending from the shard keeps relayed players working (the edge has no world) and an edit can never overtake its section. |

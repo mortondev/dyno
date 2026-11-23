@@ -581,6 +581,26 @@ pub fn mesh_section(
     (geo.opaque, geo.trans)
 }
 
+/// Whether a section of a streamed world can be meshed: it and every
+/// neighbour (the 26 round it that are in the world) have arrived.
+pub fn section_ready(world: &World, s: [i32; 3]) -> bool {
+    let d = world.section_dims();
+    if !world.has_section(s) {
+        return false;
+    }
+    for dy in -1..=1 {
+        for dz in -1..=1 {
+            for dx in -1..=1 {
+                let n = [s[0] + dx, s[1] + dy, s[2] + dz];
+                if (0..3).all(|i| n[i] >= 0 && n[i] < d[i]) && !world.has_section(n) {
+                    return false;
+                }
+            }
+        }
+    }
+    true
+}
+
 /// Mesh many sections at once, on every core, each at its level of detail.
 fn mesh_many(world: &World, light: &Light, list: &[([i32; 3], Lod)]) -> Vec<SectionGeo> {
     let threads = std::thread::available_parallelism()
@@ -1244,6 +1264,8 @@ struct SectionMesh {
     glow: Option<(wgpu::Buffer, u32)>,
     /// where grass grows; turned into blades when the camera is near
     tufts: Vec<Tuft>,
+    /// meshed (possibly to nothing) since the section last arrived
+    built: bool,
 }
 
 pub struct Gfx {
@@ -1816,6 +1838,7 @@ impl Gfx {
             trans: self.upload(&geo.trans),
             glow: self.upload(&halo),
             tufts: geo.tufts,
+            built: true,
         };
     }
 
@@ -1824,9 +1847,13 @@ impl Gfx {
     }
 
     /// Mesh a list of sections at their levels of detail and upload them.
+    /// In a streamed world, only sections whose neighbours have all arrived
+    /// are meshed (the mesh and the light read past a section's edge); the
+    /// others wait for them.
     fn remesh(&mut self, world: &World, light: &Light, list: &[[i32; 3]]) {
         let list: Vec<([i32; 3], Lod)> = list
             .iter()
+            .filter(|s| !world.is_sparse() || section_ready(world, **s))
             .map(|s| (*s, self.lods[self.section_index(*s)]))
             .collect();
         // in batches, so a whole world's vertices are never all in memory at once
@@ -1981,6 +2008,51 @@ impl Gfx {
             }
         }
         self.remesh(world, light, &list);
+    }
+
+    /// Sections that arrived in a streamed world (already lit): mesh them
+    /// and their neighbours that have become ready. A section is meshed only
+    /// once all its neighbours are here, and light reaches less than a
+    /// section, so an arrival changes no built mesh round it, except below
+    /// it in its column (the sky's light falls straight down).
+    pub fn sections_arrived(&mut self, world: &World, light: &Light, list: &[[i32; 3]]) {
+        if self.sections.is_empty() {
+            return;
+        }
+        let d = self.dims;
+        let idx = |n: [i32; 3]| ((n[1] * d[2] + n[2]) * d[0] + n[0]) as usize;
+        let mut todo = std::collections::BTreeSet::new();
+        for s in list {
+            for dy in -1..=1 {
+                for dz in -1..=1 {
+                    for dx in -1..=1 {
+                        let n = [s[0] + dx, s[1] + dy, s[2] + dz];
+                        if (0..3).all(|i| n[i] >= 0 && n[i] < d[i])
+                            && (n == *s || !self.sections[idx(n)].built)
+                        {
+                            todo.insert([n[1], n[2], n[0]]);
+                        }
+                    }
+                }
+            }
+            for y in 0..s[1] - 1 {
+                if self.sections[idx([s[0], y, s[2]])].built {
+                    todo.insert([y, s[2], s[0]]);
+                }
+            }
+        }
+        let list: Vec<[i32; 3]> = todo.into_iter().map(|[y, z, x]| [x, y, z]).collect();
+        self.remesh(world, light, &list);
+    }
+
+    /// A section left a streamed world: stop drawing it.
+    pub fn section_gone(&mut self, s: [i32; 3]) {
+        let d = self.dims;
+        if (0..3).all(|i| s[i] >= 0 && s[i] < d[i]) {
+            let i = ((s[1] * d[2] + s[2]) * d[0] + s[0]) as usize;
+            self.sections[i] = SectionMesh::default();
+            self.clutter_at = None;
+        }
     }
 
     /// Wait until the GPU has finished all submitted work (for timing).

@@ -81,7 +81,11 @@ fn bot_hands_in_the_first_quest_and_plays() {
         assert!(a.update());
         std::thread::sleep(Duration::from_secs_f32(TICK));
     }
-    assert!(progressed(&a), "a kill or a gather within two minutes; doing {}", a.doing);
+    assert!(
+        progressed(&a),
+        "a kill or a gather within two minutes; doing {}",
+        a.doing
+    );
     assert!(a.tel.quests.len() >= 2, "took more quests");
     let r = dyno_bot::report::build("test", "local", vec![a.tel.clone()]);
     assert_eq!(r.aggregate.bots, 1);
