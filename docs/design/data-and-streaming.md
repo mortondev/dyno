@@ -54,33 +54,81 @@ content/
   stage/               # the title-screen scene
 ```
 
+**Status: built** (protocol 16). Today's pack is `pack.json`,
+`rules/hearthblock.json`, `ui/strings.json` (loading screen, intro, news)
+and `stage/title.dynw` (the title stage); 4 files, 210 KB.
+
+`pack.json`:
+
+```json
+{ "name": "hearthblock", "version": 1,
+  "entries": { "rules": "rules/hearthblock.json", "strings": "ui/strings.json",
+               "stage": "stage/title.dynw" },
+  "stream": [] }
+```
+
+**Loading** (`dyno-server/src/pack.rs`). `--content` takes a pack
+directory, or a rules JSON file (the built-in pack with those rules: tests
+and custom rules). Without it the server runs the **built-in pack**: the
+workspace's `content/` directory, embedded in the server by its build script,
+because the live server is a lone release binary with no files beside it. The
+old `--content content/hearthblock.json` still works: when that file is
+missing, the pack around it is loaded. `/reload` reloads the whole pack.
+
 **Manifest.** At start the server hashes every file (SHA-256) and builds:
 
 ```rust
-pub struct Manifest { pub pack: String, pub version: u32, pub files: Vec<AssetRef> }
+pub struct Manifest { pub pack: String, pub version: u32, pub files: Vec<AssetRef>, pub stream: Vec<String> }
 pub struct AssetRef { pub path: String, pub hash: [u8; 32], pub size: u32 }
 ```
 
+`files[0]` is the rules JSON; the rest follow in path order, so the same
+files give the same manifest. The pack hash is the SHA-256 of the encoded
+manifest. `stream` lists path prefixes fetched when first needed (§2).
+
 `Welcome` carries the manifest instead of the whole content struct. The
-rules JSON is an asset like any other.
+rules JSON is an asset like any other: the client parses `Content` from
+the bytes it received on that connection. After `/reload` the server sends
+`ServerMsg::Manifest`; the client fetches what changed, and when new rules
+arrive the game gets `NetEvent::Content`.
 
 **Transfer** runs on the same WebSocket, because the public address is one
 port through a tunnel.
 
-- `ClientMsg::Want { hashes: Vec<[u8; 32]> }`
+- `ClientMsg::Want { hashes: Vec<[u8; 32]> }` (at most 1024 per message)
 - `ServerMsg::Asset { hash, offset: u32, total: u32, data: Vec<u8> }` in chunks of up to 64 KB.
 
-The session writer sends game messages first and asset chunks only with the
-bandwidth left over each tick (a budget per session, e.g. 256 KB/s), so play
-never waits behind a download.
+Each session has an `Outbox` (a queue and a token bucket). Every pass of the
+session loop writes the game messages waiting for it first, then the asset
+chunks the budget allows: 256 KB/s by default (`--asset-rate KB`,
+`Config::asset_rate`), a 64 KB burst, chunks of 16–64 KB. Measured: a
+640 KB streamed file took 2.5 s (budget 2.25 s) while `/who` was answered
+in at most 11 ms throughout.
 
-**Cache.** The client stores files by hash under the platform cache
-directory (`directories`). On join it asks only for hashes it lacks. A
-second join with nothing changed downloads nothing. A loading screen shows
-progress for the first join.
+**Relayed sessions** (cluster): the edge a client reached answers `Want`
+itself from its own pack and never relays it; it rewrites the host's
+`Welcome` to name its own manifest. Mismatched instances drain, so the
+packs agree anyway.
+
+**Cache** (`dyno-client/src/cache.rs`). The client stores files by hash
+under the platform cache directory (`directories`; `DYNO_CACHE_DIR`
+overrides it), checking each file's hash when it is written and when it is
+read. On join it asks only for hashes it lacks, keeps playing messages that
+arrive during the download, and returns when the files needed before play
+are present (`net::connect_with`; `Joined::downloaded` counts the bytes). It
+pings the server during long downloads and gives up after 30 s with no
+progress. A second join with nothing changed downloads nothing: 214,597
+bytes on the first join, 0 on the second (`tests/pack.rs`). It also keeps
+the last manifest, so the title screen shows the last world's stage, news
+and strings before any join. The loading screen shows the download.
 
 **Cluster.** The pack hash joins the protocol and content versions in the
-instance handshake; a mismatched instance drains.
+instance handshake (the member's content identity is
+`"<rules name> v<version> pack <hash>"`); a mismatched instance drains, even
+when only one non-rules file differs.
+
+**Tools and tests** load a local pack with `assets::load_dir`, or the
+built-in one with `dyno_client::load_builtin_pack()` (dev builds).
 
 ## 2. Assets needed before play vs streamed
 
@@ -90,6 +138,13 @@ instance handshake; a mismatched instance drains.
 - **Streamed as needed:** models and sounds for creatures and items when
   first seen (the engine draws a neutral placeholder until they arrive),
   detail shapes for blocks in streamed sections.
+
+**Built:** a pack lists streamed prefixes in `pack.json` (`"stream":
+["models/creatures/", …]`); the join fetches everything else. Engine code
+that finds `assets::get(path)` empty calls `assets::request(path)`; the
+connection sends `Want` and the file arrives through `assets::insert`
+during play, within the session's budget. Today's pack streams nothing;
+the asset bakers choose prefixes as their files land.
 
 ## 3. Formats
 
@@ -169,10 +224,34 @@ For new worlds and rebuilds:
   own executable's name. Rehearse the live server's update on a copy before
   shipping.
 
+**Built:**
+
+- `crates/hearthblock` links `dyno-client` without its `host` feature, so
+  it has no `dyno-server`, no world builders and no rules JSON. `dyno`
+  turns `host` on (local hosting, the built-in pack for its title screen
+  and `dyno shot --front`).
+- Content strings left the client's code: the loading screen, intro and
+  news come from `ui/strings.json`; the title stage is `stage/title.dynw`
+  (128 × 64 × 128, 124 KB), baked with `dyno bake-stage`. Before the first
+  join ever, the title screen has a plain backdrop and no news.
+- `.github/scripts/check-client.sh` builds the client as it ships
+  (`--profile client-release`: `opt-level = "z"`, fat LTO, one codegen
+  unit, stripped) and fails if the binary contains `thornboar`,
+  `Hearthstead` or `Brannoc`, or is 8 MB or more. CI runs it, with
+  `cargo clippy -p hearthblock`, because `--workspace` turns `host` on
+  everywhere.
+- Size: see the decision log in `docs/architecture.md` (§11).
+- The release manifest keeps `assets` as the `dyno` binaries, which every
+  updater up to 0.6 reads (the live server among them), and adds
+  `programs: { dyno: {…}, hearthblock: {…} }`. From 0.7 the updater picks
+  by its executable's file name: `hearthblock*` gets hearthblock, anything
+  else gets dyno; a missing hearthblock build is an error, never the dyno
+  binary (`dyno-update` unit tests).
+
 ## 8. Order of work
 
 1. Pack, manifest, transfer and cache; the binary split. The content pack
-   becomes the first streamed asset.
+   becomes the first streamed asset. **(Done.)**
 2. In parallel, bake each asset class and delete its generator once an
    image diff (`dyno shot`, the animation sheet) matches:
    - textures, sounds, fonts and render settings;

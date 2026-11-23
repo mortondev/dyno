@@ -42,18 +42,19 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
     if let Some(a) = prefill {
         settings.last_server = a;
     }
-    // the 3D stage behind the title and character screens: Hearthstead at dusk
+    // the pack of the last world joined, from the cache (the title stage, strings)
+    crate::cache::Cache::default().load_last();
+    #[cfg(feature = "host")]
+    if crate::assets::get("pack.json").is_none() {
+        crate::load_builtin_pack();
+    }
+    // the 3D stage behind the title and character screens, from the pack;
+    // without one (the first launch ever), a plain backdrop
     let (stage_tx, stage_rx) = channel();
     std::thread::spawn(move || {
-        let mut world = dyno_world::World::generate([128, 64, 128], 20261122);
-        let hearth = world.ensure_spawn_hearth(None);
-        dyno_world::village::build_hearthstead(&mut world, hearth);
-        let light = Light::new(&world);
-        let _ = stage_tx.send(Stage {
-            world,
-            light,
-            hearth,
-        });
+        if let Some(stage) = pack_stage() {
+            let _ = stage_tx.send(stage);
+        }
     });
     let front = Front::new(&settings.recent, &settings.name);
     let mut app = App {
@@ -111,6 +112,8 @@ enum Screen {
         #[allow(dead_code)]
         label: String,
         since: Instant,
+        /// the pack download, for the bar
+        progress: Arc<net::Progress>,
     },
     Playing(Box<Play>),
 }
@@ -1164,7 +1167,11 @@ struct Tunnel {
     error: Arc<Mutex<Option<String>>>,
 }
 
+/// A world this game hosts (dev builds with the `host` feature; the player
+/// client has no server in it and never makes one).
+#[cfg_attr(not(feature = "host"), allow(dead_code))]
 struct Host {
+    #[cfg(feature = "host")]
     handle: dyno_server::Handle,
     port: u16,
     lan: Option<String>,
@@ -1172,10 +1179,18 @@ struct Host {
 }
 
 impl Host {
+    fn players(&self) -> usize {
+        #[cfg(feature = "host")]
+        return self.handle.server.player_count();
+        #[cfg(not(feature = "host"))]
+        0
+    }
+
     fn stop(mut self) {
         if let Some(t) = self.tunnel.as_mut() {
             let _ = t.child.kill();
         }
+        #[cfg(feature = "host")]
         self.handle.stop();
     }
 }
@@ -1212,12 +1227,60 @@ struct Stage {
     hearth: [i32; 3],
 }
 
+/// The pack's entry points (`pack.json`).
+fn pack_entry(name: &str) -> Option<String> {
+    let meta: serde_json::Value = serde_json::from_str(&crate::assets::text("pack.json")?).ok()?;
+    Some(meta.get("entries")?.get(name)?.as_str()?.to_string())
+}
+
+/// The title stage: a small saved world in the pack, around a hearth.
+fn pack_stage() -> Option<Stage> {
+    let bytes = crate::assets::get(&pack_entry("stage")?)?;
+    let mut world = World::decode(&bytes).ok()?;
+    let hearth = world.ensure_spawn_hearth(None);
+    let light = Light::new(&world);
+    Some(Stage {
+        world,
+        light,
+        hearth,
+    })
+}
+
+/// Words the game shows that belong to its content (`ui/strings.json` in
+/// the pack): `section.key` as text, or empty while the pack is absent.
+pub(crate) fn pack_text(section: &str, key: &str) -> String {
+    pack_value(section, key)
+        .and_then(|v| v.as_str().map(str::to_string))
+        .unwrap_or_default()
+}
+
+/// A list of lines from the pack's strings.
+pub(crate) fn pack_lines(section: &str, key: &str) -> Vec<String> {
+    pack_value(section, key)
+        .and_then(|v| {
+            v.as_array().map(|a| {
+                a.iter()
+                    .filter_map(|s| s.as_str().map(str::to_string))
+                    .collect()
+            })
+        })
+        .unwrap_or_default()
+}
+
+fn pack_value(section: &str, key: &str) -> Option<serde_json::Value> {
+    let path = pack_entry("strings").unwrap_or_else(|| "ui/strings.json".into());
+    let all: serde_json::Value = serde_json::from_str(&crate::assets::text(&path)?).ok()?;
+    all.get(section)?.get(key).cloned()
+}
+
+#[cfg(feature = "host")]
 fn lan_ip() -> Option<String> {
     let s = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
     s.connect("8.8.8.8:80").ok()?;
     Some(s.local_addr().ok()?.ip().to_string())
 }
 
+#[cfg(feature = "host")]
 fn world_path() -> std::path::PathBuf {
     if let Some(p) = std::env::var_os("DYNO_DATA_DIR") {
         return std::path::PathBuf::from(p).join("worlds/default/world.dynw");
@@ -1523,20 +1586,21 @@ impl App {
         let (tx, rx) = channel();
         let a = addr.clone();
         let token = self.settings.token;
+        let progress = Arc::new(net::Progress::default());
+        let opts = net::JoinOptions {
+            token,
+            create,
+            progress: Some(progress.clone()),
+            ..Default::default()
+        };
         std::thread::spawn(move || {
-            let _ = tx.send(net::connect_as(
-                &a,
-                &name,
-                token,
-                false,
-                create,
-                Duration::from_secs(15),
-            ));
+            let _ = tx.send(net::connect_with(&a, &name, opts, Duration::from_secs(15)));
         });
         self.screen = Screen::Joining {
             rx,
             label: addr,
             since: Instant::now(),
+            progress,
         };
     }
 
@@ -1551,23 +1615,31 @@ impl App {
         let (tx, rx) = channel();
         let a = addr.clone();
         let token = self.settings.token;
+        let progress = Arc::new(net::Progress::default());
+        let opts = net::JoinOptions {
+            token,
+            progress: Some(progress.clone()),
+            ..Default::default()
+        };
         std::thread::spawn(move || {
-            let _ = tx.send(net::connect(
-                &a,
-                &name,
-                token,
-                false,
-                Duration::from_secs(10),
-            ));
+            let _ = tx.send(net::connect_with(&a, &name, opts, Duration::from_secs(10)));
         });
         self.menu.error = None;
         self.screen = Screen::Joining {
             rx,
             label: addr,
             since: Instant::now(),
+            progress,
         };
     }
 
+    #[cfg(not(feature = "host"))]
+    fn start_host(&mut self) {
+        self.menu.error = Some("This build of the game cannot host a world.".into());
+        self.front.error = self.menu.error.clone();
+    }
+
+    #[cfg(feature = "host")]
     fn start_host(&mut self) {
         if self.host.is_none() {
             let port = proto::DEFAULT_PORT;
@@ -1647,6 +1719,8 @@ impl App {
             while let Ok(ev) = p.conn.rx.try_recv() {
                 match ev {
                     NetEvent::Closed(r) => closed = Some(r),
+                    // new rules from the pack (after /reload)
+                    NetEvent::Content(c) => p.content = *c,
                     NetEvent::Msg(m) => match m {
                         ServerMsg::Poses(list) => {
                             for (id, pose) in list {
@@ -2270,7 +2344,6 @@ impl App {
                             p.toast(format!("Journal: {title}"));
                             self.audio.play(Sfx::Join, 0.7);
                         }
-                        ServerMsg::Content(c) => p.content = *c,
                         ServerMsg::Digging { player, pos } => {
                             let now = p.anims.now();
                             if pos.is_some() {
@@ -3682,7 +3755,7 @@ fn host_panel(ui: &mut egui::Ui, host: &mut Option<Host>, actions: &mut Vec<Acti
     );
     ui.label(format!(
         "{} player(s) online. The world saves automatically.",
-        h.handle.server.player_count()
+        h.players()
     ));
     if let Some(lan) = &h.lan {
         ui.horizontal(|ui| {
@@ -3763,18 +3836,22 @@ fn ui(
             );
             actions.extend(cmds.into_iter().map(Action::Front));
         }
-        Screen::Joining { since, .. } => {
+        Screen::Joining {
+            since, progress, ..
+        } => {
             // the loading screen: the zone's name over the town, a tip, a burning fuse
+            // (words from the pack: none on the very first join, before it arrives)
             let screen = ctx.content_rect();
             let p = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Middle,
                 egui::Id::new("loading"),
             ));
             p.rect_filled(screen, 0.0, Color32::from_black_alpha(90));
+            let title = pack_text("loading", "title");
             crate::theme::title_text(
                 &p,
                 Pos2::new(screen.center().x, screen.top() + screen.height() * 0.3),
-                "Ashfall Vale",
+                &title,
                 54.0,
                 crate::theme::GOLD_BRIGHT,
             );
@@ -3784,25 +3861,24 @@ fn ui(
                     screen.center().x,
                     screen.top() + screen.height() * 0.3 + 46.0,
                 ),
-                "Hearthstead · Levels 1 to 10",
+                &pack_text("loading", "subtitle"),
                 18.0,
                 crate::theme::TEXT,
             );
-            const TIPS: [&str; 6] = [
-                "Hold the right mouse button to steer; hold both to run.",
-                "Right-click a creature to attack it, a person to talk.",
-                "Shades cannot cross into a hearth's light.",
-                "Gather from trees, ore and bushes with a right click.",
-                "Press C for your character, B for bags, P for your spellbook.",
-                "Recall (the - key) takes you home to your bed or Hearthstead.",
-            ];
-            let tip = TIPS[(since.elapsed().as_secs() / 5) as usize % TIPS.len()];
+            let tips = pack_lines("loading", "tips");
+            let tip = tips
+                .get((since.elapsed().as_secs() / 5) as usize % tips.len().max(1))
+                .cloned()
+                .unwrap_or_default();
             let bar = Rect::from_center_size(
                 Pos2::new(screen.center().x, screen.bottom() - 70.0),
                 Vec2::new(520.0, 10.0),
             );
             p.rect_filled(bar, 4.0, Color32::from_black_alpha(200));
-            let f = 1.0 - (-since.elapsed().as_secs_f32() / 3.0).exp();
+            // the pack download when there is one, else a fuse that slows as it nears the end
+            let downloading = progress.fraction().filter(|f| *f < 1.0);
+            let f =
+                downloading.unwrap_or_else(|| 1.0 - (-since.elapsed().as_secs_f32() / 3.0).exp());
             p.rect_filled(
                 Rect::from_min_size(bar.min, Vec2::new(bar.width() * f, bar.height())),
                 4.0,
@@ -3816,15 +3892,37 @@ fn ui(
             crate::theme::subtitle_text(
                 &p,
                 Pos2::new(screen.center().x, screen.bottom() - 100.0),
-                tip,
+                &tip,
                 17.0,
                 crate::theme::TEXT,
             );
+            let status = match downloading {
+                Some(_) => {
+                    let done = progress.done.load(std::sync::atomic::Ordering::Relaxed);
+                    let total = progress.total.load(std::sync::atomic::Ordering::Relaxed);
+                    if total >= 1024 * 1024 {
+                        let mb = |b: u64| b as f32 / (1024.0 * 1024.0);
+                        format!(
+                            "Downloading the world's files: {:.1} of {:.1} MB",
+                            mb(done),
+                            mb(total)
+                        )
+                    } else {
+                        format!(
+                            "Downloading the world's files: {} of {} KB",
+                            done / 1024,
+                            total / 1024
+                        )
+                    }
+                }
+                None if title.is_empty() => "Entering the world".to_string(),
+                None => format!("Entering {title}"),
+            };
             crate::theme::shadow_text(
                 &p,
                 Pos2::new(screen.center().x, screen.bottom() - 40.0),
                 Align2::CENTER_CENTER,
-                "Entering Ashfall Vale",
+                &status,
                 crate::theme::body_font(13.0),
                 crate::theme::TEXT_DIM,
             );
@@ -4329,17 +4427,15 @@ fn hud(
     // the first-login intro: letterbox and a few lines of story
     if let Some(t0) = p.intro {
         let t = t0.elapsed().as_secs_f32();
-        const LINES: [&str; 5] = [
-            "For three hundred years the Great Hearth kept Ashfall Vale safe.",
-            "Then, one winter night, it went out.",
-            "Now Shades rise with the dark, and the people of Hearthstead huddle by its cold stones.",
-            "Old Brannoc, the Hearthkeeper, believes the fire can be woken.",
-            "He is waiting for you.",
-        ];
-        let total = LINES.len() as f32 * 3.4 + 1.5;
-        if t > total {
+        // the story is the pack's (ui/strings.json)
+        let lines = pack_lines("intro", "lines");
+        let total = lines.len() as f32 * 3.4 + 1.5;
+        if t > total || lines.is_empty() {
             p.intro = None;
-            p.toast("Right-click Old Brannoc (the gold !) to begin");
+            let toast = pack_text("intro", "toast");
+            if !toast.is_empty() {
+                p.toast(toast);
+            }
         } else {
             let bar = 90.0 * (t / 0.8).min(1.0).min(((total - t) / 0.8).max(0.0));
             painter.rect_filled(
@@ -4356,7 +4452,7 @@ fn hud(
                 Color32::BLACK,
             );
             let k = ((t - 0.6) / 3.4).floor().max(0.0) as usize;
-            if let Some(line) = LINES.get(k) {
+            if let Some(line) = lines.get(k) {
                 let local = (t - 0.6) - k as f32 * 3.4;
                 let fade = (local / 0.6)
                     .min(1.0)
@@ -5458,10 +5554,16 @@ pub fn shot_front(
     as_name: Option<&str>,
     out: &std::path::Path,
 ) -> Result<String, String> {
-    let mut world = dyno_world::World::generate([128, 64, 128], 20261122);
-    let hearth = world.ensure_spawn_hearth(None);
-    dyno_world::village::build_hearthstead(&mut world, hearth);
-    let light = Light::new(&world);
+    // the title stage and words from the pack, as the game shows them
+    #[cfg(feature = "host")]
+    if crate::assets::get("pack.json").is_none() {
+        crate::load_builtin_pack();
+    }
+    let Stage {
+        world,
+        light,
+        hearth,
+    } = pack_stage().ok_or("the pack has no title stage (content/stage)")?;
     gfx.load_world(&world, &light);
     let recent = if addr.is_empty() {
         Vec::new()
@@ -5550,10 +5652,18 @@ pub fn shot_front(
     let mut draw = |ctx: &egui::Context, cmds: &mut Vec<FrontCmd>| {
         if loading {
             let (_tx, rx) = channel();
+            let progress = Arc::new(net::Progress::default());
+            progress
+                .total
+                .store(214_597, std::sync::atomic::Ordering::Relaxed);
+            progress
+                .done
+                .store(96_000, std::sync::atomic::Ordering::Relaxed);
             let mut screen = Screen::Joining {
                 rx,
                 label: addr.to_string(),
                 since: Instant::now() - Duration::from_secs(2),
+                progress,
             };
             let mut menu = Menu {
                 addr: String::new(),
@@ -5707,6 +5817,7 @@ pub fn shot_with_ui(
                 }),
                 _ => {}
             },
+            Ok(NetEvent::Content(c)) => p.content = *c,
             Ok(NetEvent::Closed(r)) => return Err(r),
             Err(_) => {}
         }

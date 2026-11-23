@@ -1,0 +1,10 @@
+{
+ "name": "hearthblock",
+ "version": 1,
+ "entries": {
+  "rules": "rules/hearthblock.json",
+  "strings": "ui/strings.json",
+  "stage": "stage/title.dynw"
+ },
+ "stream": []
+}

@@ -1,6 +1,6 @@
 //! Game content as data: items, recipes, block rules, creatures and milestones.
 //!
-//! Content is written as JSON with readable keys (see `content/hearthblock.json`)
+//! Content is written as JSON with readable keys (see `content/rules/hearthblock.json`)
 //! and resolved into compact numeric IDs. The server loads it and sends the
 //! resolved form to each player when they join, so new items and recipes need
 //! no client release.
@@ -16,7 +16,7 @@ pub type ItemId = u16;
 pub const FIRST_ITEM: ItemId = 256;
 
 /// The content that ships with Dyno: the Hearthblock pack.
-pub const DEFAULT_JSON: &str = include_str!("../../../content/hearthblock.json");
+pub const DEFAULT_JSON: &str = include_str!("../../../content/rules/hearthblock.json");
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]

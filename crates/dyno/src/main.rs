@@ -10,7 +10,8 @@ USAGE:
   dyno connect <address>       Open the game with the server address filled in
   dyno connect <address>       Open the game with the server address filled in
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
-                               [--creative] [--content FILE.json] [--op NAME]...
+                               [--creative] [--content PACK_DIR|RULES.json] [--op NAME]...
+                               [--asset-rate 256] (KB/s of pack files per player)
                                [--webhook DISCORD_URL] (or DYNO_WEBHOOK)
                                [--shard-cap 40] [--area-cap 16] [--max-shards 16]
                                [--cluster HOST:PORT] [--join HOST:PORT] [--advertise HOST:PORT]
@@ -26,6 +27,7 @@ USAGE:
                                Join as a bot that walks in a circle (demos, tests)
   dyno fill <address> x,y,z x,y,z <block>
                                Fill a box with a block (Air clears it)
+  dyno bake-stage [PACK_DIR]   Bake the title-screen stage into the pack (default content/)
   dyno update                  Check for a new release and install it
   dyno version                 Print version, target and protocol
   dyno verify-manifest <manifest.json> <manifest.json.sig>
@@ -302,6 +304,24 @@ fn main() {
                 }
             }
         }
+        "bake-stage" => {
+            // the title-screen stage: a small saved world around the starting town,
+            // baked once from the world builders into the pack
+            let pack = args.get(1).cloned().unwrap_or_else(|| "content".into());
+            let out = std::path::Path::new(&pack).join("stage/title.dynw");
+            let mut world = dyno_world::World::generate([128, 64, 128], 20261122);
+            let hearth = world.ensure_spawn_hearth(None);
+            dyno_world::village::build_hearthstead(&mut world, hearth);
+            world
+                .save(&out)
+                .unwrap_or_else(|e| fail(&format!("cannot write {}: {e}", out.display())));
+            println!(
+                "Baked the title stage {:?} around {hearth:?} to {} ({} KB)",
+                world.size,
+                out.display(),
+                world.encode().len() / 1024
+            );
+        }
         "verify-manifest" => {
             let (Some(m), Some(s)) = (args.get(1), args.get(2)) else {
                 eprintln!("usage: dyno verify-manifest <manifest.json> <manifest.json.sig>");
@@ -400,6 +420,13 @@ fn run_server(args: &[String]) {
             }
             "--op" => {
                 cfg.ops.push(val());
+                i += 1;
+            }
+            "--asset-rate" => {
+                let kb: usize = val()
+                    .parse()
+                    .unwrap_or_else(|_| fail("--asset-rate needs KB per second"));
+                cfg.asset_rate = kb.max(1) * 1024;
                 i += 1;
             }
             "--webhook" => {

@@ -44,7 +44,7 @@ fn wait<T>(
                 }
             }
             Ok(NetEvent::Closed(r)) => panic!("closed: {r}"),
-            Err(_) => {}
+            _ => {}
         }
     }
     panic!("timed out waiting");
@@ -194,7 +194,7 @@ fn wait_opt<T>(
                 }
             }
             Ok(NetEvent::Closed(r)) => panic!("closed: {r}"),
-            Err(_) => {}
+            _ => {}
         }
     }
     None

@@ -805,6 +805,7 @@ dependencies = [
  "rustls",
  "serde",
  "serde_json",
+ "sha2",
  "tungstenite",
 ]
 
@@ -1360,6 +1361,14 @@ dependencies = [
  "serde",
  "spin",
  "stable_deref_trait",
+]
+
+[[package]]
+name = "hearthblock"
+version = "0.6.0"
+dependencies = [
+ "dyno-client",
+ "dyno-update",
 ]
 
 [[package]]

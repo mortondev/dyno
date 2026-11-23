@@ -18,3 +18,12 @@ opt-level = 3
 [profile.release]
 strip = true
 lto = "thin"
+
+# The player client (`hearthblock`): small to download. Servers and tools
+# keep the release profile above.
+[profile.client-release]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

@@ -1,0 +1,33 @@
+{
+ "loading": {
+  "title": "Ashfall Vale",
+  "subtitle": "Hearthstead · Levels 1 to 10",
+  "tips": [
+   "Hold the right mouse button to steer; hold both to run.",
+   "Right-click a creature to attack it, a person to talk.",
+   "Shades cannot cross into a hearth's light.",
+   "Gather from trees, ore and bushes with a right click.",
+   "Press C for your character, B for bags, P for your spellbook.",
+   "Recall (the - key) takes you home to your bed or Hearthstead."
+  ]
+ },
+ "intro": {
+  "lines": [
+   "For three hundred years the Great Hearth kept Ashfall Vale safe.",
+   "Then, one winter night, it went out.",
+   "Now Shades rise with the dark, and the people of Hearthstead huddle by its cold stones.",
+   "Old Brannoc, the Hearthkeeper, believes the fire can be woken.",
+   "He is waiting for you."
+  ],
+  "toast": "Right-click Old Brannoc (the gold !) to begin"
+ },
+ "news": {
+  "title": "The Living Vale",
+  "lines": [
+   "Six classic classes, gear and character screens",
+   "Hearthstead rebuilt in timber and stone",
+   "Camps, rare elites and the Nightfall Incursion",
+   "Classic controls: hold right mouse to steer"
+  ]
+ }
+}

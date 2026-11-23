@@ -28,7 +28,7 @@ Create a webhook in a Discord channel (Channel settings, Integrations, Webhooks)
 
 ## Content
 
-Items, recipes, block drops, creatures and milestones are in `content/hearthblock.json`. Run with `--content my.json` to use your own file, and type `/reload` in game to apply changes while people play.
+The content pack is the `content/` directory: `pack.json`, the rules (`rules/hearthblock.json`: items, recipes, block drops, creatures, quests…), the game's words (`ui/strings.json`) and the title stage. The server binary carries a copy, so it needs no files beside it; players download the pack when they join and keep it in their cache. Run with `--content my-pack/` to serve your own pack, or `--content my.json` to change only the rules, and type `/reload` in game to apply changes while people play. `--asset-rate KB` sets how fast each player downloads pack files (256 KB/s by default; game messages always go first).
 
 ## Files
 

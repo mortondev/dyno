@@ -28,7 +28,10 @@ pub fn text(path: &str) -> Option<String> {
 
 /// Add or replace a file (from the network, or a local pack).
 pub fn insert(path: &str, bytes: impl Into<Arc<[u8]>>) {
-    store().write().unwrap().insert(path.to_string(), bytes.into());
+    store()
+        .write()
+        .unwrap()
+        .insert(path.to_string(), bytes.into());
 }
 
 /// Every path under a directory prefix ("models/").
@@ -42,6 +45,33 @@ pub fn list(prefix: &str) -> Vec<String> {
         .collect();
     v.sort();
     v
+}
+
+static REQUESTS: OnceLock<std::sync::Mutex<Vec<String>>> = OnceLock::new();
+
+/// Ask the server for a streamed file (one under a `stream` prefix of the
+/// pack) that `get` does not have yet. It arrives through `insert`; until
+/// then, draw a neutral placeholder. Asking twice is harmless.
+pub fn request(path: &str) {
+    let mut q = REQUESTS.get_or_init(Default::default).lock().unwrap();
+    if !q.iter().any(|p| p == path) {
+        q.push(path.to_string());
+    }
+}
+
+/// The paths asked for that a connection can serve (`known`); the rest wait
+/// for another connection.
+pub(crate) fn take_requests(known: impl Fn(&str) -> bool) -> Vec<String> {
+    let Some(q) = REQUESTS.get() else {
+        return Vec::new();
+    };
+    let mut q = q.lock().unwrap();
+    if q.is_empty() {
+        return Vec::new();
+    }
+    let (mine, rest): (Vec<String>, Vec<String>) = q.drain(..).partition(|p| known(p));
+    *q = rest;
+    mine
 }
 
 /// Load every file under a local pack directory (tools, tests, dev builds).
