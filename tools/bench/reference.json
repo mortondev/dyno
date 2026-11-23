@@ -1,0 +1,4070 @@
+{
+  "label": "after",
+  "version": "0.9.0",
+  "build": "release",
+  "adapter": "NVIDIA GeForce RTX 3080 (Vulkan)",
+  "size": [
+    1920,
+    1080
+  ],
+  "world": "a fresh local world of the pack's layout",
+  "load": "25.26 41.36 44.68",
+  "default_tier": "high",
+  "flight_seconds": 60.0,
+  "tiers": [
+    {
+      "name": "low",
+      "graphics": 0,
+      "ground_cover": 0.5,
+      "leaf_detail": 0.5,
+      "life": 1,
+      "water_quality": 0
+    },
+    {
+      "name": "medium",
+      "graphics": 1,
+      "ground_cover": 1.0,
+      "leaf_detail": 1.0,
+      "life": 2,
+      "water_quality": 1
+    },
+    {
+      "name": "high",
+      "graphics": 2,
+      "ground_cover": 1.0,
+      "leaf_detail": 1.0,
+      "life": 2,
+      "water_quality": 2
+    },
+    {
+      "name": "ultra",
+      "graphics": 3,
+      "ground_cover": 1.5,
+      "leaf_detail": 2.0,
+      "life": 2,
+      "water_quality": 2
+    }
+  ],
+  "scenes": [
+    {
+      "name": "hearthstead_plaza",
+      "tier": "low",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 0.497664,
+        "median": 0.50176,
+        "p95": 0.505856,
+        "max": 1.744896
+      },
+      "cpu_ms": {
+        "min": 1.431533,
+        "median": 2.371171,
+        "p95": 3.076429,
+        "max": 4.028806
+      },
+      "wall_ms": {
+        "min": 1.436346,
+        "median": 2.459217,
+        "p95": 5.634365,
+        "max": 7.78912
+      },
+      "parts": [],
+      "life_ms": 0.236101,
+      "cpu_setup_ms": 0.955754,
+      "cpu_submit_ms": 0.7225509999999999,
+      "moving_vertices": 101952,
+      "cpu_upload_ms": 0.91029,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 30,
+          "triangles": 118459,
+          "gpu_ms": 0.028672,
+          "cpu_ms": 0.07996199999999998
+        },
+        {
+          "name": "shadow mid",
+          "draws": 170,
+          "triangles": 379292,
+          "gpu_ms": 0.062464,
+          "cpu_ms": 0.07516199999999995
+        },
+        {
+          "name": "shadow far",
+          "draws": 305,
+          "triangles": 409072,
+          "gpu_ms": 0.04608,
+          "cpu_ms": 0.06313899999999995
+        },
+        {
+          "name": "world",
+          "draws": 764,
+          "triangles": 694053,
+          "gpu_ms": 0.285696,
+          "cpu_ms": 0.16448799999999997
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0006479999999999819
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.044032,
+          "cpu_ms": 0.0017779999999998353
+        },
+        {
+          "name": "water",
+          "draws": 32,
+          "triangles": 1096,
+          "gpu_ms": 0.004096,
+          "cpu_ms": 0.020054999999999934
+        },
+        {
+          "name": "translucent",
+          "draws": 65,
+          "triangles": 1196,
+          "gpu_ms": 0.007168,
+          "cpu_ms": 0.008651999999999882
+        },
+        {
+          "name": "post",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.02048,
+          "cpu_ms": 0.00312699999999988
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0049479999999999524
+        }
+      ],
+      "draws": 1368,
+      "triangles": 1603170,
+      "cover_triangles": 180538,
+      "cover_instances": 1298,
+      "sections_shown": 177,
+      "sections": 3824,
+      "world_vertices": 1441098,
+      "memory": {
+        "world_vertices": 29583376,
+        "far_vertices": 15807600,
+        "cover": 3524056,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 12582912,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 49111640,
+      "mesh": {
+        "sections": 1334,
+        "wall_ms": {
+          "min": 0.06249,
+          "median": 0.318082,
+          "p95": 5.631098,
+          "max": 93.861129
+        },
+        "wall_mean_ms": 2.057853016491757,
+        "cpu_ms": {
+          "min": 0.009724,
+          "median": 0.213515,
+          "p95": 3.573324,
+          "max": 54.046622
+        },
+        "cpu_mean_ms": 1.0377397113943003
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "logging_camp",
+      "tier": "low",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 0.659456,
+        "median": 0.667648,
+        "p95": 0.674816,
+        "max": 1.010688
+      },
+      "cpu_ms": {
+        "min": 1.678737,
+        "median": 2.14433,
+        "p95": 2.495227,
+        "max": 2.9768879999999998
+      },
+      "wall_ms": {
+        "min": 1.801886,
+        "median": 4.236351,
+        "p95": 8.733331999999999,
+        "max": 14.18716
+      },
+      "parts": [],
+      "life_ms": 0.43892600000000004,
+      "cpu_setup_ms": 0.461816,
+      "cpu_submit_ms": 0.805329,
+      "moving_vertices": 54486,
+      "cpu_upload_ms": 0.407976,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 40,
+          "triangles": 293114,
+          "gpu_ms": 0.041984,
+          "cpu_ms": 0.07990199999999997
+        },
+        {
+          "name": "shadow mid",
+          "draws": 143,
+          "triangles": 517093,
+          "gpu_ms": 0.070656,
+          "cpu_ms": 0.07363199999999992
+        },
+        {
+          "name": "shadow far",
+          "draws": 390,
+          "triangles": 746615,
+          "gpu_ms": 0.075776,
+          "cpu_ms": 0.07802699999999996
+        },
+        {
+          "name": "world",
+          "draws": 902,
+          "triangles": 1319989,
+          "gpu_ms": 0.412672,
+          "cpu_ms": 0.1597139999999999
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0006419999999999204
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.03584,
+          "cpu_ms": 0.001603000000000021
+        },
+        {
+          "name": "water",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.003072,
+          "cpu_ms": 0.012359000000000009
+        },
+        {
+          "name": "translucent",
+          "draws": 6,
+          "triangles": 18,
+          "gpu_ms": 0.006144,
+          "cpu_ms": 0.0038489999999999913
+        },
+        {
+          "name": "post",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.02048,
+          "cpu_ms": 0.002927000000000013
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.005020999999999942
+        }
+      ],
+      "draws": 1483,
+      "triangles": 2876831,
+      "cover_triangles": 490572,
+      "cover_instances": 2621,
+      "sections_shown": 212,
+      "sections": 3824,
+      "world_vertices": 2479276,
+      "memory": {
+        "world_vertices": 49548544,
+        "far_vertices": 17257392,
+        "cover": 3589592,
+        "index": 786432,
+        "textures": 638820,
+        "shadow_maps": 12582912,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 71181960,
+      "mesh": {
+        "sections": 1468,
+        "wall_ms": {
+          "min": 0.084293,
+          "median": 0.343464,
+          "p95": 8.097264,
+          "max": 70.750945
+        },
+        "wall_mean_ms": 2.2087050183923727,
+        "cpu_ms": {
+          "min": 0.08376,
+          "median": 0.220074,
+          "p95": 4.746015,
+          "max": 37.002244
+        },
+        "cpu_mean_ms": 1.2888907384196193
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "hollow_oak",
+      "tier": "low",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 0.924672,
+        "median": 1.217536,
+        "p95": 3.367936,
+        "max": 3.493888
+      },
+      "cpu_ms": {
+        "min": 1.43154,
+        "median": 2.220964,
+        "p95": 2.820725,
+        "max": 3.311885
+      },
+      "wall_ms": {
+        "min": 1.4394679999999997,
+        "median": 2.249767,
+        "p95": 3.7094270000000003,
+        "max": 5.619895
+      },
+      "parts": [],
+      "life_ms": 0.319427,
+      "cpu_setup_ms": 0.529494,
+      "cpu_submit_ms": 0.840411,
+      "moving_vertices": 53982,
+      "cpu_upload_ms": 0.47646400000000005,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 53,
+          "triangles": 263213,
+          "gpu_ms": 0.072704,
+          "cpu_ms": 0.085787
+        },
+        {
+          "name": "shadow mid",
+          "draws": 216,
+          "triangles": 563794,
+          "gpu_ms": 0.147456,
+          "cpu_ms": 0.08588300000000004
+        },
+        {
+          "name": "shadow far",
+          "draws": 498,
+          "triangles": 883125,
+          "gpu_ms": 0.150528,
+          "cpu_ms": 0.08006000000000002
+        },
+        {
+          "name": "world",
+          "draws": 1036,
+          "triangles": 1874537,
+          "gpu_ms": 0.728064,
+          "cpu_ms": 0.17101500000000003
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0006099999999999994
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.044032,
+          "cpu_ms": 0.0018489999999999895
+        },
+        {
+          "name": "water",
+          "draws": 4,
+          "triangles": 214,
+          "gpu_ms": 0.026624,
+          "cpu_ms": 0.014002999999999988
+        },
+        {
+          "name": "translucent",
+          "draws": 6,
+          "triangles": 322,
+          "gpu_ms": 0.009216,
+          "cpu_ms": 0.0032729999999999704
+        },
+        {
+          "name": "post",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.033792,
+          "cpu_ms": 0.0023360000000000047
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.004858000000000029
+        }
+      ],
+      "draws": 1815,
+      "triangles": 3585207,
+      "cover_triangles": 992896,
+      "cover_instances": 4206,
+      "sections_shown": 215,
+      "sections": 3872,
+      "world_vertices": 3234528,
+      "memory": {
+        "world_vertices": 62969632,
+        "far_vertices": 17168976,
+        "cover": 3720664,
+        "index": 393216,
+        "textures": 638820,
+        "shadow_maps": 12582912,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 84252488,
+      "mesh": {
+        "sections": 1450,
+        "wall_ms": {
+          "min": 0.100614,
+          "median": 0.349465,
+          "p95": 8.163427,
+          "max": 65.338009
+        },
+        "wall_mean_ms": 2.256843881379311,
+        "cpu_ms": {
+          "min": 0.10073,
+          "median": 0.229917,
+          "p95": 4.691968,
+          "max": 30.741459
+        },
+        "cpu_mean_ms": 1.3068097544827602
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "windmill_farm",
+      "tier": "low",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.494016,
+        "median": 1.55136,
+        "p95": 2.402304,
+        "max": 2.63168
+      },
+      "cpu_ms": {
+        "min": 1.5955219999999999,
+        "median": 2.33777,
+        "p95": 2.873939,
+        "max": 3.854185
+      },
+      "wall_ms": {
+        "min": 1.6050509999999998,
+        "median": 2.8259250000000002,
+        "p95": 6.039413,
+        "max": 10.347029
+      },
+      "parts": [],
+      "life_ms": 0.487842,
+      "cpu_setup_ms": 0.618039,
+      "cpu_submit_ms": 0.715138,
+      "moving_vertices": 61860,
+      "cpu_upload_ms": 0.5499189999999999,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 16,
+          "triangles": 81820,
+          "gpu_ms": 0.050176,
+          "cpu_ms": 0.08351399999999998
+        },
+        {
+          "name": "shadow mid",
+          "draws": 74,
+          "triangles": 195988,
+          "gpu_ms": 0.095232,
+          "cpu_ms": 0.07132300000000003
+        },
+        {
+          "name": "shadow far",
+          "draws": 241,
+          "triangles": 313489,
+          "gpu_ms": 0.111616,
+          "cpu_ms": 0.07217799999999985
+        },
+        {
+          "name": "world",
+          "draws": 792,
+          "triangles": 944441,
+          "gpu_ms": 1.078272,
+          "cpu_ms": 0.20347300000000001
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0007619999999999294
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.124928,
+          "cpu_ms": 0.0018839999999999968
+        },
+        {
+          "name": "water",
+          "draws": 11,
+          "triangles": 1580,
+          "gpu_ms": 0.013312,
+          "cpu_ms": 0.01855899999999988
+        },
+        {
+          "name": "translucent",
+          "draws": 23,
+          "triangles": 1604,
+          "gpu_ms": 0.02048,
+          "cpu_ms": 0.0062829999999998165
+        },
+        {
+          "name": "post",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.055296,
+          "cpu_ms": 0.00351900000000005
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.005854000000000026
+        }
+      ],
+      "draws": 1159,
+      "triangles": 1538924,
+      "cover_triangles": 500988,
+      "cover_instances": 3438,
+      "sections_shown": 170,
+      "sections": 3776,
+      "world_vertices": 1119877,
+      "memory": {
+        "world_vertices": 22552360,
+        "far_vertices": 15906672,
+        "cover": 3589592,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 12582912,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 42245232,
+      "mesh": {
+        "sections": 1263,
+        "wall_ms": {
+          "min": 0.065039,
+          "median": 0.410565,
+          "p95": 5.535775,
+          "max": 21.58593
+        },
+        "wall_mean_ms": 1.3429035043547093,
+        "cpu_ms": {
+          "min": 0.009333,
+          "median": 0.235735,
+          "p95": 3.381925,
+          "max": 21.274583
+        },
+        "cpu_mean_ms": 0.9915737212984962
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "mirrormere",
+      "tier": "low",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 0.559104,
+        "median": 0.565248,
+        "p95": 0.579584,
+        "max": 1.13152
+      },
+      "cpu_ms": {
+        "min": 1.930121,
+        "median": 2.922295,
+        "p95": 3.660844,
+        "max": 5.2599730000000005
+      },
+      "wall_ms": {
+        "min": 1.96964,
+        "median": 4.775792,
+        "p95": 8.587689999999998,
+        "max": 12.787439
+      },
+      "parts": [],
+      "life_ms": 0.738636,
+      "cpu_setup_ms": 0.79915,
+      "cpu_submit_ms": 0.8116259999999997,
+      "moving_vertices": 60522,
+      "cpu_upload_ms": 0.700342,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 20,
+          "triangles": 94718,
+          "gpu_ms": 0.0256,
+          "cpu_ms": 0.10159000000000007
+        },
+        {
+          "name": "shadow mid",
+          "draws": 70,
+          "triangles": 202475,
+          "gpu_ms": 0.034816,
+          "cpu_ms": 0.09773199999999993
+        },
+        {
+          "name": "shadow far",
+          "draws": 193,
+          "triangles": 259735,
+          "gpu_ms": 0.026624,
+          "cpu_ms": 0.08101600000000009
+        },
+        {
+          "name": "world",
+          "draws": 620,
+          "triangles": 756219,
+          "gpu_ms": 0.314368,
+          "cpu_ms": 0.21169300000000013
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0009390000000000231
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.028672,
+          "cpu_ms": 0.0022619999999999862
+        },
+        {
+          "name": "water",
+          "draws": 75,
+          "triangles": 30886,
+          "gpu_ms": 0.093184,
+          "cpu_ms": 0.04301400000000011
+        },
+        {
+          "name": "translucent",
+          "draws": 84,
+          "triangles": 30914,
+          "gpu_ms": 0.019456,
+          "cpu_ms": 0.01039699999999999
+        },
+        {
+          "name": "post",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.019456,
+          "cpu_ms": 0.0043680000000001495
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.00611600000000001
+        }
+      ],
+      "draws": 1064,
+      "triangles": 1374949,
+      "cover_triangles": 310738,
+      "cover_instances": 1905,
+      "sections_shown": 152,
+      "sections": 3840,
+      "world_vertices": 1306039,
+      "memory": {
+        "world_vertices": 31991032,
+        "far_vertices": 15072336,
+        "cover": 3589592,
+        "index": 393216,
+        "textures": 638820,
+        "shadow_maps": 12582912,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 51046176,
+      "mesh": {
+        "sections": 1188,
+        "wall_ms": {
+          "min": 0.080042,
+          "median": 0.331645,
+          "p95": 7.666492,
+          "max": 42.964286
+        },
+        "wall_mean_ms": 2.055722921717174,
+        "cpu_ms": {
+          "min": 0.080054,
+          "median": 0.232577,
+          "p95": 4.062775,
+          "max": 29.204184
+        },
+        "cpu_mean_ms": 1.2062077979798007
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "miners_rest",
+      "tier": "low",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 0.546816,
+        "median": 0.553984,
+        "p95": 0.55808,
+        "max": 0.562176
+      },
+      "cpu_ms": {
+        "min": 2.4531050000000003,
+        "median": 2.954338,
+        "p95": 3.279894,
+        "max": 3.801798
+      },
+      "wall_ms": {
+        "min": 2.960397,
+        "median": 5.568852000000001,
+        "p95": 8.346603,
+        "max": 10.584401999999999
+      },
+      "parts": [],
+      "life_ms": 0.47789000000000004,
+      "cpu_setup_ms": 0.827213,
+      "cpu_submit_ms": 0.9096650000000002,
+      "moving_vertices": 62742,
+      "cpu_upload_ms": 0.7368790000000001,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 26,
+          "triangles": 147458,
+          "gpu_ms": 0.033792,
+          "cpu_ms": 0.10498199999999991
+        },
+        {
+          "name": "shadow mid",
+          "draws": 102,
+          "triangles": 227714,
+          "gpu_ms": 0.041984,
+          "cpu_ms": 0.11411900000000008
+        },
+        {
+          "name": "shadow far",
+          "draws": 245,
+          "triangles": 273255,
+          "gpu_ms": 0.028672,
+          "cpu_ms": 0.11896800000000007
+        },
+        {
+          "name": "world",
+          "draws": 793,
+          "triangles": 1016061,
+          "gpu_ms": 0.36864,
+          "cpu_ms": 0.24832299999999985
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0012539999999998663
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.032768,
+          "cpu_ms": 0.002766999999999964
+        },
+        {
+          "name": "water",
+          "draws": 7,
+          "triangles": 366,
+          "gpu_ms": 0.017408,
+          "cpu_ms": 0.030370999999999926
+        },
+        {
+          "name": "translucent",
+          "draws": 15,
+          "triangles": 404,
+          "gpu_ms": 0.007168,
+          "cpu_ms": 0.006705999999999879
+        },
+        {
+          "name": "post",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.021504,
+          "cpu_ms": 0.0049879999999999924
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.006291999999999964
+        }
+      ],
+      "draws": 1190,
+      "triangles": 1665260,
+      "cover_triangles": 605192,
+      "cover_instances": 3813,
+      "sections_shown": 174,
+      "sections": 3792,
+      "world_vertices": 864239,
+      "memory": {
+        "world_vertices": 17893816,
+        "far_vertices": 15656976,
+        "cover": 3589592,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 12582912,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 37336992,
+      "mesh": {
+        "sections": 1384,
+        "wall_ms": {
+          "min": 0.074074,
+          "median": 0.278788,
+          "p95": 9.348319,
+          "max": 44.338121
+        },
+        "wall_mean_ms": 2.2841227947976868,
+        "cpu_ms": {
+          "min": 0.074087,
+          "median": 0.236599,
+          "p95": 3.103714,
+          "max": 25.291317
+        },
+        "cpu_mean_ms": 0.9428503605491317
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "flight",
+      "tier": "low",
+      "kind": "flight",
+      "frames": 2651,
+      "gpu_ms": {
+        "min": 0.386048,
+        "median": 0.572416,
+        "p95": 3.224576,
+        "max": 15.873024
+      },
+      "cpu_ms": {
+        "min": 2.417896,
+        "median": 6.219546,
+        "p95": 10.377400000000002,
+        "max": 534.996939
+      },
+      "wall_ms": {
+        "min": 2.44508,
+        "median": 14.718112999999999,
+        "p95": 37.580221,
+        "max": 997.139591
+      },
+      "parts": [
+        [
+          "what arrived",
+          {
+            "min": 0.0,
+            "median": 0.002567,
+            "p95": 0.006698,
+            "max": 1.39301
+          }
+        ],
+        [
+          "world uploads",
+          {
+            "min": 0.0,
+            "median": 0.005478999999999998,
+            "p95": 0.37406799999999996,
+            "max": 2.4273890000000002
+          }
+        ],
+        [
+          "far view",
+          {
+            "min": 0.0,
+            "median": 0.001584000000000002,
+            "p95": 1.499444,
+            "max": 2.108495
+          }
+        ],
+        [
+          "camera",
+          {
+            "min": 0.0,
+            "median": 0.06958299999999995,
+            "p95": 0.099546,
+            "max": 0.3224530000000003
+          }
+        ],
+        [
+          "creatures",
+          {
+            "min": 0.735099,
+            "median": 2.030559,
+            "p95": 5.083041000000001,
+            "max": 519.478231
+          }
+        ]
+      ],
+      "life_ms": 1.116286,
+      "cpu_setup_ms": 1.0364,
+      "cpu_submit_ms": 0.971725,
+      "moving_vertices": 39306,
+      "cpu_upload_ms": 0.529478,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 55,
+          "triangles": 104742,
+          "gpu_ms": 0.064512,
+          "cpu_ms": 0.14711600000000002
+        },
+        {
+          "name": "shadow mid",
+          "draws": 113,
+          "triangles": 151066,
+          "gpu_ms": 0.049152,
+          "cpu_ms": 0.13617499999999993
+        },
+        {
+          "name": "shadow far",
+          "draws": 159,
+          "triangles": 253739,
+          "gpu_ms": 0.044032,
+          "cpu_ms": 0.06827299999999992
+        },
+        {
+          "name": "world",
+          "draws": 711,
+          "triangles": 932746,
+          "gpu_ms": 0.315392,
+          "cpu_ms": 0.25034199999999984
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0009519999999998419
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.064512,
+          "cpu_ms": 0.00262299999999982
+        },
+        {
+          "name": "water",
+          "draws": 5,
+          "triangles": 168,
+          "gpu_ms": 0.004096,
+          "cpu_ms": 0.023425999999999947
+        },
+        {
+          "name": "translucent",
+          "draws": 14,
+          "triangles": 188,
+          "gpu_ms": 0.006144,
+          "cpu_ms": 0.005905999999999967
+        },
+        {
+          "name": "post",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.019456,
+          "cpu_ms": 0.003927000000000014
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0066950000000001175
+        }
+      ],
+      "draws": 1059,
+      "triangles": 1442651,
+      "cover_triangles": 610896,
+      "cover_instances": 3890,
+      "sections_shown": 130,
+      "sections": 4903,
+      "world_vertices": 1828469,
+      "memory": {
+        "world_vertices": 38464024,
+        "far_vertices": 17721072,
+        "cover": 3720664,
+        "index": 786432,
+        "textures": 638820,
+        "shadow_maps": 12582912,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 60692192,
+      "mesh": {
+        "sections": 33176,
+        "wall_ms": {
+          "min": 0.071069,
+          "median": 0.278493,
+          "p95": 13.573856,
+          "max": 210.845874
+        },
+        "wall_mean_ms": 3.2066000532613717,
+        "cpu_ms": {
+          "min": 0.010187,
+          "median": 0.229055,
+          "p95": 3.788001,
+          "max": 45.079321
+        },
+        "cpu_mean_ms": 0.9807768966120101
+      },
+      "slow_frames": 1060
+    },
+    {
+      "name": "hearthstead_plaza",
+      "tier": "medium",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 0.818176,
+        "median": 0.827392,
+        "p95": 0.832512,
+        "max": 0.883712
+      },
+      "cpu_ms": {
+        "min": 4.445635,
+        "median": 6.143657,
+        "p95": 7.580692,
+        "max": 8.714723000000001
+      },
+      "wall_ms": {
+        "min": 5.750145,
+        "median": 14.305664000000002,
+        "p95": 40.769474,
+        "max": 64.03344799999999
+      },
+      "parts": [],
+      "life_ms": 1.201127,
+      "cpu_setup_ms": 2.362032,
+      "cpu_submit_ms": 1.621959,
+      "moving_vertices": 144228,
+      "cpu_upload_ms": 2.074506,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 30,
+          "triangles": 130123,
+          "gpu_ms": 0.038912,
+          "cpu_ms": 0.13917599999999997
+        },
+        {
+          "name": "shadow mid",
+          "draws": 170,
+          "triangles": 394870,
+          "gpu_ms": 0.094208,
+          "cpu_ms": 0.1563699999999999
+        },
+        {
+          "name": "shadow far",
+          "draws": 305,
+          "triangles": 424650,
+          "gpu_ms": 0.06144,
+          "cpu_ms": 0.11033500000000007
+        },
+        {
+          "name": "world",
+          "draws": 929,
+          "triangles": 1465419,
+          "gpu_ms": 0.470016,
+          "cpu_ms": 0.35516700000000023
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.001250999999999891
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.043008,
+          "cpu_ms": 0.003086000000000144
+        },
+        {
+          "name": "water",
+          "draws": 32,
+          "triangles": 1096,
+          "gpu_ms": 0.034816,
+          "cpu_ms": 0.04436600000000013
+        },
+        {
+          "name": "translucent",
+          "draws": 65,
+          "triangles": 1332,
+          "gpu_ms": 0.008192,
+          "cpu_ms": 0.016337000000000046
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.075776,
+          "cpu_ms": 0.022147999999999612
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.008830000000000116
+        }
+      ],
+      "draws": 1542,
+      "triangles": 2417501,
+      "cover_triangles": 933988,
+      "cover_instances": 6894,
+      "sections_shown": 177,
+      "sections": 3824,
+      "world_vertices": 1460112,
+      "memory": {
+        "world_vertices": 29887600,
+        "far_vertices": 15807600,
+        "cover": 3720664,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 28311552,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 49612472,
+      "mesh": {
+        "sections": 1334,
+        "wall_ms": {
+          "min": 0.093461,
+          "median": 0.270464,
+          "p95": 11.39206,
+          "max": 53.070769
+        },
+        "wall_mean_ms": 2.7267749655172424,
+        "cpu_ms": {
+          "min": 0.093476,
+          "median": 0.223233,
+          "p95": 3.751267,
+          "max": 17.918144
+        },
+        "cpu_mean_ms": 0.9644883208395809
+      },
+      "slow_frames": 46
+    },
+    {
+      "name": "logging_camp",
+      "tier": "medium",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.108992,
+        "median": 1.118208,
+        "p95": 1.41824,
+        "max": 2.236416
+      },
+      "cpu_ms": {
+        "min": 2.458156,
+        "median": 4.392539,
+        "p95": 5.348592,
+        "max": 7.10703
+      },
+      "wall_ms": {
+        "min": 2.488763,
+        "median": 5.346697,
+        "p95": 13.445616999999999,
+        "max": 23.348653
+      },
+      "parts": [],
+      "life_ms": 1.256322,
+      "cpu_setup_ms": 1.234783,
+      "cpu_submit_ms": 1.176009,
+      "moving_vertices": 90150,
+      "cpu_upload_ms": 1.042963,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 40,
+          "triangles": 325422,
+          "gpu_ms": 0.058368,
+          "cpu_ms": 0.10834899999999992
+        },
+        {
+          "name": "shadow mid",
+          "draws": 143,
+          "triangles": 558497,
+          "gpu_ms": 0.105472,
+          "cpu_ms": 0.11232599999999993
+        },
+        {
+          "name": "shadow far",
+          "draws": 390,
+          "triangles": 788019,
+          "gpu_ms": 0.105472,
+          "cpu_ms": 0.10893699999999984
+        },
+        {
+          "name": "world",
+          "draws": 1047,
+          "triangles": 2832691,
+          "gpu_ms": 0.694272,
+          "cpu_ms": 0.24360000000000004
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0008469999999998201
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.036864,
+          "cpu_ms": 0.0025409999999999044
+        },
+        {
+          "name": "water",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.032768,
+          "cpu_ms": 0.019924000000000053
+        },
+        {
+          "name": "translucent",
+          "draws": 6,
+          "triangles": 28,
+          "gpu_ms": 0.006144,
+          "cpu_ms": 0.006947999999999954
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.075776,
+          "cpu_ms": 0.014488999999999974
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0065629999999998745
+        }
+      ],
+      "draws": 1637,
+      "triangles": 4504668,
+      "cover_triangles": 1976460,
+      "cover_instances": 13055,
+      "sections_shown": 212,
+      "sections": 3824,
+      "world_vertices": 2616892,
+      "memory": {
+        "world_vertices": 51750400,
+        "far_vertices": 17343792,
+        "cover": 3982808,
+        "index": 786432,
+        "textures": 638820,
+        "shadow_maps": 28311552,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 73863432,
+      "mesh": {
+        "sections": 1468,
+        "wall_ms": {
+          "min": 0.063334,
+          "median": 0.311211,
+          "p95": 14.306649,
+          "max": 108.571717
+        },
+        "wall_mean_ms": 3.1820730463215283,
+        "cpu_ms": {
+          "min": 0.063346,
+          "median": 0.226812,
+          "p95": 4.711865,
+          "max": 41.339009
+        },
+        "cpu_mean_ms": 1.3153924046321528
+      },
+      "slow_frames": 5
+    },
+    {
+      "name": "hollow_oak",
+      "tier": "medium",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.426432,
+        "median": 1.820672,
+        "p95": 3.331072,
+        "max": 5.538816
+      },
+      "cpu_ms": {
+        "min": 1.981599,
+        "median": 3.385866,
+        "p95": 4.811725,
+        "max": 6.978305000000001
+      },
+      "wall_ms": {
+        "min": 1.9903899999999997,
+        "median": 3.485832,
+        "p95": 6.536111,
+        "max": 13.030771999999999
+      },
+      "parts": [],
+      "life_ms": 0.756117,
+      "cpu_setup_ms": 0.901988,
+      "cpu_submit_ms": 1.094898,
+      "moving_vertices": 79656,
+      "cpu_upload_ms": 0.764848,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 53,
+          "triangles": 309157,
+          "gpu_ms": 0.079872,
+          "cpu_ms": 0.10088499999999989
+        },
+        {
+          "name": "shadow mid",
+          "draws": 216,
+          "triangles": 652588,
+          "gpu_ms": 0.149504,
+          "cpu_ms": 0.09374300000000013
+        },
+        {
+          "name": "shadow far",
+          "draws": 498,
+          "triangles": 971919,
+          "gpu_ms": 0.145408,
+          "cpu_ms": 0.10209200000000007
+        },
+        {
+          "name": "world",
+          "draws": 1182,
+          "triangles": 4573331,
+          "gpu_ms": 1.2288,
+          "cpu_ms": 0.24092499999999983
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0008600000000000829
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.03072,
+          "cpu_ms": 0.002047000000000132
+        },
+        {
+          "name": "water",
+          "draws": 4,
+          "triangles": 214,
+          "gpu_ms": 0.049152,
+          "cpu_ms": 0.019292000000000087
+        },
+        {
+          "name": "translucent",
+          "draws": 6,
+          "triangles": 486,
+          "gpu_ms": 0.007168,
+          "cpu_ms": 0.004406999999999828
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.073728,
+          "cpu_ms": 0.014382000000000117
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.005889000000000255
+        }
+      ],
+      "draws": 1970,
+      "triangles": 6507706,
+      "cover_triangles": 3620522,
+      "cover_instances": 16482,
+      "sections_shown": 215,
+      "sections": 3872,
+      "world_vertices": 3482400,
+      "memory": {
+        "world_vertices": 66935584,
+        "far_vertices": 17090064,
+        "cover": 3982808,
+        "index": 393216,
+        "textures": 638820,
+        "shadow_maps": 28311552,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 88401672,
+      "mesh": {
+        "sections": 1450,
+        "wall_ms": {
+          "min": 0.090375,
+          "median": 0.289544,
+          "p95": 11.787633,
+          "max": 91.556632
+        },
+        "wall_mean_ms": 2.904595148275861,
+        "cpu_ms": {
+          "min": 0.087765,
+          "median": 0.227559,
+          "p95": 4.799058,
+          "max": 32.088297
+        },
+        "cpu_mean_ms": 1.3366030455172389
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "windmill_farm",
+      "tier": "medium",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 0.857088,
+        "median": 0.871424,
+        "p95": 8.779776,
+        "max": 10.411008
+      },
+      "cpu_ms": {
+        "min": 2.142275,
+        "median": 3.401303,
+        "p95": 4.138502,
+        "max": 5.410109
+      },
+      "wall_ms": {
+        "min": 2.159668,
+        "median": 3.5009560000000004,
+        "p95": 7.557714,
+        "max": 14.044607000000001
+      },
+      "parts": [],
+      "life_ms": 1.062611,
+      "cpu_setup_ms": 0.980761,
+      "cpu_submit_ms": 0.893616,
+      "moving_vertices": 102006,
+      "cpu_upload_ms": 0.839057,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 16,
+          "triangles": 94860,
+          "gpu_ms": 0.028672,
+          "cpu_ms": 0.079407
+        },
+        {
+          "name": "shadow mid",
+          "draws": 74,
+          "triangles": 209028,
+          "gpu_ms": 0.048128,
+          "cpu_ms": 0.05395900000000009
+        },
+        {
+          "name": "shadow far",
+          "draws": 241,
+          "triangles": 326529,
+          "gpu_ms": 0.045056,
+          "cpu_ms": 0.06949400000000006
+        },
+        {
+          "name": "world",
+          "draws": 909,
+          "triangles": 2480369,
+          "gpu_ms": 0.595968,
+          "cpu_ms": 0.18613400000000002
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0007200000000000539
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.033792,
+          "cpu_ms": 0.0019329999999997405
+        },
+        {
+          "name": "water",
+          "draws": 11,
+          "triangles": 1580,
+          "gpu_ms": 0.034816,
+          "cpu_ms": 0.018218999999999985
+        },
+        {
+          "name": "translucent",
+          "draws": 23,
+          "triangles": 1604,
+          "gpu_ms": 0.007168,
+          "cpu_ms": 0.006440000000000001
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.0768,
+          "cpu_ms": 0.013626999999999834
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.00541299999999989
+        }
+      ],
+      "draws": 1285,
+      "triangles": 3113981,
+      "cover_triangles": 2023534,
+      "cover_instances": 15258,
+      "sections_shown": 170,
+      "sections": 3776,
+      "world_vertices": 1165645,
+      "memory": {
+        "world_vertices": 23284648,
+        "far_vertices": 16356240,
+        "cover": 3982808,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 28311552,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 43820304,
+      "mesh": {
+        "sections": 1263,
+        "wall_ms": {
+          "min": 0.061767,
+          "median": 0.418532,
+          "p95": 7.346252,
+          "max": 68.306497
+        },
+        "wall_mean_ms": 2.0933253333333353,
+        "cpu_ms": {
+          "min": 0.061786,
+          "median": 0.244441,
+          "p95": 3.486867,
+          "max": 21.56273
+        },
+        "cpu_mean_ms": 1.064514568487729
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "mirrormere",
+      "tier": "medium",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.360896,
+        "median": 1.95072,
+        "p95": 3.57376,
+        "max": 3.96288
+      },
+      "cpu_ms": {
+        "min": 2.2289120000000002,
+        "median": 3.3536840000000003,
+        "p95": 4.2965469999999994,
+        "max": 5.039523
+      },
+      "wall_ms": {
+        "min": 2.2450959999999998,
+        "median": 3.397421,
+        "p95": 4.492578,
+        "max": 39.757116
+      },
+      "parts": [],
+      "life_ms": 1.094651,
+      "cpu_setup_ms": 0.900865,
+      "cpu_submit_ms": 0.8845959999999999,
+      "moving_vertices": 91296,
+      "cpu_upload_ms": 0.749599,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 20,
+          "triangles": 104872,
+          "gpu_ms": 0.072704,
+          "cpu_ms": 0.08116499999999993
+        },
+        {
+          "name": "shadow mid",
+          "draws": 70,
+          "triangles": 212629,
+          "gpu_ms": 0.094208,
+          "cpu_ms": 0.05253400000000008
+        },
+        {
+          "name": "shadow far",
+          "draws": 193,
+          "triangles": 269889,
+          "gpu_ms": 0.08192,
+          "cpu_ms": 0.06631799999999999
+        },
+        {
+          "name": "world",
+          "draws": 792,
+          "triangles": 1820667,
+          "gpu_ms": 1.016832,
+          "cpu_ms": 0.1634199999999999
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0007610000000000117
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.057344,
+          "cpu_ms": 0.0019360000000001598
+        },
+        {
+          "name": "water",
+          "draws": 75,
+          "triangles": 30886,
+          "gpu_ms": 0.280576,
+          "cpu_ms": 0.033816999999999986
+        },
+        {
+          "name": "translucent",
+          "draws": 84,
+          "triangles": 30922,
+          "gpu_ms": 0.038912,
+          "cpu_ms": 0.011052000000000062
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.136192,
+          "cpu_ms": 0.013755000000000184
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0057109999999998
+        }
+      ],
+      "draws": 1245,
+      "triangles": 2469876,
+      "cover_triangles": 1364938,
+      "cover_instances": 9868,
+      "sections_shown": 152,
+      "sections": 3840,
+      "world_vertices": 1324519,
+      "memory": {
+        "world_vertices": 32286712,
+        "far_vertices": 15072336,
+        "cover": 3982808,
+        "index": 393216,
+        "textures": 638820,
+        "shadow_maps": 28311552,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 51735072,
+      "mesh": {
+        "sections": 1181,
+        "wall_ms": {
+          "min": 0.062286,
+          "median": 0.335951,
+          "p95": 4.857885,
+          "max": 29.576591
+        },
+        "wall_mean_ms": 1.3785601676545294,
+        "cpu_ms": {
+          "min": 0.013983,
+          "median": 0.226217,
+          "p95": 3.6051,
+          "max": 28.127521
+        },
+        "cpu_mean_ms": 1.081784421676544
+      },
+      "slow_frames": 1
+    },
+    {
+      "name": "miners_rest",
+      "tier": "medium",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.026048,
+        "median": 1.995776,
+        "p95": 2.684928,
+        "max": 3.104768
+      },
+      "cpu_ms": {
+        "min": 2.6349270000000002,
+        "median": 4.1568830000000005,
+        "p95": 4.931503,
+        "max": 5.374718
+      },
+      "wall_ms": {
+        "min": 2.673254,
+        "median": 7.018169,
+        "p95": 13.303234999999999,
+        "max": 15.811060000000001
+      },
+      "parts": [],
+      "life_ms": 1.0355850000000002,
+      "cpu_setup_ms": 1.226586,
+      "cpu_submit_ms": 1.1588980000000002,
+      "moving_vertices": 84180,
+      "cpu_upload_ms": 1.0270569999999999,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 26,
+          "triangles": 156108,
+          "gpu_ms": 0.091136,
+          "cpu_ms": 0.11046199999999984
+        },
+        {
+          "name": "shadow mid",
+          "draws": 102,
+          "triangles": 247802,
+          "gpu_ms": 0.126976,
+          "cpu_ms": 0.11229299999999998
+        },
+        {
+          "name": "shadow far",
+          "draws": 245,
+          "triangles": 293343,
+          "gpu_ms": 0.08192,
+          "cpu_ms": 0.09550000000000014
+        },
+        {
+          "name": "world",
+          "draws": 903,
+          "triangles": 2683703,
+          "gpu_ms": 1.36704,
+          "cpu_ms": 0.23765799999999992
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0010550000000000281
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.063488,
+          "cpu_ms": 0.0024740000000000872
+        },
+        {
+          "name": "water",
+          "draws": 7,
+          "triangles": 366,
+          "gpu_ms": 0.096256,
+          "cpu_ms": 0.025992000000000015
+        },
+        {
+          "name": "translucent",
+          "draws": 15,
+          "triangles": 426,
+          "gpu_ms": 0.012288,
+          "cpu_ms": 0.007781000000000038
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.14848,
+          "cpu_ms": 0.015221000000000151
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.00646800000000014
+        }
+      ],
+      "draws": 1309,
+      "triangles": 3381759,
+      "cover_triangles": 2252284,
+      "cover_instances": 16001,
+      "sections_shown": 174,
+      "sections": 3792,
+      "world_vertices": 933905,
+      "memory": {
+        "world_vertices": 19008472,
+        "far_vertices": 15656976,
+        "cover": 3982808,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 28311552,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 38844864,
+      "mesh": {
+        "sections": 1384,
+        "wall_ms": {
+          "min": 0.063673,
+          "median": 0.361737,
+          "p95": 4.182039,
+          "max": 22.296562
+        },
+        "wall_mean_ms": 1.167488635838151,
+        "cpu_ms": {
+          "min": 0.063703,
+          "median": 0.231461,
+          "p95": 2.818454,
+          "max": 22.038422
+        },
+        "cpu_mean_ms": 0.847268775289017
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "flight",
+      "tier": "medium",
+      "kind": "flight",
+      "frames": 2443,
+      "gpu_ms": {
+        "min": 0.704512,
+        "median": 2.315264,
+        "p95": 7.753728,
+        "max": 16.51712
+      },
+      "cpu_ms": {
+        "min": 2.403563,
+        "median": 8.014954,
+        "p95": 14.514147000000001,
+        "max": 557.729526
+      },
+      "wall_ms": {
+        "min": 2.4138029999999997,
+        "median": 13.551292,
+        "p95": 39.920897999999994,
+        "max": 1059.8988590000001
+      },
+      "parts": [
+        [
+          "what arrived",
+          {
+            "min": 0.0,
+            "median": 0.002616,
+            "p95": 0.007549,
+            "max": 1.681902
+          }
+        ],
+        [
+          "world uploads",
+          {
+            "min": 0.0,
+            "median": 0.0035889999999999997,
+            "p95": 0.510155,
+            "max": 2.569355
+          }
+        ],
+        [
+          "far view",
+          {
+            "min": 0.0,
+            "median": 0.0015760000000000218,
+            "p95": 1.579628,
+            "max": 2.118514
+          }
+        ],
+        [
+          "camera",
+          {
+            "min": 0.014944,
+            "median": 0.06823700000000005,
+            "p95": 0.12281100000000003,
+            "max": 0.3748170000000002
+          }
+        ],
+        [
+          "creatures",
+          {
+            "min": 0.6652480000000001,
+            "median": 1.744853,
+            "p95": 5.841258,
+            "max": 528.774709
+          }
+        ]
+      ],
+      "life_ms": 1.918496,
+      "cpu_setup_ms": 1.423876,
+      "cpu_submit_ms": 1.155077,
+      "moving_vertices": 55092,
+      "cpu_upload_ms": 0.786888,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 57,
+          "triangles": 115406,
+          "gpu_ms": 0.128,
+          "cpu_ms": 0.138266
+        },
+        {
+          "name": "shadow mid",
+          "draws": 119,
+          "triangles": 170758,
+          "gpu_ms": 0.09216,
+          "cpu_ms": 0.11486300000000016
+        },
+        {
+          "name": "shadow far",
+          "draws": 172,
+          "triangles": 263851,
+          "gpu_ms": 0.074752,
+          "cpu_ms": 0.06467600000000007
+        },
+        {
+          "name": "world",
+          "draws": 799,
+          "triangles": 2396200,
+          "gpu_ms": 1.504256,
+          "cpu_ms": 0.23021700000000056
+        },
+        {
+          "name": "occlusion",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.0008900000000000574
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.156672,
+          "cpu_ms": 0.0025159999999999627
+        },
+        {
+          "name": "water",
+          "draws": 4,
+          "triangles": 88,
+          "gpu_ms": 0.084992,
+          "cpu_ms": 0.022935000000000372
+        },
+        {
+          "name": "translucent",
+          "draws": 11,
+          "triangles": 114,
+          "gpu_ms": 0.012288,
+          "cpu_ms": 0.005863999999999869
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.161792,
+          "cpu_ms": 0.01874600000000015
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.006002999999999981
+        }
+      ],
+      "draws": 1173,
+      "triangles": 2946428,
+      "cover_triangles": 2046570,
+      "cover_instances": 14527,
+      "sections_shown": 127,
+      "sections": 4928,
+      "world_vertices": 1819985,
+      "memory": {
+        "world_vertices": 38229208,
+        "far_vertices": 17719920,
+        "cover": 4507096,
+        "index": 786432,
+        "textures": 638820,
+        "shadow_maps": 28311552,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 61242656,
+      "mesh": {
+        "sections": 35714,
+        "wall_ms": {
+          "min": 0.06202,
+          "median": 0.316948,
+          "p95": 11.200214,
+          "max": 250.130331
+        },
+        "wall_mean_ms": 2.634365761634103,
+        "cpu_ms": {
+          "min": 0.0,
+          "median": 0.232119,
+          "p95": 3.724382,
+          "max": 45.920909
+        },
+        "cpu_mean_ms": 0.9717645036960271
+      },
+      "slow_frames": 994
+    },
+    {
+      "name": "hearthstead_plaza",
+      "tier": "high",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.084416,
+        "median": 1.092608,
+        "p95": 1.48992,
+        "max": 2.187264
+      },
+      "cpu_ms": {
+        "min": 4.451055,
+        "median": 6.205319,
+        "p95": 7.531448,
+        "max": 7.931915
+      },
+      "wall_ms": {
+        "min": 5.642569,
+        "median": 12.190178,
+        "p95": 16.801556,
+        "max": 19.601415
+      },
+      "parts": [],
+      "life_ms": 1.299517,
+      "cpu_setup_ms": 2.539968,
+      "cpu_submit_ms": 1.5915400000000002,
+      "moving_vertices": 151362,
+      "cpu_upload_ms": 2.273282,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 30,
+          "triangles": 132463,
+          "gpu_ms": 0.0512,
+          "cpu_ms": 0.14086599999999994
+        },
+        {
+          "name": "shadow mid",
+          "draws": 170,
+          "triangles": 397210,
+          "gpu_ms": 0.132096,
+          "cpu_ms": 0.1514310000000001
+        },
+        {
+          "name": "shadow far",
+          "draws": 305,
+          "triangles": 426990,
+          "gpu_ms": 0.079872,
+          "cpu_ms": 0.10529100000000025
+        },
+        {
+          "name": "world",
+          "draws": 929,
+          "triangles": 1467797,
+          "gpu_ms": 0.530432,
+          "cpu_ms": 0.3379240000000001
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.132096,
+          "cpu_ms": 0.006715999999999944
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.04608,
+          "cpu_ms": 0.0022340000000000693
+        },
+        {
+          "name": "water",
+          "draws": 32,
+          "triangles": 1096,
+          "gpu_ms": 0.034816,
+          "cpu_ms": 0.042860999999999816
+        },
+        {
+          "name": "translucent",
+          "draws": 65,
+          "triangles": 1334,
+          "gpu_ms": 0.008192,
+          "cpu_ms": 0.013405000000000111
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.075776,
+          "cpu_ms": 0.01589100000000032
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.00796600000000014
+        }
+      ],
+      "draws": 1544,
+      "triangles": 2426903,
+      "cover_triangles": 933988,
+      "cover_instances": 6894,
+      "sections_shown": 177,
+      "sections": 3824,
+      "world_vertices": 1460112,
+      "memory": {
+        "world_vertices": 29887600,
+        "far_vertices": 15807600,
+        "cover": 3720664,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 50331648,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 49612472,
+      "mesh": {
+        "sections": 1334,
+        "wall_ms": {
+          "min": 0.08446,
+          "median": 0.305015,
+          "p95": 13.291726,
+          "max": 121.219487
+        },
+        "wall_mean_ms": 3.376698347076463,
+        "cpu_ms": {
+          "min": 0.084449,
+          "median": 0.244553,
+          "p95": 4.014636,
+          "max": 18.032811
+        },
+        "cpu_mean_ms": 0.992413954272864
+      },
+      "slow_frames": 7
+    },
+    {
+      "name": "logging_camp",
+      "tier": "high",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.312768,
+        "median": 1.32096,
+        "p95": 1.329152,
+        "max": 1.71008
+      },
+      "cpu_ms": {
+        "min": 3.832127,
+        "median": 4.313211,
+        "p95": 4.894587,
+        "max": 5.122808
+      },
+      "wall_ms": {
+        "min": 3.9161669999999997,
+        "median": 8.801327,
+        "p95": 12.142907000000001,
+        "max": 22.847072
+      },
+      "parts": [],
+      "life_ms": 1.1868530000000002,
+      "cpu_setup_ms": 1.116488,
+      "cpu_submit_ms": 1.2983300000000002,
+      "moving_vertices": 89322,
+      "cpu_upload_ms": 0.9388749999999999,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 40,
+          "triangles": 325148,
+          "gpu_ms": 0.077824,
+          "cpu_ms": 0.10984400000000005
+        },
+        {
+          "name": "shadow mid",
+          "draws": 143,
+          "triangles": 558223,
+          "gpu_ms": 0.132096,
+          "cpu_ms": 0.11792100000000016
+        },
+        {
+          "name": "shadow far",
+          "draws": 390,
+          "triangles": 787745,
+          "gpu_ms": 0.128,
+          "cpu_ms": 0.10876299999999994
+        },
+        {
+          "name": "world",
+          "draws": 1047,
+          "triangles": 2832415,
+          "gpu_ms": 0.695296,
+          "cpu_ms": 0.23699899999999996
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.132096,
+          "cpu_ms": 0.005298999999999943
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.039936,
+          "cpu_ms": 0.0019419999999998883
+        },
+        {
+          "name": "water",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.033792,
+          "cpu_ms": 0.02197999999999989
+        },
+        {
+          "name": "translucent",
+          "draws": 6,
+          "triangles": 30,
+          "gpu_ms": 0.006144,
+          "cpu_ms": 0.005985000000000129
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.074752,
+          "cpu_ms": 0.013821000000000083
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.006332000000000004
+        }
+      ],
+      "draws": 1639,
+      "triangles": 4503574,
+      "cover_triangles": 1976460,
+      "cover_instances": 13055,
+      "sections_shown": 212,
+      "sections": 3824,
+      "world_vertices": 2616892,
+      "memory": {
+        "world_vertices": 51750400,
+        "far_vertices": 17310384,
+        "cover": 3982808,
+        "index": 786432,
+        "textures": 638820,
+        "shadow_maps": 50331648,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 73830024,
+      "mesh": {
+        "sections": 1468,
+        "wall_ms": {
+          "min": 0.088188,
+          "median": 0.296717,
+          "p95": 22.13192,
+          "max": 158.525223
+        },
+        "wall_mean_ms": 5.066303335831056,
+        "cpu_ms": {
+          "min": 0.088212,
+          "median": 0.244458,
+          "p95": 5.018221,
+          "max": 44.458383
+        },
+        "cpu_mean_ms": 1.377205617847412
+      },
+      "slow_frames": 1
+    },
+    {
+      "name": "hollow_oak",
+      "tier": "high",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 2.306048,
+        "median": 2.326528,
+        "p95": 17.335296,
+        "max": 23.962624
+      },
+      "cpu_ms": {
+        "min": 4.036712,
+        "median": 5.333432999999999,
+        "p95": 6.08118,
+        "max": 6.618784
+      },
+      "wall_ms": {
+        "min": 5.143443,
+        "median": 12.441694000000002,
+        "p95": 22.230339,
+        "max": 35.348469
+      },
+      "parts": [],
+      "life_ms": 1.1397490000000001,
+      "cpu_setup_ms": 1.407268,
+      "cpu_submit_ms": 1.727888,
+      "moving_vertices": 81594,
+      "cpu_upload_ms": 1.180308,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 53,
+          "triangles": 309757,
+          "gpu_ms": 0.14848,
+          "cpu_ms": 0.14545699999999995
+        },
+        {
+          "name": "shadow mid",
+          "draws": 216,
+          "triangles": 653188,
+          "gpu_ms": 0.277504,
+          "cpu_ms": 0.16696299999999997
+        },
+        {
+          "name": "shadow far",
+          "draws": 498,
+          "triangles": 972519,
+          "gpu_ms": 0.244736,
+          "cpu_ms": 0.1420990000000002
+        },
+        {
+          "name": "world",
+          "draws": 1182,
+          "triangles": 4573967,
+          "gpu_ms": 1.225728,
+          "cpu_ms": 0.35030800000000006
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.178176,
+          "cpu_ms": 0.006684000000000356
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.044032,
+          "cpu_ms": 0.0024260000000002613
+        },
+        {
+          "name": "water",
+          "draws": 4,
+          "triangles": 214,
+          "gpu_ms": 0.082944,
+          "cpu_ms": 0.040562999999999905
+        },
+        {
+          "name": "translucent",
+          "draws": 6,
+          "triangles": 488,
+          "gpu_ms": 0.009216,
+          "cpu_ms": 0.0062109999999999665
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.115712,
+          "cpu_ms": 0.014822999999999809
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.007855000000000167
+        }
+      ],
+      "draws": 1972,
+      "triangles": 6510146,
+      "cover_triangles": 3620522,
+      "cover_instances": 16482,
+      "sections_shown": 215,
+      "sections": 3872,
+      "world_vertices": 3482400,
+      "memory": {
+        "world_vertices": 66935584,
+        "far_vertices": 16957872,
+        "cover": 3982808,
+        "index": 393216,
+        "textures": 638820,
+        "shadow_maps": 50331648,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 88269480,
+      "mesh": {
+        "sections": 1450,
+        "wall_ms": {
+          "min": 0.098763,
+          "median": 0.341398,
+          "p95": 18.925948,
+          "max": 118.786671
+        },
+        "wall_mean_ms": 4.899486805517242,
+        "cpu_ms": {
+          "min": 0.098888,
+          "median": 0.257805,
+          "p95": 5.09549,
+          "max": 32.482441
+        },
+        "cpu_mean_ms": 1.421396808275864
+      },
+      "slow_frames": 17
+    },
+    {
+      "name": "windmill_farm",
+      "tier": "high",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.77152,
+        "median": 1.787904,
+        "p95": 2.79552,
+        "max": 12.956672
+      },
+      "cpu_ms": {
+        "min": 4.619023,
+        "median": 5.772652,
+        "p95": 7.55669,
+        "max": 7.943657999999999
+      },
+      "wall_ms": {
+        "min": 7.138765,
+        "median": 13.02676,
+        "p95": 20.881021,
+        "max": 25.323957
+      },
+      "parts": [],
+      "life_ms": 3.5611,
+      "cpu_setup_ms": 1.809934,
+      "cpu_submit_ms": 1.550277,
+      "moving_vertices": 103578,
+      "cpu_upload_ms": 1.584062,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 16,
+          "triangles": 95382,
+          "gpu_ms": 0.06656,
+          "cpu_ms": 0.14088600000000007
+        },
+        {
+          "name": "shadow mid",
+          "draws": 74,
+          "triangles": 209550,
+          "gpu_ms": 0.110592,
+          "cpu_ms": 0.13199000000000005
+        },
+        {
+          "name": "shadow far",
+          "draws": 241,
+          "triangles": 327051,
+          "gpu_ms": 0.105472,
+          "cpu_ms": 0.11061199999999993
+        },
+        {
+          "name": "world",
+          "draws": 909,
+          "triangles": 2480893,
+          "gpu_ms": 1.016832,
+          "cpu_ms": 0.34482899999999983
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.216064,
+          "cpu_ms": 0.006231999999999793
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.065536,
+          "cpu_ms": 0.002645999999999926
+        },
+        {
+          "name": "water",
+          "draws": 11,
+          "triangles": 1580,
+          "gpu_ms": 0.06144,
+          "cpu_ms": 0.03766399999999992
+        },
+        {
+          "name": "translucent",
+          "draws": 23,
+          "triangles": 1604,
+          "gpu_ms": 0.011264,
+          "cpu_ms": 0.009243000000000112
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.13312,
+          "cpu_ms": 0.019093999999999944
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.007713999999999999
+        }
+      ],
+      "draws": 1287,
+      "triangles": 3116073,
+      "cover_triangles": 2023534,
+      "cover_instances": 15258,
+      "sections_shown": 170,
+      "sections": 3776,
+      "world_vertices": 1165645,
+      "memory": {
+        "world_vertices": 23284648,
+        "far_vertices": 16143264,
+        "cover": 3982808,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 50331648,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 43607328,
+      "mesh": {
+        "sections": 1263,
+        "wall_ms": {
+          "min": 0.09615,
+          "median": 0.555916,
+          "p95": 15.900996,
+          "max": 108.344831
+        },
+        "wall_mean_ms": 4.143528700712588,
+        "cpu_ms": {
+          "min": 0.090664,
+          "median": 0.284246,
+          "p95": 3.914769,
+          "max": 21.685949
+        },
+        "cpu_mean_ms": 1.1539185051464778
+      },
+      "slow_frames": 15
+    },
+    {
+      "name": "mirrormere",
+      "tier": "high",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.742848,
+        "median": 1.762304,
+        "p95": 10.575872,
+        "max": 19.692544
+      },
+      "cpu_ms": {
+        "min": 4.486516,
+        "median": 5.510362,
+        "p95": 6.27138,
+        "max": 7.014847
+      },
+      "wall_ms": {
+        "min": 7.114939,
+        "median": 12.414671,
+        "p95": 20.235126,
+        "max": 30.831653
+      },
+      "parts": [],
+      "life_ms": 3.489669,
+      "cpu_setup_ms": 1.572832,
+      "cpu_submit_ms": 1.5151180000000002,
+      "moving_vertices": 92988,
+      "cpu_upload_ms": 1.346481,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 20,
+          "triangles": 105382,
+          "gpu_ms": 0.080896,
+          "cpu_ms": 0.13044100000000003
+        },
+        {
+          "name": "shadow mid",
+          "draws": 70,
+          "triangles": 213139,
+          "gpu_ms": 0.099328,
+          "cpu_ms": 0.13004400000000005
+        },
+        {
+          "name": "shadow far",
+          "draws": 193,
+          "triangles": 270399,
+          "gpu_ms": 0.088064,
+          "cpu_ms": 0.09847000000000006
+        },
+        {
+          "name": "world",
+          "draws": 792,
+          "triangles": 1821229,
+          "gpu_ms": 0.769024,
+          "cpu_ms": 0.2581279999999999
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.186368,
+          "cpu_ms": 0.006401000000000323
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.047104,
+          "cpu_ms": 0.0022809999999999775
+        },
+        {
+          "name": "water",
+          "draws": 75,
+          "triangles": 30886,
+          "gpu_ms": 0.338944,
+          "cpu_ms": 0.056230000000000224
+        },
+        {
+          "name": "translucent",
+          "draws": 84,
+          "triangles": 30924,
+          "gpu_ms": 0.029696,
+          "cpu_ms": 0.012830999999999815
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.118784,
+          "cpu_ms": 0.017913000000000068
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.007760999999999907
+        }
+      ],
+      "draws": 1247,
+      "triangles": 2471972,
+      "cover_triangles": 1364938,
+      "cover_instances": 9868,
+      "sections_shown": 152,
+      "sections": 3840,
+      "world_vertices": 1324519,
+      "memory": {
+        "world_vertices": 32286712,
+        "far_vertices": 15894144,
+        "cover": 3982808,
+        "index": 393216,
+        "textures": 638820,
+        "shadow_maps": 50331648,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 52556880,
+      "mesh": {
+        "sections": 1181,
+        "wall_ms": {
+          "min": 0.094358,
+          "median": 0.302561,
+          "p95": 21.702014,
+          "max": 142.780187
+        },
+        "wall_mean_ms": 5.418671149872984,
+        "cpu_ms": {
+          "min": 0.091653,
+          "median": 0.257543,
+          "p95": 4.273794,
+          "max": 31.217333
+        },
+        "cpu_mean_ms": 1.235197125317528
+      },
+      "slow_frames": 15
+    },
+    {
+      "name": "miners_rest",
+      "tier": "high",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.642496,
+        "median": 1.958912,
+        "p95": 10.206208,
+        "max": 13.8496
+      },
+      "cpu_ms": {
+        "min": 4.099525,
+        "median": 4.966941,
+        "p95": 6.489027,
+        "max": 7.1266620000000005
+      },
+      "wall_ms": {
+        "min": 4.195905,
+        "median": 14.330864,
+        "p95": 51.856109000000004,
+        "max": 88.516872
+      },
+      "parts": [],
+      "life_ms": 1.175789,
+      "cpu_setup_ms": 1.419381,
+      "cpu_submit_ms": 1.5485410000000002,
+      "moving_vertices": 82302,
+      "cpu_upload_ms": 1.183827,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 26,
+          "triangles": 155486,
+          "gpu_ms": 0.093184,
+          "cpu_ms": 0.12651600000000007
+        },
+        {
+          "name": "shadow mid",
+          "draws": 102,
+          "triangles": 247180,
+          "gpu_ms": 0.119808,
+          "cpu_ms": 0.13151200000000007
+        },
+        {
+          "name": "shadow far",
+          "draws": 245,
+          "triangles": 292721,
+          "gpu_ms": 0.084992,
+          "cpu_ms": 0.10507400000000011
+        },
+        {
+          "name": "world",
+          "draws": 920,
+          "triangles": 2687827,
+          "gpu_ms": 1.18784,
+          "cpu_ms": 0.3223900000000004
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.182272,
+          "cpu_ms": 0.006768999999999803
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.048128,
+          "cpu_ms": 0.0024700000000001943
+        },
+        {
+          "name": "water",
+          "draws": 7,
+          "triangles": 366,
+          "gpu_ms": 0.096256,
+          "cpu_ms": 0.03856700000000002
+        },
+        {
+          "name": "translucent",
+          "draws": 15,
+          "triangles": 424,
+          "gpu_ms": 0.009216,
+          "cpu_ms": 0.007998000000000172
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.130048,
+          "cpu_ms": 0.017636999999999903
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.007445000000000146
+        }
+      ],
+      "draws": 1328,
+      "triangles": 3384017,
+      "cover_triangles": 2252284,
+      "cover_instances": 16001,
+      "sections_shown": 174,
+      "sections": 3792,
+      "world_vertices": 933905,
+      "memory": {
+        "world_vertices": 19008472,
+        "far_vertices": 16129440,
+        "cover": 3982808,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 50331648,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 39317328,
+      "mesh": {
+        "sections": 1384,
+        "wall_ms": {
+          "min": 0.088399,
+          "median": 0.287102,
+          "p95": 14.054832,
+          "max": 97.174211
+        },
+        "wall_mean_ms": 3.5266289263005812,
+        "cpu_ms": {
+          "min": 0.088431,
+          "median": 0.242687,
+          "p95": 3.262962,
+          "max": 25.676987
+        },
+        "cpu_mean_ms": 0.9748414039017356
+      },
+      "slow_frames": 44
+    },
+    {
+      "name": "flight",
+      "tier": "high",
+      "kind": "flight",
+      "frames": 2633,
+      "gpu_ms": {
+        "min": 0.850944,
+        "median": 2.195456,
+        "p95": 6.765568,
+        "max": 18.925568
+      },
+      "cpu_ms": {
+        "min": 3.3932219999999997,
+        "median": 7.118994,
+        "p95": 11.874224,
+        "max": 562.2565979999999
+      },
+      "wall_ms": {
+        "min": 3.441009,
+        "median": 14.267535,
+        "p95": 33.701709,
+        "max": 960.137458
+      },
+      "parts": [
+        [
+          "what arrived",
+          {
+            "min": 0.0,
+            "median": 0.002449,
+            "p95": 0.006494,
+            "max": 1.624669
+          }
+        ],
+        [
+          "world uploads",
+          {
+            "min": 0.0,
+            "median": 0.003359,
+            "p95": 0.357196,
+            "max": 1.845042
+          }
+        ],
+        [
+          "far view",
+          {
+            "min": 0.0,
+            "median": 0.0014810000000000005,
+            "p95": 1.491099,
+            "max": 2.107177
+          }
+        ],
+        [
+          "camera",
+          {
+            "min": 0.0,
+            "median": 0.06723000000000001,
+            "p95": 0.09575100000000014,
+            "max": 0.3852100000000003
+          }
+        ],
+        [
+          "creatures",
+          {
+            "min": 0.0,
+            "median": 1.520335,
+            "p95": 5.097176,
+            "max": 534.059041
+          }
+        ]
+      ],
+      "life_ms": 2.516406,
+      "cpu_setup_ms": 1.242326,
+      "cpu_submit_ms": 1.1671579999999997,
+      "moving_vertices": 55062,
+      "cpu_upload_ms": 0.660825,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 55,
+          "triangles": 109692,
+          "gpu_ms": 0.144384,
+          "cpu_ms": 0.1341009999999998
+        },
+        {
+          "name": "shadow mid",
+          "draws": 108,
+          "triangles": 153232,
+          "gpu_ms": 0.100352,
+          "cpu_ms": 0.11224600000000007
+        },
+        {
+          "name": "shadow far",
+          "draws": 153,
+          "triangles": 240438,
+          "gpu_ms": 0.062464,
+          "cpu_ms": 0.06309999999999993
+        },
+        {
+          "name": "world",
+          "draws": 811,
+          "triangles": 2412715,
+          "gpu_ms": 1.200128,
+          "cpu_ms": 0.232904
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.236544,
+          "cpu_ms": 0.005587999999999926
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.140288,
+          "cpu_ms": 0.002078999999999942
+        },
+        {
+          "name": "water",
+          "draws": 3,
+          "triangles": 64,
+          "gpu_ms": 0.069632,
+          "cpu_ms": 0.02307199999999998
+        },
+        {
+          "name": "translucent",
+          "draws": 10,
+          "triangles": 72,
+          "gpu_ms": 0.01024,
+          "cpu_ms": 0.004933000000000298
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.142336,
+          "cpu_ms": 0.01758100000000007
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.006081000000000003
+        }
+      ],
+      "draws": 1153,
+      "triangles": 2916226,
+      "cover_triangles": 2070726,
+      "cover_instances": 14745,
+      "sections_shown": 129,
+      "sections": 4922,
+      "world_vertices": 1832021,
+      "memory": {
+        "world_vertices": 38518072,
+        "far_vertices": 17719200,
+        "cover": 4507096,
+        "index": 786432,
+        "textures": 638820,
+        "shadow_maps": 50331648,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 61530800,
+      "mesh": {
+        "sections": 33114,
+        "wall_ms": {
+          "min": 0.064029,
+          "median": 0.27122,
+          "p95": 10.813483,
+          "max": 174.310152
+        },
+        "wall_mean_ms": 2.6539080129552595,
+        "cpu_ms": {
+          "min": 0.064032,
+          "median": 0.224411,
+          "p95": 3.610464,
+          "max": 40.670174
+        },
+        "cpu_mean_ms": 0.9560747970948841
+      },
+      "slow_frames": 978
+    },
+    {
+      "name": "hearthstead_plaza",
+      "tier": "ultra",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.611776,
+        "median": 1.62304,
+        "p95": 2.162688,
+        "max": 11.921408
+      },
+      "cpu_ms": {
+        "min": 2.284925,
+        "median": 3.1099650000000003,
+        "p95": 4.420154,
+        "max": 5.874367
+      },
+      "wall_ms": {
+        "min": 2.3006659999999997,
+        "median": 3.1485640000000004,
+        "p95": 4.525067,
+        "max": 5.940571
+      },
+      "parts": [],
+      "life_ms": 0.7581289999999999,
+      "cpu_setup_ms": 1.139159,
+      "cpu_submit_ms": 0.767174,
+      "moving_vertices": 140364,
+      "cpu_upload_ms": 1.026084,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 30,
+          "triangles": 128659,
+          "gpu_ms": 0.123904,
+          "cpu_ms": 0.0655699999999999
+        },
+        {
+          "name": "shadow mid",
+          "draws": 170,
+          "triangles": 416346,
+          "gpu_ms": 0.349184,
+          "cpu_ms": 0.061011999999999844
+        },
+        {
+          "name": "shadow far",
+          "draws": 305,
+          "triangles": 446204,
+          "gpu_ms": 0.16896,
+          "cpu_ms": 0.058774000000000104
+        },
+        {
+          "name": "world",
+          "draws": 977,
+          "triangles": 2187057,
+          "gpu_ms": 0.689152,
+          "cpu_ms": 0.14284299999999983
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.129024,
+          "cpu_ms": 0.003395000000000037
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.045056,
+          "cpu_ms": 0.001387000000000027
+        },
+        {
+          "name": "water",
+          "draws": 32,
+          "triangles": 1096,
+          "gpu_ms": 0.03584,
+          "cpu_ms": 0.019284999999999997
+        },
+        {
+          "name": "translucent",
+          "draws": 65,
+          "triangles": 1340,
+          "gpu_ms": 0.008192,
+          "cpu_ms": 0.007792999999999939
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.074752,
+          "cpu_ms": 0.0103629999999999
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.004300999999999888
+        }
+      ],
+      "draws": 1592,
+      "triangles": 3180715,
+      "cover_triangles": 1638162,
+      "cover_instances": 12214,
+      "sections_shown": 177,
+      "sections": 3824,
+      "world_vertices": 1544082,
+      "memory": {
+        "world_vertices": 31231120,
+        "far_vertices": 15807600,
+        "cover": 3982808,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 201326592,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 51218136,
+      "mesh": {
+        "sections": 1334,
+        "wall_ms": {
+          "min": 0.07798,
+          "median": 0.269388,
+          "p95": 7.393929,
+          "max": 75.450427
+        },
+        "wall_mean_ms": 1.965921857571214,
+        "cpu_ms": {
+          "min": 0.078,
+          "median": 0.21668,
+          "p95": 3.642688,
+          "max": 17.786076
+        },
+        "cpu_mean_ms": 0.9255389857571218
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "logging_camp",
+      "tier": "ultra",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.913856,
+        "median": 1.926144,
+        "p95": 15.071232,
+        "max": 25.419776
+      },
+      "cpu_ms": {
+        "min": 4.100462,
+        "median": 6.494826000000001,
+        "p95": 8.34395,
+        "max": 9.06054
+      },
+      "wall_ms": {
+        "min": 4.978636,
+        "median": 10.079127,
+        "p95": 18.131343,
+        "max": 29.750920999999998
+      },
+      "parts": [],
+      "life_ms": 3.0286589999999998,
+      "cpu_setup_ms": 1.845156,
+      "cpu_submit_ms": 1.8553690000000005,
+      "moving_vertices": 86940,
+      "cpu_upload_ms": 1.554992,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 40,
+          "triangles": 324350,
+          "gpu_ms": 0.160768,
+          "cpu_ms": 0.17822099999999996
+        },
+        {
+          "name": "shadow mid",
+          "draws": 143,
+          "triangles": 611427,
+          "gpu_ms": 0.3072,
+          "cpu_ms": 0.20066800000000007
+        },
+        {
+          "name": "shadow far",
+          "draws": 390,
+          "triangles": 879235,
+          "gpu_ms": 0.284672,
+          "cpu_ms": 0.1552659999999999
+        },
+        {
+          "name": "world",
+          "draws": 1093,
+          "triangles": 3982785,
+          "gpu_ms": 0.883712,
+          "cpu_ms": 0.40212899999999996
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.132096,
+          "cpu_ms": 0.007566999999999879
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.039936,
+          "cpu_ms": 0.0026730000000001475
+        },
+        {
+          "name": "water",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.033792,
+          "cpu_ms": 0.037902999999999576
+        },
+        {
+          "name": "translucent",
+          "draws": 6,
+          "triangles": 30,
+          "gpu_ms": 0.006144,
+          "cpu_ms": 0.00849399999999978
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.074752,
+          "cpu_ms": 0.018820999999999977
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.009187999999999974
+        }
+      ],
+      "draws": 1685,
+      "triangles": 5797840,
+      "cover_triangles": 3049746,
+      "cover_instances": 22095,
+      "sections_shown": 212,
+      "sections": 3824,
+      "world_vertices": 3205366,
+      "memory": {
+        "world_vertices": 61165984,
+        "far_vertices": 17366688,
+        "cover": 4507096,
+        "index": 786432,
+        "textures": 638820,
+        "shadow_maps": 201326592,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 83826200,
+      "mesh": {
+        "sections": 1468,
+        "wall_ms": {
+          "min": 0.066032,
+          "median": 0.348978,
+          "p95": 15.353988,
+          "max": 164.466171
+        },
+        "wall_mean_ms": 3.82258707629428,
+        "cpu_ms": {
+          "min": 0.06603,
+          "median": 0.241128,
+          "p95": 5.754564,
+          "max": 43.854387
+        },
+        "cpu_mean_ms": 1.4546952745231596
+      },
+      "slow_frames": 10
+    },
+    {
+      "name": "hollow_oak",
+      "tier": "ultra",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 2.709504,
+        "median": 2.722816,
+        "p95": 3.280896,
+        "max": 3.320832
+      },
+      "cpu_ms": {
+        "min": 3.898418,
+        "median": 5.39405,
+        "p95": 6.173449,
+        "max": 6.799545999999999
+      },
+      "wall_ms": {
+        "min": 3.963463,
+        "median": 5.835412,
+        "p95": 10.00883,
+        "max": 17.566762
+      },
+      "parts": [],
+      "life_ms": 1.236325,
+      "cpu_setup_ms": 1.520178,
+      "cpu_submit_ms": 1.653867,
+      "moving_vertices": 81030,
+      "cpu_upload_ms": 1.275543,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 53,
+          "triangles": 314993,
+          "gpu_ms": 0.232448,
+          "cpu_ms": 0.15746700000000002
+        },
+        {
+          "name": "shadow mid",
+          "draws": 216,
+          "triangles": 797884,
+          "gpu_ms": 0.571392,
+          "cpu_ms": 0.18818100000000015
+        },
+        {
+          "name": "shadow far",
+          "draws": 498,
+          "triangles": 1173631,
+          "gpu_ms": 0.406528,
+          "cpu_ms": 0.14177499999999998
+        },
+        {
+          "name": "world",
+          "draws": 1194,
+          "triangles": 6285661,
+          "gpu_ms": 1.205248,
+          "cpu_ms": 0.3585289999999999
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.136192,
+          "cpu_ms": 0.0064150000000000595
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.033792,
+          "cpu_ms": 0.0021780000000000133
+        },
+        {
+          "name": "water",
+          "draws": 4,
+          "triangles": 214,
+          "gpu_ms": 0.054272,
+          "cpu_ms": 0.02961299999999989
+        },
+        {
+          "name": "translucent",
+          "draws": 6,
+          "triangles": 480,
+          "gpu_ms": 0.007168,
+          "cpu_ms": 0.007889000000000035
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.073728,
+          "cpu_ms": 0.016044999999999643
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.008618999999999932
+        }
+      ],
+      "draws": 1984,
+      "triangles": 8572876,
+      "cover_triangles": 5189588,
+      "cover_instances": 23724,
+      "sections_shown": 215,
+      "sections": 3872,
+      "world_vertices": 4414428,
+      "memory": {
+        "world_vertices": 81848032,
+        "far_vertices": 16998480,
+        "cover": 4507096,
+        "index": 393216,
+        "textures": 638820,
+        "shadow_maps": 201326592,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 103746824,
+      "mesh": {
+        "sections": 1450,
+        "wall_ms": {
+          "min": 0.087901,
+          "median": 0.412853,
+          "p95": 16.635252,
+          "max": 156.322576
+        },
+        "wall_mean_ms": 4.232833866206899,
+        "cpu_ms": {
+          "min": 0.0,
+          "median": 0.258573,
+          "p95": 6.12731,
+          "max": 35.272072
+        },
+        "cpu_mean_ms": 1.5418950193103442
+      },
+      "slow_frames": 1
+    },
+    {
+      "name": "windmill_farm",
+      "tier": "ultra",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 1.406976,
+        "median": 1.415168,
+        "p95": 1.911808,
+        "max": 16.666624
+      },
+      "cpu_ms": {
+        "min": 2.395999,
+        "median": 3.4605690000000005,
+        "p95": 3.887613,
+        "max": 5.107414
+      },
+      "wall_ms": {
+        "min": 2.412667,
+        "median": 4.76277,
+        "p95": 8.865606,
+        "max": 12.145014
+      },
+      "parts": [],
+      "life_ms": 1.087614,
+      "cpu_setup_ms": 0.934022,
+      "cpu_submit_ms": 0.9299140000000001,
+      "moving_vertices": 103164,
+      "cpu_upload_ms": 0.779698,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 16,
+          "triangles": 95228,
+          "gpu_ms": 0.083968,
+          "cpu_ms": 0.08132000000000006
+        },
+        {
+          "name": "shadow mid",
+          "draws": 74,
+          "triangles": 217536,
+          "gpu_ms": 0.149504,
+          "cpu_ms": 0.06859500000000007
+        },
+        {
+          "name": "shadow far",
+          "draws": 241,
+          "triangles": 365369,
+          "gpu_ms": 0.134144,
+          "cpu_ms": 0.07296299999999989
+        },
+        {
+          "name": "world",
+          "draws": 949,
+          "triangles": 3515155,
+          "gpu_ms": 0.769024,
+          "cpu_ms": 0.1880790000000001
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.123904,
+          "cpu_ms": 0.0041200000000001236
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.037888,
+          "cpu_ms": 0.001619000000000037
+        },
+        {
+          "name": "water",
+          "draws": 11,
+          "triangles": 1580,
+          "gpu_ms": 0.034816,
+          "cpu_ms": 0.021548000000000123
+        },
+        {
+          "name": "translucent",
+          "draws": 23,
+          "triangles": 1604,
+          "gpu_ms": 0.007168,
+          "cpu_ms": 0.007322999999999968
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.075776,
+          "cpu_ms": 0.013832999999999984
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.005404999999999882
+        }
+      ],
+      "draws": 1327,
+      "triangles": 4196485,
+      "cover_triangles": 3024854,
+      "cover_instances": 23654,
+      "sections_shown": 170,
+      "sections": 3776,
+      "world_vertices": 1408159,
+      "memory": {
+        "world_vertices": 27164872,
+        "far_vertices": 15906672,
+        "cover": 4507096,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 201326592,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 47775248,
+      "mesh": {
+        "sections": 1263,
+        "wall_ms": {
+          "min": 0.06251,
+          "median": 0.458091,
+          "p95": 12.496274,
+          "max": 66.531917
+        },
+        "wall_mean_ms": 2.951322111638953,
+        "cpu_ms": {
+          "min": 0.062535,
+          "median": 0.254172,
+          "p95": 4.027855,
+          "max": 21.259648
+        },
+        "cpu_mean_ms": 1.1286318614410107
+      },
+      "slow_frames": 0
+    },
+    {
+      "name": "mirrormere",
+      "tier": "ultra",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 2.414592,
+        "median": 2.439168,
+        "p95": 9.623552,
+        "max": 13.069312
+      },
+      "cpu_ms": {
+        "min": 3.9926709999999996,
+        "median": 5.441936,
+        "p95": 5.953806,
+        "max": 6.987466
+      },
+      "wall_ms": {
+        "min": 4.61249,
+        "median": 10.174429,
+        "p95": 14.338395,
+        "max": 17.219228
+      },
+      "parts": [],
+      "life_ms": 3.156973,
+      "cpu_setup_ms": 1.575847,
+      "cpu_submit_ms": 1.4449619999999999,
+      "moving_vertices": 90318,
+      "cpu_upload_ms": 1.3419679999999998,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 20,
+          "triangles": 104522,
+          "gpu_ms": 0.180224,
+          "cpu_ms": 0.13063099999999994
+        },
+        {
+          "name": "shadow mid",
+          "draws": 70,
+          "triangles": 212279,
+          "gpu_ms": 0.246784,
+          "cpu_ms": 0.13076700000000008
+        },
+        {
+          "name": "shadow far",
+          "draws": 193,
+          "triangles": 269539,
+          "gpu_ms": 0.195584,
+          "cpu_ms": 0.10173799999999966
+        },
+        {
+          "name": "world",
+          "draws": 817,
+          "triangles": 2471389,
+          "gpu_ms": 1.01888,
+          "cpu_ms": 0.27960300000000027
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.207872,
+          "cpu_ms": 0.006322000000000383
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.052224,
+          "cpu_ms": 0.0023409999999999265
+        },
+        {
+          "name": "water",
+          "draws": 75,
+          "triangles": 30886,
+          "gpu_ms": 0.37376,
+          "cpu_ms": 0.05863999999999958
+        },
+        {
+          "name": "translucent",
+          "draws": 84,
+          "triangles": 30924,
+          "gpu_ms": 0.032768,
+          "cpu_ms": 0.013215000000000199
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.125952,
+          "cpu_ms": 0.018025999999999875
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.007398999999999933
+        }
+      ],
+      "draws": 1272,
+      "triangles": 3119552,
+      "cover_triangles": 2015608,
+      "cover_instances": 15473,
+      "sections_shown": 152,
+      "sections": 3840,
+      "world_vertices": 1557187,
+      "memory": {
+        "world_vertices": 36009400,
+        "far_vertices": 15072336,
+        "cover": 3982808,
+        "index": 393216,
+        "textures": 638820,
+        "shadow_maps": 201326592,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 55457760,
+      "mesh": {
+        "sections": 1181,
+        "wall_ms": {
+          "min": 0.08453,
+          "median": 0.333786,
+          "p95": 11.004433,
+          "max": 45.832048
+        },
+        "wall_mean_ms": 2.8305994292972065,
+        "cpu_ms": {
+          "min": 0.08454,
+          "median": 0.245984,
+          "p95": 4.430309,
+          "max": 28.725717
+        },
+        "cpu_mean_ms": 1.2228626003386955
+      },
+      "slow_frames": 1
+    },
+    {
+      "name": "miners_rest",
+      "tier": "ultra",
+      "kind": "still",
+      "frames": 120,
+      "gpu_ms": {
+        "min": 3.259392,
+        "median": 5.12,
+        "p95": 8.38144,
+        "max": 14.609408
+      },
+      "cpu_ms": {
+        "min": 3.142069,
+        "median": 3.768335,
+        "p95": 4.420844,
+        "max": 4.773439
+      },
+      "wall_ms": {
+        "min": 3.2645869999999997,
+        "median": 7.5562819999999995,
+        "p95": 11.596276,
+        "max": 31.194747999999997
+      },
+      "parts": [],
+      "life_ms": 0.922463,
+      "cpu_setup_ms": 1.059064,
+      "cpu_submit_ms": 1.1558190000000002,
+      "moving_vertices": 82248,
+      "cpu_upload_ms": 0.882515,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 26,
+          "triangles": 155498,
+          "gpu_ms": 0.453632,
+          "cpu_ms": 0.09962899999999997
+        },
+        {
+          "name": "shadow mid",
+          "draws": 102,
+          "triangles": 287730,
+          "gpu_ms": 0.694272,
+          "cpu_ms": 0.09690199999999982
+        },
+        {
+          "name": "shadow far",
+          "draws": 245,
+          "triangles": 335701,
+          "gpu_ms": 0.386048,
+          "cpu_ms": 0.08583699999999994
+        },
+        {
+          "name": "world",
+          "draws": 940,
+          "triangles": 3781857,
+          "gpu_ms": 2.635776,
+          "cpu_ms": 0.21665299999999998
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.36864,
+          "cpu_ms": 0.00518200000000002
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.099328,
+          "cpu_ms": 0.001759000000000066
+        },
+        {
+          "name": "water",
+          "draws": 7,
+          "triangles": 366,
+          "gpu_ms": 0.13312,
+          "cpu_ms": 0.021872000000000114
+        },
+        {
+          "name": "translucent",
+          "draws": 15,
+          "triangles": 426,
+          "gpu_ms": 0.016384,
+          "cpu_ms": 0.006160999999999861
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.172032,
+          "cpu_ms": 0.015236000000000027
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.00599599999999989
+        }
+      ],
+      "draws": 1348,
+      "triangles": 4561591,
+      "cover_triangles": 3308456,
+      "cover_instances": 23673,
+      "sections_shown": 174,
+      "sections": 3792,
+      "world_vertices": 1074611,
+      "memory": {
+        "world_vertices": 21259768,
+        "far_vertices": 16043760,
+        "cover": 4507096,
+        "index": 196608,
+        "textures": 638820,
+        "shadow_maps": 201326592,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 42007232,
+      "mesh": {
+        "sections": 1384,
+        "wall_ms": {
+          "min": 0.088731,
+          "median": 0.291706,
+          "p95": 11.829378,
+          "max": 99.980505
+        },
+        "wall_mean_ms": 3.0664836539017397,
+        "cpu_ms": {
+          "min": 0.085533,
+          "median": 0.234173,
+          "p95": 3.323468,
+          "max": 23.831652
+        },
+        "cpu_mean_ms": 0.9827958583815042
+      },
+      "slow_frames": 2
+    },
+    {
+      "name": "flight",
+      "tier": "ultra",
+      "kind": "flight",
+      "frames": 1473,
+      "gpu_ms": {
+        "min": 1.179648,
+        "median": 6.739968,
+        "p95": 16.664576,
+        "max": 37.065728
+      },
+      "cpu_ms": {
+        "min": 4.066144,
+        "median": 9.927593000000002,
+        "p95": 14.778803,
+        "max": 583.760678
+      },
+      "wall_ms": {
+        "min": 6.832793000000001,
+        "median": 26.277575,
+        "p95": 53.432024,
+        "max": 2326.8400810000003
+      },
+      "parts": [
+        [
+          "what arrived",
+          {
+            "min": 0.0,
+            "median": 0.003372,
+            "p95": 0.008461,
+            "max": 1.643217
+          }
+        ],
+        [
+          "world uploads",
+          {
+            "min": 0.0,
+            "median": 0.132133,
+            "p95": 0.561457,
+            "max": 2.9665139999999997
+          }
+        ],
+        [
+          "far view",
+          {
+            "min": 0.0,
+            "median": 0.002118999999999982,
+            "p95": 1.432133,
+            "max": 2.042067
+          }
+        ],
+        [
+          "camera",
+          {
+            "min": 0.0,
+            "median": 0.0758350000000001,
+            "p95": 0.131996,
+            "max": 0.36981699999999984
+          }
+        ],
+        [
+          "creatures",
+          {
+            "min": 0.702426,
+            "median": 2.41593,
+            "p95": 6.119672,
+            "max": 556.638728
+          }
+        ]
+      ],
+      "life_ms": 4.08933,
+      "cpu_setup_ms": 1.860832,
+      "cpu_submit_ms": 1.3824300000000003,
+      "moving_vertices": 56406,
+      "cpu_upload_ms": 0.8931270000000002,
+      "passes": [
+        {
+          "name": "shadow near",
+          "draws": 58,
+          "triangles": 117897,
+          "gpu_ms": 0.70656,
+          "cpu_ms": 0.15287699999999993
+        },
+        {
+          "name": "shadow mid",
+          "draws": 115,
+          "triangles": 186005,
+          "gpu_ms": 0.538624,
+          "cpu_ms": 0.14044800000000013
+        },
+        {
+          "name": "shadow far",
+          "draws": 149,
+          "triangles": 247344,
+          "gpu_ms": 0.369664,
+          "cpu_ms": 0.0690320000000002
+        },
+        {
+          "name": "world",
+          "draws": 826,
+          "triangles": 3280568,
+          "gpu_ms": 3.132416,
+          "cpu_ms": 0.27213699999999985
+        },
+        {
+          "name": "occlusion",
+          "draws": 2,
+          "triangles": 2,
+          "gpu_ms": 0.487424,
+          "cpu_ms": 0.005999999999999783
+        },
+        {
+          "name": "sky",
+          "draws": 1,
+          "triangles": 1,
+          "gpu_ms": 0.232448,
+          "cpu_ms": 0.0023820000000001063
+        },
+        {
+          "name": "water",
+          "draws": 3,
+          "triangles": 64,
+          "gpu_ms": 0.166912,
+          "cpu_ms": 0.027720999999999885
+        },
+        {
+          "name": "translucent",
+          "draws": 8,
+          "triangles": 72,
+          "gpu_ms": 0.021504,
+          "cpu_ms": 0.005562999999999985
+        },
+        {
+          "name": "post",
+          "draws": 10,
+          "triangles": 10,
+          "gpu_ms": 0.308224,
+          "cpu_ms": 0.019491999999999843
+        },
+        {
+          "name": "interface",
+          "draws": 0,
+          "triangles": 0,
+          "gpu_ms": 0.001024,
+          "cpu_ms": 0.006560000000000343
+        }
+      ],
+      "draws": 1172,
+      "triangles": 3831963,
+      "cover_triangles": 2944184,
+      "cover_instances": 21780,
+      "sections_shown": 125,
+      "sections": 4869,
+      "world_vertices": 1910745,
+      "memory": {
+        "world_vertices": 39654808,
+        "far_vertices": 17719488,
+        "cover": 4507096,
+        "index": 786432,
+        "textures": 638820,
+        "shadow_maps": 201326592,
+        "targets": 57363360
+      },
+      "peak_vertex_bytes": 62667824,
+      "mesh": {
+        "sections": 29025,
+        "wall_ms": {
+          "min": 0.076924,
+          "median": 0.291497,
+          "p95": 15.650717,
+          "max": 220.764287
+        },
+        "wall_mean_ms": 3.770010957657201,
+        "cpu_ms": {
+          "min": 0.000414,
+          "median": 0.23959,
+          "p95": 3.951399,
+          "max": 47.232048
+        },
+        "cpu_mean_ms": 1.0240980975710565
+      },
+      "slow_frames": 1255
+    }
+  ]
+}

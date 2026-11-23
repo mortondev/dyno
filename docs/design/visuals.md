@@ -378,9 +378,11 @@ vertices a quad on a shared index (a third fewer than triangle lists),
 per-cell material when a cell has one kind round it, and the finest ring at
 40 m (the coarse rings at 64 and 104 m). The stepped shape itself is the
 cost: noise adds about 10%, ragged material edges about 1%, light classes
-about 3%. Further savings if needed: an indexed or packed vertex format for
-all world geometry (60 bytes a vertex today), or merging whole section
-planes rather than block by block.
+about 3%. Since then the world's solid meshes are packed for the card
+(24 bytes a vertex instead of 60, four vertices a quad: `pack.rs`,
+docs/design/performance.md). Merging whole section planes rather than
+block by block is still open: the ground's slow tone is worked out at its
+vertices, so a wider merge would shift its look.
 
 ### Still to do
 
