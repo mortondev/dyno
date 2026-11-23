@@ -17,6 +17,7 @@ pub mod game;
 pub mod look;
 pub mod minimap;
 pub use dyno_world::light;
+pub(crate) mod fine;
 pub mod models;
 pub mod mood;
 pub mod net;

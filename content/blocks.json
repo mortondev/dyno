@@ -7,6 +7,28 @@
     "textures/torch_side.png": {"frame_time":0.14,"frames":4},
     "textures/water.png": {"frame_time":0.2,"frames":8}
   },
+  "terrain": {
+    "per_metre": 8,
+    "lod": [{"beyond": 40, "per_metre": 4}, {"beyond": 64, "per_metre": 2}, {"beyond": 104, "per_metre": 1}],
+    "noise": 0.05, "noise_size": 1.0,
+    "strata": 0.06, "strata_height": 0.375,
+    "edge": 0.32, "edge_size": 0.5,
+    "cover_depth": 0.5,
+    "jitter": 0.07,
+    "blocks": {
+      "grass": {"under": "dirt", "jitter": 0.13, "tint": [1.1, 1.06, 0.68], "saturation": 1.35},
+      "snow": {"under": "stone", "jitter": 0.04},
+      "sand": {"jitter": 0.07, "tint": [1.1, 1.02, 0.82], "saturation": 1.2},
+      "dirt": {"jitter": 0.1, "tint": [1.08, 0.96, 0.82], "saturation": 1.1},
+      "stone": {"jitter": 0.1, "tint": [1.04, 1.0, 0.93], "saturation": 1.05},
+      "cobble": {"jitter": 0.1, "edge": 0.6, "inset": 0.125},
+      "mossy_cobble": {"jitter": 0.1, "edge": 0.6, "inset": 0.125},
+      "flagstones": {"jitter": 0.06, "edge": 0.4, "inset": 0.125},
+      "coal_ore": {"edge": 0},
+      "iron_ore": {"edge": 0},
+      "emberstone": {"edge": 0, "jitter": 0.0}
+    }
+  },
   "blocks": [
     {"id":0,"key":"air"},
     {"id":1,"key":"grass","textures":{"bottom":"textures/dirt.png","side":"textures/grass_side.png","top":"textures/grass_top.png"},"tags":["wall","terrain"]},

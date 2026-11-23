@@ -2625,6 +2625,11 @@ impl App {
             && let Some(st) = &self.stage
         {
             if !self.stage_loaded {
+                gfx.set_focus(Vec3::new(
+                    st.hearth[0] as f32,
+                    st.hearth[1] as f32,
+                    st.hearth[2] as f32,
+                ));
                 gfx.load_world(&st.world, &st.light);
                 self.stage_loaded = true;
             }
@@ -2683,6 +2688,7 @@ impl App {
             let proj = glam::Mat4::from_translation(Vec3::new(shift, 0.0, 0.0))
                 * glam::Mat4::perspective_rh(55f32.to_radians(), wdt / hgt.max(1.0), 0.05, far);
             view = Some((proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y), eye, far));
+            gfx.update_lod(&st.world, &st.light, eye);
             gfx.water.look_from(&st.world, eye.into(), st.hearth);
         }
         if let Screen::Playing(p) = &mut self.screen {
@@ -3290,7 +3296,7 @@ impl App {
                     },
                     _ => ([0.3, 0.9, 0.35], 0.7),
                 };
-                render::push_ground_ring_on(&mut boxes, &p.world, e.pos(), r, col);
+                render::push_ground_ring_on(&mut boxes, &p.world, &p.ground, e.pos(), r, col);
             }
             // creatures
             let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
@@ -5797,6 +5803,11 @@ pub fn shot_front(
         light,
         hearth,
     } = pack_stage().ok_or("the pack has no title stage (content/stage)")?;
+    gfx.set_focus(Vec3::new(
+        hearth[0] as f32,
+        hearth[1] as f32,
+        hearth[2] as f32,
+    ));
     gfx.load_world(&world, &light);
     let recent = if addr.is_empty() {
         Vec::new()
@@ -6250,6 +6261,7 @@ pub fn shot_with_ui(
         // the meshes built bit by bit, against the whole view at once
         let built = gfx.world_vertices();
         let whole = Light::new(&p.world);
+        gfx.set_focus(p.player.eye());
         gfx.load_world(&p.world, &whole);
         let again = gfx.world_vertices();
         eprintln!(
@@ -6580,6 +6592,8 @@ pub fn shot_with_ui(
         eprintln!(
             "stats: world complete after {load_ms:.0} ms, frame {frame_ms:.2} ms, world vertices {vo} opaque + {vt} translucent"
         );
+        let (gv, levels) = gfx.ground_stats();
+        eprintln!("ground: {gv} vertices; sections by voxels a metre {levels:?}");
         let (sections, ms) = crate::render::mesh_cost();
         eprintln!(
             "meshing: {sections} sections in {ms:.0} ms on the world thread's cores ({:.2} ms a section); vertex memory {:.0} MB",
