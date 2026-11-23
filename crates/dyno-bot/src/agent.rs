@@ -291,6 +291,7 @@ impl Agent {
                 }
                 Some(Task::Rest { .. }) => Activity::Rest,
                 Some(Task::Wait { spawn: true, .. }) => Activity::WaitSpawn,
+                Some(Task::Wait { .. }) if self.doing == "taking a break" => Activity::Afk,
                 Some(Task::Respawn { .. }) => Activity::Dead,
                 Some(Task::Goto { .. }) | Some(Task::Talk { .. }) | Some(Task::Recall { .. })
                     if b.nav.state == NavState::Moving =>
@@ -313,7 +314,7 @@ impl Agent {
         if t - self.last_track >= 10.0 {
             self.last_track = t;
             let r = self.rel(b.player.pos);
-            self.tel.track.push((t, r[0], r[2]));
+            self.tel.track.push((t, r[0], r[2], self.doing.clone()));
             let up: Vec<String> = b
                 .creatures()
                 .filter(|e| crate::body::on_canopy(&b.world, e.pos))
@@ -371,6 +372,16 @@ impl Agent {
                 }
                 Ev::KillNoCredit { creature, .. } => {
                     self.tel.kills_no_credit += 1;
+                    let me = self.body.pos();
+                    if !self
+                        .body
+                        .players
+                        .values()
+                        .any(|(_, p)| p.distance(me) < 20.0)
+                    {
+                        // nobody else was there: not a stolen kill
+                        self.tel.kills_no_credit_alone += 1;
+                    }
                     let name = self.cname(creature);
                     self.say(format!("{name} died, but you got no credit"));
                 }
@@ -915,6 +926,7 @@ impl Agent {
                     won: false,
                     damage_taken: *taken,
                     casts: *casts,
+                    why: "died".into(),
                 });
                 self.last_fight = Some(*target);
             }
@@ -963,6 +975,7 @@ impl Agent {
                         won,
                         damage_taken: *taken,
                         casts: *casts,
+                        why: why.to_string(),
                     });
                     a.body.send(ClientMsg::AutoAttack { target: None });
                     a.last_fight = Some(t);
@@ -990,6 +1003,9 @@ impl Agent {
                 }
                 if last_dealt.elapsed() > Duration::from_secs(25) {
                     return end(self, false, "could not reach or hurt it");
+                }
+                if start.elapsed() > Duration::from_secs(45) && *low > e.max * 0.85 {
+                    return end(self, false, "no progress: it hardly took damage");
                 }
                 if start.elapsed() > Duration::from_secs(150) {
                     return end(self, false, "took too long");
@@ -1313,14 +1329,20 @@ impl Agent {
             .enumerate()
             .filter_map(|(i, s)| s.map(|s| (i, s.item)))
             .collect();
+        let mut used = Vec::new();
         for (i, item) in slots {
-            if self.body.content.item(item).gear.is_some() && self.body.is_upgrade(item) {
+            if self.body.content.item(item).gear.is_none() {
+                continue;
+            }
+            // one item per place until the server answers
+            if let Some(place) = self.body.upgrade_place(item)
+                && !used.contains(&place)
+            {
+                used.push(place);
                 self.body.send(ClientMsg::Equip { from: i as u8 });
                 let name = self.body.content.item(item).name.to_string();
                 out.push(name.clone());
                 self.say(format!("Equipped {name}"));
-                // wait for the server's answer before comparing again
-                break;
             }
         }
         out

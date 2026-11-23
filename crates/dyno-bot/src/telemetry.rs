@@ -21,13 +21,15 @@ pub enum Activity {
     Stuck,
     Dead,
     Idle,
+    /// a chosen break (casual players)
+    Afk,
 }
 
 impl Activity {
-    pub fn all() -> [Activity; 10] {
+    pub fn all() -> [Activity; 11] {
         use Activity::*;
         [
-            Travel, Fight, Loot, Gather, Town, Rest, WaitSpawn, Stuck, Dead, Idle,
+            Travel, Fight, Loot, Gather, Town, Rest, WaitSpawn, Stuck, Dead, Idle, Afk,
         ]
     }
     pub fn key(self) -> &'static str {
@@ -42,6 +44,7 @@ impl Activity {
             Activity::Stuck => "stuck",
             Activity::Dead => "dead",
             Activity::Idle => "idle",
+            Activity::Afk => "afk",
         }
     }
 }
@@ -69,6 +72,9 @@ pub struct Fight {
     pub won: bool,
     pub damage_taken: f32,
     pub casts: u32,
+    /// how it ended
+    #[serde(default)]
+    pub why: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -140,6 +146,9 @@ pub struct Telemetry {
     pub money: u32,
     pub kills: u32,
     pub kills_no_credit: u32,
+    /// of those, with no other player within 20 blocks
+    #[serde(default)]
+    pub kills_no_credit_alone: u32,
     pub loots: u32,
     pub items_new: u32,
     pub areas: Vec<String>,
@@ -149,8 +158,8 @@ pub struct Telemetry {
     pub notes: Vec<String>,
     /// creatures seen standing on tree canopies: "Grazer lv1 at x,y,z" (hearth-relative)
     pub canopy: Vec<String>,
-    /// (t, x, z) hearth-relative, every 10 s, for heatmaps
-    pub track: Vec<(f64, i32, i32)>,
+    /// (t, x, z, what the bot was doing) hearth-relative, every 10 s
+    pub track: Vec<(f64, i32, i32, String)>,
 }
 
 impl Telemetry {

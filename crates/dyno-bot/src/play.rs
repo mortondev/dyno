@@ -473,7 +473,16 @@ impl Session {
             .filter(|e| {
                 matches!(e.kind, EntityKind::Corpse { loot: true, .. }) && b.dist(e.pos) < 25.0
             })
-            .map(|e| format!("{} #{} {}", ent_name(b, e), e.id, self.a.where_is(e.pos)))
+            .map(|e| {
+                let mine = b.my_corpses.iter().any(|(id, _)| *id == e.id);
+                format!(
+                    "{} #{} {}{}",
+                    ent_name(b, e),
+                    e.id,
+                    self.a.where_is(e.pos),
+                    if mine { " (yours)" } else { "" }
+                )
+            })
             .collect();
         if !corpses.is_empty() {
             s += &format!("Lootable corpses: {}\n", corpses.join("; "));
@@ -922,10 +931,22 @@ impl Session {
             }
             "loot" => {
                 let me = b.pos();
+                let mine = b
+                    .my_corpses
+                    .iter()
+                    .rev()
+                    .filter_map(|(id, _)| b.ents.get(id))
+                    .find(|e| {
+                        matches!(e.kind, EntityKind::Corpse { loot: true, .. })
+                            && e.pos.distance(me) < 30.0
+                    })
+                    .map(|e| e.id);
                 let corpse = if let Some(id) =
                     rest.strip_prefix('#').and_then(|s| s.parse::<u32>().ok())
                 {
                     Some(id)
+                } else if mine.is_some() {
+                    mine
                 } else {
                     b.ents
                         .values()
@@ -1171,6 +1192,12 @@ impl Session {
         if nums.len() >= 2 && q.contains(',') {
             let (x, z) = (nums[0], *nums.last().unwrap());
             return Ok((Target::Pos(b.rel([x, 0, z])), format!("{x},{z}"), 1.5));
+        }
+        // a quest key said exactly: where its next objective is
+        if let Some(quest) = b.content.quests.iter().find(|x| x.key == lc(q))
+            && let Some((p, what)) = self.objective_target(quest.id)
+        {
+            return Ok((Target::Pos(p), what, 4.0));
         }
         if matches!(lc(q).as_str(), "home" | "hearth" | "town") {
             return Ok((Target::Pos(b.rel([0, 0, 3])), "the hearth".into(), 3.0));

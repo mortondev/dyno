@@ -13,6 +13,31 @@ a quest takes 3 to 10 minutes") and from what classic MMOs aim for.
 Each check is **pass**, **warn** (between the two limits) or **fail**. A
 check with no measurements says **no data**, never pass.
 
+## Running it
+
+```sh
+# 20 bots for 10 minutes against a server; the report is JSON plus Markdown beside it
+dyno bots 127.0.0.1:7400 --count 20 --minutes 10 --report playtest/report.json
+# the same on a fresh in-process server and world
+dyno bots --local --count 20 --minutes 10
+# one personality or class only
+dyno bots 127.0.0.1:7400 --count 6 --brain grinder --class mage
+# an AI (or a person) plays through a text interface: one command per line
+dyno play 127.0.0.1:7400 --as Wren --class priest            # stdin
+dyno play 127.0.0.1:7400 --as Wren --script first-quests.txt # a script
+```
+
+Brains (`--brain`): `mix` (default: a third completionists, then grinders,
+explorers, social players and casual players), `completionist`, `grinder`,
+`explorer`, `social`, `casual`. Bots join with fresh characters (a run id in
+their names), rotating through the classes.
+
+In `dyno play`, type `help` for the commands. Every answer ends with a
+description of the situation and a line `[ready]`. Positions are x,z blocks
+from the spawn hearth (north is -z). The body keeps living between commands
+and defends itself if attacked; `auto <minutes>` hands control to a scripted
+player for a while.
+
 ## Rewarding moments
 
 A rewarding moment is any of: a kill that gave XP or quest credit, loot

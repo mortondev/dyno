@@ -417,18 +417,17 @@ impl Scripted {
             && b.power / b.max_power < 0.3;
         // 1. loot what we killed
         let corpse = b
-            .ents
-            .values()
-            .filter(|e| {
-                matches!(e.kind, EntityKind::Corpse { loot: true, .. })
-                    && b.dist3(e.pos) < 18.0
-                    && e.seen.elapsed() < Duration::from_secs(120)
-                    && !self.avoided(e.id)
+            .my_corpses
+            .iter()
+            .rev()
+            .filter(|(id, t)| t.elapsed() < Duration::from_secs(100) && !self.avoided(*id))
+            .filter_map(|(id, _)| b.ents.get(id))
+            .find(|e| {
+                matches!(e.kind, EntityKind::Corpse { loot: true, .. }) && b.dist3(e.pos) < 30.0
             })
-            .min_by(|x, y| b.dist3(x.pos).partial_cmp(&b.dist3(y.pos)).unwrap())
             .map(|e| e.id);
         if let Some(id) = corpse {
-            // a corpse that is not ours is refused once; do not try again
+            // one try each: if it is not ours after all, leave it
             self.avoid_ent.insert(id, now + Duration::from_secs(200));
             a.doing = "looting".into();
             return Some(Task::Loot {
@@ -901,6 +900,41 @@ impl Scripted {
                 let have = a.body.skills.get(prof).copied().unwrap_or(0);
                 if *n > 1 && have < *n {
                     why_not = Some(format!("Requires {prof} {n} (have {have})"));
+                    // raise the skill on easier nodes of the same profession
+                    let easier: Option<u16> = {
+                        let c = &a.body.content;
+                        (0..c.blocks.len().min(256) as u16)
+                            .map(|b| b as u8)
+                            .filter(|b| {
+                                let r = c.rule(*b);
+                                r.respawn > 0
+                                    && r.skill
+                                        .as_ref()
+                                        .is_some_and(|(p, m)| p == prof && *m <= have.max(1))
+                            })
+                            .find_map(|b| {
+                                let r = c.rule(b);
+                                r.drops
+                                    .first()
+                                    .map(|d| d.item)
+                                    .or(Some(b as u16))
+                                    .filter(|i| *i != item)
+                            })
+                    };
+                    if let Some(other) = easier {
+                        let t = a.body.secs();
+                        a.tel.blocker(
+                            t,
+                            quest,
+                            &format!("gather {}", a.body.content.item(item).name),
+                            &format!("needs {prof} {n}: raising it on easier nodes"),
+                        );
+                        match self.gather_task(a, other, quest) {
+                            Ok(Some(x)) => return Ok(Some(x)),
+                            Err(e) => return Err(e),
+                            Ok(None) => {}
+                        }
+                    }
                     continue;
                 }
             }

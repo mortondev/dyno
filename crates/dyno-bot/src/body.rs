@@ -206,6 +206,10 @@ pub struct Body {
     pub seen_items: HashSet<u16>,
     /// a creature we fought died: (kind, level, when, quest credit seen)
     pending_kill: Option<(u16, u8, Instant, bool)>,
+    /// where creatures we fought died (for finding our corpses)
+    kill_spots: Vec<(Vec3, Instant)>,
+    /// corpses of creatures we fought, newest last
+    pub my_corpses: Vec<(u32, Instant)>,
     expect_quest_xp: bool,
     got_quests: bool,
     got_pack: bool,
@@ -342,6 +346,8 @@ impl Body {
             events: Vec::new(),
             seen_items: HashSet::new(),
             pending_kill: None,
+            kill_spots: Vec::new(),
+            my_corpses: Vec::new(),
             expect_quest_xp: false,
             got_quests: false,
             got_pack: false,
@@ -744,6 +750,17 @@ impl Body {
                 }
             }
             ServerMsg::EntitySpawn { id, kind, pos, .. } => {
+                // the body of something we just fought: probably ours to loot
+                if matches!(kind, EntityKind::Corpse { loot: true, .. })
+                    && !self.ents.contains_key(&id)
+                    && self.kill_spots.iter().any(|(p, t)| {
+                        p.distance(Vec3::from(pos)) < 2.5 && t.elapsed() < Duration::from_secs(3)
+                    })
+                {
+                    self.my_corpses.push((id, now));
+                    self.my_corpses
+                        .retain(|(_, t)| t.elapsed() < Duration::from_secs(120));
+                }
                 let e = self.ents.entry(id).or_insert(Ent {
                     id,
                     kind,
@@ -776,6 +793,9 @@ impl Body {
                         .is_some_and(|t| t.elapsed() < Duration::from_secs(12))
                 {
                     self.pending_kill = Some((c, e.level, now, false));
+                    self.kill_spots.push((e.pos, now));
+                    self.kill_spots
+                        .retain(|(_, t)| t.elapsed() < Duration::from_secs(5));
                 }
                 if self.attacking == Some(id) {
                     self.attacking = None;
@@ -1220,6 +1240,16 @@ impl Body {
             return;
         }
         self.follow();
+        // in deep water, keep the head up (players hold jump), even standing still
+        let eye = self.player.eye();
+        if self.world.get(
+            eye.x.floor() as i32,
+            (eye.y - 0.3).floor() as i32,
+            eye.z.floor() as i32,
+        ) == w::WATER
+        {
+            self.input.jump = true;
+        }
         let before = self.player.pos;
         // fixed steps, like a client at 40 fps
         let mut t = elapsed.max(TICK * 0.5);

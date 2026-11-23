@@ -111,6 +111,7 @@ pub struct Aggregate {
     pub median_fight_secs: Option<f64>,
     pub kills: u32,
     pub kills_no_credit: u32,
+    pub kills_no_credit_alone: u32,
     pub time_split: BTreeMap<String, f64>,
     pub distance_per_reward: Option<f64>,
     pub mean_abilities_distinct: f64,
@@ -142,6 +143,8 @@ pub struct Report {
     pub notes: Vec<Count>,
     /// creatures seen on tree canopies (out of melee and loot reach)
     pub canopy: Vec<Count>,
+    /// fight outcomes by creature: "Thornboar lv3-4: lost (it fled home and healed)"
+    pub fights: Vec<Count>,
     pub telemetry: Vec<Telemetry>,
 }
 
@@ -316,7 +319,7 @@ pub fn aggregate(ts: &[Telemetry]) -> Aggregate {
         } else {
             started_low.iter().filter(|t| t.level >= 2).count() as f64 / started_low.len() as f64
         },
-        median_xp_per_hour: median(&opt(&|s| (s.minutes >= 2.0).then_some(s.xp_per_hour))),
+        median_xp_per_hour: median(&opt(&|s| (s.minutes >= 1.0).then_some(s.xp_per_hour))),
         xp_quest_share: (xp > 0).then(|| xpq as f64 / xp as f64),
         quests_done: sums.iter().map(|s| s.quests_done).sum(),
         median_quest_minutes: median(
@@ -355,6 +358,7 @@ pub fn aggregate(ts: &[Telemetry]) -> Aggregate {
         ),
         kills: ts.iter().map(|t| t.kills).sum(),
         kills_no_credit: ts.iter().map(|t| t.kills_no_credit).sum(),
+        kills_no_credit_alone: ts.iter().map(|t| t.kills_no_credit_alone).sum(),
         time_split: split,
         distance_per_reward: (rewards > 0).then(|| dist / rewards as f64),
         mean_abilities_distinct: mean(
@@ -694,6 +698,15 @@ pub fn build(title: &str, server: &str, ts: Vec<Telemetry>) -> Report {
     let unreachable = counts(ts.iter().flat_map(|t| t.unreachable.iter().cloned()));
     let notes = counts(ts.iter().flat_map(|t| t.notes.iter().cloned()));
     let canopy = counts(ts.iter().flat_map(|t| t.canopy.iter().cloned()));
+    let fights = counts(ts.iter().flat_map(|t| {
+        t.fights.iter().map(|f| {
+            if f.won {
+                format!("{}: won", f.creature)
+            } else {
+                format!("{}: lost ({})", f.creature, f.why)
+            }
+        })
+    }));
     // stuck heatmap in 16-block cells
     let mut heat: BTreeMap<[i32; 2], (usize, Vec<String>)> = BTreeMap::new();
     for t in &ts {
@@ -763,6 +776,7 @@ pub fn build(title: &str, server: &str, ts: Vec<Telemetry>) -> Report {
         level_curve,
         notes,
         canopy,
+        fights,
         telemetry: ts,
     }
 }
@@ -838,12 +852,13 @@ pub fn markdown(r: &Report) -> String {
     );
     let _ = writeln!(
         s,
-        "- Combat: {} fights, {} won, median {} s; {} kills, {} lost to another player's last hit; {} deaths ({:.1}/h)",
+        "- Combat: {} fights, {} won, median {} s; {} kills, {} without credit ({} of them with no other player within 20 blocks); {} deaths ({:.1}/h)",
         a.fights,
         pct(a.win_rate),
         f(a.median_fight_secs, 1),
         a.kills,
         a.kills_no_credit,
+        a.kills_no_credit_alone,
         a.deaths,
         a.deaths_per_hour
     );
@@ -912,6 +927,7 @@ pub fn markdown(r: &Report) -> String {
         &r.blockers,
     );
     list(&mut s, "Deaths by cause", &r.deaths_by_cause);
+    list(&mut s, "Fights by creature and outcome", &r.fights);
     list(&mut s, "Unreachable NPCs", &r.unreachable);
     if !r.stuck_heatmap.is_empty() {
         let _ = writeln!(
