@@ -5566,10 +5566,11 @@
     0.32,
     0.22
    ],
+   "place": "hearthstead",
    "at": [
     -4,
     0,
-    14
+    8
    ],
    "greeting": "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen.",
    "routine": [
@@ -5598,10 +5599,11 @@
     0.35,
     0.6
    ],
+   "place": "hearthstead",
    "at": [
-    2,
+    3,
     0,
-    -12
+    -15
    ],
    "greeting": "Keep your blade close and your torch closer. The dark has teeth now.",
    "routine": [
@@ -5630,10 +5632,11 @@
     0.55,
     0.3
    ],
+   "place": "hearthstead",
    "at": [
-    -7,
+    -11,
     0,
-    2
+    8
    ],
    "greeting": "Hungry? Everyone's hungry. Nobody brings me anything to cook.",
    "sells": [
@@ -5668,10 +5671,11 @@
     0.3,
     0.3
    ],
+   "place": "hearthstead",
    "at": [
-    12,
+    36,
     0,
-    7
+    -22
    ],
    "greeting": "Hammer's ready. Iron isn't. Never is.",
    "sells": [
@@ -5728,10 +5732,11 @@
     0.35,
     0.6
    ],
+   "place": "north_watch",
    "at": [
     2,
-    -7,
-    -49
+    0,
+    4
    ],
    "greeting": "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark.",
    "routine": [
@@ -5759,10 +5764,11 @@
     0.4,
     0.25
    ],
+   "place": "logging_camp",
    "at": [
-    -43,
-    -3,
-    -84
+    2,
+    0,
+    4
    ],
    "greeting": "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold.",
    "routine": [
@@ -5791,10 +5797,11 @@
     0.5,
     0.3
    ],
+   "place": "windmill_farm",
    "at": [
-    8,
-    -10,
-    97
+    -4,
+    0,
+    6
    ],
    "greeting": "Bandits in my fields, crabs in my ditches. Good thing the mill still turns.",
    "sells": [
@@ -5826,10 +5833,11 @@
     0.45,
     0.55
    ],
+   "place": "fishers_landing",
    "at": [
-    -26,
-    -11,
-    138
+    2,
+    0,
+    3
    ],
    "greeting": "The lake gives and the lake takes. Lately it only takes.",
    "routine": [
@@ -5858,10 +5866,11 @@
     0.35,
     0.3
    ],
+   "place": "miners_rest",
    "at": [
-    128,
-    -4,
-    12
+    -3,
+    0,
+    7
    ],
    "greeting": "Supplies are short, the road's cut, and nobody will go back down that mine.",
    "sells": [
@@ -5896,10 +5905,11 @@
     0.4,
     0.35
    ],
+   "place": "miners_rest",
    "at": [
-    131,
-    -4,
-    8
+    5,
+    0,
+    4
    ],
    "greeting": "Something lit candles down in the Hollow. Something that isn't us.",
    "routine": [
@@ -5928,10 +5938,11 @@
     0.36,
     0.55
    ],
+   "place": "ashcloak_stockade",
    "at": [
-    62,
-    -10,
-    64
+    0,
+    0,
+    4
    ],
    "greeting": "With Rook Varn dead, the Watch holds this stockade. The East Road breathes again, thanks to you.",
    "phase": "stockade_taken",
@@ -7162,12 +7173,13 @@
    "objectives": [
     {
      "explore": "the North Watch beacon",
+     "place": "north_watch",
      "at": [
       0,
       0,
-      -56
+      2
      ],
-     "radius": 7
+     "radius": 12
     }
    ],
    "money": 80,
@@ -7432,12 +7444,13 @@
    "objectives": [
     {
      "explore": "the Old Barrow",
+     "place": "old_barrow",
      "at": [
-      -116,
+      17,
       0,
-      10
+      0
      ],
-     "radius": 9
+     "radius": 10
     }
    ],
    "requires": [
@@ -7602,12 +7615,13 @@
    "objectives": [
     {
      "explore": "the Sunken Shrine",
+     "place": "shrine_shore",
      "at": [
-      8,
       0,
-      159
+      0,
+      0
      ],
-     "radius": 9
+     "radius": 12
     }
    ],
    "requires": [
@@ -7679,12 +7693,13 @@
    "objectives": [
     {
      "explore": "the Ashcloak Stockade",
+     "place": "ashcloak_stockade",
      "at": [
-      62,
       0,
-      72
+      0,
+      16
      ],
-     "radius": 9
+     "radius": 10
     }
    ],
    "requires": [
@@ -8848,11 +8863,8 @@
   {
    "key": "hearthstead",
    "name": "Hearthstead",
-   "at": [
-    0,
-    0
-   ],
-   "radius": 36,
+   "place": "hearthstead",
+   "radius": "place",
    "levels": [
     1,
     1
@@ -8862,11 +8874,8 @@
   {
    "key": "hearthmeadow",
    "name": "Hearthmeadow",
-   "at": [
-    0,
-    0
-   ],
-   "radius": 80,
+   "place": "hearthmeadow",
+   "radius": "place",
    "levels": [
     1,
     2
@@ -8875,61 +8884,43 @@
     {
      "creature": "grazer",
      "count": 4,
-     "at": [
-      48,
-      22
-     ],
-     "spread": 10,
+     "place": "meadow_flock_1",
+     "spread": 18,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 4,
-     "at": [
-      -52,
-      30
-     ],
-     "spread": 10,
+     "place": "meadow_flock_2",
+     "spread": 18,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      30,
-      -52
-     ],
-     "spread": 9,
+     "place": "meadow_flock_3",
+     "spread": 16,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 4,
-     "at": [
-      -44,
-      -46
-     ],
-     "spread": 10,
+     "place": "meadow_flock_4",
+     "spread": 18,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      58,
-      -30
-     ],
-     "spread": 9,
+     "place": "meadow_flock_5",
+     "spread": 16,
      "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      -20,
-      60
-     ],
-     "spread": 9,
+     "place": "meadow_flock_6",
+     "spread": 16,
      "respawn": 90
     }
    ]
@@ -8937,11 +8928,8 @@
   {
    "key": "north_watch",
    "name": "The North Watch",
-   "at": [
-    0,
-    -51
-   ],
-   "radius": 10,
+   "place": "north_watch",
+   "radius": "place",
    "levels": [
     2,
     3
@@ -8951,11 +8939,8 @@
   {
    "key": "birchrise",
    "name": "Birchrise",
-   "at": [
-    -30,
-    -92
-   ],
-   "radius": 46,
+   "place": "birchrise",
+   "radius": "place",
    "levels": [
     2,
     3
@@ -8964,21 +8949,15 @@
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      -18,
-      -76
-     ],
-     "spread": 9,
+     "place": "birchrise_boars_1",
+     "spread": 16,
      "respawn": 120
     },
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      -58,
-      -104
-     ],
-     "spread": 9,
+     "place": "birchrise_boars_2",
+     "spread": 16,
      "respawn": 120,
      "rare": {
       "name": "Old Tusk",
@@ -8990,21 +8969,15 @@
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      -8,
-      -118
-     ],
-     "spread": 9,
+     "place": "birchrise_boars_3",
+     "spread": 16,
      "respawn": 120
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      10,
-      -95
-     ],
-     "spread": 8,
+     "place": "birchrise_flock",
+     "spread": 14,
      "respawn": 90
     }
    ]
@@ -9012,11 +8985,8 @@
   {
    "key": "logging_camp",
    "name": "Garrick's Logging Camp",
-   "at": [
-    -45,
-    -86
-   ],
-   "radius": 10,
+   "place": "logging_camp",
+   "radius": "place",
    "levels": [
     3,
     3
@@ -9026,11 +8996,8 @@
   {
    "key": "hollow_oak",
    "name": "The Hollow Oak",
-   "at": [
-    -87,
-    -53
-   ],
-   "radius": 22,
+   "place": "hollow_oak",
+   "radius": "place",
    "levels": [
     3,
     4
@@ -9039,11 +9006,12 @@
     {
      "creature": "websnare",
      "count": 4,
+     "place": "hollow_oak",
      "at": [
-      -87,
-      -53
+      0,
+      4
      ],
-     "spread": 12,
+     "spread": 20,
      "respawn": 120,
      "rare": {
       "name": "Silkmother",
@@ -9055,11 +9023,8 @@
     {
      "creature": "websnare",
      "count": 3,
-     "at": [
-      -102,
-      -37
-     ],
-     "spread": 8,
+     "place": "oak_webs",
+     "spread": 14,
      "respawn": 120
     }
    ]
@@ -9067,11 +9032,8 @@
   {
    "key": "barrowwood",
    "name": "Barrowwood",
-   "at": [
-    -110,
-    -5
-   ],
-   "radius": 52,
+   "place": "barrowwood",
+   "radius": "place",
    "levels": [
     4,
     5
@@ -9080,33 +9042,28 @@
     {
      "creature": "websnare",
      "count": 3,
-     "at": [
-      -110,
-      -26
-     ],
-     "spread": 8,
+     "place": "barrow_webs",
+     "spread": 14,
      "respawn": 120
     },
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      -105,
-      30
-     ],
-     "spread": 9,
+     "place": "barrow_boars",
+     "spread": 16,
      "respawn": 120
     },
     {
      "creature": "barrow_warden",
      "count": 1,
+     "place": "old_barrow",
      "at": [
-      -133,
-      10
+      -3,
+      0
      ],
      "spread": 2,
      "respawn": 600,
-     "y": -11,
+     "below": 4,
      "phase": "!warden_rests"
     }
    ]
@@ -9114,11 +9071,8 @@
   {
    "key": "mirrormere",
    "name": "Mirrormere",
-   "at": [
-    0,
-    130
-   ],
-   "radius": 58,
+   "place": "mirrormere",
+   "radius": "place",
    "levels": [
     3,
     4
@@ -9127,51 +9081,36 @@
     {
      "creature": "mirepincher",
      "count": 4,
-     "at": [
-      -22,
-      118
-     ],
-     "spread": 10,
+     "place": "mere_pinchers_1",
+     "spread": 18,
      "respawn": 100
     },
     {
      "creature": "mirepincher",
      "count": 4,
-     "at": [
-      28,
-      138
-     ],
-     "spread": 10,
+     "place": "mere_pinchers_2",
+     "spread": 18,
      "respawn": 100
     },
     {
      "creature": "mirepincher",
      "count": 3,
-     "at": [
-      -40,
-      150
-     ],
-     "spread": 9,
+     "place": "mere_pinchers_3",
+     "spread": 16,
      "respawn": 100
     },
     {
      "creature": "ashcloak",
      "count": 3,
-     "at": [
-      46,
-      99
-     ],
-     "spread": 8,
+     "place": "mere_ashcloaks",
+     "spread": 14,
      "respawn": 120
     },
     {
      "creature": "grazer",
      "count": 3,
-     "at": [
-      5,
-      88
-     ],
-     "spread": 8,
+     "place": "mere_flock",
+     "spread": 14,
      "respawn": 90
     }
    ]
@@ -9179,11 +9118,8 @@
   {
    "key": "windmill",
    "name": "Ostrin's Farm",
-   "at": [
-    10,
-    95
-   ],
-   "radius": 9,
+   "place": "windmill_farm",
+   "radius": "place",
    "levels": [
     3,
     3
@@ -9193,11 +9129,8 @@
   {
    "key": "fishers_landing",
    "name": "Fisher's Landing",
-   "at": [
-    -28,
-    136
-   ],
-   "radius": 10,
+   "place": "fishers_landing",
+   "radius": "place",
    "levels": [
     4,
     4
@@ -9207,11 +9140,8 @@
   {
    "key": "sunken_shrine",
    "name": "The Sunken Shrine",
-   "at": [
-    8,
-    159
-   ],
-   "radius": 14,
+   "place": "shrine_shore",
+   "radius": 40,
    "levels": [
     7,
     8
@@ -9220,11 +9150,8 @@
     {
      "creature": "gloomwisp",
      "count": 3,
-     "at": [
-      8,
-      159
-     ],
-     "spread": 8,
+     "place": "shrine_shore",
+     "spread": 10,
      "respawn": 150,
      "rare": {
       "name": "The Drowned Lamp",
@@ -9238,11 +9165,8 @@
   {
    "key": "east_road",
    "name": "The East Road",
-   "at": [
-    86,
-    5
-   ],
-   "radius": 52,
+   "place": "east_road",
+   "radius": "place",
    "levels": [
     4,
     5
@@ -9251,19 +9175,17 @@
     {
      "creature": "ashcloak",
      "count": 2,
-     "at": [
-      84,
-      -16
-     ],
-     "spread": 5,
+     "place": "road_scouts_1",
+     "spread": 9,
      "respawn": 120
     },
     {
      "creature": "ashcloak",
      "count": 6,
+     "place": "ashcloak_stockade",
      "at": [
-      62,
-      67
+      0,
+      5
      ],
      "spread": 9,
      "respawn": 120,
@@ -9272,9 +9194,10 @@
     {
      "creature": "ashcloak_leader",
      "count": 2,
+     "place": "ashcloak_stockade",
      "at": [
-      64,
-      63
+      3,
+      2
      ],
      "spread": 4,
      "respawn": 240,
@@ -9283,9 +9206,10 @@
     {
      "creature": "rook_varn",
      "count": 1,
+     "place": "ashcloak_stockade",
      "at": [
-      62,
-      61
+      0,
+      -2
      ],
      "spread": 1,
      "respawn": 600,
@@ -9294,21 +9218,15 @@
     {
      "creature": "ashcloak",
      "count": 2,
-     "at": [
-      95,
-      8
-     ],
-     "spread": 5,
+     "place": "road_scouts_2",
+     "spread": 9,
      "respawn": 120
     },
     {
      "creature": "thornboar",
      "count": 3,
-     "at": [
-      110,
-      -30
-     ],
-     "spread": 9,
+     "place": "road_boars",
+     "spread": 16,
      "respawn": 120
     }
    ]
@@ -9316,11 +9234,8 @@
   {
    "key": "miners_rest",
    "name": "Miner's Rest",
-   "at": [
-    128,
-    10
-   ],
-   "radius": 10,
+   "place": "miners_rest",
+   "radius": "place",
    "levels": [
     5,
     5
@@ -9330,11 +9245,12 @@
   {
    "key": "hollow_mines",
    "name": "The Hollow Mines",
+   "place": "hollow_mines",
    "at": [
-    164,
-    -55
+    15,
+    -38
    ],
-   "radius": 40,
+   "radius": "place",
    "levels": [
     5,
     10
@@ -9343,46 +9259,50 @@
     {
      "creature": "candlekin",
      "count": 5,
+     "place": "hollow_mines",
      "at": [
-      167,
-      -47
+      18,
+      -30
      ],
      "spread": 10,
      "respawn": 120,
-     "y": -14
+     "below": 7
     },
     {
      "creature": "candlekin",
      "count": 4,
+     "place": "hollow_mines",
      "at": [
-      161,
-      -65
+      12,
+      -48
      ],
      "spread": 8,
      "respawn": 120,
-     "y": -17
+     "below": 10
     },
     {
      "creature": "gloomwisp",
      "count": 3,
+     "place": "hollow_mines",
      "at": [
-      150,
-      -82
+      1,
+      -65
      ],
      "spread": 8,
      "respawn": 150,
-     "y": -22
+     "below": 15
     },
     {
      "creature": "hollow_foreman",
      "count": 1,
+     "place": "hollow_mines",
      "at": [
-      174,
-      -106
+      25,
+      -89
      ],
      "spread": 1,
      "respawn": 1200,
-     "y": -30,
+     "below": 23,
      "phase": "!foreman_slain"
     }
    ]

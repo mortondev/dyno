@@ -993,7 +993,14 @@ fn level_one() -> [u8; 2] {
 impl Content {
     /// The built-in Hearthblock content.
     pub fn default_pack() -> Content {
-        Content::from_json(DEFAULT_JSON).expect("built-in content is valid")
+        // the rules place things by the layout's places: resolve them as
+        // the pack build does
+        let mut rules: serde_json::Value =
+            serde_json::from_str(DEFAULT_JSON).expect("built-in content is JSON");
+        crate::layout::Layout::from_json(crate::layout::DEFAULT_JSON)
+            .and_then(|l| l.resolve_rules(&mut rules))
+            .expect("the built-in layout is valid");
+        Content::from_json(&rules.to_string()).expect("built-in content is valid")
     }
 
     /// Parse and resolve authored JSON. Errors name the bad key.
