@@ -424,5 +424,171 @@
     "text": "You lose nothing you carry. Release, and you wake at the nearest hearth."
    }
   ]
+ },
+ "panels": {
+  "character": "Character",
+  "bags": "Bags",
+  "spellbook": "Spellbook",
+  "skills": "Skills",
+  "bags_title": "Bags",
+  "spellbook_title": "Spellbook",
+  "skills_title": "Skills",
+  "level_class": "Level {level} {class}",
+  "no_class": "Choose a class first.",
+  "take_off": "Right-click to take it off.",
+  "bags_hint": "Right-click to wear, eat or use. Point at gear to compare it with what you have on.",
+  "bags_hint_vendor": "Right-click sells to the merchant. Shift + right-click wears or uses instead.",
+  "bags_hint_trade": "Right-click puts an item on the trade table.",
+  "sort": "Sort",
+  "sell_junk": "Sell junk ({price})",
+  "free": "{n} free",
+  "spellbook_hint": "Drag an ability onto your action bar to put it on a key.",
+  "next_ability": "Next: {ability} at level {level}",
+  "learn_at": "Level {n}",
+  "on_key": "Key {key}",
+  "not_on_bar": "Not on your bar",
+  "professions": "Professions",
+  "no_skills": "You have no professions yet.",
+  "skills_hint": "Right-click a tree, an ore vein or a bush to gather from it. Each gathering teaches you a little more."
+ },
+ "item": {
+  "slot": {
+   "head": "Head",
+   "neck": "Neck",
+   "shoulders": "Shoulders",
+   "back": "Back",
+   "chest": "Chest",
+   "wrist": "Wrist",
+   "hands": "Hands",
+   "waist": "Waist",
+   "legs": "Legs",
+   "feet": "Feet",
+   "ring": "Finger",
+   "trinket": "Trinket",
+   "mainhand": "Main hand",
+   "offhand": "Off hand",
+   "twohand": "Two-hand",
+   "ranged": "Ranged"
+  },
+  "weapon": {
+   "sword": "Sword",
+   "axe": "Axe",
+   "mace": "Mace",
+   "dagger": "Dagger",
+   "staff": "Staff",
+   "polearm": "Polearm",
+   "bow": "Bow",
+   "wand": "Wand",
+   "shield": "Shield",
+   "offhand": "Held in off hand"
+  },
+  "armor": {
+   "cloth": "Cloth",
+   "leather": "Leather",
+   "mail": "Mail",
+   "plate": "Plate"
+  },
+  "damage": "{min} - {max} damage",
+  "speed": "Speed {n}",
+  "dps": "({n} damage per second)",
+  "armor_points": "{n} armour",
+  "requires_level": "Requires level {n}",
+  "tool": "Gathering tool, tier {n}",
+  "food": "Use: restores {n}% of your health, out of combat.",
+  "material": "Building material",
+  "junk": "Junk: good only for selling.",
+  "sell": "Sells for {price}",
+  "compare": "Instead of {item}:",
+  "compare_empty": "You wear nothing there:",
+  "compare_same": "No better, no worse.",
+  "delta_dps": "{n} damage per second",
+  "delta_armor": "{n} armour"
+ },
+ "ability": {
+  "resource": {
+   "rage": "rage",
+   "mana": "mana",
+   "energy": "energy"
+  },
+  "cost": "{n} {resource}",
+  "range": "{n} m range",
+  "radius": "{n} m around you",
+  "cast": "{n} sec cast",
+  "instant": "Instant",
+  "cooldown_sec": "{n} sec cooldown",
+  "cooldown_min": "{n} min cooldown",
+  "learn": "Learned at level {n}"
+ },
+ "sheet": {
+  "attributes": "Attributes",
+  "combat": "Combat",
+  "wears": "Wears {armor} and lighter",
+  "wields": "Weapons: {weapons}",
+  "health": {
+   "name": "Health",
+   "text": "What you can take before you fall. Stamina raises it. It returns slowly out of combat, and quickly when you eat."
+  },
+  "rage": {
+   "name": "Rage",
+   "text": "Built by hitting and being hit; spent on abilities. It drains away after a fight."
+  },
+  "mana": {
+   "name": "Mana",
+   "text": "Spent on spells. Intellect gives you more; Spirit brings it back faster."
+  },
+  "energy": {
+   "name": "Energy",
+   "text": "Spent on strikes and returns quickly by itself."
+  },
+  "str": {
+   "name": "Strength",
+   "text": "Raises your attack power: every swing of a weapon hits harder."
+  },
+  "agi": {
+   "name": "Agility",
+   "text": "Raises your chance of a critical strike, and attack power for hunters and rogues."
+  },
+  "sta": {
+   "name": "Stamina",
+   "text": "Each point gives 5 health."
+  },
+  "int": {
+   "name": "Intellect",
+   "text": "Each point gives 8 mana, and a little chance for spells to strike critically."
+  },
+  "spi": {
+   "name": "Spirit",
+   "text": "Health comes back faster out of combat."
+  },
+  "damage": {
+   "name": "Weapon damage",
+   "value": "{min} - {max}, every {speed} s",
+   "text": "What a swing of your main-hand weapon does before your attack power is added, and how often you swing."
+  },
+  "dps": {
+   "name": "Damage per second",
+   "text": "What your auto-attack does over time, attack power included. The simplest way to compare two weapons."
+  },
+  "attack_power": {
+   "name": "Attack power",
+   "text": "Adds damage to every weapon swing and weapon ability. It comes from Strength (and Agility for hunters and rogues)."
+  },
+  "spell_power": {
+   "name": "Spell power",
+   "text": "Adds to the damage and healing of your spells."
+  },
+  "crit": {
+   "name": "Critical strike",
+   "text": "The chance that a weapon hit lands for double damage."
+  },
+  "spell_crit": {
+   "name": "Spell critical",
+   "text": "The chance that a spell lands for half as much again."
+  },
+  "armor": {
+   "name": "Armour",
+   "value": "{n} ({percent}% less)",
+   "text": "Reduces the physical damage you take from a creature of your level by the share shown."
+  }
  }
 }

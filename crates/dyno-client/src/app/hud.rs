@@ -50,6 +50,8 @@ pub struct HudState {
     fired: HashSet<&'static str>,
     /// the bar was loaded from the settings (or made) for this character
     pub bar_ready: bool,
+    /// tooltips held open for a screenshot: an item, an ability
+    pinned: (Option<Stack>, Option<u16>),
 }
 
 impl HudState {
@@ -68,6 +70,7 @@ impl HudState {
             anchors: HashMap::new(),
             fired: HashSet::new(),
             bar_ready: false,
+            pinned: (None, None),
         }
     }
 
@@ -230,6 +233,8 @@ pub fn quests_changed(
         done: &p.quests_done,
         pos: p.player.pos.into(),
         hearth: p.hearth,
+        equip: &p.equip,
+        class: p.class.and_then(|c| p.content.class(c)),
     };
     let mut lines: Vec<(String, Color32)> = Vec::new();
     let mut events: Vec<&'static str> = Vec::new();
@@ -1399,6 +1404,7 @@ pub fn menu(ctx: &egui::Context, p: &mut Play, host: &mut Option<Host>, actions:
                     .unwrap_or_default();
                 egui::ScrollArea::vertical()
                     .max_height((screen.height() - 260.0).max(200.0))
+                    .min_scrolled_height((screen.height() - 260.0).max(200.0))
                     .show(ui, |ui| {
                         ui.set_width(ui.available_width());
                         for g in &groups {
@@ -1549,6 +1555,7 @@ pub fn tips(
             p.ui.once("combo");
         }
     }
+    pinned(ctx, p);
     let quiet = p.menu_open
         || p.intro.is_some()
         || p.land_wait
@@ -1567,6 +1574,32 @@ pub fn tips(
         && crate::options::change_interface(|o| o.tips_seen = seen)
     {
         actions.push(Action::Graphics);
+    }
+}
+
+/// Tooltips held open for a screenshot.
+fn pinned(ctx: &egui::Context, p: &Play) {
+    let screen = ctx.content_rect();
+    let class = p.class.and_then(|c| p.content.class(c));
+    let show = |id: &str, at: Pos2, add: &dyn Fn(&mut egui::Ui)| {
+        egui::Area::new(egui::Id::new(id))
+            .order(egui::Order::Tooltip)
+            .fixed_pos(at)
+            .show(ctx, |ui| theme::tooltip(ui, add));
+    };
+    if let Some(st) = p.ui.pinned.0 {
+        show(
+            "pinned-item",
+            screen.center() + Vec2::new(-560.0, -220.0),
+            &|ui| screens::item_tooltip_vs(ui, &p.content, &st, class, p.level, Some(&p.equip)),
+        );
+    }
+    if let Some(a) = p.ui.pinned.1.and_then(|a| p.content.ability(a)) {
+        show(
+            "pinned-ability",
+            screen.center() + Vec2::new(-560.0, 60.0),
+            &|ui| screens::ability_tooltip(ui, &p.content, a, a.level <= p.level),
+        );
     }
 }
 
@@ -1648,6 +1681,8 @@ pub fn shot_state(p: &mut Play, ui: &str) {
                     done: &p.quests_done,
                     pos: p.player.pos.into(),
                     hearth: p.hearth,
+                    equip: &p.equip,
+                    class: p.class.and_then(|c| p.content.class(c)),
                 };
                 Some(me.objective_text(o, q.counts.first().copied().unwrap_or(0)))
             });
@@ -1693,6 +1728,29 @@ pub fn shot_state(p: &mut Play, ui: &str) {
                 "menu-controls" => MenuPage::Controls,
                 _ => MenuPage::Main,
             };
+        }
+        "tooltip" => {
+            // gear this class can wear in a place where it wears something
+            // else, and its newest ability
+            let class = p.class.and_then(|c| p.content.class(c));
+            let item = p
+                .content
+                .items
+                .iter()
+                .map(|i| p.content.item(i.id))
+                .find(|it| {
+                    let Some(g) = it.gear else { return false };
+                    let worn = dyno_sim::character::places_for(g.slot)
+                        .first()
+                        .and_then(|i| p.equip.get(*i).copied().flatten());
+                    worn.is_some_and(|w| w.item != it.id)
+                        && it.quality >= 2
+                        && class
+                            .is_some_and(|c| dyno_sim::character::cannot_equip(c, 60, it).is_none())
+                });
+            p.ui.pinned = (item.map(|it| Stack::new(it.id, 1)), known.last().copied());
+            p.screen_tab = Some(screens::Tab::Bags);
+            p.captured = false;
         }
         "party" => {
             let class = p.class;

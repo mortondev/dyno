@@ -611,6 +611,8 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         done: &p.quests_done,
         pos: p.player.pos.into(),
         hearth: p.hearth,
+        equip: &p.equip,
+        class: p.class.and_then(|c| p.content.class(c)),
     };
     for (id, e) in &p.entities {
         let pos = p.ground.feet(&p.world, e.pos());
@@ -3493,6 +3495,25 @@ impl App {
                                 hud::save_bar(p, &mut acts);
                                 save_interface = !acts.is_empty();
                             }
+                            screens::ScreenCmd::Sort => {
+                                for (from, to) in screens::sort_moves(&p.content, &p.pack) {
+                                    let _ = p.conn.tx.send(ClientMsg::Move {
+                                        from: SlotRef::Pack(from),
+                                        to: SlotRef::Pack(to),
+                                        count: 0,
+                                    });
+                                }
+                                self.audio.play(Sfx::Click, 0.6);
+                            }
+                            screens::ScreenCmd::SellJunk => {
+                                for (i, s) in p.pack.iter().enumerate() {
+                                    if s.is_some_and(|s| screens::is_junk(&p.content.item(s.item)))
+                                    {
+                                        let _ = p.conn.tx.send(ClientMsg::Sell { from: i as u8 });
+                                    }
+                                }
+                                self.audio.play(Sfx::Click, 0.6);
+                            }
                             screens::ScreenCmd::Switch(t) => p.screen_tab = Some(t),
                             screens::ScreenCmd::Close => {
                                 p.screen_tab = None;
@@ -4305,6 +4326,8 @@ fn hud(
         done: &p.quests_done,
         pos: p.player.pos.into(),
         hearth: p.hearth,
+        equip: &p.equip,
+        class: p.class.and_then(|c| p.content.class(c)),
     };
     if let Some(vp) = vp {
         let eye = p.player.eye();
@@ -4918,6 +4941,7 @@ fn hud(
                 Some(rpg_ui::Panel::Dialog { .. } | rpg_ui::Panel::Vendor { .. })
             ),
             bar: &p.bar,
+            keys: &BAR_KEYS,
             skills: &lines,
             extra,
         };
@@ -4990,6 +5014,8 @@ fn hud(
             done: &p.quests_done,
             pos: p.player.pos.into(),
             hearth: p.hearth,
+            equip: &p.equip,
+            class: p.class.and_then(|c| p.content.class(c)),
         };
         let cmds = match panel {
             rpg_ui::Panel::Dialog { .. } => rpg_ui::dialog_window(ctx, &me, &mut panel),
@@ -5170,7 +5196,18 @@ fn hud(
         let cmds = if gone {
             vec![rpg_ui::RpgCmd::CloseLoot]
         } else {
-            rpg_ui::loot_window(ctx, &p.content, *id, *money, items)
+            let me = rpg_ui::Me {
+                content: &p.content,
+                money: p.money,
+                level: p.level,
+                log: &p.quest_log,
+                done: &p.quests_done,
+                pos: p.player.pos.into(),
+                hearth: p.hearth,
+                equip: &p.equip,
+                class: p.class.and_then(|c| p.content.class(c)),
+            };
+            rpg_ui::loot_window(ctx, &me, *id, *money, items)
         };
         if !cmds.is_empty() {
             actions.push(Action::Rpg(cmds));
@@ -5645,6 +5682,8 @@ pub fn shot_front(
             );
         }
     };
+    // (the pass in which a new zoom takes effect still has the old screen size)
+    let _ = ctx.run(raw(), |_| {});
     let first = ctx.run(raw(), |ctx| draw(ctx, &mut cmds));
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &[], &ctx, first);
     let second = ctx.run(raw(), |ctx| draw(ctx, &mut cmds));
@@ -6319,6 +6358,8 @@ pub fn shot_with_ui(
     let mut host = None;
     let mut actions = Vec::new();
     // two passes so windows settle their size; the first pass loads the font atlas
+    // (the pass in which a new zoom takes effect still has the old screen size)
+    let _ = ctx.run(raw(), |_| {});
     let first = ctx.run(raw(), |ctx| {
         if !stand {
             hud(ctx, &mut p, &mut host, Some(vp), &mut actions)

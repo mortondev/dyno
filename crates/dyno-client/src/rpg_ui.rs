@@ -47,6 +47,9 @@ pub struct Me<'a> {
     /// where I stand, and the spawn hearth (explore places are relative to it)
     pub pos: [f32; 3],
     pub hearth: Option<[i32; 3]>,
+    /// what I wear (item tooltips compare with it) and my class
+    pub equip: &'a [Option<dyno_protocol::Stack>],
+    pub class: Option<&'a dyno_world::content::Class>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -158,11 +161,12 @@ const GOLD: Color32 = theme::GOLD_BRIGHT;
 /// An item with its icon in a small slot; `selected` makes it a choice.
 fn reward_item(
     ui: &mut egui::Ui,
-    c: &Content,
+    me: &Me,
     item: u16,
     n: u8,
     selected: Option<bool>,
 ) -> egui::Response {
+    let c = me.content;
     let name = c.item(item).name;
     let label = if n > 1 {
         format!("{name} × {n}")
@@ -205,11 +209,13 @@ fn reward_item(
         galley,
         theme::INK,
     );
-    resp
+    let st = dyno_protocol::Stack::new(item, n.max(1));
+    resp.on_hover_ui(|ui| {
+        crate::screens::item_tooltip_vs(ui, c, &st, me.class, me.level, Some(me.equip))
+    })
 }
 
 fn rewards(ui: &mut egui::Ui, me: &Me, q: &Quest, choice: &mut u8) {
-    let c = me.content;
     ui.add_space(8.0);
     theme::heading(ui, "Rewards", theme::INK_GOLD);
     let xp = prog::quest_xp(q.xp, me.level, q.level);
@@ -221,7 +227,7 @@ fn rewards(ui: &mut egui::Ui, me: &Me, q: &Quest, choice: &mut u8) {
     if !q.items.is_empty() {
         ui.horizontal_wrapped(|ui| {
             for (i, n) in &q.items {
-                reward_item(ui, c, *i, *n, None);
+                reward_item(ui, me, *i, *n, None);
             }
         });
     }
@@ -235,7 +241,7 @@ fn rewards(ui: &mut egui::Ui, me: &Me, q: &Quest, choice: &mut u8) {
         ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing = Vec2::new(10.0, 8.0);
             for (k, (i, n)) in q.choice.iter().enumerate() {
-                if reward_item(ui, c, *i, *n, Some(*choice == k as u8)).clicked() {
+                if reward_item(ui, me, *i, *n, Some(*choice == k as u8)).clicked() {
                     *choice = k as u8;
                 }
             }
@@ -1128,7 +1134,14 @@ pub fn vendor_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<Rpg
                         );
                         let s = dyno_protocol::Stack::new(item, 1);
                         let resp = resp.on_hover_ui(|ui| {
-                            crate::screens::item_tooltip(ui, c, &s, None, me.level)
+                            crate::screens::item_tooltip_vs(
+                                ui,
+                                c,
+                                &s,
+                                me.class,
+                                me.level,
+                                Some(me.equip),
+                            )
                         });
                         if resp.clicked() {
                             let five = ui.input(|i| i.modifiers.shift);
@@ -1153,11 +1166,12 @@ pub fn vendor_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<Rpg
 /// A corpse's loot: click a line to take it.
 pub fn loot_window(
     ctx: &egui::Context,
-    c: &Content,
+    me: &Me,
     id: u32,
     money: u32,
     items: &[dyno_protocol::Stack],
 ) -> Vec<RpgCmd> {
+    let c = me.content;
     let mut out = Vec::new();
     let mut open = true;
     let pos = ctx
@@ -1185,7 +1199,7 @@ pub fn loot_window(
                     }
                 });
             });
-            let row = |ui: &mut egui::Ui, draw: &dyn Fn(&egui::Painter, Rect)| -> bool {
+            let row = |ui: &mut egui::Ui, draw: &dyn Fn(&egui::Painter, Rect)| {
                 let (r, resp) = ui.allocate_exact_size(
                     Vec2::new(ui.available_width(), 40.0),
                     egui::Sense::click(),
@@ -1201,7 +1215,7 @@ pub fn loot_window(
                     },
                 );
                 draw(p, r);
-                resp.clicked()
+                resp
             };
             if money > 0 {
                 let clicked = row(ui, &|p, r| {
@@ -1219,7 +1233,8 @@ pub fn loot_window(
                         theme::body_font(15.0),
                         theme::GOLD,
                     );
-                });
+                })
+                .clicked();
                 if clicked {
                     out.push(RpgCmd::Loot(id, 254));
                 }
@@ -1254,7 +1269,11 @@ pub fn loot_window(
                         theme::body_font(15.0),
                         theme::quality_color(it.quality),
                     );
-                });
+                })
+                .on_hover_ui(|ui| {
+                    crate::screens::item_tooltip_vs(ui, c, &st, me.class, me.level, Some(me.equip))
+                })
+                .clicked();
                 if clicked {
                     out.push(RpgCmd::Loot(id, i as u8));
                 }
