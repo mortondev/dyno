@@ -4,7 +4,7 @@ use crate::theme;
 use dyno_protocol::{Mode, SlotRef, Stack};
 use dyno_sim::crafting::{self, Stations};
 use dyno_sim::inventory::Inventory;
-use dyno_world::content::{Content, Icon, ItemId, Station, ToolKind};
+use dyno_world::content::{Content, Icon, ItemId, Station};
 use dyno_world::{self as w, World};
 use egui::{Align2, Color32, Pos2, Rect, RichText, Shape, Stroke, Vec2};
 
@@ -30,7 +30,8 @@ struct Atlas {
 const ATLAS_COLS: usize = 16;
 
 fn atlas(ctx: &egui::Context) -> Atlas {
-    let id = egui::Id::new("dyno-block-atlas");
+    // built again when the block textures change (more of the pack arrived)
+    let id = egui::Id::new(("dyno-block-atlas", crate::textures::generation()));
     if let Some(a) = ctx.data(|d| d.get_temp::<Atlas>(id)) {
         return a;
     }
@@ -65,23 +66,20 @@ impl Atlas {
     }
 }
 
-/// A pixel sprite for an item that is not a block, made once per item.
-fn item_texture(ctx: &egui::Context, c: &Content, item: ItemId) -> egui::TextureHandle {
-    let it = c.item(item);
-    let id = egui::Id::new((
-        "dyno-item",
-        c.item_key(item).to_string(),
-        it.name.to_string(),
-    ));
+/// An item's picture from the pack, loaded once it has arrived. None while
+/// it is missing (the caller draws a plain swatch).
+fn item_texture(ctx: &egui::Context, path: &str) -> Option<egui::TextureHandle> {
+    let bytes = crate::assets::get(path)?;
+    // keyed by the bytes too, so a replaced file shows
+    let id = egui::Id::new(("dyno-item", path, bytes.as_ptr() as usize));
     if let Some(t) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) {
-        return t;
+        return Some(t);
     }
-    let px = crate::textures::item_sprite(&it);
-    let n = crate::textures::TILE;
-    let img = egui::ColorImage::from_rgba_unmultiplied([n, n], &px);
-    let t = ctx.load_texture(format!("item-{item}"), img, egui::TextureOptions::NEAREST);
+    let (w, h, px) = crate::textures::decode_png(&bytes)?;
+    let img = egui::ColorImage::from_rgba_unmultiplied([w, h], &px);
+    let t = ctx.load_texture(path, img, egui::TextureOptions::NEAREST);
     ctx.data_mut(|d| d.insert_temp(id, t.clone()));
-    t
+    Some(t)
 }
 
 pub fn block_icon(painter: &egui::Painter, r: Rect, b: w::BlockId) {
@@ -140,8 +138,7 @@ pub fn item_icon(painter: &egui::Painter, r: Rect, c: &Content, item: ItemId) {
     if let (Icon::Block, Some(b)) = (it.icon, it.block) {
         return block_icon(painter, r.shrink(r.width() * 0.08), b);
     }
-    if it.block.is_none() {
-        let t = item_texture(painter.ctx(), c, item);
+    if let Some(t) = it.image.and_then(|p| item_texture(painter.ctx(), p)) {
         painter.image(
             t.id(),
             r.shrink(r.width() * 0.02),
@@ -150,151 +147,12 @@ pub fn item_icon(painter: &egui::Painter, r: Rect, c: &Content, item: ItemId) {
         );
         return;
     }
-    let rgb = it.color;
-    let center = r.center();
-    let s = r.width() * 0.42;
-    let wood = col([0.55, 0.40, 0.24], 1.0);
-    match it.icon {
-        Icon::Stick => {
-            painter.line_segment(
-                [center + Vec2::new(-s, s), center + Vec2::new(s, -s)],
-                Stroke::new(s * 0.32, wood),
-            );
-        }
-        Icon::Lump => {
-            let pts: Vec<Pos2> = (0..7)
-                .map(|i| {
-                    let a = i as f32 / 7.0 * std::f32::consts::TAU;
-                    let k = [0.9, 0.7, 1.0, 0.8, 0.95, 0.65, 0.85][i];
-                    center + Vec2::new(a.cos(), a.sin()) * s * k
-                })
-                .collect();
-            painter.add(Shape::convex_polygon(
-                pts,
-                col(rgb, 1.0),
-                Stroke::new(1.0_f32, col(rgb, 0.6)),
-            ));
-        }
-        Icon::Ingot => {
-            let pts = vec![
-                center + Vec2::new(-s * 0.6, -s * 0.35),
-                center + Vec2::new(s * 0.6, -s * 0.35),
-                center + Vec2::new(s * 0.95, s * 0.4),
-                center + Vec2::new(-s * 0.95, s * 0.4),
-            ];
-            painter.add(Shape::convex_polygon(
-                pts,
-                col(rgb, 1.0),
-                Stroke::new(1.0_f32, col(rgb, 0.6)),
-            ));
-        }
-        Icon::Gem => {
-            let pts = vec![
-                center + Vec2::new(0.0, -s),
-                center + Vec2::new(s * 0.7, 0.0),
-                center + Vec2::new(0.0, s),
-                center + Vec2::new(-s * 0.7, 0.0),
-            ];
-            painter.add(Shape::convex_polygon(
-                pts,
-                col(rgb, 1.0),
-                Stroke::new(1.0_f32, col(rgb, 1.3)),
-            ));
-        }
-        Icon::Dust => {
-            for (dx, dy) in [
-                (-0.4, 0.3),
-                (0.2, 0.4),
-                (0.4, -0.1),
-                (-0.1, -0.3),
-                (0.0, 0.05),
-            ] {
-                painter.circle_filled(
-                    center + Vec2::new(dx * s * 1.6, dy * s * 1.6),
-                    s * 0.22,
-                    col(rgb, 1.0),
-                );
-            }
-        }
-        Icon::Berries => {
-            for (dx, dy) in [(-0.35, 0.2), (0.35, 0.2), (0.0, -0.3)] {
-                painter.circle_filled(
-                    center + Vec2::new(dx * s * 1.4, dy * s * 1.4),
-                    s * 0.42,
-                    col(rgb, 1.0),
-                );
-            }
-            painter.line_segment(
-                [
-                    center + Vec2::new(0.0, -s * 0.5),
-                    center + Vec2::new(s * 0.3, -s),
-                ],
-                Stroke::new(2.0_f32, col([0.25, 0.5, 0.2], 1.0)),
-            );
-        }
-        Icon::Meat => {
-            painter.circle_filled(center + Vec2::new(-s * 0.15, 0.0), s * 0.7, col(rgb, 1.0));
-            painter.line_segment(
-                [
-                    center + Vec2::new(s * 0.3, s * 0.3),
-                    center + Vec2::new(s, s),
-                ],
-                Stroke::new(s * 0.25, Color32::from_rgb(235, 225, 210)),
-            );
-        }
-        Icon::Tool | Icon::Block => {
-            let kind = it.tool.map(|t| t.kind).unwrap_or(ToolKind::Pickaxe);
-            let head = col(rgb, 1.0);
-            let a = center + Vec2::new(-s, s);
-            let b = center + Vec2::new(s * 0.55, -s * 0.55);
-            if kind != ToolKind::Sword {
-                painter.line_segment([a, b], Stroke::new(s * 0.22, wood));
-            }
-            match kind {
-                ToolKind::Pickaxe => {
-                    let p = [
-                        center + Vec2::new(-s * 0.2, -s * 0.95),
-                        center + Vec2::new(s * 0.55, -s * 0.55),
-                        center + Vec2::new(s * 0.95, s * 0.2),
-                    ];
-                    painter.add(Shape::line(p.to_vec(), Stroke::new(s * 0.3, head)));
-                }
-                ToolKind::Axe => {
-                    let pts = vec![
-                        b + Vec2::new(-s * 0.1, -s * 0.5),
-                        b + Vec2::new(s * 0.45, -s * 0.2),
-                        b + Vec2::new(s * 0.2, s * 0.45),
-                        b + Vec2::new(-s * 0.15, 0.0),
-                    ];
-                    painter.add(Shape::convex_polygon(pts, head, Stroke::NONE));
-                }
-                ToolKind::Shovel | ToolKind::Hoe => {
-                    painter.circle_filled(b + Vec2::new(s * 0.2, -s * 0.2), s * 0.38, head);
-                }
-                ToolKind::Sword => {
-                    painter.line_segment(
-                        [
-                            center + Vec2::new(-s * 0.5, s * 0.5),
-                            center + Vec2::new(s, -s),
-                        ],
-                        Stroke::new(s * 0.3, head),
-                    );
-                    painter.line_segment(
-                        [
-                            center + Vec2::new(-s * 0.75, s * 0.25),
-                            center + Vec2::new(-s * 0.25, s * 0.75),
-                        ],
-                        Stroke::new(s * 0.2, wood),
-                    );
-                    painter.line_segment(
-                        [
-                            center + Vec2::new(-s * 0.5, s * 0.5),
-                            center + Vec2::new(-s, s),
-                        ],
-                        Stroke::new(s * 0.22, wood),
-                    );
-                }
-            }
+    // no picture (or not arrived yet): the block it places, or a plain
+    // swatch of its colour
+    match it.block {
+        Some(b) => block_icon(painter, r.shrink(r.width() * 0.08), b),
+        None => {
+            painter.rect_filled(r.shrink(r.width() * 0.25), 3.0, col(it.color, 1.0));
         }
     }
 }

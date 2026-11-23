@@ -1,0 +1,400 @@
+Joined 127.0.0.1:7540 as Claudia. Type 'help' for commands.
+Events:
+  You are now a Priest. Your abilities are on keys 1 to 7.
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 16:00 day | at 2,0 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 84/84 | XP 0/400 | 0c | rested 0 | bags 3/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+  ! Tilda <Cook> 9m W (-7,2) offers: meat_for_the_pot [vendor]
+    Captain Maren <Captain of the Watch> 12m N (2,-12)
+    Hollis <Smith> 12m SE (12,7) [vendor]
+  ! Old Brannoc <Hearthkeeper> 15m SW (-4,14) offers: cold_hearth
+    Sergeant Holt <The North Watch> 49m N (2,-49)
+Creatures within 60m (3):
+  #150 Grazer lv1 25/25 54m NE
+  #237 Ashcloak Bandit lv6 108/108 55m E hostile
+  #226 Grazer lv2 32/32 59m SW
+Players near: Botgvk02exp 28m NW, Botgvk00com 26m N
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> talk brannoc
+talk Old Brannoc: done (talked) in 2 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  offers [cold_hearth] The Cold Hearth (lv1): You've woken by the old hearth like the rest of us, I see. Shades took the valley the night the Great Hearth went out. If you mean to help, Captain Maren keeps what's left of the Watch. Go and speak with her.
+    objectives: talk to Captain Maren | reward: 120 xp, 10c
+== Hearthstead (safe) lv1-1 | 16:00 day | at -2,10 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 84/84 | XP 0/400 | 0c | rested 0 | bags 3/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 4m SW (-4,14) offers: cold_hearth
+  ! Tilda <Cook> 9m NW (-7,2) offers: meat_for_the_pot [vendor]
+    Hollis <Smith> 14m E (12,7) [vendor]
+    Captain Maren <Captain of the Watch> 22m N (2,-12)
+    Sergeant Holt <The North Watch> 59m N (2,-49)
+Creatures within 60m (6):
+  #246 Grazer lv1 25/25 49m E
+  #226 Grazer lv2 32/32 50m SW
+  #227 Grazer lv1 25/25 53m SW
+  #247 Ashcloak Bandit lv5 95/95 56m NE hostile
+  #237 Ashcloak Bandit lv6 108/108 59m E hostile
+  #234 Grazer lv1 25/25 60m W
+Players near: Botgvk01gri 38m SW, Botgvk00com 25m NW
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> accept cold_hearth
+accept at Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+Events:
+  Quest accepted: The Cold Hearth [cold_hearth]
+== Hearthstead (safe) lv1-1 | 16:00 day | at -2,10 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 84/84 | XP 0/400 | 0c | rested 0 | bags 3/36
+Quests (1/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 22m N (2,-12)
+NPCs:
+    Old Brannoc <Hearthkeeper> 4m SW (-4,14)
+  ! Tilda <Cook> 9m NW (-7,2) offers: meat_for_the_pot [vendor]
+    Hollis <Smith> 14m E (12,7) [vendor]
+    Captain Maren <Captain of the Watch> 22m N (2,-12)
+    Sergeant Holt <The North Watch> 59m N (2,-49)
+Creatures within 60m (6):
+  #246 Grazer lv1 25/25 48m E
+  #226 Grazer lv2 32/32 50m SW
+  #227 Grazer lv1 25/25 53m SW
+  #247 Ashcloak Bandit lv5 95/95 55m NE hostile
+  #237 Ashcloak Bandit lv6 108/108 59m E hostile
+  #234 Grazer lv1 25/25 60m W
+Players near: Botgvk01gri 37m SW, Botgvk03com 39m N, Botgvk00com 25m NW
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> accept meat
+accept at Tilda: done (talked) in 1 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  in progress: [meat_for_the_pot]
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+Events:
+  Quest accepted: Meat for the Pot [meat_for_the_pot]
+== Hearthstead (safe) lv1-1 | 16:00 day | at -5,6 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 84/84 | XP 0/400 | 0c | rested 0 | bags 3/36
+Quests (2/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 19m N (2,-12)
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/4 -> Raw meat (dropped by Grazer) 50m SW (-43,38)
+NPCs:
+    Tilda <Cook> 4m NW (-7,2) [vendor]
+    Old Brannoc <Hearthkeeper> 8m S (-4,14)
+    Hollis <Smith> 17m E (12,7) [vendor]
+    Captain Maren <Captain of the Watch> 19m N (2,-12)
+    Sergeant Holt <The North Watch> 55m N (2,-49)
+Creatures within 60m (5):
+  #226 Grazer lv2 32/32 50m SW
+  #246 Grazer lv1 25/25 52m E
+  #227 Grazer lv1 25/25 52m SW
+  #247 Ashcloak Bandit lv5 95/95 56m E hostile
+  #234 Grazer lv1 25/25 59m SW
+Players near: Botgvk01gri 39m SW, Botgvk03com 28m N, Botgvk00com 21m NW
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> goto maren
+goto Captain Maren: done (arrived) in 3 s
+== Hearthstead (safe) lv1-1 | 16:00 day | at 1,-9 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 84/84 | XP 0/400 | 0c | rested 0 | bags 3/36
+Quests (2/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 3m N (2,-12)
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/4 -> Raw meat (dropped by Grazer) 49m NE (31,-48)
+NPCs:
+    Captain Maren <Captain of the Watch> 3m N (2,-12)
+    Tilda <Cook> 14m SW (-7,2) [vendor]
+    Hollis <Smith> 19m SE (12,7) [vendor]
+    Old Brannoc <Hearthkeeper> 24m S (-4,14)
+    Sergeant Holt <The North Watch> 40m N (2,-49)
+Creatures within 60m (7):
+  #150 Grazer lv1 25/25 49m NE
+  #247 Ashcloak Bandit lv5 95/95 49m E hostile
+  #246 Grazer lv1 25/25 51m SE
+  #237 Ashcloak Bandit lv6 108/108 52m E hostile
+  #245 Grazer lv2 32/32 58m NW
+  #151 Grazer lv2 15/32 59m NE
+  #250 Grazer lv1 25/25 60m SE
+Players near: Botgvk01gri 40m SW, Botgvk03com 18m N, Botgvk02exp 33m NW, Botgvk00com 19m W
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> talk maren
+talk Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  ready to turn in: [cold_hearth] choices: none
+Events:
+  Progress: The Cold Hearth: talk to Captain Maren (done)
+== Hearthstead (safe) lv1-1 | 16:00 day | at 1,-9 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 84/84 | XP 0/400 | 0c | rested 0 | bags 3/36
+Quests (2/20):
+  [cold_hearth] READY The Cold Hearth: talk to Captain Maren (done) -> turn in to Captain Maren 3m N (2,-12)
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/4 -> Raw meat (dropped by Grazer) 49m NE (31,-48)
+NPCs:
+  ? Captain Maren <Captain of the Watch> 3m N (2,-12) turn in: cold_hearth
+    Tilda <Cook> 14m SW (-7,2) [vendor]
+    Hollis <Smith> 19m SE (12,7) [vendor]
+    Old Brannoc <Hearthkeeper> 24m S (-4,14)
+    Sergeant Holt <The North Watch> 40m N (2,-49)
+Creatures within 60m (8):
+  #150 Grazer lv1 25/25 49m NE
+  #246 Grazer lv1 25/25 49m SE
+  #237 Ashcloak Bandit lv6 108/108 51m E hostile
+  #247 Ashcloak Bandit lv5 95/95 53m E hostile
+  #251 Grazer lv1 25/25 54m SE
+  #151 Grazer lv2 15/32 57m NE
+  #245 Grazer lv2 32/32 59m NW
+Players near: Botgvk03com 38m N, Botgvk02exp 26m NW, Botgvk00com 17m S
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> turnin cold_hearth
+turn in at Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  offers [thin_the_herd] Thinning the Herd (lv2): The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 8 of them should do.
+    objectives: kill 8 Grazer | reward: 280 xp, 60c, choose one: 1=Watch Longsword 2=Keen Dagger 3=Ashwood Longbow 4=Acolyte's Rod
+Events:
+  QUEST COMPLETE: The Cold Hearth
+== Hearthstead (safe) lv1-1 | 16:00 day | at 1,-9 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 84/84 | XP 120/400 | 10c | rested 0 | bags 3/36
+Quests (1/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/4 -> Raw meat (dropped by Grazer) 49m NE (31,-48)
+NPCs:
+  ! Captain Maren <Captain of the Watch> 3m N (2,-12) offers: thin_the_herd
+    Tilda <Cook> 14m SW (-7,2) [vendor]
+    Hollis <Smith> 19m SE (12,7) [vendor]
+  ! Old Brannoc <Hearthkeeper> 24m S (-4,14) offers: kindling
+    Sergeant Holt <The North Watch> 40m N (2,-49)
+Creatures within 60m (8):
+  #246 Grazer lv1 25/25 49m SE
+  #150 Grazer lv1 25/25 49m NE
+  #237 Ashcloak Bandit lv6 108/108 50m E hostile
+  #247 Ashcloak Bandit lv5 95/95 53m E hostile
+  #251 Grazer lv1 25/25 54m SE
+  #151 Grazer lv2 15/32 57m NE
+  #245 Grazer lv2 32/32 59m NW
+Players near: Botgvk02exp 23m NW, Botgvk00com 19m S
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> accept all
+accept at Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  in progress: [thin_the_herd]
+Events:
+  Quest accepted: Thinning the Herd [thin_the_herd]
+== Hearthstead (safe) lv1-1 | 16:00 day | at 1,-9 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 84/84 | XP 120/400 | 10c | rested 0 | bags 3/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/4 -> Raw meat (dropped by Grazer) 48m SE (43,14)
+  [thin_the_herd] Thinning the Herd: Grazer 0/8 -> kill Grazer 48m SE (43,14)
+NPCs:
+    Captain Maren <Captain of the Watch> 3m N (2,-12)
+    Tilda <Cook> 14m SW (-7,2) [vendor]
+    Hollis <Smith> 19m SE (12,7) [vendor]
+  ! Old Brannoc <Hearthkeeper> 24m S (-4,14) offers: kindling
+    Sergeant Holt <The North Watch> 40m N (2,-49)
+Creatures within 60m (8):
+  #246 Grazer lv1 25/25 48m SE [quest]
+  #150 Grazer lv1 25/25 49m NE [quest]
+  #237 Ashcloak Bandit lv6 108/108 49m E hostile
+  #247 Ashcloak Bandit lv5 95/95 53m E hostile
+  #251 Grazer lv1 25/25 54m SE [quest]
+  #151 Grazer lv2 15/32 57m NE [quest]
+  #245 Grazer lv2 32/32 59m NW [quest]
+Players near: Botgvk02exp 20m NW, Botgvk00com 19m S
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> attack grazer
+fight Grazer #246: done (it died) in 7 s, +50 xp (took 0 damage, 2 casts)
+Events:
+  Killed Grazer (+0 xp)
+  Progress: Thinning the Herd: Grazer 1/8
+== Hearthstead (safe) lv1-1 | 16:00 day | at 23,0 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 65/84 | XP 170/400 | 10c | rested 0 | bags 3/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/4 -> Raw meat (dropped by Grazer) 31m SE (39,26)
+  [thin_the_herd] Thinning the Herd: Grazer 1/8 -> kill Grazer 31m SE (39,26)
+NPCs:
+    Hollis <Smith> 13m SW (12,7) [vendor]
+    Captain Maren <Captain of the Watch> 24m NW (2,-12)
+    Tilda <Cook> 30m W (-7,2) [vendor]
+  ! Old Brannoc <Hearthkeeper> 30m SW (-4,14) offers: kindling
+    Sergeant Holt <The North Watch> 53m NW (2,-49)
+Creatures within 60m (10):
+  #237 Ashcloak Bandit lv6 108/108 28m E hostile
+  #251 Grazer lv1 25/25 31m SE [quest]
+  #247 Ashcloak Bandit lv5 95/95 35m NE hostile
+  #250 Grazer lv1 25/25 36m SE [quest]
+  #253 Grazer lv2 32/32 40m NE [quest]
+  #252 Grazer lv1 25/25 43m SE [quest]
+  #249 Grazer lv2 32/32 49m NE [quest]
+Lootable corpses: Grazer corpse #255 22m SE
+Players near: Botgvk02exp 32m SW, Botgvk00com 35m NW
+Bags: Wooden pickaxe, Wooden axe, Berries x5 | junk worth 0c
+[ready]
+> loot
+loot: done (nothing left) in 5 s
+Events:
+  Entered The East Road
+  +1 Raw meat
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 1/4
+== The East Road lv4-6 | 16:00 day | at 44,11 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 67/84 | XP 170/400 | 10c | rested 0 | bags 4/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 1/4 -> Raw meat (dropped by Grazer) 12m S (48,22)
+  [thin_the_herd] Thinning the Herd: Grazer 1/8 -> kill Grazer 12m S (48,22)
+NPCs:
+    Hollis <Smith> 32m W (12,7) [vendor]
+    Captain Maren <Captain of the Watch> 48m NW (2,-12)
+  ! Old Brannoc <Hearthkeeper> 48m W (-4,14) offers: kindling
+    Tilda <Cook> 52m W (-7,2) [vendor]
+Creatures within 60m (11):
+  #237 Ashcloak Bandit lv6 108/108 6m N hostile
+  #250 Grazer lv1 25/25 13m SE [quest]
+  #251 Grazer lv1 25/25 15m S [quest]
+  #252 Grazer lv1 25/25 19m SE [quest]
+  #247 Ashcloak Bandit lv5 95/95 31m N hostile
+  #253 Grazer lv2 32/32 35m N [quest]
+  #41 Ashcloak Bandit lv5 95/95 42m S hostile
+Lootable corpses: Grazer corpse #216 15m S
+Bags: Wooden pickaxe, Wooden axe, Berries x5, Raw meat | junk worth 0c
+[ready]
+> attack grazer
+fight Grazer #251: done (it died) in 3 s, +50 xp (took 0 damage, 2 casts)
+Events:
+  Dusk is coming. Find light.
+  Nightfall: Shades gather at the north gate of Hearthstead!
+  World event: Nightfall Incursion
+  Killed Grazer (+0 xp)
+  Progress: Thinning the Herd: Grazer 2/8
+== The East Road lv4-6 | 17:00 day | at 44,11 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 65/84 | XP 220/400 | 10c | rested 0 | bags 4/36
+World event: Nightfall Incursion: Shades gather at the north gate. Hold it!
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 1/4 -> Raw meat (dropped by Grazer) 12m S (48,22)
+  [thin_the_herd] Thinning the Herd: Grazer 2/8 -> kill Grazer 12m S (48,22)
+NPCs:
+    Hollis <Smith> 32m W (12,7) [vendor]
+    Captain Maren <Captain of the Watch> 48m NW (2,-12)
+  ! Old Brannoc <Hearthkeeper> 48m W (-4,14) offers: kindling
+    Tilda <Cook> 52m W (-7,2) [vendor]
+Creatures within 60m (12):
+  #237 Ashcloak Bandit lv6 108/108 5m N hostile
+  #250 Grazer lv1 25/25 14m E [quest]
+  #252 Grazer lv1 25/25 16m SE [quest]
+  #253 Grazer lv2 32/32 37m N [quest]
+  #247 Ashcloak Bandit lv5 95/95 37m N hostile
+  #41 Ashcloak Bandit lv5 95/95 48m SE hostile
+  #249 Grazer lv2 32/32 50m N [quest]
+Lootable corpses: Grazer corpse #216 15m S; Grazer corpse #266 6m SW
+Bags: Wooden pickaxe, Wooden axe, Berries x5, Raw meat | junk worth 0c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +2 White
+  +1 Raw meat
+  You receive loot: White ×2
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 2/4
+== The East Road lv4-6 | 17:00 day | at 43,13 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 65/84 | XP 220/400 | 10c | rested 0 | bags 5/36
+World event: Nightfall Incursion: Shades gather at the north gate. Hold it!
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 2/4 -> Raw meat (dropped by Grazer) 10m SE (48,22)
+  [thin_the_herd] Thinning the Herd: Grazer 2/8 -> kill Grazer 10m SE (48,22)
+NPCs:
+    Hollis <Smith> 31m W (12,7) [vendor]
+  ! Old Brannoc <Hearthkeeper> 47m W (-4,14) offers: kindling
+    Captain Maren <Captain of the Watch> 48m NW (2,-12)
+    Tilda <Cook> 51m W (-7,2) [vendor]
+Creatures within 60m (11):
+  #237 Ashcloak Bandit lv6 108/108 7m N hostile
+  #252 Grazer lv1 25/25 16m SE [quest]
+  #250 Grazer lv1 25/25 16m E [quest]
+  #247 Ashcloak Bandit lv5 95/95 39m N hostile
+  #253 Grazer lv2 32/32 39m N [quest]
+  #41 Ashcloak Bandit lv5 95/95 46m SE hostile
+  #45 Ashcloak Bandit lv6 108/108 49m S hostile
+Lootable corpses: Grazer corpse #216 13m S
+Bags: Wooden pickaxe, Wooden axe, Berries x5, Raw meat x2, White x2 | junk worth 0c
+[ready]
+> attack grazer
+fight Grazer #252: done (it died) in 3 s, +50 xp (took 0 damage, 3 casts)
+Events:
+  Wave 1 of 3 pours out of the dark!
+  Killed Grazer (+0 xp)
+  Progress: Thinning the Herd: Grazer 3/8
+== The East Road lv4-6 | 17:00 day | at 43,13 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 47/84 | XP 270/400 | 10c | rested 0 | bags 5/36
+World event: Nightfall Incursion: Wave 1 of 3: 0 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 2/4 -> Raw meat (dropped by Grazer) 10m SE (48,22)
+  [thin_the_herd] Thinning the Herd: Grazer 3/8 -> kill Grazer 10m SE (48,22)
+NPCs:
+    Hollis <Smith> 31m W (12,7) [vendor]
+  ! Old Brannoc <Hearthkeeper> 47m W (-4,14) offers: kindling
+    Captain Maren <Captain of the Watch> 48m NW (2,-12)
+    Tilda <Cook> 51m W (-7,2) [vendor]
+Creatures within 60m (10):
+  #237 Ashcloak Bandit lv6 108/108 7m N hostile
+  #250 Grazer lv1 25/25 17m E [quest]
+  #247 Ashcloak Bandit lv5 95/95 39m N hostile
+  #253 Grazer lv2 32/32 39m N [quest]
+  #41 Ashcloak Bandit lv5 95/95 45m SE hostile
+  #45 Ashcloak Bandit lv6 108/108 46m S hostile
+  #249 Grazer lv2 32/32 50m N [quest]
+Lootable corpses: Grazer corpse #216 13m S
+Bags: Wooden pickaxe, Wooden axe, Berries x5, Raw meat x2, White x2 | junk worth 0c
+[ready]
+> loot
+loot: done (nothing left) in 3 s
+Events:
+  +1 Raw meat
+  +1 Torn Grazer Hide
+  You receive loot: Torn Grazer Hide
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 3/4
+== The East Road lv4-6 | 17:00 day | at 39,26 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 48/84 | XP 270/400 | 10c | rested 0 | bags 6/36
+World event: Nightfall Incursion: Wave 1 of 3: 5 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 3/4 -> Raw meat (dropped by Grazer) 10m NE (48,22)
+  [thin_the_herd] Thinning the Herd: Grazer 3/8 -> kill Grazer 10m NE (48,22)
+NPCs:
+    Hollis <Smith> 33m NW (12,7) [vendor]
+  ! Old Brannoc <Hearthkeeper> 45m W (-4,14) offers: kindling
+    Tilda <Cook> 52m NW (-7,2) [vendor]
+    Captain Maren <Captain of the Watch> 53m NW (2,-12)
+Creatures within 60m (11):
+  #237 Ashcloak Bandit lv6 108/108 20m N hostile
+  #250 Grazer lv1 25/25 27m NE [quest]
+  #45 Ashcloak Bandit lv6 108/108 31m SE hostile
+  #41 Ashcloak Bandit lv5 95/95 34m SE hostile
+  #71 Ashcloak Bandit lv6 108/108 51m E hostile
+  #253 Grazer lv2 32/32 52m N [quest]
+  #47 Ashcloak Bandit lv4 83/83 53m SE hostile
+Bags: Wooden pickaxe, Wooden axe, Berries x5, Raw meat x3, White x2, Torn Grazer Hide | junk worth 9c
+[ready]
+> attack grazer
+fight Grazer #250: done (it died) in 3 s, +50 xp (took 0 damage, 2 casts)
+Events:
+  Killed Grazer (+0 xp)
+  Progress: Thinning the Herd: Grazer 4/8
+== The East Road lv4-6 | 17:00 day | at 41,26 (from hearth; north is -z)
+Claudia lv1 Priest | HP 45/45 | Mana 30/84 | XP 320/400 | 10c | rested 0 | bags 6/36
+World event: Nightfall Incursion: Wave 1 of 3: 7 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 3/4 -> Raw meat (dropped by Grazer) 8m NE (48,22)
+  [thin_the_herd] Thinning the Herd: Grazer 4/8 -> kill Grazer 8m NE (48,22)
+NPCs:
+    Hollis <Smith> 35m NW (12,7) [vendor]
+  ! Old Brannoc <Hearthkeeper> 47m W (-4,14) offers: kindling
+    Tilda <Cook> 54m NW (-7,2) [vendor]
+    Captain Maren <Captain of the Watch> 55m NW (2,-12)
+Creatures within 60m (12):
+  #237 Ashcloak Bandit lv6 108/108 20m N hostile
+  #45 Ashcloak Bandit lv6 108/108 29m SE hostile
+  #41 Ashcloak Bandit lv5 95/95 33m SE hostile
+  #71 Ashcloak Bandit lv6 108/108 49m E hostile

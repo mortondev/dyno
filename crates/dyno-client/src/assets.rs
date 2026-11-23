@@ -32,6 +32,40 @@ pub fn insert(path: &str, bytes: impl Into<Arc<[u8]>>) {
         .write()
         .unwrap()
         .insert(path.to_string(), bytes.into());
+    GENERATION.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+}
+
+static GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Goes up with every file added or replaced, so users of the store can
+/// tell cheaply when to look again.
+pub fn generation() -> u64 {
+    GENERATION.load(std::sync::atomic::Ordering::Acquire)
+}
+
+/// Until the server streams the pack: load the local `content/` directory
+/// if nothing is in the store yet. Looks in the working directory, next to
+/// the executable, then in the source tree (dev builds and tests).
+pub fn load_local_pack() -> usize {
+    if !store().read().unwrap().is_empty() {
+        return 0;
+    }
+    let mut dirs = vec![std::path::PathBuf::from("content")];
+    if let Some(d) = std::env::current_exe()
+        .ok()
+        .and_then(|e| Some(e.parent()?.join("content")))
+    {
+        dirs.push(d);
+    }
+    dirs.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content"));
+    for d in dirs {
+        if d.join("blocks.json").is_file()
+            && let Ok(n) = load_dir(&d)
+        {
+            return n;
+        }
+    }
+    0
 }
 
 /// Every path under a directory prefix ("models/").

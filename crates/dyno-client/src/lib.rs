@@ -7,6 +7,7 @@ pub mod audio;
 pub(crate) mod detail;
 pub mod front;
 pub mod game;
+pub mod look;
 pub mod minimap;
 pub use dyno_world::light;
 pub mod models;
@@ -29,5 +30,6 @@ pub mod voxmodel;
 
 /// Open the game window. `prefill` sets the server address field.
 pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
+    assets::load_local_pack();
     app::run(prefill, update_note)
 }

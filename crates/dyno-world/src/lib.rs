@@ -848,6 +848,18 @@ impl World {
         -1
     }
 
+    /// The height of the ground at (x, z): the top solid block that is not
+    /// part of a tree (leaves and trunks), so nothing stands on a canopy.
+    pub fn ground(&self, x: i32, z: i32) -> i32 {
+        for y in (0..self.size[1] as i32).rev() {
+            let b = self.get(x, y, z);
+            if is_solid(b) && !is_leaves(b) && b != LOG && b != BIRCH_LOG {
+                return y;
+            }
+        }
+        -1
+    }
+
     /// Find a block within `r` columns of (x, z), at any height.
     pub fn find_near(&self, b: BlockId, x: i32, z: i32, r: i32) -> Option<[i32; 3]> {
         for dz in -r..=r {
