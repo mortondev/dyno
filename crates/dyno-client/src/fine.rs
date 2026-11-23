@@ -1529,21 +1529,26 @@ impl<'a> Fine<'a> {
         let sig = ((q.key >> 8) & 0xfff) as u32;
         let p = self.p;
         let strength = p.shade[(q.key & 0xff) as usize];
-        // a gentle slope's creases are softer than a cliff's
-        let gentle = if sig != 0 && p.shade_gentle > 0.0 {
-            let mid = [0, 1, 2].map(|a| (c[0][a] + c[2][a]) / 2);
-            let sl = self.slope_at(mid);
-            ((sl[1] - 0.55) / 0.35).clamp(0.0, 1.0) * p.shade_gentle
-        } else {
-            0.0
-        };
-        let strength = strength * (1.0 - gentle);
-        let mut shade = [0, 1, 2, 3].map(|k| {
+        // a gentle slope's creases are softer than a cliff's: decided per
+        // corner from the slope there (near a wall it tilts), so faces that
+        // share a corner agree
+        let mut shade = [0f32; 4];
+        for (k, out) in shade.iter_mut().enumerate() {
             let bits = sig >> (k * 3);
+            if bits & 7 == 0 {
+                *out = 1.0;
+                continue;
+            }
+            let gentle = if p.shade_gentle > 0.0 {
+                let sl = self.slope_at(c[k]);
+                ((sl[1] - 0.55) / 0.35).clamp(0.0, 1.0) * p.shade_gentle
+            } else {
+                0.0
+            };
             let a = p.ao[3 - (bits & 3) as usize];
             let a = if bits & 4 != 0 { a * p.lip } else { a };
-            1.0 + (a - 1.0) * strength
-        });
+            *out = 1.0 + (a - 1.0) * strength * (1.0 - gentle);
+        }
         if cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0 {
             c.swap(1, 3);
             shade.swap(1, 3);

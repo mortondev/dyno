@@ -1566,7 +1566,11 @@ mod tests {
         let tops: Vec<&Vertex> = geos
             .iter()
             .flat_map(|g| &g.ground)
-            .filter(|v| v.normal == [0.0, 1.0, 0.0] && (4.0..28.0).contains(&v.pos[2]))
+            // up-facing faces (from the face's direction: the normal may be
+            // bent towards the slope)
+            .filter(|v| {
+                ((v.tex[0] % 256.0) / 32.0).floor() == 2.0 && (4.0..28.0).contains(&v.pos[2])
+            })
             .collect();
         let foot = tops
             .iter()
