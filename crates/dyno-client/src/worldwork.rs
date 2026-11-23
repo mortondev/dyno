@@ -18,7 +18,7 @@
 use crate::render;
 use crate::terrain_mesh::SectionGeo;
 use dyno_world::light::{Light, SectionLight};
-use dyno_world::{BlockId, SECTION, SectionPos, World};
+use dyno_world::{BlockId, SECTION, SectionData, SectionPos, World};
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -26,7 +26,7 @@ use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, TryRecvError, channel}
 use std::time::{Duration, Instant};
 
 enum Job {
-    Put(Vec<(SectionPos, Vec<u8>)>),
+    Put(Vec<(SectionPos, SectionData)>),
     Drop(Vec<SectionPos>),
     Block([i32; 3], BlockId),
     Fill([i32; 3], [i32; 3], BlockId),
@@ -110,8 +110,9 @@ impl WorldWork {
         }
     }
 
-    /// Sections that arrived (the game has stored them in its own copy).
-    pub fn put(&mut self, list: Vec<(SectionPos, Vec<u8>)>) {
+    /// Sections that arrived (the game has stored them in its own copy;
+    /// the two copies share them).
+    pub fn put(&mut self, list: Vec<(SectionPos, SectionData)>) {
         if !list.is_empty() {
             self.send(Job::Put(list));
         }
@@ -220,7 +221,7 @@ impl Worker {
             Job::Put(list) => {
                 let now = Instant::now();
                 for (s, data) in list {
-                    if self.world.put_section(s, &data).is_ok() {
+                    if self.world.put_prepared(s, data).is_ok() {
                         self.built.remove(&s);
                         self.unlit.retain(|(u, _)| *u != s);
                         self.unlit.push((s, now));
@@ -351,6 +352,35 @@ impl Worker {
         true
     }
 
+    /// A section and its 26 neighbours all one block, open air or the same
+    /// opaque block: nothing in it is drawn.
+    fn nothing_to_draw(&self, s: SectionPos) -> bool {
+        let Some(b) = self.world.section_uniform(s) else {
+            return false;
+        };
+        if b != dyno_world::AIR && !dyno_world::is_opaque(b) {
+            return false;
+        }
+        let d = self.world.section_dims();
+        (-1..=1).all(|dy| {
+            (-1..=1).all(|dz| {
+                (-1..=1).all(|dx| {
+                    let n = [s[0] + dx, s[1] + dy, s[2] + dz];
+                    if (0..3).all(|i| n[i] >= 0 && n[i] < d[i]) {
+                        self.world.section_uniform(n) == Some(b)
+                    } else {
+                        // outside the world: air, or stone below it (as `get`)
+                        b == if n[1] < 0 {
+                            dyno_world::STONE
+                        } else {
+                            dyno_world::AIR
+                        }
+                    }
+                })
+            })
+        })
+    }
+
     /// Mesh a batch: edits first, then the most wanted of the rest. Returns
     /// the meshes made.
     fn mesh_some(&mut self) -> Vec<(SectionPos, SectionGeo)> {
@@ -362,22 +392,31 @@ impl Worker {
         self.urgent
             .retain(|s| ready(world, s) && !unlit.contains(s));
         self.todo.retain(|s| ready(world, s) && !unlit.contains(s));
-        let mut list: Vec<SectionPos> = self.urgent.iter().copied().collect();
-        list.sort_by(|a, b| self.priority(*a).total_cmp(&self.priority(*b)));
-        list.truncate(MESH_BATCH);
-        if list.len() < MESH_BATCH {
-            let mut rest: Vec<(f32, SectionPos)> = self
-                .todo
-                .iter()
-                .filter(|s| !list.contains(s))
-                .map(|s| (self.priority(*s), *s))
-                .collect();
-            rest.sort_by(|a, b| a.0.total_cmp(&b.0));
-            list.extend(
-                rest.into_iter()
-                    .take(MESH_BATCH - list.len())
-                    .map(|(_, s)| s),
-            );
+        // edits first, then the most wanted; sections with nothing to draw
+        // (the sky) cost nothing and do not count toward the batch
+        let mut urgent: Vec<SectionPos> = self.urgent.iter().copied().collect();
+        urgent.sort_by(|a, b| self.priority(*a).total_cmp(&self.priority(*b)));
+        let mut rest: Vec<(f32, SectionPos)> = self
+            .todo
+            .iter()
+            .filter(|s| !self.urgent.contains(*s))
+            .map(|s| (self.priority(*s), *s))
+            .collect();
+        rest.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let mut list = Vec::new();
+        let mut real = 0;
+        for s in urgent.into_iter().chain(rest.into_iter().map(|(_, s)| s)) {
+            if self.nothing_to_draw(s) {
+                if list.len() < 4096 {
+                    list.push(s);
+                }
+            } else if real < MESH_BATCH {
+                real += 1;
+                list.push(s);
+            }
+            if real >= MESH_BATCH && list.len() >= 4096 {
+                break;
+            }
         }
         if list.is_empty() {
             return Vec::new();
@@ -387,8 +426,15 @@ impl Worker {
             self.todo.remove(s);
             self.built.insert(*s);
         }
-        let geos = render::mesh_many(&self.world, &self.light, &list);
-        list.into_iter().zip(geos).collect()
+        // the open sky, and rock all round, draw nothing: no need to mesh
+        let (empty, solid): (Vec<SectionPos>, Vec<SectionPos>) =
+            list.into_iter().partition(|s| self.nothing_to_draw(*s));
+        let geos = render::mesh_many(&self.world, &self.light, &solid);
+        empty
+            .into_iter()
+            .map(|s| (s, SectionGeo::default()))
+            .chain(solid.into_iter().zip(geos))
+            .collect()
     }
 
     fn has_work(&self) -> bool {
@@ -483,14 +529,14 @@ mod tests {
         }
         let mut work = WorldWork::start(game.clone());
         let mut light = Light::blank(&game);
-        let rest: Vec<(SectionPos, Vec<u8>)> = world
+        let rest: Vec<(SectionPos, SectionData)> = world
             .held_list()
             .into_iter()
             .filter(|s| s[0] >= 2)
-            .map(|s| (s, world.encode_section(s)))
+            .map(|s| (s, World::prepare_section(&world.encode_section(s)).unwrap()))
             .collect();
         for (s, d) in &rest {
-            game.put_section(*s, d).unwrap();
+            game.put_prepared(*s, d.clone()).unwrap();
         }
         work.focus([32.0, 30.0, 32.0], [0.0, 0.0, -1.0]);
         work.put(rest);
