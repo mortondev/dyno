@@ -6,7 +6,7 @@ use glam::Vec3;
 use std::collections::HashMap;
 use std::time::Instant;
 
-pub use dyno_sim::movement::{EYE, Input, Player};
+pub use dyno_sim::movement::{EYE, Input, Player, apply_rules};
 pub const REACH: f32 = 7.0;
 
 /// The pose a player reports (until movement is fully server-side).

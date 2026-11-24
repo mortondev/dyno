@@ -386,8 +386,7 @@ impl State {
         let name = self.content.item(item).name.to_string();
         let p = self.players.get_mut(&pid).unwrap();
         p.money -= price;
-        p.pose.pos = to;
-        p.send(&ServerMsg::Teleport { pos: to });
+        p.put(to);
         p.send(&ServerMsg::System {
             text: format!(
                 "{name}: you pay {} and climb aboard.",

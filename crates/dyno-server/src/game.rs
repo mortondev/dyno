@@ -59,8 +59,8 @@ pub struct Player {
     pub rested: u32,
     /// my party, by name (kept up to date by the server)
     pub party: Vec<String>,
-    /// keeps movement honest
-    pub moves: crate::movement::MoveCheck,
+    /// the body, run by the server from the client's steps (movement.rs)
+    pub moves: crate::movement::Moves,
     /// the phases this player is in, one bit each
     pub phases: u64,
     /// rested XP not yet a whole point
@@ -124,6 +124,14 @@ impl Player {
     }
     pub(crate) fn send(&self, msg: &ServerMsg) {
         let _ = self.tx.send(Arc::new(proto::encode(msg)));
+    }
+    /// Move this player (a teleport, a ride, a respawn): the body is put
+    /// there and the client told (`Teleport`).
+    pub fn put(&mut self, pos: [f32; 3]) {
+        self.pose.pos = pos;
+        self.moves.put(pos);
+        self.moves.teleports = self.moves.teleports.wrapping_add(1);
+        self.send(&ServerMsg::Teleport { pos });
     }
     pub(crate) fn status(&self) -> ServerMsg {
         ServerMsg::Status {
@@ -786,7 +794,7 @@ impl State {
             money: data.money,
             rested: rested_now,
             discovered: data.discovered.iter().cloned().collect(),
-            moves: crate::movement::MoveCheck::new(data.pos),
+            moves: crate::movement::Moves::new(data.pos, self.content.world.protected, data.mode),
             party: Vec::new(),
             phases: 0,
             rested_carry: 0.0,
@@ -1096,20 +1104,24 @@ impl State {
             return Ok(());
         }
         match msg {
+            // where you are comes from the server (movement.rs): a pose is
+            // taken only in build mode, or where movement is trusted (tests)
             ClientMsg::Pose(pose) => {
-                let p = self.players.get_mut(&id).unwrap();
-                let ok = pose
+                if pose
                     .pos
                     .iter()
                     .chain([pose.yaw, pose.pitch].iter())
                     .all(|v| v.is_finite())
-                    && !p.dead;
-                if ok && self.check_pose(id, pose) {
-                    let p = self.players.get_mut(&id).unwrap();
-                    p.pose = pose;
-                    p.last_pose_at = Instant::now();
+                {
+                    self.take_pose(id, pose);
                 }
             }
+            ClientMsg::Steps {
+                seq,
+                teleports,
+                pitch,
+                steps,
+            } => self.take_steps(id, seq, teleports, pitch, &steps),
             ClientMsg::Held { slot } => {
                 if slot < 9 {
                     self.players.get_mut(&id).unwrap().held = slot;
@@ -1543,6 +1555,9 @@ impl State {
         let p = self.players.get_mut(&id).unwrap();
         p.health = (p.health - amount).max(0.0);
         p.combat_until = Instant::now() + Duration::from_secs(6);
+        // knockback moves the body the server runs (the client learns of it in `Moved`)
+        p.moves.body.vel += glam::Vec3::from(push);
+        p.moves.changed = true;
         p.send(&ServerMsg::Hurt { amount, push });
         p.send(&p.status());
         if p.health <= 0.0 {
@@ -1569,8 +1584,7 @@ impl State {
         p.health = (sheet_max * 0.6).round();
         p.safe_until = Instant::now() + Duration::from_secs(10);
         let to = p.spawn.unwrap_or(spawn);
-        p.pose.pos = to;
-        p.send(&ServerMsg::Teleport { pos: to });
+        p.put(to);
         p.send(&p.status());
         self.broadcast(
             &ServerMsg::Act {
@@ -1666,10 +1680,12 @@ impl State {
             self.tick_trades();
         }
         self.tick_loot(dt);
+        self.tick_moves();
         self.tick_creatures(dt);
         self.tick_routines(dt);
         self.spawn_creatures(dt);
         self.tick_players(dt);
+        self.send_moved();
     }
 
     fn tick_items(&mut self, dt: f32) {

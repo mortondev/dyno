@@ -333,10 +333,9 @@ impl State {
                     .spawn
                     .unwrap_or_else(|| self.spawn_point());
                 let p = self.players.get_mut(&id).unwrap();
-                p.pose.pos = to;
+                p.put(to);
                 p.cooldowns
                     .insert(RECALL, now + Duration::from_secs_f32(RECALL_COOLDOWN));
-                p.send(&ServerMsg::Teleport { pos: to });
                 self.send_cooldowns(id);
                 continue;
             }
@@ -394,8 +393,7 @@ impl State {
                 tp[1].max(me[1]),
                 me[2] + (tp[2] - me[2]) * k,
             ];
-            p.pose.pos = to;
-            p.send(&ServerMsg::Teleport { pos: to });
+            p.put(to);
         }
         if a.cooldown > 0.0 {
             p.cooldowns
@@ -680,9 +678,8 @@ impl State {
                 None,
             );
             if let Some(p) = self.players.get_mut(&id) {
-                p.pose.pos = to;
+                p.put(to);
                 p.casting = None;
-                p.send(&ServerMsg::Teleport { pos: to });
             }
         }
         self.send_power(id);

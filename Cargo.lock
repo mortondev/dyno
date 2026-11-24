@@ -850,6 +850,7 @@ dependencies = [
  "dyno-protocol",
  "dyno-sim",
  "dyno-world",
+ "glam",
  "postcard",
  "protobuf",
  "raft",

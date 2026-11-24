@@ -5,6 +5,7 @@
 
 use dyno_world::{self as w, World};
 use glam::{Mat4, Vec3};
+use serde::{Deserialize, Serialize};
 
 pub const EYE: f32 = 1.62;
 const HALF_W: f32 = 0.3;
@@ -15,7 +16,7 @@ pub const GRAVITY: f32 = 15.7;
 /// A jump that clears about 0.6 m, like a real running jump onto a ledge.
 pub const JUMP: f32 = 4.35;
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct Input {
     pub forward: f32,
     pub right: f32,
@@ -24,6 +25,7 @@ pub struct Input {
     pub sprint: bool,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Player {
     /// Feet position.
     pub pos: Vec3,
@@ -40,7 +42,95 @@ pub struct Player {
     pub run_speed: f32,
 }
 
+/// The longest step a client may send: longer frames are split.
+pub const MAX_STEP_MS: u8 = 50;
+
+/// One step of a player's movement as it travels from client to server
+/// (docs/design/netcode.md): how long it lasts, the movement keys, and the
+/// facing. Both sides run [`Player::step`] on exactly these numbers, so the
+/// client's prediction and the server's simulation agree.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Step {
+    /// milliseconds, 1 to [`MAX_STEP_MS`]
+    pub ms: u8,
+    /// -127..=127 for -1..=1
+    pub forward: i8,
+    pub right: i8,
+    /// [`Step::JUMP`], [`Step::DOWN`], [`Step::SPRINT`]
+    pub keys: u8,
+    /// facing, a whole turn in 65536 parts
+    pub yaw: u16,
+}
+
+impl Step {
+    pub const JUMP: u8 = 1;
+    pub const DOWN: u8 = 2;
+    pub const SPRINT: u8 = 4;
+
+    /// The step for `ms` milliseconds of `input` facing `yaw` (radians),
+    /// rounded to what the wire carries.
+    pub fn new(ms: u8, input: Input, yaw: f32) -> Step {
+        let axis = |v: f32| (v.clamp(-1.0, 1.0) * 127.0).round() as i8;
+        let turn = yaw.rem_euclid(std::f32::consts::TAU) / std::f32::consts::TAU;
+        Step {
+            ms: ms.clamp(1, MAX_STEP_MS),
+            forward: axis(input.forward),
+            right: axis(input.right),
+            keys: (input.jump as u8) * Step::JUMP
+                | (input.down as u8) * Step::DOWN
+                | (input.sprint as u8) * Step::SPRINT,
+            yaw: ((turn * 65536.0).round() as u32 & 0xffff) as u16,
+        }
+    }
+
+    pub fn input(&self) -> Input {
+        Input {
+            forward: (self.forward.max(-127) as f32) / 127.0,
+            right: (self.right.max(-127) as f32) / 127.0,
+            jump: self.keys & Step::JUMP != 0,
+            down: self.keys & Step::DOWN != 0,
+            sprint: self.keys & Step::SPRINT != 0,
+        }
+    }
+
+    pub fn yaw(&self) -> f32 {
+        self.yaw as f32 * (std::f32::consts::TAU / 65536.0)
+    }
+
+    pub fn dt(&self) -> f32 {
+        self.ms.clamp(1, MAX_STEP_MS) as f32 / 1000.0
+    }
+
+    /// Standing still (no keys), facing as before.
+    pub fn idle(ms: u8, yaw: u16) -> Step {
+        Step {
+            ms: ms.clamp(1, MAX_STEP_MS),
+            yaw,
+            ..Default::default()
+        }
+    }
+}
+
+/// How a world's rules move a player: RPG worlds (`protected`) run at 6.2
+/// and step up ledges; only build mode flies. Client, bots and server all
+/// set the player up with this, so they simulate the same body.
+pub fn apply_rules(p: &mut Player, protected: bool, build: bool) {
+    if protected && !build {
+        p.auto_step = true;
+        p.run_speed = 6.2;
+    }
+    if !build {
+        p.flying = false;
+    }
+}
+
 impl Player {
+    /// Run one [`Step`]: face its way, then move for its time.
+    pub fn step(&mut self, world: &World, step: Step) {
+        self.yaw = step.yaw();
+        self.update(world, step.input(), step.dt());
+    }
+
     pub fn new(spawn: [f32; 3]) -> Self {
         Player {
             pos: spawn.into(),

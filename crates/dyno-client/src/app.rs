@@ -161,7 +161,12 @@ struct Play {
     my_id: PlayerId,
     server_version: String,
     url: String,
+    /// the character as drawn: the predicted body plus any correction
+    /// still being eased away (`body`, `pred`)
     player: Player,
+    /// the body this client predicts and the server runs (predict.rs)
+    body: Player,
+    pred: crate::predict::Predictor,
     remotes: Remotes,
     /// everyone's animation state
     anims: Anims,
@@ -1602,6 +1607,8 @@ fn new_play(j: Joined) -> Play {
     let hearth = Some(j.hearth);
     Play {
         player: Player::new(j.spawn),
+        body: Player::new(j.spawn),
+        pred: Default::default(),
         anims: Anims::default(),
         remotes: j
             .players
@@ -2428,8 +2435,18 @@ impl App {
                             self.audio.play(&m, gain);
                         }
                         ServerMsg::Pong { nonce, tick } => p.debug.pong(nonce, tick),
+                        ServerMsg::Moved {
+                            seq,
+                            pos,
+                            vel,
+                            ground,
+                        } => {
+                            if !p.creative() {
+                                p.pred.ack(&mut p.body, &p.world, seq, pos, vel, ground);
+                            }
+                        }
                         ServerMsg::Teleport { pos } => {
-                            p.debug.corrections += 1;
+                            p.pred.teleport(&mut p.body, pos);
                             p.player.pos = Vec3::from(pos);
                             p.player.vel = Vec3::ZERO;
                             p.fall_from = None;
@@ -2847,7 +2864,10 @@ impl App {
                         ServerMsg::Hurt { amount, push } => {
                             animate_blow(p);
                             p.hurt_flash = (0.4 + amount * 0.08).min(1.0);
-                            p.player.vel += Vec3::from(push);
+                            // the knockback comes in the server's `Moved`
+                            if p.creative() {
+                                p.player.vel += Vec3::from(push);
+                            }
                             self.audio
                                 .play("combat.hurt", (0.5 + amount * 0.05).min(1.0));
                         }
@@ -3053,8 +3073,6 @@ impl App {
                     && p.dead.is_none()
             };
             if wow {
-                p.player.auto_step = true;
-                p.player.run_speed = 6.2;
                 // A and D turn unless steering with the right button; Q and E always strafe
                 if active && !p.rmb {
                     let turn = (k(KeyCode::KeyA) as i32 - k(KeyCode::KeyD) as i32) as f32;
@@ -3085,10 +3103,26 @@ impl App {
                 Input::default()
             };
             let before = p.player.pos;
-            if !p.creative() {
-                p.player.flying = false;
+            let protected = p.content.world.protected;
+            if p.creative() {
+                dyno_sim::movement::apply_rules(&mut p.player, protected, true);
+                p.player.update(&p.world, input, dt);
+                p.body = p.player;
+            } else {
+                // predicted at once; the server runs the same steps (predict.rs)
+                dyno_sim::movement::apply_rules(&mut p.body, protected, false);
+                p.pred
+                    .advance(&mut p.body, &p.world, input, p.player.yaw, dt);
+                let (yaw, pitch) = (p.player.yaw, p.player.pitch);
+                p.player = p.body;
+                p.player.pos = p.pred.drawn(&p.body);
+                p.player.yaw = yaw;
+                p.player.pitch = pitch;
+                if let Some(m) = p.pred.flush(pitch) {
+                    let _ = p.conn.tx.send(m);
+                }
             }
-            p.player.update(&p.world, input, dt);
+            p.debug.net = p.pred.stats;
             p.hurt_flash = (p.hurt_flash - dt * 1.5).max(0.0);
             if p.title
                 .as_ref()
@@ -3177,7 +3211,7 @@ impl App {
             };
             p.fov_kick += (kick_target - p.fov_kick) * (dt * 8.0).min(1.0);
             p.swing = (p.swing - dt * 4.0).max(0.0);
-            if p.last_pose.elapsed() >= Duration::from_millis(50) {
+            if p.creative() && p.last_pose.elapsed() >= Duration::from_millis(50) {
                 p.last_pose = Instant::now();
                 let _ = p.conn.tx.send(ClientMsg::Pose(p.player.pose()));
             }

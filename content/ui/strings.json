@@ -680,6 +680,8 @@
   "ping_value": "{ms} ms",
   "tick": "Server tick",
   "corrections": "Movement corrections",
+  "corrections_value": "{snaps} snapped, {eased} eased (last {cm} cm)",
+  "teleports": "Teleports",
   "drawn": "Entities drawn",
   "none": "…"
  }

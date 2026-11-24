@@ -1413,10 +1413,12 @@ fn crowded_areas_are_spread_across_shards() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The server keeps movement honest: walking is fine, teleporting and
-/// flying put you back where you stood.
+/// The server runs movement (docs/design/netcode.md): a pose from a player
+/// in play is not taken, steps sent faster than real time move you no
+/// faster than running, and holding jump never lifts you more than a jump.
 #[test]
-fn cheating_movement_is_put_back() {
+fn cheating_movement_is_impossible() {
+    use dyno_sim::movement::{Input, Step};
     let dir = std::env::temp_dir().join(format!("dyno-test-moves-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     let cfg = dyno_server::Config {
@@ -1430,43 +1432,111 @@ fn cheating_movement_is_put_back() {
     let j = net::connect(&addr, "mover", 3001, false, Duration::from_secs(5)).expect("join");
     let mut pack = vec![None; 36];
     let start = j.spawn;
-    std::thread::sleep(Duration::from_millis(300));
-    // a short step is accepted: no correction comes back
-    pose(&j, [start[0] + 0.4, start[1], start[2]]);
-    let fixed = wait_opt(&j, &mut pack, 0.6, |m| {
-        matches!(m, ServerMsg::Teleport { .. }).then_some(())
-    });
-    assert_eq!(fixed, None, "walking is fine");
-    // a 40-block jump is refused and the player is put back
-    pose(&j, [start[0] + 40.0, start[1], start[2]]);
-    let back = wait(&j, &mut pack, 2.0, |m, _| match m {
-        ServerMsg::Teleport { pos } => Some(*pos),
-        _ => None,
-    });
-    assert!(
-        (back[0] - start[0]).abs() < 2.0,
-        "put back near the start: {back:?}"
-    );
-    // hanging high in the air for seconds is flying: back to the ground
-    std::thread::sleep(Duration::from_millis(1500));
-    let mut at = [start[0] + 0.4, start[1], start[2]];
-    let mut grounded = None;
-    for _ in 0..30 {
-        std::thread::sleep(Duration::from_millis(150));
-        if at[1] < start[1] + 8.0 {
-            at[1] += 1.0;
+    let moved = |j: &Joined, pack: &mut Vec<Option<Stack>>, secs: f32| {
+        wait(j, pack, secs, |m, _| match m {
+            ServerMsg::Moved { seq, pos, .. } => Some((*seq, *pos)),
+            _ => None,
+        })
+    };
+    // steps numbered on from the last sent; returns the last number
+    let next = std::cell::Cell::new(1u32);
+    let steps = |j: &Joined, steps: Vec<Step>| {
+        let seq = next.get();
+        next.set(seq + steps.len() as u32);
+        send(
+            j,
+            ClientMsg::Steps {
+                seq,
+                teleports: 0,
+                pitch: 0.0,
+                steps,
+            },
+        );
+        next.get() - 1
+    };
+    let idle = Step::new(20, Input::default(), 0.0);
+    // a client sends steps all the time, standing still too
+    let stand = |j: &Joined, secs: f32| {
+        let end = Instant::now() + Duration::from_secs_f32(secs);
+        while Instant::now() < end {
+            steps(j, vec![idle; 5]);
+            std::thread::sleep(Duration::from_millis(100));
         }
-        pose(&j, at);
-        if let Some(p) = wait_opt(&j, &mut pack, 0.02, |m| match m {
-            ServerMsg::Teleport { pos } => Some(*pos),
+    };
+    stand(&j, 0.3);
+    // a pose 40 blocks away is not taken
+    pose(&j, [start[0] + 40.0, start[1], start[2]]);
+    stand(&j, 0.3);
+    let (_, at) = moved(&j, &mut pack, 2.0);
+    assert!(
+        flat_dist(at, start) < 1.0,
+        "a pose does not move a player in play: {at:?} from {start:?}"
+    );
+    // holding jump for three seconds (at the spawn, under the open sky):
+    // never more than a jump off the ground
+    let jump = Step::new(
+        20,
+        Input {
+            jump: true,
+            ..Default::default()
+        },
+        0.0,
+    );
+    stand(&j, 0.5);
+    let (_, ground) = moved(&j, &mut pack, 2.0);
+    let mut top = f32::MIN;
+    for _ in 0..30 {
+        steps(&j, vec![jump; 5]);
+        std::thread::sleep(Duration::from_millis(100));
+        while let Some(y) = wait_opt(&j, &mut pack, 0.01, |m| match m {
+            ServerMsg::Moved { pos, .. } => Some(pos[1]),
             _ => None,
         }) {
-            grounded = Some(p);
-            break;
+            top = top.max(y);
         }
     }
-    let g = grounded.expect("flying is noticed");
-    assert!(g[1] < start[1] + 3.0, "put back on the ground: {g:?}");
+    assert!(top > ground[1] + 0.3, "it jumped: {top} from {}", ground[1]);
+    assert!(
+        top < ground[1] + 0.7,
+        "a jump, not a flight: {top} from {}",
+        ground[1]
+    );
+    // ten seconds of running sent at once: the server runs them in real time
+    let run = Step::new(
+        20,
+        Input {
+            forward: 1.0,
+            ..Default::default()
+        },
+        0.0,
+    );
+    stand(&j, 1.2);
+    while wait_opt(&j, &mut pack, 0.2, |m| {
+        matches!(m, ServerMsg::Moved { .. }).then_some(())
+    })
+    .is_some()
+    {}
+    steps(&j, vec![idle]);
+    let (_, from) = moved(&j, &mut pack, 2.0);
+    let n = steps(&j, vec![run; 500]);
+    let t0 = Instant::now();
+    let mut far = 0.0f32;
+    let mut last = 0;
+    while let Some((seq, at)) = wait_opt(&j, &mut pack, 0.5, |m| match m {
+        ServerMsg::Moved { seq, pos, .. } => Some((*seq, *pos)),
+        _ => None,
+    }) {
+        far = far.max(flat_dist(at, from));
+        last = seq;
+        // (a second banked while it stood silent may run at once, as
+        // steps that come late after a stall do)
+        let allowed = 6.4 * (t0.elapsed().as_secs_f32() + 1.25);
+        assert!(far <= allowed, "{far} m in {:?}", t0.elapsed());
+    }
+    assert!(far > 1.0, "the steps ran: {far} m");
+    // no more than the server keeps waiting (2 s of running) ran
+    assert_eq!(last, n, "every step answered");
+    assert!(far < 6.4 * 2.1, "10 s of running sent at once: {far} m");
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }

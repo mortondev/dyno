@@ -299,7 +299,9 @@ pub enum ClientMsg {
         version: String,
         name: String,
     },
-    /// The player's position and view direction.
+    /// The player's position and view direction. Taken only in build mode
+    /// (and by servers that trust movement: tests, measurements); in play
+    /// you move by `Steps`.
     Pose(Pose),
     /// Request to change one cell (build mode).
     SetBlock {
@@ -472,6 +474,18 @@ pub enum ClientMsg {
     /// the round trip (its debug overlay).
     Ping {
         nonce: u32,
+    },
+    /// Movement as input (docs/design/netcode.md): steps numbered from
+    /// `seq` on, in order. The server runs them with the same
+    /// `dyno_sim::movement` code, no faster than real time, and answers
+    /// with `Moved`. `teleports` counts the `Teleport`s this client has
+    /// taken: steps sent before the latest one are from where you no longer
+    /// are, and are dropped. `pitch` is where you look (for others to see).
+    Steps {
+        seq: u32,
+        teleports: u8,
+        pitch: f32,
+        steps: Vec<dyno_sim::movement::Step>,
     },
 }
 
@@ -870,6 +884,15 @@ pub enum ServerMsg {
     /// the press is taken back. The reason follows as a `System` line.
     Refused {
         ability: u16,
+    },
+    /// Your body as the server has it after your step `seq` (the last one
+    /// it ran): the client puts its prediction here and runs its later
+    /// steps again. Sent each tick in which the body changed. Answers `Steps`.
+    Moved {
+        seq: u32,
+        pos: [f32; 3],
+        vel: [f32; 3],
+        ground: bool,
     },
 }
 

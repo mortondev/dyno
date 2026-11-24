@@ -7,9 +7,12 @@
 //! - ping: the round trip of a `Ping` to the server and its `Pong` back,
 //!   measured once a second while the overlay is open;
 //! - the server tick the last `Pong` carried;
-//! - movement corrections: the times the server has moved this player
-//!   (`Teleport`) since joining. A blink, a charge and a recall count too:
-//!   they are the same message;
+//! - movement corrections (docs/design/netcode.md): the times the server's
+//!   answer put this player somewhere other than the prediction since
+//!   joining: snaps (over 2 m, shown as a jump) and corrections eased away
+//!   (over 5 cm), and the last one's size;
+//! - teleports: the times the server moved this player on purpose (a
+//!   blink, a charge, a recall, a ride): not corrections;
 //! - entities drawn: the creatures, people and bodies in the picture.
 //!
 //! Its words are the pack's (`debug` in `ui/strings.json`).
@@ -31,8 +34,8 @@ pub struct DebugState {
     sent: Option<(u32, Instant)>,
     last_ping: Instant,
     nonce: u32,
-    /// times the server has moved this player
-    pub corrections: u32,
+    /// the prediction's corrections and teleports (copied each frame)
+    pub net: crate::predict::Stats,
     /// figures put in the picture this frame (counted while drawing), and
     /// the count of the frame before (shown)
     pub drawing: Cell<u32>,
@@ -49,7 +52,7 @@ impl Default for DebugState {
             sent: None,
             last_ping: Instant::now(),
             nonce: 0,
-            corrections: 0,
+            net: Default::default(),
             drawing: Cell::new(0),
             drawn: 0,
         }
@@ -142,7 +145,18 @@ impl DebugState {
                 t("debug.tick"),
                 self.tick.map_or(none, |tick| tick.to_string()),
             ),
-            (t("debug.corrections"), self.corrections.to_string()),
+            (
+                t("debug.corrections"),
+                fill(
+                    &t("debug.corrections_value"),
+                    &[
+                        ("snaps", &self.net.snaps.to_string()),
+                        ("eased", &self.net.eased.to_string()),
+                        ("cm", &format!("{:.0}", self.net.last * 100.0)),
+                    ],
+                ),
+            ),
+            (t("debug.teleports"), self.net.teleports.to_string()),
             (t("debug.drawn"), self.drawn.to_string()),
         ]
     }

@@ -3,8 +3,9 @@
 //! Brains and the text interface drive a body; it does no thinking itself.
 
 use crate::nav::{self, Cell, Goal};
-use dyno_client::game::{Input, Player, PlayerPose};
+use dyno_client::game::{Input, Player};
 use dyno_client::net::{self, Joined, NetEvent};
+use dyno_client::predict::Predictor;
 use dyno_protocol::{
     self as proto, Appearance, ClientMsg, EntityKind, EnvDamage, NewCharacter, PlayerId,
     QuestProgress, ServerMsg, Stack,
@@ -159,7 +160,9 @@ pub struct Body {
     pub world: World,
     pub content: Content,
     pub hearth: [i32; 3],
+    /// the body: predicted here, run by the server (dyno_client::predict)
     pub player: Player,
+    pub pred: Predictor,
     pub started: Instant,
 
     pub ents: HashMap<u32, Ent>,
@@ -275,10 +278,7 @@ impl Body {
         // the server names it: the world round it may not have streamed in
         let hearth = j.hearth;
         let mut player = Player::new(j.spawn);
-        if j.content.world.protected {
-            player.auto_step = true;
-            player.run_speed = 6.2;
-        }
+        dyno_sim::movement::apply_rules(&mut player, j.content.world.protected, false);
         let now = Instant::now();
         Body {
             tx: j.conn.tx,
@@ -289,6 +289,7 @@ impl Body {
             content: j.content,
             hearth,
             player,
+            pred: Predictor::new(),
             started: now,
             ents: HashMap::new(),
             players: j
@@ -663,8 +664,7 @@ impl Body {
         match m {
             ServerMsg::Teleport { pos } => {
                 let from = self.player.pos;
-                self.player.pos = pos.into();
-                self.player.vel = Vec3::ZERO;
+                self.pred.teleport(&mut self.player, pos);
                 self.fall_from = None;
                 self.nav.path.clear();
                 self.ev(Ev::Teleport(from, pos.into()));
@@ -703,6 +703,15 @@ impl Body {
                         p.1 = pose.pos.into();
                     }
                 }
+            }
+            ServerMsg::Moved {
+                seq,
+                pos,
+                vel,
+                ground,
+            } => {
+                self.pred
+                    .ack(&mut self.player, &self.world, seq, pos, vel, ground);
             }
             ServerMsg::Chat { from, text } => self.ev(Ev::Chat { from, text }),
             ServerMsg::System { text } => {
@@ -829,8 +838,8 @@ impl Body {
                     e.elite = elite;
                 }
             }
-            ServerMsg::Hurt { amount, push } => {
-                self.player.vel += Vec3::from(push);
+            // (the knockback comes in the server's `Moved`)
+            ServerMsg::Hurt { amount, .. } => {
                 self.last_hurt = Some(now);
                 self.in_combat_until = now + Duration::from_secs(6);
                 self.ev(Ev::Hurt(amount));
@@ -1256,13 +1265,12 @@ impl Body {
             self.input.jump = true;
         }
         let before = self.player.pos;
-        // fixed steps, like a client at 40 fps
-        let mut t = elapsed.max(TICK * 0.5);
-        while t > 1e-4 {
-            let dt = t.min(0.025);
-            self.player.update(&self.world, self.input, dt);
-            t -= dt;
-        }
+        // steps of the time that passed, predicted here and run by the server
+        let protected = self.content.world.protected;
+        dyno_sim::movement::apply_rules(&mut self.player, protected, false);
+        let yaw = self.player.yaw;
+        self.pred
+            .advance(&mut self.player, &self.world, self.input, yaw, elapsed);
         let moved = self.player.pos - before;
         self.distance += (moved.x * moved.x + moved.z * moved.z).sqrt().min(2.0);
         // falls and drowning are measured by the client and reported
@@ -1306,8 +1314,9 @@ impl Body {
         } else {
             self.air = (self.air + elapsed * 4.0).min(10.0);
         }
-        let pose = self.player.pose();
-        self.send(ClientMsg::Pose(pose));
+        if let Some(m) = self.pred.flush(self.player.pitch) {
+            self.send(m);
+        }
     }
 }
 

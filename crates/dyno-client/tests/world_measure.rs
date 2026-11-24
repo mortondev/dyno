@@ -2,7 +2,7 @@
 //! run by hand against a real `dyno server` process:
 //!
 //! ```sh
-//! dyno server --port 7651 --world /tmp/m/world.dynw &
+//! dyno server --port 7651 --world /tmp/m/world.dynw --trust-movement &
 //! DYNO_MEASURE_ADDR=127.0.0.1:7651 DYNO_MEASURE_WORLD=/tmp/m/world.dynw \
 //! DYNO_MEASURE_PID=<server pid> cargo test --release -p dyno-client \
 //!     --test world_measure -- --ignored --nocapture
@@ -12,6 +12,10 @@
 //! spawn is there, the bytes per second one player receives while running
 //! across the map with ten others wandering, by message kind, and the
 //! memory of the server and of a joined client world.
+//!
+//! The players here place themselves by pose, which only a server started
+//! with `--trust-movement` takes (others run movement from steps:
+//! docs/design/netcode.md).
 
 use dyno_protocol::{self as proto, Appearance, ClientMsg, NewCharacter, Pose, ServerMsg};
 use dyno_world::World;

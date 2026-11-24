@@ -20,6 +20,7 @@ USAGE:
                                [--section-rate 256] [--join-section-rate 2048] (KB/s of world sections per player)
                                [--webhook DISCORD_URL] (or DYNO_WEBHOOK)
                                [--shard-cap 40] [--area-cap 16] [--max-shards 16]
+                               [--trust-movement] (measurements only: players place themselves by pose)
                                [--cluster HOST:PORT] [--join HOST:PORT] [--advertise HOST:PORT]
                                [--cluster-secret-file FILE] (or DYNO_CLUSTER_SECRET) [--cluster-dir DIR]
                                Run a dedicated game server
@@ -453,25 +454,50 @@ fn main() {
             let _ = j.conn.tx.send(dyno_protocol::ClientMsg::Chat {
                 text: "Hello! I am a test bot.".into(),
             });
+            // walk in a circle: steps sent, the server runs them (predict.rs)
+            let mut j = j;
             let start = std::time::Instant::now();
-            let c = j.spawn;
-            while start.elapsed() < Duration::from_secs(secs) {
-                let t = start.elapsed().as_secs_f32() * 0.5;
-                let (x, z) = (c[0] + 4.0 * t.cos(), c[2] + 4.0 * t.sin());
-                let y = j.world.surface(x.floor() as i32, z.floor() as i32) as f32 + 1.0;
-                let pose = dyno_protocol::Pose {
-                    pos: [x, y, z],
-                    yaw: -t,
-                    pitch: 0.0,
-                };
-                if j.conn
-                    .tx
-                    .send(dyno_protocol::ClientMsg::Pose(pose))
-                    .is_err()
+            let mut body = dyno_client::game::Player::new(j.spawn);
+            dyno_client::game::apply_rules(&mut body, j.content.world.protected, false);
+            let mut pred = dyno_client::predict::Predictor::new();
+            let mut last = start;
+            let walk = dyno_client::game::Input {
+                forward: 1.0,
+                ..Default::default()
+            };
+            'run: while start.elapsed() < Duration::from_secs(secs) {
+                let now = std::time::Instant::now();
+                let dt = now.duration_since(last).as_secs_f32();
+                last = now;
+                let yaw = -start.elapsed().as_secs_f32() * 0.8;
+                pred.advance(&mut body, &j.world, walk, yaw, dt);
+                if let Some(m) = pred.flush(0.0)
+                    && j.conn.tx.send(m).is_err()
                 {
                     break;
                 }
-                while j.conn.rx.try_recv().is_ok() {}
+                while let Ok(ev) = j.conn.rx.try_recv() {
+                    match ev {
+                        dyno_client::net::NetEvent::Msg(m) => match m {
+                            dyno_protocol::ServerMsg::Moved {
+                                seq,
+                                pos,
+                                vel,
+                                ground,
+                            } => {
+                                pred.ack(&mut body, &j.world, seq, pos, vel, ground);
+                            }
+                            dyno_protocol::ServerMsg::Teleport { pos } => {
+                                pred.teleport(&mut body, pos);
+                            }
+                            m => {
+                                dyno_client::net::apply_world(&mut j.world, &m);
+                            }
+                        },
+                        dyno_client::net::NetEvent::Closed(_) => break 'run,
+                        _ => {}
+                    }
+                }
                 std::thread::sleep(Duration::from_millis(50));
             }
         }
@@ -685,6 +711,7 @@ fn run_server(args: &[String]) {
                 i += 1;
             }
             "--auto-update" => auto_update = true,
+            "--trust-movement" => cfg.trust_movement = true,
             "--content" => {
                 cfg.content_path = Some(val().into());
                 i += 1;

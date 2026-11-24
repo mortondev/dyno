@@ -1897,8 +1897,7 @@ impl Server {
             "/spawn" => {
                 let pos = st.players[&id].spawn.unwrap_or_else(|| st.spawn_point());
                 if let Some(p) = st.players.get_mut(&id) {
-                    p.pose.pos = pos;
-                    let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
+                    p.put(pos);
                 }
             }
             "/kill" => st.damage(id, 1000.0, [0.0; 3], "gave up"),
@@ -1911,8 +1910,7 @@ impl Server {
                     let (x, z) = (h[0] + t.at[0], h[2] + t.at[1]);
                     let pos = [x as f32 + 0.5, st.world.ground(x, z) as f32 + 1.0, z as f32 + 0.5];
                     if let Some(p) = st.players.get_mut(&id) {
-                        p.pose.pos = pos;
-                        let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
+                        p.put(pos);
                     }
                 }
             },
@@ -1928,8 +1926,7 @@ impl Server {
                 match target {
                     Some((name, pos)) => {
                         if let Some(p) = st.players.get_mut(&id) {
-                            p.pose.pos = pos;
-                            let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
+                            p.put(pos);
                         }
                         st.tell(id, format!("Teleported to {name}"));
                     }
