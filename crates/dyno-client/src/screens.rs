@@ -1,13 +1,17 @@
 //! Classic MMO screens: Character (C), Bags (B), Spellbook (P) and Skills (K),
-//! with item and ability tooltips.
+//! with item and ability tooltips. One carved window with tabs; the words
+//! come from the pack (`uitext`). See docs/design/ui.md.
 
 use crate::item_ui;
 use crate::theme;
+use crate::uitext::{f as tf, t};
 use dyno_protocol::Stack;
 use dyno_sim::character::{self, Sheet};
 use dyno_sim::progression::money_text;
-use dyno_world::content::{Ability, ArmorType, Class, Content, EQUIP_PLACES, Slot, WeaponKind};
-use egui::{Align2, Color32, CursorIcon, RichText, Sense, Stroke, Vec2};
+#[cfg(test)]
+use dyno_world::content::Slot;
+use dyno_world::content::{Ability, Class, Content, EQUIP_PLACES, Gear, Resource};
+use egui::{Align2, Color32, CursorIcon, Pos2, Rect, RichText, Sense, Stroke, Vec2};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tab {
@@ -15,6 +19,14 @@ pub enum Tab {
     Bags,
     Spellbook,
     Skills,
+}
+
+/// What is being dragged to the action bar: one of its own slots, or an
+/// ability from the spellbook (egui's drag-and-drop payload).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BarDrag {
+    Slot(usize),
+    Ability(u16),
 }
 
 /// What a screen asks the game to do.
@@ -27,6 +39,10 @@ pub enum ScreenCmd {
     Offer(u8),
     /// put an ability on action-bar key `slot` (0-based)
     Bind(u16, u8),
+    /// tidy the bags: stacks joined, best things first
+    Sort,
+    /// sell every poor (grey) item to the merchant
+    SellJunk,
     Close,
     Switch(Tab),
 }
@@ -52,200 +68,277 @@ pub struct View<'a> {
     pub at_vendor: bool,
     /// a trade window is open (right-click offers)
     pub trading: bool,
-    /// ability IDs on keys 1 to 7
+    /// ability IDs on the 12 action-bar keys
     pub bar: &'a [Option<u16>],
+    /// the names of those keys
+    pub keys: &'a [&'a str],
     pub skills: &'a [SkillLine<'a>],
     /// stat points from buffs
     pub extra: dyno_world::content::Stats,
 }
 
 pub fn quality_color(q: u8) -> Color32 {
-    match q {
-        0 => Color32::from_rgb(157, 157, 157),
-        1 => Color32::from_rgb(240, 240, 240),
-        2 => Color32::from_rgb(30, 220, 40),
-        3 => Color32::from_rgb(40, 130, 255),
-        _ => Color32::from_rgb(180, 70, 240),
-    }
+    theme::quality_color(q)
 }
 
-fn slot_name(s: Slot) -> &'static str {
-    match s {
-        Slot::Head => "Head",
-        Slot::Neck => "Neck",
-        Slot::Shoulders => "Shoulder",
-        Slot::Back => "Back",
-        Slot::Chest => "Chest",
-        Slot::Wrist => "Wrist",
-        Slot::Hands => "Hands",
-        Slot::Waist => "Waist",
-        Slot::Legs => "Legs",
-        Slot::Feet => "Feet",
-        Slot::Ring => "Finger",
-        Slot::Trinket => "Trinket",
-        Slot::MainHand => "Main Hand",
-        Slot::OffHand => "Off Hand",
-        Slot::TwoHand => "Two-Hand",
-        Slot::Ranged => "Ranged",
-    }
+const BAD: Color32 = Color32::from_rgb(255, 84, 72);
+const BETTER: Color32 = Color32::from_rgb(64, 224, 80);
+
+/// The pack's word for an enum value: `item.slot.mainhand`, `item.weapon.sword`.
+fn word<T: std::fmt::Debug>(group: &str, v: T) -> String {
+    t(&format!("{group}.{}", format!("{v:?}").to_lowercase()))
 }
 
-fn weapon_name(k: WeaponKind) -> &'static str {
-    match k {
-        WeaponKind::Sword => "Sword",
-        WeaponKind::Axe => "Axe",
-        WeaponKind::Mace => "Mace",
-        WeaponKind::Dagger => "Dagger",
-        WeaponKind::Staff => "Staff",
-        WeaponKind::Polearm => "Polearm",
-        WeaponKind::Bow => "Bow",
-        WeaponKind::Wand => "Wand",
-        WeaponKind::Shield => "Shield",
-        WeaponKind::Offhand => "Held in Off-hand",
-    }
+fn resource_name(r: Resource) -> String {
+    word("ability.resource", r)
 }
 
-fn armor_name(a: ArmorType) -> &'static str {
-    match a {
-        ArmorType::Cloth => "Cloth",
-        ArmorType::Leather => "Leather",
-        ArmorType::Mail => "Mail",
-        ArmorType::Plate => "Plate",
+/// A line with something at each end.
+fn two(ui: &mut egui::Ui, left: String, right: String) {
+    ui.horizontal(|ui| {
+        ui.label(left);
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            ui.label(right);
+        });
+    });
+}
+
+/// A small arrow, up and green for better or down and red for worse, then
+/// the line.
+fn delta_line(ui: &mut egui::Ui, better: bool, text: String) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 5.0;
+        let (r, _) = ui.allocate_exact_size(Vec2::new(11.0, 14.0), Sense::hover());
+        let c = r.center();
+        let (col, s) = if better { (BETTER, -1.0) } else { (BAD, 1.0) };
+        ui.painter().add(egui::Shape::convex_polygon(
+            vec![
+                c + Vec2::new(0.0, 4.5 * s),
+                c + Vec2::new(-4.5, -3.5 * s),
+                c + Vec2::new(4.5, -3.5 * s),
+            ],
+            col,
+            Stroke::NONE,
+        ));
+        ui.label(RichText::new(text).color(col));
+    });
+}
+
+/// What wearing `g` instead of `worn` would change: (amount, word), better
+/// when the amount is positive.
+fn compare(g: &Gear, worn: Option<&Gear>) -> Vec<(f32, String)> {
+    let zero = dyno_world::content::Stats::default();
+    let (ws, wa) = worn.map(|w| (w.stats, w.armor)).unwrap_or((zero, 0));
+    let dps = |g: Option<&Gear>| {
+        g.and_then(|g| g.weapon)
+            .map(|w| (w.min + w.max) * 0.5 / w.speed.max(0.1))
+    };
+    let mut out = Vec::new();
+    if let Some(mine) = dps(Some(g)) {
+        let d = mine - dps(worn).unwrap_or(0.0);
+        if d.abs() >= 0.05 {
+            out.push((d, tf("item.delta_dps", &[("n", &format!("{d:+.1}"))])));
+        }
     }
+    let d = g.armor as f32 - wa as f32;
+    if d != 0.0 {
+        out.push((d, tf("item.delta_armor", &[("n", &format!("{d:+.0}"))])));
+    }
+    for (new, old, key) in [
+        (g.stats.str, ws.str, "str"),
+        (g.stats.agi, ws.agi, "agi"),
+        (g.stats.sta, ws.sta, "sta"),
+        (g.stats.int, ws.int, "int"),
+        (g.stats.spi, ws.spi, "spi"),
+    ] {
+        let d = new - old;
+        if d != 0 {
+            out.push((
+                d as f32,
+                format!("{d:+} {}", t(&format!("sheet.{key}.name"))),
+            ));
+        }
+    }
+    out
 }
 
 /// The classic item tooltip.
 pub fn item_tooltip(ui: &mut egui::Ui, c: &Content, s: &Stack, class: Option<&Class>, level: u8) {
+    item_tooltip_vs(ui, c, s, class, level, None);
+}
+
+/// The item tooltip, and under it how the item compares with what is worn
+/// in its place (`equip`: the paper doll; `None` for an item already worn).
+pub fn item_tooltip_vs(
+    ui: &mut egui::Ui,
+    c: &Content,
+    s: &Stack,
+    class: Option<&Class>,
+    level: u8,
+    equip: Option<&[Option<Stack>]>,
+) {
     let it = c.item(s.item);
-    ui.set_max_width(260.0);
-    ui.label(
-        RichText::new(it.name)
-            .strong()
-            .size(15.0)
-            .color(quality_color(it.quality)),
-    );
+    ui.set_max_width(270.0);
+    ui.spacing_mut().item_spacing.y = 2.0;
+    theme::tooltip_title(ui, it.name, quality_color(it.quality));
+    let mut usable = true;
     if let Some(g) = it.gear {
-        ui.horizontal(|ui| {
-            ui.label(slot_name(g.slot));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if let Some(w) = g.weapon {
-                    ui.label(weapon_name(w.kind));
-                } else if let Some(a) = g.armor_type {
-                    ui.label(armor_name(a));
-                }
-            });
-        });
+        let kind = match (g.weapon, g.armor_type) {
+            (Some(w), _) => word("item.weapon", w.kind),
+            (None, Some(a)) => word("item.armor", a),
+            _ => String::new(),
+        };
+        two(ui, word("item.slot", g.slot), kind);
         if let Some(w) = g.weapon {
-            ui.horizontal(|ui| {
-                ui.label(format!("{:.0} - {:.0} Damage", w.min, w.max));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.label(format!("Speed {:.2}", w.speed));
-                });
-            });
-            ui.label(format!(
-                "({:.1} damage per second)",
-                (w.min + w.max) * 0.5 / w.speed
+            two(
+                ui,
+                tf(
+                    "item.damage",
+                    &[
+                        ("min", &format!("{:.0}", w.min)),
+                        ("max", &format!("{:.0}", w.max)),
+                    ],
+                ),
+                tf("item.speed", &[("n", &format!("{:.2}", w.speed))]),
+            );
+            ui.label(tf(
+                "item.dps",
+                &[("n", &format!("{:.1}", (w.min + w.max) * 0.5 / w.speed))],
             ));
         }
         if g.armor > 0 {
-            ui.label(format!("{} Armor", g.armor));
+            ui.label(tf("item.armor_points", &[("n", &g.armor.to_string())]));
         }
         let st = g.stats;
-        for (v, n) in [
-            (st.str, "Strength"),
-            (st.agi, "Agility"),
-            (st.sta, "Stamina"),
-            (st.int, "Intellect"),
-            (st.spi, "Spirit"),
+        for (v, key) in [
+            (st.str, "str"),
+            (st.agi, "agi"),
+            (st.sta, "sta"),
+            (st.int, "int"),
+            (st.spi, "spi"),
         ] {
             if v != 0 {
-                ui.label(format!("{v:+} {n}"));
+                ui.label(
+                    RichText::new(format!("{v:+} {}", t(&format!("sheet.{key}.name"))))
+                        .color(Color32::WHITE),
+                );
             }
         }
         if it.level > 1 {
-            let col = if it.level > level {
-                Color32::from_rgb(255, 60, 60)
-            } else {
-                Color32::WHITE
-            };
-            ui.label(RichText::new(format!("Requires Level {}", it.level)).color(col));
+            let col = if it.level > level { BAD } else { theme::TEXT };
+            ui.label(
+                RichText::new(tf("item.requires_level", &[("n", &it.level.to_string())]))
+                    .color(col),
+            );
+            usable &= it.level <= level;
         }
         if let Some(cl) = class
             && let Some(why) = character::cannot_equip(cl, level, &it)
-            && it.level <= level
         {
-            ui.label(RichText::new(why).color(Color32::from_rgb(255, 60, 60)));
+            usable = false;
+            if it.level <= level {
+                ui.label(RichText::new(why).color(BAD));
+            }
         }
-    } else if let Some(t) = it.tool {
-        let kind = format!("{:?}", t.kind);
-        ui.label(format!("{kind} (gathering tool, tier {})", t.tier));
+    } else if let Some(tool) = it.tool {
+        ui.label(tf("item.tool", &[("n", &tool.tier.to_string())]));
     }
     if it.food > 0 {
         ui.label(
-            RichText::new(format!(
-                "Use: Restores health while out of combat ({} food).",
-                it.food
-            ))
-            .color(Color32::from_rgb(30, 220, 40)),
+            RichText::new(tf("item.food", &[("n", &(it.food as u32 * 5).to_string())]))
+                .color(BETTER),
         );
     }
     if it.block.is_some() && it.gear.is_none() {
-        ui.label(RichText::new("Building material").weak());
+        ui.label(RichText::new(t("item.material")).color(theme::TEXT_DIM));
+    }
+    if it.quality == 0 && it.gear.is_none() && it.food == 0 && it.tool.is_none() && it.value > 0 {
+        ui.label(RichText::new(t("item.junk")).color(theme::TEXT_DIM));
     }
     if it.value > 0 {
         let each = money_text(it.value * s.count as u32);
-        ui.label(RichText::new(format!("Sell price: {each}")).color(Color32::from_gray(200)));
+        ui.label(RichText::new(tf("item.sell", &[("price", &each)])).color(theme::TEXT_DIM));
+    }
+    // against what is worn in its place
+    if let (Some(g), Some(equip), true) = (it.gear, equip, usable) {
+        let place = character::places_for(g.slot).into_iter().next();
+        let worn = place
+            .and_then(|i| equip.get(i))
+            .and_then(|s| s.as_ref())
+            .map(|s| c.item(s.item));
+        let lines = compare(g, worn.as_ref().and_then(|w| w.gear));
+        ui.add_space(4.0);
+        theme::ui_divider(ui, theme::GOLD_DARK);
+        match &worn {
+            Some(w) => {
+                ui.label(
+                    RichText::new(tf("item.compare", &[("item", w.name)])).color(theme::TEXT_DIM),
+                );
+            }
+            None => {
+                ui.label(RichText::new(t("item.compare_empty")).color(theme::TEXT_DIM));
+            }
+        }
+        if lines.is_empty() {
+            ui.label(RichText::new(t("item.compare_same")).color(theme::TEXT_DIM));
+        }
+        for (d, text) in lines {
+            delta_line(ui, d > 0.0, text);
+        }
     }
 }
 
+/// An ability's tooltip: name, cost and range, cast time and cooldown, what
+/// it does; all from the ability's data.
 pub fn ability_tooltip(ui: &mut egui::Ui, c: &Content, a: &Ability, known: bool) {
-    ui.set_max_width(280.0);
-    ui.label(
-        RichText::new(&a.name)
-            .strong()
-            .size(15.0)
-            .color(Color32::WHITE),
-    );
-    let res = c.class(a.class).map(|k| match k.resource {
-        dyno_world::content::Resource::Rage => "Rage",
-        dyno_world::content::Resource::Mana => "Mana",
-        dyno_world::content::Resource::Energy => "Energy",
-    });
-    ui.horizontal(|ui| {
-        if a.cost > 0.0 {
-            ui.label(format!("{:.0} {}", a.cost, res.unwrap_or("")));
-        }
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if a.range > 0.0 {
-                ui.label(format!("{:.0} yd range", a.range));
-            } else if a.radius > 0.0 {
-                ui.label(format!("{:.0} yd radius", a.radius));
-            }
-        });
-    });
-    ui.horizontal(|ui| {
-        ui.label(if a.cast > 0.0 {
-            format!("{:.1} sec cast", a.cast)
-        } else {
-            "Instant".into()
-        });
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if a.cooldown > 0.0 {
-                let cd = if a.cooldown >= 60.0 {
-                    format!("{:.0} min cooldown", a.cooldown / 60.0)
-                } else {
-                    format!("{:.0} sec cooldown", a.cooldown)
-                };
-                ui.label(cd);
-            }
-        });
-    });
-    ui.label(RichText::new(&a.text).color(Color32::from_rgb(255, 210, 80)));
+    ui.set_max_width(290.0);
+    ui.spacing_mut().item_spacing.y = 2.0;
+    theme::tooltip_title(ui, &a.name, Color32::WHITE);
+    let res = c
+        .class(a.class)
+        .map(|k| resource_name(k.resource))
+        .unwrap_or_default();
+    let cost = if a.cost > 0.0 {
+        tf(
+            "ability.cost",
+            &[("n", &format!("{:.0}", a.cost)), ("resource", &res)],
+        )
+    } else {
+        String::new()
+    };
+    let reach = if a.range > 0.0 {
+        tf("ability.range", &[("n", &format!("{:.0}", a.range))])
+    } else if a.radius > 0.0 {
+        tf("ability.radius", &[("n", &format!("{:.0}", a.radius))])
+    } else {
+        String::new()
+    };
+    if !cost.is_empty() || !reach.is_empty() {
+        two(ui, cost, reach);
+    }
+    let cast = if a.cast > 0.0 {
+        tf("ability.cast", &[("n", &format!("{:.1}", a.cast))])
+    } else {
+        t("ability.instant")
+    };
+    let cooldown = if a.cooldown >= 60.0 {
+        tf(
+            "ability.cooldown_min",
+            &[("n", &format!("{:.0}", a.cooldown / 60.0))],
+        )
+    } else if a.cooldown > 0.0 {
+        tf(
+            "ability.cooldown_sec",
+            &[("n", &format!("{:.0}", a.cooldown))],
+        )
+    } else {
+        String::new()
+    };
+    two(ui, cast, cooldown);
+    ui.add_space(2.0);
+    ui.label(RichText::new(&a.text).color(theme::GOLD_BRIGHT));
     if !known {
-        ui.label(
-            RichText::new(format!("Learned at level {}", a.level))
-                .color(Color32::from_rgb(255, 60, 60)),
-        );
+        ui.label(RichText::new(tf("ability.learn", &[("n", &a.level.to_string())])).color(BAD));
     }
 }
 
@@ -259,33 +352,12 @@ fn slot_button(
 ) -> egui::Response {
     let (rect, resp) = ui.allocate_exact_size(Vec2::splat(size), Sense::click());
     let p = ui.painter();
-    p.rect_filled(rect, 4.0, Color32::from_rgb(24, 18, 14));
     match s {
         Some(st) => {
+            theme::item_slot(p, rect, c.item(st.item).quality, None);
             item_ui::stack_icon(p, rect, c, st);
-            let q = c.item(st.item).quality;
-            p.rect_stroke(
-                rect,
-                4.0,
-                Stroke::new(1.5_f32, quality_color(q).gamma_multiply(0.9)),
-                egui::StrokeKind::Inside,
-            );
         }
-        None => {
-            p.rect_stroke(
-                rect,
-                4.0,
-                Stroke::new(1.0_f32, Color32::from_rgb(90, 70, 40)),
-                egui::StrokeKind::Inside,
-            );
-            p.text(
-                rect.center(),
-                Align2::CENTER_CENTER,
-                ghost,
-                egui::FontId::proportional(9.0),
-                Color32::from_gray(110),
-            );
-        }
+        None => theme::item_slot(p, rect, 0, (!ghost.is_empty()).then_some(ghost)),
     }
     if resp.hovered() {
         p.rect_stroke(
@@ -300,178 +372,212 @@ fn slot_button(
 
 fn tabs(ui: &mut egui::Ui, tab: Tab, out: &mut Vec<ScreenCmd>) {
     ui.horizontal(|ui| {
-        for (t, n, key) in [
-            (Tab::Character, "Character", "C"),
-            (Tab::Bags, "Bags", "B"),
-            (Tab::Spellbook, "Spellbook", "P"),
-            (Tab::Skills, "Skills", "K"),
+        ui.spacing_mut().item_spacing.x = 4.0;
+        for (k, key) in [
+            (Tab::Character, "panels.character"),
+            (Tab::Bags, "panels.bags"),
+            (Tab::Spellbook, "panels.spellbook"),
+            (Tab::Skills, "panels.skills"),
         ] {
-            let label = RichText::new(format!("{n} ({key})")).color(if t == tab {
-                theme::GOLD_BRIGHT
-            } else {
-                theme::TEXT_DIM
-            });
-            if ui.selectable_label(t == tab, label).clicked() && t != tab {
-                out.push(ScreenCmd::Switch(t));
+            if theme::tab(ui, &t(key), k == tab).clicked() && k != tab {
+                out.push(ScreenCmd::Switch(k));
             }
         }
     });
-    ui.separator();
+    theme::tab_rule(ui);
+    ui.add_space(4.0);
+}
+
+/// A dark button with gold words.
+fn button(ui: &mut egui::Ui, text: &str) -> egui::Response {
+    ui.add(
+        egui::Button::new(
+            RichText::new(text)
+                .font(theme::title_font(12.5))
+                .color(theme::GOLD),
+        )
+        .fill(theme::WOOD_DARK)
+        .stroke(Stroke::new(1.0_f32, theme::GOLD_DARK))
+        .min_size(Vec2::new(0.0, 26.0)),
+    )
 }
 
 /// The character, bags, spellbook and skills window.
 pub fn window(ctx: &egui::Context, v: &View, tab: Tab) -> Vec<ScreenCmd> {
     let mut out = Vec::new();
     let mut open = true;
-    let title = match tab {
-        Tab::Character => v.name.to_string(),
-        Tab::Bags => "Bags".into(),
-        Tab::Spellbook => "Spellbook".into(),
-        Tab::Skills => "Skills".into(),
+    let (title, sub) = match (tab, v.class) {
+        (Tab::Character, Some(class)) => (
+            v.name.to_string(),
+            tf(
+                "panels.level_class",
+                &[("level", &v.level.to_string()), ("class", &class.name)],
+            ),
+        ),
+        (Tab::Character, None) => (v.name.to_string(), String::new()),
+        (Tab::Bags, _) => (t("panels.bags_title"), String::new()),
+        (Tab::Spellbook, _) => (t("panels.spellbook_title"), String::new()),
+        (Tab::Skills, _) => (t("panels.skills_title"), String::new()),
     };
-    egui::Window::new(RichText::new(title).size(20.0).color(theme::GOLD))
-        .id(egui::Id::new("screens"))
-        .collapsible(false)
-        .resizable(false)
-        .anchor(Align2::RIGHT_CENTER, Vec2::new(-40.0, 0.0))
-        .open(&mut open)
-        .show(ctx, |ui| {
-            ui.set_width(470.0);
+    theme::window(
+        ctx,
+        "screens",
+        &title,
+        &sub,
+        470.0,
+        (Align2::RIGHT_CENTER, Vec2::new(-300.0, 20.0)),
+        &mut open,
+        |ui| {
             tabs(ui, tab, &mut out);
             match tab {
                 Tab::Character => character_tab(ui, v, &mut out),
                 Tab::Bags => bags_tab(ui, v, &mut out),
-                Tab::Spellbook => spellbook_tab(ui, v, &mut out),
+                Tab::Spellbook => spellbook_tab(ui, v),
                 Tab::Skills => skills_tab(ui, v),
             }
-        });
+        },
+    );
     if !open || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
         out.push(ScreenCmd::Close);
     }
     out
 }
 
+fn dim(ui: &mut egui::Ui, text: String) {
+    ui.label(
+        RichText::new(text)
+            .font(theme::body_font(13.0))
+            .color(theme::TEXT_DIM),
+    );
+}
+
+/// A stat with its value; pointing at it says what the stat does.
+fn stat(ui: &mut egui::Ui, key: &str, value: String) {
+    let r = ui
+        .scope(|ui| theme::stat_row(ui, &t(&format!("sheet.{key}.name")), &value, Color32::WHITE))
+        .response;
+    let text = crate::uitext::opt(&format!("sheet.{key}.text"));
+    if !text.is_empty() {
+        r.on_hover_ui(|ui| {
+            ui.set_max_width(260.0);
+            theme::tooltip_title(ui, &t(&format!("sheet.{key}.name")), theme::GOLD_BRIGHT);
+            ui.label(RichText::new(text).color(theme::TEXT));
+        });
+    }
+}
+
 fn character_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
     let c = v.content;
     let Some(class) = v.class else {
-        ui.label("Choose a class first.");
+        dim(ui, t("panels.no_class"));
         return;
     };
     let sheet: Sheet = character::sheet(c, class, v.level, v.equip, &v.extra);
-    let class_col = Color32::from_rgb(
-        (class.color[0] * 255.0) as u8,
-        (class.color[1] * 255.0) as u8,
-        (class.color[2] * 255.0) as u8,
-    );
-    ui.vertical_centered(|ui| {
-        ui.label(
-            RichText::new(format!("Level {} {}", v.level, class.name))
-                .size(15.0)
-                .color(class_col),
-        );
-    });
-    ui.add_space(4.0);
     let place = |ui: &mut egui::Ui, i: usize, out: &mut Vec<ScreenCmd>| {
         let s = v.equip.get(i).and_then(|s| s.as_ref());
-        let r = slot_button(ui, 40.0, c, s, EQUIP_PLACES[i].1);
+        let name = word("item.slot", EQUIP_PLACES[i].0);
+        let r = slot_button(ui, 42.0, c, s, &name);
         if let Some(st) = s {
             let r = r.on_hover_ui(|ui| {
                 item_tooltip(ui, c, st, Some(class), v.level);
-                ui.label(RichText::new("Right click to take off").weak().small());
+                ui.add_space(3.0);
+                dim(ui, t("panels.take_off"));
             });
             if r.secondary_clicked() || r.double_clicked() {
                 out.push(ScreenCmd::Unequip(i as u8));
             }
         } else {
-            r.on_hover_text(EQUIP_PLACES[i].1);
+            r.on_hover_text(name);
         }
     };
-    ui.horizontal(|ui| {
-        // left column of the paper doll
+    ui.horizontal_top(|ui| {
+        ui.spacing_mut().item_spacing = Vec2::new(8.0, 4.0);
+        // the paper doll's left side
         ui.vertical(|ui| {
             for i in 0..8 {
                 place(ui, i, out);
             }
         });
-        // stats in the middle
+        // what it all adds up to
         ui.vertical(|ui| {
-            ui.set_width(330.0);
-            ui.add_space(4.0);
+            ui.set_width(346.0);
+            ui.spacing_mut().item_spacing.y = 1.0;
+            theme::heading(ui, &t("sheet.attributes"), theme::GOLD);
             let st = sheet.stats;
-            egui::Grid::new("stats")
-                .num_columns(2)
-                .spacing([24.0, 3.0])
-                .show(ui, |ui| {
-                    let row = |ui: &mut egui::Ui, n: &str, val: String| {
-                        ui.label(RichText::new(n).color(theme::TEXT_DIM));
-                        ui.label(RichText::new(val).color(Color32::WHITE));
-                        ui.end_row();
-                    };
-                    row(
-                        ui,
-                        "Health",
-                        format!("{:.0} / {:.0}", v.health, sheet.max_health),
-                    );
-                    let res = match class.resource {
-                        dyno_world::content::Resource::Rage => "Rage",
-                        dyno_world::content::Resource::Mana => "Mana",
-                        dyno_world::content::Resource::Energy => "Energy",
-                    };
-                    row(ui, res, format!("{:.0} / {:.0}", v.power, sheet.max_power));
-                    row(ui, "Strength", st.str.to_string());
-                    row(ui, "Agility", st.agi.to_string());
-                    row(ui, "Stamina", st.sta.to_string());
-                    row(ui, "Intellect", st.int.to_string());
-                    row(ui, "Spirit", st.spi.to_string());
-                    row(
-                        ui,
-                        "Armor",
-                        format!(
-                            "{:.0}  ({:.0}% less damage)",
-                            sheet.armor,
-                            character::armor_reduction(sheet.armor, v.level) * 100.0
+            stat(
+                ui,
+                "health",
+                format!("{:.0} / {:.0}", v.health, sheet.max_health),
+            );
+            let res = format!("{:?}", class.resource).to_lowercase();
+            stat(ui, &res, format!("{:.0} / {:.0}", v.power, sheet.max_power));
+            stat(ui, "str", st.str.to_string());
+            stat(ui, "agi", st.agi.to_string());
+            stat(ui, "sta", st.sta.to_string());
+            stat(ui, "int", st.int.to_string());
+            stat(ui, "spi", st.spi.to_string());
+            ui.add_space(6.0);
+            theme::heading(ui, &t("sheet.combat"), theme::GOLD);
+            stat(
+                ui,
+                "damage",
+                tf(
+                    "sheet.damage.value",
+                    &[
+                        ("min", &format!("{:.0}", sheet.weapon.0)),
+                        ("max", &format!("{:.0}", sheet.weapon.1)),
+                        ("speed", &format!("{:.1}", sheet.weapon.2)),
+                    ],
+                ),
+            );
+            stat(ui, "dps", format!("{:.1}", sheet.dps));
+            stat(ui, "attack_power", format!("{:.0}", sheet.attack_power));
+            stat(ui, "spell_power", format!("{:.0}", sheet.spell_power));
+            stat(ui, "crit", format!("{:.1}%", sheet.crit));
+            stat(ui, "spell_crit", format!("{:.1}%", sheet.spell_crit));
+            stat(
+                ui,
+                "armor",
+                tf(
+                    "sheet.armor.value",
+                    &[
+                        ("n", &format!("{:.0}", sheet.armor)),
+                        (
+                            "percent",
+                            &format!(
+                                "{:.0}",
+                                character::armor_reduction(sheet.armor, v.level) * 100.0
+                            ),
                         ),
-                    );
-                    row(
-                        ui,
-                        "Damage",
-                        format!(
-                            "{:.0} - {:.0}  (speed {:.1})",
-                            sheet.weapon.0, sheet.weapon.1, sheet.weapon.2
-                        ),
-                    );
-                    row(ui, "Damage per second", format!("{:.1}", sheet.dps));
-                    row(ui, "Attack power", format!("{:.0}", sheet.attack_power));
-                    row(ui, "Spell power", format!("{:.0}", sheet.spell_power));
-                    row(
-                        ui,
-                        "Critical strike",
-                        format!("{:.1}%  (spells {:.1}%)", sheet.crit, sheet.spell_crit),
-                    );
-                });
+                    ],
+                ),
+            );
             ui.add_space(8.0);
-            ui.label(
-                RichText::new(format!("Wears {} and lighter", armor_name(class.armor)))
-                    .small()
-                    .color(theme::TEXT_DIM),
+            let weapons: Vec<String> = class
+                .weapons
+                .iter()
+                .map(|w| word("item.weapon", *w))
+                .collect();
+            dim(
+                ui,
+                tf(
+                    "sheet.wears",
+                    &[("armor", &word("item.armor", class.armor))],
+                ),
             );
-            let weapons: Vec<&str> = class.weapons.iter().map(|w| weapon_name(*w)).collect();
-            ui.label(
-                RichText::new(format!("Weapons: {}", weapons.join(", ")))
-                    .small()
-                    .color(theme::TEXT_DIM),
-            );
+            dim(ui, tf("sheet.wields", &[("weapons", &weapons.join(", "))]));
         });
-        // right column
+        // and its right side
         ui.vertical(|ui| {
             for i in 8..14 {
                 place(ui, i, out);
             }
         });
     });
-    ui.add_space(6.0);
+    ui.add_space(4.0);
     ui.horizontal(|ui| {
-        ui.add_space(150.0);
+        ui.spacing_mut().item_spacing.x = 8.0;
+        ui.add_space((ui.available_width() - 3.0 * 42.0 - 16.0) * 0.5);
         for i in 14..17 {
             place(ui, i, out);
         }
@@ -480,143 +586,380 @@ fn character_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
 
 fn bags_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
     let c = v.content;
-    ui.label(
-        RichText::new(if v.at_vendor {
-            "Right click: sell (you are at a merchant). Shift + right click: use or equip."
+    dim(
+        ui,
+        t(if v.trading {
+            "panels.bags_hint_trade"
+        } else if v.at_vendor {
+            "panels.bags_hint_vendor"
         } else {
-            "Right click: equip or use."
-        })
-        .small()
-        .color(theme::TEXT_DIM),
+            "panels.bags_hint"
+        }),
     );
-    ui.add_space(4.0);
-    egui::Grid::new("bag-grid")
-        .spacing([4.0, 4.0])
-        .show(ui, |ui| {
-            for (i, s) in v.pack.iter().enumerate() {
-                let r = slot_button(ui, 44.0, c, s.as_ref(), "");
-                if let Some(st) = s {
-                    let r = r
-                        .on_hover_ui(|ui| item_tooltip(ui, c, st, v.class, v.level))
-                        .on_hover_cursor(CursorIcon::PointingHand);
-                    if r.secondary_clicked() {
-                        let shift = ui.input(|i| i.modifiers.shift);
-                        let it = c.item(st.item);
-                        if v.trading && !shift {
-                            out.push(ScreenCmd::Offer(i as u8));
-                        } else if v.at_vendor && !shift {
-                            out.push(ScreenCmd::Sell(i as u8));
-                        } else if it.gear.is_some() {
-                            out.push(ScreenCmd::Equip(i as u8));
-                        } else if it.food > 0 {
-                            out.push(ScreenCmd::Eat(i as u8));
+    ui.add_space(2.0);
+    theme::leather(ui, |ui| {
+        egui::Grid::new("bag-grid")
+            .spacing([4.0, 4.0])
+            .show(ui, |ui| {
+                for (i, s) in v.pack.iter().enumerate() {
+                    let r = slot_button(ui, 44.0, c, s.as_ref(), "");
+                    if let Some(st) = s {
+                        let r = r
+                            .on_hover_ui(|ui| {
+                                item_tooltip_vs(ui, c, st, v.class, v.level, Some(v.equip))
+                            })
+                            .on_hover_cursor(CursorIcon::PointingHand);
+                        if r.secondary_clicked() {
+                            let shift = ui.input(|i| i.modifiers.shift);
+                            let it = c.item(st.item);
+                            if v.trading && !shift {
+                                out.push(ScreenCmd::Offer(i as u8));
+                            } else if v.at_vendor && !shift {
+                                out.push(ScreenCmd::Sell(i as u8));
+                            } else if it.gear.is_some() {
+                                out.push(ScreenCmd::Equip(i as u8));
+                            } else if it.food > 0 {
+                                out.push(ScreenCmd::Eat(i as u8));
+                            }
                         }
                     }
+                    if i % 9 == 8 {
+                        ui.end_row();
+                    }
                 }
-                if i % 9 == 8 {
-                    ui.end_row();
-                }
-            }
-        });
+            });
+    });
     ui.add_space(6.0);
     ui.horizontal(|ui| {
-        ui.label(RichText::new(money_text(v.money)).color(theme::GOLD));
-        let free = v.pack.iter().filter(|s| s.is_none()).count();
+        coins(ui, v.money);
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            ui.label(RichText::new(format!("{free} free")).color(theme::TEXT_DIM));
+            if button(ui, &t("panels.sort")).clicked() {
+                out.push(ScreenCmd::Sort);
+            }
+            let junk: u32 = v
+                .pack
+                .iter()
+                .flatten()
+                .map(|s| (c.item(s.item), s.count as u32))
+                .filter(|(it, _)| is_junk(it))
+                .map(|(it, n)| it.value * n)
+                .sum();
+            if v.at_vendor && junk > 0 {
+                let label = tf("panels.sell_junk", &[("price", &money_text(junk))]);
+                if button(ui, &label).clicked() {
+                    out.push(ScreenCmd::SellJunk);
+                }
+            }
+            let free = v.pack.iter().filter(|s| s.is_none()).count();
+            dim(ui, tf("panels.free", &[("n", &free.to_string())]));
         });
     });
 }
 
-fn spellbook_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
+/// Poor things with no use but their price.
+pub fn is_junk(it: &dyno_world::content::ItemView) -> bool {
+    it.quality == 0 && it.value > 0 && it.gear.is_none() && it.food == 0 && it.tool.is_none()
+}
+
+/// Money as coins: a gold, silver and copper disc with each amount.
+pub fn coins(ui: &mut egui::Ui, copper: u32) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 3.0;
+        let parts = [
+            (copper / 10_000, Color32::from_rgb(255, 205, 70)),
+            (copper / 100 % 100, Color32::from_rgb(200, 204, 212)),
+            (copper % 100, Color32::from_rgb(196, 122, 70)),
+        ];
+        for (k, (n, col)) in parts.iter().enumerate() {
+            if *n == 0 && k < 2 {
+                continue;
+            }
+            ui.label(
+                RichText::new(n.to_string())
+                    .font(theme::bold_font(15.0))
+                    .color(theme::TEXT),
+            );
+            let (r, _) = ui.allocate_exact_size(Vec2::splat(13.0), Sense::hover());
+            let p = ui.painter();
+            p.circle_filled(r.center(), 6.0, theme::OUTLINE);
+            p.circle_filled(r.center(), 5.0, *col);
+            p.circle_filled(
+                r.center() - Vec2::new(1.3, 1.3),
+                2.0,
+                Color32::from_white_alpha(90),
+            );
+            ui.add_space(4.0);
+        }
+    });
+}
+
+fn spellbook_tab(ui: &mut egui::Ui, v: &View) {
     let c = v.content;
     let Some(class) = v.class else {
-        ui.label("Choose a class first.");
+        dim(ui, t("panels.no_class"));
         return;
     };
-    ui.label(
-        RichText::new("Click a number to put the ability on that key.")
-            .small()
-            .color(theme::TEXT_DIM),
-    );
+    dim(ui, t("panels.spellbook_hint"));
     let mut list: Vec<&Ability> = c.abilities.iter().filter(|a| a.class == class.id).collect();
     list.sort_by_key(|a| (a.level, a.id));
+    if let Some(next) = list.iter().find(|a| a.level > v.level) {
+        ui.label(
+            RichText::new(tf(
+                "panels.next_ability",
+                &[("ability", &next.name), ("level", &next.level.to_string())],
+            ))
+            .font(theme::body_font(14.0))
+            .color(theme::GOLD),
+        );
+    }
+    ui.add_space(4.0);
+    let height = (ui.ctx().content_rect().height() - 330.0).clamp(240.0, 520.0);
     egui::ScrollArea::vertical()
-        .max_height(420.0)
+        .max_height(height)
         .show(ui, |ui| {
+            ui.set_width(ui.available_width());
             for a in list {
                 let known = a.level <= v.level;
-                ui.horizontal(|ui| {
-                    let (rect, resp) = ui.allocate_exact_size(Vec2::splat(40.0), Sense::hover());
-                    let p = ui.painter();
-                    p.rect_filled(rect, 4.0, Color32::from_black_alpha(160));
-                    if let Some(item) = c.item_by_key(&a.icon) {
-                        item_ui::item_icon(p, rect.shrink(4.0), c, item);
-                    }
-                    if !known {
-                        p.rect_filled(rect, 4.0, Color32::from_black_alpha(170));
-                    }
-                    p.rect_stroke(
-                        rect,
-                        4.0,
-                        Stroke::new(1.0_f32, theme::GOLD_DARK),
-                        egui::StrokeKind::Inside,
-                    );
-                    resp.on_hover_ui(|ui| ability_tooltip(ui, c, a, known));
-                    ui.vertical(|ui| {
-                        let col = if known {
-                            Color32::WHITE
-                        } else {
-                            Color32::from_gray(120)
-                        };
-                        ui.label(RichText::new(&a.name).strong().color(col));
-                        ui.label(
-                            RichText::new(if known {
-                                format!("Level {}", a.level)
-                            } else {
-                                format!("Learn at level {}", a.level)
-                            })
-                            .small()
-                            .color(theme::TEXT_DIM),
-                        );
-                    });
+                let (row, _) =
+                    ui.allocate_exact_size(Vec2::new(ui.available_width(), 56.0), Sense::hover());
+                let p = ui.painter();
+                p.rect_filled(
+                    row,
+                    4.0,
                     if known {
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            for k in (0..12u8).rev() {
-                                let on = v.bar.get(k as usize).copied().flatten() == Some(a.id);
-                                let key =
-                                    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
-                                        [k as usize];
-                                let b = egui::Button::new(RichText::new(key).small()).selected(on);
-                                if ui.add(b).clicked() {
-                                    out.push(ScreenCmd::Bind(a.id, k));
-                                }
-                            }
-                        });
-                    }
-                });
-                ui.add_space(2.0);
+                        Color32::from_rgb(44, 32, 22)
+                    } else {
+                        Color32::from_rgb(28, 21, 16)
+                    },
+                );
+                p.rect_stroke(
+                    row,
+                    4.0,
+                    Stroke::new(1.0_f32, theme::BRONZE),
+                    egui::StrokeKind::Inside,
+                );
+                let icon = Rect::from_min_size(row.min + Vec2::splat(6.0), Vec2::splat(44.0));
+                theme::slot_well(p, icon);
+                if let Some(item) = c.item_by_key(&a.icon) {
+                    item_ui::item_icon(p, icon.shrink(5.0), c, item);
+                }
+                if !known {
+                    p.rect_filled(icon.shrink(2.0), 3.0, Color32::from_black_alpha(165));
+                }
+                theme::slot_rim(p, icon, false);
+                let ink = if known { theme::TEXT } else { theme::TEXT_DIM };
+                let x = icon.right() + 10.0;
+                p.text(
+                    Pos2::new(x, row.top() + 6.0),
+                    Align2::LEFT_TOP,
+                    &a.name,
+                    theme::title_font(14.5),
+                    if known { theme::GOLD_BRIGHT } else { ink },
+                );
+                // where it is: the key it is on, or the level it comes at
+                let on = v.bar.iter().position(|s| *s == Some(a.id));
+                let (tag, tag_col) = if !known {
+                    (tf("panels.learn_at", &[("n", &a.level.to_string())]), BAD)
+                } else if let Some(k) = on {
+                    (
+                        tf(
+                            "panels.on_key",
+                            &[("key", v.keys.get(k).copied().unwrap_or(""))],
+                        ),
+                        theme::GOOD,
+                    )
+                } else {
+                    (t("panels.not_on_bar"), theme::EMBER)
+                };
+                p.text(
+                    Pos2::new(row.right() - 8.0, row.top() + 7.0),
+                    Align2::RIGHT_TOP,
+                    tag,
+                    theme::body_font(12.5),
+                    tag_col,
+                );
+                // what it does, in a line or two
+                let galley = p.layout(
+                    a.text.clone(),
+                    theme::body_font(13.0),
+                    ink,
+                    row.right() - 8.0 - x,
+                );
+                p.with_clip_rect(Rect::from_min_max(
+                    Pos2::new(x, row.top() + 24.0),
+                    row.max - Vec2::splat(3.0),
+                ))
+                .galley(Pos2::new(x, row.top() + 25.0), galley, ink);
+                // the whole row explains itself; the icon of a known ability drags
+                let resp = ui.interact(
+                    row,
+                    ui.id().with(("ability", a.id)),
+                    if known {
+                        Sense::click_and_drag()
+                    } else {
+                        Sense::hover()
+                    },
+                );
+                if known {
+                    resp.dnd_set_drag_payload(BarDrag::Ability(a.id));
+                }
+                if !egui::DragAndDrop::has_any_payload(ui.ctx()) {
+                    resp.on_hover_ui(|ui| ability_tooltip(ui, c, a, known));
+                }
+                ui.add_space(1.0);
             }
         });
 }
 
 fn skills_tab(ui: &mut egui::Ui, v: &View) {
-    ui.label(RichText::new("Professions").strong().color(theme::GOLD));
+    theme::heading(ui, &t("panels.professions"), theme::GOLD);
     if v.skills.is_empty() {
-        ui.label(
-            RichText::new("Gather from trees, ore and bushes to learn a profession.")
-                .color(theme::TEXT_DIM),
-        );
+        dim(ui, t("panels.no_skills"));
     }
     for s in v.skills {
+        ui.add_space(4.0);
         ui.horizontal(|ui| {
-            ui.label(RichText::new(s.name).color(Color32::WHITE));
-            let f = s.value as f32 / s.max.max(1) as f32;
-            ui.add(
-                egui::ProgressBar::new(f)
-                    .desired_width(260.0)
-                    .text(format!("{} / {}", s.value, s.max)),
+            ui.add_sized(
+                [130.0, 20.0],
+                egui::Label::new(
+                    RichText::new(s.name)
+                        .font(theme::title_font(13.5))
+                        .color(theme::TEXT),
+                ),
+            );
+            let (r, _) =
+                ui.allocate_exact_size(Vec2::new(ui.available_width() - 4.0, 18.0), Sense::hover());
+            theme::resource_bar(
+                ui.painter(),
+                r,
+                s.value as f32,
+                s.max.max(1) as f32,
+                theme::GOLD_DARK,
+                &format!("{} / {}", s.value, s.max),
             );
         });
+    }
+    ui.add_space(8.0);
+    dim(ui, t("panels.skills_hint"));
+}
+
+/// The moves that tidy a pack: equal stacks joined, then gear, food, other
+/// things and junk, each best first. Pairs of bag slots to move wholly from
+/// and to, in order (the server's own stacking rules applied to a copy).
+pub fn sort_moves(c: &Content, pack: &[Option<Stack>]) -> Vec<(u8, u8)> {
+    let mut slots = pack.to_vec();
+    let mut moves = Vec::new();
+    let rank = |s: &Option<Stack>| match s {
+        None => (9u8, 0u8, 0u8, String::new()),
+        Some(s) => {
+            let it = c.item(s.item);
+            let group = if it.gear.is_some() {
+                0
+            } else if it.food > 0 {
+                1
+            } else if it.tool.is_some() {
+                2
+            } else if is_junk(&it) {
+                4
+            } else {
+                3
+            };
+            (group, 255 - it.quality, 255 - it.level, it.name.to_string())
+        }
+    };
+    let n = slots.len();
+    for i in 0..n {
+        // the best of what is left comes here
+        let best = (i..n).min_by_key(|j| rank(&slots[*j])).unwrap_or(i);
+        if slots[best].is_none() {
+            break;
+        }
+        if best != i {
+            dyno_sim::inventory::transfer_within(c, &mut slots, best, i, 0);
+            moves.push((best as u8, i as u8));
+        }
+        // and more of the same joins it, while it has room
+        for j in i + 1..n {
+            let (Some(a), Some(b)) = (slots[i], slots[j]) else {
+                continue;
+            };
+            if a.item == b.item && a.count < c.item(a.item).stack {
+                let before = slots[j];
+                dyno_sim::inventory::transfer_within(c, &mut slots, j, i, 0);
+                if slots[j] != before {
+                    moves.push((j as u8, i as u8));
+                }
+            }
+        }
+    }
+    moves
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dyno_world::content::{Stats, Weapon, WeaponKind};
+
+    fn gear(armor: u16, str: i16, sta: i16, weapon: Option<(f32, f32, f32)>) -> Gear {
+        Gear {
+            slot: Slot::MainHand,
+            armor_type: None,
+            weapon: weapon.map(|(min, max, speed)| Weapon {
+                kind: WeaponKind::Sword,
+                min,
+                max,
+                speed,
+            }),
+            armor,
+            stats: Stats {
+                str,
+                sta,
+                ..Stats::default()
+            },
+        }
+    }
+
+    #[test]
+    fn comparison_lists_only_what_changes_with_its_sign() {
+        let new = gear(10, 3, 1, Some((4.0, 8.0, 2.0)));
+        let worn = gear(10, 1, 2, Some((2.0, 4.0, 2.0)));
+        let lines = compare(&new, Some(&worn));
+        // damage per second up, strength up, stamina down; armour the same
+        let signs: Vec<bool> = lines.iter().map(|(d, _)| *d > 0.0).collect();
+        assert_eq!(signs, vec![true, true, false]);
+        // against an empty place everything it has is a gain
+        assert!(compare(&new, None).iter().all(|(d, _)| *d > 0.0));
+        assert!(compare(&new, Some(&new)).is_empty());
+    }
+
+    #[test]
+    fn sorting_joins_stacks_and_puts_gear_first_and_junk_last() {
+        let c = Content::default_pack();
+        let pick = |f: &dyn Fn(&dyno_world::content::ItemView) -> bool| {
+            c.items
+                .iter()
+                .map(|i| c.item(i.id))
+                .find(|it| f(it))
+                .map(|it| it.id)
+                .expect("the pack has such an item")
+        };
+        let food = pick(&|it| it.food > 0 && it.stack >= 10 && it.gear.is_none());
+        let sword = pick(&|it| it.gear.is_some());
+        let junk = pick(&is_junk);
+        let mut pack = vec![None; 12];
+        pack[1] = Some(Stack::new(junk, 1));
+        pack[4] = Some(Stack::new(food, 2));
+        pack[7] = Some(Stack::new(sword, 1));
+        pack[9] = Some(Stack::new(food, 3));
+        // play the moves as the server would
+        for (from, to) in sort_moves(&c, &pack) {
+            dyno_sim::inventory::transfer_within(&c, &mut pack, from as usize, to as usize, 0);
+        }
+        assert_eq!(pack[0].map(|s| s.item), Some(sword));
+        assert_eq!(pack[1], Some(Stack::new(food, 5)));
+        assert_eq!(pack[2].map(|s| s.item), Some(junk));
+        assert!(pack[3..].iter().all(|s| s.is_none()));
+        // a tidy pack needs no moves
+        assert!(sort_moves(&c, &pack).is_empty());
     }
 }

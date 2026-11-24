@@ -57,7 +57,7 @@ content/
 **Status: built** (protocol 18: compressed transfer). Today's pack: `pack.json`, the rules
 (`rules/hearthblock.json`), `blocks.json`, `render.json`, `fonts/`,
 `textures/`, `icons/`, `sounds/` (from the textures and sounds bake),
-`ui/strings.json` (loading screen, intro, class prompt, news) and
+`ui/strings.json` (loading screen, intro, class prompt, news, and every word of the HUD, panels and tutorial tips: `docs/design/ui.md`) and
 `stage/title.dynw` (the title stage): 328 files, 5.3 MB, 4.1 MB of it sounds.
 
 `pack.json`:
