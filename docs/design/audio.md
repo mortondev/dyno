@@ -379,12 +379,15 @@ run the tool, add the event to `content/audio.json`, and play it by key.
 
 | | Before any of this (4de5b40) | After the feedback sounds (de581d0) | With ambience and music |
 |---|---|---|---|
-| First join, bytes on the wire (`tests/streaming.rs`) | 3,746,571 | 2,947,175 | 2,947,128 |
-| Player client (`check-client.sh`) | 9,507,656 | 9,564,344 | CLIENT_NOW |
+| First join, bytes on the wire (`tests/streaming.rs`) | 3,746,571 | 2,947,175 | 2,946,242 |
+| Player client (`check-client.sh`) | 9,507,656 | 9,564,344 | 9,665,088 |
 
 Everything of the ambience and the music streams, their descriptions
-included, so the join did not grow (it lost 47 bytes: the first bake's
-ambience events left `audio.json`).
+included, so the join did not grow: it was 2,947,128 bytes before main was
+merged again (47 fewer: the first bake's ambience events left
+`audio.json`) and is 2,946,242 with it. The client's last figure includes
+main's other work merged since; this hand-in's own share was not measured
+apart.
 
 | Sounds | Files | Bytes on disk | Arrives |
 |---|---|---|---|
