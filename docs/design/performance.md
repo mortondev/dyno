@@ -69,7 +69,13 @@ target/release/dyno bench --local --check tools/bench/reference.json    # counts
 - **`--check REPORT.json`** fails when a still scene's vertex memory or
   triangles a frame grew more than 15% (`--tolerance`) over an earlier
   report. Times are never compared. `tools/bench/reference.json` is the
-  "after" run recorded below (RTX 3080), to check against on that card.
+  run to check against on the reference card (RTX 3080). It was recorded
+  again on 2026-11-24 (the far view of cubes): the first one predated
+  vegetation round 4, world round 3 and v0.11's content, and main itself
+  failed `--check` against it on 25 scenes and tiers (vertex memory
+  45–137% over, triangles up to 42%), so it no longer caught anything.
+  Record it again whenever the content of the fixed scenes is meant to
+  grow, with a note of why.
 - **`--diff A B`** compares two runs' pictures: the largest and the mean
   difference of a channel (of 255) and the share of pixels more than 2 and
   more than 8 apart, with a picture of each difference (twenty times as

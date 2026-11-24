@@ -41,7 +41,9 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
-      - run: cargo test --workspace --locked
+      - env:
+          DYNO_TEST_TIME_SCALE: "3"
+        run: cargo test --workspace --locked
 
   # the player client on its own: `--workspace` turns on the dev `host`
   # feature everywhere, so build and lint hearthblock alone, then check the
