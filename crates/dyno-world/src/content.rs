@@ -83,6 +83,21 @@ pub struct Item {
     /// a block show the block instead
     #[serde(default)]
     pub image: Option<String>,
+    /// a ride: buying it from a merchant takes you there instead of going
+    /// into your bags
+    #[serde(default)]
+    pub ride: Option<Ride>,
+}
+
+/// Where a ride item takes its buyer.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Ride {
+    /// where you get off (x, z), relative to the spawn hearth
+    pub at: [i32; 2],
+    /// the key of the area you must have found on foot first (none: anyone
+    /// may ride)
+    #[serde(default)]
+    pub area: Option<String>,
 }
 
 /// Where a piece of gear is worn. The paper doll has one place per slot,
@@ -568,6 +583,15 @@ pub struct WorldRules {
     /// (default 0.15)
     #[serde(default)]
     pub group_bonus: Option<f32>,
+    /// XP for walking into a named area for the first time: a base, plus
+    /// this much for each level of the area's lowest level (none: no XP)
+    #[serde(default)]
+    pub discovery_xp: Option<[u32; 2]>,
+    /// kill XP as a share of the design formula (none: all of it). Where
+    /// creatures stand close to the quest givers, kills come faster than
+    /// the formula assumed.
+    #[serde(default)]
+    pub kill_xp: Option<f32>,
 }
 
 impl WorldRules {
@@ -575,6 +599,12 @@ impl WorldRules {
     pub fn kill_share(&self, n: usize) -> f32 {
         let n = n.max(1) as f32;
         (1.0 + self.group_bonus.unwrap_or(0.15).max(0.0) * (n - 1.0)) / n
+    }
+
+    /// The XP for finding an area whose creatures start at `level`.
+    pub fn discovery(&self, level: u8) -> u32 {
+        self.discovery_xp
+            .map_or(0, |[base, per]| base + per * level as u32)
     }
 }
 
@@ -647,6 +677,10 @@ pub struct Camp {
     /// underground: spawn near this height relative to the hearth, not on the surface
     #[serde(default)]
     pub y: Option<i32>,
+    /// the camp's own level band (none: the area's): a boss keeps its
+    /// level in an area with a wide band
+    #[serde(default)]
+    pub levels: Option<[u8; 2]>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -657,6 +691,19 @@ pub struct Rare {
     pub power: f32,
     /// extra levels
     pub levels: u8,
+    /// what the rare drops on top of its kind's drops
+    #[serde(default)]
+    pub drops: Vec<Drop>,
+}
+
+#[derive(Deserialize)]
+struct ARare {
+    name: String,
+    chance: f32,
+    power: f32,
+    levels: u8,
+    #[serde(default)]
+    drops: Vec<ADrop>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -728,11 +775,13 @@ struct ACamp {
     #[serde(default = "five_min")]
     respawn: u16,
     #[serde(default)]
-    rare: Option<Rare>,
+    rare: Option<ARare>,
     #[serde(default)]
     y: Option<i32>,
     #[serde(default)]
     phase: Option<String>,
+    #[serde(default)]
+    levels: Option<[u8; 2]>,
 }
 
 fn five_min() -> u16 {
@@ -893,6 +942,8 @@ struct AItem {
     gear: Option<Gear>,
     #[serde(default)]
     image: Option<String>,
+    #[serde(default)]
+    ride: Option<Ride>,
 }
 
 #[derive(Deserialize)]
@@ -1070,6 +1121,7 @@ impl Content {
                 level: a.level,
                 gear: a.gear.clone(),
                 image: a.image.clone(),
+                ride: a.ride.clone(),
             });
         }
         let mut blocks = Vec::new();
@@ -1415,8 +1467,19 @@ impl Content {
                     at: c.at,
                     spread: c.spread,
                     respawn: c.respawn,
-                    rare: c.rare.clone(),
+                    rare: match &c.rare {
+                        Some(r) => Some(Rare {
+                            name: r.name.clone(),
+                            chance: r.chance,
+                            power: r.power,
+                            levels: r.levels,
+                            drops: drops(&r.drops)
+                                .map_err(|e| format!("area '{}', {}: {e}", a.key, r.name))?,
+                        }),
+                        None => None,
+                    },
                     y: c.y,
+                    levels: c.levels,
                 });
             }
             areas.push(Area {

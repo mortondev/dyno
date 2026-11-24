@@ -92,6 +92,8 @@ pub struct Player {
     pub auras: Vec<crate::abilities::Aura>,
     /// the named area you stand in
     pub area: Option<usize>,
+    /// keys of the named areas you have found (discovery XP, rides)
+    pub discovered: std::collections::HashSet<String>,
     /// how the player chose to look
     pub look: proto::Appearance,
     /// the sections of the world this player's client holds (stream.rs)
@@ -193,7 +195,11 @@ pub struct State {
     pub spawn_points: Vec<crate::camps::SpawnPoint>,
     pub zone_clock: f32,
     /// nodes resting after gathering (trees, bushes): until (unix seconds)
-    pub depleted: HashMap<[i32; 3], u64>,
+    /// nodes a player has gathered, and when each is theirs again: a node
+    /// rests for the one who took from it, not for everyone (a second
+    /// player at the same tree was told "gathered recently" with nothing
+    /// to show why)
+    pub depleted: HashMap<([i32; 3], PlayerId), u64>,
     /// the Nightfall Incursion, when one is under way
     pub incursion: Option<crate::events::Incursion>,
     /// the phase the next spawned creature belongs to (set by camps)
@@ -773,6 +779,7 @@ impl State {
             xp: data.xp,
             money: data.money,
             rested: rested_now,
+            discovered: data.discovered.iter().cloned().collect(),
             moves: crate::movement::MoveCheck::new(data.pos),
             party: Vec::new(),
             phases: 0,
@@ -1015,6 +1022,11 @@ impl State {
             xp: p.xp,
             money: p.money,
             rested: p.rested,
+            discovered: {
+                let mut d: Vec<String> = p.discovered.iter().cloned().collect();
+                d.sort();
+                d
+            },
             class: p
                 .class
                 .and_then(|c| self.content.class(c))

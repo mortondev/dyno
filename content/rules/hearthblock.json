@@ -3861,6 +3861,111 @@
     "armor": 1,
     "stats": {}
    }
+  },
+  {
+   "key": "ride_hearthstead",
+   "name": "Cart ride to Hearthstead",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "hearthstead",
+    "at": [
+     40,
+     4
+    ],
+    "area": "hearthstead"
+   },
+   "image": "icons/grain_sack.png"
+  },
+  {
+   "key": "ride_logging_camp",
+   "name": "Cart ride to Garrick's Camp",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "logging_camp",
+    "at": [
+     8,
+     13
+    ],
+    "area": "logging_camp"
+   },
+   "image": "icons/grain_sack.png"
+  },
+  {
+   "key": "ride_windmill",
+   "name": "Cart ride to Ostrin's Farm",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "windmill_farm",
+    "at": [
+     -10,
+     14
+    ],
+    "area": "windmill"
+   },
+   "image": "icons/grain_sack.png"
+  },
+  {
+   "key": "ride_fishers_landing",
+   "name": "Cart ride to Fisher's Landing",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "fishers_landing",
+    "at": [
+     2,
+     -4
+    ],
+    "area": "fishers_landing"
+   },
+   "image": "icons/grain_sack.png"
+  },
+  {
+   "key": "ride_miners_rest",
+   "name": "Cart ride to Miner's Rest",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "miners_rest",
+    "at": [
+     8,
+     -4
+    ],
+    "area": "miners_rest"
+   },
+   "image": "icons/grain_sack.png"
   }
  ],
  "blocks": {
@@ -3947,7 +4052,7 @@
      "chance": 1.0
     }
    ],
-   "respawn": 240,
+   "respawn": 120,
    "skill": [
     "mining",
     1
@@ -4547,7 +4652,7 @@
    "model": "quadruped",
    "spawn": "meadow",
    "cap": 8,
-   "damage": 3,
+   "damage": 2.5,
    "levels": [
     1,
     2
@@ -4557,10 +4662,10 @@
   {
    "key": "shade",
    "name": "Shade",
-   "health": 44,
+   "health": 40,
    "speed": 3.8,
    "hostile": true,
-   "damage": 4,
+   "damage": 3,
    "drops": [
     {
      "item": "shade_dust",
@@ -4807,6 +4912,22 @@
      "min": 1,
      "max": 1,
      "chance": 0.05
+    },
+    {
+     "item": "ironbound_girdle",
+     "chance": 0.02
+    },
+    {
+     "item": "wildstalker_belt",
+     "chance": 0.02
+    },
+    {
+     "item": "nightstalker_belt",
+     "chance": 0.02
+    },
+    {
+     "item": "apprentice_sash",
+     "chance": 0.02
     }
    ],
    "hostile": true,
@@ -4845,6 +4966,10 @@
      "min": 2,
      "max": 3,
      "chance": 1.0
+    },
+    {
+     "item": "ashcloak_hatchet",
+     "chance": 0.5
     }
    ],
    "hostile": true,
@@ -4895,6 +5020,22 @@
      "min": 1,
      "max": 1,
      "chance": 0.012
+    },
+    {
+     "item": "ironbound_girdle",
+     "chance": 0.012
+    },
+    {
+     "item": "wildstalker_belt",
+     "chance": 0.012
+    },
+    {
+     "item": "nightstalker_belt",
+     "chance": 0.012
+    },
+    {
+     "item": "apprentice_sash",
+     "chance": 0.012
     }
    ],
    "hostile": true,
@@ -4934,6 +5075,22 @@
      "min": 1,
      "max": 1,
      "chance": 0.4
+    },
+    {
+     "item": "ironbound_girdle",
+     "chance": 0.02
+    },
+    {
+     "item": "wildstalker_belt",
+     "chance": 0.02
+    },
+    {
+     "item": "nightstalker_belt",
+     "chance": 0.02
+    },
+    {
+     "item": "apprentice_sash",
+     "chance": 0.02
     }
    ],
    "hostile": true,
@@ -5025,6 +5182,52 @@
    "cap": 0,
    "attack_speed": 1.8,
    "burns_in_daylight": false
+  },
+  {
+   "key": "old_tusk",
+   "name": "Old Tusk",
+   "model": "quadruped",
+   "variant": 1,
+   "health": 150,
+   "damage": 9,
+   "levels": [
+    4,
+    4
+   ],
+   "color": [
+    0.38,
+    0.24,
+    0.16
+   ],
+   "drops": [
+    {
+     "item": "old_tusk_mantle",
+     "chance": 1.0
+    },
+    {
+     "item": "boar_tusk",
+     "min": 2,
+     "max": 3,
+     "chance": 1.0
+    },
+    {
+     "item": "thornhide_boots",
+     "chance": 0.5
+    }
+   ],
+   "hostile": true,
+   "scale": 1.5,
+   "speed": 3.2,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false,
+   "ability": {
+    "charge": {
+     "range": 10
+    }
+   },
+   "aggro": 4
   }
  ],
  "world": {
@@ -5039,11 +5242,20 @@
     1
    ],
    [
+    "hearth_bread",
+    6
+   ],
+   [
     "berries",
     5
    ]
   ],
-  "group_bonus": 0.7
+  "group_bonus": 0.7,
+  "discovery_xp": [
+   15,
+   10
+  ],
+  "kill_xp": 0.7
  },
  "npcs": [
   {
@@ -5367,7 +5579,11 @@
     "miners_stew",
     "woolen_cloak",
     "grazer_hide_leggings",
-    "iron_pickaxe:150"
+    "iron_pickaxe:150",
+    "ironbound_girdle",
+    "wildstalker_belt",
+    "nightstalker_belt",
+    "apprentice_sash"
    ],
    "routine": [
     {
@@ -6686,6 +6902,201 @@
    ]
   },
   {
+   "key": "jeb",
+   "name": "Carter Jeb",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "hearthstead",
+   "at": [
+    40,
+    0,
+    7
+   ],
+   "greeting": "Legs tired? I drive to anywhere you've already walked to. I don't go looking for new places.",
+   "sells": [
+    "ride_logging_camp:30",
+    "ride_windmill:30",
+    "ride_fishers_landing:40",
+    "ride_miners_rest:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "nan",
+   "name": "Carter Nan",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "logging_camp",
+   "at": [
+    8,
+    0,
+    15
+   ],
+   "greeting": "Timber goes out, people come back. Been somewhere on foot? Then I can take you.",
+   "sells": [
+    "ride_hearthstead:15",
+    "ride_windmill:30",
+    "ride_fishers_landing:40",
+    "ride_miners_rest:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "pip",
+   "name": "Carter Pip",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "windmill_farm",
+   "at": [
+    -12,
+    0,
+    16
+   ],
+   "greeting": "Flour to town twice a day. There's room on the sacks, if you know where you're going.",
+   "sells": [
+    "ride_hearthstead:15",
+    "ride_logging_camp:30",
+    "ride_fishers_landing:40",
+    "ride_miners_rest:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "corwin",
+   "name": "Ferryman Corwin",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "fishers_landing",
+   "at": [
+    3,
+    0,
+    -6
+   ],
+   "greeting": "Boat's laid up, but the cart still runs. Anywhere you've been, for a few coppers.",
+   "sells": [
+    "ride_hearthstead:15",
+    "ride_logging_camp:30",
+    "ride_windmill:30",
+    "ride_miners_rest:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "ada",
+   "name": "Carter Ada",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "miners_rest",
+   "at": [
+    8,
+    0,
+    -6
+   ],
+   "greeting": "Ore went west, once. Now it's just people who've had enough. Where to?",
+   "sells": [
+    "ride_hearthstead:15",
+    "ride_logging_camp:30",
+    "ride_windmill:30",
+    "ride_fishers_landing:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
    "key": "innkeeper",
    "name": "Marta",
    "title": "Innkeeper",
@@ -6718,7 +7129,7 @@
      "talk": "maren"
     }
    ],
-   "xp": 60,
+   "xp": 30,
    "money": 10,
    "requires": []
   },
@@ -6744,7 +7155,7 @@
     ]
    ],
    "requires": [],
-   "xp": 200
+   "xp": 110
   },
   {
    "key": "thin_the_herd",
@@ -6754,12 +7165,12 @@
    "requires": [
     "cold_hearth"
    ],
-   "text": "The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 10 of them should do.",
+   "text": "The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 8 of them should do. The nearest flocks graze just outside the gates.",
    "done": "That's better. Take one of these. You've earned it.",
    "objectives": [
     {
      "kill": "grazer",
-     "count": 10
+     "count": 8
     }
    ],
    "money": 60,
@@ -6781,7 +7192,7 @@
      1
     ]
    ],
-   "xp": 220
+   "xp": 130
   },
   {
    "key": "kindling",
@@ -6791,12 +7202,12 @@
    "requires": [
     "cold_hearth"
    ],
-   "text": "If we are ever to relight the Great Hearth we will need wood. Bring me 10 logs from the woods. Trees grow back here, faster than you'd think.",
+   "text": "If we are ever to relight the Great Hearth we will need wood. Bring me 8 logs from the woods. Trees grow back here, faster than you'd think.",
    "done": "Good, dry wood. Take this pick. The stone will need breaking too.",
    "objectives": [
     {
      "collect": "log",
-     "count": 10
+     "count": 8
     }
    ],
    "money": 50,
@@ -6806,7 +7217,7 @@
      1
     ]
    ],
-   "xp": 200
+   "xp": 100
   },
   {
    "key": "wool_for_winter",
@@ -6835,7 +7246,7 @@
      5
     ]
    ],
-   "xp": 200
+   "xp": 80
   },
   {
    "key": "coal_for_the_watch",
@@ -6845,7 +7256,7 @@
    "requires": [
     "kindling"
    ],
-   "text": "Light keeps the Shades back. Torches need coal. Look for black-flecked stone in the hillsides and cave mouths and bring me 6 coal.",
+   "text": "Light keeps the Shades back, and torches need coal. There is a seam in the rocks outside the north gate, on the left, and more at the Old Quarry north-west of the town. Bring me 6 coal. Your wooden pick will do.",
    "done": "Torches for the Watch, and some for you. Shades cannot rise in good light.",
    "objectives": [
     {
@@ -6860,7 +7271,7 @@
      16
     ]
    ],
-   "xp": 220
+   "xp": 170
   },
   {
    "key": "north_watch",
@@ -6870,9 +7281,9 @@
    "requires": [
     "thin_the_herd"
    ],
-   "text": "Before the dark came, we kept a beacon north of here. Go and find it. Its lantern may still burn. Follow the tracker north.",
-   "progress": "Have you found the beacon?",
-   "done": "Still burning? Then not all is lost.",
+   "text": "Before the dark came, we kept a beacon north of here. Follow the north road to it, and if Sergeant Holt still holds the watch there, give him my orders and do what he asks.",
+   "progress": "The Captain sent you? Find the beacon first: it is right behind me.",
+   "done": "Still burning, and so are we. Maren's orders, is it? Then there's work for you here.",
    "objectives": [
     {
      "explore": "the North Watch beacon",
@@ -6886,17 +7297,18 @@
     }
    ],
    "money": 80,
-   "xp": 120
+   "xp": 120,
+   "ender": "holt"
   },
   {
    "key": "eyes_in_the_dark",
    "title": "Eyes in the Dark",
    "level": 3,
-   "giver": "maren",
+   "giver": "holt",
    "requires": [
     "north_watch"
    ],
-   "text": "Shades rise when the sun goes down, and in deep caves at any hour. They cannot cross into a hearth's light. Fight from the light if you can. Destroy 5 of them.",
+   "text": "Shades rise when the sun goes down, and in deep caves at any hour. They cannot cross into a hearth's light: fight from the fire here if you can. Destroy 5 of them.",
    "progress": "Wait for dusk, or go below. They'll come.",
    "done": "Five fewer pairs of eyes. You fight like a Watchman.",
    "objectives": [
@@ -6908,15 +7320,15 @@
    "money": 120,
    "choice": [
     [
-     "watchman_vest",
+     "shadowweave_gloves",
      1
     ],
     [
-     "ranger_jerkin",
+     "smith_gloves",
      1
     ],
     [
-     "hearthkeeper_robe",
+     "thornhide_boots",
      1
     ]
    ],
@@ -6930,7 +7342,7 @@
    "requires": [
     "coal_for_the_watch"
    ],
-   "text": "The iron seams run deeper than coal: rust-red flecks in cave walls and cut hillsides. You'll want a stone pickaxe (Old Brannoc gives one for kindling, or I sell them) and a little practice: dig coal until your Mining reaches 5. Bring me 6 raw iron and I'll show you what a forge can do.",
+   "text": "The Old Quarry has iron beside the coal. You need a stone pickaxe (Brannoc gives one for kindling) and Mining 5: dig coal until you have it. Bring me 6 raw iron.",
    "done": "Good ore. Here, a proper pick, from my own anvil.",
    "objectives": [
     {
@@ -6948,7 +7360,8 @@
      "smith_gloves",
      1
     ]
-   ]
+   ],
+   "xp": 320
   },
   {
    "key": "dust_of_shadows",
@@ -7016,30 +7429,11 @@
    "money": 500
   },
   {
-   "key": "report_to_holt",
-   "title": "Report to the Watch",
-   "level": 3,
-   "giver": "maren",
-   "text": "Sergeant Holt keeps the North Watch. Take him my orders and do what he asks.",
-   "objectives": [
-    {
-     "talk": "holt"
-    }
-   ],
-   "requires": [
-    "north_watch"
-   ],
-   "money": 30,
-   "ender": "holt",
-   "done": "Maren's orders? Then you're with me now.",
-   "xp": 40
-  },
-  {
    "key": "watchfire",
    "title": "Feed the Watchfire",
    "level": 3,
    "giver": "holt",
-   "text": "The beacon needs coal or it dies by midnight. Three lumps will see us through the week.",
+   "text": "The watchfire eats coal. There is a seam in the Beacon Rocks, a stone's throw east of the tower: bring me 3 coal and it burns through the night.",
    "objectives": [
     {
      "collect": "coal",
@@ -7047,40 +7441,44 @@
     }
    ],
    "requires": [
-    "report_to_holt"
+    "north_watch"
    ],
    "money": 60,
    "done": "Hear that crackle? That's the sound of the dark backing off.",
-   "xp": 120
+   "xp": 100
   },
   {
    "key": "boar_trouble",
    "title": "Boar Trouble",
    "level": 3,
    "giver": "holt",
-   "text": "Thornboars charge anything on the north road. Six fewer would make it walkable again.",
+   "text": "Thornboars charge anything on the north road. Five fewer would make it walkable again.",
    "objectives": [
     {
      "kill": "thornboar",
-     "count": 6
+     "count": 5
     }
    ],
    "requires": [
-    "report_to_holt"
+    "north_watch"
    ],
    "money": 80,
    "done": "Road's clearer already. Take your pick from the armoury.",
    "choice": [
     [
-     "thornhide_boots",
+     "watchman_vest",
      1
     ],
     [
-     "woolen_cloak",
+     "ranger_jerkin",
+     1
+    ],
+    [
+     "hearthkeeper_robe",
      1
     ]
    ],
-   "xp": 240
+   "xp": 220
   },
   {
    "key": "garricks_camp",
@@ -7094,11 +7492,11 @@
     }
    ],
    "requires": [
-    "report_to_holt"
+    "north_watch"
    ],
-   "money": 20,
+   "money": 50,
    "ender": "garrick",
-   "xp": 40
+   "xp": 100
   },
   {
    "key": "tusks_and_tempers",
@@ -7117,7 +7515,7 @@
    ],
    "money": 90,
    "done": "Ha! Look at the size of that one.",
-   "xp": 240
+   "xp": 220
   },
   {
    "key": "silk_for_sails",
@@ -7164,7 +7562,7 @@
   },
   {
    "key": "barrow_warden",
-   "title": "The Barrow Warden",
+   "title": "The Barrow Warden (Group)",
    "level": 6,
    "giver": "garrick",
    "text": "Whatever rose from that barrow wears the old warden's helm. End it. Take friends.",
@@ -7179,12 +7577,30 @@
    ],
    "money": 300,
    "done": "Then the barrow sleeps again. For now.",
-   "xp": 1400
+   "xp": 1400,
+   "choice": [
+    [
+     "ironbound_pauldrons",
+     1
+    ],
+    [
+     "wildstalker_mantle",
+     1
+    ],
+    [
+     "nightstalker_spaulders",
+     1
+    ],
+    [
+     "apprentice_mantle",
+     1
+    ]
+   ]
   },
   {
    "key": "windmill_breadcrumb",
    "title": "Bread for the Mill",
-   "level": 3,
+   "level": 4,
    "giver": "tilda",
    "text": "Farmer Ostrin owes me flour. Walk south to his farm and see what's keeping him.",
    "objectives": [
@@ -7195,9 +7611,9 @@
    "requires": [
     "wool_for_winter"
    ],
-   "money": 20,
+   "money": 50,
    "ender": "ostrin",
-   "xp": 40
+   "xp": 120
   },
   {
    "key": "thieves_in_fields",
@@ -7222,11 +7638,11 @@
    "title": "Stolen Grain",
    "level": 4,
    "giver": "ostrin",
-   "text": "They carried off my grain in sacks. Bring back six and Tilda gets her flour.",
+   "text": "They carried off my grain in sacks. Bring back four and Tilda gets her flour.",
    "objectives": [
     {
      "collect": "grain_sack",
-     "count": 6
+     "count": 4
     }
    ],
    "requires": [
@@ -7259,9 +7675,9 @@
    "requires": [
     "windmill_breadcrumb"
    ],
-   "money": 20,
+   "money": 50,
    "ender": "wenna",
-   "xp": 40
+   "xp": 100
   },
   {
    "key": "pincher_supper",
@@ -7349,12 +7765,30 @@
     "drowned_light"
    ],
    "money": 200,
-   "done": "The water's dark again. Good dark."
+   "done": "The water's dark again. Good dark.",
+   "choice": [
+    [
+     "ironbound_helm",
+     1
+    ],
+    [
+     "wildstalker_hood",
+     1
+    ],
+    [
+     "nightstalker_cowl",
+     1
+    ],
+    [
+     "apprentice_circlet",
+     1
+    ]
+   ]
   },
   {
    "key": "word_from_east",
    "title": "Word from the East",
-   "level": 4,
+   "level": 5,
    "giver": "hollis",
    "text": "My ore came from Miner's Rest, east past the bridge. No shipment in a week. Find Quartermaster Bree and ask why. Mind the caravan on the road.",
    "objectives": [
@@ -7365,9 +7799,9 @@
    "requires": [
     "iron_for_hollis"
    ],
-   "money": 30,
+   "money": 50,
    "ender": "bree",
-   "xp": 40
+   "xp": 120
   },
   {
    "key": "ambush_east_road",
@@ -7416,7 +7850,7 @@
    "title": "Rook Varn",
    "level": 6,
    "giver": "bree",
-   "text": "Their leader, Rook Varn, wears a red sash and fights like ten men. End him and the band breaks.",
+   "text": "Their leader, Rook Varn, wears a red sash and fights like ten men. End him and the band breaks. He keeps two Cutthroats at his side: bring a friend, or pull them one at a time.",
    "objectives": [
     {
      "kill": "rook_varn",
@@ -7435,6 +7869,10 @@
     ],
     [
      "candlelight_wand",
+     1
+    ],
+    [
+     "wildstalker_quiver",
      1
     ]
    ],
@@ -7456,7 +7894,25 @@
     "word_from_east"
    ],
    "money": 180,
-   "done": "Wax everywhere. Disgusting little things."
+   "done": "Wax everywhere. Disgusting little things.",
+   "choice": [
+    [
+     "ironbound_gauntlets",
+     1
+    ],
+    [
+     "wildstalker_gauntlets",
+     1
+    ],
+    [
+     "nightstalker_gloves",
+     1
+    ],
+    [
+     "apprentice_wraps",
+     1
+    ]
+   ]
   },
   {
    "key": "wax_and_ore",
@@ -7478,11 +7934,29 @@
     "candles_in_dark"
    ],
    "money": 220,
-   "done": "Good iron, and wax to light the next shift."
+   "done": "Good iron, and wax to light the next shift.",
+   "choice": [
+    [
+     "ironbound_sabatons",
+     1
+    ],
+    [
+     "wildstalker_boots",
+     1
+    ],
+    [
+     "nightstalker_boots",
+     1
+    ],
+    [
+     "apprentice_slippers",
+     1
+    ]
+   ]
   },
   {
    "key": "hollow_foreman",
-   "title": "The Hollow Foreman",
+   "title": "The Hollow Foreman (Group)",
    "level": 10,
    "giver": "dunmore",
    "text": "Something wears the old foreman's coat in the Deep Seam and gives the Candlekin their orders. Gather a party of three and finish it.",
@@ -7497,7 +7971,326 @@
    ],
    "money": 800,
    "done": "The Hollow is ours. Hearthstead will hear of this.",
-   "xp": 3000
+   "xp": 3000,
+   "choice": [
+    [
+     "ironbound_cuirass",
+     1
+    ],
+    [
+     "wildstalker_hauberk",
+     1
+    ],
+    [
+     "nightstalker_jerkin",
+     1
+    ],
+    [
+     "apprentice_robe",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "broken_tower",
+   "title": "The Broken Tower",
+   "level": 2,
+   "giver": "tolan",
+   "requires": [
+    "cold_hearth"
+   ],
+   "text": "There's an old watchtower on the south road, three minutes out. Something has been moving in it after dark. Walk down, look it over and tell me what you see.",
+   "progress": "South gate, then follow the road. You can't miss it.",
+   "done": "Empty? Good. Empty is the best news I've had this week.",
+   "objectives": [
+    {
+     "explore": "the Broken Tower",
+     "place": "south_road_tower_7",
+     "at": [
+      7,
+      0,
+      3
+     ],
+     "radius": 14
+    }
+   ],
+   "xp": 90,
+   "money": 40
+  },
+  {
+   "key": "lay_of_the_land",
+   "title": "The Lay of the Land",
+   "level": 2,
+   "giver": "tolan",
+   "requires": [
+    "broken_tower"
+   ],
+   "text": "If you're to be any use to the Watch, learn the meadow. Go and stand in three places: the Old Quarry north-west, the Trapper's Camp on the west trail, and the wreck of Hobb's wagon on the east road.",
+   "progress": "Quarry, camp, caravan.",
+   "done": "Now you know the ground better than half my men. Take these: you've walked enough to need them.",
+   "objectives": [
+    {
+     "explore": "the Old Quarry",
+     "place": "old_quarry",
+     "at": [
+      -8,
+      0,
+      -10
+     ],
+     "radius": 16
+    },
+    {
+     "explore": "the Trapper's Camp",
+     "place": "west_trail_camp_11",
+     "at": [
+      3,
+      0,
+      8
+     ],
+     "radius": 14
+    },
+    {
+     "explore": "the Wrecked Caravan",
+     "place": "wrecked_caravan",
+     "at": [
+      0,
+      0,
+      9
+     ],
+     "radius": 14
+    }
+   ],
+   "xp": 260,
+   "money": 90,
+   "choice": [
+    [
+     "thornhide_boots",
+     1
+    ],
+    [
+     "mudcaked_boots",
+     1
+    ],
+    [
+     "woolen_cloak",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "lookouts_eye",
+   "title": "A Lookout's Eye",
+   "level": 3,
+   "giver": "holt",
+   "requires": [
+    "north_watch"
+   ],
+   "text": "From the hill up the road you can see the whole of Birchrise. Climb to the lookout and count the boar packs, so I know what we're up against.",
+   "progress": "Up the north road. The viewpoint is on the left.",
+   "done": "That many? Then the boars are your next job.",
+   "objectives": [
+    {
+     "explore": "Watch Hill Lookout",
+     "place": "north_road_view_2",
+     "at": [
+      8,
+      0,
+      2
+     ],
+     "radius": 14
+    }
+   ],
+   "xp": 100,
+   "money": 50
+  },
+  {
+   "key": "word_for_rysa",
+   "title": "Word for the Hunter",
+   "level": 4,
+   "giver": "garrick",
+   "ender": "rysa",
+   "requires": [
+    "garricks_camp"
+   ],
+   "text": "Rysa hunts out by the Hollow Oak, west along the trail. Tell her the camp will pay for every Websnare she clears. And mind the webs.",
+   "done": "Garrick pays now? Then stay: there's more here than I can shoot.",
+   "objectives": [
+    {
+     "talk": "rysa"
+    }
+   ],
+   "xp": 120,
+   "money": 50
+  },
+  {
+   "key": "webs_between_roots",
+   "title": "Webs Between the Roots",
+   "level": 4,
+   "giver": "rysa",
+   "requires": [
+    "word_for_rysa"
+   ],
+   "text": "They nest under the Hollow Oak and come out along the roots. Kill 8 Websnares. If a big pale one comes down the trunk, that's the Silkmother: don't fight her alone.",
+   "progress": "Eight. I'm counting.",
+   "done": "The wood's quieter already. Take your pick.",
+   "objectives": [
+    {
+     "kill": "websnare",
+     "count": 8
+    }
+   ],
+   "xp": 320,
+   "money": 120,
+   "choice": [
+    [
+     "webspun_cloak",
+     1
+    ],
+    [
+     "shadowweave_gloves",
+     1
+    ],
+    [
+     "smith_gloves",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "forgotten_graves",
+   "title": "The Forgotten Graves",
+   "level": 5,
+   "giver": "anwen",
+   "ender": "calder",
+   "requires": [],
+   "text": "The graves north of here are older than the Barrow. Calder lights a lamp there every night. Find the graves, then find him, and ask what he has seen.",
+   "progress": "Have you stood among the graves?",
+   "done": "Seen? The Warden walks, that's what I've seen. Somebody ought to put him back.",
+   "objectives": [
+    {
+     "explore": "the Forgotten Graves",
+     "place": "barrowwood_graves",
+     "at": [
+      0,
+      0,
+      8
+     ],
+     "radius": 14
+    },
+    {
+     "talk": "calder"
+    }
+   ],
+   "xp": 300,
+   "money": 100
+  },
+  {
+   "key": "know_the_vale",
+   "title": "Know the Vale",
+   "level": 5,
+   "giver": "brannoc",
+   "requires": [
+    "coal_for_the_watch"
+   ],
+   "text": "The Great Hearth once lit the whole vale. Before we relight it, see what it will shine on. Stand at the North Pass, the Barrow Overlook, the Shrine Shore and the Ridge Cut. It is a long road: take a friend past the bridge.",
+   "progress": "North, west, south, east. The vale is bigger than it looks from here.",
+   "done": "Pass to shore, and back alive. Then wear something worthy of it.",
+   "objectives": [
+    {
+     "explore": "the North Pass",
+     "place": "north_pass",
+     "at": [
+      8,
+      0,
+      6
+     ],
+     "radius": 16
+    },
+    {
+     "explore": "the Barrow Overlook",
+     "place": "oak_trail_view_19",
+     "at": [
+      7,
+      0,
+      -4
+     ],
+     "radius": 14
+    },
+    {
+     "explore": "the Shrine Shore",
+     "place": "shrine_shore",
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "radius": 14
+    },
+    {
+     "explore": "the Ridge Cut",
+     "place": "ridge_cut",
+     "at": [
+      -6,
+      0,
+      6
+     ],
+     "radius": 14
+    }
+   ],
+   "xp": 1500,
+   "money": 400,
+   "choice": [
+    [
+     "ironbound_legplates",
+     1
+    ],
+    [
+     "wildstalker_leggings",
+     1
+    ],
+    [
+     "nightstalker_breeches",
+     1
+    ],
+    [
+     "apprentice_trousers",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "old_tusk",
+   "title": "Old Tusk (Group)",
+   "level": 4,
+   "giver": "holt",
+   "requires": [
+    "boar_trouble"
+   ],
+   "text": "The boars follow one old brute with tusks like scythes. He keeps to a hollow west of here. He has put two of my men in their beds: take a friend, and bring him down.",
+   "progress": "Old Tusk. West of the tower, past the first boar pack. Not alone.",
+   "done": "That is the herd broken. The Watch owes you, both of you.",
+   "objectives": [
+    {
+     "kill": "old_tusk",
+     "count": 1
+    }
+   ],
+   "xp": 500,
+   "money": 200,
+   "choice": [
+    [
+     "watchman_vest",
+     1
+    ],
+    [
+     "ranger_jerkin",
+     1
+    ],
+    [
+     "hearthkeeper_robe",
+     1
+    ]
+   ]
   }
  ],
  "classes": [
@@ -8586,45 +9379,226 @@
    "camps": [
     {
      "creature": "grazer",
-     "count": 4,
+     "count": 5,
      "place": "meadow_flock_1",
-     "spread": 18,
-     "respawn": 90
+     "spread": 20,
+     "respawn": 75
     },
     {
      "creature": "grazer",
-     "count": 4,
+     "count": 5,
      "place": "meadow_flock_2",
-     "spread": 18,
-     "respawn": 90
+     "spread": 20,
+     "respawn": 75
     },
     {
      "creature": "grazer",
-     "count": 3,
+     "count": 5,
      "place": "meadow_flock_3",
-     "spread": 16,
-     "respawn": 90
+     "spread": 20,
+     "respawn": 75
     },
     {
      "creature": "grazer",
-     "count": 4,
+     "count": 5,
      "place": "meadow_flock_4",
-     "spread": 18,
-     "respawn": 90
+     "spread": 20,
+     "respawn": 75
     },
     {
      "creature": "grazer",
-     "count": 3,
+     "count": 5,
      "place": "meadow_flock_5",
+     "spread": 20,
+     "respawn": 75
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "meadow_flock_6",
+     "spread": 20,
+     "respawn": 75
+    },
+    {
+     "creature": "grazer",
+     "count": 6,
+     "place": "hearthstead",
+     "at": [
+      80,
+      -80
+     ],
+     "spread": 17,
+     "respawn": 50
+    },
+    {
+     "creature": "grazer",
+     "count": 6,
+     "place": "hearthstead",
+     "at": [
+      80,
+      80
+     ],
+     "spread": 17,
+     "respawn": 50,
+     "rare": {
+      "name": "Greatfleece",
+      "chance": 0.03,
+      "power": 1.5,
+      "levels": 0,
+      "drops": [
+       {
+        "item": "grazer_hide_leggings",
+        "chance": 0.5
+       },
+       {
+        "item": "woolen_cloak",
+        "chance": 0.35
+       }
+      ]
+     }
+    },
+    {
+     "creature": "grazer",
+     "count": 6,
+     "place": "hearthstead",
+     "at": [
+      -80,
+      80
+     ],
+     "spread": 17,
+     "respawn": 50
+    },
+    {
+     "creature": "grazer",
+     "count": 6,
+     "place": "hearthstead",
+     "at": [
+      -80,
+      -80
+     ],
+     "spread": 17,
+     "respawn": 50
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      185,
+      60
+     ],
+     "spread": 20,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      -190,
+      -70
+     ],
+     "spread": 20,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      60,
+      -165
+     ],
+     "spread": 20,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      -70,
+      190
+     ],
+     "spread": 20,
+     "respawn": 60
+    },
+    {
+     "creature": "thornboar",
+     "count": 2,
+     "place": "hearthstead",
+     "at": [
+      -150,
+      40
+     ],
+     "spread": 16,
+     "respawn": 90
+    },
+    {
+     "creature": "thornboar",
+     "count": 2,
+     "place": "hearthstead",
+     "at": [
+      55,
+      255
+     ],
+     "spread": 16,
+     "respawn": 90
+    },
+    {
+     "creature": "thornboar",
+     "count": 2,
+     "place": "hearthstead",
+     "at": [
+      150,
+      -120
+     ],
      "spread": 16,
      "respawn": 90
     },
     {
      "creature": "grazer",
-     "count": 3,
-     "place": "meadow_flock_6",
-     "spread": 16,
-     "respawn": 90
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      135,
+      20
+     ],
+     "spread": 18,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      -130,
+      -25
+     ],
+     "spread": 18,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      -30,
+      135
+     ],
+     "spread": 18,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      30,
+      -130
+     ],
+     "spread": 18,
+     "respawn": 60
     }
    ]
   },
@@ -8661,13 +9635,7 @@
      "count": 3,
      "place": "birchrise_boars_2",
      "spread": 16,
-     "respawn": 120,
-     "rare": {
-      "name": "Old Tusk",
-      "chance": 0.12,
-      "power": 2.2,
-      "levels": 1
-     }
+     "respawn": 120
     },
     {
      "creature": "thornboar",
@@ -8678,10 +9646,36 @@
     },
     {
      "creature": "grazer",
-     "count": 3,
+     "count": 4,
      "place": "birchrise_flock",
      "spread": 14,
      "respawn": 90
+    },
+    {
+     "creature": "thornboar",
+     "count": 4,
+     "place": "north_watch",
+     "at": [
+      -70,
+      -40
+     ],
+     "spread": 16,
+     "respawn": 75
+    },
+    {
+     "creature": "old_tusk",
+     "count": 1,
+     "place": "north_watch",
+     "at": [
+      -135,
+      -70
+     ],
+     "spread": 14,
+     "respawn": 150,
+     "levels": [
+      4,
+      4
+     ]
     }
    ]
   },
@@ -8720,7 +9714,13 @@
       "name": "Silkmother",
       "chance": 0.12,
       "power": 2.5,
-      "levels": 1
+      "levels": 1,
+      "drops": [
+       {
+        "item": "silkmother_gloves",
+        "chance": 0.5
+       }
+      ]
      }
     },
     {
@@ -8767,7 +9767,11 @@
      "spread": 2,
      "respawn": 600,
      "below": 4,
-     "phase": "!warden_rests"
+     "phase": "!warden_rests",
+     "levels": [
+      6,
+      6
+     ]
     }
    ]
   },
@@ -8793,7 +9797,25 @@
      "count": 4,
      "place": "mere_pinchers_2",
      "spread": 18,
-     "respawn": 100
+     "respawn": 100,
+     "rare": {
+      "name": "Old Snapper",
+      "chance": 0.12,
+      "power": 2.2,
+      "levels": 1,
+      "drops": [
+       {
+        "item": "mireshell_buckler",
+        "chance": 0.5
+       },
+       {
+        "item": "pincher_shell",
+        "min": 2,
+        "max": 3,
+        "chance": 0.35
+       }
+      ]
+     }
     },
     {
      "creature": "mirepincher",
@@ -8804,16 +9826,38 @@
     },
     {
      "creature": "ashcloak",
-     "count": 3,
+     "count": 5,
      "place": "mere_ashcloaks",
      "spread": 14,
-     "respawn": 120
+     "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 3,
      "place": "mere_flock",
      "spread": 14,
+     "respawn": 90
+    },
+    {
+     "creature": "mirepincher",
+     "count": 3,
+     "place": "windmill_farm",
+     "at": [
+      -70,
+      60
+     ],
+     "spread": 14,
+     "respawn": 120
+    },
+    {
+     "creature": "grazer",
+     "count": 4,
+     "place": "windmill_farm",
+     "at": [
+      -60,
+      -70
+     ],
+     "spread": 18,
      "respawn": 90
     }
    ]
@@ -8860,7 +9904,13 @@
       "name": "The Drowned Lamp",
       "chance": 0.15,
       "power": 2.5,
-      "levels": 1
+      "levels": 1,
+      "drops": [
+       {
+        "item": "drowned_lamp_staff",
+        "chance": 0.5
+       }
+      ]
      }
     }
    ]
@@ -8869,7 +9919,7 @@
    "key": "east_road",
    "name": "The East Road",
    "place": "east_road",
-   "radius": "place",
+   "radius": 190,
    "levels": [
     4,
     5
@@ -8877,10 +9927,28 @@
    "camps": [
     {
      "creature": "ashcloak",
-     "count": 2,
+     "count": 3,
      "place": "road_scouts_1",
      "spread": 9,
-     "respawn": 120
+     "respawn": 120,
+     "rare": {
+      "name": "Quick Fenna",
+      "chance": 0.12,
+      "power": 2.2,
+      "levels": 1,
+      "drops": [
+       {
+        "item": "ashcloak_hatchet",
+        "chance": 0.5
+       },
+       {
+        "item": "coin_purse",
+        "min": 2,
+        "max": 3,
+        "chance": 0.35
+       }
+      ]
+     }
     },
     {
      "creature": "ashcloak",
@@ -8892,7 +9960,11 @@
      ],
      "spread": 9,
      "respawn": 120,
-     "phase": "!stockade_taken"
+     "phase": "!stockade_taken",
+     "levels": [
+      5,
+      6
+     ]
     },
     {
      "creature": "ashcloak_leader",
@@ -8904,7 +9976,11 @@
      ],
      "spread": 4,
      "respawn": 240,
-     "phase": "!stockade_taken"
+     "phase": "!stockade_taken",
+     "levels": [
+      5,
+      6
+     ]
     },
     {
      "creature": "rook_varn",
@@ -8916,11 +9992,15 @@
      ],
      "spread": 1,
      "respawn": 600,
-     "phase": "!stockade_taken"
+     "phase": "!stockade_taken",
+     "levels": [
+      6,
+      6
+     ]
     },
     {
      "creature": "ashcloak",
-     "count": 2,
+     "count": 3,
      "place": "road_scouts_2",
      "spread": 9,
      "respawn": 120
@@ -8969,7 +10049,11 @@
      ],
      "spread": 10,
      "respawn": 120,
-     "below": 7
+     "below": 7,
+     "levels": [
+      5,
+      6
+     ]
     },
     {
      "creature": "candlekin",
@@ -8981,7 +10065,11 @@
      ],
      "spread": 8,
      "respawn": 120,
-     "below": 10
+     "below": 10,
+     "levels": [
+      6,
+      7
+     ]
     },
     {
      "creature": "gloomwisp",
@@ -8993,7 +10081,11 @@
      ],
      "spread": 8,
      "respawn": 150,
-     "below": 15
+     "below": 15,
+     "levels": [
+      7,
+      8
+     ]
     },
     {
      "creature": "hollow_foreman",
@@ -9004,10 +10096,244 @@
       -89
      ],
      "spread": 1,
-     "respawn": 1200,
+     "respawn": 600,
      "below": 23,
-     "phase": "!foreman_slain"
+     "phase": "!foreman_slain",
+     "levels": [
+      10,
+      10
+     ]
     }
+   ]
+  },
+  {
+   "key": "old_quarry",
+   "name": "The Old Quarry",
+   "place": "old_quarry",
+   "radius": 30,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "beacon_rocks",
+   "name": "Beacon Rocks",
+   "place": "beacon_rocks",
+   "radius": 22,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "broken_tower",
+   "name": "The Broken Tower",
+   "place": "south_road_tower_7",
+   "radius": 26,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "trappers_camp",
+   "name": "Trapper's Camp",
+   "place": "west_trail_camp_11",
+   "radius": 26,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "westfold_farm",
+   "name": "Westfold Farm",
+   "place": "meadow_farm_1",
+   "radius": 32,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "eastfold_farm",
+   "name": "Eastfold Farm",
+   "place": "meadow_farm_2",
+   "radius": 32,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "southfold_farm",
+   "name": "Southfold Farm",
+   "place": "meadow_farm_3",
+   "radius": 32,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "wrecked_caravan",
+   "name": "The Wrecked Caravan",
+   "place": "wrecked_caravan",
+   "radius": 28,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "watch_hill",
+   "name": "Watch Hill Lookout",
+   "place": "north_road_view_2",
+   "radius": 26,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "woodcutters_well",
+   "name": "Woodcutters' Well",
+   "place": "logging_trail_well_14",
+   "radius": 24,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "hunters_rest",
+   "name": "Hunter's Rest",
+   "place": "oak_trail_camp_16",
+   "radius": 26,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "north_pass",
+   "name": "The North Pass",
+   "place": "north_pass",
+   "radius": 40,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "barrow_overlook",
+   "name": "Barrow Overlook",
+   "place": "oak_trail_view_19",
+   "radius": 26,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "forgotten_graves",
+   "name": "The Forgotten Graves",
+   "place": "barrowwood_graves",
+   "radius": 30,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "old_barrow",
+   "name": "The Old Barrow",
+   "place": "old_barrow",
+   "radius": 42,
+   "levels": [
+    5,
+    6
+   ]
+  },
+  {
+   "key": "bluebell_glade",
+   "name": "Bluebell Glade",
+   "place": "west_trail_glade_13",
+   "radius": 26,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "listening_stones",
+   "name": "The Listening Stones",
+   "place": "south_road_stones_9",
+   "radius": 26,
+   "levels": [
+    3,
+    4
+   ]
+  },
+  {
+   "key": "mere_wayshrine",
+   "name": "Wayshrine of the Mere",
+   "place": "south_road_wayshrine_10",
+   "radius": 26,
+   "levels": [
+    3,
+    4
+   ]
+  },
+  {
+   "key": "emberford_bridge",
+   "name": "Emberford Bridge",
+   "place": "emberford_bridge",
+   "radius": 30,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "emberrun_ford",
+   "name": "Emberrun Ford",
+   "place": "emberrun_ford",
+   "radius": 28,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "ashcloak_stockade",
+   "name": "The Ashcloak Stockade",
+   "place": "ashcloak_stockade",
+   "radius": 46,
+   "levels": [
+    5,
+    6
+   ]
+  },
+  {
+   "key": "ridge_cut",
+   "name": "The Ridge Cut",
+   "place": "ridge_cut",
+   "radius": 24,
+   "levels": [
+    5,
+    6
+   ]
+  },
+  {
+   "key": "gate_rocks",
+   "name": "North Gate Rocks",
+   "place": "gate_rocks",
+   "radius": 20,
+   "levels": [
+    1,
+    2
    ]
   }
  ],

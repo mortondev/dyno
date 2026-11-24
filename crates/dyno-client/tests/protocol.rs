@@ -148,7 +148,9 @@ fn night_brings_shades() {
     let mut pack = vec![None; 36];
     // out in the meadow, beyond the town (where Shades never rise)
     let here = {
-        let (x, z) = (hearth[0] + 52, hearth[2]);
+        // (the walled town's peace reaches 82 m; Shades rise 18 to 32 m
+        // from you, and this world ends 96 m out)
+        let (x, z) = (hearth[0] + 68, hearth[2]);
         land(&mut j, [x as f32, 0.0, z as f32], 24.0);
         [
             x as f32 + 0.5,
@@ -1193,6 +1195,8 @@ fn corpses_are_looted_and_merchants_sell() {
         .1;
     pose(&j, [tilda_pos[0] + 1.0, tilda_pos[1], tilda_pos[2]]);
     std::thread::sleep(Duration::from_millis(100));
+    // (a new character starts with some bread of its own)
+    let had = count(&pack, bread);
     send(
         &j,
         ClientMsg::Buy {
@@ -1202,7 +1206,7 @@ fn corpses_are_looted_and_merchants_sell() {
         },
     );
     let left = wait(&j, &mut pack, 3.0, |m, p| match m {
-        ServerMsg::Character { money, .. } if count(p, bread) == 5 => Some(*money),
+        ServerMsg::Character { money, .. } if count(p, bread) == had + 5 => Some(*money),
         _ => None,
     });
     assert_eq!(left, purse - 5 * price);

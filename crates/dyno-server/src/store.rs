@@ -62,6 +62,9 @@ pub struct PlayerData {
     /// banked rested XP
     #[serde(default)]
     pub rested: u32,
+    /// keys of the named areas they have walked into
+    #[serde(default)]
+    pub discovered: Vec<String>,
 }
 
 fn level_one() -> u8 {
@@ -127,6 +130,7 @@ impl PlayerData {
             class: None,
             power: 0.0,
             rested: 0,
+            discovered: Vec::new(),
             equip: Vec::new(),
             skills: Vec::new(),
             look: Default::default(),

@@ -68,7 +68,12 @@ fn bot_hands_in_the_first_quest_and_plays() {
     a.set(Task::talk(ender, vec![Deal::Complete(quest.id, 0)]));
     assert!(run_until(&mut a, 30.0, |a| a.body.done.contains(&quest.id)));
     assert_eq!(a.tel.quests.iter().filter(|q| q.done.is_some()).count(), 1);
-    assert!(a.tel.xp_total >= 50, "quest XP: {}", a.tel.xp_total);
+    assert!(
+        quest.xp > 0 && a.tel.xp_total >= quest.xp as u64,
+        "quest XP: {} of {}",
+        a.tel.xp_total,
+        quest.xp
+    );
 
     // the brain takes over: it finds more quests and kills something
     let mut brain = Scripted::new(Personality::Completionist, 1);
