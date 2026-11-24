@@ -34,7 +34,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 
+mod drive;
 mod hud;
+pub use drive::{DriveOptions, drive};
 mod sound;
 
 const ACCENT: Color32 = Color32::from_rgb(240, 138, 60);
@@ -89,6 +91,8 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         autojoined: false,
         cursor: (0.0, 0.0),
         last_shot: Instant::now(),
+        drive_events: Vec::new(),
+        started: Instant::now(),
     };
     for i in 0..app.front.realms.len() {
         let token = app.settings.token;
@@ -225,6 +229,13 @@ struct Play {
     skills: Vec<(String, u16, u16)>,
     /// buffs: ability and when they end
     auras: Vec<(u16, Instant)>,
+    /// what my absorb shields will still soak up, and the most they held
+    shield: (f32, f32),
+    /// the timed effects on creatures: ability and when it ends
+    entity_auras: HashMap<u32, Vec<(u16, Instant)>>,
+    /// the named places I have found (area keys), and the map of them (M)
+    discovered: HashSet<String>,
+    world_map: crate::worldmap::WorldMap,
     combo: (u8, Option<u32>),
     /// the named place you are in
     zone: String,
@@ -247,9 +258,15 @@ struct Play {
     autorun: bool,
     /// last frame's inverse view-projection and screen size, for cursor picking
     inv_vp: Option<glam::Mat4>,
+    /// the same frame's view-projection itself (inverting the inverse loses
+    /// too much: a script projects with this)
+    view_proj: Option<glam::Mat4>,
     screen_px: (f32, f32),
     /// the creature or person under the cursor
     hover: Option<u32>,
+    /// what was under the cursor when the mouse button went down: a click
+    /// is on that, even if it has walked on by the time the button is up
+    press_hover: Option<u32>,
     /// a world event near you: title, task, progress
     world_event: Option<(String, String, f32)>,
     /// the first-login intro, when it started
@@ -1055,7 +1072,8 @@ fn animate_blow(p: &mut Play) {
 /// The creature or person along a ray (the mouse cursor), nearest first,
 /// unless a block is in the way.
 fn pick_entity_ray(p: &Play, o: Vec3, dir: Vec3, max: f32) -> Option<u32> {
-    let wall = game::raycast(&p.world, o, dir, max).map(|t| {
+    // (what hides a creature is what you cannot see through: not a torch)
+    let wall = game::raycast_solid(&p.world, o, dir, max).map(|t| {
         let c = Vec3::new(
             t.block[0] as f32 + 0.5,
             t.block[1] as f32 + 0.5,
@@ -1260,6 +1278,10 @@ struct App {
     stage_loaded: bool,
     /// the character being joined is brand new (play the intro)
     joining_new: bool,
+    /// input for egui when there is no window (`dyno drive`): what
+    /// egui-winit would have gathered since the last frame
+    drive_events: Vec<egui::Event>,
+    started: Instant,
 }
 
 /// The small world behind the front-end screens.
@@ -1644,8 +1666,10 @@ fn new_play(j: Joined) -> Play {
         cam_orbit: 0.0,
         autorun: false,
         inv_vp: None,
+        view_proj: None,
         screen_px: (1.0, 1.0),
         hover: None,
+        press_hover: None,
         world_event: None,
         intro: None,
         chat_tab_combat: false,
@@ -1656,6 +1680,10 @@ fn new_play(j: Joined) -> Play {
         tops: Default::default(),
         wielding: HashMap::new(),
         wearing: HashMap::new(),
+        shield: (0.0, 0.0),
+        entity_auras: HashMap::new(),
+        discovered: HashSet::new(),
+        world_map: Default::default(),
         remote_dead: Default::default(),
         remote_hold: HashMap::new(),
         trade_ask: None,
@@ -1684,14 +1712,226 @@ fn new_play(j: Joined) -> Play {
     }
 }
 
+/// Something the player did with the mouse or the keyboard. The window's
+/// events become these, and so do the lines of a `dyno drive` script: both
+/// go through [`App::input`], so a script exercises what a player's hands do.
+#[derive(Clone, Copy, Debug)]
+enum Hand {
+    /// the cursor, in physical pixels
+    Cursor(f64, f64),
+    Mouse(MouseButton, bool),
+    /// key, pressed, a repeat
+    Key(KeyCode, bool, bool),
+    /// lines scrolled
+    Wheel(f32),
+    /// raw mouse movement (while the cursor is locked for steering)
+    Motion(f64, f64),
+}
+
+/// The egui key of a key the interface listens to itself.
+fn egui_key(code: KeyCode) -> Option<egui::Key> {
+    Some(match code {
+        KeyCode::Escape => egui::Key::Escape,
+        KeyCode::Enter => egui::Key::Enter,
+        KeyCode::Tab => egui::Key::Tab,
+        KeyCode::KeyL => egui::Key::L,
+        KeyCode::KeyM => egui::Key::M,
+        _ => return None,
+    })
+}
+
 impl App {
+    /// Handle one input. With a window, egui has already seen the event
+    /// (egui-winit); without one, it is queued for egui's next frame here,
+    /// by the same rule: not while the cursor is locked for steering.
+    fn input(&mut self, e: Hand) {
+        let captured = matches!(&self.screen, Screen::Playing(p) if p.captured);
+        if self.egui_state.is_none() && !captured {
+            let zoom = self.egui_ctx.zoom_factor();
+            let at = |c: (f64, f64)| Pos2::new(c.0 as f32 / zoom, c.1 as f32 / zoom);
+            match e {
+                Hand::Cursor(x, y) => self
+                    .drive_events
+                    .push(egui::Event::PointerMoved(at((x, y)))),
+                Hand::Mouse(button, pressed) => {
+                    let button = match button {
+                        MouseButton::Left => Some(egui::PointerButton::Primary),
+                        MouseButton::Right => Some(egui::PointerButton::Secondary),
+                        MouseButton::Middle => Some(egui::PointerButton::Middle),
+                        _ => None,
+                    };
+                    if let Some(button) = button {
+                        self.drive_events.push(egui::Event::PointerButton {
+                            pos: at(self.cursor),
+                            button,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        });
+                    }
+                }
+                Hand::Key(code, pressed, repeat) => {
+                    if let Some(key) = egui_key(code) {
+                        self.drive_events.push(egui::Event::Key {
+                            key,
+                            physical_key: None,
+                            pressed,
+                            repeat,
+                            modifiers: egui::Modifiers::NONE,
+                        });
+                    }
+                }
+                Hand::Wheel(_) | Hand::Motion(..) => {}
+            }
+        }
+        match e {
+            Hand::Cursor(x, y) => self.cursor = (x, y),
+            Hand::Key(code, pressed, repeat) => {
+                if code == KeyCode::Tab
+                    && let Screen::Playing(p) = &mut self.screen
+                {
+                    if pressed {
+                        p.keys.insert(code);
+                    } else {
+                        p.keys.remove(&code);
+                    }
+                }
+                let wow_free = matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.chat_open && !p.menu_open)
+                    && !self.egui_ctx.wants_keyboard_input();
+                if captured || wow_free {
+                    self.key(code, pressed, repeat);
+                }
+            }
+            Hand::Mouse(button, pressed) => self.mouse_button(button, pressed, captured),
+            Hand::Wheel(d) => {
+                let free = matches!(&self.screen, Screen::Playing(p) if p.wow())
+                    && !self.egui_ctx.is_pointer_over_area();
+                if (captured || free)
+                    && let Screen::Playing(p) = &mut self.screen
+                {
+                    let n = 9;
+                    if p.content.world.protected && !p.creative() {
+                        // RPG: the wheel zooms the camera
+                        p.zoom = (p.zoom - d * 1.2).clamp(0.0, 12.0);
+                        if p.zoom < 1.2 && d > 0.0 {
+                            p.zoom = 0.0;
+                        }
+                    } else if d.abs() > 0.1 {
+                        p.slot = ((p.slot as i32 - d.signum() as i32).rem_euclid(n)) as usize;
+                    }
+                }
+            }
+            Hand::Motion(dx, dy) => {
+                if let Screen::Playing(p) = &mut self.screen
+                    && p.captured
+                    && !p.menu_open
+                    && !p.chat_open
+                {
+                    let s = 0.0025 * self.settings.mouse_sensitivity;
+                    if p.wow() {
+                        p.drag += (dx.abs() + dy.abs()) as f32;
+                        if p.rmb {
+                            p.player.yaw -= dx as f32 * s;
+                        } else {
+                            p.cam_orbit -= dx as f32 * s;
+                        }
+                        p.player.pitch = (p.player.pitch - dy as f32 * s).clamp(-1.4, 1.4);
+                        return;
+                    }
+                    p.player.yaw -= dx as f32 * s;
+                    p.player.pitch = (p.player.pitch - dy as f32 * s).clamp(-1.55, 1.55);
+                }
+            }
+        }
+    }
+
+    /// A mouse button went down or up (`captured`: the cursor was locked
+    /// when it did).
+    fn mouse_button(&mut self, button: MouseButton, pressed: bool, captured: bool) {
+        let rpg = matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.menu_open && !p.chat_open && !p.class_pick && p.dead.is_none());
+        if rpg && matches!(button, MouseButton::Left | MouseButton::Right) {
+            let over_ui =
+                self.egui_ctx.is_pointer_over_area() || self.egui_ctx.wants_pointer_input();
+            let Screen::Playing(p) = &mut self.screen else {
+                return;
+            };
+            let held = p.lmb || p.rmb;
+            if pressed {
+                if over_ui && !held {
+                    return; // the interface has it
+                }
+                if !held {
+                    p.drag = 0.0;
+                    p.press_hover = p.hover;
+                }
+                if button == MouseButton::Right {
+                    p.rmb = true;
+                    // the character turns to where the camera looks
+                    p.player.yaw += p.cam_orbit;
+                    p.cam_orbit = 0.0;
+                } else {
+                    p.lmb = true;
+                }
+                if !held {
+                    self.set_mouselook(true);
+                }
+            } else {
+                if !held {
+                    return;
+                }
+                if button == MouseButton::Right {
+                    p.rmb = false;
+                } else {
+                    p.lmb = false;
+                }
+                let click = p.drag < 6.0;
+                if !(p.lmb || p.rmb) {
+                    self.set_mouselook(false);
+                    if click {
+                        self.world_click(button);
+                    }
+                }
+            }
+            return;
+        }
+        if !pressed {
+            return;
+        }
+        let (playing_free, menu_or_chat) = match &self.screen {
+            Screen::Playing(p) => (
+                !p.captured,
+                p.menu_open
+                    || p.chat_open
+                    || p.picker_open
+                    || p.panel.is_some()
+                    || p.class_pick
+                    || p.screen_tab.is_some(),
+            ),
+            _ => (false, true),
+        };
+        if playing_free && !menu_or_chat && button == MouseButton::Left {
+            self.set_capture(true);
+        } else if captured {
+            self.click(button);
+        }
+    }
+
     fn window(&self) -> Option<&Arc<Window>> {
         self.gfx.as_ref().and_then(|g| g.window.as_ref())
     }
 
     fn set_capture(&mut self, on: bool) {
-        let Some(win) = self.window().cloned() else {
-            return;
+        // (a scripted client has no window: the state changes all the same)
+        let win = self.window().cloned();
+        let grab = |on: bool| {
+            let Some(win) = &win else { return };
+            if on {
+                let _ = win
+                    .set_cursor_grab(CursorGrabMode::Locked)
+                    .or_else(|_| win.set_cursor_grab(CursorGrabMode::Confined));
+            } else {
+                let _ = win.set_cursor_grab(CursorGrabMode::None);
+            }
+            win.set_cursor_visible(!on);
         };
         if let Screen::Playing(p) = &mut self.screen {
             // WoW mode: the cursor stays free; mouselook is held with a button
@@ -1700,21 +1940,13 @@ impl App {
                 return;
             }
             if p.wow() && !on {
-                let _ = win.set_cursor_grab(CursorGrabMode::None);
-                win.set_cursor_visible(true);
+                grab(false);
                 p.captured = false;
                 return;
             }
-            if on {
-                let ok = win
-                    .set_cursor_grab(CursorGrabMode::Locked)
-                    .or_else(|_| win.set_cursor_grab(CursorGrabMode::Confined));
-                win.set_cursor_visible(false);
-                p.captured = ok.is_ok() || true;
-            } else {
-                let _ = win.set_cursor_grab(CursorGrabMode::None);
-                win.set_cursor_visible(true);
-                p.captured = false;
+            grab(on);
+            p.captured = on;
+            if !on {
                 p.keys.clear();
             }
         }
@@ -1722,21 +1954,18 @@ impl App {
 
     /// Hold a mouse button to steer: hide and lock the cursor while it is held.
     fn set_mouselook(&mut self, on: bool) {
-        let Some(win) = self.window().cloned() else {
-            return;
-        };
-        if let Screen::Playing(p) = &mut self.screen {
+        if let Some(win) = self.window().cloned() {
             if on {
                 let _ = win
                     .set_cursor_grab(CursorGrabMode::Locked)
                     .or_else(|_| win.set_cursor_grab(CursorGrabMode::Confined));
-                win.set_cursor_visible(false);
-                p.captured = true;
             } else {
                 let _ = win.set_cursor_grab(CursorGrabMode::None);
-                win.set_cursor_visible(true);
-                p.captured = false;
             }
+            win.set_cursor_visible(!on);
+        }
+        if let Screen::Playing(p) = &mut self.screen {
+            p.captured = on;
         }
     }
 
@@ -1745,9 +1974,12 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
+        // what the button went down on, if the cursor is on nothing now
         let hover = p
             .hover
+            .or(p.press_hover.take())
             .and_then(|id| p.entities.get(&id).map(|e| (id, e.kind)));
+        p.press_hover = None;
         match (button, hover) {
             (MouseButton::Left, Some((_, EntityKind::Corpse { .. }))) => {}
             (MouseButton::Left, Some((id, _))) => p.focus = Some(id),
@@ -2173,9 +2405,7 @@ impl App {
                         ServerMsg::Status {
                             health, mode, fuel, ..
                         } => {
-                            let was = p.health;
                             p.health = health;
-                            hud::health_changed(p, was, health);
                             p.fuel = fuel;
                             if mode != p.mode {
                                 p.mode = mode;
@@ -2221,6 +2451,7 @@ impl App {
                             }
                         }
                         ServerMsg::EntityGone { id, picked_by } => {
+                            p.entity_auras.remove(&id);
                             if let Some(e) = p.entities.get(&id)
                                 && let EntityKind::Creature(_) = e.kind
                             {
@@ -2315,19 +2546,7 @@ impl App {
                                 }
                             }
                         }
-                        ServerMsg::Healed { amount } => {
-                            if amount >= 0.5 {
-                                self.audio.play("combat.heal", 1.0);
-                                let green = Color32::from_rgb(110, 235, 120);
-                                p.floaters
-                                    .push((Instant::now(), format!("+{amount:.0}"), green));
-                                p.combat_log.push((
-                                    Instant::now(),
-                                    format!("You are healed for {amount:.0}."),
-                                    green,
-                                ));
-                            }
-                        }
+                        ServerMsg::Healed { amount } => hud::healed(p, amount),
                         ServerMsg::Equipment(e) => {
                             p.equip = e;
                             hud::carried_changed(p);
@@ -2374,6 +2593,25 @@ impl App {
                         ServerMsg::Skills(s) => p.skills = s,
                         ServerMsg::Attacking(t) => p.attacking = t,
                         ServerMsg::Combo { points, target } => p.combo = (points, target),
+                        ServerMsg::Discovered(places) => {
+                            p.discovered = places.into_iter().collect();
+                        }
+                        ServerMsg::Shield { left } => {
+                            p.shield = if left <= 0.0 {
+                                (0.0, 0.0)
+                            } else {
+                                (left, p.shield.1.max(left))
+                            };
+                        }
+                        ServerMsg::EntityAuras { id, list } => {
+                            let now = Instant::now();
+                            p.entity_auras.insert(
+                                id,
+                                list.into_iter()
+                                    .map(|(a, s)| (a, now + Duration::from_secs_f32(s)))
+                                    .collect(),
+                            );
+                        }
                         ServerMsg::Auras(list) => {
                             let now = Instant::now();
                             p.auras = list
@@ -3317,6 +3555,7 @@ impl App {
             gfx.water
                 .look_from(&p.world, eye.into(), p.hearth.unwrap_or_default());
             p.inv_vp = Some(vp.inverse());
+            p.view_proj = Some(vp);
             p.screen_px = (wdt, hgt);
             p.fps.1 += 1;
             if p.fps.0.elapsed() >= Duration::from_secs(1) {
@@ -3325,15 +3564,26 @@ impl App {
         }
 
         // UI
-        let Some(state) = self.egui_state.as_mut() else {
-            return;
-        };
-        let Some(window) = gfx.window.clone() else {
-            return;
-        };
         // the interface keeps its share of the window, whatever its size
         crate::options::apply_zoom(&self.egui_ctx, gfx.config.height as f32);
-        let raw = state.take_egui_input(&window);
+        let window = gfx.window.clone();
+        let raw = match (self.egui_state.as_mut(), &window) {
+            (Some(state), Some(window)) => state.take_egui_input(window),
+            // no window (`dyno drive`): the events the script sent
+            (None, None) => {
+                let zoom = self.egui_ctx.zoom_factor();
+                egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(
+                        Pos2::ZERO,
+                        Vec2::new(wdt / zoom, hgt / zoom),
+                    )),
+                    time: Some(self.started.elapsed().as_secs_f64()),
+                    events: std::mem::take(&mut self.drive_events),
+                    ..Default::default()
+                }
+            }
+            _ => return,
+        };
         let ctx = self.egui_ctx.clone();
         // the pack's fonts, once they arrive
         crate::theme::refresh_fonts(&ctx);
@@ -3351,7 +3601,9 @@ impl App {
                 &mut actions,
             );
         });
-        state.handle_platform_output(&window, out.platform_output.clone());
+        if let (Some(state), Some(window)) = (self.egui_state.as_mut(), &window) {
+            state.handle_platform_output(window, out.platform_output.clone());
+        }
         let playing = match &self.screen {
             Screen::Playing(p) => Some(&**p),
             _ => None,
@@ -3654,11 +3906,16 @@ impl App {
         }
         match code {
             KeyCode::Escape
-                if p.wow() && (p.panel.is_some() || p.screen_tab.is_some() || p.picker_open) =>
+                if p.wow()
+                    && (p.panel.is_some()
+                        || p.screen_tab.is_some()
+                        || p.picker_open
+                        || p.ui.map_open) =>
             {
                 p.panel = None;
                 p.screen_tab = None;
                 p.picker_open = false;
+                p.ui.map_open = false;
             }
             KeyCode::Escape if p.wow() && p.focus.is_some() => {
                 p.focus = None;
@@ -3700,6 +3957,10 @@ impl App {
             }
             KeyCode::KeyE if p.content.world.protected && !p.creative() => {
                 p.screen_tab = Some(screens::Tab::Bags);
+                self.set_capture(false);
+            }
+            KeyCode::KeyM if p.content.world.protected => {
+                p.ui.map_open = !p.ui.map_open;
                 self.set_capture(false);
             }
             KeyCode::KeyL => {
@@ -4607,7 +4868,7 @@ fn hud(
             .collect()
     };
     for (txt, col) in lines {
-        let galley = painter.layout(txt, FontId::proportional(14.0), col, 520.0);
+        let galley = painter.layout(txt, crate::theme::body_font(14.5), col, 520.0);
         y -= galley.size().y + 4.0;
         let r = Rect::from_min_size(
             Pos2::new(screen.left() + 10.0, y - 2.0),
@@ -4617,42 +4878,16 @@ fn hud(
         painter.galley(Pos2::new(screen.left() + 15.0, y), galley, col);
     }
     // tabs: Chat and Combat
-    egui::Area::new(egui::Id::new("chat_tabs"))
-        .fixed_pos(Pos2::new(
-            screen.left() + 10.0,
-            y.min(chat_bottom - 20.0) - 28.0,
-        ))
-        .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                for (label, combat) in [("Chat", false), ("Combat", true)] {
-                    let on = p.chat_tab_combat == combat;
-                    let t = RichText::new(label).size(12.0).color(if on {
-                        crate::theme::GOLD_BRIGHT
-                    } else {
-                        crate::theme::TEXT_DIM
-                    });
-                    if ui
-                        .add(egui::Button::new(t).fill(Color32::from_black_alpha(if on {
-                            170
-                        } else {
-                            90
-                        })))
-                        .clicked()
-                    {
-                        p.chat_tab_combat = combat;
-                    }
-                }
-            });
-        });
+    hud::chat_tabs(
+        ctx,
+        p,
+        Pos2::new(screen.left() + 10.0, y.min(chat_bottom - 20.0) - 28.0),
+    );
     if p.chat_open {
         egui::Area::new(egui::Id::new("chat_in"))
             .fixed_pos(Pos2::new(screen.left() + 10.0, chat_bottom + 6.0))
             .show(ctx, |ui| {
-                let r = ui.add(
-                    egui::TextEdit::singleline(&mut p.chat_text)
-                        .desired_width(520.0)
-                        .hint_text("Say something, Enter to send, Esc to cancel"),
-                );
+                let r = hud::field(ui, &mut p.chat_text, 520.0, &crate::uitext::t("chat.hint"));
                 if p.focus_chat {
                     r.request_focus();
                     p.focus_chat = false;
@@ -4783,56 +5018,9 @@ fn hud(
     if let Some(vp) = vp {
         hud::combat_text(&painter, p, screen, vp);
     }
-    // class picker
-    if p.class_pick {
-        let mut chosen = None;
-        egui::Window::new(
-            RichText::new("Choose your path")
-                .size(22.0)
-                .color(Color32::from_rgb(255, 210, 80)),
-        )
-        .id(egui::Id::new("class-pick"))
-        .collapsible(false)
-        .resizable(false)
-        .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-        .show(ctx, |ui| {
-            ui.set_width(640.0);
-            ui.label(pack_text("classes", "prompt"));
-            ui.add_space(8.0);
-            ui.columns(p.content.classes.len().max(1), |cols| {
-                for (k, c) in p.content.classes.iter().enumerate() {
-                    let ui = &mut cols[k];
-                    let col = Color32::from_rgb(
-                        (c.color[0] * 255.0) as u8,
-                        (c.color[1] * 255.0) as u8,
-                        (c.color[2] * 255.0) as u8,
-                    );
-                    ui.label(RichText::new(&c.name).size(20.0).strong().color(col));
-                    ui.label(RichText::new(&c.blurb).small());
-                    ui.add_space(4.0);
-                    for a in p.content.abilities.iter().filter(|a| a.class == c.id) {
-                        ui.label(
-                            RichText::new(format!("{} (level {})", a.name, a.level))
-                                .small()
-                                .color(Color32::from_gray(210)),
-                        )
-                        .on_hover_text(&a.text);
-                    }
-                    ui.add_space(6.0);
-                    if ui
-                        .button(RichText::new(format!("Become a {}", c.name)).strong())
-                        .clicked()
-                    {
-                        chosen = Some(c.id);
-                    }
-                }
-            });
-        });
-        if let Some(c) = chosen {
-            actions.push(Action::ChooseClass(c));
-        }
-    }
+    hud::class_picker(ctx, p, actions);
     hud::cast_bar(&painter, p, bar_rect);
+    hud::map(ctx, p);
     // RPG windows
     if let Some(mut panel) = p.panel.clone() {
         let me = rpg_ui::Me {
@@ -4856,166 +5044,9 @@ fn hud(
             actions.push(Action::Rpg(cmds));
         }
     }
-    // a party invitation
-    if let Some(from) = p.invite.clone() {
-        let mut answer = None;
-        egui::Window::new("Party invitation")
-            .id(egui::Id::new("party-invite"))
-            .title_bar(false)
-            .resizable(false)
-            .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 120.0))
-            .frame(crate::theme::window_frame())
-            .show(ctx, |ui| {
-                ui.label(
-                    RichText::new(format!("{from} invites you to join their party."))
-                        .font(crate::theme::body_font(16.0))
-                        .color(crate::theme::TEXT),
-                );
-                ui.horizontal(|ui| {
-                    if ui.button("Accept").clicked() {
-                        answer = Some("/accept");
-                    }
-                    if ui.button("Decline").clicked() {
-                        answer = Some("/decline");
-                    }
-                });
-            });
-        if let Some(a) = answer {
-            let _ = p.conn.tx.send(ClientMsg::Chat { text: a.into() });
-            p.invite = None;
-        }
-    }
-    // someone asks to trade
-    if let Some(from) = p.trade_ask.clone() {
-        let mut answer = None;
-        egui::Window::new("Trade request")
-            .id(egui::Id::new("trade-ask"))
-            .title_bar(false)
-            .resizable(false)
-            .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 190.0))
-            .frame(crate::theme::window_frame())
-            .show(ctx, |ui| {
-                ui.label(
-                    RichText::new(format!("{from} wants to trade with you."))
-                        .font(crate::theme::body_font(16.0))
-                        .color(crate::theme::TEXT),
-                );
-                ui.horizontal(|ui| {
-                    if ui.button("Trade").clicked() {
-                        answer = Some(dyno_protocol::TradeOp::Agree);
-                    }
-                    if ui.button("Decline").clicked() {
-                        answer = Some(dyno_protocol::TradeOp::Cancel);
-                    }
-                });
-            });
-        if let Some(a) = answer {
-            let _ = p.conn.tx.send(ClientMsg::Trade(a));
-            p.trade_ask = None;
-        }
-    }
-    // the trade window
-    if let Some(view) = p.trade.clone() {
-        let mut ops = Vec::new();
-        let mut open = true;
-        crate::theme::window(
-            ctx,
-            "trade",
-            "Trade",
-            &format!("with {}", view.with),
-            430.0,
-            (Align2::LEFT_CENTER, Vec2::new(40.0, 0.0)),
-            &mut open,
-            |ui| {
-                ui.label(
-                    RichText::new("Right-click items in your bags to offer them. Click a line to take it back.")
-                        .small()
-                        .color(crate::theme::TEXT_DIM),
-                );
-                ui.columns(2, |cols| {
-                    for (k, (title, items, money, accept)) in [
-                        ("You offer", &view.mine, view.my_money, view.i_accept),
-                        (
-                            view.with.as_str(),
-                            &view.theirs,
-                            view.their_money,
-                            view.they_accept,
-                        ),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    {
-                        let ui = &mut cols[k];
-                        ui.label(
-                            RichText::new(title)
-                                .font(crate::theme::title_font(14.0))
-                                .color(crate::theme::GOLD),
-                        );
-                        for (i, st) in items.iter().enumerate() {
-                            let it = p.content.item(st.item);
-                            let label = if st.count > 1 {
-                                format!("{} ×{}", it.name, st.count)
-                            } else {
-                                it.name.to_string()
-                            };
-                            let r = ui.add(egui::Button::new(
-                                RichText::new(label).color(crate::theme::quality_color(it.quality)),
-                            ));
-                            if k == 0 && r.clicked() {
-                                ops.push(dyno_protocol::TradeOp::Withdraw { line: i as u8 });
-                            }
-                        }
-                        ui.label(
-                            RichText::new(dyno_sim::progression::money_text(money))
-                                .color(crate::theme::GOLD),
-                        );
-                        ui.label(
-                            RichText::new(if accept {
-                                "Accepted"
-                            } else {
-                                "Not yet accepted"
-                            })
-                            .small()
-                            .color(if accept {
-                                Color32::from_rgb(120, 210, 120)
-                            } else {
-                                crate::theme::TEXT_DIM
-                            }),
-                        );
-                    }
-                });
-                ui.add_space(6.0);
-                ui.horizontal(|ui| {
-                    ui.label("Coins (copper):");
-                    let r =
-                        ui.add(egui::TextEdit::singleline(&mut p.trade_money).desired_width(80.0));
-                    if r.lost_focus()
-                        && let Ok(n) = p.trade_money.trim().parse::<u32>()
-                    {
-                        ops.push(dyno_protocol::TradeOp::Money(n));
-                    }
-                });
-                ui.add_space(6.0);
-                ui.horizontal(|ui| {
-                    if ui
-                        .button(RichText::new("Accept").color(crate::theme::GOLD_BRIGHT))
-                        .clicked()
-                    {
-                        ops.push(dyno_protocol::TradeOp::Accept);
-                    }
-                    if ui.button("Cancel").clicked() {
-                        ops.push(dyno_protocol::TradeOp::Cancel);
-                    }
-                });
-            },
-        );
-        if !open {
-            ops.push(dyno_protocol::TradeOp::Cancel);
-        }
-        for op in ops {
-            let _ = p.conn.tx.send(ClientMsg::Trade(op));
-        }
-    }
+    // invitations, and the trade window
+    hud::prompts(ctx, p);
+    hud::trade(ctx, p);
     // an open corpse
     if let Some((id, money, items)) = &p.loot {
         let gone = p
@@ -5187,145 +5218,32 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => self.frame(),
             WindowEvent::CursorMoved { position, .. } => {
-                self.cursor = (position.x, position.y);
+                self.input(Hand::Cursor(position.x, position.y));
             }
             WindowEvent::Focused(false) => self.set_capture(false),
             WindowEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(code) = event.physical_key {
                     let pressed = event.state == ElementState::Pressed;
-                    if code == KeyCode::Tab
-                        && let Screen::Playing(p) = &mut self.screen
-                    {
-                        if pressed {
-                            p.keys.insert(code);
-                        } else {
-                            p.keys.remove(&code);
-                        }
-                    }
-                    let wow_free = matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.chat_open && !p.menu_open)
-                        && !self.egui_ctx.wants_keyboard_input();
-                    if captured || wow_free {
-                        self.key(code, pressed, event.repeat);
-                    }
+                    self.input(Hand::Key(code, pressed, event.repeat));
                 }
             }
-            WindowEvent::MouseInput {
-                state,
-                button: button @ (MouseButton::Left | MouseButton::Right),
-                ..
-            } if matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.menu_open && !p.chat_open && !p.class_pick && p.dead.is_none()) =>
-            {
-                let over_ui =
-                    self.egui_ctx.is_pointer_over_area() || self.egui_ctx.wants_pointer_input();
-                let Screen::Playing(p) = &mut self.screen else {
-                    return;
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.input(Hand::Mouse(button, state == ElementState::Pressed));
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                let d = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => y,
+                    MouseScrollDelta::PixelDelta(p) => (p.y / 40.0) as f32,
                 };
-                let held = p.lmb || p.rmb;
-                if state == ElementState::Pressed {
-                    if over_ui && !held {
-                        return; // the interface has it
-                    }
-                    if !held {
-                        p.drag = 0.0;
-                    }
-                    if button == MouseButton::Right {
-                        p.rmb = true;
-                        // the character turns to where the camera looks
-                        p.player.yaw += p.cam_orbit;
-                        p.cam_orbit = 0.0;
-                    } else {
-                        p.lmb = true;
-                    }
-                    if !held {
-                        self.set_mouselook(true);
-                    }
-                } else {
-                    if !held {
-                        return;
-                    }
-                    if button == MouseButton::Right {
-                        p.rmb = false;
-                    } else {
-                        p.lmb = false;
-                    }
-                    let click = p.drag < 6.0;
-                    if !(p.lmb || p.rmb) {
-                        self.set_mouselook(false);
-                        if click {
-                            self.world_click(button);
-                        }
-                    }
-                }
-            }
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button,
-                ..
-            } => {
-                let (playing_free, menu_or_chat) = match &self.screen {
-                    Screen::Playing(p) => (
-                        !p.captured,
-                        p.menu_open
-                            || p.chat_open
-                            || p.picker_open
-                            || p.panel.is_some()
-                            || p.class_pick
-                            || p.screen_tab.is_some(),
-                    ),
-                    _ => (false, true),
-                };
-                if playing_free && !menu_or_chat && button == MouseButton::Left {
-                    self.set_capture(true);
-                } else if captured {
-                    self.click(button);
-                }
-            }
-            WindowEvent::MouseWheel { delta, .. }
-                if captured
-                    || (matches!(&self.screen, Screen::Playing(p) if p.wow())
-                        && !self.egui_ctx.is_pointer_over_area()) =>
-            {
-                if let Screen::Playing(p) = &mut self.screen {
-                    let d = match delta {
-                        MouseScrollDelta::LineDelta(_, y) => y,
-                        MouseScrollDelta::PixelDelta(p) => (p.y / 40.0) as f32,
-                    };
-                    let n = 9;
-                    if p.content.world.protected && !p.creative() {
-                        // RPG: the wheel zooms the camera
-                        p.zoom = (p.zoom - d * 1.2).clamp(0.0, 12.0);
-                        if p.zoom < 1.2 && d > 0.0 {
-                            p.zoom = 0.0;
-                        }
-                    } else if d.abs() > 0.1 {
-                        p.slot = ((p.slot as i32 - d.signum() as i32).rem_euclid(n)) as usize;
-                    }
-                }
+                self.input(Hand::Wheel(d));
             }
             _ => {}
         }
     }
 
     fn device_event(&mut self, _el: &ActiveEventLoop, _id: DeviceId, event: DeviceEvent) {
-        if let DeviceEvent::MouseMotion { delta } = event
-            && let Screen::Playing(p) = &mut self.screen
-            && p.captured
-            && !p.menu_open
-            && !p.chat_open
-        {
-            let s = 0.0025 * self.settings.mouse_sensitivity;
-            if p.wow() {
-                p.drag += (delta.0.abs() + delta.1.abs()) as f32;
-                if p.rmb {
-                    p.player.yaw -= delta.0 as f32 * s;
-                } else {
-                    p.cam_orbit -= delta.0 as f32 * s;
-                }
-                p.player.pitch = (p.player.pitch - delta.1 as f32 * s).clamp(-1.4, 1.4);
-                return;
-            }
-            p.player.yaw -= delta.0 as f32 * s;
-            p.player.pitch = (p.player.pitch - delta.1 as f32 * s).clamp(-1.55, 1.55);
+        if let DeviceEvent::MouseMotion { delta } = event {
+            self.input(Hand::Motion(delta.0, delta.1));
         }
     }
 

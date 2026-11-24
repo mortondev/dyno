@@ -527,6 +527,9 @@ pub struct ClassInfo {
     pub resource: String,
     pub armor: String,
     pub abilities: Vec<String>,
+    /// the items a new character of the class starts in (item keys): the
+    /// creation screen dresses its preview in them
+    pub starter: Vec<String>,
 }
 
 /// What a realm says about itself before you join.
@@ -832,6 +835,20 @@ pub enum ServerMsg {
         player: PlayerId,
         items: Vec<u16>,
     },
+    /// How much damage your absorb shields will still soak up (0: none).
+    Shield {
+        left: f32,
+    },
+    /// The timed effects players have put on a creature (a bleed, a slow, a
+    /// stun): the ability each came from and the seconds it has left. Sent
+    /// when one is applied; the client counts them down.
+    EntityAuras {
+        id: u32,
+        list: Vec<(u16, f32)>,
+    },
+    /// The named places you have found, by area key (the world map names
+    /// them and lights their land). Sent at a join and at each discovery.
+    Discovered(Vec<String>),
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

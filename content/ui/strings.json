@@ -22,7 +22,10 @@
   "toast": "Right-click Old Brannoc (the gold !) to begin"
  },
  "classes": {
-  "prompt": "The Great Hearth has gone out and Shades walk the valley. Who will you be?"
+  "prompt": "The Great Hearth has gone out and Shades walk the valley. Who will you be?",
+  "title": "Choose your path",
+  "ability": "{ability} (level {level})",
+  "become": "Become a {class}"
  },
  "news": {
   "title": "The Living Vale",
@@ -53,11 +56,14 @@
   "eat": "Eat",
   "eat_text": "Eat the best food in your bags. Out of combat, food restores health quickly.",
   "gathering": "Gathering",
-  "log_heal": "You are healed for {n}."
+  "log_heal": "You are healed for {n}.",
+  "shield": "+{n}",
+  "shield_text": "A shield: it soaks up this much damage before your health is touched.",
+  "log_learned": "You have learned {ability}: {text}"
  },
  "death": {
   "title": "You have died",
-  "hint": "You keep everything you carry. Release to wake at the hearth.",
+  "hint": "You keep everything you carry. Release to wake at the inn you made your home, or at the town hearth if you have none.",
   "release": "Release spirit"
  },
  "menu": {
@@ -84,7 +90,13 @@
   "on": "On",
   "tips_again": "Show again",
   "sound": "Sound",
-  "volumes": ["Master", "Music", "Effects", "Ambience", "Interface"]
+  "volumes": [
+   "Master",
+   "Music",
+   "Effects",
+   "Ambience",
+   "Interface"
+  ]
  },
  "keys": {
   "rpg": [
@@ -176,6 +188,10 @@
      [
       "L",
       "Quest log"
+     ],
+     [
+      "M",
+      "Map"
      ],
      [
       "Enter  T",
@@ -281,7 +297,7 @@
     "on": "quest_accepted",
     "anchor": "tracker",
     "title": "Your quests",
-    "text": "What each quest needs is listed here, and counts up as you go. Press L to read the whole story again."
+    "text": "What each quest needs is listed here, and counts up as you go. Press L to read the story again, M for the map."
    },
    {
     "id": "target",
@@ -421,7 +437,14 @@
     "on": "death",
     "anchor": "center",
     "title": "Death is not the end",
-    "text": "You lose nothing you carry. Release, and you wake at the nearest hearth."
+    "text": "You lose nothing you carry. Release, and you wake at the inn you made your home (speak with an innkeeper to choose one), or at the town hearth."
+   },
+   {
+    "id": "map",
+    "on": "map",
+    "anchor": "center",
+    "title": "The map",
+    "text": "Places you have found keep their colour and their name. The yellow marks are your quests: point at one to see what it wants."
    }
   ]
  },
@@ -517,7 +540,8 @@
   "instant": "Instant",
   "cooldown_sec": "{n} sec cooldown",
   "cooldown_min": "{n} min cooldown",
-  "learn": "Learned at level {n}"
+  "learn": "Learned at level {n}",
+  "melee": "Melee range"
  },
  "sheet": {
   "attributes": "Attributes",
@@ -602,7 +626,6 @@
    "bitch",
    "nigg",
    "fagg",
-  
    "nazi",
    "hitler",
    "penis",
@@ -610,5 +633,41 @@
    "whore",
    "slut"
   ]
+ },
+ "map": {
+  "title": "Map",
+  "hint": "Gold names are places you have found; dim land is still unknown. Yellow marks are your quests.",
+  "empty": "The land has not arrived yet.",
+  "unknown": "Somewhere you have not been.",
+  "levels": "Levels {from} to {to}",
+  "hand_in": "{quest}: hand in to {npc}",
+  "offers": "{npc} has work: {quest}"
+ },
+ "social": {
+  "invite": "{name} invites you to join their party.",
+  "trade_ask": "{name} wants to trade with you.",
+  "accept": "Accept",
+  "decline": "Decline",
+  "trade": "Trade",
+  "trade_title": "Trade",
+  "trade_with": "with {name}",
+  "trade_hint": "Right-click items in your bags to offer them. Click one you offered to take it back.",
+  "you_offer": "You offer",
+  "accepted": "Accepted",
+  "not_accepted": "Not yet accepted",
+  "coins": "Coins (copper):",
+  "accept_trade": "Accept",
+  "cancel": "Cancel"
+ },
+ "chat": {
+  "tab_chat": "Chat",
+  "tab_combat": "Combat",
+  "hint": "Say something. Enter sends, Esc cancels, / starts a command."
+ },
+ "craft": {
+  "search": "Search recipes",
+  "one": "Craft",
+  "five": "×5",
+  "five_hint": "Craft five times"
  }
 }
