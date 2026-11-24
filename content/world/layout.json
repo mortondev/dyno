@@ -565,7 +565,7 @@
     {"stamp": "hearthstead_smithy", "at": [41, -24]},
     {"stamp": "hearthstead_library", "at": [-30, 18], "rot": 2},
     {"stamp": "stall_blue", "at": [-16, -7], "rot": 3},
-    {"stamp": "stall_red", "at": [-7, -16]},
+    {"stamp": "stall_red", "at": [-8, -16]},
     {"stamp": "stall_yellow", "at": [11, -13], "rot": 1},
     {"stamp": "stall_blue", "at": [16, -7], "rot": 1},
     {"stamp": "stall_red", "at": [-11, 14], "rot": 2},
