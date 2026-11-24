@@ -75,6 +75,8 @@ pub const FLOWER_BED: BlockId = 64;
 /// Mine track: iron rails on sleepers, lying on the ground (walked over,
 /// not into).
 pub const RAIL: BlockId = 65;
+/// Leaves in flower: blossom and fruit trees.
+pub const BLOSSOM_LEAVES: BlockId = 66;
 
 /// No Shade spawns or enters within this many blocks of a hearth.
 pub const HEARTH_RADIUS: f32 = 16.0;
@@ -387,6 +389,7 @@ pub const BLOCKS: &[BlockDef] = &[
         emission: 0,
         material: Stone,
     },
+    def("Blossom leaves", [0.93, 0.66, 0.76], Foliage),
 ];
 
 /// Number of block IDs in use. IDs at or above this are rejected.
@@ -418,7 +421,7 @@ pub fn is_opaque(b: BlockId) -> bool {
 
 /// Leaf blocks: drawn with their neighbours' faces showing through.
 pub fn is_leaves(b: BlockId) -> bool {
-    matches!(b, LEAVES | BIRCH_LEAVES | PINE_LEAVES)
+    matches!(b, LEAVES | BIRCH_LEAVES | PINE_LEAVES | BLOSSOM_LEAVES)
 }
 
 /// Light level a block gives off.

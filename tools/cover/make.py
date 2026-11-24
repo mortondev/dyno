@@ -158,6 +158,30 @@ def reeds(seed, stalks):
     return m
 
 
+def cattails(seed, stalks):
+    """Cattails: stiff green stalks, most with a fat brown head and a spike."""
+    rnd = random.Random(seed)
+    green = [(70, 112, 44), (92, 136, 52), (118, 158, 62)]
+    brown = [(96, 58, 32), (118, 74, 40)]
+    m = {}
+    for i in range(stalks):
+        x, z = rnd.randint(-4, 4), rnd.randint(-4, 4)
+        tall = rnd.randint(10, 16)
+        for y in range(tall):
+            m[(x, y, z)] = green[min(2, y * 3 // tall)]
+        if i % 4 != 3:
+            for y in range(tall, tall + 4):
+                for dx, dz in ((0, 0), (1, 0), (0, 1), (1, 1)):
+                    m[(x + dx, y, z + dz)] = brown[(y + dx) % 2]
+            m[(x, tall + 4, z)] = green[2]
+            m[(x, tall + 5, z)] = green[2]
+        # a leaf blade beside it
+        bx, bz = x + rnd.choice([-1, 2]), z + rnd.choice([-1, 2])
+        for y in range(rnd.randint(5, 9)):
+            m[(bx, y, bz)] = green[1]
+    return m
+
+
 def pebbles(seed, count, spread, greys, big=3):
     """A scatter of small stones: rounded (no corners), a lighter cap on the
     bigger ones, one now and then green with moss."""
@@ -336,6 +360,8 @@ KINDS = {
     'poppy': [heads(s, n, [(214, 44, 38), (232, 70, 48)], (50, 30, 34), 3, 6, cup=True) for s, n in ((71, 3), (72, 4), (73, 2))],
     'pink': [heads(s, n, [(240, 150, 190), (248, 186, 214)], (250, 232, 150), 2, 5) for s, n in ((81, 3), (82, 5), (83, 4))],
     'fern': [fern(s, n) for s, n in ((91, 5), (92, 6), (93, 4))],
+    'cattail': [cattails(s, n) for s, n in ((301, 5), (302, 7), (303, 4))],
+    'boulder_small': [rock(s, c, 0.5) for s, c in ((311, (7, 5, 6)), (312, (6, 6, 7)), (313, (8, 5, 6)))],
     'reeds': [reeds(s, n) for s, n in ((101, 5), (102, 7), (103, 4))],
     'pebbles': [pebbles(s, n, 5, [(112, 114, 120), (138, 138, 140), (160, 158, 154), (92, 94, 100)]) for s, n in ((111, 4), (112, 6), (113, 3), (114, 5))],
     'cobbles': [slabs(s, n, 5, [(128, 120, 112), (146, 138, 128), (110, 106, 104)]) for s, n in ((121, 2), (122, 3), (123, 2))],
