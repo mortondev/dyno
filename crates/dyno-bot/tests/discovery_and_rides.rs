@@ -6,7 +6,7 @@ use dyno_bot::body::{Body, TICK};
 use std::time::{Duration, Instant};
 
 fn run_until(a: &mut Agent, secs: f32, mut done: impl FnMut(&Agent) -> bool) -> bool {
-    let end = Instant::now() + Duration::from_secs_f32(secs);
+    let end = Instant::now() + Duration::from_secs_f32(secs * time_scale());
     while Instant::now() < end {
         assert!(a.update(), "disconnected: {:?}", a.body.closed);
         std::thread::sleep(Duration::from_secs_f32(TICK));
@@ -95,11 +95,16 @@ fn discovery_pays_once_and_rides_need_it() {
             range: 3.0,
             why: "home".into(),
         });
-        assert!(
-            run_until(&mut a, walk, |a| a.task.is_none()),
-            "walked home"
-        );
+        assert!(run_until(&mut a, walk, |a| a.task.is_none()), "walked home");
     }
     drop(server);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Real-time waits stretch on slow machines: `DYNO_TEST_TIME_SCALE` (CI sets 3).
+fn time_scale() -> f32 {
+    std::env::var("DYNO_TEST_TIME_SCALE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1.0)
 }

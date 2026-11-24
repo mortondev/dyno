@@ -8,7 +8,7 @@ use dyno_bot::body::{Body, TICK};
 use std::time::{Duration, Instant};
 
 fn run_until(a: &mut Agent, secs: f32, mut done: impl FnMut(&mut Agent) -> bool) -> bool {
-    let end = Instant::now() + Duration::from_secs_f32(secs);
+    let end = Instant::now() + Duration::from_secs_f32(secs * time_scale());
     while Instant::now() < end {
         assert!(a.update(), "disconnected: {:?}", a.body.closed);
         std::thread::sleep(Duration::from_secs_f32(TICK));
@@ -110,4 +110,12 @@ fn shades_keep_to_their_haunts_and_spare_new_characters() {
     );
     assert!(a.tel.deaths.is_empty());
     server.stop();
+}
+
+/// Real-time waits stretch on slow machines: `DYNO_TEST_TIME_SCALE` (CI sets 3).
+fn time_scale() -> f32 {
+    std::env::var("DYNO_TEST_TIME_SCALE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1.0)
 }
