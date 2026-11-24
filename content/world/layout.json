@@ -903,7 +903,7 @@
    "stamps": [
     {"stamp": "old_barrow_graves", "at": [-11, 1], "rot": 3},
     {"stamp": "old_barrow_graves", "at": [11, 0], "rot": 1},
-    {"stamp": "old_barrow_tomb", "at": [-7, -12], "rot": 1},
+    {"stamp": "old_barrow_tomb", "at": [-6, -8], "rot": 1},
     {"stamp": "ruin_wall", "at": [12, -10]},
     {"stamp": "old_barrow_gatepost", "at": [-3, 12]},
     {"stamp": "old_barrow_gatepost", "at": [6, 12]}
