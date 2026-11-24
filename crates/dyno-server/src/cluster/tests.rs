@@ -1,6 +1,5 @@
 use super::*;
 use crate::store::PlayerData;
-use dyno_protocol::Mode;
 
 fn free_port() -> u16 {
     std::net::TcpListener::bind("127.0.0.1:0")
@@ -42,7 +41,7 @@ fn wait_for(secs: f32, mut f: impl FnMut() -> bool) -> bool {
 }
 
 fn claim(c: &Cluster, name: &str) -> Outcome {
-    let mut d = PlayerData::new(Mode::Survival, [0.0; 3]);
+    let mut d = PlayerData::new([0.0; 3]);
     d.token = 5;
     c.propose(
         Cmd::Claim {

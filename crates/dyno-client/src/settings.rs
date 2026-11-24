@@ -22,7 +22,13 @@ pub struct Settings {
     pub leaf_detail: f32,
     /// Block IDs in the 9 hotbar slots.
     pub hotbar: Vec<u8>,
+    /// the master level, and under it the level of each bus (audio.rs),
+    /// all 0 to 1
     pub volume: f32,
+    pub volume_music: f32,
+    pub volume_effects: f32,
+    pub volume_ambience: f32,
+    pub volume_ui: f32,
     /// what the costly parts of the picture may spend (shadow detail,
     /// ambient occlusion, bloom): 0 low, 1 medium, 2 high, 3 ultra; anything
     /// higher means not chosen yet: the first run picks a tier for the
@@ -40,6 +46,14 @@ pub struct Settings {
     pub ground_shading: u8,
     /// random ID of this install; servers bind your name to it
     pub token: u64,
+    /// the interface's size beside its natural size for the window (1.0)
+    pub ui_scale: f32,
+    /// show the tutorial tips (tips.rs)
+    pub tips: bool,
+    /// the tips this player has seen, by id
+    pub tips_seen: Vec<String>,
+    /// each character's action bar: ability keys in its 12 slots ("" empty)
+    pub bars: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 impl Default for Settings {
@@ -55,11 +69,19 @@ impl Default for Settings {
             leaf_detail: 1.0,
             hotbar: dyno_world::HOTBAR.to_vec(),
             volume: 0.8,
+            volume_music: 0.7,
+            volume_effects: 1.0,
+            volume_ambience: 0.8,
+            volume_ui: 0.9,
             graphics: u8::MAX,
             life: 2,
             water_quality: 2,
             ground_shading: 2,
             token: 0,
+            ui_scale: 1.0,
+            tips: true,
+            tips_seen: Vec::new(),
+            bars: Default::default(),
         }
     }
 }

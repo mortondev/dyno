@@ -1100,12 +1100,24 @@ pub fn window<R>(
     add: impl FnOnce(&mut egui::Ui) -> R,
 ) -> Option<R> {
     let frame = window_frame();
+    // it opens at its anchor, can be dragged anywhere, and stays where it
+    // was put for the rest of the session
+    let screen = ctx.content_rect();
     let resp = egui::Window::new(title)
         .id(egui::Id::new(id))
         .title_bar(false)
         .collapsible(false)
         .resizable(false)
-        .anchor(anchor.0, anchor.1)
+        .default_pos(
+            // (its height is not known before it is first laid out: a guess)
+            anchor
+                .0
+                .anchor_size(
+                    anchor.0.pos_in_rect(&screen) + anchor.1,
+                    Vec2::new(width + 32.0, (screen.height() - 60.0).min(520.0)),
+                )
+                .min,
+        )
         .frame(frame)
         .show(ctx, |ui| {
             ui.set_width(width);

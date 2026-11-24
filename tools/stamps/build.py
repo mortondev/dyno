@@ -1127,6 +1127,30 @@ def ore_outcrop():
     return v
 
 
+def seam(ore, other, seed):
+    """A low rock face with ore showing at walking height all the way
+    round: a gathering spot near a hub (the playtest found no ore outside
+    the mines)."""
+    v = Vol("prop")
+    blob(v, 0, 0.5, 0, 3.0, 2.0, "stone", seed)
+    blob(v, 2, 0, -2, 1.6, 1.3, "cobble", seed + 1)
+    v.c = {k: b for k, b in v.c.items() if k[1] >= 0}
+    ring = ((3, 0, 0), (-3, 0, 0), (0, 0, 3), (0, 0, -3), (2, 0, 2), (-2, 0, -2), (-2, 0, 2), (2, 1, -1))
+    for i, (x, y, z) in enumerate(ring):
+        v.set(x, y, z, other if i % 4 == 3 else ore)
+    return v
+
+
+@recipe
+def coal_seam():
+    return seam("coal_ore", "iron_ore", 11)
+
+
+@recipe
+def iron_vein():
+    return seam("iron_ore", "coal_ore", 17)
+
+
 @recipe
 def bench_lamp():
     v = Vol("prop")

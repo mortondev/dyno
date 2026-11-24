@@ -24,7 +24,7 @@ pub struct ShotOptions {
     pub width: u32,
     pub height: u32,
     pub out: PathBuf,
-    /// "none" for the world only; "hud", "pack", "dig" or "dead" to draw the UI
+    /// "none" for the world only; "hud", "pack" or "dead" to draw the UI
     pub ui: String,
     /// join as this player instead of as an invisible observer
     pub player: Option<String>,
@@ -208,18 +208,26 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
             .map(|r| [r.0[0], 40.0, r.0[1]])
             .or(o.pos);
         let joining = Instant::now();
-        let j = net::connect_with(
-            &o.addr,
-            &name,
-            net::JoinOptions {
-                token: crate::settings::tool_token(&name),
-                observer,
-                view_at,
-                prepare_sections: true,
-                ..Default::default()
-            },
-            Duration::from_secs(10),
-        )?;
+        let join = |token: u64| {
+            net::connect_with(
+                &o.addr,
+                &name,
+                net::JoinOptions {
+                    token,
+                    observer,
+                    view_at,
+                    prepare_sections: true,
+                    ..Default::default()
+                },
+                Duration::from_secs(10),
+            )
+        };
+        // a character a bot or `dyno play` made is held under the bots'
+        // token for that name: look through its eyes too
+        let j = match join(crate::settings::tool_token(&name)) {
+            Err(e) if e.contains("belongs to another player") => join(bot_token(&name))?,
+            other => other?,
+        };
         if std::env::var_os("DYNO_SHOT_STATS").is_some() {
             eprintln!(
                 "join: {} ms, {} KB of the world before play ({} sections held, {} needed), {} KB of files",
@@ -349,4 +357,15 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
         poses.len(),
         o.out.display()
     ))
+}
+
+/// The token `dyno play` and the bots use for a name (dyno-bot's
+/// `body::token_for`), so a shot can show a character they advanced.
+fn bot_token(name: &str) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in format!("dyno-bot/{name}").bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100_0000_01b3);
+    }
+    h
 }

@@ -45,6 +45,16 @@ impl State {
             .count()
     }
 
+    /// Players near the town who are past their first levels.
+    fn defenders_near_town(&self) -> usize {
+        let t = self.town();
+        let near = self.content.areas.first().map_or(36.0, |a| a.radius) + 104.0;
+        self.players
+            .values()
+            .filter(|p| !p.dead && !p.away() && p.level >= 3 && dist(p.pose.pos, t) < near)
+            .count()
+    }
+
     /// Called when dusk falls.
     pub fn maybe_start_incursion(&mut self) {
         if self.incursion.is_some() || !self.rpg() || self.players_near_town() == 0 {
@@ -87,7 +97,9 @@ impl State {
             // just outside the town: its area's reach, and a little more
             let out = self.content.areas.first().map_or(36.0, |a| a.radius) + 8.0;
             let at = [t[0] + gx * out, t[1], t[2] + gz * out];
-            let n = 2 + inc.wave as usize + self.players_near_town().min(4);
+            // the waves grow with the defenders who can take a Shade on
+            // (level 3 and up): a town of new arrivals faces 3, 4 and 5
+            let n = 2 + inc.wave as usize + self.defenders_near_town().min(4);
             let shade = self
                 .content
                 .creatures

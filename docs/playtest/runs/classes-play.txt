@@ -1,0 +1,250 @@
+Hand play through `dyno play`, 23 to 24 November 2026: each class at levels 2 to 3 and 5 (operator /xp),
+pressing abilities one at a time against summoned creatures (defend off). Kept: commands, status,
+fight and event lines. This is the last session (levels 2 and 3 in Hearthmeadow, retuned kit).
+The level 5 session before it was overwritten when this one started; its numbers are in classes-1-5.md.
+
+=================== Wa (levels 2 to 3, retuned kit)
+  You are now a Warrior. Your abilities are on keys 1 to 7.
+Wa lv1 Warrior | HP 50/55 | Rage 0/100
+> say /xp 400
+  LEVEL UP: you are now level 2
+  Wa reached level 2!
+Wa lv2 Warrior | HP 60/60 | Rage 0/100
+> goto 80,40
+Wa lv2 Warrior | HP 60/60 | Rage 0/100
+> defend off
+Wa lv2 Warrior | HP 60/60 | Rage 0/100
+> say /summon thornboar
+Wa lv2 Warrior | HP 56/60 | Rage 2/100
+> cast onrush thornboar
+  (the server moved you back)
+Wa lv2 Warrior | HP 56/60 | Rage 27/100
+Fighting: Thornboar lv1 40/48 1m SW
+> cast heroic thornboar
+Wa lv2 Warrior | HP 52/60 | Rage 19/100
+Fighting: Thornboar lv1 12/48 1m NW
+> cast heroic thornboar
+  Killed Thornboar (+41 xp)
+Wa lv2 Warrior | HP 52/60 | Rage 4/100
+> cast heroic thornboar
+  Not enough rage.
+Wa lv2 Warrior | HP 52/60 | Rage 4/100
+> cast second
+  Not enough rage.
+Wa lv2 Warrior | HP 52/60 | Rage 4/100
+> cast heroic thornboar
+  Not enough rage.
+Wa lv2 Warrior | HP 52/60 | Rage 4/100
+> cast heroic thornboar
+  Not enough rage.
+Wa lv2 Warrior | HP 54/60 | Rage 1/100
+> cast heroic thornboar
+  Not enough rage.
+Wa lv2 Warrior | HP 56/60 | Rage 1/100
+Wa lv2 Warrior | HP 58/60 | Rage 1/100
+> quit
+
+=================== Pa (levels 2 to 3, retuned kit)
+  You are now a Paladin. Your abilities are on keys 1 to 7.
+Pa lv1 Paladin | HP 50/55 | Mana 60/60
+> say /xp 400
+  LEVEL UP: you are now level 2
+  Pa reached level 2!
+Pa lv2 Paladin | HP 60/60 | Mana 60/60
+> goto 105,40
+Pa lv2 Paladin | HP 60/60 | Mana 60/60
+> defend off
+Pa lv2 Paladin | HP 60/60 | Mana 60/60
+> say /xp 900
+  LEVEL UP: you are now level 3
+  Pa reached level 3!
+Pa lv3 Paladin | HP 65/65 | Mana 62/68
+> cast seal
+Pa lv3 Paladin | HP 65/65 | Mana 54/68
+Pa lv3 Paladin | HP 65/65 | Mana 58/68
+> cast valour
+Pa lv3 Paladin | HP 65/65 | Mana 40/68
+Pa lv3 Paladin | HP 65/65 | Mana 44/68
+> say /summon thornboar
+Pa lv3 Paladin | HP 60/65 | Mana 46/68
+> cast judging thornboar
+Pa lv3 Paladin | HP 60/65 | Mana 40/68
+Fighting: Thornboar lv1 0/48 1m NE
+> cast rebuke thornboar
+  Killed Thornboar (+32 xp)
+Pa lv3 Paladin | HP 56/65 | Mana 30/68
+Pa lv3 Paladin | HP 56/65 | Mana 31/68
+Pa lv3 Paladin | HP 56/65 | Mana 32/68
+> cast judging thornboar
+  You have no target.
+Pa lv3 Paladin | HP 56/65 | Mana 33/68
+Pa lv3 Paladin | HP 58/65 | Mana 36/68
+Pa lv3 Paladin | HP 60/65 | Mana 39/68
+> cast judging thornboar
+  You have no target.
+Pa lv3 Paladin | HP 60/65 | Mana 41/68
+Pa lv3 Paladin | HP 65/65 | Mana 47/68
+> quit
+
+=================== Hu (levels 2 to 3, retuned kit)
+  You are now a Hunter. Your abilities are on keys 1 to 7.
+Hu lv1 Hunter | HP 50/50 | Mana 52/52
+> say /xp 400
+  LEVEL UP: you are now level 2
+  Hu reached level 2!
+Hu lv2 Hunter | HP 55/55 | Mana 52/52
+> goto 130,40
+Hu lv2 Hunter | HP 55/55 | Mana 52/52
+> defend off
+Hu lv2 Hunter | HP 55/55 | Mana 52/52
+> say /xp 900
+  LEVEL UP: you are now level 3
+  Hu reached level 3!
+Hu lv3 Hunter | HP 60/60 | Mana 54/60
+> say /summon thornboar
+Hu lv3 Hunter | HP 60/60 | Mana 56/60
+> cast barbed thornboar
+Hu lv3 Hunter | HP 55/60 | Mana 49/60
+Fighting: Thornboar lv2 55/61 1m E
+> cast quick thornboar
+Hu lv3 Hunter | HP 50/60 | Mana 43/60
+Fighting: Thornboar lv2 36/61 1m E
+> cast hamstring thornboar
+Hu lv3 Hunter | HP 45/60 | Mana 36/60
+Fighting: Thornboar lv2 22/61 1m E
+Hu lv3 Hunter | HP 40/60 | Mana 36/60
+Fighting: Thornboar lv2 15/61 1m E
+> cast quick thornboar
+  Killed Thornboar (+45 xp)
+Hu lv3 Hunter | HP 40/60 | Mana 31/60
+Hu lv3 Hunter | HP 40/60 | Mana 31/60
+> cast quick thornboar
+  You have no target.
+Hu lv3 Hunter | HP 40/60 | Mana 32/60
+Hu lv3 Hunter | HP 42/60 | Mana 33/60
+> quit
+
+=================== Ro (levels 2 to 3, retuned kit)
+  You are now a Rogue. Your abilities are on keys 1 to 7.
+Ro lv1 Rogue | HP 50/50 | Energy 100/100
+> say /xp 400
+  LEVEL UP: you are now level 2
+  Ro reached level 2!
+Ro lv2 Rogue | HP 55/55 | Energy 100/100
+> goto 155,40
+Ro lv2 Rogue | HP 55/55 | Energy 100/100
+> defend off
+Ro lv2 Rogue | HP 55/55 | Energy 100/100
+> say /xp 900
+  LEVEL UP: you are now level 3
+  Ro reached level 3!
+Ro lv3 Rogue | HP 60/60 | Energy 100/100
+> say /summon thornboar
+Ro lv3 Rogue | HP 60/60 | Energy 100/100
+> cast ambush thornboar
+Ro lv3 Rogue | HP 56/60 | Energy 66/100
+Fighting: Thornboar lv1 20/48 1m E
+> cast vicious thornboar
+Ro lv3 Rogue | HP 51/60 | Energy 36/100
+Fighting: Thornboar lv1 6/48 1m E
+> cast low thornboar
+  Killed Thornboar (+32 xp)
+Ro lv3 Rogue | HP 51/60 | Energy 26/100
+> cast finishing thornboar
+  You have no target.
+Ro lv3 Rogue | HP 51/60 | Energy 41/100
+> cast vicious thornboar
+  You have no target.
+Ro lv3 Rogue | HP 51/60 | Energy 56/100
+> cast vicious thornboar
+  You have no target.
+Ro lv3 Rogue | HP 51/60 | Energy 71/100
+> cast finishing thornboar
+  You have no target.
+Ro lv3 Rogue | HP 51/60 | Energy 86/100
+Ro lv3 Rogue | HP 55/60 | Energy 96/100
+> quit
+
+=================== Pr (levels 2 to 3, retuned kit)
+  You are now a Priest. Your abilities are on keys 1 to 7.
+Pr lv1 Priest | HP 45/45 | Mana 84/84
+> say /xp 400
+  LEVEL UP: you are now level 2
+  Pr reached level 2!
+Pr lv2 Priest | HP 45/45 | Mana 86/92
+> goto 180,40
+Pr lv2 Priest | HP 45/45 | Mana 91/92
+> defend off
+Pr lv2 Priest | HP 45/45 | Mana 91/92
+> goto 80,70
+Pr lv2 Priest | HP 45/45 | Mana 91/92
+> say /xp 900
+  LEVEL UP: you are now level 3
+  Pr reached level 3!
+Pr lv3 Priest | HP 50/50 | Mana 95/100
+> say /summon thornboar
+Pr lv3 Priest | HP 45/50 | Mana 98/100
+> cast ward
+Pr lv3 Priest | HP 45/50 | Mana 85/100
+> cast wither thornboar
+  Your shield absorbs 5.
+Pr lv3 Priest | HP 45/50 | Mana 74/100
+Fighting: Thornboar lv2 58/61 1m SW
+  Your shield absorbs 5.
+Pr lv3 Priest | HP 45/50 | Mana 75/100
+Fighting: Thornboar lv2 53/61 1m S
+> cast smite thornboar
+  Your shield absorbs 5.
+  Your shield absorbs 5.
+Pr lv3 Priest | HP 45/50 | Mana 67/100
+Fighting: Thornboar lv2 30/61 1m S
+> cast smite thornboar
+  Your shield absorbs 3.
+Pr lv3 Priest | HP 37/50 | Mana 60/100
+Fighting: Thornboar lv2 1/61 1m S
+> cast smite thornboar
+  Killed Thornboar (+45 xp)
+Pr lv3 Priest | HP 31/50 | Mana 52/100
+> cast smite thornboar
+  You have no target.
+Pr lv3 Priest | HP 31/50 | Mana 54/100
+Pr lv3 Priest | HP 31/50 | Mana 55/100
+> quit
+
+=================== Ma (levels 2 to 3, retuned kit)
+  You are now a Mage. Your abilities are on keys 1 to 7.
+Ma lv1 Mage | HP 45/45 | Mana 103/108
+> say /xp 400
+  LEVEL UP: you are now level 2
+  Ma reached level 2!
+Ma lv2 Mage | HP 45/45 | Mana 111/116
+> goto 205,40
+Ma lv2 Mage | HP 45/45 | Mana 115/116
+> defend off
+Ma lv2 Mage | HP 45/45 | Mana 115/116
+> goto 110,70
+Ma lv2 Mage | HP 45/45 | Mana 115/116
+> say /xp 900
+  LEVEL UP: you are now level 3
+  Ma reached level 3!
+Ma lv3 Mage | HP 50/50 | Mana 119/132
+> say /summon thornboar
+Ma lv3 Mage | HP 45/50 | Mana 124/132
+> cast frostbolt thornboar
+Ma lv3 Mage | HP 41/50 | Mana 116/132
+Fighting: Thornboar lv1 23/48 1m E
+> cast fire blast thornboar
+Ma lv3 Mage | HP 36/50 | Mana 105/132
+Fighting: Thornboar lv1 1/48 1m E
+> cast fireball thornboar
+  Killed Thornboar (+32 xp)
+  You have no target.
+Ma lv3 Mage | HP 36/50 | Mana 108/132
+> cast fireball thornboar
+  You have no target.
+Ma lv3 Mage | HP 38/50 | Mana 111/132
+> cast fireball thornboar
+  You have no target.
+Ma lv3 Mage | HP 41/50 | Mana 123/132
+Ma lv3 Mage | HP 43/50 | Mana 130/132
+> quit

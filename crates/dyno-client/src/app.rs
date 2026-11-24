@@ -1,9 +1,10 @@
 //! Window, input, screens (connect, joining, playing) and the HUD.
 
 use crate::anim::{self, Anim, Book as Anims};
-use crate::audio::{Audio, Sfx};
+use crate::audio::Audio;
 use crate::front::{self, Front, FrontCmd};
 use crate::game::{self, Input, Player, PlayerPose, Remote, Remotes, Target};
+use crate::item_ui::{self, PackCmd, PackView};
 use crate::light::Light;
 use crate::models;
 use crate::net::{self, Joined, NetEvent};
@@ -11,7 +12,6 @@ use crate::render::{self, Gfx, Vertex};
 use crate::rpg_ui;
 use crate::screens;
 use crate::settings::Settings;
-use crate::survival::{self, PackCmd, PackView};
 use dyno_protocol::{
     self as proto, ClientMsg, Content, EntityKind, EnvDamage, Mode, PlayerId, ServerMsg, SlotRef,
     Stack,
@@ -34,11 +34,15 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 
+mod hud;
+mod sound;
+
 const ACCENT: Color32 = Color32::from_rgb(240, 138, 60);
 
 pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
     let event_loop = EventLoop::new().map_err(|e| format!("cannot open a window: {e}"))?;
     let mut settings = Settings::load();
+    crate::options::set_interface(crate::options::Interface::of(&settings));
     if let Some(a) = prefill {
         settings.last_server = a;
     }
@@ -74,6 +78,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         settings,
         gfx: None,
         audio: Audio::new(),
+        heard: Default::default(),
         egui_ctx: crate::theme::new_context(),
         egui_state: None,
         screen: Screen::Menu,
@@ -90,7 +95,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         app.front.query(i, token, None);
     }
 
-    app.audio.volume = app.settings.volume;
+    crate::options::set_sound(crate::options::Sound::of(&app.settings));
     event_loop.run_app(&mut app).map_err(|e| e.to_string())?;
     if let Some(h) = app.host.take() {
         h.stop();
@@ -189,15 +194,10 @@ struct Play {
     mode: Mode,
     pack: Vec<Option<Stack>>,
     health: f32,
-    food: f32,
     fuel: u16,
-    chest: Option<([i32; 3], Vec<Option<Stack>>)>,
     selected: Option<SlotRef>,
     recipe_filter: String,
     entities: HashMap<u32, ClientEntity>,
-    /// block being broken: position, seconds so far, seconds needed
-    dig: Option<([i32; 3], f32, f32)>,
-    mouse_left: bool,
     dead: Option<String>,
     hurt_flash: f32,
     toasts: Vec<(Instant, String)>,
@@ -207,7 +207,6 @@ struct Play {
     target_entity: Option<u32>,
     heart_clock: f32,
     /// where we lay down in a bed at night
-    sleeping_at: Option<Vec3>,
     my_name: String,
     my_look: dyno_protocol::Appearance,
     hearth: Option<[i32; 3]>,
@@ -295,8 +294,6 @@ struct Play {
     floaters: Vec<(Instant, String, Color32)>,
     /// the creature or NPC we last hit or picked with Tab
     focus: Option<u32>,
-    /// the block we last explained "Needs a stone pickaxe" for
-    tier_hint: Option<[i32; 3]>,
     fall_from: Option<f32>,
     air: f32,
     drown_clock: f32,
@@ -309,6 +306,8 @@ struct Play {
     /// fill selection corners
     sel: (Option<[i32; 3]>, Option<[i32; 3]>),
     minimap: crate::minimap::Minimap,
+    /// what the RPG HUD remembers: tips, banners, toasts (app/hud.rs)
+    ui: hud::HudState,
 }
 
 struct ClientEntity {
@@ -339,11 +338,8 @@ impl Play {
     fn held_block(&self) -> Option<w::BlockId> {
         self.held().and_then(|s| self.content.item(s.item).block)
     }
-    fn held_tool(&self) -> Option<&dyno_world::content::Tool> {
-        self.held().and_then(|s| self.content.item(s.item).tool)
-    }
     fn creative(&self) -> bool {
-        self.mode == Mode::Creative
+        self.mode == Mode::Build
     }
     /// WoW-style controls: free cursor, hold a button to steer (RPG worlds, not creative).
     fn wow(&self) -> bool {
@@ -497,6 +493,26 @@ fn use_action(p: &mut Play, i: usize) {
     if let Some(t) = target {
         p.focus = Some(t);
     }
+    // what the server will refuse sounds like a refusal: still cooling
+    // down, too little rage or mana, or the target too far (as the bar
+    // shows it: hud::slot_look)
+    let mut refused = false;
+    if let ClientMsg::Cast { ability, .. } = &msg
+        && let Some(a) = p.content.ability(*ability)
+    {
+        let cooling = p
+            .cooldowns
+            .get(ability)
+            .is_some_and(|(until, _)| *until > Instant::now() + Duration::from_millis(300));
+        let far = a.range > 0.0
+            && target
+                .and_then(|id| p.entities.get(&id))
+                .is_some_and(|e| e.pos().distance(p.player.pos) > a.range + 1.0);
+        refused = cooling || far || p.power + 0.01 < a.cost;
+        if refused {
+            crate::audio::emit("ui.error");
+        }
+    }
     // instant abilities: a weapon strike or a flick of the hands, at once
     if let ClientMsg::Cast { ability, .. } = &msg
         && let Some(a) = p.content.ability(*ability)
@@ -509,95 +525,13 @@ fn use_action(p: &mut Play, i: usize) {
             Anim::CastRelease
         };
         p.anims.me(now).play_fresh(now, act);
+        if a.weapon > 0.0 && !refused {
+            crate::audio::emit("combat.swing");
+            // (the blow's own message must not swing again)
+            p.anims.last_swing = now;
+        }
     }
     let _ = p.conn.tx.send(msg);
-}
-
-/// One action-bar slot: icon, cooldown sweep, hotkey.
-fn draw_action(painter: &egui::Painter, r: Rect, p: &Play, i: usize) {
-    let now = Instant::now();
-    painter.rect_filled(r, 5.0, Color32::from_black_alpha(150));
-    let (icon, cd, usable): (Option<dyno_world::content::ItemId>, f32, bool) = match action_at(p, i)
-    {
-        ActionSlot::Ability(a) => {
-            let item = p.content.item_by_key(&a.icon);
-            let own = p
-                .cooldowns
-                .get(&a.id)
-                .map(|(t, total)| t.saturating_duration_since(now).as_secs_f32() / total.max(0.01))
-                .unwrap_or(0.0);
-            let g = p.gcd.0.saturating_duration_since(now).as_secs_f32() / p.gcd.1.max(0.01);
-            let tint = Color32::from_rgb(
-                (a.color[0] * 120.0) as u8,
-                (a.color[1] * 120.0) as u8,
-                (a.color[2] * 120.0) as u8,
-            );
-            painter.rect_filled(r.shrink(2.0), 4.0, tint.gamma_multiply(0.6));
-            (item, own.max(g), p.power + 0.01 >= a.cost)
-        }
-        ActionSlot::Recall => {
-            let own = p
-                .cooldowns
-                .get(&dyno_protocol::RECALL)
-                .map(|(t, total)| t.saturating_duration_since(now).as_secs_f32() / total.max(0.01))
-                .unwrap_or(0.0);
-            painter.rect_filled(
-                r.shrink(2.0),
-                4.0,
-                Color32::from_rgb(90, 50, 20).gamma_multiply(0.7),
-            );
-            (
-                Some(dyno_world::HEARTH as dyno_world::content::ItemId),
-                own,
-                true,
-            )
-        }
-        ActionSlot::Eat => {
-            let pack = dyno_sim::inventory::Inventory {
-                slots: p.pack.clone(),
-            };
-            let food = dyno_sim::inventory::best_food(&pack, &p.content)
-                .and_then(|s| p.pack[s])
-                .map(|s| s.item);
-            (food, 0.0, food.is_some())
-        }
-        ActionSlot::Empty => (None, 0.0, false),
-    };
-    if let Some(item) = icon {
-        survival::item_icon(painter, r.shrink(5.0), &p.content, item);
-    }
-    if !usable && icon.is_some() {
-        painter.rect_filled(r, 5.0, Color32::from_rgba_unmultiplied(120, 20, 20, 90));
-    }
-    if cd > 0.0 {
-        let h = r.height() * cd.clamp(0.0, 1.0);
-        painter.rect_filled(
-            Rect::from_min_max(Pos2::new(r.left(), r.bottom() - h), r.max),
-            5.0,
-            Color32::from_black_alpha(170),
-        );
-    }
-    let active = p
-        .my_cast
-        .as_ref()
-        .is_some_and(|(a, _, _)| match action_at(p, i) {
-            ActionSlot::Ability(x) => x.id == *a,
-            ActionSlot::Recall => *a == dyno_protocol::RECALL,
-            _ => false,
-        });
-    let stroke = if active {
-        Stroke::new(2.5_f32, Color32::from_rgb(255, 210, 80))
-    } else {
-        Stroke::new(1.0_f32, Color32::from_rgb(150, 120, 60))
-    };
-    painter.rect_stroke(r, 5.0, stroke, egui::StrokeKind::Inside);
-    painter.text(
-        r.left_top() + Vec2::new(4.0, 2.0),
-        Align2::LEFT_TOP,
-        BAR_KEYS[i],
-        FontId::monospace(11.0),
-        Color32::from_white_alpha(200),
-    );
 }
 
 /// A spell bolt: a short trail of sparks from `a` to `b`.
@@ -693,6 +627,8 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         done: &p.quests_done,
         pos: p.player.pos.into(),
         hearth: p.hearth,
+        equip: &p.equip,
+        class: p.class.and_then(|c| p.content.class(c)),
     };
     for (id, e) in &p.entities {
         let pos = p.ground.feet(&p.world, e.pos());
@@ -722,6 +658,10 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             let speed = Vec3::new(vel.x, 0.0, vel.z).length();
             let (a, _) = book.entity(*id, now);
             a.drive_at(now, base, pos, models::person_step(speed));
+            // neither in the picture nor casting a shadow into it: not made
+            if !models::in_sight(at, 4.0) {
+                continue;
+            }
             let look = models::Look::npc(&npc.key, npc.color);
             models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
             if let Some(m) = me.marker(n) {
@@ -766,6 +706,9 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             pos,
             models::creature_step(c.model, c.variant, speed, scale),
         );
+        if !models::in_sight(at, 4.0 * scale.max(1.0)) {
+            continue;
+        }
         let start = boxes.len();
         models::push_creature(
             boxes, c.model, c.variant, pos, e.yaw, c.color, light, flash, scale, a, now,
@@ -1260,10 +1203,6 @@ fn weathered(mut s: render::Sky, kind: u8, strength: f32) -> render::Sky {
     s
 }
 
-fn material_of(b: w::BlockId) -> w::Material {
-    w::block(b).material
-}
-
 struct Tunnel {
     child: Child,
     url: Arc<Mutex<Option<String>>>,
@@ -1300,6 +1239,8 @@ impl Host {
 
 struct App {
     audio: Audio,
+    /// what the last frame sounded like (app/sound.rs)
+    heard: sound::Heard,
     settings: Settings,
     menu: Menu,
     gfx: Option<Gfx>,
@@ -1665,24 +1606,20 @@ fn new_play(j: Joined) -> Play {
         undo: Vec::new(),
         sel: (None, None),
         minimap: crate::minimap::Minimap::new(),
+        ui: hud::HudState::new(),
         content: j.content,
         mode: j.mode,
         pack: vec![None; dyno_sim::SLOTS],
         health: 20.0,
-        food: 20.0,
         fuel: 0,
-        chest: None,
         selected: None,
         recipe_filter: String::new(),
         entities: HashMap::new(),
-        dig: None,
-        mouse_left: false,
         dead: None,
         hurt_flash: 0.0,
         title: None,
         target_entity: None,
         heart_clock: 0.0,
-        sleeping_at: None,
         my_name: j.name.clone(),
         my_look: Default::default(),
         class: None,
@@ -1743,7 +1680,6 @@ fn new_play(j: Joined) -> Play {
         panel: None,
         floaters: Vec::new(),
         focus: None,
-        tier_hint: None,
         toasts: Vec::new(),
         fall_from: None,
         air: 10.0,
@@ -1839,9 +1775,7 @@ impl App {
                 let b = p.world.get(pos[0], pos[1], pos[2]);
                 if p.content.rule(b).respawn > 0 {
                     let _ = p.conn.tx.send(ClientMsg::Gather { pos });
-                } else if matches!(b, w::CHEST | w::BED) {
-                    let _ = p.conn.tx.send(ClientMsg::Interact { pos });
-                } else if matches!(b, w::CRAFTING_TABLE | w::FURNACE | w::ANVIL) {
+                } else if p.content.is_station(b) {
                     p.picker_open = true;
                     p.selected = None;
                 }
@@ -1967,9 +1901,6 @@ impl App {
                         p.intro = Some(Instant::now());
                     }
                     self.stage_loaded = false;
-                    if !p.content.world.protected {
-                        p.chat.push(Chat { at: Instant::now(), from: None, text: if p.creative() { "Creative mode. Click to play. WASD move, F fly, left click break, right click place, E all items, G G then V to fill, Ctrl+Z undo, T chat, /help.".into() } else { "Survival mode. Hold left click to break blocks, E opens your pack and recipes, right click places or eats, Q throws, T chat, /help. Punch a tree to start, and make light before night falls.".into() } });
-                    }
                     // the join returned only once blocks.json and every file
                     // needed before play arrived: take this world's texture
                     // layers in before its meshes are built
@@ -1979,7 +1910,7 @@ impl App {
                         g.begin_world(&p.world);
                     }
                     self.screen = Screen::Playing(Box::new(p));
-                    self.audio.play(Sfx::Join, 0.5);
+                    self.audio.play("ui.join", 1.0);
                     self.set_capture(true);
                 }
                 Ok(Err(e)) => {
@@ -2022,7 +1953,7 @@ impl App {
                             }
                         }
                         ServerMsg::PlayerJoined(info) => {
-                            self.audio.play(Sfx::Join, 0.4);
+                            self.audio.play("ui.join", 0.8);
                             if info.id != p.my_id {
                                 let mut r = Remote::new(info.name, info.pose);
                                 r.look = info.look;
@@ -2090,6 +2021,7 @@ impl App {
                         }
                         // someone (or something) does something: everyone sees it
                         ServerMsg::Act { actor, act } => {
+                            sound::act(&mut self.audio, p, &actor, &act);
                             let now = p.anims.now();
                             match actor {
                                 dyno_protocol::Actor::Player(pid) if pid != p.my_id => {
@@ -2138,7 +2070,7 @@ impl App {
                         }
                         ServerMsg::TradeAsk { from } => {
                             p.trade_ask = Some(from);
-                            self.audio.play(Sfx::Click, 0.8);
+                            self.audio.play("ui.chat", 1.0);
                             release = true;
                         }
                         ServerMsg::Trade(view) => {
@@ -2150,7 +2082,7 @@ impl App {
                         }
                         ServerMsg::Invite { from } => {
                             p.invite = Some(from);
-                            self.audio.play(Sfx::Click, 0.8);
+                            self.audio.play("ui.chat", 1.0);
                             release = true;
                         }
                         ServerMsg::Block { pos, block } => {
@@ -2173,9 +2105,9 @@ impl App {
                                         10,
                                         pos[0] as u32 ^ (pos[2] as u32) << 8,
                                     );
-                                    self.audio.play(Sfx::Break(material_of(old)), gain);
+                                    self.audio.play(&sound::of_block("break", old), gain);
                                 } else {
-                                    self.audio.play(Sfx::Place(material_of(block)), gain);
+                                    self.audio.play(&sound::of_block("place", block), gain);
                                 }
                             }
                         }
@@ -2192,7 +2124,7 @@ impl App {
                             }
                         }
                         ServerMsg::Chat { from, text } => {
-                            self.audio.play(Sfx::Chat, 0.6);
+                            self.audio.play("ui.chat", 1.0);
                             p.chat.push(Chat {
                                 at: Instant::now(),
                                 from: Some(from),
@@ -2226,11 +2158,11 @@ impl App {
                             );
                             let gain = (1.0 - c.distance(p.player.eye()) / 48.0).clamp(0.2, 1.0);
                             let m = if block == w::AIR {
-                                Sfx::Break(w::Material::Stone)
+                                "break.stone".to_string()
                             } else {
-                                Sfx::Place(material_of(block))
+                                sound::of_block("place", block)
                             };
-                            self.audio.play(m, gain);
+                            self.audio.play(&m, gain);
                         }
                         ServerMsg::Teleport { pos } => {
                             p.player.pos = Vec3::from(pos);
@@ -2238,35 +2170,27 @@ impl App {
                             p.fall_from = None;
                             p.dead = None;
                         }
-                        ServerMsg::Pack(slots) => p.pack = slots,
+                        ServerMsg::Pack(slots) => {
+                            p.pack = slots;
+                            hud::carried_changed(p);
+                        }
                         ServerMsg::Status {
-                            health,
-                            food,
-                            mode,
-                            fuel,
+                            health, mode, fuel, ..
                         } => {
+                            let was = p.health;
                             p.health = health;
-                            p.food = food;
+                            hud::health_changed(p, was, health);
                             p.fuel = fuel;
                             if mode != p.mode {
                                 p.mode = mode;
-                                if mode == Mode::Survival {
+                                if mode == Mode::Play {
                                     p.player.flying = false;
                                 }
-                                p.toast(if mode == Mode::Creative {
-                                    "Creative mode"
+                                p.toast(if mode == Mode::Build {
+                                    "Build mode"
                                 } else {
-                                    "Survival mode"
+                                    "Play mode"
                                 });
-                            }
-                        }
-                        ServerMsg::Container(c) => {
-                            p.chest = c;
-                            if p.chest.is_some() && !p.picker_open {
-                                p.picker_open = true;
-                                p.selected = None;
-                                self.audio.play(Sfx::Place(w::Material::Wood), 0.5);
-                                release = true;
                             }
                         }
                         ServerMsg::EntitySpawn { id, kind, pos, yaw } => {
@@ -2316,24 +2240,24 @@ impl App {
                                 let gain = (1.0 - at.distance(p.player.pos) / 32.0).clamp(0.0, 1.0);
                                 if c.hostile {
                                     spawn_motes(&mut p.particles, at, [0.62, 0.42, 0.95], 26, id);
-                                    self.audio.play(Sfx::Dissolve, 0.8 * gain);
+                                    self.audio.play_at("combat.kill", at, 1.0);
                                 } else if gain > 0.0
                                     && e.hurt_at
                                         .is_some_and(|t| t.elapsed() < Duration::from_secs(2))
                                 {
                                     spawn_motes(&mut p.particles, at, c.color, 10, id);
+                                    self.audio.play_at("combat.kill", at, 1.0);
                                 }
                             }
                             if picked_by == Some(p.my_id) {
-                                self.audio.play(Sfx::Pop, 0.7);
+                                self.audio.play("ui.item_pick", 1.0);
                             }
                         }
                         ServerMsg::EntityHurt { id } => {
                             if let Some(e) = p.entities.get_mut(&id) {
                                 e.hurt_at = Some(Instant::now());
                                 let at = e.pos();
-                                let gain = (1.0 - at.distance(p.player.pos) / 32.0).clamp(0.0, 1.0);
-                                self.audio.play(Sfx::Hit, 0.8 * gain);
+                                self.audio.play_at("combat.hit", at, 1.0);
                             }
                         }
                         ServerMsg::Power { value, max } => {
@@ -2367,6 +2291,7 @@ impl App {
                             p.gcd = (now + Duration::from_secs_f32(global), global);
                         }
                         ServerMsg::Effect {
+                            ability,
                             color,
                             from,
                             to,
@@ -2376,13 +2301,41 @@ impl App {
                             animate_caster(p, a, color);
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
-                                self.audio.play(Sfx::Dissolve, 0.5);
                             } else {
                                 spawn_bolt(&mut p.particles, a, b, color);
-                                self.audio.play(Sfx::Hit, 0.4);
+                            }
+                            // the ability's own sound from the pack, or the
+                            // plain bolt or burst
+                            let own = ability
+                                .and_then(|i| p.content.ability(i))
+                                .map(|x| x.sound.clone())
+                                .filter(|s| !s.is_empty());
+                            let played = own.is_some_and(|s| self.audio.play_named_at(&s, a, 1.0));
+                            if !played {
+                                if radius > 0.0 {
+                                    self.audio.play_at("combat.burst", a, 1.0);
+                                } else {
+                                    self.audio.play_at("combat.bolt", a, 1.0);
+                                }
                             }
                         }
-                        ServerMsg::Equipment(e) => p.equip = e,
+                        ServerMsg::Healed { amount } => {
+                            if amount >= 0.5 {
+                                self.audio.play("combat.heal", 1.0);
+                                let green = Color32::from_rgb(110, 235, 120);
+                                p.floaters
+                                    .push((Instant::now(), format!("+{amount:.0}"), green));
+                                p.combat_log.push((
+                                    Instant::now(),
+                                    format!("You are healed for {amount:.0}."),
+                                    green,
+                                ));
+                            }
+                        }
+                        ServerMsg::Equipment(e) => {
+                            p.equip = e;
+                            hud::carried_changed(p);
+                        }
                         ServerMsg::EntityName { id, name, .. } => {
                             if let Some(e) = p.entities.get_mut(&id) {
                                 e.name = Some(name);
@@ -2397,7 +2350,7 @@ impl App {
                                 p.world_event = None;
                             } else {
                                 if p.world_event.is_none() {
-                                    self.audio.play(Sfx::Horn, 0.9);
+                                    self.audio.play("world.dusk", 1.0);
                                 }
                                 p.world_event = Some((title, text, progress));
                             }
@@ -2468,14 +2421,15 @@ impl App {
                             // a blow on your auto-attack target is your swing
                             // (not a damage-over-time tick: those come slower)
                             let now = p.anims.now();
-                            if entity.is_some()
+                            let swung = entity.is_some()
                                 && entity == p.attacking
-                                && now - p.anims.last_swing > 0.75
-                            {
+                                && now - p.anims.last_swing > 0.75;
+                            if swung {
                                 let swing = anim::attack_for(p.anims.grip);
                                 p.anims.me(now).play_fresh(now, swing);
                                 p.anims.last_swing = now;
                             }
+                            sound::struck(&mut self.audio, p, entity, crit, swung);
                             let (text, col) = match entity {
                                 Some(_) if crit => {
                                     (format!("{:.0}!", amount), Color32::from_rgb(255, 230, 80))
@@ -2518,6 +2472,7 @@ impl App {
                                 ));
                             }
                             if money > 0 {
+                                self.audio.play("ui.coin", 1.0);
                                 p.combat_log.push((
                                     Instant::now(),
                                     format!(
@@ -2528,6 +2483,7 @@ impl App {
                                 ));
                             }
                             if xp > 0 {
+                                p.ui.tips.fire("xp");
                                 p.floaters.push((
                                     Instant::now(),
                                     format!("+{xp} XP"),
@@ -2544,8 +2500,8 @@ impl App {
                         }
                         ServerMsg::LevelUp { player, level } => {
                             if player == p.my_id {
-                                self.audio.play(Sfx::Chime, 1.0);
-                                p.title = Some((Instant::now(), format!("Level {level}!")));
+                                self.audio.play("ui.level_up", 1.0);
+                                hud::level_up(p, level);
                             }
                         }
                         ServerMsg::EntityInfo {
@@ -2565,26 +2521,12 @@ impl App {
                             }
                         }
                         ServerMsg::Quests { log, done } => {
-                            let before: Vec<bool> =
-                                log.iter().map(|q| quest_finished(&p.content, q)).collect();
-                            let was: HashMap<u16, bool> = p
-                                .quest_log
-                                .iter()
-                                .map(|q| (q.quest, quest_finished(&p.content, q)))
-                                .collect();
-                            for (q, now) in log.iter().zip(before) {
-                                if now && was.get(&q.quest) == Some(&false) {
-                                    let t = p
-                                        .content
-                                        .quest(q.quest)
-                                        .map(|q| q.title.clone())
-                                        .unwrap_or_default();
-                                    p.toast(format!("{t}: complete! Return to hand it in."));
-                                    self.audio.play(Sfx::Join, 0.7);
-                                }
+                            let old = std::mem::replace(&mut p.quest_log, log);
+                            let old_done =
+                                std::mem::replace(&mut p.quests_done, done.into_iter().collect());
+                            if hud::quests_changed(p, &old, &old_done) {
+                                // (each change has its sound: hud::quests_changed)
                             }
-                            p.quest_log = log;
-                            p.quests_done = done.into_iter().collect();
                         }
                         ServerMsg::Rested { pool } => p.rested = pool,
                         ServerMsg::Loot { id, money, items } => {
@@ -2594,7 +2536,7 @@ impl App {
                                 }
                             } else {
                                 if p.loot.is_none() {
-                                    self.audio.play(Sfx::Click, 0.6);
+                                    // (the window opening is heard: sound.rs)
                                 }
                                 p.loot = Some((id, money, items));
                                 release = true;
@@ -2611,10 +2553,10 @@ impl App {
                         }
                         ServerMsg::DayEvent { dusk, day } => {
                             if dusk {
-                                self.audio.play(Sfx::Horn, 0.9);
+                                self.audio.play("world.dusk", 1.0);
                                 p.title = Some((Instant::now(), "Dusk is coming".into()));
                             } else {
-                                self.audio.play(Sfx::Chime, 0.8);
+                                self.audio.play("world.dawn", 1.0);
                                 p.title = Some((Instant::now(), format!("Day {day}")));
                             }
                         }
@@ -2622,25 +2564,14 @@ impl App {
                             animate_blow(p);
                             p.hurt_flash = (0.4 + amount * 0.08).min(1.0);
                             p.player.vel += Vec3::from(push);
-                            self.audio.play(Sfx::Break(w::Material::Cloth), 0.9);
+                            self.audio
+                                .play("combat.hurt", (0.5 + amount * 0.05).min(1.0));
                         }
                         ServerMsg::Died { message } => {
+                            self.audio.play("combat.death", 1.0);
                             p.dead = Some(message);
-                            p.dig = None;
                             p.picker_open = false;
                             release = true;
-                        }
-                        ServerMsg::Milestone { title } => {
-                            p.toast(format!("Journal: {title}"));
-                            self.audio.play(Sfx::Join, 0.7);
-                        }
-                        ServerMsg::Digging { player, pos } => {
-                            let now = p.anims.now();
-                            if pos.is_some() {
-                                p.anims.digging.entry(player).or_insert(now);
-                            } else {
-                                p.anims.digging.remove(&player);
-                            }
                         }
                         ServerMsg::Reject { reason } => closed = Some(reason),
                         _ => {}
@@ -2859,8 +2790,7 @@ impl App {
                     },
                     jump: k(KeyCode::Space),
                     down: k(KeyCode::ShiftLeft) || k(KeyCode::ShiftRight),
-                    sprint: (k(KeyCode::ControlLeft) || k(KeyCode::KeyR))
-                        && (p.food > 0.0 || p.creative()),
+                    sprint: k(KeyCode::ControlLeft) || k(KeyCode::KeyR),
                 }
             } else {
                 Input::default()
@@ -2871,12 +2801,6 @@ impl App {
             }
             p.player.update(&p.world, input, dt);
             p.hurt_flash = (p.hurt_flash - dt * 1.5).max(0.0);
-            if let Some(at) = p.sleeping_at {
-                let t = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
-                if at.distance(p.player.pos) > 1.5 || !(0.52..0.98).contains(&t) {
-                    p.sleeping_at = None;
-                }
-            }
             if p.title
                 .as_ref()
                 .is_some_and(|(t, _)| t.elapsed() > Duration::from_secs(5))
@@ -2887,7 +2811,7 @@ impl App {
                 p.heart_clock -= dt;
                 if p.heart_clock <= 0.0 {
                     p.heart_clock = 0.6 + p.health * 0.1;
-                    self.audio.play(Sfx::Heartbeat, 0.9);
+                    self.audio.play("world.heartbeat", 1.0);
                 }
             }
             p.toasts
@@ -2938,73 +2862,6 @@ impl App {
                     p.air = (p.air + dt * 4.0).min(10.0);
                 }
             }
-            // mining: hold the left button on a block
-            let can_mine = active && p.mouse_left && !p.creative() && !p.wow();
-            let target_block = p
-                .target
-                .as_ref()
-                .map(|t| t.block)
-                .filter(|_| p.target_entity.is_none());
-            match (can_mine, target_block) {
-                (true, Some(pos)) => {
-                    let b = p.world.get(pos[0], pos[1], pos[2]);
-                    let pack = dyno_sim::inventory::Inventory {
-                        slots: p.pack.clone(),
-                    };
-                    let best = p
-                        .content
-                        .rule(b)
-                        .tool
-                        .and_then(|k| dyno_sim::inventory::best_tool(&pack, &p.content, k))
-                        .map(|(_, t)| t);
-                    let tool = if p.content.world.protected {
-                        best
-                    } else {
-                        p.held_tool()
-                    };
-                    let need = dyno_sim::mining::break_time(&p.content, b, tool)
-                        .filter(|_| !p.content.world.protected || p.content.rule(b).respawn > 0);
-                    match (&mut p.dig, need) {
-                        (Some((dp, done, total)), Some(_)) if *dp == pos => {
-                            *done += dt;
-                            p.swing = p.swing.max(0.6);
-                            if *done >= *total {
-                                let pos = *dp;
-                                p.dig = None;
-                                let _ = p.conn.tx.send(ClientMsg::Dig { pos });
-                                p.world.set(pos[0], pos[1], pos[2], w::AIR);
-                                p.minimap.block_changed(pos);
-                                p.work.block(pos, w::AIR);
-                                spawn_particles(
-                                    &mut p.particles,
-                                    pos,
-                                    b,
-                                    14,
-                                    (pos[0] * 31 + pos[1] * 7 + pos[2]) as u32,
-                                );
-                                self.audio.play(Sfx::Break(material_of(b)), 0.9);
-                            } else if (*done / 0.25).floor() != ((*done - dt) / 0.25).floor() {
-                                self.audio.play(Sfx::Step(material_of(b)), 0.45);
-                            }
-                        }
-                        (_, Some(total)) => {
-                            p.dig = Some((pos, 0.0, total));
-                            let _ = p.conn.tx.send(ClientMsg::DigStart { pos });
-                            if p.tier_hint != Some(pos)
-                                && let Some(why) =
-                                    dyno_sim::mining::missing_tool(&p.content, b, p.held_tool())
-                            {
-                                p.tier_hint = Some(pos);
-                                p.toast(why);
-                            }
-                        }
-                        (_, None) => p.dig = None,
-                    }
-                }
-                _ => {
-                    p.dig = None;
-                }
-            }
             // footsteps, view bob and sprint field-of-view kick
             let moved =
                 Vec3::new(p.player.pos.x - before.x, 0.0, p.player.pos.z - before.z).length();
@@ -3019,7 +2876,7 @@ impl App {
                         p.player.pos.z.floor() as i32,
                     );
                     if below != w::AIR {
-                        self.audio.play(Sfx::Step(material_of(below)), 0.5);
+                        sound::footstep(&mut self.audio, p, below);
                     }
                 }
             }
@@ -3129,7 +2986,7 @@ impl App {
                 p.next_cricket -= dt;
                 if p.next_cricket <= 0.0 {
                     p.next_cricket = 2.0 + (t * 7.3).sin().abs() * 5.0;
-                    self.audio.play(Sfx::Cricket, 0.25 * night);
+                    self.audio.play("amb.cricket", night);
                 }
             } else {
                 p.fireflies.clear();
@@ -3182,18 +3039,18 @@ impl App {
                 let day = tod < 0.5;
                 let roll = (p.fps.0.elapsed().as_millis() % 1000) as f32 / 1000.0;
                 if raining && outside {
-                    self.audio.play(Sfx::Rain, 0.5 * p.weather_mix);
+                    self.audio.play("amb.rain", p.weather_mix);
                 } else if outside && day && p.weather.0 != 2 && roll < 0.35 {
-                    self.audio.play(Sfx::Bird, 0.35);
+                    self.audio.play("amb.bird", 1.0);
                 }
                 if outside && roll > 0.8 {
                     self.audio.play(
-                        Sfx::Wind,
-                        0.25 + 0.3 * if p.weather.0 == 2 { p.weather_mix } else { 0.0 },
+                        "amb.wind",
+                        0.5 + 0.5 * if p.weather.0 == 2 { p.weather_mix } else { 0.0 },
                     );
                 }
                 if near_town && day && roll > 0.55 && roll < 0.7 {
-                    self.audio.play(Sfx::Hammer, 0.18);
+                    self.audio.play("amb.hammer", 1.0);
                 }
             }
             // particles
@@ -3346,8 +3203,13 @@ impl App {
                 far,
             );
             let vp = proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
-            // models skip faces the camera and sun cannot see, and coarsen far away
+            // models skip faces the camera and sun cannot see, and coarsen far
+            // away; creatures out of the picture whose shadows are too are not made
             models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
+            models::set_sight(Some((
+                render::view_planes(vp),
+                crate::shadows::to_light(sky_now.env.light_dir),
+            )));
             let held_item = if p.content.world.protected && !p.creative() {
                 // RPG: your best weapon is always in hand
                 let pack = dyno_sim::inventory::Inventory {
@@ -3379,9 +3241,6 @@ impl App {
                 let state = my_anim(p, &mut book, &look, now);
                 let step = models::person_step(speed);
                 let me = book.me(now);
-                if p.dig.is_some() && me.action(now).is_none() {
-                    me.play(now, Anim::Attack1H);
-                }
                 me.drive_at(now, state, feet, step);
                 models::push_person_anim(
                     &mut boxes,
@@ -3509,6 +3368,8 @@ impl App {
         let Some(window) = gfx.window.clone() else {
             return;
         };
+        // the interface keeps its share of the window, whatever its size
+        crate::options::apply_zoom(&self.egui_ctx, gfx.config.height as f32);
         let raw = state.take_egui_input(&window);
         let ctx = self.egui_ctx.clone();
         // the pack's fonts, once they arrive
@@ -3528,6 +3389,11 @@ impl App {
             );
         });
         state.handle_platform_output(&window, out.platform_output.clone());
+        let playing = match &self.screen {
+            Screen::Playing(p) => Some(&**p),
+            _ => None,
+        };
+        sound::frame(&mut self.audio, &mut self.heard, playing, &ctx, dt);
         gfx.frame(view, &sky_now, &boxes, &lines, &ctx, out);
         for a in actions {
             self.act(a);
@@ -3538,12 +3404,13 @@ impl App {
         match a {
             Action::Screens(cmds) => {
                 let mut close = false;
+                let mut save_interface = false;
                 if let Screen::Playing(p) = &mut self.screen {
                     for c in cmds {
                         match c {
                             screens::ScreenCmd::Equip(i) => {
                                 let _ = p.conn.tx.send(ClientMsg::Equip { from: i });
-                                self.audio.play(Sfx::Place(w::Material::Cloth), 0.6);
+                                self.audio.play("ui.item_drop", 1.0);
                             }
                             screens::ScreenCmd::Unequip(i) => {
                                 let _ = p.conn.tx.send(ClientMsg::Unequip { place: i });
@@ -3562,8 +3429,8 @@ impl App {
                                 let _ = p.conn.tx.send(ClientMsg::Sell { from: i });
                             }
                             screens::ScreenCmd::Bind(a, k) => {
-                                if p.bar.is_empty() {
-                                    p.bar = default_bar(p);
+                                if !p.ui.bar_ready {
+                                    hud::load_bar(p);
                                 }
                                 for b in p.bar.iter_mut() {
                                     if *b == Some(a) {
@@ -3571,6 +3438,28 @@ impl App {
                                     }
                                 }
                                 p.bar[k as usize] = Some(a);
+                                let mut acts = Vec::new();
+                                hud::save_bar(p, &mut acts);
+                                save_interface = !acts.is_empty();
+                            }
+                            screens::ScreenCmd::Sort => {
+                                for (from, to) in screens::sort_moves(&p.content, &p.pack) {
+                                    let _ = p.conn.tx.send(ClientMsg::Move {
+                                        from: SlotRef::Pack(from),
+                                        to: SlotRef::Pack(to),
+                                        count: 0,
+                                    });
+                                }
+                                self.audio.play("ui.item_drop", 1.0);
+                            }
+                            screens::ScreenCmd::SellJunk => {
+                                for (i, s) in p.pack.iter().enumerate() {
+                                    if s.is_some_and(|s| screens::is_junk(&p.content.item(s.item)))
+                                    {
+                                        let _ = p.conn.tx.send(ClientMsg::Sell { from: i as u8 });
+                                    }
+                                }
+                                self.audio.play("ui.sell", 1.0);
                             }
                             screens::ScreenCmd::Switch(t) => p.screen_tab = Some(t),
                             screens::ScreenCmd::Close => {
@@ -3579,6 +3468,9 @@ impl App {
                             }
                         }
                     }
+                }
+                if save_interface {
+                    self.act(Action::Interface);
                 }
                 if close {
                     self.set_capture(true);
@@ -3598,7 +3490,7 @@ impl App {
                         match c {
                             rpg_ui::RpgCmd::Accept(q) => {
                                 let _ = p.conn.tx.send(ClientMsg::AcceptQuest { quest: q });
-                                self.audio.play(Sfx::Click, 0.7);
+                                // (heard when the log changes: hud::quests_changed)
                             }
                             rpg_ui::RpgCmd::Complete(q, ch) => {
                                 let _ = p.conn.tx.send(ClientMsg::CompleteQuest {
@@ -3618,7 +3510,7 @@ impl App {
                             }
                             rpg_ui::RpgCmd::Buy(npc, item, count) => {
                                 let _ = p.conn.tx.send(ClientMsg::Buy { npc, item, count });
-                                self.audio.play(Sfx::Click, 0.6);
+                                self.audio.play("ui.buy", 1.0);
                             }
                             rpg_ui::RpgCmd::Loot(id, slot) => {
                                 let _ = p.conn.tx.send(ClientMsg::LootTake { id, slot });
@@ -3646,21 +3538,19 @@ impl App {
                     for c in cmds {
                         match c {
                             PackCmd::Move(a, b, n) => {
+                                self.audio.play("ui.item_drop", 1.0);
                                 let _ = p.conn.tx.send(ClientMsg::Move {
                                     from: a,
                                     to: b,
                                     count: n,
                                 });
                             }
-                            PackCmd::Throw(a, n) => {
-                                let _ = p.conn.tx.send(ClientMsg::Throw { from: a, count: n });
-                            }
                             PackCmd::Craft(r, n) => {
                                 let _ = p.conn.tx.send(ClientMsg::Craft {
                                     recipe: r,
                                     times: n,
                                 });
-                                self.audio.play(Sfx::Place(w::Material::Wood), 0.6);
+                                self.audio.play("ui.item_pick", 1.0);
                             }
                             PackCmd::Creative(item) => {
                                 let _ = p.conn.tx.send(ClientMsg::CreativeSet {
@@ -3671,9 +3561,6 @@ impl App {
                             PackCmd::Close => {
                                 p.picker_open = false;
                                 p.selected = None;
-                                if p.chest.take().is_some() {
-                                    let _ = p.conn.tx.send(ClientMsg::CloseContainer);
-                                }
                                 close = true;
                             }
                         }
@@ -3704,8 +3591,18 @@ impl App {
                 }
             }
             Action::CancelJoin => self.screen = Screen::Menu,
+            Action::Interface => {
+                // what the interface remembers (tips seen, action bars): save
+                crate::options::interface().into(&mut self.settings);
+                let _ = self.settings.save();
+            }
             Action::Graphics => {
                 // the options panel changed something: apply and save
+                crate::options::interface().into(&mut self.settings);
+                if let Some(s) = crate::options::sound() {
+                    s.into(&mut self.settings);
+                    let _ = self.settings.save();
+                }
                 if let Some(o) = crate::options::get() {
                     o.into(&mut self.settings);
                     let _ = self.settings.save();
@@ -3821,17 +3718,6 @@ impl App {
                 p.player.flying = !p.player.flying;
                 p.player.vel.y = 0.0;
             }
-            KeyCode::KeyQ => {
-                let all = p.keys.contains(&KeyCode::ControlLeft)
-                    || p.keys.contains(&KeyCode::ControlRight);
-                if p.held().is_some() {
-                    let _ = p.conn.tx.send(ClientMsg::Throw {
-                        from: SlotRef::Pack(p.slot as u8),
-                        count: if all { 0 } else { 1 },
-                    });
-                    p.swing = 1.0;
-                }
-            }
             KeyCode::KeyC | KeyCode::KeyB | KeyCode::KeyP | KeyCode::KeyK
                 if p.content.world.protected =>
             {
@@ -3935,8 +3821,8 @@ impl App {
                 ];
                 if let Some(i) = digits.iter().position(|d| *d == code) {
                     if p.content.world.protected && !p.creative() {
-                        if p.bar.is_empty() {
-                            p.bar = default_bar(p);
+                        if !p.ui.bar_ready {
+                            hud::load_bar(p);
                         }
                         use_action(p, i);
                         p.swing = 1.0;
@@ -3975,12 +3861,8 @@ impl App {
             return;
         }
         if let Some(id) = p.target_entity {
-            if p.content.world.protected {
-                // classic: click to target, and start attacking it
-                let _ = p.conn.tx.send(ClientMsg::AutoAttack { target: Some(id) });
-            } else if button == MouseButton::Left {
-                let _ = p.conn.tx.send(ClientMsg::Attack { entity: id });
-            }
+            // classic: click to target, and start attacking it
+            let _ = p.conn.tx.send(ClientMsg::AutoAttack { target: Some(id) });
             p.focus = Some(id);
             return;
         }
@@ -4000,7 +3882,7 @@ impl App {
                     14,
                     (pos[0] * 31 + pos[1] * 7 + pos[2]) as u32,
                 );
-                self.audio.play(Sfx::Break(material_of(old)), 0.9);
+                self.audio.play(&sound::of_block("break", old), 1.0);
                 p.undo.push((pos, old, w::AIR));
                 let _ = p.conn.tx.send(ClientMsg::Dig { pos });
             }
@@ -4008,34 +3890,15 @@ impl App {
             MouseButton::Right => {
                 let looked = p.world.get(tb[0], tb[1], tb[2]);
                 let sneaking = p.keys.contains(&KeyCode::ShiftLeft);
-                if !sneaking && matches!(looked, w::CHEST | w::BED) {
-                    let _ = p.conn.tx.send(ClientMsg::Interact { pos: tb });
-                    let t = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
-                    if looked == w::BED && t > 0.52 && t < 0.98 {
-                        p.sleeping_at = Some(p.player.pos);
-                    }
-                    return;
-                }
-                if !sneaking && matches!(looked, w::CRAFTING_TABLE | w::FURNACE) {
+                if !sneaking && p.content.is_station(looked) {
                     p.picker_open = true;
                     p.selected = None;
                     self.set_capture(false);
                     return;
                 }
-                let held = p.held();
-                if let Some(s) = held
-                    && p.content.item(s.item).food > 0
-                    && !p.creative()
-                    && p.food < 20.0
-                    && p.held_block().is_none()
-                {
-                    let _ = p.conn.tx.send(ClientMsg::UseHeld);
-                    self.audio.play(Sfx::Step(w::Material::Foliage), 0.8);
-                    return;
-                }
                 let Some(block) = p.held_block() else { return };
-                if p.content.world.protected && !p.creative() {
-                    return; // the land is protected; building needs a plot (later)
+                if !p.creative() {
+                    return; // the land is built on in build mode only
                 }
                 let pos = tp;
                 let here = p.world.get(pos[0], pos[1], pos[2]);
@@ -4046,18 +3909,10 @@ impl App {
                     p.world.set(pos[0], pos[1], pos[2], block);
                     p.minimap.block_changed(pos);
                     p.work.block(pos, block);
-                    self.audio.play(Sfx::Place(material_of(block)), 0.9);
-                    if p.creative() {
-                        p.undo.push((pos, here, block));
-                        if p.undo.len() > 64 {
-                            p.undo.remove(0);
-                        }
-                    } else if let Some(Some(s)) = p.pack.get_mut(p.slot) {
-                        // predict the count; the server sends the real pack
-                        s.count = s.count.saturating_sub(1);
-                        if s.count == 0 {
-                            p.pack[p.slot] = None;
-                        }
+                    self.audio.play(&sound::of_block("place", block), 1.0);
+                    p.undo.push((pos, here, block));
+                    if p.undo.len() > 64 {
+                        p.undo.remove(0);
                     }
                     let _ = p.conn.tx.send(ClientMsg::Place {
                         pos,
@@ -4072,7 +3927,7 @@ impl App {
                         slot: p.slot as u8,
                         item: b as u16,
                     });
-                    self.audio.play(Sfx::Click, 0.6);
+                    // (a click is heard on its own: sound.rs)
                 }
             }
             _ => {}
@@ -4081,6 +3936,8 @@ impl App {
 }
 
 enum Action {
+    /// the interface's own memory changed: save the settings
+    Interface,
     Pack(Vec<PackCmd>),
     Rpg(Vec<rpg_ui::RpgCmd>),
     ChooseClass(u16),
@@ -4380,6 +4237,8 @@ fn hud(
         done: &p.quests_done,
         pos: p.player.pos.into(),
         hearth: p.hearth,
+        equip: &p.equip,
+        class: p.class.and_then(|c| p.content.class(c)),
     };
     if let Some(vp) = vp {
         let eye = p.player.eye();
@@ -4508,59 +4367,8 @@ fn hud(
     let event_top = map.bottom() + 10.0;
     let tracker_top = event_top + if p.world_event.is_some() { 68.0 } else { 0.0 };
     if p.content.world.protected {
-        // player frame, target frame, quest tracker, XP bar
-        rpg_ui::unit_frame(
-            &painter,
-            screen.left_top() + Vec2::new(12.0, 52.0),
-            &p.my_name,
-            p.level,
-            Color32::from_rgb(255, 210, 80),
-            p.health,
-            p.max_health,
-            Some(&dyno_sim::progression::money_text(p.money)),
-            None,
-        );
-        if let Some(t) = p
-            .focus
-            .or(p.target_entity)
-            .and_then(|id| p.entities.get(&id))
-        {
-            let (name, lvl, h, m) = match t.kind {
-                EntityKind::Creature(c) => {
-                    let (l, h, m) = t.info.unwrap_or((1, 1.0, 1.0));
-                    (
-                        p.content
-                            .creature(c)
-                            .map(|c| c.name.clone())
-                            .unwrap_or_default(),
-                        l,
-                        h,
-                        m,
-                    )
-                }
-                EntityKind::Npc(n) => (
-                    p.content.npc(n).map(|n| n.name.clone()).unwrap_or_default(),
-                    p.level,
-                    1.0,
-                    1.0,
-                ),
-                _ => (String::new(), 0, 0.0, 0.0),
-            };
-            if !name.is_empty() {
-                rpg_ui::unit_frame(
-                    &painter,
-                    Pos2::new(c.x - 115.0, screen.top() + 12.0),
-                    &name,
-                    lvl,
-                    rpg_ui::level_color(p.level, lvl),
-                    h,
-                    m,
-                    None,
-                    None,
-                );
-            }
-        }
         rpg_ui::tracker(&painter, screen, &me, tracker_top);
+        hud::frames(ctx, &painter, p, map);
     }
     // a world event in progress: an orange tracker box at the right
     if let Some((title, text, prog)) = &p.world_event {
@@ -4600,21 +4408,6 @@ fn hud(
             Color32::from_rgb(230, 140, 40),
         );
     }
-    // floating XP and money
-    p.floaters
-        .retain(|(t, _, _)| t.elapsed() < Duration::from_millis(1800));
-    for (k, (t, text, colour)) in p.floaters.iter().enumerate() {
-        let a = t.elapsed().as_secs_f32();
-        let at = Pos2::new(c.x + 40.0, c.y - 30.0 - a * 40.0 - k as f32 * 18.0);
-        let fade = (1.0 - a / 1.8).clamp(0.0, 1.0);
-        painter.text(
-            at,
-            Align2::LEFT_CENTER,
-            text,
-            FontId::proportional(18.0),
-            colour.gamma_multiply(fade),
-        );
-    }
     // top-left info: always in the builder modes, on F3 in the RPG
     let pos = p.player.pos;
     let show_info = !p.content.world.protected || p.show_info;
@@ -4630,8 +4423,14 @@ fn hud(
         if p.player.flying { "  · flying" } else { "" }
     );
     let info = if show_info { info } else { String::new() };
+    // (under the unit frames in the RPG)
+    let info_y = if p.content.world.protected {
+        170.0
+    } else {
+        10.0
+    };
     painter.text(
-        screen.left_top() + Vec2::new(12.0, 10.0),
+        screen.left_top() + Vec2::new(12.0, info_y),
         Align2::LEFT_TOP,
         info,
         FontId::monospace(13.0),
@@ -4639,7 +4438,7 @@ fn hud(
     );
     if p.server_version != env!("CARGO_PKG_VERSION") {
         painter.text(
-            screen.left_top() + Vec2::new(12.0, 48.0),
+            screen.left_top() + Vec2::new(12.0, info_y + 38.0),
             Align2::LEFT_TOP,
             format!("server runs dyno {}", p.server_version),
             FontId::monospace(12.0),
@@ -4648,32 +4447,31 @@ fn hud(
     }
     // hotbar from the pack, or the 12-slot action bar
     let rpg_bar = p.content.world.protected && !p.creative();
-    if rpg_bar && p.bar.is_empty() && p.class.is_some() {
-        p.bar = default_bar(p);
-    }
     let slots = if rpg_bar { 12 } else { 9 };
-    let slot = if rpg_bar { 44.0 } else { 46.0 };
+    let slot = 46.0;
     let total = slots as f32 * (slot + 4.0);
-    let start = Pos2::new(c.x - total / 2.0, screen.bottom() - slot - 14.0);
-    painter.rect_filled(
-        Rect::from_min_size(
+    let start = Pos2::new(
+        c.x - total / 2.0,
+        screen.bottom() - slot - if rpg_bar { 16.0 } else { 14.0 },
+    );
+    // the whole bar, for what stacks above it
+    let bar_rect = if rpg_bar {
+        hud::action_bar(ctx, &painter, p, actions)
+    } else {
+        let r = Rect::from_min_size(
             start - Vec2::splat(6.0),
             Vec2::new(total + 8.0, slot + 12.0),
-        ),
-        8.0,
-        Color32::from_black_alpha(130),
-    );
-    for i in 0..slots {
+        );
+        painter.rect_filled(r, 8.0, Color32::from_black_alpha(130));
+        r
+    };
+    for i in 0..if rpg_bar { 0 } else { slots } {
         let r = Rect::from_min_size(
             start + Vec2::new(i as f32 * (slot + 4.0), 0.0),
             Vec2::splat(slot),
         );
-        if rpg_bar {
-            draw_action(&painter, r, p, i);
-            continue;
-        }
         if let Some(s) = p.pack.get(i).copied().flatten() {
-            survival::stack_icon(&painter, r, &p.content, &s);
+            item_ui::stack_icon(&painter, r, &p.content, &s);
         }
         let stroke = if i == p.slot {
             Stroke::new(2.5_f32, ACCENT)
@@ -4700,7 +4498,7 @@ fn hud(
     if p.content.world.protected {
         rpg_ui::xp_bar(
             &painter,
-            Pos2::new(c.x, start.y - 10.0),
+            Pos2::new(c.x, bar_rect.top() - 9.0),
             total,
             p.xp,
             p.xp_next,
@@ -4709,25 +4507,7 @@ fn hud(
         );
         label_y -= 14.0;
     }
-    if !p.creative() && !p.content.world.protected {
-        survival::bars(
-            &painter,
-            Pos2::new(start.x, start.y - 18.0),
-            Pos2::new(start.x + total, start.y - 18.0),
-            p.health,
-            p.food,
-        );
-        label_y -= 16.0;
-        if p.air < 10.0 {
-            let k = (p.air / 10.0).clamp(0.0, 1.0);
-            let r = Rect::from_min_size(
-                Pos2::new(start.x + total - 110.0, start.y - 34.0),
-                Vec2::new(110.0 * k, 5.0),
-            );
-            painter.rect_filled(r, 2.0, Color32::from_rgb(110, 170, 230));
-            label_y -= 8.0;
-        }
-    }
+    hud::air_meter(&painter, p, bar_rect);
     painter.text(
         Pos2::new(c.x, label_y),
         Align2::CENTER_BOTTOM,
@@ -4735,22 +4515,6 @@ fn hud(
         FontId::proportional(15.0),
         Color32::WHITE,
     );
-    // mining progress ring around the crosshair
-    if let Some((_, done, total)) = p.dig
-        && total > 0.05
-    {
-        let k = (done / total).clamp(0.0, 1.0);
-        let n = 32;
-        let pts: Vec<Pos2> = (0..=((n as f32 * k) as usize))
-            .map(|i| {
-                let a = -std::f32::consts::FRAC_PI_2 + i as f32 / n as f32 * std::f32::consts::TAU;
-                c + Vec2::new(a.cos(), a.sin()) * 16.0
-            })
-            .collect();
-        if pts.len() > 1 {
-            painter.add(egui::Shape::line(pts, Stroke::new(3.0_f32, ACCENT)));
-        }
-    }
     // being hurt flashes the screen edge red
     if p.hurt_flash > 0.0 {
         let a = (p.hurt_flash * 120.0) as u8;
@@ -4780,17 +4544,6 @@ fn hud(
         ] {
             painter.rect_filled(r, 0.0, Color32::from_rgba_unmultiplied(200, 20, 20, a));
         }
-    }
-    // asleep in bed: the world dims
-    if p.sleeping_at.is_some() {
-        painter.rect_filled(screen, 0.0, Color32::from_black_alpha(150));
-        painter.text(
-            Pos2::new(c.x, c.y + 40.0),
-            egui::Align2::CENTER_CENTER,
-            "Sleeping… the night passes quickly when half of the players sleep. Move to get up.",
-            FontId::proportional(18.0),
-            Color32::from_gray(220),
-        );
     }
     // the first-login intro: letterbox and a few lines of story
     if let Some(t0) = p.intro {
@@ -4843,47 +4596,8 @@ fn hud(
             );
         }
     }
-    // big title: "Day 3", "Dusk is coming"
-    if let Some((at, text)) = &p.title {
-        let t = at.elapsed().as_secs_f32();
-        let fade = (t / 0.6).min(1.0) * (1.0 - (t - 3.2).max(0.0) / 1.3).clamp(0.0, 1.0);
-        let pos = Pos2::new(c.x, screen.top() + screen.height() * 0.28);
-        let galley = painter.layout_no_wrap(
-            text.clone(),
-            FontId::proportional(46.0),
-            Color32::from_rgb(255, 236, 200).gamma_multiply(fade),
-        );
-        let r = Rect::from_center_size(pos, galley.size());
-        painter.galley(
-            r.min + Vec2::new(2.0, 3.0),
-            painter.layout_no_wrap(
-                text.clone(),
-                FontId::proportional(46.0),
-                Color32::from_black_alpha((160.0 * fade) as u8),
-            ),
-            Color32::BLACK,
-        );
-        painter.galley(r.min, galley, Color32::WHITE);
-    }
-    // milestone and mode toasts
-    for (k, (at, text)) in p.toasts.iter().enumerate() {
-        let fade = (1.0 - (at.elapsed().as_secs_f32() - 3.5).max(0.0) / 1.5).clamp(0.0, 1.0);
-        let pos = Pos2::new(c.x, screen.top() + 70.0 + k as f32 * 34.0);
-        let galley = painter.layout_no_wrap(
-            text.clone(),
-            FontId::proportional(18.0),
-            Color32::WHITE.gamma_multiply(fade),
-        );
-        let r = Rect::from_center_size(pos, galley.size() + Vec2::new(24.0, 12.0));
-        painter.rect_filled(r, 8.0, Color32::from_black_alpha((170.0 * fade) as u8));
-        painter.rect_stroke(
-            r,
-            8.0,
-            Stroke::new(1.5_f32, ACCENT.gamma_multiply(fade)),
-            egui::StrokeKind::Inside,
-        );
-        painter.galley(r.min + Vec2::new(12.0, 6.0), galley, Color32::WHITE);
-    }
+    // the big title, the level gained, toasts, quest steps, loot
+    hud::moments(ctx, &painter, p, bar_rect);
     // chat
     let chat_bottom = label_y - 46.0;
     let visible: Vec<&Chat> = p
@@ -5093,6 +4807,7 @@ fn hud(
                 Some(rpg_ui::Panel::Dialog { .. } | rpg_ui::Panel::Vendor { .. })
             ),
             bar: &p.bar,
+            keys: &BAR_KEYS,
             skills: &lines,
             extra,
         };
@@ -5101,101 +4816,9 @@ fn hud(
             actions.push(Action::Screens(cmds));
         }
     }
-    // buffs, top right
-    {
-        let now = Instant::now();
-        p.auras.retain(|(_, t)| *t > now);
-        for (k, (a, t)) in p.auras.iter().enumerate() {
-            let Some(ab) = p.content.ability(*a) else {
-                continue;
-            };
-            let r = Rect::from_min_size(
-                Pos2::new(map.left() - 44.0 - k as f32 * 40.0, screen.top() + 12.0),
-                Vec2::splat(34.0),
-            );
-            painter.rect_filled(r, 4.0, Color32::from_black_alpha(160));
-            if let Some(item) = p.content.item_by_key(&ab.icon) {
-                survival::item_icon(&painter, r.shrink(3.0), &p.content, item);
-            }
-            painter.rect_stroke(
-                r,
-                4.0,
-                Stroke::new(1.0_f32, Color32::from_rgb(200, 170, 90)),
-                egui::StrokeKind::Inside,
-            );
-            let left = t.saturating_duration_since(now).as_secs_f32();
-            let txt = if left >= 60.0 {
-                format!("{:.0}m", left / 60.0)
-            } else {
-                format!("{left:.0}s")
-            };
-            painter.text(
-                r.center_bottom() + Vec2::new(0.0, 2.0),
-                Align2::CENTER_TOP,
-                txt,
-                FontId::proportional(11.0),
-                Color32::WHITE,
-            );
-        }
-    }
-    // combo points under the target frame
-    if p.combo.0 > 0 && p.combo.1.is_some() && p.combo.1 == p.focus.or(p.target_entity) {
-        for k in 0..5u8 {
-            let at = Pos2::new(c.x - 40.0 + k as f32 * 20.0, screen.top() + 80.0);
-            let on = k < p.combo.0;
-            painter.circle_filled(
-                at,
-                7.0,
-                if on {
-                    Color32::from_rgb(230, 60, 40)
-                } else {
-                    Color32::from_black_alpha(150)
-                },
-            );
-            painter.circle_stroke(
-                at,
-                7.0,
-                Stroke::new(1.0_f32, Color32::from_rgb(200, 170, 90)),
-            );
-        }
-    }
     // floating combat text, rising from the creature (or from you)
-    p.combat_text
-        .retain(|(t, _, _, _)| t.elapsed() < Duration::from_millis(1400));
     if let Some(vp) = vp {
-        for (k, (t, ent, text, col)) in p.combat_text.iter().enumerate() {
-            let a = t.elapsed().as_secs_f32();
-            let world = match ent {
-                Some(id) => p.entities.get(id).map(|e| e.pos() + glam::Vec3::Y * 2.2),
-                None => Some(p.player.pos + glam::Vec3::Y * 2.0),
-            };
-            let Some(wp) = world else { continue };
-            let clip = vp * (wp + glam::Vec3::Y * a * 0.8).extend(1.0);
-            if clip.w <= 0.1 {
-                continue;
-            }
-            let ndc = clip.truncate() / clip.w;
-            let at = Pos2::new(
-                screen.left() + (ndc.x * 0.5 + 0.5) * screen.width() + (k % 3) as f32 * 10.0,
-                screen.top() + (0.5 - ndc.y * 0.5) * screen.height(),
-            );
-            let fade = (1.0 - a / 1.4).clamp(0.0, 1.0);
-            let size = if text.ends_with('!') { 26.0 } else { 19.0 };
-            painter.text(
-                at + Vec2::new(1.5, 1.5),
-                Align2::CENTER_CENTER,
-                text,
-                FontId::proportional(size),
-                Color32::from_black_alpha((220.0 * fade) as u8),
-            );
-            painter.text(
-                at,
-                Align2::CENTER_CENTER,
-                text,
-                FontId::proportional(size),
-                col.gamma_multiply(fade),
-            );
-        }
+        hud::combat_text(&painter, p, screen, vp);
     }
     // class picker
     if p.class_pick {
@@ -5246,78 +4869,7 @@ fn hud(
             actions.push(Action::ChooseClass(c));
         }
     }
-    // my cast bar
-    if let Some((a, start, secs)) = p.my_cast {
-        let name = if a == dyno_protocol::RECALL {
-            "Recall".to_string()
-        } else if a == dyno_protocol::GATHER {
-            "Gathering".to_string()
-        } else {
-            p.content
-                .ability(a)
-                .map(|a| a.name.clone())
-                .unwrap_or_default()
-        };
-        let f = (start.elapsed().as_secs_f32() / secs.max(0.01)).min(1.0);
-        let r = Rect::from_center_size(
-            Pos2::new(c.x, screen.bottom() - 150.0),
-            Vec2::new(260.0, 18.0),
-        );
-        painter.rect_filled(r.expand(2.0), 4.0, Color32::from_black_alpha(200));
-        painter.rect_filled(
-            Rect::from_min_size(r.min, Vec2::new(r.width() * f, r.height())),
-            3.0,
-            Color32::from_rgb(230, 180, 60),
-        );
-        painter.rect_stroke(
-            r.expand(2.0),
-            4.0,
-            Stroke::new(1.5_f32, Color32::from_rgb(200, 160, 80)),
-            egui::StrokeKind::Outside,
-        );
-        painter.text(
-            r.center(),
-            Align2::CENTER_CENTER,
-            name,
-            FontId::proportional(13.0),
-            Color32::WHITE,
-        );
-    }
-    // rage or mana under the player frame
-    if p.content.world.protected && p.power_max > 0.0 {
-        let rage = p
-            .class
-            .and_then(|c| p.content.class(c))
-            .is_some_and(|c| c.resource == dyno_world::content::Resource::Rage);
-        let r = Rect::from_min_size(
-            screen.left_top() + Vec2::new(22.0, 108.0),
-            Vec2::new(210.0, 10.0),
-        );
-        painter.rect_filled(r, 3.0, Color32::from_rgb(20, 20, 40));
-        let col = if rage {
-            Color32::from_rgb(200, 40, 40)
-        } else {
-            Color32::from_rgb(50, 110, 230)
-        };
-        painter.rect_filled(
-            Rect::from_min_size(
-                r.min,
-                Vec2::new(
-                    r.width() * (p.power / p.power_max).clamp(0.0, 1.0),
-                    r.height(),
-                ),
-            ),
-            3.0,
-            col,
-        );
-        painter.text(
-            r.center(),
-            Align2::CENTER_CENTER,
-            format!("{} / {}", p.power.floor() as i32, p.power_max as i32),
-            FontId::proportional(10.0),
-            Color32::WHITE,
-        );
-    }
+    hud::cast_bar(&painter, p, bar_rect);
     // RPG windows
     if let Some(mut panel) = p.panel.clone() {
         let me = rpg_ui::Me {
@@ -5328,6 +4880,8 @@ fn hud(
             done: &p.quests_done,
             pos: p.player.pos.into(),
             hearth: p.hearth,
+            equip: &p.equip,
+            class: p.class.and_then(|c| p.content.class(c)),
         };
         let cmds = match panel {
             rpg_ui::Panel::Dialog { .. } => rpg_ui::dialog_window(ctx, &me, &mut panel),
@@ -5338,62 +4892,6 @@ fn hud(
         if !cmds.is_empty() {
             actions.push(Action::Rpg(cmds));
         }
-    }
-    // party frames, under my own
-    let others: Vec<&dyno_protocol::PartyMember> =
-        p.party.iter().filter(|m| m.name != p.my_name).collect();
-    for (i, m) in others.iter().enumerate() {
-        let r = Rect::from_min_size(
-            Pos2::new(screen.left() + 14.0, screen.top() + 96.0 + i as f32 * 40.0),
-            Vec2::new(170.0, 34.0),
-        );
-        painter.rect_filled(r, 4.0, Color32::from_rgba_unmultiplied(20, 14, 10, 200));
-        painter.rect_stroke(
-            r,
-            4.0,
-            Stroke::new(1.0_f32, crate::theme::GOLD_DARK),
-            egui::StrokeKind::Inside,
-        );
-        let col = m
-            .class
-            .and_then(|c| p.content.class(c))
-            .map(|c| {
-                Color32::from_rgb(
-                    (c.color[0] * 255.0) as u8,
-                    (c.color[1] * 255.0) as u8,
-                    (c.color[2] * 255.0) as u8,
-                )
-            })
-            .unwrap_or(crate::theme::TEXT);
-        let label = if m.online {
-            format!(
-                "{}{}  {}",
-                if m.leader { "* " } else { "" },
-                m.name,
-                m.level
-            )
-        } else {
-            format!("{} (offline)", m.name)
-        };
-        painter.text(
-            r.left_top() + Vec2::new(8.0, 3.0),
-            Align2::LEFT_TOP,
-            label,
-            crate::theme::body_font(13.0),
-            if m.online {
-                col
-            } else {
-                Color32::from_gray(130)
-            },
-        );
-        let bar = Rect::from_min_size(r.left_top() + Vec2::new(8.0, 21.0), Vec2::new(154.0, 7.0));
-        painter.rect_filled(bar, 2.0, Color32::from_black_alpha(200));
-        let f = (m.health / m.max.max(1.0)).clamp(0.0, 1.0);
-        painter.rect_filled(
-            Rect::from_min_size(bar.min, Vec2::new(bar.width() * f, bar.height())),
-            2.0,
-            Color32::from_rgb(60, 180, 70),
-        );
     }
     // a party invitation
     if let Some(from) = p.invite.clone() {
@@ -5564,7 +5062,18 @@ fn hud(
         let cmds = if gone {
             vec![rpg_ui::RpgCmd::CloseLoot]
         } else {
-            rpg_ui::loot_window(ctx, &p.content, *id, *money, items)
+            let me = rpg_ui::Me {
+                content: &p.content,
+                money: p.money,
+                level: p.level,
+                log: &p.quest_log,
+                done: &p.quests_done,
+                pos: p.player.pos.into(),
+                hearth: p.hearth,
+                equip: &p.equip,
+                class: p.class.and_then(|c| p.content.class(c)),
+            };
+            rpg_ui::loot_window(ctx, &me, *id, *money, items)
         };
         if !cmds.is_empty() {
             actions.push(Action::Rpg(cmds));
@@ -5572,65 +5081,24 @@ fn hud(
     }
     // pack screen
     if p.picker_open {
-        let stations = survival::stations_near(&p.world, p.player.pos.into());
+        let stations = dyno_sim::crafting::stations_near(&p.content, &p.world, p.player.pos.into());
         let view = PackView {
             content: &p.content,
             pack: &p.pack,
-            chest: p.chest.as_ref().map(|(_, s)| s.as_slice()),
             stations,
             fuel: p.fuel,
             mode: p.mode,
             selected: &mut p.selected,
             hotbar_slot: p.slot,
         };
-        let cmds = survival::pack_window(ctx, view, &mut p.recipe_filter);
+        let cmds = item_ui::craft_window(ctx, view, &mut p.recipe_filter);
         if !cmds.is_empty() {
             actions.push(Action::Pack(cmds));
         }
     }
-    // death screen
-    if let Some(msg) = &p.dead {
-        painter.rect_filled(
-            screen,
-            0.0,
-            Color32::from_rgba_unmultiplied(90, 10, 10, 110),
-        );
-        egui::Area::new(egui::Id::new("dead"))
-            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-            .show(ctx, |ui| {
-                egui::Frame::window(ui.style())
-                    .inner_margin(20.0)
-                    .show(ui, |ui| {
-                        ui.vertical_centered(|ui| {
-                            ui.label(
-                                RichText::new("You died")
-                                    .size(30.0)
-                                    .strong()
-                                    .color(Color32::from_rgb(240, 110, 100)),
-                            );
-                            ui.label(msg);
-                            ui.label(
-                                RichText::new(
-                                    "Your items are where you fell. Friends can pick them up too.",
-                                )
-                                .weak(),
-                            );
-                            ui.add_space(8.0);
-                            if ui
-                                .add_sized(
-                                    [200.0, 34.0],
-                                    egui::Button::new(RichText::new("Respawn").strong()),
-                                )
-                                .clicked()
-                            {
-                                actions.push(Action::Respawn);
-                            }
-                        });
-                    });
-            });
-    }
+    hud::death(ctx, &painter, p, actions);
     // player list on Tab
-    if p.keys.contains(&KeyCode::Tab) {
+    if p.keys.contains(&KeyCode::Tab) && !p.wow() {
         egui::Area::new(egui::Id::new("players"))
             .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 60.0))
             .show(ctx, |ui| {
@@ -5643,31 +5111,9 @@ fn hud(
                 });
             });
     }
-    // pause menu
+    // the game menu
     if p.menu_open {
-        egui::Window::new("Menu").frame(crate::theme::window_frame()).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-            ui.set_width(380.0);
-            if ui.add_sized([ui.available_width(), 32.0], egui::Button::new("Back to game")).clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                actions.push(Action::Resume);
-            }
-            ui.add_space(6.0);
-            if crate::options::panel(ui) {
-                actions.push(Action::Graphics);
-            }
-            ui.add_space(6.0);
-            host_panel(ui, host, actions);
-            ui.add_space(6.0);
-            ui.label(RichText::new(format!("Connected to {}", p.url)).small().weak());
-            let controls = if p.wow() {
-                "Controls: hold right mouse to steer · hold left mouse to look around · both to run · W S move · A D turn · Q E strafe · R autorun · wheel zoom · left click select · right click attack, talk or gather · Tab target · 1-0 - = abilities · C B P K L windows · T chat"
-            } else {
-                "Controls: WASD move · Space jump · Shift down when flying · Ctrl or R sprint · F fly · left click break · right click place · middle click pick · 1-9 or wheel blocks · E all blocks · G corner, V fill, X clear · Ctrl+Z undo · T chat · Tab players"
-            };
-            ui.label(RichText::new(controls).small().weak());
-            if ui.button("Leave server").clicked() {
-                actions.push(Action::Disconnect);
-            }
-        });
+        hud::menu(ctx, p, host, actions);
     } else if !p.wow()
         && !p.captured
         && !p.chat_open
@@ -5684,6 +5130,14 @@ fn hud(
                         .color(Color32::WHITE),
                 );
             });
+    }
+    // the tutorial tips, pointing at parts of the HUD
+    if p.content.world.protected {
+        let tracker = Rect::from_min_size(
+            Pos2::new(screen.right() - 272.0, tracker_top),
+            Vec2::new(264.0, 120.0),
+        );
+        hud::tips(ctx, p, map, tracker, actions);
     }
 }
 
@@ -5841,25 +5295,10 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::MouseInput {
-                state: ElementState::Released,
-                button: MouseButton::Left,
-                ..
-            } => {
-                if let Screen::Playing(p) = &mut self.screen {
-                    p.mouse_left = false;
-                }
-            }
-            WindowEvent::MouseInput {
                 state: ElementState::Pressed,
                 button,
                 ..
             } => {
-                if button == MouseButton::Left
-                    && captured
-                    && let Screen::Playing(p) = &mut self.screen
-                {
-                    p.mouse_left = true;
-                }
                 let (playing_free, menu_or_chat) = match &self.screen {
                     Screen::Playing(p) => (
                         !p.captured,
@@ -6034,10 +5473,14 @@ pub fn shot_front(
     let ctx = crate::theme::new_context();
     crate::theme::apply(&ctx);
     ctx.style_mut(|s| s.animation_time = 0.0);
+    // the interface at the size the game gives it for this picture
+    let zoom = crate::options::zoom_for(hgt, 1.0);
+    // (set directly: `set_zoom_factor` would rescale a screen size not yet known)
+    ctx.options_mut(|o| o.zoom_factor = zoom);
     let raw = || egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
-            egui::vec2(wdt, hgt),
+            egui::vec2(wdt / zoom, hgt / zoom),
         )),
         ..Default::default()
     };
@@ -6099,7 +5542,7 @@ pub fn shot_front(
 }
 
 /// Render one frame with the real HUD, for `dyno shot --ui` (tests and agents).
-/// `ui` is "hud", "pack", "dig" or "dead"; or "stand" for the world alone
+/// `ui` is "hud", "pack" or "dead"; or "stand" for the world alone
 /// with a stand-in figure on the ground at `pos` (see `shot::Stand`; a
 /// negative height there means the open ground of the column).
 #[allow(clippy::too_many_arguments)]
@@ -6134,9 +5577,35 @@ pub fn shot_with_ui(
     // the camera: where asked (the server streams the world round it), else
     // the character; DYNO_SHOT_RUN="x0,z0,x1,z1[,speed]" flies it across
     // the map to measure frames while the land streams in
-    let run = shot_run();
+    // a measurement (`dyno bench`): its tier's settings, and maybe a flight
+    let bench = crate::bench::request();
+    if let Some(b) = &bench {
+        gfx.cover.set_quality(b.tier.ground_cover);
+        crate::foliage::set_detail(b.tier.leaf_detail);
+        gfx.water.quality = b.tier.water_quality;
+    }
+    let mut collect = crate::bench::Collector::default();
+    let hearth = p.hearth.unwrap_or_default();
+    let run: Option<(crate::bench::Flight, [f32; 2])> =
+        match bench.as_ref().and_then(|b| b.flight.clone()) {
+            Some(f) => Some((f, [hearth[0] as f32, hearth[2] as f32])),
+            None => shot_run().map(|(from, to, speed)| {
+                let len = (to[0] - from[0]).hypot(to[1] - from[1]).max(1.0);
+                let f = crate::bench::Flight {
+                    name: "run".into(),
+                    points: vec![from, to],
+                    speed,
+                    seconds: len / speed.max(0.01),
+                };
+                (f, [0.0; 2])
+            }),
+        };
     let start_cam = run
-        .map(|r| [r.0[0], p.player.pos.y + 40.0, r.0[1]])
+        .as_ref()
+        .map(|(f, o)| {
+            let at = f.at(0.0, *o).0;
+            [at[0], p.player.pos.y + 40.0, at[1]]
+        })
         .or(pos)
         .unwrap_or(p.player.pos.into());
     if run.is_some() || pos.is_some() {
@@ -6156,6 +5625,10 @@ pub fn shot_with_ui(
     let mut last_view = Instant::now();
     loop {
         let frame_t0 = Instant::now();
+        let mut frame_sw = crate::bench::Stopwatch::start();
+        // the main thread's own time on each part of the frame (a measured flight)
+        let mut lap = 0.0;
+        let mut parts: Vec<(&'static str, f64)> = Vec::new();
         let mut world_t = Duration::ZERO;
         loop {
             let ev = p.conn.rx.try_recv();
@@ -6192,13 +5665,9 @@ pub fn shot_with_ui(
                     }
                     ServerMsg::Pack(s) => p.pack = s,
                     ServerMsg::Status {
-                        health,
-                        food,
-                        mode,
-                        fuel,
+                        health, mode, fuel, ..
                     } => {
                         p.health = health;
-                        p.food = food;
                         p.mode = mode;
                         p.fuel = fuel;
                     }
@@ -6286,8 +5755,6 @@ pub fn shot_with_ui(
                             e.info = Some((level, health, max));
                         }
                     }
-                    ServerMsg::Container(c) => p.chest = c,
-                    ServerMsg::Milestone { title } => p.toast(format!("Journal: {title}")),
                     ServerMsg::Chat { from, text } => p.chat.push(Chat {
                         at: Instant::now(),
                         from: Some(from),
@@ -6311,19 +5778,17 @@ pub fn shot_with_ui(
                 Err(_) => {}
             }
         }
+        parts.push(("what arrived", frame_sw.lap(&mut lap)));
         let a = world_uploads(&mut p, Some(&mut *gfx), Duration::from_millis(3));
+        parts.push(("world uploads", frame_sw.lap(&mut lap)));
         let eye = p.player.eye();
         let b = far_uploads(&mut p, gfx, eye, Duration::from_millis(2));
+        parts.push(("far view", frame_sw.lap(&mut lap)));
         world_t += a + b;
         // the camera, flying or still
         let t = started.elapsed().as_secs_f32();
-        let flying = if let Some((from, to, speed)) = run {
-            let len = (to[0] - from[0]).hypot(to[1] - from[1]).max(1.0);
-            let k = (t * speed / len).min(1.0);
-            let (x, z) = (
-                from[0] + (to[0] - from[0]) * k,
-                from[1] + (to[1] - from[1]) * k,
-            );
+        let flying = if let Some((flight, origin)) = &run {
+            let ([x, z], head, over) = flight.at(t, *origin);
             let ground = p.world.surface(x as i32, z as i32);
             let y = if ground > 0 {
                 ground as f32 + 3.0
@@ -6331,7 +5796,7 @@ pub fn shot_with_ui(
                 p.player.pos.y
             };
             p.player.pos = Vec3::new(x, y, z);
-            p.player.yaw = (-(to[0] - from[0])).atan2(-(to[1] - from[1]));
+            p.player.yaw = (-head[0]).atan2(-head[1]);
             p.player.pitch = -0.1;
             if last_view.elapsed() > Duration::from_millis(100) {
                 last_view = Instant::now();
@@ -6339,7 +5804,7 @@ pub fn shot_with_ui(
                     pos: p.player.pos.into(),
                 });
             }
-            k < 1.0
+            !over
         } else {
             false
         };
@@ -6368,14 +5833,50 @@ pub fn shot_with_ui(
             );
             let sky_now = crate::sky::sky_at(p.time, Some(p.player.eye()));
             let out = fctx.run(egui::RawInput::default(), |_| {});
+            // a measured flight draws what play would: creatures and the
+            // ambient life as well as the land
+            let mut boxes = Vec::new();
+            let mut life_ms = 0.0;
+            parts.push(("camera", frame_sw.lap(&mut lap)));
+            if let Some(b) = bench.as_ref().filter(|_| flying) {
+                let (eye, dir) = (p.player.eye(), p.player.look_dir());
+                models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
+                models::set_sight(Some((
+                    render::view_planes(vp),
+                    crate::shadows::to_light(sky_now.env.light_dir),
+                )));
+                let mut book = std::mem::take(&mut p.anims);
+                push_creatures(&mut boxes, &p, &mut book, 1.3);
+                p.anims = book;
+                parts.push(("creatures", frame_sw.lap(&mut lap)));
+                let t1 = Instant::now();
+                let time = p.time;
+                push_life(
+                    &mut p,
+                    gfx,
+                    &mut boxes,
+                    eye,
+                    dir,
+                    time,
+                    0.016,
+                    crate::life::quality(b.tier.life),
+                    false,
+                );
+                life_ms = t1.elapsed().as_secs_f64() * 1e3;
+            }
+            let before = frame_sw.ms();
             gfx.frame(
                 Some((vp, p.player.eye(), see)),
                 &sky_now,
-                &[],
+                &boxes,
                 &[],
                 &fctx,
                 out,
             );
+            if bench.is_some() && flying {
+                let bytes = gfx.memory().world_vertices;
+                collect.frame(gfx.last, before, life_ms, bytes, &parts);
+            }
             if stats_gpu {
                 gfx.wait_idle();
             }
@@ -6387,8 +5888,8 @@ pub fn shot_with_ui(
         let quiet = started.elapsed() > Duration::from_millis(700)
             && last_section.elapsed() > Duration::from_millis(250)
             && p.work.idle();
-        let limit = if run.is_some() {
-            120
+        let limit = if let Some((f, _)) = &run {
+            f.seconds as u64 + 60
         } else if stand {
             40
         } else {
@@ -6571,14 +6072,10 @@ pub fn shot_with_ui(
     if !stand {
         p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
     }
-    if ui == "dig"
-        && let Some(t) = &p.target
-    {
-        p.dig = Some((t.block, 0.65, 1.0));
-    }
     if ui == "dead" {
         p.dead = Some("You fell from a high place.".into());
     }
+    hud::shot_state(&mut p, ui);
     let t = time.unwrap_or(p.time);
     p.time = t;
     let sky_now = weathered(
@@ -6602,6 +6099,10 @@ pub fn shot_with_ui(
     gfx.water
         .look_from(&p.world, eye.into(), p.hearth.unwrap_or_default());
     models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
+    models::set_sight(Some((
+        render::view_planes(vp),
+        crate::shadows::to_light(sky_now.env.light_dir),
+    )));
     let mut boxes = Vec::new();
     let mut lines = Vec::new();
     let light_at = |l: &Light, v: Vec3| {
@@ -6660,23 +6161,33 @@ pub fn shot_with_ui(
         );
     }
     let before_creatures = boxes.len();
-    let mut book = std::mem::take(&mut p.anims);
-    push_creatures(&mut boxes, &p, &mut book, 1.3);
-    p.anims = book;
+    // a measurement's picture must come out the same twice: nothing that
+    // moves is in it (creatures, ambient life), and the shaders' clock is held
+    let still = bench.is_some();
+    if still {
+        gfx.clock = Some(0.0);
+    }
+    if !still {
+        let mut book = std::mem::take(&mut p.anims);
+        push_creatures(&mut boxes, &p, &mut book, 1.3);
+        p.anims = book;
+    }
     // ambient life, as play draws it (DYNO_LIFE=0 leaves it out)
-    let life_quality = crate::life::quality(2);
+    let life_quality = crate::life::quality(bench.as_ref().map_or(2, |b| b.tier.life));
     let figures = boxes.len();
-    push_life(
-        &mut p,
-        gfx,
-        &mut boxes,
-        eye,
-        dir,
-        t,
-        0.0,
-        life_quality,
-        true,
-    );
+    if !still {
+        push_life(
+            &mut p,
+            gfx,
+            &mut boxes,
+            eye,
+            dir,
+            t,
+            0.0,
+            life_quality,
+            true,
+        );
+    }
     let (fx, fx_glow) = (gfx.fx.clone(), gfx.fx_glow.clone());
     for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
         let pose = r.current();
@@ -6750,8 +6261,15 @@ pub fn shot_with_ui(
         s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
         s.animation_time = 0.0;
     });
+    // the interface at the size the game gives it for this picture
+    let zoom = crate::options::zoom_for(hgt, 1.0);
+    // (set directly: `set_zoom_factor` would rescale a screen size not yet known)
+    ctx.options_mut(|o| o.zoom_factor = zoom);
     let raw = || egui::RawInput {
-        screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(wdt, hgt))),
+        screen_rect: Some(Rect::from_min_size(
+            Pos2::ZERO,
+            Vec2::new(wdt / zoom, hgt / zoom),
+        )),
         ..Default::default()
     };
     let mut host = None;
@@ -6765,6 +6283,9 @@ pub fn shot_with_ui(
     gfx.fx = fx.clone();
     gfx.fx_glow = fx_glow.clone();
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
+    // the passing moments again, so the frame kept shows them whatever the
+    // first frame took to draw
+    hud::shot_state(&mut p, ui);
     let second = ctx.run(raw(), |ctx| {
         if !stand {
             hud(ctx, &mut p, &mut host, Some(vp), &mut actions)
@@ -6826,6 +6347,64 @@ pub fn shot_with_ui(
         let stem = out.with_extension("");
         gfx.screenshot = Some(format!("{}-{i:02}.ppm", stem.display()).into());
         gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
+    }
+    if let Some(b) = &bench {
+        // the scene as play draws it, frame after frame: the figures, the
+        // creatures, the ambient life made anew each frame, the clock running
+        gfx.clock = None;
+        if run.is_none() {
+            let mut boxes = boxes[..before_creatures].to_vec();
+            let mut book = std::mem::take(&mut p.anims);
+            push_creatures(&mut boxes, &p, &mut book, 1.3);
+            p.anims = book;
+            let figures = boxes.len();
+            push_life(
+                &mut p,
+                gfx,
+                &mut boxes,
+                eye,
+                dir,
+                t,
+                0.0,
+                life_quality,
+                true,
+            );
+            gfx.wait_idle();
+            // the first frames warm the card up and are not counted
+            let warm = 10;
+            for i in 0..b.frames + warm {
+                let sw = crate::bench::Stopwatch::start();
+                let o = ctx.run(raw(), |_| {});
+                boxes.truncate(figures);
+                let t1 = Instant::now();
+                push_life(
+                    &mut p,
+                    gfx,
+                    &mut boxes,
+                    eye,
+                    dir,
+                    t,
+                    0.016,
+                    life_quality,
+                    false,
+                );
+                let life_ms = t1.elapsed().as_secs_f64() * 1e3;
+                let before = sw.ms();
+                gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, o);
+                gfx.wait_idle();
+                if i >= warm {
+                    collect.frame(gfx.last, before, life_ms, 0, &[]);
+                }
+            }
+        }
+        let (vo, vt) = gfx.world_vertices();
+        crate::bench::put_result(collect.finish(
+            &b.name,
+            &b.tier.name,
+            if run.is_some() { "flight" } else { "still" },
+            vo + vt,
+            gfx.memory(),
+        ));
     }
     if stats {
         // frame time on the headless path: the world, the figures and the

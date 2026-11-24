@@ -18,7 +18,7 @@ This document is the contract every part of the migration builds to.
 | Animation poses (`anim.rs`, procedural per skeleton) | Animation clip JSON on named bones; checked by a pack test, not the compiler |
 | Detail shapes (`detail.rs`: roofs, timber, props, windows, cloth) | `.vox` shape assets with variant rules in block definitions |
 | Terrain tags (`terrain_mesh.rs`: terrain, paving, chamfer) | Tags in block definitions |
-| Sounds (`audio.rs`, synthesised) | WAV assets |
+| Sounds (`audio.rs`, synthesised) | WAV assets, described by `audio.json` (docs/design/audio.md) |
 | Fonts (embedded TTFs) | Font assets |
 | Render look (shader constants: leaf, relief, grade) | A render-settings asset |
 | The content pack (`include_str!` of hearthblock.json) | Sent by the server only |
@@ -47,7 +47,8 @@ content/
   rigs/*.json          # skeletons: bones, parents, pivots, part → model mapping
   anims/*.json         # clips per skeleton
   shapes/*.vox         # detail shapes for blocks (fine voxels)
-  sounds/*.wav
+  audio.json           # sound events: files, bus, level (docs/design/audio.md)
+  sounds/*/*.wav
   fonts/*.ttf
   stamps/*.dstamp      # block volumes for buildings and sites (§5)
   world/layout.json    # where stamps go; terrain operations; vegetation tables
@@ -57,7 +58,7 @@ content/
 **Status: built** (protocol 18: compressed transfer). Today's pack: `pack.json`, the rules
 (`rules/hearthblock.json`), `blocks.json`, `render.json`, `fonts/`,
 `textures/`, `icons/`, `sounds/` (from the textures and sounds bake),
-`ui/strings.json` (loading screen, intro, class prompt, news) and
+`ui/strings.json` (loading screen, intro, class prompt, news, and every word of the HUD, panels and tutorial tips: `docs/design/ui.md`) and
 `stage/title.dynw` (the title stage): 328 files, 5.3 MB, 4.1 MB of it sounds.
 
 `pack.json`:
@@ -156,6 +157,8 @@ progress. A second join with nothing changed downloads nothing
 | 0.7.0, before figures and shapes moved to the pack | 4,290,976 |
 | figures, clips and shapes as pack data, uncompressed | 12,485,452 |
 | compressed, compact clips, creatures and held items streamed | 3,037,774 |
+| 0.10.0, with armour sets and the interface | 3,746,571 |
+| new feedback sounds at 22050 Hz; world and ambience sounds streamed (with ability icons and sounds) | 2,947,175 |
 
 The cache also keeps
 the last manifest, so the title screen shows the last world's stage, news
@@ -271,6 +274,10 @@ when one of them is replaced.
   server walks them (`routines.rs`) and tells clients with `EntityMoves`
   and `Act::Emote`; what an NPC holds is `hold` in `figures.json`.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
+  **Built:** `audio.json` names every sound event and its variant files;
+  steps, interface and combat sounds come with the join, and
+  `sounds/world/` and `sounds/amb/` stream when an event first needs them
+  (docs/design/audio.md).
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.
 - **Water** (`render.json`, `water`; drawn by `water.rs`):
@@ -403,8 +410,10 @@ when one of them is replaced.
   the neighbours it made ready (and remeshes those below it, whose sky it
   may shade). The main thread copies the light in and uploads meshes until
   3 ms of the frame are spent (`world_uploads` in `app.rs`); each section is
-  one vertex buffer (opaque, translucent, then lamp halos) filled through
-  the queue's staging memory. Meshes for a section dropped since are
+  one buffer of packed vertices for its solid mesh (24 bytes a vertex,
+  packed on the worker: `pack.rs`, docs/design/performance.md) and, where
+  it has any, one of plain vertices for its translucent faces and lamp
+  halos, filled through the queue's staging memory. Meshes for a section dropped since are
   ignored. `DYNO_WORLD_INLINE=1` does the same work on the main thread, a
   step a frame (as before the worker), to compare. The mesher's interface
   (`terrain_mesh::mesh`) is unchanged. The draw distance is capped at the
@@ -510,7 +519,10 @@ For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
   block's kind, and the ground (the lowest top of the land in the cell,
   trees and water left out) and its kind (`ServerMsg::Far`, about 600
   bytes a tile), after the near view and within the same budget, out to
-  800 m (`--far`). A tile is sent again when a block in it changes, even
+  800 m (`--far`). Every tile is built when the server starts (the 2 km
+  world: 1,024 tiles, about 0.7 MB, on every core), and a new shard
+  starts with the base world's, so no tick builds more than the tiles an
+  edit changed. A tile is sent again when a block in it changes, even
   if its holder stays put: the world notes changed sections
   (`World::log_changes`) and each tick the shard resends the tiles they
   fall in to those who hold them. The client draws it so the seam with
@@ -580,8 +592,10 @@ the same: its tiles of 128 × 128 columns nearly always reach a high
 point somewhere.) Section and far tile bytes are as sent: they are their
 own encoding (a section all one block is 3 bytes) and are not compressed
 again. The far view (a quarter of a megabyte on the 2 km
-world, against 28 KB) comes after the near view at the play rate, so it
-fills in over about a second after play starts.
+world, against 28 KB) comes straight after the near view at the join
+rate until it is whole (`View::far_filled`; a teleport bursts again),
+then at the play rate: the whole view, near and far, is there 233–283 ms
+after joining at the spawn (it was 1.1–1.8 s at the play rate).
 
 ## 5. World building as data
 

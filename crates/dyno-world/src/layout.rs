@@ -235,6 +235,9 @@ pub struct Species {
     /// share of the crown's leaves that are missing
     #[serde(default)]
     pub thin: f32,
+    /// a second, lower ring of roots beyond the first (with `roots`)
+    #[serde(default)]
+    pub flare: bool,
 }
 
 fn default_skirt() -> f32 {
@@ -244,11 +247,48 @@ fn default_skirt() -> f32 {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Crown {
-    /// "round" (a lumpy dome of leaf clumps), "cone" (tiers), "none"
+    /// "round" (a lumpy dome of leaf clumps), "tall" (clumps up the trunk,
+    /// as a birch), "weeping" (a dome with curtains hanging from its rim),
+    /// "cone" (tiers), "none" (bare: `limbs` are its branches)
     pub shape: String,
     /// width across, a range
     #[serde(default)]
     pub width: [i32; 2],
+    /// how many clumps stand round the middle one, a range
+    #[serde(default = "default_clumps")]
+    pub clumps: [u32; 2],
+    /// the middle clump's radius, as a share of half the width
+    #[serde(default = "default_core")]
+    pub core: f32,
+    /// the other clumps' radius, as a share of half the width, a range
+    #[serde(default = "default_lump")]
+    pub lump: [f32; 2],
+    /// how high in the crown the other clumps sit (0 its foot, 1 its top),
+    /// a range
+    #[serde(default = "default_rise")]
+    pub rise: [f32; 2],
+    /// how much sky shows between the clumps (0: they run together)
+    #[serde(default)]
+    pub gaps: f32,
+    /// "weeping": how far the curtains hang below the dome, a range
+    #[serde(default)]
+    pub droop: [i32; 2],
+}
+
+fn default_clumps() -> [u32; 2] {
+    [3, 5]
+}
+
+fn default_core() -> f32 {
+    0.8
+}
+
+fn default_lump() -> [f32; 2] {
+    [0.42, 0.54]
+}
+
+fn default_rise() -> [f32; 2] {
+    [0.3, 0.55]
 }
 
 /// What grows in a zone: woods in clumps, open ground between them.
@@ -763,7 +803,7 @@ impl Layout {
             if sp.height[0] > sp.height[1] || sp.girth[0] > sp.girth[1] || sp.girth[0] < 1 {
                 return Err(format!("layout: species \"{k}\" has a bad size range"));
             }
-            if !["round", "cone", "none"].contains(&sp.crown.shape.as_str()) {
+            if !["round", "tall", "weeping", "cone", "none"].contains(&sp.crown.shape.as_str()) {
                 return Err(format!("layout: species \"{k}\" has an unknown crown"));
             }
         }

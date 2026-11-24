@@ -1,6 +1,6 @@
 //! Creatures: Grazers by day, Shades in the dark.
 //!
-//! Rules (docs/design/survival.md, "Night rules"):
+//! Rules (docs/design/rpg.md, "Night and light"):
 //! - Shades spawn 18 to 32 blocks from an active player, where block light is
 //!   below 4, at night on the surface or at any time underground. Never inside
 //!   a hearth's reach. At most one every 20 seconds per player.
@@ -42,6 +42,13 @@ pub struct Mob {
     pub max_health: f32,
     pub stunned_until: Instant,
     pub rooted_until: Instant,
+    /// slowed until then, by this share of its speed
+    pub slowed_until: Instant,
+    pub slow: f32,
+    /// someone has hit it since it last stood at peace
+    pub engaged: bool,
+    /// caught unawares: until then, openers still count as a first blow
+    pub surprised_until: Instant,
     pub dots: Vec<crate::abilities::Dot>,
     /// where it was spawned; pulled too far away it returns here
     pub home: [f32; 3],
@@ -52,6 +59,8 @@ pub struct Mob {
     pub power: f32,
     /// a rare elite's own name
     pub name: Option<String>,
+    /// what it drops on top of its kind's drops (a rare elite's prize)
+    pub extra_drops: Vec<dyno_world::content::Drop>,
     /// belongs to a camp: never despawns, the camp respawns it
     pub camp: bool,
     /// special move timers: charging until, ready again at; has it fled yet
@@ -68,6 +77,10 @@ pub struct Mob {
 pub const EVADE_STUCK: f32 = 3.0;
 /// A creature that cannot get at its target this long gives up the fight.
 pub const CHASE_STUCK: f32 = 6.0;
+
+/// A creature hit while at peace is off guard this long: an opener that
+/// lands just after your first swing still counts.
+pub const SURPRISE: Duration = Duration::from_millis(1500);
 
 /// How long a tag lasts after its owner's last blow.
 pub const TAG_LIFE: Duration = Duration::from_secs(15);
@@ -94,12 +107,17 @@ impl Mob {
             max_health: health,
             stunned_until: now,
             rooted_until: now,
+            slowed_until: now,
+            slow: 0.0,
+            engaged: false,
+            surprised_until: now,
             dots: Vec::new(),
             home: pos,
             evading: false,
             threat: std::collections::HashMap::new(),
             power: 1.0,
             name: None,
+            extra_drops: Vec::new(),
             camp: false,
             charge_until: now,
             ability_ready: now,
@@ -116,6 +134,7 @@ impl Mob {
         self.tag = None;
         self.health = self.max_health;
         self.threat.clear();
+        self.engaged = false;
         self.target = None;
         self.dots.clear();
         self.stuck = 0.0;
@@ -143,6 +162,12 @@ impl Mob {
     pub fn take_hit(&mut self, pid: PlayerId, amount: f32) -> bool {
         if self.evading {
             return false;
+        }
+        if !self.engaged {
+            self.engaged = true;
+            if self.target.is_none() {
+                self.surprised_until = Instant::now() + SURPRISE;
+            }
         }
         self.health -= amount;
         self.last_hit = Some((pid, Instant::now()));
@@ -172,7 +197,6 @@ const AGGRO: f32 = 24.0;
 const LEASH: f32 = 30.0;
 const DESPAWN: f32 = 80.0;
 const SHADE_INTERVAL: f32 = 20.0;
-const GRAZER_INTERVAL: f32 = 12.0;
 
 fn hdist(a: [f32; 3], b: [f32; 3]) -> f32 {
     ((a[0] - b[0]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
@@ -289,7 +313,7 @@ impl State {
         // deeper into the wild (further from the spawn hearth), stronger mobs
         let h = self.spawn_hearth;
         let far = ((pos[0] - h[0] as f32).powi(2) + (pos[2] - h[2] as f32).powi(2)).sqrt();
-        let level = if self.rpg() {
+        let level = {
             // the area's level band decides (a level 1-2 meadow gets level 1-2
             // Shades); outside any area, deeper into the wild is stronger
             match self.area_levels(pos) {
@@ -300,15 +324,8 @@ impl State {
                     + (self.rng.f32() < 0.3) as u8)
                     .clamp(levels[0], levels[1]),
             }
-        } else {
-            1
         };
-        let health = c.health
-            * if self.rpg() {
-                dyno_sim::progression::mob_scale(level).0
-            } else {
-                1.0
-            };
+        let health = c.health * dyno_sim::progression::mob_scale(level).0;
         let id = self.next_entity;
         self.next_entity += 1;
         let yaw = self.rng.f32() * std::f32::consts::TAU;
@@ -401,7 +418,6 @@ impl State {
             return;
         }
         let night = self.is_night();
-        let has_areas = !self.content.areas.is_empty();
         let creatures: Vec<(u16, Spawn, u8)> = self
             .content
             .creatures
@@ -409,27 +425,19 @@ impl State {
             .map(|c| (c.id, c.spawn, c.cap))
             .collect();
         for (pid, at) in active {
-            let survival = self
-                .players
-                .get(&pid)
-                .is_some_and(|p| p.mode == Mode::Survival);
-            let (shade_due, grazer_due) = {
+            let playing = self.players.get(&pid).is_some_and(|p| p.mode == Mode::Play);
+            let shade_due = {
                 let p = self.players.get_mut(&pid).unwrap();
                 p.shade_timer -= dt;
-                p.grazer_timer -= dt;
                 let s = p.shade_timer <= 0.0;
-                let g = p.grazer_timer <= 0.0;
                 if s {
                     p.shade_timer = SHADE_INTERVAL;
                 }
-                if g {
-                    p.grazer_timer = GRAZER_INTERVAL;
-                }
-                (s, g)
+                s
             };
             for &(cid, kind, cap) in &creatures {
                 match kind {
-                    Spawn::Dark if shade_due && survival => {
+                    Spawn::Dark if shade_due && playing => {
                         let cap = if self.day <= 1 { cap.min(2) } else { cap } as usize;
                         if self.count_near(cid, at, 40.0) >= cap {
                             continue;
@@ -459,29 +467,6 @@ impl State {
                             }
                         }
                     }
-                    Spawn::Meadow if grazer_due && !night && !has_areas => {
-                        if self.count_near(cid, at, 64.0) >= cap as usize {
-                            continue;
-                        }
-                        for _ in 0..6 {
-                            let Some(s) = self.spawn_spot(at, 24.0, 44.0, true) else {
-                                continue;
-                            };
-                            if self.world.get(s[0], s[1] - 1, s[2]) != w::GRASS {
-                                continue;
-                            }
-                            let herd = 1 + self.rng.range(0, 2);
-                            for i in 0..herd {
-                                let f = [
-                                    s[0] as f32 + 0.5 + i as f32 * 0.9,
-                                    s[1] as f32,
-                                    s[2] as f32 + 0.5,
-                                ];
-                                self.spawn_creature(cid, f);
-                            }
-                            break;
-                        }
-                    }
                     _ => {}
                 }
             }
@@ -495,12 +480,12 @@ impl State {
             return; // the world rests while nobody plays
         }
         let night = self.is_night();
-        // who may be hunted: alive survival players, not protected
+        // who may be hunted: living players in play, not just arrived
         let now = Instant::now();
         let prey: Vec<(PlayerId, [f32; 3], bool)> = self
             .players
             .iter()
-            .filter(|(_, p)| !p.dead && p.mode == Mode::Survival && p.safe_until <= now)
+            .filter(|(_, p)| !p.dead && p.mode == Mode::Play && p.safe_until <= now)
             .map(|(id, p)| (*id, p.pose.pos, p.away()))
             .collect();
         let ids: Vec<u32> = self
@@ -512,6 +497,18 @@ impl State {
         let mut attacks: Vec<(PlayerId, f32, [f32; 3], u16)> = Vec::new();
         let levels: std::collections::HashMap<PlayerId, u8> =
             self.players.iter().map(|(i, p)| (*i, p.level)).collect();
+        // the hidden: creatures notice them from less far
+        let hidden: std::collections::HashMap<PlayerId, f32> = self
+            .players
+            .keys()
+            .map(|i| {
+                (
+                    *i,
+                    self.buff_amount(*i, dyno_world::content::BuffKind::Stealth),
+                )
+            })
+            .filter(|(_, s)| *s > 0.0)
+            .collect();
         // phasing: a creature only hunts the players who can see it
         let phases: std::collections::HashMap<PlayerId, u64> =
             self.players.iter().map(|(i, p)| (*i, p.phases)).collect();
@@ -553,6 +550,9 @@ impl State {
                 .max(self.light.get(feet[0], feet[1], feet[2]));
             let sky = self.light.sky(head[0], head[1], head[2]);
             let mut speed = c.speed;
+            if mob.slowed_until > now {
+                speed *= 1.0 - mob.slow;
+            }
             mob.attack_cd -= dt;
             mob.stun -= dt;
             mob.think -= dt;
@@ -648,6 +648,10 @@ impl State {
                                     .clamp(4.0, 20.0)
                             } else {
                                 AGGRO
+                            };
+                            let r = match hidden.get(pid) {
+                                Some(s) => (r * (1.0 - s / 100.0)).max(1.5),
+                                None => r,
                             };
                             !away && hdist(*p, e.pos) < r && (p[1] - e.pos[1]).abs() < 12.0
                         })
@@ -868,6 +872,7 @@ impl State {
         for (pid, dmg, from, to, color, cid) in bolts {
             self.broadcast(
                 &ServerMsg::Effect {
+                    ability: None,
                     color,
                     from,
                     to,
@@ -928,13 +933,11 @@ impl State {
         if !drops {
             return;
         }
-        let list = self
-            .content
-            .creature(mob.creature)
-            .map(|c| (c.key.clone(), c.drops.clone()));
-        let Some((key, list)) = list else {
+        let list = self.content.creature(mob.creature).map(|c| c.drops.clone());
+        let Some(mut list) = list else {
             return;
         };
+        list.extend(mob.extra_drops.iter().cloned());
         // the creature belongs to whoever hit it first, and their party
         // a tag counts while its owner keeps fighting and is still nearby
         let killer = mob
@@ -980,119 +983,21 @@ impl State {
                 }
             }
         }
-        if self.rpg() {
-            // RPG: the body stays, holding its loot for whoever killed it
-            let money = self.roll_money(mob.creature, mob.level);
-            self.spawn_corpse(
-                pos,
-                yaw,
-                mob.creature,
-                credited.clone(),
-                money,
-                items,
-                phase,
-            );
-        } else {
-            for st in items {
-                self.spawn_item([pos[0], pos[1] + 0.6, pos[2]], st, 0.2);
-            }
-        }
+        // the body stays, holding its loot for whoever killed it
+        let money = self.roll_money(mob.creature, mob.level);
+        self.spawn_corpse(
+            pos,
+            yaw,
+            mob.creature,
+            credited.clone(),
+            money,
+            items,
+            phase,
+        );
         // everyone who shares the kill gets quest credit; XP is split, with a group bonus
         let share = self.content.world.kill_share(credited.len());
         for pid in credited {
-            self.milestone(pid, &format!("kill:{key}"));
             self.credit_kill(pid, mob.creature, mob.level, share);
-        }
-    }
-
-    /// A player hits a creature with what they hold.
-    pub fn attack(&mut self, pid: PlayerId, id: u32) {
-        let Some(p) = self.players.get(&pid) else {
-            return;
-        };
-        if p.dead || p.last_attack.elapsed() < Duration::from_millis(350) {
-            return;
-        }
-        let eye = [p.pose.pos[0], p.pose.pos[1] + 1.62, p.pose.pos[2]];
-        let (tool, held) = if self.rpg() {
-            match dyno_sim::inventory::best_weapon(&p.pack, &self.content) {
-                Some((slot, t)) => (Some(t.clone()), slot),
-                None => (None, p.held as usize),
-            }
-        } else {
-            (p.held_tool(&self.content).cloned(), p.held as usize)
-        };
-        let creative = p.mode == Mode::Creative;
-        let power = if self.rpg() {
-            2.0 * dyno_sim::progression::power(p.level)
-        } else {
-            1.0
-        };
-        let Some(e) = self.entities.get_mut(&id) else {
-            return;
-        };
-        let Some(mob) = e.mob.as_mut() else {
-            return;
-        };
-        let d = ((e.pos[0] - eye[0]).powi(2)
-            + (e.pos[1] + 0.9 - eye[1]).powi(2)
-            + (e.pos[2] - eye[2]).powi(2))
-        .sqrt();
-        if d > 4.5 {
-            return;
-        }
-        let damage = if creative {
-            1000.0
-        } else {
-            tool.as_ref().map(|t| t.damage).unwrap_or(1.0) * power
-        };
-        if !mob.take_hit(pid, damage) {
-            return;
-        }
-        *mob.threat.entry(pid).or_default() += damage;
-        let dx = e.pos[0] - eye[0];
-        let dz = e.pos[2] - eye[2];
-        let hd = (dx * dx + dz * dz).sqrt().max(0.001);
-        if !self.content.world.protected {
-            e.vel = [dx / hd * 7.0, 5.0, dz / hd * 7.0];
-            mob.stun = 0.35;
-        }
-        e.moved = true;
-        let dead = mob.health <= 0.0;
-        let (level, health, max) = (mob.level, mob.health.max(0.0), mob.max_health);
-        self.broadcast(&ServerMsg::EntityHurt { id }, None);
-        self.broadcast(
-            &ServerMsg::EntityInfo {
-                id,
-                level,
-                health,
-                max,
-            },
-            None,
-        );
-        let p = self.players.get_mut(&pid).unwrap();
-        p.last_attack = Instant::now();
-        p.combat_until = Instant::now() + Duration::from_secs(6);
-        if !creative
-            && let Some(t) = tool
-            && let Some(s) = p.pack.slots[held].as_mut()
-        {
-            s.wear += if t.kind == dyno_world::content::ToolKind::Sword {
-                1
-            } else {
-                2
-            };
-            if s.wear >= t.durability {
-                p.pack.slots[held] = None;
-                p.send(&ServerMsg::System {
-                    text: "Your tool broke.".into(),
-                });
-            }
-            p.send(&ServerMsg::Pack(p.pack.slots.clone()));
-        }
-        self.gain_rage(pid, 8.0);
-        if dead {
-            self.kill_mob(id, true);
         }
     }
 }
@@ -1131,6 +1036,34 @@ mod tests {
         m.arrive_home();
         assert!(!m.evading && m.stuck == 0.0 && m.health == m.max_health);
         assert!(m.take_hit(2, 5.0), "and it can be fought again");
+    }
+
+    /// Openers (Ambush, Marked Shot) count against a creature at peace, and
+    /// for a moment after the first blow, so a swing that lands just before
+    /// the opener does not waste it.
+    #[test]
+    fn a_creature_at_peace_is_caught_off_guard_once() {
+        let mut m = Mob::new(0, 60.0, 2, [0.0; 3]);
+        assert!(!m.engaged);
+        let before = Instant::now();
+        m.take_hit(1, 5.0);
+        assert!(
+            m.engaged && m.surprised_until > before,
+            "off guard at first"
+        );
+        let until = m.surprised_until;
+        m.take_hit(1, 5.0);
+        assert_eq!(m.surprised_until, until, "a second blow does not renew it");
+        // one that was already coming for you is not surprised
+        let mut m = Mob::new(0, 60.0, 2, [0.0; 3]);
+        m.target = Some(7);
+        let now = Instant::now();
+        m.take_hit(7, 5.0);
+        assert!(m.surprised_until <= now);
+        // back home and at peace, it can be surprised again
+        m.evade();
+        m.arrive_home();
+        assert!(!m.engaged);
     }
 
     #[test]
