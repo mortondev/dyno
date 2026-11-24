@@ -1113,14 +1113,24 @@
     "radius": [21, 19]
    },
    "stamps": [
-    {"stamp": "farmhouse", "at": [-7, -8]},
-    {"stamp": "stone_wall", "at": [0, -19], "fit": "ground"},
-    {"stamp": "stone_wall", "at": [-20, 0], "rot": 1, "fit": "ground"},
-    {"stamp": "hedge", "at": [20, 0], "rot": 1, "fit": "ground"},
-    {"stamp": "hedge", "at": [0, 19], "fit": "ground"},
-    {"stamp": "field", "at": [8, 8]},
-    {"stamp": "haystack", "at": [-12, 7]},
-    {"stamp": "cart", "at": [10, -10]}
+    {"stamp": "meadow_west_yard", "at": [-7, 0]},
+    {"stamp": "farmhouse", "at": [-9, -8]},
+    {"stamp": "meadow_west_byre", "at": [-6, 10], "rot": 2},
+    {"stamp": "field", "at": [10, 8]},
+    {"stamp": "log_pile", "at": [-16, 10], "rot": 1},
+    {"stamp": "meadow_west_chopping", "at": [-17, 4]},
+    {"stamp": "haystack", "at": [-16, -1]},
+    {"stamp": "cart", "at": [14, -10]},
+    {"stamp": "meadow_west_drywall_17", "at": [-9, -19], "fit": "ground"},
+    {"stamp": "meadow_west_gate_stone", "at": [3, -19], "fit": "ground"},
+    {"stamp": "meadow_west_drywall_13", "at": [14, -19], "fit": "ground"},
+    {"stamp": "meadow_west_drywall_17", "at": [-20, -10], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_drywall_17", "at": [-20, 8], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_17", "at": [20, -10], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_17", "at": [20, 8], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_17", "at": [-11, 19], "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_13", "at": [4, 19], "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_9", "at": [15, 19], "fit": "ground"}
    ],
    "trees": [
     {"species": "oak", "at": [-18, -14]}
@@ -1165,17 +1175,33 @@
     "radius": [21, 19]
    },
    "stamps": [
-    {"stamp": "farmhouse", "at": [-7, -8]},
-    {"stamp": "stone_wall", "at": [0, -19], "fit": "ground"},
-    {"stamp": "stone_wall", "at": [-20, 0], "rot": 1, "fit": "ground"},
-    {"stamp": "hedge", "at": [20, 0], "rot": 1, "fit": "ground"},
-    {"stamp": "hedge", "at": [0, 19], "fit": "ground"},
-    {"stamp": "field", "at": [8, 8]},
-    {"stamp": "haystack", "at": [-12, 7]},
-    {"stamp": "cart", "at": [10, -10]}
+    {"stamp": "meadow_west_yard", "at": [-4, 1]},
+    {"stamp": "farmhouse", "at": [-4, 11], "rot": 2},
+    {"stamp": "barn", "at": [-6, -10]},
+    {"stamp": "well", "at": [-13, 0]},
+    {"stamp": "meadow_west_plot_barley", "at": [11, -9], "rot": 2},
+    {"stamp": "meadow_west_plot_veg", "at": [11, 11]},
+    {"stamp": "haystack", "at": [-17, 6]},
+    {"stamp": "cart", "at": [3, -7]},
+    {"stamp": "meadow_west_hedgerow_17", "at": [-11, -19], "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_13", "at": [4, -19], "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_9", "at": [15, -19], "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_17", "at": [20, -10], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_gate_timber", "at": [20, 2], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_13", "at": [20, 12], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_rails_11", "at": [-14, 19], "fit": "ground"},
+    {"stamp": "meadow_west_rails_11", "at": [-3, 19], "fit": "ground"},
+    {"stamp": "meadow_west_rails_11", "at": [8, 19], "fit": "ground"},
+    {"stamp": "meadow_west_rails_7", "at": [16, 19], "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_17", "at": [-20, -10], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_17", "at": [-20, 8], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_clear_10", "at": [31, 2], "fit": "float", "dy": 40}
    ],
    "trees": [
-    {"species": "oak", "at": [-18, -14]}
+    {"species": "blossom", "at": [-20, -14]},
+    {"species": "blossom", "at": [9, -20]},
+    {"species": "blossom", "at": [-20, 13]},
+    {"species": "blossom", "at": [21, 17]}
    ],
    "was": {
     "at": [-26, 60],
@@ -1206,7 +1232,10 @@
    "at": [-272, 247],
    "radius": 14,
    "stamps": [
-    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+    {"stamp": "pasture", "at": [0, 0], "fit": "ground"},
+    {"stamp": "meadow_west_gap", "at": [2, 7], "fit": "ground"},
+    {"stamp": "haystack", "at": [12, -4], "fit": "ground"},
+    {"stamp": "cart", "at": [-14, 3], "rot": 1, "fit": "ground"}
    ]
   },
   {
@@ -1221,10 +1250,15 @@
   {
    "key": "meadow_pasture_5",
    "kind": "farm",
-   "at": [-315, -10],
+   "at": [-315, -3],
    "radius": 14,
    "stamps": [
-    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+    {"stamp": "pasture", "at": [0, 0], "rot": 2, "fit": "ground"},
+    {"stamp": "meadow_west_gap", "at": [1, -7], "fit": "ground"},
+    {"stamp": "cart", "at": [13, -3], "rot": 1, "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "young_oak", "at": [-13, 6]}
    ]
   },
   {
@@ -1236,7 +1270,7 @@
   {
    "key": "meadow_flock_2",
    "kind": "camp",
-   "at": [-260, 150],
+   "at": [-272, 247],
    "radius": 20
   },
   {
@@ -1260,8 +1294,24 @@
   {
    "key": "meadow_flock_6",
    "kind": "camp",
-   "at": [-100, 300],
+   "at": [-104, 342],
    "radius": 20
+  },
+  {
+   "key": "meadow_west_south_pasture",
+   "name": "Southfold Pasture",
+   "kind": "farm",
+   "at": [-104, 342],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "meadow_west_clear_14", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "pasture", "at": [0, 0], "rot": 2, "fit": "ground"},
+    {"stamp": "meadow_west_gap", "at": [1, -7], "fit": "ground"},
+    {"stamp": "haystack", "at": [-13, -2], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "young_oak", "at": [-13, 8]}
+   ]
   },
   {
    "key": "birchrise_boars_1",
@@ -1471,7 +1521,27 @@
    "radius": 10,
    "stamps": [
     {"stamp": "log_pile", "at": [-2, 8], "fit": "ground"},
-    {"stamp": "stumps", "at": [-5, -13], "fit": "ground"}
+    {"stamp": "stumps", "at": [-5, -13], "fit": "ground"},
+    {"stamp": "saw_pit", "at": [6, -9], "fit": "ground"},
+    {"stamp": "birch_pile", "at": [-6, 4], "fit": "ground"},
+    {"stamp": "meadow_west_chopping", "at": [-11, 6], "fit": "ground"},
+    {"stamp": "meadow_west_log_cart", "at": [-17, 7], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-14, -19]},
+    {"species": "young_oak", "at": [9, -19]}
+   ]
+  },
+  {
+   "key": "meadow_west_lane_mouth",
+   "name": "Westfold Lane",
+   "kind": "wayside",
+   "at": [-256, -2],
+   "radius": 8,
+   "stamps": [
+    {"stamp": "signpost", "at": [0, 0], "fit": "ground"},
+    {"stamp": "meadow_west_drywall_9", "at": [0, 10], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_drywall_9", "at": [-12, 10], "rot": 1, "fit": "ground"}
    ]
   },
   {
@@ -1480,10 +1550,50 @@
    "at": [-384, -1],
    "radius": 10,
    "stamps": [
-    {"stamp": "flower_garden", "at": [-1, -8], "fit": "ground"}
+    {"stamp": "meadow_west_clear_14", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "meadow_west_bed", "at": [-11, -7], "fit": "ground"},
+    {"stamp": "meadow_west_bed", "at": [2, -10], "fit": "ground"},
+    {"stamp": "meadow_west_bed", "at": [-8, 8], "fit": "ground"},
+    {"stamp": "meadow_west_bed", "at": [10, 7], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_log_seat", "at": [-2, 10], "fit": "ground"},
+    {"stamp": "boulders", "at": [8, 16], "fit": "ground"}
    ],
    "trees": [
     {"species": "hero_oak", "at": [2, 13]}
+   ]
+  },
+  {
+   "key": "meadow_west_stones",
+   "name": "The Grey Watchers",
+   "kind": "site",
+   "at": [-300, -90],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "meadow_west_clear_20", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "meadow_west_clear_10", "at": [8, 24], "fit": "float", "dy": 40},
+    {"stamp": "standing_stones", "at": [0, 0], "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [-15, 3], "rot": 1, "fit": "ground"},
+    {"stamp": "cairn", "at": [13, 6], "fit": "ground"},
+    {"stamp": "boulders", "at": [-6, 14], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [12, -9]}
+   ]
+  },
+  {
+   "key": "meadow_west_shepherd",
+   "name": "Shepherd's Fold",
+   "kind": "site",
+   "at": [-360, 260],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "hut", "at": [0, 0], "rot": 3, "fit": "ground"},
+    {"stamp": "meadow_west_sheepfold", "at": [12, 2], "fit": "ground"},
+    {"stamp": "haystack", "at": [-1, 7], "fit": "ground"},
+    {"stamp": "campfire", "at": [6, -6], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [-12, -11]}
    ]
   },
   {
