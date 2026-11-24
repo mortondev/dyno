@@ -232,9 +232,12 @@ impl Tips {
                     )
                 }
             }
+            // no part to point at: at the left, over the chat, clear of the
+            // middle of the screen, where the character and whatever stands
+            // before it are (a tip must never cover what it says to click)
             None => (
-                Pos2::new(screen.center().x, screen.bottom() - 200.0),
-                Align2::CENTER_BOTTOM,
+                Pos2::new(screen.left() + 18.0, screen.top() + screen.height() * 0.44),
+                Align2::LEFT_CENTER,
                 None,
             ),
         };

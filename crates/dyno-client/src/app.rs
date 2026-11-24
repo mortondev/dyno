@@ -237,6 +237,9 @@ struct Play {
     shield: (f32, f32),
     /// the timed effects on creatures: ability and when it ends
     entity_auras: HashMap<u32, Vec<(u16, Instant)>>,
+    /// the named places I have found (area keys), and the map of them (M)
+    discovered: HashSet<String>,
+    world_map: crate::worldmap::WorldMap,
     combo: (u8, Option<u32>),
     /// the named place you are in
     zone: String,
@@ -1665,6 +1668,8 @@ fn new_play(j: Joined) -> Play {
         wearing: HashMap::new(),
         shield: (0.0, 0.0),
         entity_auras: HashMap::new(),
+        discovered: HashSet::new(),
+        world_map: Default::default(),
         remote_dead: Default::default(),
         remote_hold: HashMap::new(),
         trade_ask: None,
@@ -2600,6 +2605,9 @@ impl App {
                         ServerMsg::Skills(s) => p.skills = s,
                         ServerMsg::Attacking(t) => p.attacking = t,
                         ServerMsg::Combo { points, target } => p.combo = (points, target),
+                        ServerMsg::Discovered(places) => {
+                            p.discovered = places.into_iter().collect();
+                        }
                         ServerMsg::Shield { left } => {
                             p.shield = if left <= 0.0 {
                                 (0.0, 0.0)
@@ -4024,11 +4032,16 @@ impl App {
         }
         match code {
             KeyCode::Escape
-                if p.wow() && (p.panel.is_some() || p.screen_tab.is_some() || p.picker_open) =>
+                if p.wow()
+                    && (p.panel.is_some()
+                        || p.screen_tab.is_some()
+                        || p.picker_open
+                        || p.ui.map_open) =>
             {
                 p.panel = None;
                 p.screen_tab = None;
                 p.picker_open = false;
+                p.ui.map_open = false;
             }
             KeyCode::Escape if p.wow() && p.focus.is_some() => {
                 p.focus = None;
@@ -4081,6 +4094,10 @@ impl App {
             }
             KeyCode::KeyE if p.content.world.protected && !p.creative() => {
                 p.screen_tab = Some(screens::Tab::Bags);
+                self.set_capture(false);
+            }
+            KeyCode::KeyM if p.content.world.protected => {
+                p.ui.map_open = !p.ui.map_open;
                 self.set_capture(false);
             }
             KeyCode::KeyL => {
@@ -5064,7 +5081,7 @@ fn hud(
             .collect()
     };
     for (txt, col) in lines {
-        let galley = painter.layout(txt, FontId::proportional(14.0), col, 520.0);
+        let galley = painter.layout(txt, crate::theme::body_font(14.5), col, 520.0);
         y -= galley.size().y + 4.0;
         let r = Rect::from_min_size(
             Pos2::new(screen.left() + 10.0, y - 2.0),
@@ -5074,42 +5091,16 @@ fn hud(
         painter.galley(Pos2::new(screen.left() + 15.0, y), galley, col);
     }
     // tabs: Chat and Combat
-    egui::Area::new(egui::Id::new("chat_tabs"))
-        .fixed_pos(Pos2::new(
-            screen.left() + 10.0,
-            y.min(chat_bottom - 20.0) - 28.0,
-        ))
-        .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                for (label, combat) in [("Chat", false), ("Combat", true)] {
-                    let on = p.chat_tab_combat == combat;
-                    let t = RichText::new(label).size(12.0).color(if on {
-                        crate::theme::GOLD_BRIGHT
-                    } else {
-                        crate::theme::TEXT_DIM
-                    });
-                    if ui
-                        .add(egui::Button::new(t).fill(Color32::from_black_alpha(if on {
-                            170
-                        } else {
-                            90
-                        })))
-                        .clicked()
-                    {
-                        p.chat_tab_combat = combat;
-                    }
-                }
-            });
-        });
+    hud::chat_tabs(
+        ctx,
+        p,
+        Pos2::new(screen.left() + 10.0, y.min(chat_bottom - 20.0) - 28.0),
+    );
     if p.chat_open {
         egui::Area::new(egui::Id::new("chat_in"))
             .fixed_pos(Pos2::new(screen.left() + 10.0, chat_bottom + 6.0))
             .show(ctx, |ui| {
-                let r = ui.add(
-                    egui::TextEdit::singleline(&mut p.chat_text)
-                        .desired_width(520.0)
-                        .hint_text("Say something, Enter to send, Esc to cancel"),
-                );
+                let r = hud::field(ui, &mut p.chat_text, 520.0, &crate::uitext::t("chat.hint"));
                 if p.focus_chat {
                     r.request_focus();
                     p.focus_chat = false;
@@ -5240,56 +5231,9 @@ fn hud(
     if let Some(vp) = vp {
         hud::combat_text(&painter, p, screen, vp);
     }
-    // class picker
-    if p.class_pick {
-        let mut chosen = None;
-        egui::Window::new(
-            RichText::new("Choose your path")
-                .size(22.0)
-                .color(Color32::from_rgb(255, 210, 80)),
-        )
-        .id(egui::Id::new("class-pick"))
-        .collapsible(false)
-        .resizable(false)
-        .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-        .show(ctx, |ui| {
-            ui.set_width(640.0);
-            ui.label(pack_text("classes", "prompt"));
-            ui.add_space(8.0);
-            ui.columns(p.content.classes.len().max(1), |cols| {
-                for (k, c) in p.content.classes.iter().enumerate() {
-                    let ui = &mut cols[k];
-                    let col = Color32::from_rgb(
-                        (c.color[0] * 255.0) as u8,
-                        (c.color[1] * 255.0) as u8,
-                        (c.color[2] * 255.0) as u8,
-                    );
-                    ui.label(RichText::new(&c.name).size(20.0).strong().color(col));
-                    ui.label(RichText::new(&c.blurb).small());
-                    ui.add_space(4.0);
-                    for a in p.content.abilities.iter().filter(|a| a.class == c.id) {
-                        ui.label(
-                            RichText::new(format!("{} (level {})", a.name, a.level))
-                                .small()
-                                .color(Color32::from_gray(210)),
-                        )
-                        .on_hover_text(&a.text);
-                    }
-                    ui.add_space(6.0);
-                    if ui
-                        .button(RichText::new(format!("Become a {}", c.name)).strong())
-                        .clicked()
-                    {
-                        chosen = Some(c.id);
-                    }
-                }
-            });
-        });
-        if let Some(c) = chosen {
-            actions.push(Action::ChooseClass(c));
-        }
-    }
+    hud::class_picker(ctx, p, actions);
     hud::cast_bar(&painter, p, bar_rect);
+    hud::map(ctx, p);
     // RPG windows
     if let Some(mut panel) = p.panel.clone() {
         let me = rpg_ui::Me {
@@ -5313,166 +5257,9 @@ fn hud(
             actions.push(Action::Rpg(cmds));
         }
     }
-    // a party invitation
-    if let Some(from) = p.invite.clone() {
-        let mut answer = None;
-        egui::Window::new("Party invitation")
-            .id(egui::Id::new("party-invite"))
-            .title_bar(false)
-            .resizable(false)
-            .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 120.0))
-            .frame(crate::theme::window_frame())
-            .show(ctx, |ui| {
-                ui.label(
-                    RichText::new(format!("{from} invites you to join their party."))
-                        .font(crate::theme::body_font(16.0))
-                        .color(crate::theme::TEXT),
-                );
-                ui.horizontal(|ui| {
-                    if ui.button("Accept").clicked() {
-                        answer = Some("/accept");
-                    }
-                    if ui.button("Decline").clicked() {
-                        answer = Some("/decline");
-                    }
-                });
-            });
-        if let Some(a) = answer {
-            let _ = p.conn.tx.send(ClientMsg::Chat { text: a.into() });
-            p.invite = None;
-        }
-    }
-    // someone asks to trade
-    if let Some(from) = p.trade_ask.clone() {
-        let mut answer = None;
-        egui::Window::new("Trade request")
-            .id(egui::Id::new("trade-ask"))
-            .title_bar(false)
-            .resizable(false)
-            .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 190.0))
-            .frame(crate::theme::window_frame())
-            .show(ctx, |ui| {
-                ui.label(
-                    RichText::new(format!("{from} wants to trade with you."))
-                        .font(crate::theme::body_font(16.0))
-                        .color(crate::theme::TEXT),
-                );
-                ui.horizontal(|ui| {
-                    if ui.button("Trade").clicked() {
-                        answer = Some(dyno_protocol::TradeOp::Agree);
-                    }
-                    if ui.button("Decline").clicked() {
-                        answer = Some(dyno_protocol::TradeOp::Cancel);
-                    }
-                });
-            });
-        if let Some(a) = answer {
-            let _ = p.conn.tx.send(ClientMsg::Trade(a));
-            p.trade_ask = None;
-        }
-    }
-    // the trade window
-    if let Some(view) = p.trade.clone() {
-        let mut ops = Vec::new();
-        let mut open = true;
-        crate::theme::window(
-            ctx,
-            "trade",
-            "Trade",
-            &format!("with {}", view.with),
-            430.0,
-            (Align2::LEFT_CENTER, Vec2::new(40.0, 0.0)),
-            &mut open,
-            |ui| {
-                ui.label(
-                    RichText::new("Right-click items in your bags to offer them. Click a line to take it back.")
-                        .small()
-                        .color(crate::theme::TEXT_DIM),
-                );
-                ui.columns(2, |cols| {
-                    for (k, (title, items, money, accept)) in [
-                        ("You offer", &view.mine, view.my_money, view.i_accept),
-                        (
-                            view.with.as_str(),
-                            &view.theirs,
-                            view.their_money,
-                            view.they_accept,
-                        ),
-                    ]
-                    .into_iter()
-                    .enumerate()
-                    {
-                        let ui = &mut cols[k];
-                        ui.label(
-                            RichText::new(title)
-                                .font(crate::theme::title_font(14.0))
-                                .color(crate::theme::GOLD),
-                        );
-                        for (i, st) in items.iter().enumerate() {
-                            let it = p.content.item(st.item);
-                            let label = if st.count > 1 {
-                                format!("{} ×{}", it.name, st.count)
-                            } else {
-                                it.name.to_string()
-                            };
-                            let r = ui.add(egui::Button::new(
-                                RichText::new(label).color(crate::theme::quality_color(it.quality)),
-                            ));
-                            if k == 0 && r.clicked() {
-                                ops.push(dyno_protocol::TradeOp::Withdraw { line: i as u8 });
-                            }
-                        }
-                        ui.label(
-                            RichText::new(dyno_sim::progression::money_text(money))
-                                .color(crate::theme::GOLD),
-                        );
-                        ui.label(
-                            RichText::new(if accept {
-                                "Accepted"
-                            } else {
-                                "Not yet accepted"
-                            })
-                            .small()
-                            .color(if accept {
-                                Color32::from_rgb(120, 210, 120)
-                            } else {
-                                crate::theme::TEXT_DIM
-                            }),
-                        );
-                    }
-                });
-                ui.add_space(6.0);
-                ui.horizontal(|ui| {
-                    ui.label("Coins (copper):");
-                    let r =
-                        ui.add(egui::TextEdit::singleline(&mut p.trade_money).desired_width(80.0));
-                    if r.lost_focus()
-                        && let Ok(n) = p.trade_money.trim().parse::<u32>()
-                    {
-                        ops.push(dyno_protocol::TradeOp::Money(n));
-                    }
-                });
-                ui.add_space(6.0);
-                ui.horizontal(|ui| {
-                    if ui
-                        .button(RichText::new("Accept").color(crate::theme::GOLD_BRIGHT))
-                        .clicked()
-                    {
-                        ops.push(dyno_protocol::TradeOp::Accept);
-                    }
-                    if ui.button("Cancel").clicked() {
-                        ops.push(dyno_protocol::TradeOp::Cancel);
-                    }
-                });
-            },
-        );
-        if !open {
-            ops.push(dyno_protocol::TradeOp::Cancel);
-        }
-        for op in ops {
-            let _ = p.conn.tx.send(ClientMsg::Trade(op));
-        }
-    }
+    // invitations, and the trade window
+    hud::prompts(ctx, p);
+    hud::trade(ctx, p);
     // an open corpse
     if let Some((id, money, items)) = &p.loot {
         let gone = p

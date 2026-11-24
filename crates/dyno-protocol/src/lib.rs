@@ -841,6 +841,9 @@ pub enum ServerMsg {
         id: u32,
         list: Vec<(u16, f32)>,
     },
+    /// The named places you have found, by area key (the world map names
+    /// them and lights their land). Sent at a join and at each discovery.
+    Discovered(Vec<String>),
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

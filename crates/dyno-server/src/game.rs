@@ -963,6 +963,9 @@ impl State {
                 log: p.quests.clone(),
                 done,
             });
+            let mut places: Vec<String> = p.discovered.iter().cloned().collect();
+            places.sort();
+            after.push(ServerMsg::Discovered(places));
             let max_power = match p
                 .class
                 .and_then(|c| self.content.class(c))

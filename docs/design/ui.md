@@ -167,7 +167,8 @@ to the part of the HUD it is about. Tips are data: `tips.list` in
 `level`, `ability`, `low_health`, `death`, `rested`, `party`.
 
 **Anchors:** `frame` (player), `target`, `bar`, `xp`, `minimap`,
-`tracker`, and `center` (above the action bar, no arrow).
+`tracker`, and `center` (no part to point at: the tip sits at the left,
+over the chat, clear of the middle of the screen).
 
 Rules for the layer:
 - one tip at a time, with a pause between two; later ones wait in a queue;
@@ -186,6 +187,69 @@ map → your quests → your target → your abilities → your resource →
 experience → loot → into your bags → something to wear → ready to hand in
 → a new level → a new ability.
 
+## The world map
+
+M opens it (`worldmap.rs`). The picture is made from the far-view tiles the
+client already holds (4 m cells for about 800 m round you), so it costs no
+new data. On it:
+
+- places you have **discovered** keep their colour and carry their name
+  (the server sends the list: `Discovered`); land not yet found is the same
+  shape in faded ink; the land close round you is always lit;
+- **quest pins:** a `?` where a finished quest is handed in, a dot where an
+  unfinished objective is (the person to talk to, the place to reach, the
+  nearest camps of the creature to hunt), a `!` at everyone who has work
+  for you. Pointing at a pin says what it is;
+- **you** are a gold arrow the way you face; party members near you are
+  blue dots.
+
+## Playing it by script: `dyno drive`
+
+`dyno drive ADDR --script FILE` runs the real client without a window and
+plays it from a script. The script's mouse and keyboard lines go through
+`App::input`, the same function the window's events go through, and egui
+gets the pointer and key events egui-winit would give it; frames are drawn
+off screen by `App::frame`. So a scripted click meets what a player's click
+meets: the HUD's areas, tips, open windows, steering with a held button,
+the pick in the world. Each `expect` line states what the step before must
+have caused; the run stops at the first that does not hold, prints what
+the client held at each stage of the last clicks, and saves a picture.
+
+```
+walk-to npc brannoc 3          # hold W toward him
+click right npc brannoc        # a right-click in the world, on him
+expect panel dialog
+click left at dialog.accept    # a click on a marked part of the interface
+expect quest cold_hearth
+drag at spell.fireball to bar.4
+hover at bar.4
+expect mark tooltip.ability
+```
+
+`dyno drive --help` lists the commands and conditions. Parts of the
+interface are named by **marks** it leaves as it draws (`probe.rs`; nothing
+is kept in normal play): `bar.N`, `dialog.quest.KEY`, `dialog.accept`,
+`dialog.complete`, `loot.N`, `loot.all`, `bag.N`, `bagitem.KEY`,
+`equip.N`, `spell.KEY`, `tab.NAME`, `window.ID`, `header.ID` (a window's
+header, to drag it by), `tip`, `tooltip.item`, `tooltip.ability`,
+`map.canvas`, `class.KEY`, `chat.tab_chat`. A new clickable thing should
+leave a mark.
+
+`tools/drive/first_steps.drive` is the interface's input test: a new mage
+talks to the quest giver and accepts, selects a creature, casts with a key
+and with a click on the bar, loots a body, opens the bags and equips,
+drags an ability from the spellbook to the bar and reads its tooltip,
+clicks a tip away, drags a window, opens and closes the map, and clicks in
+the world with a window open and a tip showing. `tools/drive/run.sh` builds
+the release `dyno`, starts a fresh world whose operator is the driven
+character, and runs it.
+
+What it has found so far: a tip with no HUD part to point at used to sit in
+the lower middle of the screen, over the character and whoever stood in
+front of it, so the "right-click the person with the gold !" tip could
+cover that person and take the click. Those tips now sit at the left, over
+the chat; and a tip never lies over an open window.
+
 ## Looking at it
 
 `dyno shot ADDR --ui NAME --as CHARACTER --size WxH` draws one state. Beside
@@ -200,6 +264,9 @@ the older names (`hud`, `talk`, `log`, `char`, `bags`, `spells`, `skills`,
 | `party` | Party frames |
 | `menu`, `menu-options`, `menu-controls` | The game menu's pages |
 | `tip:EVENT` | The tip for an event, for example `tip:combat` |
+| `map` | The world map |
+| `classpick` | The class picker for a character without a class |
+| `social` | A party invitation, a trade request, the trade window and the chat box |
 
 `--as NAME` also finds a character that `dyno play` or a bot made.
 
@@ -213,20 +280,20 @@ the older names (`hud`, `talk`, `log`, `char`, `bags`, `spells`, `skills`,
 | 1 No crash or hang in 30 minutes | Not measured here: the interface was checked with headless shots and tests, not a 30-minute hand run |
 | 2 Under 60 s from title to in-world | Not measured; creation is still three pages (class, appearance, name) |
 | 2 Class cards: fantasy line, role, difficulty | Met. Roles and difficulty are still a table in `front.rs` keyed by class: they need to come in `ClassInfo` |
-| 2 Portrait and preview in the starter kit | Not met: the preview wears a tunic in the class colour. Needs the starter items in `ClassInfo` |
+| 2 Portrait and preview in the starter kit | Met for the preview's clothes: the realm names the class's starter items (`ClassInfo.starter`) and the figure wears them. The weapon is not in its hand (that needs the rules, which arrive at the join), and the class cards have no portrait |
 | 2 Names: random button, clear rule, no profanity | Partly: the rule is shown as you type, and names with a word from the pack's `names.blocked` are refused, but only once a pack is cached (not on a first install). The server must refuse the same list |
 | 3 Spawn faces the hearth and a quest giver with a gold ! | Not met, and not the interface's: a new character faces north and the first giver stands about 5 m behind and to the left, out of view. The `talk` tip and the intro toast both point at a gold ! the player cannot see yet. For the flow lane |
 | 3 Tip on moving, talking and the gold ! | Met (`move`, then `talk`) |
 | 3 First quest accepted within 30 s | Not measured here; the tips and the intro toast lead to it, the spawn facing works against it |
-| 8 Unit frames: health, resource, level, name | Met for player and target; party frames have health only (the party message has no resource) |
-| 8 Buffs with timers | Met for the player. Target debuffs need the server to send a creature's auras |
+| 8 Unit frames: health, resource, level, name | Met for player and target, with an absorb shield on the player's frame; party frames have health only (the party message has no resource) |
+| 8 Buffs with timers | Met: the player's buffs, and on the target's frame what players have put on it (bleeds, slows, stuns) with seconds left |
 | 8 Action bar: keys, drag and drop, new abilities placed | Met |
 | 8 Cast bar, XP bar with rested, class resource | Met |
 | 8 Minimap: zone, clock, quest marks, zoom | Met (unchanged) |
-| 8 Floating text: damage, crits, heals, XP, loot | Met; heals are read from health rising, so a small heal over time is not shown |
+| 8 Floating text: damage, crits, heals, XP, loot | Met; a heal is one green number, from the server's `Healed` |
 | 8 Quest-progress toast, level-up banner | Met |
 | 8 Nothing overlaps at 1080p or 1440p; can be scaled | Met |
-| 9 Same theme on every panel, key and Esc, remembers its place | Met for the session; the class picker shown to a character with no class, the trade window's buttons and the chat box still use plain widgets |
+| 9 Same theme on every panel, key and Esc, remembers its place | Met for the session, the class picker, invitations, trade window and chat box included. The survival lane's crafting-station window had not landed when this was written |
 | 9 Quest log: objectives, rewards, story, abandon | Met; share is missing (needs a message) |
 | 9 Bags: sorting, stacking, quality colours, sell junk | Met |
 | 9 Item tooltips compared with worn gear | Met |
@@ -235,19 +302,20 @@ the older names (`hud`, `talk`, `log`, `char`, `bags`, `spells`, `skills`,
 | 9 Merchant: buy, sell, buyback | Buy and sell; no buyback (server) |
 | 9 Death: release and timer | Release; no timer (the server has none) |
 | 9 Chat channels, combat log | Present; plain styling |
-| 9 Map | Missing: only the minimap |
+| 9 Map | Met: M opens the world map, with discovered places, quest pins, companions and yourself |
 | 9 Options with every setting and keybinds | Graphics, interface size, tips; the keys are listed but cannot be rebound |
 
 ## What is next
 
-1. A world map (M) with quest pins (the minimap renderer can draw a larger
-   area; it needs land the client has not streamed yet).
-2. Rebinding keys (the Controls page is a list today).
-3. Wire additions, to do together in one protocol bump: `ClassInfo` with
-   roles, difficulty and starter items; a target's auras; party members'
-   resource; quest share; merchant buyback; a release timer.
+1. Rebinding keys (the Controls page is a list today); merchant buyback;
+   quest share.
+2. The crafting-station window on the theme, once the survival lane's
+   rename of `survival.rs` lands.
+3. More wire for the interface: roles and difficulty in `ClassInfo` (still
+   a table in `front.rs`), party members' resource, a release timer.
 4. The front end's own words into the strings file (it runs before the
    first pack arrives, so it needs a fallback first), and the remaining
    hard-coded lines in `rpg_ui.rs` (quest dialogue, merchant, loot) and the
    combat log.
-5. The class picker, trade window and chat box on the theme.
+5. `tools/drive/run.sh` in CI: it needs a runner with a GPU or a software
+   Vulkan, as `dyno shot` does.

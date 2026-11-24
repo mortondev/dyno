@@ -48,6 +48,7 @@ pub mod uitext;
 pub mod vox;
 pub mod voxmodel;
 pub mod water;
+pub mod worldmap;
 pub mod worldwork;
 
 /// Open the game window. `prefill` sets the server address field.

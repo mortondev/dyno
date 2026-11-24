@@ -35,6 +35,7 @@ click left|right KIND NAME    click it in the world (it must be on screen and un
 click left|right at MARK      click a marked part of the interface
 hover at MARK                 rest the pointer there
 drag at MARK to MARK | by DX DY
+press at MARK · move at MARK · release   a drag in three lines (to `shot` it half way)
 key NAME                      press and release (1-9, 0, Minus, Equal, B, C, P, K, L, M, Tab, Escape, Enter)
 remember MARK                 note where it is, for `expect moved MARK`
 shot NAME                     save the frame
@@ -50,6 +51,9 @@ struct Driver {
     shots: Option<std::path::PathBuf>,
     remembered: HashMap<String, Rect>,
     log: Vec<String>,
+    /// what the client held at each stage of the last clicks (shown when a
+    /// step fails)
+    trail: std::cell::RefCell<std::collections::VecDeque<String>>,
 }
 
 fn play(app: &App) -> Result<&Play, String> {
@@ -215,22 +219,24 @@ impl Driver {
         self.frames(3)
     }
 
-    /// DYNO_DRIVE_TRACE=1: what the client holds at each stage of a click.
+    /// Note what the client holds at a stage of a click.
     fn trace(&self, at: &str) {
-        if std::env::var_os("DYNO_DRIVE_TRACE").is_some()
-            && let Ok(p) = play(&self.app)
-        {
-            eprintln!(
-                "  {at}: hover {:?} focus {:?} captured {} rmb {} lmb {} drag {} over-area {} wants-pointer {}",
-                p.hover,
-                p.focus,
+        if let Ok(p) = play(&self.app) {
+            let kind = |id: Option<u32>| id.and_then(|id| p.entities.get(&id)).map(|e| e.kind);
+            let mut trail = self.trail.borrow_mut();
+            trail.push_back(format!(
+                "{at}: pointer on {:?}, target {:?}, steering {}, buttons held {}{}, over the interface {}, the interface wants the pointer {}",
+                kind(p.hover),
+                kind(p.focus),
                 p.captured,
-                p.rmb,
-                p.lmb,
-                p.drag,
+                if p.lmb { "L" } else { "-" },
+                if p.rmb { "R" } else { "-" },
                 self.app.egui_ctx.is_pointer_over_area(),
                 self.app.egui_ctx.wants_pointer_input()
-            );
+            ));
+            while trail.len() > 8 {
+                trail.pop_front();
+            }
         }
     }
 
@@ -346,8 +352,9 @@ impl Driver {
                 .map(|e| format!("{:?}", e.kind))
                 .unwrap_or_else(|| "none".into())
         };
+        let trail: Vec<String> = self.trail.borrow().iter().cloned().collect();
         format!(
-            "panel {:?}; tab {:?}; target {}; hover {}; loot {}; tip {}; captured {}; over the interface {}; marks: {}",
+            "panel {:?}; tab {:?}; target {}; hover {}; loot {}; tip {}; captured {}; over the interface {}; marks: {}\n  the last clicks:\n    {}",
             p.panel,
             p.screen_tab,
             kind(p.focus),
@@ -356,7 +363,8 @@ impl Driver {
             p.ui.tips.current().map_or("none", |t| t.id.as_str()),
             p.captured,
             self.app.egui_ctx.is_pointer_over_area(),
-            probe::names().join(" ")
+            probe::names().join(" "),
+            trail.join("\n    ")
         )
     }
 
@@ -443,6 +451,9 @@ impl Driver {
                         return Err(format!("no {kind} '{name}' is near"));
                     }
                     let (_, at) = all[(attempt / 2) % all.len()];
+                    // (a little higher or lower each time: a different line
+                    // of sight past whatever is in the way)
+                    let at = at + Vec3::Y * [0.0, 0.5, -0.4, 0.25][attempt % 4];
                     let px = match self.on_screen(at) {
                         Ok(px) => px,
                         Err(e) => {
@@ -461,7 +472,26 @@ impl Driver {
                     if hover.is_some_and(|h| all.iter().any(|(id, _)| *id == h)) {
                         return self.press(button, px);
                     }
-                    why = "the pointer is not on it".into();
+                    // why not: is a block in the line of sight?
+                    let p = play(&self.app)?;
+                    why = match p.cursor_ray(self.app.cursor) {
+                        Some((o, d)) => {
+                            let wall = game::raycast(&p.world, o, d, 60.0).map(|t| {
+                                let c = Vec3::new(
+                                    t.block[0] as f32 + 0.5,
+                                    t.block[1] as f32 + 0.5,
+                                    t.block[2] as f32 + 0.5,
+                                );
+                                (c - o).length()
+                            });
+                            format!(
+                                "the pointer is on its place on screen but the game picks nothing there (it is {:.1} m from the camera; the first block on that line is {})",
+                                (at - o).length(),
+                                wall.map_or("none".into(), |w| format!("{w:.1} m away"))
+                            )
+                        }
+                        None => "the pointer is not on it".into(),
+                    };
                     self.face(at)?;
                     self.frames(3)?;
                 }
@@ -496,6 +526,30 @@ impl Driver {
                     self.frames(2)?;
                 }
                 self.frames(2)?;
+                self.app.input(Hand::Mouse(MouseButton::Left, false));
+                self.frames(4)
+            }
+            // a drag in three lines, to look at it half way
+            "press" => {
+                let at = self.mark(need(2)?)?;
+                self.move_to(at)?;
+                self.app.input(Hand::Mouse(MouseButton::Left, true));
+                self.frames(3)
+            }
+            "move" => {
+                let to = self.mark(need(2)?)?;
+                let from = self.app.cursor;
+                for k in 1..=8 {
+                    let t = k as f64 / 8.0;
+                    self.app.input(Hand::Cursor(
+                        from.0 + (to.0 - from.0) * t,
+                        from.1 + (to.1 - from.1) * t,
+                    ));
+                    self.frames(2)?;
+                }
+                Ok(())
+            }
+            "release" => {
                 self.app.input(Hand::Mouse(MouseButton::Left, false));
                 self.frames(4)
             }
@@ -655,6 +709,7 @@ pub fn drive(o: DriveOptions) -> Result<String, String> {
         shots: o.shots.clone(),
         remembered: HashMap::new(),
         log: Vec::new(),
+        trail: Default::default(),
     };
     // the land round the character, before the first line
     let started = Instant::now();
@@ -681,5 +736,74 @@ pub fn drive(o: DriveOptions) -> Result<String, String> {
     match result {
         Ok(n) => Ok(format!("{log}\nPASS: {n} steps")),
         Err(e) => Err(format!("{log}\nFAIL {e}")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The interface's input test, as shipped in tools/drive.
+    fn script() -> String {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tools/drive/first_steps.drive"
+        );
+        std::fs::read_to_string(path).unwrap()
+    }
+
+    #[test]
+    fn the_shipped_script_uses_only_what_the_driver_knows() {
+        let commands = [
+            "say", "wait", "look-at", "walk-to", "click", "hover", "drag", "key", "remember",
+            "shot", "expect", "until", "end", "press", "move", "release",
+        ];
+        let mut open = 0;
+        let mut expects = 0;
+        for (n, line) in script().lines().enumerate() {
+            let line = line.split('#').next().unwrap().trim();
+            let Some(first) = line.split_whitespace().next() else {
+                continue;
+            };
+            assert!(commands.contains(&first), "line {}: '{first}'", n + 1);
+            // every command the help lists, and no other
+            assert!(HELP.contains(first), "'{first}' is not in the help");
+            match first {
+                "until" => open += 1,
+                "end" => open -= 1,
+                "expect" => expects += 1,
+                "key" => {
+                    let name = line.split_whitespace().nth(1).unwrap();
+                    assert!(key_code(name).is_some(), "line {}: key '{name}'", n + 1);
+                }
+                _ => {}
+            }
+            assert!((0..=1).contains(&open), "line {}: until and end", n + 1);
+        }
+        assert_eq!(open, 0, "an `until` is left open");
+        // it asserts what each step caused, not just that it ran
+        assert!(expects >= 30, "{expects} expectations");
+    }
+
+    #[test]
+    fn every_step_the_brief_names_is_in_the_script() {
+        let s = script();
+        for needed in [
+            "click right npc", // right-click the quest giver
+            "click left at dialog.accept",
+            "click left creature",  // target a creature
+            "key 1",                // press a key
+            "click left at bar.",   // click a bar slot
+            "click right corpse",   // loot
+            "key B",                // open bags
+            "expect equipped",      // equip
+            "press at spell.",      // spellbook ability to the bar
+            "expect mark tooltip.", // hover for a tooltip
+            "click left at tip",    // dismiss a tip
+            "drag at header.",      // drag a window
+            "expect attacking",     // the world still takes clicks
+        ] {
+            assert!(s.contains(needed), "the script lacks: {needed}");
+        }
     }
 }

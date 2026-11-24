@@ -631,7 +631,7 @@ fn q_title(content: &Content, quest: u16) -> String {
 }
 
 /// Map colour of each block, as seen from above.
-fn palette() -> [[f32; 3]; 256] {
+pub(crate) fn palette() -> [[f32; 3]; 256] {
     let mut out = [[0.0; 3]; 256];
     for (i, d) in w::BLOCKS.iter().enumerate().take(256) {
         out[i] = d.color;

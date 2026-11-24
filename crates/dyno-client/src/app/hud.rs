@@ -1584,6 +1584,48 @@ fn key_caps(ui: &mut egui::Ui, keys: &str) {
     });
 }
 
+/// The world map (M).
+pub fn map(ctx: &egui::Context, p: &mut Play) {
+    if !p.ui.map_open {
+        return;
+    }
+    p.ui.once("map");
+    let mut map = std::mem::take(&mut p.world_map);
+    let me = rpg_ui::Me {
+        content: &p.content,
+        money: p.money,
+        level: p.level,
+        log: &p.quest_log,
+        done: &p.quests_done,
+        pos: p.player.pos.into(),
+        hearth: p.hearth,
+        equip: &p.equip,
+        class: p.class.and_then(|c| p.content.class(c)),
+    };
+    let party = p
+        .remotes
+        .values()
+        .filter(|r| p.party.iter().any(|m| m.name == r.name))
+        .map(|r| (r.name.clone(), Vec3::from(r.current().pos)))
+        .collect();
+    let open = map.window(
+        ctx,
+        &crate::worldmap::View {
+            far: &p.far,
+            me: &me,
+            pos: p.player.pos,
+            yaw: p.player.yaw + p.cam_orbit,
+            discovered: &p.discovered,
+            zone: &p.zone,
+            party,
+        },
+    );
+    p.world_map = map;
+    if !open {
+        p.ui.map_open = false;
+    }
+}
+
 /// The tutorial tips: fire what the frame's state shows, then draw.
 pub fn tips(
     ctx: &egui::Context,
@@ -1850,8 +1892,8 @@ pub fn shot_state(p: &mut Play, ui: &str) {
             ));
             p.combat_text
                 .push((past(500), None, "-6".into(), Color32::from_rgb(255, 70, 60)));
-            p.combat_text
-                .push((past(250), None, "+12".into(), theme::GOOD));
+            // (a heal as the server reports one: a single number)
+            healed(p, 12.0);
             p.floaters
                 .push((past(300), "+55 XP".into(), Color32::from_rgb(190, 140, 255)));
             let line = p.quest_log.first().and_then(|q| {
@@ -1907,6 +1949,48 @@ pub fn shot_state(p: &mut Play, ui: &str) {
             if let Some(q) = p.content.quests.first() {
                 let line = tf("hud.quest_done", &[("quest", &q.title)]);
                 p.ui.notices.push((past(700), line, theme::GOLD_BRIGHT));
+            }
+        }
+        "map" => {
+            p.ui.map_open = true;
+            p.captured = false;
+        }
+        "nopower" => {
+            // nothing to spend: every ability that costs is tinted
+            p.power = 0.0;
+        }
+        "classpick" => {
+            p.class_pick = true;
+            p.captured = false;
+        }
+        "social" => {
+            // an invitation, a request, an open trade and the chat box
+            p.invite = Some("Maelis".into());
+            p.trade_ask = Some("Torvald".into());
+            let stacks: Vec<Stack> = p.pack.iter().flatten().copied().collect();
+            p.trade = Some(dyno_protocol::TradeView {
+                with: "Torvald".into(),
+                mine: stacks.iter().take(2).copied().collect(),
+                theirs: stacks.iter().skip(2).take(1).copied().collect(),
+                my_money: 35,
+                their_money: 120,
+                i_accept: false,
+                they_accept: true,
+            });
+            p.chat_open = true;
+            p.captured = false;
+            if p.chat.len() < 3 {
+                for (from, text) in [
+                    ("[General] Maelis", "Anyone for the boar hunt?"),
+                    ("[Party] Torvald", "On my way."),
+                    ("Torvald", "Well met."),
+                ] {
+                    p.chat.push(Chat {
+                        at: Instant::now(),
+                        from: Some(from.into()),
+                        text: text.into(),
+                    });
+                }
             }
         }
         "menu" | "menu-options" | "menu-controls" => {
@@ -1968,4 +2052,367 @@ pub fn shot_state(p: &mut Play, ui: &str) {
         p.ui.tips.fire(event);
         p.ui.tips.backdate(Duration::from_millis(900));
     }
+}
+
+// ---- the smaller windows: class picker, invitations, trade, chat ----
+
+/// A button in the theme: gold for the one thing to do, dark for the rest.
+pub fn button(ui: &mut egui::Ui, text: &str, gold: bool) -> egui::Response {
+    let (ink, fill, edge) = if gold {
+        (theme::INK, theme::GOLD, theme::GOLD_BRIGHT)
+    } else {
+        (theme::GOLD, theme::WOOD_DARK, theme::GOLD_DARK)
+    };
+    ui.add(
+        egui::Button::new(RichText::new(text).font(theme::title_font(13.0)).color(ink))
+            .fill(fill)
+            .stroke(Stroke::new(1.0_f32, edge))
+            .min_size(Vec2::new(96.0, 30.0)),
+    )
+}
+
+/// A one-line text field in the theme (dark well, gold rim).
+pub fn field(ui: &mut egui::Ui, text: &mut String, width: f32, hint: &str) -> egui::Response {
+    egui::Frame::new()
+        .fill(Color32::from_rgb(16, 11, 8))
+        .stroke(Stroke::new(1.0_f32, theme::GOLD_DARK))
+        .corner_radius(4.0)
+        .inner_margin(egui::Margin::symmetric(8, 5))
+        .show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::singleline(text)
+                    .frame(false)
+                    .font(theme::body_font(15.0))
+                    .text_color(theme::TEXT)
+                    .desired_width(width)
+                    .hint_text(RichText::new(hint).color(theme::TEXT_DIM)),
+            )
+        })
+        .inner
+}
+
+/// A character without a class chooses one (the creation screen normally
+/// has: this is for characters made before it, or by a command).
+pub fn class_picker(ctx: &egui::Context, p: &Play, actions: &mut Vec<Action>) {
+    if !p.class_pick {
+        return;
+    }
+    let n = p.content.classes.len().max(1);
+    let mut open = true;
+    let mut chosen = None;
+    theme::window(
+        ctx,
+        "class-pick",
+        &t("classes.title"),
+        "",
+        (n as f32 * 190.0).clamp(380.0, 1140.0),
+        (Align2::CENTER_CENTER, Vec2::ZERO),
+        &mut open,
+        |ui| {
+            ui.label(
+                RichText::new(t("classes.prompt"))
+                    .font(theme::body_font(16.0))
+                    .color(theme::TEXT),
+            );
+            ui.add_space(8.0);
+            ui.columns(n, |cols| {
+                for (k, c) in p.content.classes.iter().enumerate() {
+                    let ui = &mut cols[k];
+                    egui::Frame::new()
+                        .fill(theme::WOOD_DARK)
+                        .stroke(Stroke::new(1.0_f32, theme::BRONZE))
+                        .corner_radius(5.0)
+                        .inner_margin(egui::Margin::same(10))
+                        .show(ui, |ui| {
+                            ui.set_min_height(250.0);
+                            ui.label(
+                                RichText::new(&c.name)
+                                    .font(theme::title_font(18.0))
+                                    .color(rgb(c.color)),
+                            );
+                            ui.label(
+                                RichText::new(&c.blurb)
+                                    .font(theme::body_font(13.5))
+                                    .color(theme::TEXT),
+                            );
+                            ui.add_space(6.0);
+                            for a in p.content.known_abilities(c.id, 6) {
+                                ui.label(
+                                    RichText::new(tf(
+                                        "classes.ability",
+                                        &[("ability", &a.name), ("level", &a.level.to_string())],
+                                    ))
+                                    .font(theme::body_font(12.5))
+                                    .color(theme::TEXT_DIM),
+                                )
+                                .on_hover_ui(|ui| {
+                                    screens::ability_tooltip(ui, &p.content, a, true)
+                                });
+                            }
+                            ui.add_space(8.0);
+                            let label = tf("classes.become", &[("class", &c.name)]);
+                            let b = button(ui, &label, true);
+                            crate::probe::mark(format!("class.{}", c.key), b.rect);
+                            if b.clicked() {
+                                chosen = Some(c.id);
+                            }
+                        });
+                }
+            });
+        },
+    );
+    if let Some(c) = chosen {
+        actions.push(Action::ChooseClass(c));
+    }
+}
+
+/// A question from another player, with its two answers. The answer
+/// clicked: true for the first.
+fn prompt(ctx: &egui::Context, id: &str, y: f32, text: &str, yes: &str, no: &str) -> Option<bool> {
+    let mut answer = None;
+    let resp = egui::Window::new(id)
+        .id(egui::Id::new(id))
+        .title_bar(false)
+        .resizable(false)
+        .collapsible(false)
+        .anchor(Align2::CENTER_TOP, Vec2::new(0.0, y))
+        .frame(theme::window_frame())
+        .show(ctx, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.label(
+                    RichText::new(text)
+                        .font(theme::body_font(16.0))
+                        .color(theme::TEXT),
+                );
+                ui.add_space(6.0);
+                ui.horizontal(|ui| {
+                    ui.add_space((ui.available_width() - 200.0).max(0.0) * 0.5);
+                    if button(ui, yes, true).clicked() {
+                        answer = Some(true);
+                    }
+                    if button(ui, no, false).clicked() {
+                        answer = Some(false);
+                    }
+                });
+            });
+        });
+    if let Some(r) = resp {
+        theme::window_trim(&ctx.layer_painter(r.response.layer_id), r.response.rect);
+    }
+    answer
+}
+
+/// Invitations: to a party, to a trade.
+pub fn prompts(ctx: &egui::Context, p: &mut Play) {
+    if let Some(from) = p.invite.clone() {
+        let text = tf("social.invite", &[("name", &from)]);
+        if let Some(yes) = prompt(
+            ctx,
+            "party-invite",
+            130.0,
+            &text,
+            &t("social.accept"),
+            &t("social.decline"),
+        ) {
+            let reply = if yes { "/accept" } else { "/decline" };
+            let _ = p.conn.tx.send(ClientMsg::Chat { text: reply.into() });
+            p.invite = None;
+        }
+    }
+    if let Some(from) = p.trade_ask.clone() {
+        let text = tf("social.trade_ask", &[("name", &from)]);
+        if let Some(yes) = prompt(
+            ctx,
+            "trade-ask",
+            220.0,
+            &text,
+            &t("social.trade"),
+            &t("social.decline"),
+        ) {
+            let op = if yes {
+                dyno_protocol::TradeOp::Agree
+            } else {
+                dyno_protocol::TradeOp::Cancel
+            };
+            let _ = p.conn.tx.send(ClientMsg::Trade(op));
+            p.trade_ask = None;
+        }
+    }
+}
+
+/// The trade window: what each side offers, coins, and both acceptances.
+pub fn trade(ctx: &egui::Context, p: &mut Play) {
+    let Some(view) = p.trade.clone() else { return };
+    let mut ops = Vec::new();
+    let mut open = true;
+    let mut coins_typed = std::mem::take(&mut p.trade_money);
+    theme::window(
+        ctx,
+        "trade",
+        &t("social.trade_title"),
+        &tf("social.trade_with", &[("name", &view.with)]),
+        440.0,
+        (Align2::LEFT_CENTER, Vec2::new(40.0, 0.0)),
+        &mut open,
+        |ui| {
+            ui.label(
+                RichText::new(t("social.trade_hint"))
+                    .font(theme::body_font(13.0))
+                    .color(theme::TEXT_DIM),
+            );
+            ui.add_space(4.0);
+            ui.columns(2, |cols| {
+                let you = t("social.you_offer");
+                for (k, (title, items, money, accept)) in [
+                    (you.as_str(), &view.mine, view.my_money, view.i_accept),
+                    (
+                        view.with.as_str(),
+                        &view.theirs,
+                        view.their_money,
+                        view.they_accept,
+                    ),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    let ui = &mut cols[k];
+                    egui::Frame::new()
+                        .fill(theme::WOOD_DARK)
+                        .stroke(Stroke::new(
+                            1.5_f32,
+                            if accept { theme::GOOD } else { theme::BRONZE },
+                        ))
+                        .corner_radius(5.0)
+                        .inner_margin(egui::Margin::same(8))
+                        .show(ui, |ui| {
+                            ui.set_min_height(210.0);
+                            ui.set_width(ui.available_width());
+                            theme::heading(ui, title, theme::GOLD);
+                            for (i, st) in items.iter().enumerate() {
+                                let it = p.content.item(st.item);
+                                let (row, resp) = ui.allocate_exact_size(
+                                    Vec2::new(ui.available_width(), 36.0),
+                                    if k == 0 {
+                                        egui::Sense::click()
+                                    } else {
+                                        egui::Sense::hover()
+                                    },
+                                );
+                                let pt = ui.painter();
+                                if resp.hovered() && k == 0 {
+                                    pt.rect_filled(
+                                        row,
+                                        4.0,
+                                        Color32::from_rgba_unmultiplied(150, 104, 30, 70),
+                                    );
+                                }
+                                let slot = Rect::from_min_size(
+                                    row.min + Vec2::splat(2.0),
+                                    Vec2::splat(32.0),
+                                );
+                                theme::item_slot(pt, slot, it.quality, None);
+                                survival::stack_icon(pt, slot, &p.content, st);
+                                pt.text(
+                                    Pos2::new(slot.right() + 8.0, row.center().y),
+                                    Align2::LEFT_CENTER,
+                                    it.name,
+                                    theme::body_font(14.5),
+                                    theme::quality_color(it.quality),
+                                );
+                                let st = *st;
+                                let resp = resp.on_hover_ui(|ui| {
+                                    screens::item_tooltip(ui, &p.content, &st, None, p.level)
+                                });
+                                if k == 0 && resp.clicked() {
+                                    ops.push(dyno_protocol::TradeOp::Withdraw { line: i as u8 });
+                                }
+                            }
+                            ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+                                ui.label(
+                                    RichText::new(t(if accept {
+                                        "social.accepted"
+                                    } else {
+                                        "social.not_accepted"
+                                    }))
+                                    .font(theme::body_font(13.0))
+                                    .color(if accept {
+                                        theme::GOOD
+                                    } else {
+                                        theme::TEXT_DIM
+                                    }),
+                                );
+                                screens::coins(ui, money);
+                            });
+                        });
+                }
+            });
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new(t("social.coins"))
+                        .font(theme::body_font(14.0))
+                        .color(theme::TEXT),
+                );
+                let r = field(ui, &mut coins_typed, 90.0, "0");
+                if r.lost_focus()
+                    && let Ok(n) = coins_typed.trim().parse::<u32>()
+                {
+                    ops.push(dyno_protocol::TradeOp::Money(n));
+                }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if button(ui, &t("social.cancel"), false).clicked() {
+                        ops.push(dyno_protocol::TradeOp::Cancel);
+                    }
+                    if button(ui, &t("social.accept_trade"), true).clicked() {
+                        ops.push(dyno_protocol::TradeOp::Accept);
+                    }
+                });
+            });
+        },
+    );
+    p.trade_money = coins_typed;
+    if !open {
+        ops.push(dyno_protocol::TradeOp::Cancel);
+    }
+    for op in ops {
+        let _ = p.conn.tx.send(ClientMsg::Trade(op));
+    }
+}
+
+/// The two tabs over the chat lines: Chat and Combat.
+pub fn chat_tabs(ctx: &egui::Context, p: &mut Play, at: Pos2) {
+    egui::Area::new(egui::Id::new("chat_tabs"))
+        .fixed_pos(at)
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 3.0;
+                for (key, combat) in [("chat.tab_chat", false), ("chat.tab_combat", true)] {
+                    let on = p.chat_tab_combat == combat;
+                    let b = egui::Button::new(
+                        RichText::new(t(key))
+                            .font(theme::title_font(11.5))
+                            .color(if on {
+                                theme::GOLD_BRIGHT
+                            } else {
+                                theme::TEXT_DIM
+                            }),
+                    )
+                    .fill(if on {
+                        Color32::from_rgba_unmultiplied(40, 29, 20, 235)
+                    } else {
+                        Color32::from_rgba_unmultiplied(22, 16, 12, 150)
+                    })
+                    .stroke(Stroke::new(
+                        1.0_f32,
+                        if on { theme::GOLD_DARK } else { theme::BRONZE },
+                    ))
+                    .min_size(Vec2::new(58.0, 22.0));
+                    let r = ui.add(b);
+                    crate::probe::mark(key, r.rect);
+                    if r.clicked() {
+                        p.chat_tab_combat = combat;
+                    }
+                }
+            });
+        });
 }

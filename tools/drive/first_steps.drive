@@ -61,7 +61,10 @@ shot 4-equipped
 # --- 5. spellbook: drag an ability to the bar; point at it for its tooltip --
 click left at tab.Spellbook
 expect tab spellbook
-drag at spell.fireball to bar.4
+press at spell.fireball
+move at bar.4
+shot 5-dragging
+release
 expect bar 4 fireball
 expect bar 0 empty
 hover at bar.4
@@ -78,10 +81,18 @@ remember window.screens
 drag at header.screens by 180 70
 expect moved window.screens
 
-# --- 8. with the window open and a tip on screen, the world still takes clicks
+# --- 7b. the map: M opens it, Esc closes it -----------------------------------
+key M
+expect map open
+expect mark map.canvas
+shot 7-map
 key Escape
+expect map closed
+
+# --- 8. with the window open and a tip on screen, the world still takes clicks
 say /summon grazer
 wait 1.5
+walk-to npc brannoc 3
 look-at npc brannoc
 click left npc brannoc
 expect target npc
