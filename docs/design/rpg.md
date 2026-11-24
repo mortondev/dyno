@@ -78,7 +78,7 @@ Effects available to abilities (all data, in the rules):
 - blink;
 - a bonus against Shades.
 
-Each ability names its picture (`image`, under `icons/abilities/`) and its sound (`sound`, under `sounds/abilities/`). Both are streamed when first needed, and `tools/abilities/icons.py` and `tools/abilities/sounds.py` make them.
+Each ability names its picture (`image`, under `icons/abilities/`, in the pack before play) and its sound (`sound`, under `sounds/abilities/`, streamed when first needed); `tools/abilities/icons.py` and `tools/abilities/sounds.py` make them.
 
 The global cooldown is 1.5 seconds (Rogues 1.0). An ability pressed up to 0.4 seconds before the global cooldown or a cast ends is queued, and goes off the moment it can.
 

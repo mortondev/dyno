@@ -24,12 +24,18 @@ Limits, stated plainly:
   class for 30 minutes is one bot-hour each. Most deaths are one or two bots
   walking into the bandit stockade again and again, or Shades at nightfall.
   The counts are given with their causes; they are not a class ranking.
-- **The duel model is a model.** It agrees with the hand-played fights to
-  within about a second or two, and it stands the fighter still.
+- **The duel model is a model.** It agreed with the hand-played fights to
+  within a second or two (while the hand fights had dead bleeds and the model
+  did not, so the true agreement is unmeasured), and it stands the fighter
+  still.
 - **Hand play was shorter than asked.** I pressed the buttons for about 5
   minutes a class, not 10 to 15: the text interface takes a second a command
   and lets the body's own rotation finish a fight when I stop typing. The
   notes below say what I saw, not more.
+- **Hand play ran with dead bleeds.** Every hand-played fight was before
+  the bleed fix (see below): Rending Cut, Barbed Arrow and Withering Word
+  cost their rage and mana in those fights and did no damage. Real kills are
+  a little quicker than the ones in the notes.
 - **Hand play ran on the numbers of the day.** The level 5 fights were
   played before the last retune (paladin seal and Judging Blow, warrior
   Heroic Blow and sword, rogue burst, priest shield). Where a note led to a
@@ -39,9 +45,19 @@ Limits, stated plainly:
 
 ## Before: what was wrong
 
-From the swarm on main (0f561ab), the duel model on the same rules, and a
-warrior and a paladin played by hand:
+From the swarm on main (0f561ab), the duel model on the same rules, a
+warrior played by hand on main and a read of the cast code. The creature
+and area data are the same at 0f561ab and at the commit the "after" runs
+were made on (checked field by field), though the world layout is not:
 
+- **Bleeds did nothing at all.** Rending Cut, Barbed Arrow, Withering Word
+  and Open Vein have no direct damage, so the server took them for
+  abilities that need no target, cast them at nobody, charged for them and
+  applied no bleed. On main the level 2 to 3 "second button" of the warrior,
+  the hunter and the priest was a dead button. I did not notice this while
+  playing (a bleed's ticks are easy to miss among auto-attacks); it came out
+  of a review of the cast code after the kits were tuned. It is fixed, with a
+  test, and the "before" columns of the duel model reproduce it.
 - **The warrior's first press fails.** Rage starts at 0, Heroic Blow costs
   15, and the charge (Onrush) came at level 4. My first two presses as a new
   warrior answered "Not enough rage."
@@ -53,12 +69,12 @@ warrior and a paladin played by hand:
   trap, no opener and no stealth existed; Ice Ring and Snare Shot came at
   level 6. A rogue short of energy was told "Not enough mana."
 - **Low Blow was never worth pressing** (40 energy for 1 damage).
-- **Kill times were far apart.** In the model at level 5, paladins took 41%
-  longer than the mean and mages 37% less; in the swarm, warriors +36% and
+- **Kill times were far apart.** In the model at level 5, hunters took 72%
+  longer than the mean and mages 45% less; in the swarm, warriors +36% and
   mages -27%.
-- **Two creatures killed the melee classes.** In the model a level 5
-  warrior won 29% of two-bandit pulls, and a level 4 or 5 rogue and a level 5
-  hunter almost none.
+- **Two creatures killed three classes.** In the model a level 5 warrior
+  won 3% of two-bandit pulls, and a level 4 or 5 rogue or hunter almost
+  none.
 - **A press during the global cooldown was silently lost.**
 
 BEFORE_TABLE
@@ -149,13 +165,14 @@ Other data changes:
 
 | Capability | Data | Used by |
 |---|---|---|
+| Bleeds (damage over time with no direct damage) are cast at their target; before, they were cast at nobody and did nothing | none (a fix) | Rending Cut, Barbed Arrow, Withering Word, Open Vein |
 | Opener: more damage against a creature that is not yet fighting you (or was first hit within 1.5 s, so an auto-attack landing first does not waste it) | `opener: 1.4` | Ambush, Marked Shot |
 | Slow | `slow: [percent, seconds]` | Frostbolt, Hamstring, Ground Slam |
 | Absorb shield: soaks up damage, then breaks ("Your shield absorbs 8.") | buff `absorb` | Ward of Light |
 | Weapon seal: extra damage on each auto-attack | buff `strike` | Seal of Dawn |
 | Stealth: creatures notice you from less far; ends when you strike or are struck; not usable in combat | buff `stealth` | Sneak |
 | Buff strength that grows with level | `per_level` | Ward of Light, Seal of Dawn |
-| An ability's own icon and sound, streamed from the pack when first needed | `image`, `sound` | all 43 abilities |
+| An ability's own icon (in the pack before play) and sound (streamed when first needed) | `image`, `sound` | all 43 abilities |
 | Ability queue: a press up to 0.4 s before the global cooldown or a cast ends goes off the moment it can | none (server) | everyone |
 | Heal numbers: a green "+N" and a combat-log line when you are healed | none (`Healed` message) | every heal |
 | A flash for buffs that had no effect to show | none | Battle Cry, Valour, Sneak and the like |
@@ -184,13 +201,13 @@ AFTER_TABLE
 
 | Class | Level 3: kill s / health lost / idle cooldowns | Level 5: kill s / health lost / idle cooldowns |
 |---|---|---|
-| Warrior | 7.9 / 35% / 61% → 4.7 / 15% / 0% | 6.3 / 34% / 13% → 7.3 / 36% / 15% |
+| Warrior | 8.3 / 42% / 62% → 4.7 / 15% / 0% | 7.8 / 43% / 21% → 7.3 / 36% / 15% |
 | Paladin | 8.8 / 24% / 62% → 5.3 / 8% / 37% | 9.4 / 34% / 66% → 6.4 / 20% / 39% |
-| Hunter | 7.9 / 6% / 57% → 6.4 / 0% / 23% | 8.8 / 21% / 52% → 7.6 / 0% / 18% |
+| Hunter | 11.5 / 25% / 61% → 6.4 / 0% / 23% | 13.4 / 48% / 65% → 7.6 / 0% / 18% |
 | Rogue | 5.1 / 10% / 38% → 5.2 / 9% / 24% | 5.1 / 13% / 38% → 6.5 / 15% / 34% |
-| Priest | 6.3 / 11% / 0% → 6.4 / 12% / 0% | 6.3 / 16% / 0% → 6.5 / 16% / 0% |
+| Priest | 6.4 / 12% / 0% → 6.4 / 12% / 0% | 6.7 / 19% / 0% → 6.5 / 16% / 0% |
 | Mage | 4.2 / 0% / 0% → 6.6 / 0% / 0% | 4.2 / 0% / 0% → 6.7 / 0% / 0% |
-| Spread of kill time about the mean | -37% to +31% → -18% to +14% | -37% to +41% → -7% to +12% |
+| Spread of kill time about the mean | -43% to +56% → -18% to +14% | -45% to +72% → -7% to +12% |
 
 Level 3 is against a Thornboar, level 5 against an Ashcloak Bandit. "Idle
 cooldowns" is the share of global cooldowns with nothing worth pressing. At
@@ -202,11 +219,11 @@ about a second and a half in fact.
 
 | Class | Level 3: won / health left | Level 4 | Level 5 |
 |---|---|---|---|
-| Warrior | 55% / 3% → 100% / 57% | 100% / 17% → 100% / 59% | 29% / 4% → 100% / 44% |
+| Warrior | 31% / 1% → 100% / 57% | 37% / 2% → 100% / 59% | 3% → 100% / 44% |
 | Paladin | 100% / 42% → 100% / 88% | 93% / 18% → 100% / 60% | 94% / 42% → 100% / 59% |
-| Hunter | 100% / 27% → 100% / 70% | 100% / 26% → 100% / 51% | 0% → 100% / 33% |
+| Hunter | 14% / 1% → 100% / 70% | 0% → 100% / 51% | 0% → 100% / 33% |
 | Rogue | 100% / 16% → 100% / 16% | 6% → 96% / 15% | 0% → 82% / 2% |
-| Priest | 100% / 40% → 100% / 75% | 100% / 61% → 100% / 74% | 100% / 87% → 100% / 90% |
+| Priest | 100% / 38% → 100% / 75% | 100% / 55% → 100% / 74% | 100% / 77% → 100% / 90% |
 | Mage | 100% / 82% → 100% / 60% | 100% / 100% → 100% / 75% | 100% / 73% → 100% / 45% |
 
 Two creatures are now dangerous and winnable for everyone. The rogue is
@@ -273,7 +290,8 @@ class felt helpless.
 | | Before | After |
 |---|---|---|
 | Buttons by level 5 | Quick Shot (6 s cooldown), Barbed Arrow (2) | Quick Shot (3 s), Barbed Arrow (1), Marked Shot (2), Hamstring (3), Snare Trap (4) |
-| Idle cooldowns at level 5 (model) | 52% | 18% |
+| Idle cooldowns at level 5 (model) | 65% | 18% |
+| Kill time against the mean, level 5 (model) | +72% | +12% |
 | Most-pressed button's share (swarm) | Quick Shot 57% | HUNTER_SHARE |
 
 At level 5 from 22 blocks: Marked Shot took a level 5 Mirepincher from 117
@@ -330,7 +348,7 @@ most of what a priest presses.
 | | Before | After |
 |---|---|---|
 | Buttons by level 5 | Fireball, Scholar's Focus (2), Fire Blast (2) | Fireball, Frostbolt (1), Fire Blast (2), Ice Ring (4), Scholar's Focus (5) |
-| Kill time against the mean, level 5 (model) | -37% | -2% |
+| Kill time against the mean, level 5 (model) | -45% | -2% |
 | Most-pressed button's share (swarm) | Fireball 69% | MAGE_SHARE |
 
 With a level 5 bandit summoned on top of me: Ice Ring, eight steps back

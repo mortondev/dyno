@@ -10,7 +10,6 @@
   "stage": "stage/title.dynw"
  },
  "stream": [
-  "icons/abilities/",
   "sounds/abilities/",
   "models/creatures/",
   "models/held/",

@@ -212,8 +212,7 @@ impl State {
             return self.fail(id, "You cannot hide while in combat.");
         }
         // abilities that hit a target need one in range
-        let needs_target = a.range > 0.0
-            && (a.damage[0] > 0.0 || a.root > 0.0 || a.stun > 0.0 || a.slow[1] > 0.0 || a.charge);
+        let needs_target = needs_target(&a);
         let target = if needs_target {
             let Some(t) = target.filter(|t| self.entities.get(t).is_some_and(|e| e.mob.is_some()))
             else {
@@ -858,9 +857,53 @@ impl State {
     }
 }
 
+/// Does this ability act on a creature you must have targeted? Anything
+/// with a range does: a blow, a bleed, a snare, a charge. (A bleed with no
+/// direct damage used to count as needing none, was cast at nobody, and did
+/// nothing.)
+pub fn needs_target(a: &Ability) -> bool {
+    a.range > 0.0
+}
+
 /// Dealing or taking damage ends stealth. Returns true if an aura went.
 pub fn drop_stealth(auras: &mut Vec<Aura>) -> bool {
     let before = auras.len();
     auras.retain(|a| a.buff.is_none_or(|b| b.kind != BuffKind::Stealth));
     auras.len() != before
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dyno_world::content::Content;
+
+    /// Every ability that reaches out to a creature is cast at one: a bleed
+    /// (Rending Cut, Barbed Arrow, Withering Word, Open Vein) is no
+    /// exception, and nor is a snare, a slow or a charge.
+    #[test]
+    fn abilities_that_act_on_a_creature_need_a_target() {
+        let c = Content::default_pack();
+        let mut bleeds = 0;
+        for a in &c.abilities {
+            let acts = a.damage[0] > 0.0 && a.radius <= 0.0
+                || a.weapon > 0.0
+                || a.dot[2] > 0.0
+                || a.root > 0.0 && a.radius <= 0.0
+                || a.stun > 0.0
+                || a.slow[1] > 0.0 && a.radius <= 0.0
+                || a.charge
+                || a.opener > 1.0;
+            if acts {
+                assert!(needs_target(a), "{} is cast at nobody", a.key);
+            }
+            if a.dot[2] > 0.0 && a.damage[0] <= 0.0 {
+                bleeds += 1;
+            }
+            // self-only abilities must not ask for one
+            if a.range <= 0.0 {
+                assert!(!needs_target(a), "{} needs no target", a.key);
+            }
+        }
+        assert!(bleeds >= 3, "the pack has bleeds to check");
+    }
 }
