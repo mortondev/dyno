@@ -413,7 +413,7 @@ flowchart LR
 | Kind | What |
 |---|---|
 | Unit tests | Per crate: content parsing, progression, parties, rested XP, migration, terrain mesh, minimap… |
-| Protocol tests | `crates/dyno-client/tests/survival_loop.rs`: real server, real client networking: the survival loop, quests and classes, Nightfall, characters, loot and merchants, phasing, shards and parties, area crowding. |
+| Protocol tests | `crates/dyno-client/tests/protocol.rs`: real server, real client networking: bags, crafting at stations, the inn, operator commands, night Shades, quests and classes, Nightfall, characters, loot and merchants, phasing, shards and parties, area crowding. |
 | Screenshots | `dyno shot` against a test server; front-end pages; animation contact sheets. |
 | Playtests | Headless bot swarms with a "fun" report (reward cadence, droughts, time to first kill/level, deaths, stuck spots) and a text interface for AI playtesters (in progress). |
 
