@@ -973,6 +973,7 @@
     {"stamp": "ashcloak_charred_stumps", "at": [-38, 6], "rot": 2, "fit": "ground"},
     {"stamp": "log_pile", "at": [-26, -12], "rot": 1, "fit": "ground"},
     {"stamp": "ashcloak_loot_cart", "at": [22, 30], "rot": 1, "fit": "ground"},
+    {"stamp": "ashcloak_clear_14", "at": [-8, -50], "fit": "float", "dy": 40},
     {"stamp": "ashcloak_lookout", "at": [-12, -42], "fit": "ground"},
     {"stamp": "ashcloak_charred_stumps", "at": [-16, 42], "rot": 3, "fit": "ground"},
     {"stamp": "ashcloak_charred_stumps", "at": [18, 40], "rot": 1, "fit": "ground"},
