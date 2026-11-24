@@ -45,8 +45,22 @@ pub struct Vertex {
     pub tex: [f32; 4],
 }
 
-/// No texture: the vertex colour is the surface colour.
+/// No texture: the vertex colour is the surface colour. (`tex[0]` above 0
+/// dithers that part of it away: [`fade_out`].)
 pub const NO_TEX: [f32; 4] = [0.0, 0.0, -1.0, 0.0];
+
+/// Draw these untextured vertices only `shown` (0..1) of the way: the rest
+/// of their pixels are dithered out (the play camera close in on the
+/// character, camera.rs).
+pub fn fade_out(verts: &mut [Vertex], shown: f32) {
+    let gone = (1.0 - shown).clamp(0.0, 1.0);
+    if gone <= 0.0 {
+        return;
+    }
+    for v in verts.iter_mut().filter(|v| v.tex[2] == NO_TEX[2]) {
+        v.tex[0] = gone;
+    }
+}
 
 // What a vertex is, told by `tex[2]`. From 0 up it is a texture layer plus
 // one of these bands; below 0 it is untextured.
@@ -62,8 +76,6 @@ pub const KIND_WATER: f32 = 12288.0;
 pub const KIND_VOXEL: f32 = 16384.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
 const KIND_DECAL: f32 = -3.0;
-/// A halo: a camera-facing square, added to the picture.
-pub(crate) const KIND_GLOW: f32 = -4.0;
 
 /// The block textures from the pack.
 pub fn textures() -> &'static crate::textures::Textures {
@@ -360,6 +372,11 @@ fn ground_tone(m: f32) -> vec3<f32> {
   if (kz < -4.5 && kz > -5.5) {
     let k = clamp((d - i.tex.x) / max(i.tex.y, 1.0), 0.0, 1.0);
     if (hash3(floor(i.wpos * 3.0)) > k) { discard; }
+  }
+  // a figure the camera is right up against fades out: a screen dither
+  // over tex.x, the part of it gone (camera.rs; whole cubes, nothing moved)
+  if (kz < -0.5 && kz > -1.5 && i.tex.x > 0.0) {
+    if (hash3(vec3<f32>(floor(i.clip.xy), 0.0)) < i.tex.x) { discard; }
   }
   let has_n = dot(i.normal, i.normal) > 0.25;
   var n = vec3<f32>(0.0, 1.0, 0.0);
@@ -1023,28 +1040,6 @@ fn bleed(img: &mut [u8], size: usize) {
         if !changed {
             break;
         }
-    }
-}
-
-/// The six vertices of a halo. The vertex shader turns them to the camera.
-fn push_glow(out: &mut Vec<Vertex>, g: &Glow) {
-    let c = srgb(g.color);
-    for (x, y) in [
-        (-1.0, -1.0),
-        (1.0, -1.0),
-        (1.0, 1.0),
-        (-1.0, -1.0),
-        (1.0, 1.0),
-        (-1.0, 1.0),
-    ] {
-        out.push(Vertex {
-            pos: g.pos,
-            normal: [x, y, g.size],
-            color: [c[0], c[1], c[2], 0.5],
-            light: 1.0,
-            sky: 1.0,
-            tex: [0.0, 0.0, KIND_GLOW, 0.0],
-        });
     }
 }
 
@@ -2028,7 +2023,7 @@ impl Gfx {
             packed,
             opaque,
             ground,
-            mut trans,
+            trans,
             glows,
             cover,
             lod,
@@ -2036,11 +2031,11 @@ impl Gfx {
         } = geo;
         // packed where it was meshed, as a rule
         let solid = packed.unwrap_or_else(|| crate::pack::Geo::pack(at, &ground, &opaque));
+        // (lamps glow through their emissive faces and the bloom: no
+        // camera-facing halos, the voxel rule)
+        let _ = &glows;
         let t = trans.len() as u32;
-        for g in &glows {
-            push_glow(&mut trans, g);
-        }
-        let glow = trans.len() as u32 - t;
+        let glow = 0;
         self.ensure_quad_index(solid.quads);
         // its corner keeps its place while the section is drawn
         let was = self

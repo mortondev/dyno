@@ -231,6 +231,8 @@ pub struct Interface {
     pub shake: bool,
     pub tips_seen: Vec<String>,
     pub bars: std::collections::BTreeMap<String, Vec<String>>,
+    /// the camera swings back behind you as you move (camera.rs)
+    pub follow: bool,
 }
 
 impl Default for Interface {
@@ -247,6 +249,7 @@ impl Interface {
             shake: s.camera_shake,
             tips_seen: s.tips_seen.clone(),
             bars: s.bars.clone(),
+            follow: s.camera_follow,
         }
     }
 
@@ -256,6 +259,7 @@ impl Interface {
         s.camera_shake = self.shake;
         s.tips_seen = self.tips_seen;
         s.bars = self.bars;
+        s.camera_follow = self.follow;
     }
 }
 
@@ -433,6 +437,14 @@ pub fn panel(ui: &mut egui::Ui) -> bool {
             &[&off, &on],
         ) {
             changed |= change_interface(|o| o.shake = i == 1);
+        }
+        if let Some(i) = row(
+            ui,
+            &t("options.camera_follow"),
+            Some(now.follow as usize),
+            &[&off, &on],
+        ) {
+            changed |= change_interface(|o| o.follow = i == 1);
         }
     }
     // sound: the master level and each bus (names from the pack)

@@ -22,10 +22,10 @@ and what has been fixed. The tests that hold the rule are in
 
 | # | Goal | Result |
 |---|---|---|
-| 7 | Figures sculpted at 3.125 cm (32 a block), no taper, bevel or non-uniform scale, via `dyno bake-figure`; people stay 1.78 m; held items and creatures name a ladder step | pending |
-| 8 | Silhouettes, armour sets and NPC looks still read; outfit sheets before and after | pending (before: `docs/art/voxel-rule/figures/outfits-before*.jpg`) |
-| 9 | Figure vertex cost within 10% at each LOD; first join under 4 MB | pending (before: `docs/art/voxel-rule/figures/cost-before.tsv`; first join 2,964,228 bytes) |
-| 10 | The figure entries are gone from the allowlist | pending |
+| 7 | Figures sculpted at 3.125 cm (32 a block), no taper, bevel or non-uniform scale, via `dyno bake-figure`; people stay 1.78 m; held items and creatures name a ladder step | **pass**. The person's grids are sculpted at `detail` 32/34.63 voxels a rig unit, so its cubes are exactly 1/32 of a block (the lead agreed: rig and clip numbers stand, `people_are_life_size` passes). Builds and the 1.14 head are sculpted into the voxels (`sculpt/mod.rs` `Variant`), the rig's part scales are gone, and so are the taper and the shaped mesher (`smooth.rs`). Held items are re-voxelled at 1/32 (`tools/figures/relevel.py`). Creatures were already at 32 a block; a creature drawn at a rules `scale` is re-voxelled at that size (`build_at`), and a bone's `scale` op draws its part whole or hidden. The mesh test checks every figure part on its own grid at sizes 0.7, 1, 1.2 and 1.6 |
+| 8 | Silhouettes, armour sets and NPC looks still read; outfit sheets before and after | **pass, coarser**: `docs/art/voxel-rule/figures/outfits-before*.jpg` and `outfits-after*.jpg` (plus `outfits-after-plate-ironbound-level-8.jpg`). Silhouettes, builds, pauldrons, helms, tabards, capes, shields and the class looks read as before. Faces are simpler at 3.125 cm: eyes are one or two cubes, mouths and brows on the woman's face fall below a cube and vanish (bake warns of four empty layers), and close-up portraits are blocky. Shells, sheets and trim bands were made at least a voxel thick so nothing shows through |
+| 9 | Figure vertex cost within 10% at each LOD; first join under 4 MB | **pass**: the person (12 looks summed) costs 371k, 371k, 371k, 138k and 40k vertices at its five levels, against 1,817k, 704k, 500k, 192k and 48k before (−80%, −47%, −26%, −28%, −18%); held items 29k against 44k; creatures unchanged at life size (`cost-before.tsv`, `cost-after.tsv`). `person.vox` 2.5 MB to 0.83 MB; a first join downloads 2,432,906 bytes (2,964,228 before) |
+| 10 | The figure entries are gone from the allowlist | **pass**: none left; the halos the lead ruled out are removed and guarded by the shader test |
 
 ## How the tests decide
 
@@ -66,19 +66,21 @@ Ladder step: 1 = 1 m, 2 = 50 cm, 3 = 25 cm, 4 = 12.5 cm, 5 = 6.25 cm,
 | `render.rs` `ring` | a 40-segment circle round the target | — | a stepped circle of 6.25 cm cells |
 | `sky.rs` | round sun and moon discs | — | squares, the moon's seas in cells as before |
 | `particles.rs` `edge` | cubes of any size as an effect grows and fades | off | sizes snap to the ladder (`ladder::snap`); smaller than two thirds of 3.125 cm is not drawn |
+| `app.rs` `spawn_bolt`, `spawn_burst`, `spawn_motes`, block chips | sparks, motes and chips shrinking smoothly as they die | off | drawn at ladder edges (`particle_edge`, `ladder::snap`); in the mesh test |
+| `render.rs` `push_glow`, `particles.rs` `halo` | camera-facing glow quads round lamps and glowing particles (billboards) | — | removed (the lead's ruling): the glow is the emissive cubes' and the bloom's |
+| `content/figures.json` person (`per_block` 34.63 × detail 2 and 2.5) | people at 1.44 cm and 1.16 cm voxels | off | sculpted at 32/34.63 a rig unit: 3.125 cm (hand-in 2) |
+| `content/rigs/biped.json` part `scale` (builds 0.93–1.1, head 1.14); `figure.rs` `reshape` taper | parts stretched unevenly off their grid | off | builds and the head sculpted into the voxels; `shape`, `reshape` and the taper removed |
+| `voxmodel` `smooth.rs` (surface nets, `bevel`, `soft`) | the shaped mesher | — | removed |
+| `content/figures.json` `held.kinds.*.unit` (0.014–0.039 blocks) | held items at 29 off-ladder voxel sizes | off | re-voxelled at 1/32 (`tools/figures/relevel.py`) |
+| `content/rules/hearthblock.json` creature `scale` (0.7–1.6) | creatures drawn larger or smaller than modelled | off | re-voxelled at their size when built (`figure.rs` `build_at`, `Vox::resample`); what they hold is drawn at its own size |
+| `content/rigs/wisp.json`, `wraith.json` bone `scale` ops | the wisp's core, tail and veil, the shade's eyes squashed as they move | off | the engine draws a part whole or hidden; the tails' pulse removed from the data |
 
-### Allowlisted (other lanes, or this lane's hand-in 2)
+### Allowlisted (other lanes)
 
 All dated 2026-11-24 in `voxel_rule.rs`.
 
 | File | What it draws | Step | Fix | Owner |
 |---|---|---|---|---|
-| `content/figures.json` person grids `main`, `head` (`per_block` 34.63 × 2 and × 2.5) | people at 1.44 cm and 1.16 cm voxels | off | sculpt at 32 a block (`dyno bake-figure`) | figures (this lane, hand-in 2) |
-| `content/rigs/biped.json` part `scale` (torso, limbs, cape, flaps 1.08–1.1 × 1 × 1.05–1.08; head 1.14) | parts scaled unevenly, off their grid | off | bake the shape into the voxels; no scale | figures (hand-in 2) |
-| `content/rigs/wisp.json`, `wraith.json` bone `scale` ops | the gloomwisp's core, tail and veil, the shade's eyes, scaled as they move | off | whole-part motion only, or frames at ladder sizes | figures (hand-in 2) |
-| `content/figures.json` `held.kinds.*.unit` (0.014–0.039 blocks) | held items and dropped things at 29 off-ladder voxel sizes | off | units of 1/32 or 1/16 | figures (hand-in 2) |
-| `content/rules/hearthblock.json` creature `scale` (0.7 to 1.6) | creatures drawn larger or smaller than modelled | off | creatures modelled at their size on a ladder step | figures (hand-in 2) |
-| `figure.rs` `reshape()` taper, `voxmodel.rs` `Smooth` (`bevel`, `soft`) | (code paths: no pack data uses them today) | — | remove with the figure work | figures (hand-in 2) |
 | `content/life.json` `critters.*.unit` (0.035 to 0.18 m) | butterflies, birds, bats, crabs, deer, ducks, gulls, herons, rabbits, sheep, stags at 13 off-ladder sizes | off | re-voxel each at the nearest step (1/32, 1/16 or 1/8) | life lane (ambient critters) |
 | `cover.rs` sway (`let s = v.sway * (sin(…`); `cover.json` `sway` on 20 kinds | grass and flowers bending vertex by vertex (cubes shear) | 4–5 | sway each plant as one rigid piece about its root | vegetation lane |
 | `cover.rs` fade (`* fade`) | cover shrinking into the ground at the end of its reach (cubes leave the ladder) | 4–5 | sink it whole instead of scaling, or a dither | vegetation lane |
@@ -119,10 +121,6 @@ engineer's to judge:
 
 ### Judged within the rule
 
-- **Halos** (`render.rs` `push_glow`, `particles.rs` `halo`): additive
-  camera-facing glows round lamps and glowing particles. They are light,
-  like bloom, not a particle's body (the body is a cube). Flagged here for
-  the lead to confirm.
 - **Water ripples and foam** (`water.rs`): drawn on the flat surface in
   squares, one height a cell; the reflection leans by a cell's ripple. A
   reflection is a screen effect, and the cells are squares.
@@ -142,3 +140,5 @@ draw calls, meshing 0.8–1.4 ms a section (mean). Two tools keep the count
 down: `stairs.py` (25 cm treads, a quarter of the steps of the 6.25 cm
 diagonal) and `rounds.py` (a clean circle per slice merges into tall
 faces), and round parts join from cell to cell (`"joins": true`).
+`tools/bench/reference.json` was recorded again for the same reason
+(the plaza 28–34% and Miner's Rest 18% over the old reference).

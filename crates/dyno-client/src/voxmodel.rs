@@ -8,11 +8,6 @@ use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-#[path = "smooth.rs"]
-mod smooth;
-pub use smooth::Smooth;
-use smooth::face_normals;
-
 /// A palette index. 0 is empty space.
 pub type Ink = u8;
 
@@ -105,6 +100,38 @@ impl Vox {
             unit: self.unit,
             core: OnceCell::new(),
         }
+    }
+
+    /// The same model `s` times the size, re-voxelled so its voxels stay the
+    /// size they were (each new voxel takes the one its centre falls in):
+    /// a figure drawn larger or smaller keeps its cubes on the ladder
+    /// (docs/art/voxel-rule.md). Meshes come out in the same units, `s`
+    /// times as far from the origin.
+    pub fn resample(&self, s: f32) -> Vox {
+        let (min, max) = self.bounds();
+        let lo = min.map(|m| (m as f32 * s).floor() as i32);
+        let hi = max.map(|m| (m as f32 * s).ceil() as i32);
+        let mut out = Vox::new(lo, hi);
+        out.palette = self.palette.clone();
+        out.crisp = self.crisp.clone();
+        out.lookup = self.lookup.clone();
+        out.unit = self.unit / s;
+        let src = |v: i32| ((v as f32 + 0.5) / s).floor() as i32;
+        for y in lo[1]..hi[1] {
+            for z in lo[2]..hi[2] {
+                for x in lo[0]..hi[0] {
+                    let Some(i) = self.idx(src(x), src(y), src(z)) else {
+                        continue;
+                    };
+                    if self.cells[i] != 0 {
+                        out.part = self.parts[i];
+                        out.set(x, y, z, self.cells[i]);
+                    }
+                }
+            }
+        }
+        out.part = self.part;
+        out
     }
 
     /// The same model at half the detail, for drawing far away: each 2 x 2 x 2
@@ -526,65 +553,9 @@ pub struct Mesh {
     /// side but the sun can, this is drawn in its place: it costs far fewer
     /// vertices and throws the same shadow.
     core: Option<Box<Mesh>>,
-    /// a smooth mesh: a normal per vertex (empty for a blocky mesh, whose
-    /// faces take theirs from their group)
-    normals: Vec<[f32; 3]>,
-    /// a smooth mesh: each triangle's face normal, for culling
-    faces: Vec<[f32; 3]>,
 }
 
 impl Mesh {
-    /// True if the mesh is smooth (normals per vertex).
-    pub fn smooth(&self) -> bool {
-        !self.normals.is_empty()
-    }
-
-    /// Move every vertex (and the shadow core's) through `f`, in voxel units
-    /// from the part's pivot, and refresh the bounds used to cull faces.
-    /// Gentle reshaping only: faces keep the direction they were made with.
-    pub fn reshape(&mut self, f: &dyn Fn([f32; 3]) -> [f32; 3]) {
-        if self.smooth() {
-            // normals follow the local stretch, measured by moving a little
-            // along each axis
-            for (v, n) in self.verts.iter_mut().zip(&mut self.normals) {
-                let p = v.pos;
-                let q = f(p);
-                let e = 0.25;
-                let d = |a: usize| {
-                    let mut r = p;
-                    r[a] += e;
-                    let r = f(r);
-                    Vec3::new(r[0] - q[0], r[1] - q[1], r[2] - q[2]) / e
-                };
-                let j = glam::Mat3::from_cols(d(0), d(1), d(2));
-                let m = if j.determinant().abs() > 1e-6 {
-                    j.inverse().transpose()
-                } else {
-                    glam::Mat3::IDENTITY
-                };
-                *n = (m * Vec3::from(*n)).normalize_or_zero().into();
-                v.pos = q;
-            }
-            self.faces = face_normals(&self.verts);
-        } else {
-            for v in &mut self.verts {
-                v.pos = f(v.pos);
-            }
-        }
-        for (i, g) in self.groups.iter_mut().enumerate() {
-            let axis = i / 2;
-            let run = &self.verts[g.start as usize..g.end as usize];
-            if run.is_empty() {
-                continue;
-            }
-            g.lo = run.iter().map(|v| v.pos[axis]).fold(f32::MAX, f32::min);
-            g.hi = run.iter().map(|v| v.pos[axis]).fold(f32::MIN, f32::max);
-        }
-        if let Some(core) = &mut self.core {
-            core.reshape(f);
-        }
-    }
-
     /// Lowest and highest vertex along y.
     pub fn y_range(&self) -> (f32, f32) {
         self.verts.iter().fold((f32::MAX, f32::MIN), |(lo, hi), v| {
@@ -701,57 +672,6 @@ pub fn emit(out: &mut Vec<Vertex>, mesh: &Mesh, xf: &Affine3A, paint: Paint) {
     let plain = k <= 0.0 && !paint.glow;
     let glow = paint.glow || k > 0.5;
     out.reserve(mesh.verts.len());
-    if mesh.smooth() {
-        // normals go through the inverse transpose; a triangle is skipped
-        // when it faces away from both the camera and the light
-        let nm = m.inverse().transpose();
-        let light = paint.light;
-        for (tri, (vs, f)) in mesh
-            .verts
-            .as_chunks::<3>()
-            .0
-            .iter()
-            .zip(&mesh.faces)
-            .enumerate()
-        {
-            if let Some((eye, sun)) = view {
-                let f = Vec3A::from(*f);
-                if (eye - Vec3A::from(vs[0].pos)).dot(f) < 0.0 && sun.dot(f) <= 0.0 {
-                    continue;
-                }
-            }
-            for (v, n) in vs.iter().zip(&mesh.normals[tri * 3..tri * 3 + 3]) {
-                let p = m * Vec3A::from(v.pos) + t;
-                let n = (nm * Vec3A::from(*n)).normalize_or_zero();
-                let (normal, shade) = if paint.sun {
-                    (n.into(), 1.0)
-                } else {
-                    let s = 0.54 + 0.42 * n.dot(sun_dir).max(0.0) + 0.12 * (n.y * 0.5 + 0.5);
-                    ([0.0; 3], s.min(1.0))
-                };
-                let c = v.color;
-                let a = if glow || c[3] > 1.9 {
-                    2.0
-                } else {
-                    c[3] * shade
-                };
-                out.push(Vertex {
-                    pos: p.into(),
-                    normal,
-                    color: [
-                        c[0] + (1.0 - c[0]) * k,
-                        c[1] + (1.0 - c[1]) * k,
-                        c[2] + (1.0 - c[2]) * k,
-                        a,
-                    ],
-                    light,
-                    sky: 1.0,
-                    tex: NO_TEX,
-                });
-            }
-        }
-        return;
-    }
     for (i, g) in mesh.groups.iter().enumerate() {
         let (axis, sign) = (i / 2, if i % 2 == 0 { 1.0 } else { -1.0 });
         let mut verts = &mesh.verts[g.start as usize..g.end as usize];

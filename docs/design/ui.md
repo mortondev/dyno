@@ -249,6 +249,15 @@ the world with a window open and a tip showing. `tools/drive/run.sh` builds
 the release `dyno`, starts a fresh world whose operator is the driven
 character, and runs it.
 
+`tools/drive/camera.drive` is the play camera's test (docs/design/camera.md),
+run the same way by `tools/drive/camera.sh`. `yard` builds a course round
+the character (a house with a door at each end, a tree whose crown hangs
+over the way, stairs, a cliff); `walk-path X Z ...` holds W and steers
+through points of it at a hand's turning rate; `swing DEG [PITCH]` drags the
+camera round with the left button held; `camera record` logs the camera
+every frame and `camera check SPEED` fails on a pop (a frame that moved it
+faster than SPEED m/s) or an eye in a wall.
+
 Three changes to play came out of building it. None was seen failing for
 a player; each was made because the script's failures pointed at it:
 - a tip with no HUD part to point at sat in the lower middle of the screen,
