@@ -158,7 +158,11 @@ def machine(reps, paths):
     for i, (r, p) in enumerate(zip(reps, paths)):
         m = r.get("machine") or {}
         t = m.get("tick")
-        tick = f"{t['mean_ms']:.2f} / {t['p95_ms']:.2f} / {t['p99_ms']:.2f} / {t['worst_ms']:.0f} ms" if t else "not measured"
+        if t and t.get("note"):
+            # a swarm against a separate server: the worst minute's p95 bounds the run's
+            tick = f"{t['mean_ms']:.2f} / under {t['p95_ms']:.2f} / not measured / {t['worst_ms']:.0f} ms"
+        else:
+            tick = f"{t['mean_ms']:.2f} / {t['p95_ms']:.2f} / {t['p99_ms']:.2f} / {t['worst_ms']:.0f} ms" if t else "not measured"
         wm = f"{t['worst_minute_p95_ms']:.2f} ms" if t else "-"
         ok = ("yes" if t["p95_ms"] < 50 else "NO") if t else "?"
         print(f"| {chr(ord('A') + i)} | {os.path.basename(p)} | {m.get('load_start', 0):.1f} / {m.get('load_mean', 0):.1f} / {m.get('load_max', 0):.1f} ({m.get('cores', '?')}) | {tick} | {wm} | {ok} |")
