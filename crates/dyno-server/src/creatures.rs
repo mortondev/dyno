@@ -258,7 +258,7 @@ fn physics(
 }
 
 /// A place a creature can stand: solid below, two cells of air (not water).
-fn standable(world: &World, x: i32, y: i32, z: i32) -> bool {
+pub(crate) fn standable(world: &World, x: i32, y: i32, z: i32) -> bool {
     let below = world.get(x, y - 1, z);
     w::is_solid(below)
         && below != w::WATER
@@ -451,7 +451,12 @@ impl State {
                             let daylit = !night && self.light.sky(s[0], s[1], s[2]) >= 4;
                             let crowded =
                                 self.players.values().any(|p| hdist(p.pose.pos, f) < 12.0);
+                            // in a world of areas the dark rises only in its haunts
+                            let haunt = underground
+                                || !self.content.world.dark_in_areas
+                                || self.in_dark_area(f);
                             if dark
+                                && haunt
                                 && !daylit
                                 && !crowded
                                 && !in_sanctuary(&self.hearths, f)
@@ -956,11 +961,34 @@ impl State {
                 .filter(|(_, at)| at.elapsed() < Duration::from_secs(10))
                 .map(|(p, _)| p));
         let credited = killer.map(|k| self.credited(k, pos)).unwrap_or_default();
-        // in a party, quest items drop for each member who needs one (and go
-        // straight into their bags); the shared body holds the rest
-        let personal: Vec<(PlayerId, Vec<u16>)> = if credited.len() > 1 {
+        // shared tags (`world.shared_tags`): players outside the tagger's
+        // party who took their part of its health off it share the kill
+        let helpers: Vec<PlayerId> = match self.content.world.shared_tags {
+            Some(rule) if !credited.is_empty() => {
+                let need = rule.damage * mob.max_health;
+                let mut h: Vec<PlayerId> = mob
+                    .threat
+                    .iter()
+                    .filter(|(pid, dealt)| **dealt >= need && !credited.contains(pid))
+                    .filter(|(pid, _)| {
+                        self.players
+                            .get(pid)
+                            .is_some_and(|p| !p.dead && crate::game::dist(p.pose.pos, pos) < 80.0)
+                    })
+                    .map(|(pid, _)| *pid)
+                    .collect();
+                h.sort_unstable();
+                h
+            }
+            _ => Vec::new(),
+        };
+        // when a kill is shared (a party, or helpers), quest items drop for
+        // each player who needs one (and go straight into their bags); the
+        // body, which is the tagger's and their party's, holds the rest
+        let personal: Vec<(PlayerId, Vec<u16>)> = if credited.len() + helpers.len() > 1 {
             credited
                 .iter()
+                .chain(&helpers)
                 .map(|pid| (*pid, self.quest_items_needed(*pid)))
                 .collect()
         } else {
@@ -1004,6 +1032,12 @@ impl State {
         // everyone who shares the kill gets quest credit; XP is split, with a group bonus
         let share = self.content.world.kill_share(credited.len());
         for pid in credited {
+            self.milestone(pid, &format!("kill:{key}"));
+            self.credit_kill(pid, mob.creature, mob.level, share);
+        }
+        // a helper's kill counts for their quests and pays their own XP
+        let share = self.content.world.shared_tags.map_or(0.0, |r| r.xp);
+        for pid in helpers {
             self.milestone(pid, &format!("kill:{key}"));
             self.credit_kill(pid, mob.creature, mob.level, share);
         }

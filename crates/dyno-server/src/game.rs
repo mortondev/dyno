@@ -281,7 +281,20 @@ impl State {
     }
     /// Where new and bedless players appear: beside the spawn hearth.
     pub fn spawn_point(&self) -> [f32; 3] {
-        self.world.spawn_near(self.spawn_hearth)
+        let h = self.spawn_hearth;
+        // where the rules say a character wakes (`world.spawn_at`), if that
+        // is open ground; else beside the hearth
+        if let Some([dx, dz]) = self.content.world.spawn_at {
+            let (x, z) = (h[0] + dx, h[2] + dz);
+            for dy in [0, 1, -1, 2, -2, 3, -3] {
+                let y = h[1] + dy;
+                if crate::creatures::standable(&self.world, x, y, z) {
+                    return [x as f32 + 0.5, y as f32 + 0.01, z as f32 + 0.5];
+                }
+            }
+            return self.world.spawn_near([x, h[1], z]);
+        }
+        self.world.spawn_near(h)
     }
     pub fn is_night(&self) -> bool {
         is_night_at(self.clock)

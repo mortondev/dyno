@@ -586,6 +586,56 @@ pub struct WorldRules {
     /// the formula assumed.
     #[serde(default)]
     pub kill_xp: Option<f32>,
+    /// open-world tags: players outside the tagger's party who did their
+    /// part of a kill share it (none: the first to hit takes everything)
+    #[serde(default)]
+    pub shared_tags: Option<SharedTags>,
+    /// camps where players crowd come back sooner (none: the camp's time)
+    #[serde(default)]
+    pub crowd_respawn: Option<CrowdRespawn>,
+    /// on the surface, creatures that spawn in the dark rise only in areas
+    /// marked `dark` (false: anywhere dark, as in a survival world)
+    #[serde(default)]
+    pub dark_in_areas: bool,
+    /// where a new character wakes: (x, z) from the spawn hearth, the
+    /// nearest open ground to it (none: beside the hearth). A client starts
+    /// facing north (-z), so south of what it should see.
+    #[serde(default)]
+    pub spawn_at: Option<[i32; 2]>,
+}
+
+/// Who shares a kill with the player (and party) who tagged the creature.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SharedTags {
+    /// the share of the creature's health a player must have taken off it
+    pub damage: f32,
+    /// the helper's kill XP, as a share of what the kill pays one player
+    #[serde(default = "always")]
+    pub xp: f32,
+}
+
+/// Faster respawns where players crowd: with `n` players within `radius`
+/// of the camp's creature when it dies, its respawn time is multiplied by
+/// `per_player` for each one past the first, down to `least` of the time.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CrowdRespawn {
+    pub radius: f32,
+    pub per_player: f32,
+    pub least: f32,
+    /// how close a player may stand to a point that respawns, when two or
+    /// more are waiting at the camp (alone: 12 m, so nothing appears on you)
+    #[serde(default)]
+    pub near: Option<f32>,
+}
+
+impl CrowdRespawn {
+    /// The share of a camp's respawn time with `players` near it.
+    pub fn factor(&self, players: usize) -> f32 {
+        self.per_player
+            .clamp(0.0, 1.0)
+            .powi(players.saturating_sub(1) as i32)
+            .max(self.least.clamp(0.0, 1.0))
+    }
 }
 
 impl WorldRules {
@@ -655,6 +705,10 @@ pub struct Area {
     /// a hearth's peace: no hostile creatures spawn
     #[serde(default)]
     pub safe: bool,
+    /// a haunted place: creatures of the dark rise here at night (see
+    /// `WorldRules::dark_in_areas`)
+    #[serde(default)]
+    pub dark: bool,
     #[serde(default)]
     pub camps: Vec<Camp>,
 }
@@ -762,6 +816,8 @@ struct AArea {
     levels: [u8; 2],
     #[serde(default)]
     safe: bool,
+    #[serde(default)]
+    dark: bool,
     #[serde(default)]
     camps: Vec<ACamp>,
 }
@@ -1459,6 +1515,7 @@ impl Content {
                 radius: a.radius,
                 levels: a.levels,
                 safe: a.safe,
+                dark: a.dark,
                 camps,
             });
         }
@@ -1640,6 +1697,24 @@ pub fn default_quest_xp(level: u8) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn crowd_respawn_is_data() {
+        let c = CrowdRespawn {
+            radius: 45.0,
+            per_player: 0.8,
+            least: 0.4,
+            near: None,
+        };
+        assert!((c.factor(0) - 1.0).abs() < 1e-6);
+        assert!(
+            (c.factor(1) - 1.0).abs() < 1e-6,
+            "alone: the camp's own time"
+        );
+        assert!((c.factor(2) - 0.8).abs() < 1e-6);
+        assert!((c.factor(3) - 0.64).abs() < 1e-6);
+        assert!((c.factor(12) - 0.4).abs() < 1e-6, "never under the least");
+    }
 
     #[test]
     fn group_bonus_is_data() {

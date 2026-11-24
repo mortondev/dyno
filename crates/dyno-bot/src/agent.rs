@@ -707,6 +707,15 @@ impl Agent {
         self.tel.latency_ms = self.body.latency.clone();
     }
 
+    /// The cart ride an item is, if it is one.
+    pub fn ride_of(&self, item: u16) -> Option<&dyno_world::content::Ride> {
+        self.body
+            .content
+            .items
+            .get(item.wrapping_sub(dyno_world::content::FIRST_ITEM) as usize)
+            .and_then(|i| i.ride.as_ref())
+    }
+
     pub fn cname(&self, c: u16) -> String {
         self.body
             .content
@@ -1517,11 +1526,18 @@ impl Agent {
                         }
                     }
                 }
-                Deal::Buy(item, n) => self.body.send(ClientMsg::Buy {
-                    npc: npc_ent,
-                    item: *item,
-                    count: *n,
-                }),
+                Deal::Buy(item, n) => {
+                    if self.ride_of(*item).is_some() {
+                        // a cart ride: the server will move us
+                        self.body.expect_teleport(5.0);
+                        self.tel.rides += 1;
+                    }
+                    self.body.send(ClientMsg::Buy {
+                        npc: npc_ent,
+                        item: *item,
+                        count: *n,
+                    })
+                }
             }
         }
     }

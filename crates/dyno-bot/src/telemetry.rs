@@ -241,6 +241,9 @@ pub struct Telemetry {
     pub pulls: Vec<Pull>,
     #[serde(default)]
     pub runs: Vec<Run>,
+    /// cart rides bought
+    #[serde(default)]
+    pub rides: u32,
     /// the first-session beats: when the first gear upgrade was put on,
     /// when each ability was first used, when the bot was first in a party
     #[serde(default)]
