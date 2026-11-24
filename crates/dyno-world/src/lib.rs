@@ -1430,10 +1430,13 @@ impl World {
                 && !is_solid(self.get(x, y, z))
                 && !is_solid(self.get(x, y + 1, z))
         };
-        for r in 2..6i32 {
+        // a few steps out from the hearth first (outside the benches and
+        // kerb that ring a town's hearth), south of it before the other
+        // sides; right beside it only where nothing further out is free
+        for r in [7, 8, 6, 9, 5, 4, 3, 2] {
             for (dx, dz) in [
-                (r, 0),
                 (0, r),
+                (r, 0),
                 (-r, 0),
                 (0, -r),
                 (r, r),
