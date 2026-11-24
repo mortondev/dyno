@@ -101,13 +101,13 @@ def curtain(v, cells, top, drops):
 
 
 def _root_web():
-    """A web strung across the gap between two roots: two dead posts, a rail,
-    and torn silk hanging from it to the ground. 7 x 4 x 1."""
+    """A web strung across the gap between two roots: two dead posts, an ivy
+    rope over them, and torn silk hanging from it to the ground. 7 x 4 x 1."""
     v = Vol("prop")
     for x in (-3, 3):
-        v.col(x, 0, 0, 3, "log")
-    for x in range(-2, 3):
-        v.set(x, 3, 0, "log")
+        v.col(x, 0, 0, 2, "log")
+    for x in range(-3, 4):
+        v.set(x, 3, 0, "leaves")    # an ivy rope over the posts (no end-grain on top)
     curtain(v, [(x, 0) for x in range(-2, 3)], 3, [2, 0, 3, 1, 2])
     return v
 
@@ -217,11 +217,12 @@ def hollow_oak_tree():
                 if v.get(cx, 0, cz) is not None:
                     continue   # inside the trunk, the hollow or a buttress
                 if last or d >= 12.5:
-                    v.set(cx, -1, cz, "log")       # flush: the root dives
+                    v.set(cx, -1, cz, "dirt")      # the root dives under a turf hump
                 else:
+                    # a log's top face is its end-grain, so every raised root
+                    # carries moss on its back: bark shows only on the flanks
                     v.set(cx, 0, cz, "log")
-                    if d < 8.6:
-                        v.set(cx, 1, cz, "leaves")  # moss on the root's back
+                    v.set(cx, 1, cz, "leaves")
 
     # the rotted doorway, south: three wide, five high, into the hollow; the
     # door channel runs out through the flare so the hollow stays lit
