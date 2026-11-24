@@ -183,6 +183,10 @@ def hearthstead_smithy():
             v.set(x, 3 if x > -8 else 2, z, "slate_roof")
     for (x, z) in ((-9, -4), (-9, 4)):
         v.col(x, z, 0, 1, "timber_beam")
+    # no window boxes under the lean-to: Hollis works there
+    for z in range(-4, 5):
+        if v.get(-5, 0, z) == "flower_bed":
+            del v.c[(-5, 0, z)]
     v.set(-8, 0, -2, "anvil")
     v.set(-6, 0, -3, "furnace")
     v.set(-7, 0, -3, "furnace")

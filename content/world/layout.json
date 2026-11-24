@@ -535,12 +535,12 @@
   {
    "key": "southfold_lane",
    "way": "trail",
-   "path": ["meadow_farm_3", [-60, 312], [30, 320]]
+   "path": [[-126, 302], [-60, 312], [30, 320]]
   },
   {
    "key": "eastfold_trail",
    "way": "trail",
-   "path": [[232, -45], [250, -100], "meadow_farm_2"]
+   "path": [[232, -45], [250, -100], [264, -146], [266, -164]]
   }
  ],
  "places": [
@@ -661,9 +661,9 @@
     {"stamp": "lamp_post", "at": [-56, 5]},
     {"stamp": "flower_garden", "at": [6, -28], "rot": 1},
     {"stamp": "flower_garden", "at": [-7, -23], "rot": 1},
-    {"stamp": "hearthstead_goods", "at": [-7, -44]},
+    {"stamp": "hearthstead_goods", "at": [-8, -44]},
     {"stamp": "flower_garden", "at": [7, -66], "rot": 1},
-    {"stamp": "hearthstead_goods", "at": [-7, -67]},
+    {"stamp": "hearthstead_goods", "at": [-8, -67]},
     {"stamp": "flower_garden", "at": [7, 26], "rot": 1},
     {"stamp": "flower_garden", "at": [-7, 42], "rot": 1},
     {"stamp": "hearthstead_goods", "at": [6, 48]},
@@ -727,7 +727,7 @@
     {"stamp": "stone_wall", "at": [-6, -14], "fit": "ground"},
     {"stamp": "fence_run", "at": [-15, -3], "rot": 1, "fit": "ground"},
     {"stamp": "well", "at": [13, 10], "fit": "ground"},
-    {"stamp": "log_pile", "at": [1, -16], "fit": "ground"},
+    {"stamp": "log_pile", "at": [1, -17], "fit": "ground"},
     {"stamp": "hearthstead_clear_14", "at": [0, 0], "dy": 40, "fit": "float"}
    ],
    "trees": [
@@ -924,8 +924,8 @@
     {"stamp": "hut", "at": [-19, -9]},
     {"stamp": "fence_run", "at": [14, 16], "fit": "ground"},
     {"stamp": "birchrise_sawmill", "at": [2, -20], "rot": 1},
-    {"stamp": "log_pile", "at": [9, 5]},
-    {"stamp": "birch_pile", "at": [-10, 3]},
+    {"stamp": "log_pile", "at": [14, -3]},
+    {"stamp": "birch_pile", "at": [-13, -3]},
     {"stamp": "birchrise_chopping", "at": [8, -6]},
     {"stamp": "birchrise_tent", "at": [-16, 18], "rot": 1},
     {"stamp": "stumps", "at": [18, 8]},
@@ -1175,7 +1175,7 @@
     {"stamp": "cart", "at": [-6, 18]},
     {"stamp": "south_road_mill_goods", "at": [-19, 16]},
     {"stamp": "haystack", "at": [-42, 13], "fit": "ground"},
-    {"stamp": "signpost", "at": [-28, -6], "fit": "ground"}
+    {"stamp": "signpost", "at": [-26, -6], "fit": "ground"}
    ],
    "trees": [
     {"species": "hero_oak", "at": [30, -44]}
@@ -1237,7 +1237,7 @@
     {"stamp": "fence_run", "at": [-18, 14], "rot": 1},
     {"stamp": "mirrormere_drying_rack", "at": [19, -9]},
     {"stamp": "campfire", "at": [-5, 6]},
-    {"stamp": "mirrormere_drying_rack", "at": [2, 12], "rot": 1},
+    {"stamp": "mirrormere_drying_rack", "at": [-1, 12], "rot": 1},
     {"stamp": "lamp_post", "at": [6, -4]},
     {"stamp": "mirrormere_fish_stall", "at": [9, 3], "rot": 1},
     {"stamp": "mirrormere_pier_goods", "at": [23, -3]},
@@ -1280,8 +1280,8 @@
    "at": [30, 790],
    "radius": 22,
    "stamps": [
-    {"stamp": "wayshrine", "at": [-6, -2], "fit": "ground"},
-    {"stamp": "ruin_wall", "at": [8, -3], "fit": "ground"},
+    {"stamp": "wayshrine", "at": [-8, 8], "rot": 2, "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [8, 6], "fit": "ground"},
     {"stamp": "mirrormere_step_slab", "at": [0, -4], "dy": -1, "fit": "float"},
     {"stamp": "mirrormere_step_slab", "at": [1, -7], "dy": -1, "fit": "float"},
     {"stamp": "mirrormere_step_slab", "at": [2, -10], "dy": -1, "fit": "float"},
@@ -1336,7 +1336,7 @@
    "radius": 14,
    "stamps": [
     {"stamp": "meadow_east_caravan", "at": [-3, -12], "fit": "ground"},
-    {"stamp": "meadow_east_spill", "at": [-2, -5], "fit": "ground"},
+    {"stamp": "meadow_east_spill", "at": [-3, -6], "fit": "ground"},
     {"stamp": "meadow_east_rut", "at": [-10, -8], "fit": "ground"},
     {"stamp": "campfire", "at": [0, -14], "fit": "ground"},
     {"stamp": "meadow_east_ash_flag", "at": [-16, -24], "fit": "ground"},
@@ -1485,7 +1485,7 @@
    "stamps": [
     {"stamp": "emberford_bridge_arch", "at": [0, 0], "fit": "pad"},
     {"stamp": "boulders", "at": [-16, 9], "fit": "ground"},
-    {"stamp": "boulders", "at": [19, -9], "rot": 2, "fit": "ground"}
+    {"stamp": "boulders", "at": [21, -12], "rot": 2, "fit": "ground"}
    ],
    "was": {
     "at": [95, 0],
@@ -1676,7 +1676,7 @@
     {"stamp": "campfire", "at": [2, 7]},
     {"stamp": "fence_run", "at": [-18, 20]},
     {"stamp": "inn_sign", "at": [-3, -9]},
-    {"stamp": "signpost", "at": [-6, 5]},
+    {"stamp": "signpost", "at": [-2, 13]},
     {"stamp": "lamp_post", "at": [6, 3]},
     {"stamp": "well", "at": [0, 11]},
     {"stamp": "stall_yellow", "at": [3, -18]},
@@ -1702,7 +1702,7 @@
     {"stamp": "ridge_rock_cut", "at": [0, 0], "fit": "float"},
     {"stamp": "ridge_lookout", "at": [-8, -4], "fit": "ground"},
     {"stamp": "cairn", "at": [-14, -6], "fit": "ground"},
-    {"stamp": "signpost", "at": [-6, 16], "fit": "ground"},
+    {"stamp": "signpost", "at": [-16, 12], "fit": "ground"},
     {"stamp": "lamp_post", "at": [-2, 9], "fit": "ground"},
     {"stamp": "lamp_post", "at": [7, -6], "fit": "ground"}
    ],
@@ -2399,7 +2399,7 @@
     {"stamp": "mirrormere_shells", "at": [10, -2], "rot": 1, "fit": "float"},
     {"stamp": "mirrormere_net_torn", "at": [-12, 4], "rot": 1, "fit": "float"},
     {"stamp": "boulders", "at": [13, -9], "fit": "float"},
-    {"stamp": "mirrormere_boat_capsized", "at": [-2, 6], "rot": 1, "fit": "float"}
+    {"stamp": "mirrormere_boat_capsized", "at": [-21, -6], "rot": 1, "fit": "float"}
    ]
   },
   {
@@ -2784,7 +2784,8 @@
    "stamps": [
     {"stamp": "milestone", "at": [1, -4], "fit": "ground"},
     {"stamp": "south_road_broken_cart", "at": [6, 2], "fit": "ground"},
-    {"stamp": "log_pile", "at": [6, 10], "fit": "ground"}
+    {"stamp": "log_pile", "at": [6, 10], "fit": "ground"},
+    {"stamp": "signpost", "at": [-14, 4], "rot": 2, "fit": "ground"}
    ],
    "trees": [
     {"species": "young_oak", "at": [13, -3]}
@@ -3074,7 +3075,7 @@
    "stamps": [
     {"stamp": "wayshrine", "at": [-8, -6], "fit": "ground"},
     {"stamp": "bench_lamp", "at": [-11, -1], "fit": "ground"},
-    {"stamp": "flower_garden", "at": [-12, -8], "fit": "ground"}
+    {"stamp": "flower_garden", "at": [-13, -10], "fit": "ground"}
    ]
   },
   {
