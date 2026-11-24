@@ -84,11 +84,14 @@ _named(f"{KEY}_cocoons", _cocoons)
 
 def wheel_upright(v, x, y, z, along_x=True):
     """A cart wheel standing on its rim, in one vertical plane (along x, or
-    along z): a 3 x 3 ring of timber round a timber hub. Free timber draws
-    as joined sticks, so the ring reads as a rim and the hub's arms as four
-    spokes (dark planks here would draw a solid box)."""
+    along z): a 3 x 3 ring of timber with an open hub. Free timber draws as
+    thin joined sticks, so the ring reads as an open rim with sky through
+    it. (Planks in a 3 x 3 read as a box or a wall with a window, and a
+    timber ring with a hub cell as a gate.)"""
     for a in (-1, 0, 1):
         for b in (0, 1, 2):
+            if (a, b) == (0, 1):
+                continue
             if along_x:
                 v.set(x + a, y + b, z, "timber_beam")
             else:
@@ -96,10 +99,11 @@ def wheel_upright(v, x, y, z, along_x=True):
 
 
 def wheel_flat(v, x, y, z):
-    """A wheel lying flat: a 3 x 3 timber ring round its hub."""
+    """A wheel lying flat: a 3 x 3 timber ring round an open hub."""
     for a in (-1, 0, 1):
         for b in (-1, 0, 1):
-            v.set(x + a, y, z + b, "timber_beam")
+            if (a, b) != (0, 0):
+                v.set(x + a, y, z + b, "timber_beam")
 
 
 @recipe
@@ -159,15 +163,15 @@ def meadow_east_caravan():
         v.set(x, 1, -8, "dark_planks")
         v.set(x, 1, -9, "white")
     for wx in (5, 9):
-        v.set(wx, 4, -9, "timber_beam")           # axle
         for wz in (-10, -8):
             wheel_upright(v, wx, 3, wz)           # wheels in the air
     # the Ashcloak flag planted in the upturned bed (cloth to the south)
-    v.col(7, -9, 3, 8, "timber_beam")
-    for y in range(5, 9):
+    # (the cloth flies above the wheels, so daylight shows between them)
+    v.col(7, -9, 3, 9, "timber_beam")
+    for y in range(6, 10):
         v.set(7, y, -8, "black")
         v.set(7, y, -7, "red")
-    v.set(7, 9, -9, "lantern")
+    v.set(7, 10, -9, "lantern")
     # the tongue, snapped and thrown down
     for x in (11, 12, 13):
         v.set(x, 0, -9, "timber_beam")

@@ -1253,7 +1253,7 @@
    "at": [247, 145],
    "radius": 14,
    "pad": {
-    "radius": [16, 13],
+    "radius": [22, 19],
     "blend": 8,
     "surface": {"grass": 2, "dirt": 1}
    },
