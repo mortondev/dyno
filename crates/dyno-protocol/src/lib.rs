@@ -12,12 +12,15 @@ pub mod wire;
 pub use dyno_sim::Stack;
 pub use dyno_world::content::{Content, ItemId};
 
-/// Survival or creative.
+/// How a character is in the world: playing, or (operators) building.
+/// Saves hold these by the names the variants had first.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum Mode {
     #[default]
-    Survival,
-    Creative,
+    #[serde(rename = "Survival")]
+    Play,
+    #[serde(rename = "Creative")]
+    Build,
 }
 
 /// A slot in the player's pack or in an open container.
@@ -293,7 +296,7 @@ pub enum ClientMsg {
     },
     /// The player's position and view direction.
     Pose(Pose),
-    /// Request to change one cell.
+    /// Request to change one cell (build mode).
     SetBlock {
         pos: [i32; 3],
         block: u8,
@@ -302,7 +305,7 @@ pub enum ClientMsg {
     Chat {
         text: String,
     },
-    /// Fill the box between two corners (inclusive) with one block. Air clears it. Creative only.
+    /// Fill the box between two corners (inclusive) with one block. Air clears it. Build mode only.
     Fill {
         a: [i32; 3],
         b: [i32; 3],
@@ -329,20 +332,21 @@ pub enum ClientMsg {
     Held {
         slot: u8,
     },
-    /// Started breaking a block.
+    /// Unused: kept so the messages after it keep their numbers. (It began a
+    /// timed dig.)
     DigStart {
         pos: [i32; 3],
     },
-    /// Finished breaking a block.
+    /// Break a block (build mode).
     Dig {
         pos: [i32; 3],
     },
-    /// Place the block item from a pack slot.
+    /// Place the block item from a pack slot (build mode).
     Place {
         pos: [i32; 3],
         slot: u8,
     },
-    /// Creative: put any item in a pack slot.
+    /// Build mode: put any item in a pack slot.
     CreativeSet {
         slot: u8,
         item: ItemId,
@@ -353,7 +357,7 @@ pub enum ClientMsg {
         to: SlotRef,
         count: u8,
     },
-    /// Throw items out of a slot. `count` 0 throws the whole stack.
+    /// Unused: kept for its number. (It threw items on the ground.)
     Throw {
         from: SlotRef,
         count: u8,
@@ -365,14 +369,15 @@ pub enum ClientMsg {
     },
     /// Eat or use the item in hand.
     UseHeld,
-    /// Hit an entity.
+    /// Start attacking an entity (the same as `AutoAttack` with a target).
     Attack {
         entity: u32,
     },
-    /// Right click on a block (chest, bed, table).
+    /// Unused: kept for its number. (It opened chests and used beds.)
     Interact {
         pos: [i32; 3],
     },
+    /// Unused: kept for its number.
     CloseContainer,
     /// Damage the client measured (falls, drowning).
     Hurt {
@@ -613,7 +618,7 @@ pub enum ServerMsg {
         mode: Mode,
         fuel: u16,
     },
-    /// An open container's slots (`None` closes it).
+    /// Unused: kept for its number. (An open chest's slots.)
     Container(Option<([i32; 3], Vec<Option<Stack>>)>),
     EntitySpawn {
         id: u32,
@@ -639,7 +644,7 @@ pub enum ServerMsg {
     Died {
         message: String,
     },
-    /// A milestone in the journal was reached.
+    /// Unused: kept for its number. (A line of the old Journal.)
     Milestone {
         title: String,
     },
@@ -658,7 +663,7 @@ pub enum ServerMsg {
         dusk: bool,
         day: u32,
     },
-    /// The block a player is breaking, for the crack effect (None when they stop).
+    /// Unused: kept for its number. (The block a player was breaking.)
     Digging {
         player: PlayerId,
         pos: Option<[i32; 3]>,

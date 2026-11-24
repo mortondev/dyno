@@ -725,10 +725,10 @@ fn no_texture_painting_or_sound_synthesis_left() {
     }
     // item icons are pictures from the pack, not shapes drawn per kind
     let src = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    let survival = std::fs::read_to_string(src.join("survival.rs")).unwrap();
+    let item_ui = std::fs::read_to_string(src.join("item_ui.rs")).unwrap();
     for kind in ["Stick", "Lump", "Ingot", "Gem", "Dust", "Berries", "Meat"] {
         let m = format!("Icon::{kind}");
-        assert!(!survival.contains(&m), "survival.rs still draws `{m}`");
+        assert!(!item_ui.contains(&m), "item_ui.rs still draws `{m}`");
     }
     let tex = std::fs::read_to_string(src.join("textures.rs")).unwrap();
     assert!(

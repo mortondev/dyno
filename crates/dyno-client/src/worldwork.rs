@@ -615,7 +615,7 @@ mod tests {
     /// once, however the sections arrive.
     #[test]
     fn the_worker_meshes_and_lights_like_the_whole_world() {
-        let world = World::generate([64, 48, 64], 7);
+        let world = World::test_terrain([64, 48, 64], 7);
         let mut game = World::sparse(world.size);
         let first: Vec<SectionPos> = world.held_list().into_iter().filter(|s| s[0] < 2).collect();
         for s in &first {

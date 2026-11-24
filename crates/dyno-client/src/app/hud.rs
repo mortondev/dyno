@@ -559,7 +559,7 @@ pub fn frames(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, map: R
         );
         theme::slot_well(painter, r);
         if let Some(item) = p.content.item_by_key(&ab.icon) {
-            survival::item_icon(painter, r.shrink(4.0), &p.content, item);
+            item_ui::item_icon(painter, r.shrink(4.0), &p.content, item);
         }
         theme::slot_rim(painter, r, false);
         let left = until.saturating_duration_since(now).as_secs_f32();
@@ -735,9 +735,9 @@ pub fn action_bar(
         if !lifted {
             // an ability draws its own picture (from the pack); the rest their item
             if let ActionSlot::Ability(a) = action_at(p, i) {
-                survival::ability_icon(painter, r.shrink(5.0), &p.content, a);
+                item_ui::ability_icon(painter, r.shrink(5.0), &p.content, a);
             } else if let Some(item) = look.icon {
-                survival::item_icon(painter, r.shrink(5.0), &p.content, item);
+                item_ui::item_icon(painter, r.shrink(5.0), &p.content, item);
             }
         }
         theme::action_slot(
@@ -855,7 +855,7 @@ pub fn action_bar(
             ));
             let r = Rect::from_center_size(at, Vec2::splat(SLOT - 6.0));
             top.rect_filled(r, 4.0, Color32::from_black_alpha(150));
-            survival::item_icon(&top, r.shrink(3.0), &p.content, item);
+            item_ui::item_icon(&top, r.shrink(3.0), &p.content, item);
             top.rect_stroke(
                 r,
                 4.0,
@@ -1094,7 +1094,7 @@ pub fn moments(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, bar: 
             if fade > 0.5 {
                 theme::slot_well(painter, icon);
                 if let Some(item) = p.content.item_by_key(&ab.icon) {
-                    survival::item_icon(painter, icon.shrink(5.0), &p.content, item);
+                    item_ui::item_icon(painter, icon.shrink(5.0), &p.content, item);
                 }
                 theme::slot_rim(painter, icon, true);
             }
@@ -1214,7 +1214,7 @@ pub fn moments(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, bar: 
             egui::StrokeKind::Inside,
         );
         if fade > 0.4 {
-            survival::item_icon(
+            item_ui::item_icon(
                 painter,
                 Rect::from_min_size(r.min + Vec2::new(4.0, 3.0), Vec2::splat(26.0)),
                 &p.content,
@@ -1289,12 +1289,31 @@ pub fn combat_text(painter: &egui::Painter, p: &mut Play, screen: Rect, vp: glam
     }
 }
 
+/// The air left while under water: a thin meter over the right end of the
+/// bar, shown only while it is not full. (Its own function, to be themed.)
+pub fn air_meter(painter: &egui::Painter, p: &Play, bar: Rect) {
+    if p.creative() || p.air >= 10.0 {
+        return;
+    }
+    let k = (p.air / 10.0).clamp(0.0, 1.0);
+    let at = Pos2::new(bar.right() - 122.0, bar.top() - 30.0);
+    painter.rect_filled(
+        Rect::from_min_size(at, Vec2::new(110.0, 5.0)).expand(1.0),
+        2.0,
+        Color32::from_black_alpha(150),
+    );
+    painter.rect_filled(
+        Rect::from_min_size(at, Vec2::new(110.0 * k, 5.0)),
+        2.0,
+        Color32::from_rgb(110, 170, 230),
+    );
+}
+
 /// The death screen: what happened, what it costs, and the way back.
 pub fn death(ctx: &egui::Context, painter: &egui::Painter, p: &Play, actions: &mut Vec<Action>) {
     let Some(msg) = &p.dead else { return };
     let screen = ctx.content_rect();
     painter.rect_filled(screen, 0.0, Color32::from_rgba_unmultiplied(40, 6, 8, 150));
-    let rpg = p.content.world.protected;
     let resp = egui::Window::new("dead")
         .id(egui::Id::new("dead"))
         .title_bar(false)
@@ -1320,23 +1339,15 @@ pub fn death(ctx: &egui::Context, painter: &egui::Painter, p: &Play, actions: &m
                 );
                 ui.add_space(4.0);
                 ui.label(
-                    RichText::new(t(if rpg {
-                        "death.hint"
-                    } else {
-                        "death.hint_survival"
-                    }))
-                    .font(theme::body_font(14.0))
-                    .color(theme::TEXT_DIM),
+                    RichText::new(t("death.hint"))
+                        .font(theme::body_font(14.0))
+                        .color(theme::TEXT_DIM),
                 );
                 ui.add_space(12.0);
                 let b = egui::Button::new(
-                    RichText::new(t(if rpg {
-                        "death.release"
-                    } else {
-                        "death.respawn"
-                    }))
-                    .font(theme::title_font(15.0))
-                    .color(theme::INK),
+                    RichText::new(t("death.release"))
+                        .font(theme::title_font(15.0))
+                        .color(theme::INK),
                 )
                 .fill(theme::GOLD)
                 .stroke(Stroke::new(1.0_f32, theme::GOLD_BRIGHT))

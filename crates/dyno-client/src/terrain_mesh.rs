@@ -1629,9 +1629,9 @@ mod tests {
     /// A small world with Hearthstead built on it: roofs, timber, props,
     /// paving and pillars.
     fn town() -> World {
-        let mut world = World::generate([128, 64, 128], 7);
+        let mut world = World::test_terrain([128, 64, 128], 7);
         let hearth = world.ensure_spawn_hearth(None);
-        w::village::build_hearthstead(&mut world, hearth);
+        w::worldgen::dev::hub(&mut world, hearth);
         world
     }
 

@@ -202,7 +202,7 @@ fn reward_item(
     }
     let slot = Rect::from_min_size(r.min, Vec2::splat(34.0));
     theme::slot_well(p, slot);
-    crate::survival::item_icon(p, slot.shrink(4.0), c, item);
+    crate::item_ui::item_icon(p, slot.shrink(4.0), c, item);
     theme::slot_rim(p, slot, on);
     p.galley(
         Pos2::new(slot.right() + 8.0, r.center().y - galley.size().y * 0.5),
@@ -1095,7 +1095,7 @@ pub fn vendor_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<Rpg
                         let icon =
                             Rect::from_min_size(r.min + Vec2::new(4.0, 4.0), Vec2::splat(38.0));
                         p.rect_filled(icon, 3.0, Color32::from_black_alpha(160));
-                        crate::survival::item_icon(p, icon, c, item);
+                        crate::item_ui::item_icon(p, icon, c, item);
                         p.rect_stroke(
                             icon,
                             3.0,
@@ -1246,7 +1246,7 @@ pub fn loot_window(
                 let clicked = row(ui, &|p, r| {
                     let icon = Rect::from_min_size(r.min + Vec2::new(4.0, 4.0), Vec2::splat(32.0));
                     p.rect_filled(icon, 3.0, Color32::from_black_alpha(160));
-                    crate::survival::item_icon(p, icon, c, st.item);
+                    crate::item_ui::item_icon(p, icon, c, st.item);
                     p.rect_stroke(
                         icon,
                         3.0,

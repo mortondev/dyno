@@ -1,4 +1,4 @@
-//! Game rules for survival: inventory, crafting and mining.
+//! Game rules: inventory, crafting, gathering, movement and progression.
 //!
 //! This crate has no sockets and no wall clock. Randomness comes from a seeded
 //! generator, so every rule can be unit-tested and replayed.

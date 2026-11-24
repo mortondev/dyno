@@ -13,6 +13,16 @@ fn id(c: &Content, k: &str) -> ItemId {
     c.item_by_key(k).unwrap_or_else(|| panic!("no item {k}"))
 }
 
+/// Standing at the station with this key, and at no other.
+fn at(c: &Content, key: &str) -> Stations {
+    let i = c
+        .stations
+        .iter()
+        .position(|s| s.key == key)
+        .unwrap_or_else(|| panic!("no station {key}"));
+    Stations(1 << i)
+}
+
 fn totals(inv: &Inventory) -> HashMap<ItemId, i64> {
     let mut m = HashMap::new();
     for s in inv.slots.iter().flatten() {
@@ -71,17 +81,14 @@ fn crafting_planks_sticks_and_tools() {
     assert_eq!(inv.count(planks), 4);
     crafting::craft(&c, &r(stick), &mut inv, none, &mut bank).unwrap();
     assert_eq!(inv.count(stick), 4);
-    // tools need a table
-    assert!(
-        crafting::craft(&c, &r(pick), &mut inv, none, &mut bank)
-            .unwrap_err()
-            .contains("crafting table")
+    // tools need their station, and the refusal names it
+    let station = &c.stations[r(pick).station.expect("tools need a station") as usize];
+    assert_eq!(
+        crafting::craft(&c, &r(pick), &mut inv, none, &mut bank).unwrap_err(),
+        format!("Needs a {} nearby", station.name)
     );
     crafting::craft(&c, &r(planks), &mut inv, none, &mut bank).unwrap();
-    let table = Stations {
-        table: true,
-        furnace: false,
-    };
+    let table = at(&c, &station.key);
     crafting::craft(&c, &r(pick), &mut inv, table, &mut bank).unwrap();
     assert_eq!(inv.count(pick), 1);
     assert_eq!(inv.count(planks), 6 - 3);
@@ -99,10 +106,10 @@ fn smelting_uses_fuel() {
         .find(|r| r.output == ingot)
         .unwrap()
         .clone();
-    let furnace = Stations {
-        table: false,
-        furnace: true,
-    };
+    let furnace = at(
+        &c,
+        &c.stations[r.station.expect("smelting needs a station") as usize].key,
+    );
     let mut bank = 0;
     assert!(
         crafting::craft(&c, &r, &mut inv, furnace, &mut bank)
@@ -119,7 +126,7 @@ fn smelting_uses_fuel() {
 }
 
 #[test]
-fn mining_needs_the_right_tool() {
+fn gathering_needs_the_right_tool() {
     let c = c();
     let mut rng = Rng::new(1);
     let stone = dyno_world::STONE;
@@ -141,18 +148,7 @@ fn mining_needs_the_right_tool() {
         mining::drops(&c, dyno_world::IRON_ORE, Some(&stone_pick), &mut rng)[0].item,
         id(&c, "raw_iron")
     );
-    let hand = mining::break_time(&c, stone, None).unwrap();
-    let fast = mining::break_time(&c, stone, Some(&stone_pick)).unwrap();
-    assert!(hand > 5.0 && fast < 1.0, "hand {hand} pick {fast}");
-    assert_eq!(
-        mining::break_time(&c, dyno_world::BEDROCK, Some(&stone_pick)),
-        None
-    );
-    // logs by hand take about two seconds and drop the log
-    assert!((mining::break_time(&c, dyno_world::LOG, None).unwrap() - 2.1).abs() < 0.01);
-    // the wrong tier is slow and says what is needed
-    let slow = mining::break_time(&c, dyno_world::IRON_ORE, Some(&wood)).unwrap();
-    assert!(slow > 10.0, "wood on iron ore takes {slow}");
+    // the wrong tier says what is needed
     assert_eq!(
         mining::missing_tool(&c, dyno_world::IRON_ORE, Some(&wood)).as_deref(),
         Some("Needs a stone pickaxe")
@@ -191,10 +187,7 @@ fn item_count_invariant() {
     .iter()
     .map(|k| id(&c, k))
     .collect();
-    let all = Stations {
-        table: true,
-        furnace: true,
-    };
+    let all = Stations::ALL;
     let mut bank: u16 = 0;
     for step in 0..20_000 {
         match rng.range(0, 4) {

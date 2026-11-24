@@ -2,7 +2,7 @@
 //! with item and ability tooltips. One carved window with tabs; the words
 //! come from the pack (`uitext`). See docs/design/ui.md.
 
-use crate::survival;
+use crate::item_ui;
 use crate::theme;
 use crate::uitext::{f as tf, t};
 use dyno_protocol::Stack;
@@ -355,7 +355,7 @@ fn slot_button(
     match s {
         Some(st) => {
             theme::item_slot(p, rect, c.item(st.item).quality, None);
-            survival::stack_icon(p, rect, c, st);
+            item_ui::stack_icon(p, rect, c, st);
         }
         None => theme::item_slot(p, rect, 0, (!ghost.is_empty()).then_some(ghost)),
     }
@@ -740,7 +740,7 @@ fn spellbook_tab(ui: &mut egui::Ui, v: &View) {
                 );
                 let icon = Rect::from_min_size(row.min + Vec2::splat(6.0), Vec2::splat(44.0));
                 theme::slot_well(p, icon);
-                survival::ability_icon(p, icon.shrink(5.0), c, a);
+                item_ui::ability_icon(p, icon.shrink(5.0), c, a);
                 if !known {
                     p.rect_filled(icon.shrink(2.0), 3.0, Color32::from_black_alpha(165));
                 }

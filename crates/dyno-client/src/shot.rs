@@ -24,7 +24,7 @@ pub struct ShotOptions {
     pub width: u32,
     pub height: u32,
     pub out: PathBuf,
-    /// "none" for the world only; "hud", "pack", "dig" or "dead" to draw the UI
+    /// "none" for the world only; "hud", "pack" or "dead" to draw the UI
     pub ui: String,
     /// join as this player instead of as an invisible observer
     pub player: Option<String>,

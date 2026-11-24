@@ -3005,10 +3005,9 @@ mod tests {
     #[test]
     #[ignore]
     fn town_meshing_speed() {
-        let mut world = World::generate([384, 96, 384], 20261122);
+        let mut world = World::test_terrain([384, 96, 384], 20261122);
         let hearth = world.ensure_spawn_hearth(None);
-        w::village::build_hearthstead(&mut world, hearth);
-        w::zones::build_world_features(&mut world, hearth);
+        w::worldgen::dev::hub(&mut world, hearth);
         let light = Light::new(&world);
         let _ = textures();
         // the sections of the town: 64 blocks round the hearth
