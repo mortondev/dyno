@@ -47,7 +47,7 @@ BOX = {
 
 
 # tall or far-off landmarks need more room to stand back
-FAR = {"watch_tower": 60, "hollow_oak": 42, "ashcloak_stockade": 26, "hollow_mines": 20, "sunken_shrine": 42, "north_watch": 44, "windmill_farm": 44}
+FAR = {"watch_tower": 60, "hollow_oak": 58, "ashcloak_stockade": 26, "hollow_mines": 20, "sunken_shrine": 42, "north_watch": 44, "windmill_farm": 44}
 
 
 def rnd(v):

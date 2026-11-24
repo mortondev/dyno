@@ -842,7 +842,7 @@
     {"stamp": "haystack", "at": [-23, 1]},
     {"stamp": "cart", "at": [14, 22]},
     {"stamp": "pond_big", "at": [-7, 13]},
-    {"stamp": "fence_run", "at": [-24, -10], "fit": "ground"},
+    {"stamp": "pond", "at": [-20, -22], "fit": "ground"},
     {"stamp": "signpost", "at": [-28, -6], "fit": "ground"}
    ],
    "trees": [
