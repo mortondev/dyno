@@ -1632,13 +1632,51 @@ pub fn shot_state(p: &mut Play, ui: &str) {
     if p.class.is_some() {
         load_bar(p);
     }
-    let nearest = |p: &Play| {
+    // the nearest creature within a fight's reach; where there is none (a
+    // town), a stand-in a few steps ahead, so the target frame has a subject
+    let nearest = |p: &mut Play| {
         let me = p.player.pos;
-        p.entities
+        let near = p
+            .entities
             .iter()
             .filter(|(_, e)| matches!(e.kind, EntityKind::Creature(_)))
-            .min_by(|a, b| a.1.pos().distance(me).total_cmp(&b.1.pos().distance(me)))
-            .map(|(id, _)| *id)
+            .map(|(id, e)| (*id, e.pos().distance(me)))
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .filter(|(_, d)| *d < 20.0)
+            .map(|(id, _)| id);
+        near.or_else(|| {
+            let kind = p
+                .content
+                .creatures
+                .iter()
+                .find(|c| c.hostile)
+                .or(p.content.creatures.first())?
+                .id;
+            let d = p.player.look_dir();
+            let d = Vec3::new(d.x, 0.0, d.z).normalize_or_zero();
+            let at = me + d * 6.0 + Vec3::new(-d.z, 0.0, d.x) * 1.5;
+            let at = [
+                at.x,
+                p.world.surface(at.x as i32, at.z as i32) as f32 + 1.0,
+                at.z,
+            ];
+            let id = 9_000_001;
+            p.entities.insert(
+                id,
+                ClientEntity {
+                    kind: EntityKind::Creature(kind),
+                    from: at,
+                    to: at,
+                    at: Instant::now(),
+                    yaw: p.player.yaw + std::f32::consts::PI,
+                    born: Instant::now() - Duration::from_secs(5),
+                    hurt_at: None,
+                    info: Some((p.level, 40.0, 40.0)),
+                    name: None,
+                },
+            );
+            Some(id)
+        })
     };
     let known: Vec<u16> = p
         .class
