@@ -512,7 +512,7 @@ def tags(paths):
                 done("wool_for_winter"), level(2), level(3),
                 f"{med([t['xp_total'] / t['secs'] * 3600 for t in tels]):.0f}", share("wait_spawn"), share("travel"),
                 str(sum(len(t["deaths"]) for t in tels))]
-        print(f"| {os.path.basename(p)[:-5]} | " + " | ".join(vals) + " |")
+        print(f"| {os.path.basename(p).split('.json')[0]} | " + " | ".join(vals) + " |")
 
 
 def main():

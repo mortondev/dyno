@@ -22,7 +22,7 @@ def main():
             done = any(q["done"] is not None for q in t["quests"] if q["key"] == "old_tusk")
             longest = max((f["secs"] for f in fs), default=0)
             dmg = max((f["damage_taken"] for f in fs), default=0)
-            print(f"| {os.path.basename(p)[:-5]} | {t['name'][-5:]} | {t['class']} | {t['level']} | {t['brain']} | {len(fs)} | {won} | {len(fs) - won} | {longest:.0f} s | {dmg:.0f} | {deaths} | {'yes' if done else 'no'} |")
+            print(f"| {os.path.basename(p).split('.json')[0]} | {t['name'][-5:]} | {t['class']} | {t['level']} | {t['brain']} | {len(fs)} | {won} | {len(fs) - won} | {longest:.0f} s | {dmg:.0f} | {deaths} | {'yes' if done else 'no'} |")
             for f in fs:
                 print(f"|  |  |  |  |  | at {f['start']:.0f} s | {'won' if f['won'] else 'lost'} |  | {f['secs']:.0f} s | {f['damage_taken']:.0f} |  | {f.get('why', '')} |")
 

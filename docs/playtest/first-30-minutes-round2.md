@@ -500,8 +500,8 @@ minutes, each on a fresh world
 
 | run | bots | tick p95 | kills with credit | kills lost to another's tag | lost | bots with no first kill by 2:00 | first kill | Meat for the Pot done | Thinning the Herd done | Wool for Winter done | level 2 | level 3 | XP an hour | waiting for spawns | travel | deaths |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| r2-tags-before-comp-12x8.js | 12 | 1.25 ms | 117 | 42 | 26% | 2 | 1:13 | 3:39 (12 of 12) | 4:48 (12 of 12) | 5:43 (12 of 12) | 3:04 (12 of 12) | 7:08 (3 of 12) | 8695 | 0% | 59% | 1 |
-| r2-tags-after-comp-12x8.js | 12 | 1.00 ms | 122 | 0 | 0% | 0 | 1:06 | 2:21 (12 of 12) | 4:08 (12 of 12) | 5:20 (12 of 12) | 2:23 (12 of 12) | 7:18 (4 of 12) | 9022 | 0% | 63% | 0 |
+| r2-tags-before-comp-12x8 | 12 | 1.25 ms | 117 | 42 | 26% | 2 | 1:13 | 3:39 (12 of 12) | 4:48 (12 of 12) | 5:43 (12 of 12) | 3:04 (12 of 12) | 7:08 (3 of 12) | 8695 | 0% | 59% | 1 |
+| r2-tags-after-comp-12x8 | 12 | 1.00 ms | 122 | 0 | 0% | 0 | 1:06 | 2:21 (12 of 12) | 4:08 (12 of 12) | 5:20 (12 of 12) | 2:23 (12 of 12) | 7:18 (4 of 12) | 9022 | 0% | 63% | 0 |
 
 By hand, a mage and a rogue who were not grouped took the same four
 Grazers at the north gate: both stood at 4 of 8 kills and 5 of 6 meat
