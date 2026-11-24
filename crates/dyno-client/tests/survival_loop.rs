@@ -1,28 +1,61 @@
-//! Plays the survival loop through the real protocol against a real server.
+//! Plays the game through the real protocol against a real server.
 
 use dyno_client::net::{self, Joined, NetEvent};
 use dyno_protocol::{ClientMsg, EntityKind, EnvDamage, Mode, Pose, ServerMsg, SlotRef, Stack};
-use dyno_world::content::Station;
 use std::time::{Duration, Instant};
 
+/// A server of the shipped pack on a fresh world: the town and the land
+/// 96 blocks round it.
 fn start_server(dir: &std::path::Path) -> dyno_server::Handle {
-    // the survival rules: the built-in content with the world unprotected
-    std::fs::create_dir_all(dir).unwrap();
-    let survival = dir.join("survival.json");
-    std::fs::write(
-        &survival,
-        dyno_world::content::DEFAULT_JSON.replace("\"protected\": true", "\"protected\": false"),
-    )
-    .unwrap();
+    let _ = std::fs::remove_dir_all(dir);
     let cfg = dyno_server::Config {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
-        world_size: [48, 48, 48],
-        content_path: Some(survival),
+        world_size: [192, 48, 192],
         trust_movement: true,
         ..Default::default()
     };
     dyno_server::start(cfg).expect("server starts")
+}
+
+fn say(j: &Joined, text: &str) {
+    send(j, ClientMsg::Chat { text: text.into() });
+}
+
+/// The nearest block of one of `kinds` within `r` columns of (x, z), in the
+/// world streamed so far.
+fn block_near(j: &Joined, x: i32, z: i32, r: i32, kinds: &[u8]) -> Option<[i32; 3]> {
+    let mut best: Option<(i32, [i32; 3])> = None;
+    for dz in -r..=r {
+        for dx in -r..=r {
+            for y in 1..j.world.size[1] as i32 {
+                if kinds.contains(&j.world.get(x + dx, y, z + dz)) {
+                    let d = dx * dx + dz * dz;
+                    if best.is_none_or(|(b, _)| d < b) {
+                        best = Some((d, [x + dx, y, z + dz]));
+                    }
+                }
+            }
+        }
+    }
+    best.map(|(_, p)| p)
+}
+
+/// Die and get up again: where the server puts you.
+fn die_and_wake(j: &Joined, pack: &mut Vec<Option<Stack>>) -> [f32; 3] {
+    say(j, "/kill");
+    wait(j, pack, 3.0, |m, _| {
+        matches!(m, ServerMsg::Died { .. }).then_some(())
+    });
+    send(j, ClientMsg::Respawn);
+    wait(j, pack, 3.0, |m, _| match m {
+        ServerMsg::Teleport { pos } => Some(*pos),
+        _ => None,
+    })
+}
+
+fn flat_dist(a: [f32; 3], b: [f32; 3]) -> f32 {
+    ((a[0] - b[0]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
 }
 
 /// Wait for a message that matches, applying pack and status updates on the way.
@@ -60,21 +93,6 @@ fn count(pack: &[Option<Stack>], item: u16) -> u32 {
 
 fn send(j: &Joined, m: ClientMsg) {
     j.conn.tx.send(m).unwrap();
-}
-
-/// A standing place on grass, a few blocks from the spawn.
-fn grass_near(j: &Joined) -> [f32; 3] {
-    let (sx, sz) = (j.spawn[0].floor() as i32, j.spawn[2].floor() as i32);
-    for r in 6..20 {
-        for (dx, dz) in [(r, 0), (-r, 0), (0, r), (0, -r)] {
-            let (x, z) = (sx + dx, sz + dz);
-            let y = j.world.surface(x, z);
-            if y > 0 && j.world.get(x, y, z) == dyno_world::GRASS {
-                return [x as f32 + 0.5, y as f32 + 1.0, z as f32 + 0.5];
-            }
-        }
-    }
-    panic!("no grass near spawn");
 }
 
 /// The world streams in around the player: wait until the land within `r`
@@ -213,175 +231,27 @@ fn wait_opt<T>(
     None
 }
 
+/// Bags, falls, death and names: items move between bag slots and nothing
+/// is thrown away or put in a chest; a fall hurts; death keeps everything;
+/// a name belongs to its first player.
 #[test]
-fn survival_loop() {
-    let dir = std::env::temp_dir().join(format!("dyno-test-{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
+fn bags_falls_death_and_names() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-bags-{}", std::process::id()));
     let server = start_server(&dir);
     let addr = format!("127.0.0.1:{}", server.local_addr.port());
-    let j = net::connect(&addr, "tester", 12345, false, Duration::from_secs(5)).expect("join");
+    let j = net::connect(&addr, "tester", 111, false, Duration::from_secs(5)).expect("join");
     assert_eq!(j.mode, Mode::Survival);
     let c = j.content.clone();
-    let mut pack = vec![None; 36];
     let id = |k: &str| c.item_by_key(k).unwrap();
+    let mut pack = vec![None; 36];
+    pose(&j, j.spawn);
 
-    // stand on grass near the spawn hearth (the hearth itself sits on a stone floor)
-    let spawn = grass_near(&j);
-    send(
-        &j,
-        ClientMsg::Pose(Pose {
-            pos: spawn,
-            yaw: 0.0,
-            pitch: 0.0,
-        }),
-    );
-
-    // 1. mine the grass under our feet by hand: it drops dirt, which we pick up
-    let below = [
-        spawn[0].floor() as i32,
-        spawn[1].floor() as i32 - 1,
-        spawn[2].floor() as i32,
-    ];
-    let b = j.world.get(below[0], below[1], below[2]);
-    let need = dyno_sim::mining::break_time(&c, b, None).expect("breakable");
-    send(&j, ClientMsg::DigStart { pos: below });
-    // digging too early is refused
-    send(&j, ClientMsg::Dig { pos: below });
-    let refused = wait(&j, &mut pack, 3.0, |m, _pack| match m {
-        ServerMsg::Block { pos, block } if *pos == below => Some(*block),
-        _ => None,
-    });
-    assert_eq!(
-        refused, b,
-        "an early dig is refused and the block is sent back"
-    );
-    send(&j, ClientMsg::DigStart { pos: below });
-    std::thread::sleep(Duration::from_secs_f32(need + 0.1));
-    send(&j, ClientMsg::Dig { pos: below });
-    wait(&j, &mut pack, 3.0, |m, _pack| {
-        matches!(m, ServerMsg::Block { pos, block: 0 } if *pos == below).then_some(())
-    });
-    let dropped = wait(&j, &mut pack, 3.0, |m, _pack| match m {
-        ServerMsg::EntitySpawn {
-            kind: EntityKind::Item(s),
-            ..
-        } => Some(*s),
-        _ => None,
-    });
-    let expected = c.rule(b).drops[0].item;
-    assert_eq!(dropped.item, expected);
-    // keep reporting our pose; the item falls and we pick it up
-    let end = Instant::now() + Duration::from_secs(4);
-    while count(&pack, expected) == 0 && Instant::now() < end {
-        send(
-            &j,
-            ClientMsg::Pose(Pose {
-                pos: [spawn[0], spawn[1] - 1.0, spawn[2]],
-                yaw: 0.0,
-                pitch: 0.0,
-            }),
-        );
-        let _ = j.conn.rx.recv_timeout(Duration::from_millis(50)).map(|e| {
-            if let NetEvent::Msg(ServerMsg::Pack(p)) = e {
-                pack = p;
-            }
-        });
-    }
-    assert_eq!(count(&pack, expected), 1, "picked up the drop");
-
-    // 2. crafting: logs -> planks -> table and sticks -> pickaxe at the table
-    send(
-        &j,
-        ClientMsg::Chat {
-            text: "/give log 3".into(),
-        },
-    );
+    // 1. moving items keeps counts right (the first player owns the world
+    //    and may /give)
+    say(&j, "/give stick 3");
     wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(pack, id("log")) == 3).then_some(())
+        (count(pack, id("stick")) == 3).then_some(())
     });
-    let recipe = |out: &str, st: Station| {
-        c.recipes
-            .iter()
-            .find(|r| r.output == id(out) && r.station == st)
-            .unwrap()
-            .id
-    };
-    send(
-        &j,
-        ClientMsg::Craft {
-            recipe: recipe("planks", Station::None),
-            times: 3,
-        },
-    );
-    wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(pack, id("planks")) == 12).then_some(())
-    });
-    assert_eq!(count(&pack, id("log")), 0);
-    send(
-        &j,
-        ClientMsg::Craft {
-            recipe: recipe("crafting_table", Station::None),
-            times: 1,
-        },
-    );
-    send(
-        &j,
-        ClientMsg::Craft {
-            recipe: recipe("stick", Station::None),
-            times: 1,
-        },
-    );
-    wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(pack, id("stick")) == 4 && count(pack, id("crafting_table")) == 1).then_some(())
-    });
-    assert_eq!(count(&pack, id("planks")), 12 - 4 - 2);
-    // the pickaxe needs a table nearby: refused first
-    send(
-        &j,
-        ClientMsg::Craft {
-            recipe: recipe("wooden_pickaxe", Station::Table),
-            times: 1,
-        },
-    );
-    wait(&j, &mut pack, 3.0, |m, _pack| {
-        matches!(m, ServerMsg::System { text } if text.contains("crafting table")).then_some(())
-    });
-    // place the table next to us (it uses the item)
-    let slot = pack
-        .iter()
-        .position(|s| s.is_some_and(|s| s.item == id("crafting_table")))
-        .unwrap() as u8;
-    let table_pos = [below[0] + 2, below[1] + 1, below[2]];
-    let ground = j.world.get(table_pos[0], table_pos[1], table_pos[2]);
-    let table_pos = if ground == 0 {
-        table_pos
-    } else {
-        [table_pos[0], table_pos[1] + 1, table_pos[2]]
-    };
-    send(
-        &j,
-        ClientMsg::Place {
-            pos: table_pos,
-            slot,
-        },
-    );
-    wait(&j, &mut pack, 3.0, |m, _pack| {
-        matches!(m, ServerMsg::Block { pos, block } if *pos == table_pos && *block == dyno_world::CRAFTING_TABLE).then_some(())
-    });
-    send(
-        &j,
-        ClientMsg::Craft {
-            recipe: recipe("wooden_pickaxe", Station::Table),
-            times: 1,
-        },
-    );
-    wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(pack, id("wooden_pickaxe")) == 1).then_some(())
-    });
-    assert_eq!(count(&pack, id("crafting_table")), 0);
-    assert_eq!(count(&pack, id("planks")), 6 - 3);
-
-    // 3. moving and throwing items keeps counts right
     let from = pack
         .iter()
         .position(|s| s.is_some_and(|s| s.item == id("stick")))
@@ -399,7 +269,9 @@ fn survival_loop() {
             .is_some_and(|s| s.item == id("stick") && s.count == 1)
             .then_some(())
     });
-    assert_eq!(count(&pack, id("stick")), 2);
+    assert_eq!(count(&pack, id("stick")), 3);
+    // nothing is thrown on the ground, and chests take nothing: both are
+    // ignored or refused, and the bags stay as they were
     send(
         &j,
         ClientMsg::Throw {
@@ -407,45 +279,65 @@ fn survival_loop() {
             count: 0,
         },
     );
+    send(
+        &j,
+        ClientMsg::Move {
+            from: SlotRef::Pack(30),
+            to: SlotRef::Chest(0),
+            count: 0,
+        },
+    );
+    send(
+        &j,
+        ClientMsg::Move {
+            from: SlotRef::Pack(30),
+            to: SlotRef::Pack(31),
+            count: 0,
+        },
+    );
     wait(&j, &mut pack, 3.0, |_, pack| {
-        (count(pack, id("stick")) == 1).then_some(())
+        pack[31]
+            .is_some_and(|s| s.item == id("stick") && s.count == 1)
+            .then_some(())
     });
+    assert_eq!(count(&pack, id("stick")), 3, "nothing left the bags");
 
-    // 4. health: a fall hurts, /kill drops all but the hotbar, respawn restores
-    send(
-        &j,
-        ClientMsg::Hurt {
-            kind: EnvDamage::Fall,
-            amount: 5,
-        },
-    );
-    let hp = wait(&j, &mut pack, 3.0, |m, _pack| match m {
-        ServerMsg::Status { health, .. } => Some(*health),
-        _ => None,
-    });
-    assert_eq!(hp, 15.0);
-    send(
-        &j,
-        ClientMsg::Chat {
-            text: "/kill".into(),
-        },
-    );
-    wait(&j, &mut pack, 3.0, |m, _pack| {
-        matches!(m, ServerMsg::Died { .. }).then_some(())
-    });
+    // 2. a fall hurts
+    let hurt = |j: &Joined, pack: &mut Vec<Option<Stack>>| {
+        send(
+            j,
+            ClientMsg::Hurt {
+                kind: EnvDamage::Fall,
+                amount: 5,
+            },
+        );
+        wait(j, pack, 3.0, |m, _| match m {
+            ServerMsg::Status { health, .. } => Some(*health),
+            _ => None,
+        })
+    };
+    let first = hurt(&j, &mut pack);
+    let second = hurt(&j, &mut pack);
     assert!(
-        pack[9..].iter().all(|s| s.is_none()),
-        "death drops everything but the hotbar"
+        first > 0.0 && second < first,
+        "falls hurt: {first} then {second}"
     );
-    assert!(pack[..9].iter().any(|s| s.is_some()), "the hotbar is kept");
-    send(&j, ClientMsg::Respawn);
-    let hp = wait(&j, &mut pack, 3.0, |m, _pack| match m {
+
+    // 3. death keeps everything, and you wake with health
+    let before = pack.clone();
+    let woke = die_and_wake(&j, &mut pack);
+    assert!(
+        flat_dist(woke, j.spawn) < 8.0,
+        "homeless, you wake by the hearth"
+    );
+    let hp = wait(&j, &mut pack, 3.0, |m, _| match m {
         ServerMsg::Status { health, .. } => Some(*health),
         _ => None,
     });
-    assert_eq!(hp, 20.0);
+    assert!(hp > 0.0);
+    assert_eq!(pack, before, "death keeps everything you carry");
 
-    // 5. the same name with another token is refused
+    // 4. the same name with another token is refused
     let err = net::connect(&addr, "tester", 999, false, Duration::from_secs(5))
         .err()
         .unwrap();
@@ -455,6 +347,268 @@ fn survival_loop() {
     );
 
     drop(j);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Profession crafting: a recipe is made at the station it names. Away from
+/// one it is refused by name; at the town's smithy the forge smelts, and
+/// serves as the workbench too.
+#[test]
+fn crafting_is_done_at_the_towns_stations() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-craft-{}", std::process::id()));
+    let server = start_server(&dir);
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let mut j = net::connect(&addr, "smith", 222, false, Duration::from_secs(5)).expect("join");
+    let c = j.content.clone();
+    let id = |k: &str| c.item_by_key(k).unwrap();
+    let recipe = |out: &str| {
+        c.recipes
+            .iter()
+            .find(|r| r.output == id(out))
+            .unwrap_or_else(|| panic!("no recipe for {out}"))
+            .clone()
+    };
+    let (coal, pick) = (recipe("coal"), recipe("wooden_pickaxe"));
+    let forge = &c.stations[coal.station.expect("smelting names a station") as usize];
+    let bench = &c.stations[pick.station.expect("tools name a station") as usize];
+    // every station block there is in the town, wherever it stands
+    let hearth = j.hearth;
+    let town = [hearth[0] as f32, hearth[1] as f32, hearth[2] as f32];
+    land(&mut j, town, 80.0);
+    let mut pack = vec![None; 36];
+    pose(&j, j.spawn);
+    // (only logs for now: fuel burns the cheapest thing in the bags first)
+    say(&j, "/give log 6");
+    wait(&j, &mut pack, 3.0, |_, pack| {
+        (count(pack, id("log")) == 6).then_some(())
+    });
+
+    // 1. by the hearth there is no forge: refused, and it says what is needed
+    send(
+        &j,
+        ClientMsg::Craft {
+            recipe: coal.id,
+            times: 1,
+        },
+    );
+    let why = wait(&j, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::System { text } if text.starts_with("Needs") => Some(text.clone()),
+        _ => None,
+    });
+    assert_eq!(why, format!("Needs a {} nearby", forge.name));
+    assert_eq!(count(&pack, id("coal")), 0);
+
+    // 2. at the forge: a log is burnt for fuel and another becomes coal
+    let at = block_near(&j, hearth[0], hearth[2], 80, &forge.blocks).expect("the town has a forge");
+    assert!(
+        bench.blocks.contains(&j.world.get(at[0], at[1], at[2])),
+        "the forge serves as the workbench too"
+    );
+    pose(&j, [at[0] as f32 + 1.5, at[1] as f32, at[2] as f32 + 0.5]);
+    std::thread::sleep(Duration::from_millis(150));
+    send(
+        &j,
+        ClientMsg::Craft {
+            recipe: coal.id,
+            times: 1,
+        },
+    );
+    wait(&j, &mut pack, 3.0, |_, pack| {
+        (count(pack, id("coal")) >= 1).then_some(())
+    });
+    assert_eq!(count(&pack, id("log")), 4, "one log for fuel, one smelted");
+
+    // 3. a tool, made here: its profession is learned on the way
+    say(&j, "/give planks 3");
+    say(&j, "/give stick 2");
+    wait(&j, &mut pack, 3.0, |_, pack| {
+        (count(pack, id("stick")) == 2).then_some(())
+    });
+    let had = count(&pack, id("wooden_pickaxe"));
+    send(
+        &j,
+        ClientMsg::Craft {
+            recipe: pick.id,
+            times: 1,
+        },
+    );
+    wait(&j, &mut pack, 3.0, |_, pack| {
+        (count(pack, id("wooden_pickaxe")) == had + 1).then_some(())
+    });
+    assert_eq!(count(&pack, id("planks")), 0);
+
+    drop(j);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Home is made at the inn, through the innkeeper: after that you wake and
+/// recall there. Beds are decoration, and so are chests.
+#[test]
+fn home_is_made_at_the_inn() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-inn-{}", std::process::id()));
+    let server = start_server(&dir);
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let mut j = net::connect(&addr, "guest", 333, false, Duration::from_secs(5)).expect("join");
+    let c = j.content.clone();
+    let keeper = c
+        .npcs
+        .iter()
+        .find(|n| n.innkeeper)
+        .expect("the pack has an innkeeper")
+        .id;
+    let mut pack = vec![None; 36];
+    pose(&j, j.spawn);
+    // she is near enough to the hearth to be seen from it
+    let (eid, inn) = wait(&j, &mut pack, 10.0, |m, _| match m {
+        ServerMsg::EntitySpawn {
+            id,
+            kind: EntityKind::Npc(n),
+            pos,
+            ..
+        } if *n == keeper => Some((*id, *pos)),
+        _ => None,
+    });
+    assert!(
+        flat_dist(inn, j.spawn) > 20.0,
+        "the inn is not at the hearth"
+    );
+    land(&mut j, inn, 24.0);
+
+    // 1. a bed and a chest do nothing: you still wake by the hearth
+    for kind in [dyno_world::BED, dyno_world::CHEST] {
+        let at = block_near(&j, inn[0] as i32, inn[2] as i32, 20, &[kind])
+            .expect("the inn has beds and chests");
+        pose(&j, [at[0] as f32 + 1.5, at[1] as f32, at[2] as f32 + 0.5]);
+        std::thread::sleep(Duration::from_millis(100));
+        send(&j, ClientMsg::Interact { pos: at });
+    }
+    let quiet = wait_opt(&j, &mut pack, 1.0, |m| match m {
+        ServerMsg::Container(_) => Some("a chest opened".to_string()),
+        ServerMsg::System { text } if text.contains("pawn point") => Some(text.clone()),
+        _ => None,
+    });
+    assert_eq!(quiet, None);
+    let woke = die_and_wake(&j, &mut pack);
+    assert!(flat_dist(woke, j.spawn) < 8.0, "a bed is not a home");
+
+    // 2. the innkeeper: talk to her, and the inn is home
+    pose(&j, [inn[0] + 1.5, inn[1], inn[2]]);
+    std::thread::sleep(Duration::from_millis(150));
+    send(&j, ClientMsg::Talk { entity: eid });
+    wait(&j, &mut pack, 3.0, |m, _| {
+        matches!(m, ServerMsg::System { text } if text.contains("home")).then_some(())
+    });
+    pose(&j, j.spawn);
+    std::thread::sleep(Duration::from_millis(150));
+    let woke = die_and_wake(&j, &mut pack);
+    assert!(
+        flat_dist(woke, inn) < 8.0,
+        "you wake at the inn: {woke:?}, the innkeeper is at {inn:?}"
+    );
+
+    drop(j);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// What only operators may do: /spawn, /kill, /tp and build mode. In play
+/// nobody digs or places, not even on a resource node; in build mode an
+/// operator does both.
+#[test]
+fn building_and_shortcuts_are_for_operators() {
+    let dir = std::env::temp_dir().join(format!("dyno-test-ops-{}", std::process::id()));
+    let server = start_server(&dir);
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    // the first player owns the world and is its operator
+    let mut op = net::connect(&addr, "owner", 1, false, Duration::from_secs(5)).expect("join");
+    let guest = net::connect(&addr, "guest", 2, false, Duration::from_secs(5)).expect("join");
+    let mut pack = vec![None; 36];
+    let mut gpack = vec![None; 36];
+    pose(&op, op.spawn);
+    pose(&guest, guest.spawn);
+    for cmd in ["/spawn", "/kill", "/tp owner", "/gamemode build"] {
+        say(&guest, cmd);
+        let text = wait(&guest, &mut gpack, 3.0, |m, _| match m {
+            ServerMsg::System { text } if text.contains("operators") => Some(text.clone()),
+            _ => None,
+        });
+        assert!(text.starts_with("Only server operators"), "{cmd}: {text}");
+    }
+    // still alive, still in play
+    send(
+        &guest,
+        ClientMsg::Hurt {
+            kind: EnvDamage::Fall,
+            amount: 1,
+        },
+    );
+    let (hp, mode) = wait(&guest, &mut gpack, 3.0, |m, _| match m {
+        ServerMsg::Status { health, mode, .. } => Some((*health, *mode)),
+        _ => None,
+    });
+    assert!(hp > 0.0);
+    assert_eq!(mode, Mode::Survival);
+
+    // a tree: nobody digs it in play, by timing it or not
+    let spawn = op.spawn;
+    land(&mut op, spawn, 48.0);
+    let tree = block_near(
+        &op,
+        spawn[0] as i32,
+        spawn[2] as i32,
+        48,
+        &[dyno_world::LOG],
+    )
+    .expect("a tree near the spawn");
+    let by = [tree[0] as f32 + 1.5, tree[1] as f32, tree[2] as f32 + 0.5];
+    pose(&op, by);
+    std::thread::sleep(Duration::from_millis(100));
+    send(&op, ClientMsg::DigStart { pos: tree });
+    std::thread::sleep(Duration::from_millis(300));
+    send(&op, ClientMsg::Dig { pos: tree });
+    let put_back = wait(&op, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Block { pos, block } if *pos == tree => Some(*block),
+        _ => None,
+    });
+    assert_eq!(put_back, dyno_world::LOG, "the tree stands");
+    let beside = [tree[0] + 1, tree[1] + 3, tree[2]];
+    let was = op.world.get(beside[0], beside[1], beside[2]);
+    send(
+        &op,
+        ClientMsg::Place {
+            pos: beside,
+            slot: 0,
+        },
+    );
+    let put_back = wait(&op, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Block { pos, block } if *pos == beside => Some(*block),
+        _ => None,
+    });
+    assert_eq!(put_back, was, "nothing is placed in play");
+
+    // build mode: the operator digs
+    say(&op, "/gamemode build");
+    let mode = wait(&op, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Status { mode, .. } => Some(*mode),
+        _ => None,
+    });
+    assert_eq!(mode, Mode::Creative);
+    send(&op, ClientMsg::Dig { pos: tree });
+    let now = wait(&op, &mut pack, 3.0, |m, _| match m {
+        ServerMsg::Block { pos, block } if *pos == tree => Some(*block),
+        _ => None,
+    });
+    assert_eq!(now, dyno_world::AIR, "an operator in build mode digs");
+    // and the operator's shortcut home works
+    say(&op, "/spawn");
+    wait(&op, &mut pack, 3.0, |m, _| {
+        matches!(m, ServerMsg::Teleport { .. }).then_some(())
+    });
+
+    drop(op);
+    drop(guest);
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -770,7 +924,8 @@ fn quests_give_xp_and_rewards() {
     ];
     send(&j, ClientMsg::Dig { pos: below });
     wait(&j, &mut pack, 3.0, |m, _| {
-        matches!(m, ServerMsg::Block { pos, .. } if *pos == below).then_some(())
+        matches!(m, ServerMsg::Block { pos, block } if *pos == below && *block != dyno_world::AIR)
+            .then_some(())
     });
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);

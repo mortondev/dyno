@@ -8,7 +8,7 @@
    "Shades cannot cross into a hearth's light.",
    "Gather from trees, ore and bushes with a right click.",
    "Press C for your character, B for bags, P for your spellbook.",
-   "Recall (the - key) takes you home to your bed or Hearthstead."
+   "Recall (the - key) takes you home: to the inn whose innkeeper you last spoke with, or to Hearthstead."
   ]
  },
  "intro": {

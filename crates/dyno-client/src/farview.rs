@@ -341,7 +341,7 @@ mod tests {
     /// tops are drawn and inside the fade.
     #[test]
     fn far_columns_stand_on_the_land() {
-        let mut world = dyno_world::World::generate([128, 96, 128], 7);
+        let mut world = dyno_world::World::test_terrain([128, 96, 128], 7);
         // a stone tower 30 m over the land, filling the 4 × 4 m cell at (40, 40)
         let g = (40..44)
             .flat_map(|z| (40..44).map(move |x| (x, z)))
@@ -395,7 +395,7 @@ mod tests {
 
     #[test]
     fn far_tiles_mesh_in_two_layers_round_the_cut() {
-        let world = dyno_world::World::generate([128, 64, 128], 7);
+        let world = dyno_world::World::test_terrain([128, 64, 128], 7);
         let mut tiles = FarTiles::new();
         for tz in 0..2 {
             for tx in 0..2 {

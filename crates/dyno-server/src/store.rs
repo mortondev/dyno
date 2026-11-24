@@ -111,10 +111,10 @@ fn survival() -> Mode {
 }
 
 impl PlayerData {
-    pub fn new(mode: Mode, spawn: [f32; 3]) -> Self {
+    pub fn new(spawn: [f32; 3]) -> Self {
         PlayerData {
             token: 0,
-            mode,
+            mode: Mode::default(),
             health: 20.0,
             food: 20.0,
             pos: spawn,

@@ -217,7 +217,7 @@ fn the_world_streams_around_each_player_and_so_do_entities_and_players() {
     a.j.conn
         .tx
         .send(ClientMsg::Chat {
-            text: "/gamemode creative".into(),
+            text: "/gamemode build".into(),
         })
         .unwrap();
     a.pump(0.5);
@@ -272,10 +272,12 @@ fn the_world_streams_around_each_player_and_so_do_entities_and_players() {
     }
     a.pump(0.5);
     assert!(a.near.contains(&b.j.your_id));
+    // a fall no one survives (/kill is an operator's)
     b.j.conn
         .tx
-        .send(ClientMsg::Chat {
-            text: "/kill".into(),
+        .send(ClientMsg::Hurt {
+            kind: dyno_protocol::EnvDamage::Fall,
+            amount: 40,
         })
         .unwrap();
     let bid = b.j.your_id;

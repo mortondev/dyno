@@ -189,15 +189,10 @@ struct Play {
     mode: Mode,
     pack: Vec<Option<Stack>>,
     health: f32,
-    food: f32,
     fuel: u16,
-    chest: Option<([i32; 3], Vec<Option<Stack>>)>,
     selected: Option<SlotRef>,
     recipe_filter: String,
     entities: HashMap<u32, ClientEntity>,
-    /// block being broken: position, seconds so far, seconds needed
-    dig: Option<([i32; 3], f32, f32)>,
-    mouse_left: bool,
     dead: Option<String>,
     hurt_flash: f32,
     toasts: Vec<(Instant, String)>,
@@ -207,7 +202,6 @@ struct Play {
     target_entity: Option<u32>,
     heart_clock: f32,
     /// where we lay down in a bed at night
-    sleeping_at: Option<Vec3>,
     my_name: String,
     my_look: dyno_protocol::Appearance,
     hearth: Option<[i32; 3]>,
@@ -295,8 +289,6 @@ struct Play {
     floaters: Vec<(Instant, String, Color32)>,
     /// the creature or NPC we last hit or picked with Tab
     focus: Option<u32>,
-    /// the block we last explained "Needs a stone pickaxe" for
-    tier_hint: Option<[i32; 3]>,
     fall_from: Option<f32>,
     air: f32,
     drown_clock: f32,
@@ -338,9 +330,6 @@ impl Play {
     }
     fn held_block(&self) -> Option<w::BlockId> {
         self.held().and_then(|s| self.content.item(s.item).block)
-    }
-    fn held_tool(&self) -> Option<&dyno_world::content::Tool> {
-        self.held().and_then(|s| self.content.item(s.item).tool)
     }
     fn creative(&self) -> bool {
         self.mode == Mode::Creative
@@ -1676,20 +1665,15 @@ fn new_play(j: Joined) -> Play {
         mode: j.mode,
         pack: vec![None; dyno_sim::SLOTS],
         health: 20.0,
-        food: 20.0,
         fuel: 0,
-        chest: None,
         selected: None,
         recipe_filter: String::new(),
         entities: HashMap::new(),
-        dig: None,
-        mouse_left: false,
         dead: None,
         hurt_flash: 0.0,
         title: None,
         target_entity: None,
         heart_clock: 0.0,
-        sleeping_at: None,
         my_name: j.name.clone(),
         my_look: Default::default(),
         class: None,
@@ -1750,7 +1734,6 @@ fn new_play(j: Joined) -> Play {
         panel: None,
         floaters: Vec::new(),
         focus: None,
-        tier_hint: None,
         toasts: Vec::new(),
         fall_from: None,
         air: 10.0,
@@ -1846,9 +1829,7 @@ impl App {
                 let b = p.world.get(pos[0], pos[1], pos[2]);
                 if p.content.rule(b).respawn > 0 {
                     let _ = p.conn.tx.send(ClientMsg::Gather { pos });
-                } else if matches!(b, w::CHEST | w::BED) {
-                    let _ = p.conn.tx.send(ClientMsg::Interact { pos });
-                } else if matches!(b, w::CRAFTING_TABLE | w::FURNACE | w::ANVIL) {
+                } else if p.content.is_station(b) {
                     p.picker_open = true;
                     p.selected = None;
                 }
@@ -1974,9 +1955,6 @@ impl App {
                         p.intro = Some(Instant::now());
                     }
                     self.stage_loaded = false;
-                    if !p.content.world.protected {
-                        p.chat.push(Chat { at: Instant::now(), from: None, text: if p.creative() { "Creative mode. Click to play. WASD move, F fly, left click break, right click place, E all items, G G then V to fill, Ctrl+Z undo, T chat, /help.".into() } else { "Survival mode. Hold left click to break blocks, E opens your pack and recipes, right click places or eats, Q throws, T chat, /help. Punch a tree to start, and make light before night falls.".into() } });
-                    }
                     // the join returned only once blocks.json and every file
                     // needed before play arrived: take this world's texture
                     // layers in before its meshes are built
@@ -2247,13 +2225,9 @@ impl App {
                         }
                         ServerMsg::Pack(slots) => p.pack = slots,
                         ServerMsg::Status {
-                            health,
-                            food,
-                            mode,
-                            fuel,
+                            health, mode, fuel, ..
                         } => {
                             p.health = health;
-                            p.food = food;
                             p.fuel = fuel;
                             if mode != p.mode {
                                 p.mode = mode;
@@ -2261,19 +2235,10 @@ impl App {
                                     p.player.flying = false;
                                 }
                                 p.toast(if mode == Mode::Creative {
-                                    "Creative mode"
+                                    "Build mode"
                                 } else {
-                                    "Survival mode"
+                                    "Play mode"
                                 });
-                            }
-                        }
-                        ServerMsg::Container(c) => {
-                            p.chest = c;
-                            if p.chest.is_some() && !p.picker_open {
-                                p.picker_open = true;
-                                p.selected = None;
-                                self.audio.play(Sfx::Place(w::Material::Wood), 0.5);
-                                release = true;
                             }
                         }
                         ServerMsg::EntitySpawn { id, kind, pos, yaw } => {
@@ -2633,21 +2598,8 @@ impl App {
                         }
                         ServerMsg::Died { message } => {
                             p.dead = Some(message);
-                            p.dig = None;
                             p.picker_open = false;
                             release = true;
-                        }
-                        ServerMsg::Milestone { title } => {
-                            p.toast(format!("Journal: {title}"));
-                            self.audio.play(Sfx::Join, 0.7);
-                        }
-                        ServerMsg::Digging { player, pos } => {
-                            let now = p.anims.now();
-                            if pos.is_some() {
-                                p.anims.digging.entry(player).or_insert(now);
-                            } else {
-                                p.anims.digging.remove(&player);
-                            }
                         }
                         ServerMsg::Reject { reason } => closed = Some(reason),
                         _ => {}
@@ -2866,8 +2818,7 @@ impl App {
                     },
                     jump: k(KeyCode::Space),
                     down: k(KeyCode::ShiftLeft) || k(KeyCode::ShiftRight),
-                    sprint: (k(KeyCode::ControlLeft) || k(KeyCode::KeyR))
-                        && (p.food > 0.0 || p.creative()),
+                    sprint: k(KeyCode::ControlLeft) || k(KeyCode::KeyR),
                 }
             } else {
                 Input::default()
@@ -2878,12 +2829,6 @@ impl App {
             }
             p.player.update(&p.world, input, dt);
             p.hurt_flash = (p.hurt_flash - dt * 1.5).max(0.0);
-            if let Some(at) = p.sleeping_at {
-                let t = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
-                if at.distance(p.player.pos) > 1.5 || !(0.52..0.98).contains(&t) {
-                    p.sleeping_at = None;
-                }
-            }
             if p.title
                 .as_ref()
                 .is_some_and(|(t, _)| t.elapsed() > Duration::from_secs(5))
@@ -2943,73 +2888,6 @@ impl App {
                     }
                 } else {
                     p.air = (p.air + dt * 4.0).min(10.0);
-                }
-            }
-            // mining: hold the left button on a block
-            let can_mine = active && p.mouse_left && !p.creative() && !p.wow();
-            let target_block = p
-                .target
-                .as_ref()
-                .map(|t| t.block)
-                .filter(|_| p.target_entity.is_none());
-            match (can_mine, target_block) {
-                (true, Some(pos)) => {
-                    let b = p.world.get(pos[0], pos[1], pos[2]);
-                    let pack = dyno_sim::inventory::Inventory {
-                        slots: p.pack.clone(),
-                    };
-                    let best = p
-                        .content
-                        .rule(b)
-                        .tool
-                        .and_then(|k| dyno_sim::inventory::best_tool(&pack, &p.content, k))
-                        .map(|(_, t)| t);
-                    let tool = if p.content.world.protected {
-                        best
-                    } else {
-                        p.held_tool()
-                    };
-                    let need = dyno_sim::mining::break_time(&p.content, b, tool)
-                        .filter(|_| !p.content.world.protected || p.content.rule(b).respawn > 0);
-                    match (&mut p.dig, need) {
-                        (Some((dp, done, total)), Some(_)) if *dp == pos => {
-                            *done += dt;
-                            p.swing = p.swing.max(0.6);
-                            if *done >= *total {
-                                let pos = *dp;
-                                p.dig = None;
-                                let _ = p.conn.tx.send(ClientMsg::Dig { pos });
-                                p.world.set(pos[0], pos[1], pos[2], w::AIR);
-                                p.minimap.block_changed(pos);
-                                p.work.block(pos, w::AIR);
-                                spawn_particles(
-                                    &mut p.particles,
-                                    pos,
-                                    b,
-                                    14,
-                                    (pos[0] * 31 + pos[1] * 7 + pos[2]) as u32,
-                                );
-                                self.audio.play(Sfx::Break(material_of(b)), 0.9);
-                            } else if (*done / 0.25).floor() != ((*done - dt) / 0.25).floor() {
-                                self.audio.play(Sfx::Step(material_of(b)), 0.45);
-                            }
-                        }
-                        (_, Some(total)) => {
-                            p.dig = Some((pos, 0.0, total));
-                            let _ = p.conn.tx.send(ClientMsg::DigStart { pos });
-                            if p.tier_hint != Some(pos)
-                                && let Some(why) =
-                                    dyno_sim::mining::missing_tool(&p.content, b, p.held_tool())
-                            {
-                                p.tier_hint = Some(pos);
-                                p.toast(why);
-                            }
-                        }
-                        (_, None) => p.dig = None,
-                    }
-                }
-                _ => {
-                    p.dig = None;
                 }
             }
             // footsteps, view bob and sprint field-of-view kick
@@ -3391,9 +3269,6 @@ impl App {
                 let state = my_anim(p, &mut book, &look, now);
                 let step = models::person_step(speed);
                 let me = book.me(now);
-                if p.dig.is_some() && me.action(now).is_none() {
-                    me.play(now, Anim::Attack1H);
-                }
                 me.drive_at(now, state, feet, step);
                 models::push_person_anim(
                     &mut boxes,
@@ -3664,9 +3539,6 @@ impl App {
                                     count: n,
                                 });
                             }
-                            PackCmd::Throw(a, n) => {
-                                let _ = p.conn.tx.send(ClientMsg::Throw { from: a, count: n });
-                            }
                             PackCmd::Craft(r, n) => {
                                 let _ = p.conn.tx.send(ClientMsg::Craft {
                                     recipe: r,
@@ -3683,9 +3555,6 @@ impl App {
                             PackCmd::Close => {
                                 p.picker_open = false;
                                 p.selected = None;
-                                if p.chest.take().is_some() {
-                                    let _ = p.conn.tx.send(ClientMsg::CloseContainer);
-                                }
                                 close = true;
                             }
                         }
@@ -3833,17 +3702,6 @@ impl App {
                 p.player.flying = !p.player.flying;
                 p.player.vel.y = 0.0;
             }
-            KeyCode::KeyQ => {
-                let all = p.keys.contains(&KeyCode::ControlLeft)
-                    || p.keys.contains(&KeyCode::ControlRight);
-                if p.held().is_some() {
-                    let _ = p.conn.tx.send(ClientMsg::Throw {
-                        from: SlotRef::Pack(p.slot as u8),
-                        count: if all { 0 } else { 1 },
-                    });
-                    p.swing = 1.0;
-                }
-            }
             KeyCode::KeyC | KeyCode::KeyB | KeyCode::KeyP | KeyCode::KeyK
                 if p.content.world.protected =>
             {
@@ -3987,12 +3845,8 @@ impl App {
             return;
         }
         if let Some(id) = p.target_entity {
-            if p.content.world.protected {
-                // classic: click to target, and start attacking it
-                let _ = p.conn.tx.send(ClientMsg::AutoAttack { target: Some(id) });
-            } else if button == MouseButton::Left {
-                let _ = p.conn.tx.send(ClientMsg::Attack { entity: id });
-            }
+            // classic: click to target, and start attacking it
+            let _ = p.conn.tx.send(ClientMsg::AutoAttack { target: Some(id) });
             p.focus = Some(id);
             return;
         }
@@ -4020,34 +3874,15 @@ impl App {
             MouseButton::Right => {
                 let looked = p.world.get(tb[0], tb[1], tb[2]);
                 let sneaking = p.keys.contains(&KeyCode::ShiftLeft);
-                if !sneaking && matches!(looked, w::CHEST | w::BED) {
-                    let _ = p.conn.tx.send(ClientMsg::Interact { pos: tb });
-                    let t = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
-                    if looked == w::BED && t > 0.52 && t < 0.98 {
-                        p.sleeping_at = Some(p.player.pos);
-                    }
-                    return;
-                }
-                if !sneaking && matches!(looked, w::CRAFTING_TABLE | w::FURNACE) {
+                if !sneaking && p.content.is_station(looked) {
                     p.picker_open = true;
                     p.selected = None;
                     self.set_capture(false);
                     return;
                 }
-                let held = p.held();
-                if let Some(s) = held
-                    && p.content.item(s.item).food > 0
-                    && !p.creative()
-                    && p.food < 20.0
-                    && p.held_block().is_none()
-                {
-                    let _ = p.conn.tx.send(ClientMsg::UseHeld);
-                    self.audio.play(Sfx::Step(w::Material::Foliage), 0.8);
-                    return;
-                }
                 let Some(block) = p.held_block() else { return };
-                if p.content.world.protected && !p.creative() {
-                    return; // the land is protected; building needs a plot (later)
+                if !p.creative() {
+                    return; // the land is built on in build mode only
                 }
                 let pos = tp;
                 let here = p.world.get(pos[0], pos[1], pos[2]);
@@ -4059,17 +3894,9 @@ impl App {
                     p.minimap.block_changed(pos);
                     p.work.block(pos, block);
                     self.audio.play(Sfx::Place(material_of(block)), 0.9);
-                    if p.creative() {
-                        p.undo.push((pos, here, block));
-                        if p.undo.len() > 64 {
-                            p.undo.remove(0);
-                        }
-                    } else if let Some(Some(s)) = p.pack.get_mut(p.slot) {
-                        // predict the count; the server sends the real pack
-                        s.count = s.count.saturating_sub(1);
-                        if s.count == 0 {
-                            p.pack[p.slot] = None;
-                        }
+                    p.undo.push((pos, here, block));
+                    if p.undo.len() > 64 {
+                        p.undo.remove(0);
                     }
                     let _ = p.conn.tx.send(ClientMsg::Place {
                         pos,
@@ -4721,24 +4548,21 @@ fn hud(
         );
         label_y -= 14.0;
     }
-    if !p.creative() && !p.content.world.protected {
-        survival::bars(
-            &painter,
-            Pos2::new(start.x, start.y - 18.0),
-            Pos2::new(start.x + total, start.y - 18.0),
-            p.health,
-            p.food,
+    // air, while under water
+    if !p.creative() && p.air < 10.0 {
+        let k = (p.air / 10.0).clamp(0.0, 1.0);
+        let at = Pos2::new(start.x + total - 110.0, start.y - 34.0);
+        painter.rect_filled(
+            Rect::from_min_size(at, Vec2::new(110.0, 5.0)).expand(1.0),
+            2.0,
+            Color32::from_black_alpha(150),
         );
-        label_y -= 16.0;
-        if p.air < 10.0 {
-            let k = (p.air / 10.0).clamp(0.0, 1.0);
-            let r = Rect::from_min_size(
-                Pos2::new(start.x + total - 110.0, start.y - 34.0),
-                Vec2::new(110.0 * k, 5.0),
-            );
-            painter.rect_filled(r, 2.0, Color32::from_rgb(110, 170, 230));
-            label_y -= 8.0;
-        }
+        painter.rect_filled(
+            Rect::from_min_size(at, Vec2::new(110.0 * k, 5.0)),
+            2.0,
+            Color32::from_rgb(110, 170, 230),
+        );
+        label_y -= 8.0;
     }
     painter.text(
         Pos2::new(c.x, label_y),
@@ -4747,22 +4571,6 @@ fn hud(
         FontId::proportional(15.0),
         Color32::WHITE,
     );
-    // mining progress ring around the crosshair
-    if let Some((_, done, total)) = p.dig
-        && total > 0.05
-    {
-        let k = (done / total).clamp(0.0, 1.0);
-        let n = 32;
-        let pts: Vec<Pos2> = (0..=((n as f32 * k) as usize))
-            .map(|i| {
-                let a = -std::f32::consts::FRAC_PI_2 + i as f32 / n as f32 * std::f32::consts::TAU;
-                c + Vec2::new(a.cos(), a.sin()) * 16.0
-            })
-            .collect();
-        if pts.len() > 1 {
-            painter.add(egui::Shape::line(pts, Stroke::new(3.0_f32, ACCENT)));
-        }
-    }
     // being hurt flashes the screen edge red
     if p.hurt_flash > 0.0 {
         let a = (p.hurt_flash * 120.0) as u8;
@@ -4792,17 +4600,6 @@ fn hud(
         ] {
             painter.rect_filled(r, 0.0, Color32::from_rgba_unmultiplied(200, 20, 20, a));
         }
-    }
-    // asleep in bed: the world dims
-    if p.sleeping_at.is_some() {
-        painter.rect_filled(screen, 0.0, Color32::from_black_alpha(150));
-        painter.text(
-            Pos2::new(c.x, c.y + 40.0),
-            egui::Align2::CENTER_CENTER,
-            "Sleeping… the night passes quickly when half of the players sleep. Move to get up.",
-            FontId::proportional(18.0),
-            Color32::from_gray(220),
-        );
     }
     // the first-login intro: letterbox and a few lines of story
     if let Some(t0) = p.intro {
@@ -5584,11 +5381,10 @@ fn hud(
     }
     // pack screen
     if p.picker_open {
-        let stations = survival::stations_near(&p.world, p.player.pos.into());
+        let stations = dyno_sim::crafting::stations_near(&p.content, &p.world, p.player.pos.into());
         let view = PackView {
             content: &p.content,
             pack: &p.pack,
-            chest: p.chest.as_ref().map(|(_, s)| s.as_slice()),
             stations,
             fuel: p.fuel,
             mode: p.mode,
@@ -5623,7 +5419,7 @@ fn hud(
                             ui.label(msg);
                             ui.label(
                                 RichText::new(
-                                    "Your items are where you fell. Friends can pick them up too.",
+                                    "You keep everything you carry. You will wake at your home.",
                                 )
                                 .weak(),
                             );
@@ -5853,25 +5649,10 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::MouseInput {
-                state: ElementState::Released,
-                button: MouseButton::Left,
-                ..
-            } => {
-                if let Screen::Playing(p) = &mut self.screen {
-                    p.mouse_left = false;
-                }
-            }
-            WindowEvent::MouseInput {
                 state: ElementState::Pressed,
                 button,
                 ..
             } => {
-                if button == MouseButton::Left
-                    && captured
-                    && let Screen::Playing(p) = &mut self.screen
-                {
-                    p.mouse_left = true;
-                }
                 let (playing_free, menu_or_chat) = match &self.screen {
                     Screen::Playing(p) => (
                         !p.captured,
@@ -6111,7 +5892,7 @@ pub fn shot_front(
 }
 
 /// Render one frame with the real HUD, for `dyno shot --ui` (tests and agents).
-/// `ui` is "hud", "pack", "dig" or "dead"; or "stand" for the world alone
+/// `ui` is "hud", "pack" or "dead"; or "stand" for the world alone
 /// with a stand-in figure on the ground at `pos` (see `shot::Stand`; a
 /// negative height there means the open ground of the column).
 #[allow(clippy::too_many_arguments)]
@@ -6234,13 +6015,9 @@ pub fn shot_with_ui(
                     }
                     ServerMsg::Pack(s) => p.pack = s,
                     ServerMsg::Status {
-                        health,
-                        food,
-                        mode,
-                        fuel,
+                        health, mode, fuel, ..
                     } => {
                         p.health = health;
-                        p.food = food;
                         p.mode = mode;
                         p.fuel = fuel;
                     }
@@ -6328,8 +6105,6 @@ pub fn shot_with_ui(
                             e.info = Some((level, health, max));
                         }
                     }
-                    ServerMsg::Container(c) => p.chest = c,
-                    ServerMsg::Milestone { title } => p.toast(format!("Journal: {title}")),
                     ServerMsg::Chat { from, text } => p.chat.push(Chat {
                         at: Instant::now(),
                         from: Some(from),
@@ -6646,11 +6421,6 @@ pub fn shot_with_ui(
     }
     if !stand {
         p.target = game::raycast(&p.world, p.player.eye(), p.player.look_dir(), game::REACH);
-    }
-    if ui == "dig"
-        && let Some(t) = &p.target
-    {
-        p.dig = Some((t.block, 0.65, 1.0));
     }
     if ui == "dead" {
         p.dead = Some("You fell from a high place.".into());

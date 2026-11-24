@@ -67,16 +67,13 @@ fn start_webhook(url: String) -> std::sync::mpsc::Sender<String> {
 pub struct Config {
     pub bind: SocketAddr,
     pub world_path: PathBuf,
-    /// the size of the world to make. Zeros: the size of the pack's layout
-    /// (384 × 96 × 384 for a world without one). With a layout, a smaller
-    /// size makes the window of that size round the spawn (tests), and the
-    /// height is always the layout's.
+    /// the size of the world to make. Zeros: the size of the pack's layout.
+    /// A smaller size makes the window of that size round the spawn (tests),
+    /// and the height is always the layout's.
     pub world_size: [u32; 3],
     pub seed: u32,
     pub motd: String,
     pub max_players: usize,
-    /// mode for players who join for the first time
-    pub default_mode: Mode,
     /// the content pack: a pack directory, or a rules JSON file (the
     /// built-in pack with those rules); None uses the built-in pack
     pub content_path: Option<PathBuf>,
@@ -113,7 +110,6 @@ impl Default for Config {
             seed: 20261122,
             motd: "Welcome to Ashfall Vale.".into(),
             max_players: 32,
-            default_mode: Mode::Survival,
             content_path: None,
             asset_rate: 256 * 1024,
             join_asset_rate: 2 * 1024 * 1024,
@@ -302,72 +298,6 @@ fn load_or_build(
     Ok((w, built.hearth))
 }
 
-/// A world without a layout (builder worlds, other rules): terrain from
-/// the seed, with a spawn hearth and the quest beacons of its rules.
-fn load_or_generate(cfg: &Config, meta: &store::Meta, content: &Content) -> (World, [i32; 3]) {
-    let size = if cfg.world_size.contains(&0) {
-        [384, 96, 384]
-    } else {
-        cfg.world_size
-    };
-    let mut world = match World::load(&cfg.world_path) {
-        Ok(w) => {
-            log(format!(
-                "Loaded world {} ({:?})",
-                cfg.world_path.display(),
-                w.size
-            ));
-            // an older, smaller world grows to the current map size, keeping everything
-            if w.size[0] < size[0] && w.size[2] < size[2] && w.size[1] == size[1] {
-                let grown = migrate::expand(&cfg.world_path, w, size, cfg.seed);
-                if let Err(e) = grown.save(&cfg.world_path) {
-                    log(format!("Warning: cannot save the grown world: {e}"));
-                }
-                grown
-            } else {
-                w
-            }
-        }
-        Err(_) => {
-            log(format!(
-                "Generating a new world {size:?} with seed {}",
-                cfg.seed
-            ));
-            let w = World::generate(size, cfg.seed);
-            if let Err(e) = w.save(&cfg.world_path) {
-                log(format!(
-                    "Warning: cannot save world to {}: {e}",
-                    cfg.world_path.display()
-                ));
-            }
-            w
-        }
-    };
-    // growing moves the saved hearth: read it again
-    let meta_now = store::load_meta(&store::meta_path(&cfg.world_path));
-    let known = meta_now.spawn_hearth.or(meta.spawn_hearth);
-    let before = world.clone();
-    let spawn_hearth = world.ensure_spawn_hearth(known);
-    if world.get(spawn_hearth[0], spawn_hearth[1], spawn_hearth[2])
-        != before.get(spawn_hearth[0], spawn_hearth[1], spawn_hearth[2])
-    {
-        log(format!("Built the spawn hearth at {spawn_hearth:?}"));
-        if let Err(e) = world.save(&cfg.world_path) {
-            log(format!("Warning: cannot save world: {e}"));
-        }
-    }
-    drop(before);
-    if rpg::build_landmarks(&mut world, content, spawn_hearth) {
-        log("Built quest beacons");
-        if let Err(e) = world.save(&cfg.world_path) {
-            log(format!("Warning: cannot save world: {e}"));
-        }
-    }
-    // built: every section in its smallest form (shards share them)
-    world.compact();
-    (world, spawn_hearth)
-}
-
 /// Start the server in background threads and return at once.
 pub fn start(cfg: Config) -> std::io::Result<Handle> {
     let pack = pack::Pack::load(cfg.content_path.as_deref()).map_err(std::io::Error::other)?;
@@ -408,16 +338,14 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         None => None,
     };
     let meta = store::load_meta(&store::meta_path(&cfg.world_path));
-    // a protected world with a layout in its pack is built from that data
-    let layout = pack.layout.clone().filter(|_| content.world.protected);
-    let (world, spawn_hearth) = match &layout {
-        Some(l) => {
-            let (w, hearth) = load_or_build(&cfg, &meta, l, &pack.stamps)?;
-            (w, hearth)
-        }
-        None => load_or_generate(&cfg, &meta, &content),
+    // the world is built from the layout in the pack
+    let Some(layout) = pack.layout.clone() else {
+        return Err(std::io::Error::other(
+            "the pack has no world layout (world/layout.json), so there is no world to build",
+        ));
     };
-    let world_layout = layout.as_ref().map(|l| l.version);
+    let (world, spawn_hearth) = load_or_build(&cfg, &meta, &layout, &pack.stamps)?;
+    let world_layout = Some(layout.version);
     // building or growing a world rewrites what is saved beside it
     let meta = store::load_meta(&store::meta_path(&cfg.world_path));
     // changes are noted, so the far view's tiles are sent again (stream.rs)
@@ -461,7 +389,6 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         rng: Rng::new(cfg.seed as u64 ^ 0x5eed_1234),
         clock: if meta.day == 0 { 0.02 } else { meta.clock },
         day: meta.day.max(1),
-        default_mode: cfg.default_mode,
         trust_movement: cfg.trust_movement,
         ops: cfg.ops.clone(),
         owner: meta.owner,
@@ -1854,10 +1781,13 @@ impl Server {
         log(format!("{me} ran {line}"));
         let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
+            "/help" => st.tell(id, if op { "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. /who. Operators: /tp <player>, /spawn, /kill, /time <day|noon|sunset|night|midnight|0-1>, /gamemode <play|build>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload" } else { "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. /who" }),
             "/who" => {
                 let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
+            }
+            "/spawn" | "/kill" | "/tp" if !op => {
+                st.tell(id, format!("Only server operators can use {cmd}."));
             }
             "/spawn" => {
                 let pos = st.players[&id].spawn.unwrap_or_else(|| st.spawn_point());
@@ -2030,14 +1960,14 @@ impl Server {
                     return st.tell(id, "Only server operators can change game mode.");
                 }
                 let mode = match args.first().copied() {
-                    Some("creative") | Some("c") | Some("1") => Mode::Creative,
-                    Some("survival") | Some("s") | Some("0") => Mode::Survival,
-                    _ => return st.tell(id, "Usage: /gamemode survival|creative"),
+                    Some("build") | Some("b") | Some("1") => Mode::Creative,
+                    Some("play") | Some("p") | Some("0") => Mode::Survival,
+                    _ => return st.tell(id, "Usage: /gamemode play|build"),
                 };
                 let p = st.players.get_mut(&id).unwrap();
                 p.mode = mode;
                 let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Status { health: p.health, food: p.food, mode, fuel: p.fuel })));
-                st.broadcast(&ServerMsg::System { text: format!("{me} is now in {} mode", if mode == Mode::Creative { "creative" } else { "survival" }) }, None);
+                st.broadcast(&ServerMsg::System { text: format!("{me} is now in {} mode", if mode == Mode::Creative { "build" } else { "play" }) }, None);
             }
             "/give" => {
                 if !op {

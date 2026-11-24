@@ -1,4 +1,4 @@
-//! Game content as data: items, recipes, block rules, creatures and milestones.
+//! Game content as data: items, recipes, stations, block rules and creatures.
 //!
 //! Content is written as JSON with readable keys (see `content/rules/hearthblock.json`)
 //! and resolved into compact numeric IDs. The server loads it and sends the
@@ -60,7 +60,7 @@ pub struct Item {
     pub icon: Icon,
     pub stack: u8,
     pub tool: Option<Tool>,
-    /// hunger points restored when eaten
+    /// how much eating it heals: 5% of full health for each point
     pub food: u8,
     /// furnace fuel units
     pub fuel: u8,
@@ -224,12 +224,14 @@ pub struct BlockRule {
     pub skill: Option<(String, u16)>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum Station {
-    None,
-    Table,
-    Furnace,
+/// A crafting station: the blocks that serve as it. A recipe names the
+/// station it needs by key.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Station {
+    pub key: String,
+    /// as players read it: "Needs a Forge nearby"
+    pub name: String,
+    pub blocks: Vec<BlockId>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -245,8 +247,10 @@ pub struct Recipe {
     pub output: ItemId,
     pub count: u8,
     pub inputs: Vec<Ingredient>,
-    pub station: Station,
-    /// furnace fuel units used
+    /// the station it is made at: an index into `Content::stations`
+    #[serde(default)]
+    pub station: Option<u8>,
+    /// fuel units used
     pub fuel: u8,
     pub group: String,
     /// profession and skill needed to make it
@@ -346,6 +350,9 @@ pub struct Npc {
     /// they stand where they are)
     #[serde(default)]
     pub routine: Vec<RoutineStep>,
+    /// talking to them makes this your home: where you wake and recall to
+    #[serde(default)]
+    pub innkeeper: bool,
 }
 
 /// One stop on an NPC's round: where, what they do there and for how long.
@@ -549,9 +556,8 @@ pub struct Buff {
 /// World rules.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct WorldRules {
-    /// RPG rules: players in survival may only harvest blocks marked as
-    /// resource nodes, cannot place blocks, keep their items on death, and
-    /// do not get hungry
+    /// the land cannot be dug or built on: players gather from resource
+    /// nodes. The game is always played this way; the key is still read
     #[serde(default)]
     pub protected: bool,
     /// item keys and counts a new character starts with
@@ -572,15 +578,6 @@ impl WorldRules {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct Milestone {
-    pub key: String,
-    pub title: String,
-    pub hint: String,
-    /// "collect:<item>", "craft:<item>", "place:<block>", "kill:<creature>", "night"
-    pub trigger: String,
-}
-
 /// Resolved content, ready to use and to send.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Content {
@@ -592,7 +589,9 @@ pub struct Content {
     pub blocks: Vec<BlockRule>,
     pub recipes: Vec<Recipe>,
     pub creatures: Vec<Creature>,
-    pub milestones: Vec<Milestone>,
+    /// crafting stations, by the index recipes hold
+    #[serde(default)]
+    pub stations: Vec<Station>,
     #[serde(default)]
     pub npcs: Vec<Npc>,
     #[serde(default)]
@@ -681,7 +680,7 @@ struct AFile {
     #[serde(default)]
     creatures: Vec<ACreature>,
     #[serde(default)]
-    milestones: Vec<Milestone>,
+    stations: Vec<AStation>,
     #[serde(default)]
     npcs: Vec<ANpc>,
     #[serde(default)]
@@ -813,6 +812,8 @@ struct ANpc {
     phase: Option<String>,
     #[serde(default)]
     routine: Vec<RoutineStep>,
+    #[serde(default)]
+    innkeeper: bool,
 }
 
 #[derive(Deserialize)]
@@ -936,8 +937,9 @@ struct ARecipe {
     /// [["log|birch_log", 1], ...]
     #[serde(rename = "in")]
     inputs: Vec<(String, u8)>,
-    #[serde(default = "no_station")]
-    station: Station,
+    /// the key of a station in `stations`; absent: made anywhere
+    #[serde(default)]
+    station: Option<String>,
     #[serde(default)]
     fuel: u8,
     #[serde(default)]
@@ -946,8 +948,12 @@ struct ARecipe {
     skill: Option<(String, u16)>,
 }
 
-fn no_station() -> Station {
-    Station::None
+#[derive(Deserialize)]
+struct AStation {
+    key: String,
+    name: String,
+    /// block keys
+    blocks: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -1111,6 +1117,22 @@ impl Content {
                 return Err(format!("unknown block '{k}' in blocks"));
             }
         }
+        let mut stations = Vec::new();
+        for st in &f.stations {
+            let blocks = st
+                .blocks
+                .iter()
+                .map(|k| {
+                    block_by_key(k)
+                        .ok_or_else(|| format!("unknown block '{k}' in station '{}'", st.key))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            stations.push(Station {
+                key: st.key.clone(),
+                name: st.name.clone(),
+                blocks,
+            });
+        }
         let mut recipes = Vec::new();
         for (i, r) in f.recipes.iter().enumerate() {
             let mut inputs = Vec::new();
@@ -1126,7 +1148,14 @@ impl Content {
                 output: item(&r.out)?,
                 count: r.count.max(1),
                 inputs,
-                station: r.station,
+                station: match &r.station {
+                    None => None,
+                    Some(k) => {
+                        Some(stations.iter().position(|s| s.key == *k).ok_or_else(|| {
+                            format!("unknown station '{k}' for recipe '{}'", r.out)
+                        })? as u8)
+                    }
+                },
                 fuel: r.fuel,
                 group: if r.group.is_empty() {
                     "other".into()
@@ -1206,6 +1235,7 @@ impl Content {
                 sells,
                 phase: phase_of(&n.phase)?,
                 routine: n.routine.clone(),
+                innkeeper: n.innkeeper,
             });
             for st in &n.routine {
                 if let Some(b) = &st.near
@@ -1423,7 +1453,7 @@ impl Content {
             blocks,
             recipes,
             creatures,
-            milestones: f.milestones,
+            stations,
             npcs,
             quests,
             world: f.world,
@@ -1513,6 +1543,11 @@ impl Content {
                 .map(|i| i.key.clone())
                 .unwrap_or_default()
         }
+    }
+
+    /// Is this block a crafting station?
+    pub fn is_station(&self, b: BlockId) -> bool {
+        self.stations.iter().any(|s| s.blocks.contains(&b))
     }
 
     pub fn rule(&self, b: BlockId) -> &BlockRule {

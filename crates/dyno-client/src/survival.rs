@@ -1,11 +1,12 @@
-//! Survival UI: item icons, health and hunger, the pack screen with the recipe list.
+//! Item UI: item and block icons, and the crafting window (the bags beside the
+//! recipes of the stations in reach; in build mode, every item).
 
 use crate::theme;
 use dyno_protocol::{Mode, SlotRef, Stack};
 use dyno_sim::crafting::{self, Stations};
 use dyno_sim::inventory::Inventory;
-use dyno_world::content::{Content, Icon, ItemId, Station};
-use dyno_world::{self as w, World};
+use dyno_world as w;
+use dyno_world::content::{Content, Icon, ItemId};
 use egui::{Align2, Color32, Pos2, Rect, RichText, Shape, Stroke, Vec2};
 
 pub const ACCENT: Color32 = Color32::from_rgb(240, 138, 60);
@@ -195,76 +196,18 @@ pub fn stack_icon(painter: &egui::Painter, r: Rect, c: &Content, s: &Stack) {
     }
 }
 
-/// Health and hunger as rows of pips above the hotbar.
-pub fn bars(painter: &egui::Painter, left: Pos2, right: Pos2, health: f32, food: f32) {
-    let pip = 9.0;
-    let gap = 2.5;
-    for i in 0..10 {
-        let x = left.x + i as f32 * (pip + gap);
-        let r = Rect::from_min_size(Pos2::new(x, left.y), Vec2::splat(pip));
-        painter.rect_filled(r, 2.0, Color32::from_black_alpha(150));
-        let v = (health - i as f32 * 2.0).clamp(0.0, 2.0) / 2.0;
-        if v > 0.0 {
-            painter.rect_filled(
-                Rect::from_min_size(r.min, Vec2::new(pip * v, pip)).shrink(1.0),
-                1.5,
-                Color32::from_rgb(214, 52, 58),
-            );
-        }
-        let x2 = right.x - (i as f32 + 1.0) * (pip + gap) + gap;
-        let r2 = Rect::from_min_size(Pos2::new(x2, right.y), Vec2::splat(pip));
-        painter.rect_filled(r2, 2.0, Color32::from_black_alpha(150));
-        let f = (food - i as f32 * 2.0).clamp(0.0, 2.0) / 2.0;
-        if f > 0.0 {
-            painter.rect_filled(
-                Rect::from_min_size(
-                    Pos2::new(r2.right() - pip * f, r2.top()),
-                    Vec2::new(pip * f, pip),
-                )
-                .shrink(1.0),
-                1.5,
-                Color32::from_rgb(222, 146, 58),
-            );
-        }
-    }
-}
-
-/// Crafting stations within reach of a position (same rule as the server).
-pub fn stations_near(world: &World, pos: [f32; 3]) -> Stations {
-    let mut st = Stations::default();
-    let (bx, by, bz) = (
-        pos[0].floor() as i32,
-        pos[1].floor() as i32,
-        pos[2].floor() as i32,
-    );
-    for y in by - 3..=by + 4 {
-        for z in bz - 5..=bz + 5 {
-            for x in bx - 5..=bx + 5 {
-                match world.get(x, y, z) {
-                    w::CRAFTING_TABLE => st.table = true,
-                    w::FURNACE => st.furnace = true,
-                    _ => {}
-                }
-            }
-        }
-    }
-    st
-}
-
 /// What the player did in the pack screen.
 pub enum PackCmd {
     Move(SlotRef, SlotRef, u8),
-    Throw(SlotRef, u8),
     Craft(u16, u8),
     Close,
-    /// creative: put an item in the selected hotbar slot
+    /// build mode: put an item in the selected hotbar slot
     Creative(ItemId),
 }
 
 pub struct PackView<'a> {
     pub content: &'a Content,
     pub pack: &'a [Option<Stack>],
-    pub chest: Option<&'a [Option<Stack>]>,
     pub stations: Stations,
     pub fuel: u16,
     pub mode: Mode,
@@ -275,7 +218,7 @@ pub struct PackView<'a> {
 fn slot_at(v: &PackView, s: SlotRef) -> Option<Stack> {
     match s {
         SlotRef::Pack(i) => v.pack.get(i as usize).copied().flatten(),
-        SlotRef::Chest(i) => v.chest.and_then(|c| c.get(i as usize).copied().flatten()),
+        SlotRef::Chest(_) => None,
     }
 }
 
@@ -284,12 +227,8 @@ fn quick_target(v: &PackView, from: SlotRef) -> Option<SlotRef> {
     let s = slot_at(v, from)?;
     let max = v.content.item(s.item).stack;
     let candidates: Vec<SlotRef> = match from {
-        SlotRef::Pack(_i) if v.chest.is_some() => (0..v.chest.unwrap().len() as u8)
-            .map(SlotRef::Chest)
-            .collect(),
         SlotRef::Pack(i) if i < 9 => (9..36).map(SlotRef::Pack).collect(),
-        SlotRef::Pack(_) => (0..9).map(SlotRef::Pack).collect(),
-        SlotRef::Chest(_) => (0..36).map(SlotRef::Pack).collect(),
+        _ => (0..9).map(SlotRef::Pack).collect(),
     };
     let merge = candidates.iter().copied().find(|c| matches!(slot_at(v, *c), Some(t) if t.item == s.item && t.wear == 0 && s.wear == 0 && t.count < max && max > 1));
     merge.or_else(|| candidates.into_iter().find(|c| slot_at(v, *c).is_none()))
@@ -358,9 +297,14 @@ fn slot_ui(ui: &mut egui::Ui, v: &mut PackView, s: SlotRef, out: &mut Vec<PackCm
             );
         }
         if it.food > 0 {
-            tip += &format!("\nRestores {} hunger (right click to eat)", it.food);
+            tip += &format!(
+                "\nFood: heals {}% of your health, out of combat",
+                it.food as u32 * 5
+            );
         }
-        resp.on_hover_text(tip + "\nClick to pick up, click another slot to put down. Shift-click to move. Q to throw.");
+        resp.on_hover_text(
+            tip + "\nClick to pick up, click another slot to put down. Shift-click to move.",
+        );
     }
 }
 
@@ -402,18 +346,14 @@ const SLOT_GAP: f32 = 4.0;
 const BAG_W: f32 = 9.0 * 48.0 + 8.0 * SLOT_GAP;
 const CRAFT_W: f32 = 380.0;
 
-/// The pack screen: the bags, an open chest, and the recipe list.
+/// The pack screen: the bags and the recipe list.
 pub fn pack_window(
     ctx: &egui::Context,
     mut v: PackView,
     recipes_filter: &mut String,
 ) -> Vec<PackCmd> {
     let mut out = Vec::new();
-    let (id, title) = if v.chest.is_some() {
-        ("chest-window", "Chest")
-    } else {
-        ("bags-window", "Bags")
-    };
+    let (id, title) = ("bags-window", "Bags");
     let mut open = true;
     theme::window(
         ctx,
@@ -427,23 +367,6 @@ pub fn pack_window(
             ui.horizontal_top(|ui| {
                 ui.spacing_mut().item_spacing.x = 12.0;
                 ui.vertical(|ui| {
-                    if let Some(chest) = v.chest {
-                        theme::leather(ui, |ui| {
-                            ui.set_width(BAG_W);
-                            theme::heading(ui, "Chest", theme::GOLD);
-                            egui::Grid::new("chest")
-                                .spacing([SLOT_GAP, SLOT_GAP])
-                                .show(ui, |ui| {
-                                    for i in 0..chest.len() {
-                                        slot_ui(ui, &mut v, SlotRef::Chest(i as u8), &mut out);
-                                        if (i + 1) % 9 == 0 {
-                                            ui.end_row();
-                                        }
-                                    }
-                                });
-                        });
-                        ui.add_space(8.0);
-                    }
                     theme::leather(ui, |ui| {
                         ui.set_width(BAG_W);
                         theme::heading(ui, "Backpack", theme::GOLD);
@@ -468,23 +391,11 @@ pub fn pack_window(
                             });
                     });
                     ui.add_space(6.0);
-                    ui.horizontal(|ui| {
-                        if let Some(sel) = *v.selected
-                            && ui.button("Throw selected").clicked()
-                        {
-                            out.push(PackCmd::Throw(sel, 0));
-                            *v.selected = None;
-                        }
-                    });
-                    let hints: &[&str] = if v.chest.is_some() {
-                        &["Shift-click moves a stack between the chest and your bags."]
-                    } else {
-                        &[
-                            "Click a slot to pick up, click another to put down.",
-                            "Right-click places one. Shift-click moves between bag and belt.",
-                            "Q throws the selected stack. E or Esc closes.",
-                        ]
-                    };
+                    let hints: &[&str] = &[
+                        "Click a slot to pick up, click another to put down.",
+                        "Right-click places one. Shift-click moves between bag and belt.",
+                        "E or Esc closes.",
+                    ];
                     for hint in hints.iter().copied() {
                         ui.label(
                             RichText::new(hint)
@@ -523,10 +434,10 @@ fn side_panel(
 ) {
     ui.set_width(CRAFT_W);
     // the list has a fixed height, so the window is the right size from its first frame
-    let list_height = if v.chest.is_some() { 420.0 } else { 300.0 };
+    let list_height = 300.0;
     ui.set_min_height(list_height + 92.0);
     if v.mode == Mode::Creative {
-        theme::heading(ui, "Creative", theme::GOLD);
+        theme::heading(ui, "Build", theme::GOLD);
         ui.label(
             RichText::new("Click any item to put it in the selected belt slot.")
                 .italics()
@@ -568,8 +479,9 @@ fn side_panel(
     theme::heading(ui, "Crafting", theme::GOLD);
     ui.horizontal(|ui| {
         ui.spacing_mut().item_spacing.x = 6.0;
-        station_tag(ui, v.stations.table, "table");
-        station_tag(ui, v.stations.furnace, "furnace");
+        for (i, s) in v.content.stations.iter().enumerate() {
+            station_tag(ui, v.stations.has(Some(i as u8)), &s.name);
+        }
         if v.fuel > 0 {
             ui.label(
                 RichText::new(format!("fuel {}", v.fuel))
@@ -701,12 +613,15 @@ fn side_panel(
                                 }
                                 let note =
                                     |t: String| RichText::new(t).size(12.5).color(theme::TEXT_DIM);
-                                match r.station {
-                                    Station::Table => ui.label(note("· table".into())),
-                                    Station::Furnace => {
-                                        ui.label(note(format!("· furnace, {} fuel", r.fuel)))
-                                    }
-                                    Station::None => ui.label(""),
+                                let station = r
+                                    .station
+                                    .and_then(|i| v.content.stations.get(i as usize))
+                                    .map(|s| s.name.as_str());
+                                match (station, r.fuel) {
+                                    (Some(s), 0) => ui.label(note(format!("· {s}"))),
+                                    (Some(s), n) => ui.label(note(format!("· {s}, {n} fuel"))),
+                                    (None, 0) => ui.label(""),
+                                    (None, n) => ui.label(note(format!("· {n} fuel"))),
                                 };
                             });
                         });

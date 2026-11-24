@@ -577,19 +577,19 @@ impl Scripted {
             }
             self.blocked.insert((q, i), (why, now + retry));
         }
-        // stuck again and again: use /spawn to get home, like a player would
+        // stuck again and again: recall home, like a player would
         if self.nav_fails >= 5 {
             self.nav_fails = 0;
-            a.body.expect_teleport(3.0);
-            a.body.say("/spawn");
-            a.tel.note("used /spawn to get unstuck");
+            a.tel.note("recalled home to get unstuck");
             a.tel.stuck.push(crate::telemetry::StuckAt {
                 t,
                 at: rel(a, a.body.pos()),
                 goal: [0, 0, 0],
-                why: "gave up: /spawn".into(),
+                why: "gave up: recall".into(),
                 doing: a.doing.clone(),
             });
+            a.set(Task::Recall { sent: None });
+            a.doing = "recalling home".into();
         }
     }
 

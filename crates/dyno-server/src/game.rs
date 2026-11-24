@@ -1,4 +1,4 @@
-//! Game state and survival rules on the server: players, packs, items in the
+//! Game state and rules on the server: players, packs, items in the
 //! world, mining, crafting, health and hunger. The network layer calls
 //! `handle` for each message and `tick` 20 times per second.
 
@@ -7,9 +7,8 @@ use dyno_protocol::{
     self as proto, ClientMsg, EntityKind, EnvDamage, Mode, PlayerId, PlayerInfo, Pose, ServerMsg,
     SlotRef,
 };
-use dyno_sim::crafting::{self, Stations};
-use dyno_sim::inventory::{Inventory, Stack, transfer, transfer_within};
-use dyno_sim::mining;
+use dyno_sim::crafting;
+use dyno_sim::inventory::{Inventory, Stack, transfer_within};
 use dyno_sim::rng::Rng;
 use dyno_world::content::{Content, ItemId};
 use dyno_world::{self as w, World};
@@ -46,20 +45,12 @@ pub struct Player {
     pub spawn: Option<[f32; 3]>,
     pub milestones: HashSet<String>,
     pub last_pose_at: Instant,
-    pub dig: Option<([i32; 3], Instant)>,
     pub dead: bool,
-    pub container: Option<[i32; 3]>,
-    pub hunger_clock: f32,
     pub regen_clock: f32,
-    pub saw_night: bool,
-    pub last_attack: Instant,
     pub shade_timer: f32,
-    pub grazer_timer: f32,
     pub last_seen: u64,
     /// Shades ignore this player until then (after joining or respawning)
     pub safe_until: Instant,
-    /// where the player lay down to sleep; moving away wakes them
-    pub sleeping: Option<[f32; 3]>,
     pub level: u8,
     pub xp: u32,
     /// copper
@@ -137,14 +128,6 @@ impl Player {
             fuel: self.fuel,
         }
     }
-    pub(crate) fn held_tool<'a>(&self, c: &'a Content) -> Option<&'a dyno_world::content::Tool> {
-        self.pack
-            .slots
-            .get(self.held as usize)
-            .copied()
-            .flatten()
-            .and_then(|s| c.item(s.item).tool)
-    }
 }
 
 pub struct Entity {
@@ -191,7 +174,6 @@ pub struct State {
     pub clock: f32,
     /// day number, starting at 1
     pub day: u32,
-    pub default_mode: Mode,
     pub ops: Vec<String>,
     /// accept any movement (tests that teleport players about)
     pub trust_movement: bool,
@@ -281,24 +263,10 @@ impl State {
         is_night_at(self.clock)
     }
     fn rate(&self) -> f32 {
-        if !self.is_night() {
-            return DAY_RATE;
-        }
-        // half of the active players asleep: the night runs ten times faster
-        let active = self
-            .players
-            .values()
-            .filter(|p| !p.dead && (!p.away() || p.sleeping.is_some()))
-            .count();
-        let asleep = self
-            .players
-            .values()
-            .filter(|p| p.sleeping.is_some())
-            .count();
-        if asleep > 0 && asleep * 2 >= active {
-            NIGHT_RATE * 10.0
-        } else {
+        if self.is_night() {
             NIGHT_RATE
+        } else {
+            DAY_RATE
         }
     }
     /// The time and how fast it moves now (as a day length), for clients.
@@ -318,21 +286,6 @@ impl State {
     fn tick_clock(&mut self, dt: f32) {
         if !self.players.values().any(|p| !p.away()) {
             return;
-        }
-        // sleepers wake when they move or the night ends
-        let night_now = self.is_night();
-        let mut woke = false;
-        for p in self.players.values_mut() {
-            if let Some(at) = p.sleeping
-                && (!night_now || p.dead || dist(at, p.pose.pos) > 1.5)
-            {
-                p.sleeping = None;
-                woke = true;
-            }
-        }
-        if woke {
-            let m = self.time_msg();
-            self.broadcast(&m, None);
         }
         let before = self.clock;
         let was_night = self.is_night();
@@ -755,7 +708,7 @@ impl State {
                 ));
             }
             Some(d) => d,
-            None => PlayerData::new(self.default_mode, self.spawn_point()),
+            None => PlayerData::new(self.spawn_point()),
         };
         // a new character arrives with the class and looks chosen at creation
         let mut data = data;
@@ -811,18 +764,11 @@ impl State {
             spawn: data.spawn,
             milestones: data.milestones.iter().cloned().collect(),
             last_pose_at: Instant::now(),
-            dig: None,
             dead: data.health <= 0.0,
-            container: None,
-            hunger_clock: 0.0,
             regen_clock: 0.0,
-            saw_night: false,
-            last_attack: Instant::now(),
             shade_timer: 10.0,
-            grazer_timer: 0.0,
             last_seen: data.last_seen,
             safe_until: Instant::now() + Duration::from_secs(10),
-            sleeping: None,
             level: data.level.max(1),
             xp: data.xp,
             money: data.money,
@@ -1147,17 +1093,6 @@ impl State {
                     self.players.get_mut(&id).unwrap().held = slot;
                 }
             }
-            ClientMsg::DigStart { pos } => {
-                let p = self.players.get_mut(&id).unwrap();
-                p.dig = Some((pos, Instant::now()));
-                self.broadcast(
-                    &ServerMsg::Digging {
-                        player: id,
-                        pos: Some(pos),
-                    },
-                    Some(id),
-                );
-            }
             ClientMsg::Dig { pos } => self.dig(id, pos),
             ClientMsg::Place { pos, slot } => self.place(id, pos, slot),
             ClientMsg::SetBlock { pos, block } => {
@@ -1187,20 +1122,9 @@ impl State {
                 }
             }
             ClientMsg::Move { from, to, count } => self.move_items(id, from, to, count),
-            ClientMsg::Throw { from, count } => self.throw(id, from, count),
             ClientMsg::Craft { recipe, times } => self.craft(id, recipe, times.clamp(1, 64)),
             ClientMsg::UseHeld => self.use_held(id),
-            ClientMsg::Attack { entity } => {
-                if self.rpg() {
-                    self.set_auto_attack(id, Some(entity))
-                } else {
-                    self.attack(id, entity)
-                }
-            }
-            ClientMsg::Interact { pos } => self.interact(id, pos),
-            ClientMsg::CloseContainer => {
-                self.players.get_mut(&id).unwrap().container = None;
-            }
+            ClientMsg::Attack { entity } => self.set_auto_attack(id, Some(entity)),
             ClientMsg::Hurt { kind, amount } => {
                 let what = match kind {
                     EnvDamage::Fall => "fell from a high place",
@@ -1251,6 +1175,12 @@ impl State {
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
             ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
+            // kept in the protocol, no longer acted on: timed digging,
+            // throwing, chests and beds
+            ClientMsg::DigStart { .. }
+            | ClientMsg::Throw { .. }
+            | ClientMsg::Interact { .. }
+            | ClientMsg::CloseContainer => {}
             ClientMsg::Chat { .. }
             | ClientMsg::Want { .. }
             | ClientMsg::Hello { .. }
@@ -1302,104 +1232,26 @@ impl State {
         self.broadcast(&ServerMsg::Block { pos, block }, None);
     }
 
+    /// Break a block: build mode only.
     fn dig(&mut self, id: PlayerId, pos: [i32; 3]) {
         let b = self.world.get(pos[0], pos[1], pos[2]);
-        let p = &self.players[&id];
-        if b == w::AIR || b == w::WATER || p.dead || !self.within(id, pos, REACH) {
+        if b == w::AIR
+            || b == w::WATER
+            || self.players[&id].dead
+            || !self.within(id, pos, REACH)
+            || !self.may_build(id)
+        {
             return self.resync(id, pos);
         }
-        let creative = p.mode == Mode::Creative;
-        if !self.may_harvest(id, b) {
-            return self.resync(id, pos);
-        }
-        let need = self.content.rule(b).skill.clone();
-        if let Err(e) = self.check_skill(id, &need) {
-            self.tell(id, e);
-            return self.resync(id, pos);
-        }
-        let p = &self.players[&id];
-        if pos == self.spawn_hearth && !creative {
-            self.tell(
-                id,
-                "The old hearth is part of the land. It cannot be moved.",
-            );
-            return self.resync(id, pos);
-        }
-        let tool = if self.rpg() {
-            self.content
-                .rule(b)
-                .tool
-                .and_then(|k| dyno_sim::inventory::best_tool(&p.pack, &self.content, k))
-                .map(|(_, t)| t.clone())
-        } else {
-            p.held_tool(&self.content).cloned()
-        };
-        if !creative {
-            let Some(need) = mining::break_time(&self.content, b, tool.as_ref()) else {
-                return self.resync(id, pos);
-            };
-            let ok = match p.dig {
-                Some((start, at)) => {
-                    start == pos && at.elapsed().as_secs_f32() >= need * 0.7 - 0.25
-                }
-                None => need < 0.05,
-            };
-            if !ok {
-                return self.resync(id, pos);
-            }
-        }
-        let drops = if creative {
-            Vec::new()
-        } else {
-            mining::drops(&self.content, b, tool.as_ref(), &mut self.rng)
-        };
-        let removed = if b == w::CHEST {
-            self.containers.lock().unwrap().remove(&pos)
-        } else {
-            None
-        };
-        if let Some(slots) = removed {
-            for s in slots.into_iter().flatten() {
-                self.spawn_item(center(pos), s, 0.3);
-            }
+        if b == w::CHEST {
+            self.containers.lock().unwrap().remove(&pos);
         }
         self.set_block(pos, w::AIR);
-        self.skill_up(id, &need);
-        let respawn = self.content.rule(b).respawn;
-        if self.rpg() && respawn > 0 && !creative {
-            self.regrow.push((pos, b, now_secs() + respawn as u64));
-        }
-        for s in drops {
-            self.spawn_item(center(pos), s, 0.25);
-        }
-        let held = self.players[&id].held as usize;
-        let p = self.players.get_mut(&id).unwrap();
-        p.dig = None;
-        if !creative && tool.is_some() {
-            // tools wear out
-            if let Some(s) = p.pack.slots[held].as_mut() {
-                s.wear += 1;
-                let max = tool.as_ref().map(|t| t.durability).unwrap_or(u16::MAX);
-                if s.wear >= max {
-                    p.pack.slots[held] = None;
-                    p.send(&ServerMsg::System {
-                        text: "Your tool broke.".into(),
-                    });
-                }
-            }
-            p.send(&ServerMsg::Pack(p.pack.slots.clone()));
-        }
-        self.broadcast(
-            &ServerMsg::Digging {
-                player: id,
-                pos: None,
-            },
-            Some(id),
-        );
     }
 
+    /// Place the block item from a pack slot: build mode only.
     fn place(&mut self, id: PlayerId, pos: [i32; 3], slot: u8) {
-        if self.rpg() && self.players[&id].mode != Mode::Creative {
+        if !self.may_build(id) {
             return self.resync(id, pos);
         }
         let p = &self.players[&id];
@@ -1432,21 +1284,7 @@ impl State {
                 }
             }
         }
-        let creative = p.mode == Mode::Creative;
-        if !creative {
-            let p = self.players.get_mut(&id).unwrap();
-            p.pack.take(slot as usize, 1);
-            p.send(&ServerMsg::Pack(p.pack.slots.clone()));
-        }
         self.set_block(pos, block);
-        if block == w::CHEST {
-            self.containers
-                .lock()
-                .unwrap()
-                .insert(pos, vec![None; CHEST_SLOTS]);
-        }
-        let key = format!("place:{}", w::block_key(block));
-        self.milestone(id, &key);
     }
 
     fn fill(&mut self, id: PlayerId, a: [i32; 3], b: [i32; 3], block: u8) -> Result<(), String> {
@@ -1466,7 +1304,7 @@ impl State {
             return Err(format!("unknown block {block}"));
         }
         if self.players[&id].mode != Mode::Creative {
-            self.tell(id, "Fill works in creative mode only.");
+            self.tell(id, "Fill works in build mode only.");
             return Ok(());
         }
         let [sx, sy, sz] = self.world.size;
@@ -1525,64 +1363,19 @@ impl State {
         Ok(())
     }
 
-    /// Look up a slot for reading and writing. Chest slots need an open chest in reach.
-    fn slot_ok(&self, id: PlayerId, s: SlotRef) -> bool {
-        match s {
-            SlotRef::Pack(i) => (i as usize) < dyno_sim::SLOTS,
-            SlotRef::Chest(i) => {
-                (i as usize) < CHEST_SLOTS
-                    && self.players[&id].container.is_some_and(|c| {
-                        self.containers.lock().unwrap().contains_key(&c)
-                            && self.within(id, c, REACH + 1.0)
-                    })
-            }
-        }
-    }
-
+    /// Move items between two slots of the bags.
     fn move_items(&mut self, id: PlayerId, from: SlotRef, to: SlotRef, count: u8) {
-        if !self.slot_ok(id, from) || !self.slot_ok(id, to) || self.players[&id].dead {
+        let (SlotRef::Pack(a), SlotRef::Pack(b)) = (from, to) else {
+            return self.send_pack(id);
+        };
+        let (a, b) = (a as usize, b as usize);
+        if a >= dyno_sim::SLOTS || b >= dyno_sim::SLOTS || self.players[&id].dead {
             return self.send_pack(id);
         }
-        let chest = self.players[&id].container;
         let c = &self.content;
         let p = self.players.get_mut(&id).unwrap();
-        match (from, to) {
-            (SlotRef::Pack(a), SlotRef::Pack(b)) => {
-                transfer_within(c, &mut p.pack.slots, a as usize, b as usize, count)
-            }
-            (SlotRef::Chest(a), SlotRef::Chest(b)) => {
-                let mut chests = self.containers.lock().unwrap();
-                let slots = chests.get_mut(&chest.unwrap()).unwrap();
-                transfer_within(c, slots, a as usize, b as usize, count);
-            }
-            (SlotRef::Pack(a), SlotRef::Chest(b)) => {
-                let mut chests = self.containers.lock().unwrap();
-                let slots = chests.get_mut(&chest.unwrap()).unwrap();
-                transfer(
-                    c,
-                    &mut p.pack.slots[a as usize],
-                    &mut slots[b as usize],
-                    count,
-                );
-            }
-            (SlotRef::Chest(a), SlotRef::Pack(b)) => {
-                let mut chests = self.containers.lock().unwrap();
-                let slots = chests.get_mut(&chest.unwrap()).unwrap();
-                transfer(
-                    c,
-                    &mut slots[a as usize],
-                    &mut p.pack.slots[b as usize],
-                    count,
-                );
-            }
-        }
+        transfer_within(c, &mut p.pack.slots, a, b, count);
         self.send_pack(id);
-        if let Some(pos) = chest
-            && (matches!(from, SlotRef::Chest(_)) || matches!(to, SlotRef::Chest(_)))
-        {
-            self.dirty = true;
-            self.send_container(pos);
-        }
     }
 
     fn send_pack(&self, id: PlayerId) {
@@ -1591,93 +1384,11 @@ impl State {
         }
     }
 
-    /// Send a chest's contents to everyone who has it open.
-    fn send_container(&self, pos: [i32; 3]) {
-        let chests = self.containers.lock().unwrap();
-        let Some(slots) = chests.get(&pos) else {
-            return;
-        };
-        let msg = ServerMsg::Container(Some((pos, slots.clone())));
-        for p in self.players.values().filter(|p| p.container == Some(pos)) {
-            p.send(&msg);
-        }
-    }
-
-    fn throw(&mut self, id: PlayerId, from: SlotRef, count: u8) {
-        if !self.slot_ok(id, from) {
-            return;
-        }
-        let chest = self.players[&id].container;
-        let p = self.players.get_mut(&id).unwrap();
-        let taken = match from {
-            SlotRef::Pack(i) => p.pack.take(i as usize, count),
-            SlotRef::Chest(i) => {
-                let mut chests = self.containers.lock().unwrap();
-                let slots = chests.get_mut(&chest.unwrap()).unwrap();
-                let s = slots[i as usize].as_mut();
-                match s {
-                    Some(st) => {
-                        let n = if count == 0 {
-                            st.count
-                        } else {
-                            count.min(st.count)
-                        };
-                        let out = Stack { count: n, ..*st };
-                        st.count -= n;
-                        if st.count == 0 {
-                            slots[i as usize] = None;
-                        }
-                        Some(out)
-                    }
-                    None => None,
-                }
-            }
-        };
-        let Some(s) = taken else { return };
-        let p = &self.players[&id];
-        let (sy, cy) = p.pose.yaw.sin_cos();
-        let (sp, cp) = p.pose.pitch.sin_cos();
-        let dir = [-sy * cp, sp, -cy * cp];
-        let eye = p.eye();
-        let start = [eye[0] + dir[0] * 0.4, eye[1] - 0.3, eye[2] + dir[2] * 0.4];
-        let eid = self.spawn_item(start, s, 0.0);
-        if let Some(e) = self.entities.get_mut(&eid) {
-            e.vel = [dir[0] * 5.0, dir[1] * 5.0 + 2.0, dir[2] * 5.0];
-            e.pickup_after = Instant::now() + Duration::from_millis(1500);
-        }
-        self.send_pack(id);
-        if let Some(pos) = chest {
-            self.send_container(pos);
-        }
-    }
-
-    fn stations_near(&self, id: PlayerId) -> Stations {
-        let p = self.players[&id].pose.pos;
-        let mut st = Stations::default();
-        let (bx, by, bz) = (
-            p[0].floor() as i32,
-            p[1].floor() as i32,
-            p[2].floor() as i32,
-        );
-        for y in by - 3..=by + 4 {
-            for z in bz - 5..=bz + 5 {
-                for x in bx - 5..=bx + 5 {
-                    match self.world.get(x, y, z) {
-                        w::CRAFTING_TABLE => st.table = true,
-                        w::FURNACE => st.furnace = true,
-                        _ => {}
-                    }
-                }
-            }
-        }
-        st
-    }
-
     fn craft(&mut self, id: PlayerId, recipe: u16, times: u8) {
         let Some(r) = self.content.recipes.get(recipe as usize).cloned() else {
             return;
         };
-        let st = self.stations_near(id);
+        let st = crafting::stations_near(&self.content, &self.world, self.players[&id].pose.pos);
         if let Err(e) = self.check_skill(id, &r.skill) {
             return self.tell(id, e);
         }
@@ -1719,8 +1430,6 @@ impl State {
             for _ in 0..made {
                 self.skill_up(id, &r.skill);
             }
-            let key = format!("craft:{}", self.content.item_key(r.output));
-            self.milestone(id, &key);
         }
     }
 
@@ -1735,71 +1444,15 @@ impl State {
         let slot = p.held as usize;
         let Some(s) = p.pack.slots[slot] else { return };
         let food = c.item(s.item).food;
-        if c.world.protected {
-            // RPG: food heals, out of combat
-            let max = sheet_max;
-            if food == 0 || p.dead || p.health >= max || p.combat_until > Instant::now() {
-                return;
-            }
-            p.pack.take(slot, 1);
-            p.health = (p.health + max * 0.05 * food as f32).min(max);
-            p.send(&ServerMsg::Pack(p.pack.slots.clone()));
-            p.send(&p.status());
-            return;
-        }
-        if food == 0 || p.dead || p.mode == Mode::Creative || p.food >= 20.0 {
+        // food heals, out of combat
+        let max = sheet_max;
+        if food == 0 || p.dead || p.health >= max || p.combat_until > Instant::now() {
             return;
         }
         p.pack.take(slot, 1);
-        p.food = (p.food + food as f32).min(20.0);
+        p.health = (p.health + max * 0.05 * food as f32).min(max);
         p.send(&ServerMsg::Pack(p.pack.slots.clone()));
         p.send(&p.status());
-    }
-
-    fn interact(&mut self, id: PlayerId, pos: [i32; 3]) {
-        if !self.within(id, pos, REACH + 1.0) {
-            return;
-        }
-        match self.world.get(pos[0], pos[1], pos[2]) {
-            w::CHEST => {
-                self.containers
-                    .lock()
-                    .unwrap()
-                    .entry(pos)
-                    .or_insert_with(|| vec![None; CHEST_SLOTS]);
-                self.players.get_mut(&id).unwrap().container = Some(pos);
-                self.send_container(pos);
-            }
-            w::BED => {
-                let night = self.is_night();
-                let p = self.players.get_mut(&id).unwrap();
-                p.spawn = Some([
-                    pos[0] as f32 + 0.5,
-                    pos[1] as f32 + 1.01,
-                    pos[2] as f32 + 0.5,
-                ]);
-                if night {
-                    p.sleeping = Some(p.pose.pos);
-                    let name = p.name.clone();
-                    p.send(&ServerMsg::System {
-                        text: "You lie down. Spawn point set. The night passes quickly when half of the players sleep; move to get up.".into(),
-                    });
-                    self.broadcast(
-                        &ServerMsg::System {
-                            text: format!("{name} is sleeping."),
-                        },
-                        Some(id),
-                    );
-                    let m = self.time_msg();
-                    self.broadcast(&m, None);
-                } else {
-                    p.send(&ServerMsg::System {
-                        text: "Spawn point set at your bed. You can sleep here at night.".into(),
-                    });
-                }
-            }
-            _ => {}
-        }
     }
 
     pub fn damage(&mut self, id: PlayerId, amount: f32, push: [f32; 3], cause: &str) {
@@ -1834,25 +1487,11 @@ impl State {
         p.send(&p.status());
         if p.health <= 0.0 {
             p.dead = true;
-            p.container = None;
-            // RPG: you keep everything. Survival: keep the hotbar; the rest stays where you fell
-            let items: Vec<Stack> = if self.content.world.protected {
-                Vec::new()
-            } else {
-                p.pack.slots[9..]
-                    .iter_mut()
-                    .filter_map(|s| s.take())
-                    .collect()
-            };
-            let pos = p.pose.pos;
+            // you keep everything you carry
             let name = p.name.clone();
-            p.send(&ServerMsg::Pack(p.pack.slots.clone()));
             p.send(&ServerMsg::Died {
                 message: format!("You {cause}."),
             });
-            for s in items {
-                self.spawn_item([pos[0], pos[1] + 0.5, pos[2]], s, 0.35);
-            }
             self.event(format!("{name} {cause}."));
             return;
         }
@@ -1867,12 +1506,7 @@ impl State {
             return;
         }
         p.dead = false;
-        p.health = if self.content.world.protected {
-            (sheet_max * 0.6).round()
-        } else {
-            20.0
-        };
-        p.food = p.food.max(10.0);
+        p.health = (sheet_max * 0.6).round();
         p.safe_until = Instant::now() + Duration::from_secs(10);
         let to = p.spawn.unwrap_or(spawn);
         p.pose.pos = to;
@@ -1907,32 +1541,6 @@ impl State {
         self.broadcast(&ServerMsg::Wielding { player: id, item }, None);
         let items = self.wearing(id);
         self.broadcast(&ServerMsg::Wearing { player: id, items }, None);
-    }
-
-    pub fn milestone(&mut self, id: PlayerId, trigger: &str) {
-        if self.rpg() {
-            return; // quests replace the survival Journal
-        }
-        let Some(m) = self
-            .content
-            .milestones
-            .iter()
-            .find(|m| m.trigger == trigger)
-            .cloned()
-        else {
-            return;
-        };
-        let Some(p) = self.players.get_mut(&id) else {
-            return;
-        };
-        if !p.milestones.insert(m.key.clone()) {
-            return;
-        }
-        p.send(&ServerMsg::Milestone {
-            title: m.title.clone(),
-        });
-        let name = p.name.clone();
-        self.event(format!("{name} reached {}", m.title));
     }
 
     // ---------------- items in the world ----------------
@@ -2097,7 +1705,6 @@ impl State {
             let p = self.players.get_mut(&pid).unwrap();
             let left = p.pack.add(c, s);
             p.send(&ServerMsg::Pack(p.pack.slots.clone()));
-            let key = format!("collect:{}", c.item_key(s.item));
             match left {
                 None => self.remove_entity(eid, Some(pid)),
                 Some(rest) if rest.count < s.count => {
@@ -2116,7 +1723,6 @@ impl State {
                     }
                 }
             }
-            self.milestone(pid, &key);
         }
         // expire
         let old: Vec<u32> = self
@@ -2149,7 +1755,6 @@ impl State {
     }
 
     fn tick_players(&mut self, dt: f32) {
-        let night = self.is_night();
         let rpg = self.rpg();
         let sheets: HashMap<PlayerId, (f32, f32)> = self
             .players
@@ -2160,66 +1765,30 @@ impl State {
             })
             .collect();
         let mut quest_checks = Vec::new();
-        let mut milestones = Vec::new();
         for (id, p) in self.players.iter_mut() {
-            if p.mode == Mode::Creative || p.dead {
+            if p.mode == Mode::Creative || p.dead || p.away() {
                 continue;
             }
-            if night && !p.away() {
-                p.saw_night = true;
+            // out of combat, health returns at 2% a second
+            p.quest_clock += dt;
+            if p.quest_clock >= 1.0 {
+                p.quest_clock = 0.0;
+                quest_checks.push(*id);
             }
-            if !night && p.saw_night {
-                p.saw_night = false;
-                milestones.push(*id);
-            }
-            if p.away() {
-                continue;
-            }
-            let mut changed = false;
-            if rpg {
-                // no hunger; out of combat, health returns at 2% a second
-                p.quest_clock += dt;
-                if p.quest_clock >= 1.0 {
-                    p.quest_clock = 0.0;
-                    quest_checks.push(*id);
-                }
-                let (max, spirit) = sheets
-                    .get(id)
-                    .copied()
-                    .unwrap_or((dyno_sim::progression::max_health(p.level), 3.0));
-                p.food = 20.0;
-                p.regen_clock += dt;
-                if p.regen_clock >= 2.0 {
-                    p.regen_clock = 0.0;
-                    if p.health < max && p.combat_until <= Instant::now() {
-                        p.health = (p.health + 1.0 + spirit / 10.0 + max * 0.01).min(max);
-                        p.send(&p.status());
-                    }
-                }
-                continue;
-            }
-            // hunger drains slowly
-            p.hunger_clock += dt;
-            if p.hunger_clock >= 60.0 {
-                p.hunger_clock = 0.0;
-                p.food = (p.food - 1.0).max(0.0);
-                changed = true;
-            }
+            let (max, spirit) = sheets
+                .get(id)
+                .copied()
+                .unwrap_or((dyno_sim::progression::max_health(p.level), 3.0));
+            // (the field is still saved and sent: always full)
+            p.food = 20.0;
             p.regen_clock += dt;
-            if p.regen_clock >= 4.0 {
+            if p.regen_clock >= 2.0 {
                 p.regen_clock = 0.0;
-                if p.food >= 10.0 && p.health < 20.0 {
-                    p.health = (p.health + 1.0).min(20.0);
-                    p.food = (p.food - 0.25).max(0.0);
-                    changed = true;
+                if p.health < max && p.combat_until <= Instant::now() {
+                    p.health = (p.health + 1.0 + spirit / 10.0 + max * 0.01).min(max);
+                    p.send(&p.status());
                 }
             }
-            if changed {
-                p.send(&p.status());
-            }
-        }
-        for id in milestones {
-            self.milestone(id, "night");
         }
         for id in quest_checks {
             if self.update_quests(id) {
