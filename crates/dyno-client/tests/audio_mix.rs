@@ -1,41 +1,31 @@
-//! The mix, heard through the real mixer with no device: the worst case
-//! (a fight with three foes, rain, the interface, a level-up, a death, and
-//! a bed of music under it all) never clips, each bus sits near the level
-//! the pack sets for it, and the sliders do what they say.
+//! The mix, heard through the real mixer with no device. The worst case
+//! (a fight with three foes in the plaza in heavy rain, by the fire and
+//! the anvil, the interface busy, a level-up, a death, with the theme, the
+//! combat drums and a stinger playing) never clips, and each bus sits near
+//! the level the pack sets for it. Themes cross from one to the next with
+//! no click and no hole, and the music dips under a stinger and a fanfare.
 
+#[path = "../examples/audio_montage/places.rs"]
+mod places;
 #[path = "../examples/audio_montage/scenes.rs"]
 mod scenes;
 
 use dyno_client::assets;
-use dyno_client::audio::{self, AUDIO_JSON, Audio, Bus, Volumes};
+use dyno_client::audio::{self, Audio, Bus, Volumes};
+use dyno_client::music::{self, Music, Scene};
 use std::path::Path;
 
 const RATE: u32 = 22_050;
 
-/// The pack, plus a stand-in for music (there is none yet): a long horn
-/// on the music bus, at the level music will have.
 fn load() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
     assets::load_dir(&root).unwrap();
-    let mut json: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(root.join(AUDIO_JSON)).unwrap()).unwrap();
-    json["events"]["review.music"] = serde_json::json!({
-        "file": "sounds/world/horn", "variants": 4, "bus": "music", "gain": 0.55, "gap": 0.0
-    });
-    assets::insert(AUDIO_JSON, serde_json::to_vec(&json).unwrap());
 }
 
-/// The worst case with the music bed under it.
 fn worst(audio: &mut Audio) -> Vec<f32> {
     let all = scenes::all();
-    let scene = all.iter().find(|s| s.name == "6_everything").unwrap();
-    let mut next = 0.0;
-    scenes::render(audio, scene, |a, t| {
-        if t >= next {
-            a.play("review.music", 1.0);
-            next += 0.7;
-        }
-    })
+    let fight = all.iter().find(|s| s.name == "6_everything").unwrap();
+    places::render(audio, &mut places::Stage::new(), &places::worst(fight))
 }
 
 #[test]
@@ -52,24 +42,25 @@ fn the_worst_case_never_clips_and_each_bus_keeps_its_level() {
         d.limiter.ceiling
     );
     let as_16_bit = |v: f32| (v * 32767.0).round() as i32;
-    assert!(
-        heard.iter().all(|v| as_16_bit(*v).abs() < 32767),
-        "a clipped sample"
-    );
+    let clipped = heard
+        .iter()
+        .filter(|v| as_16_bit(**v).abs() >= 32767)
+        .count();
+    assert_eq!(clipped, 0, "clipped samples");
     assert!(top > 0.3, "and it is loud: {top}");
     // the limiter is a guard, not part of the sound: even here it takes
     // off little
     let off = (-20.0 * a.held().log10()).abs();
     assert!(off < 6.0, "the limiter took off {off:.1} dB");
     println!(
-        "worst case, sliders full: peak {:.1} dBFS, loudness {:.1} dB, limiter took off {off:.1} dB at most",
+        "worst case, sliders full: peak {:.1} dBFS, loudness {:.1} dB, limiter took off {off:.1} dB at most, {clipped} clipped samples",
         scenes::peak_db(&heard),
         scenes::loudness_db(&heard, RATE)
     );
 
     // each bus alone, against what the pack says it should measure
-    println!("| Bus | Peak (dBFS) | Target | Loudness (dB) | Target |");
-    println!("|---|---|---|---|---|");
+    println!("| Bus | Peak (dBFS) | Loudness (dB) | Target |");
+    println!("|---|---|---|---|");
     for bus in Bus::ALL {
         let name = format!("{bus:?}").to_lowercase();
         let target = d.targets[&name];
@@ -78,10 +69,9 @@ fn the_worst_case_never_clips_and_each_bus_keeps_its_level() {
         let heard = worst(&mut a);
         let (peak, loud) = (scenes::peak_db(&heard), scenes::loudness_db(&heard, RATE));
         println!(
-            "| {name} | {peak:.1} | {} | {loud:.1} | {} |",
-            target.peak_db, target.loudness_db
+            "| {name} | {peak:.1} | {loud:.1} | {} |",
+            target.loudness_db
         );
-        assert!(loud > -90.0, "{name}: silent");
         // the busiest passage of a bus is within 4 dB of its target, and
         // never over full scale on its own
         assert!(
@@ -121,13 +111,225 @@ fn the_worst_case_never_clips_and_each_bus_keeps_its_level() {
 #[test]
 fn every_scene_plays_only_what_the_pack_describes() {
     load();
-    let d = audio::data().unwrap();
     let all = scenes::all();
     assert_eq!(all.len(), 6);
     for s in &all {
         for (t, key, _, _) in &s.moments {
-            assert!(d.events.contains_key(*key), "{}: `{key}` at {t}", s.name);
+            assert!(audio::event(key).is_some(), "{}: `{key}` at {t}", s.name);
             assert!(*t < s.secs, "{}: `{key}` after the end", s.name);
         }
     }
+    let visits = places::all();
+    assert_eq!(visits.len(), 6);
+    let cameras = places::cameras();
+    let m = music::data().unwrap();
+    for v in &visits {
+        for (_, s) in &v.settings {
+            assert!(
+                s.place.is_empty() || cameras.contains_key(s.place),
+                "{}: no camera `{}`",
+                v.name,
+                s.place
+            );
+        }
+        for (t, key, _, _) in &v.moments {
+            assert!(audio::event(key).is_some(), "{}: `{key}` at {t}", v.name);
+        }
+        for (_, moment) in &v.stingers {
+            assert!(m.stingers.contains_key(*moment), "{}: `{moment}`", v.name);
+        }
+    }
+}
+
+/// The left channel of the next `secs` of music alone.
+fn left(audio: &mut Audio, music: &mut Music, areas: &[&str], combat: bool, secs: f32) -> Vec<f32> {
+    let mut out = Vec::new();
+    for _ in 0..(secs * 100.0) as usize {
+        let scene = if areas == ["title"] {
+            Scene::Title
+        } else {
+            Scene::World {
+                at: [0.0, 0.0],
+                areas,
+                combat,
+            }
+        };
+        music.update(audio, scene, 0.01);
+        out.extend(audio.render(0.01).iter().step_by(2));
+    }
+    out
+}
+
+/// The largest jump from one sample to the next.
+fn step(x: &[f32]) -> f32 {
+    x.windows(2).fold(0.0f32, |a, w| a.max((w[1] - w[0]).abs()))
+}
+
+fn rms(x: &[f32]) -> f32 {
+    (x.iter().map(|v| v * v).sum::<f32>() / x.len().max(1) as f32).sqrt()
+}
+
+#[test]
+fn themes_cross_without_a_click_or_a_hole() {
+    load();
+    let m = music::data().unwrap();
+    // an area for each mood, and the title
+    let moods = [
+        ("title", "title"),
+        ("hearthstead", "hearthstead"),
+        ("birchrise", "birchrise"),
+        ("barrowwood", "barrowwood"),
+        ("mirrormere", "mirrormere"),
+        ("hollow_mines", "mines"),
+    ];
+    for (area, theme) in moods {
+        if area != "title" {
+            assert_eq!(m.theme([0.0, 0.0], &[area]), theme);
+        }
+    }
+    // each theme alone: how big a step its own notes make, and how loud
+    // it is
+    let mut alone = Vec::new();
+    for (area, theme) in moods {
+        let mut a = Audio::offline(RATE);
+        a.set_volumes(Volumes::only(Bus::Music));
+        let mut music = Music::default();
+        let x = left(&mut a, &mut music, &[area], false, 16.0);
+        assert_eq!(music.playing(), Some(theme));
+        let body = &x[RATE as usize * 4..];
+        assert!(
+            rms(body) > 0.003,
+            "{theme} is all but silent: {}",
+            rms(body)
+        );
+        alone.push((step(body), rms(body)));
+    }
+    println!(
+        "| From | To | Largest step in the crossing | Largest in either theme alone | Quietest half second (of the quieter theme) |"
+    );
+    println!("|---|---|---|---|---|");
+    let mut worst_ratio = 0.0f32;
+    for (i, (from, a_name)) in moods.iter().enumerate() {
+        for (j, (to, b_name)) in moods.iter().enumerate() {
+            if i == j {
+                continue;
+            }
+            let mut a = Audio::offline(RATE);
+            a.set_volumes(Volumes::only(Bus::Music));
+            let mut music = Music::default();
+            left(&mut a, &mut music, &[from], false, 8.0);
+            // the crossing: the pack's crossfade and a second either side
+            let x = left(&mut a, &mut music, &[to], false, m.crossfade + 2.0);
+            assert_eq!(music.playing(), Some(*b_name));
+            let own = alone[i].0.max(alone[j].0);
+            let ratio = step(&x) / own;
+            worst_ratio = worst_ratio.max(ratio);
+            // no click: nothing jumps further than the themes' own notes do
+            assert!(
+                step(&x) <= own * 1.25 + 1e-4,
+                "{a_name} to {b_name}: a step of {} (their own: {own})",
+                step(&x)
+            );
+            // no hole: no half second of the crossing is much quieter than
+            // the quieter theme
+            let quiet = alone[i].1.min(alone[j].1);
+            let low = x
+                .chunks(RATE as usize / 2)
+                .filter(|c| c.len() == RATE as usize / 2)
+                .map(rms)
+                .fold(f32::MAX, f32::min);
+            println!(
+                "| {a_name} | {b_name} | {:.4} | {own:.4} | {:.0}% |",
+                step(&x),
+                100.0 * low / quiet
+            );
+            assert!(
+                low > quiet * 0.25,
+                "{a_name} to {b_name}: a hole ({low} of {quiet})"
+            );
+            // and afterwards only the new theme is left playing
+            left(&mut a, &mut music, &[to], false, 1.0);
+            assert_eq!(
+                a.held_sounds().1,
+                1,
+                "{a_name} to {b_name}: decks left playing"
+            );
+        }
+    }
+    println!(
+        "largest step in any crossing: {:.0}% of the themes' own",
+        worst_ratio * 100.0
+    );
+}
+
+#[test]
+fn the_music_dips_under_a_stinger_and_a_fanfare_and_under_the_drums() {
+    load();
+    let m = music::data().unwrap();
+    let d = audio::data().unwrap();
+    let dip = d.duck.unwrap();
+    // the theme's level, a half second at a time, with something over it
+    let levels = |over: &dyn Fn(&mut Audio, &mut Music)| {
+        let run = |with: bool| {
+            let mut a = Audio::offline(RATE);
+            // (the music alone: the fanfare itself is on the interface's bus)
+            a.set_volumes(Volumes::only(Bus::Music));
+            let mut music = Music::default();
+            let mut x = left(&mut a, &mut music, &["hearthstead"], false, 8.0);
+            if with {
+                over(&mut a, &mut music);
+            }
+            x.extend(left(&mut a, &mut music, &["hearthstead"], false, 9.0));
+            x
+        };
+        (run(false), run(true))
+    };
+    let at = |x: &[f32], secs: f32| {
+        let i = (secs * RATE as f32) as usize;
+        rms(&x[i..i + RATE as usize / 2])
+    };
+    // a fanfare that is not music (the level-up cue): for its `duck`
+    // seconds the theme is at the pack's dip, then it comes back
+    let (plain, ducked) = levels(&|a, _| a.play("ui.level_up", 1.0));
+    let ratio = at(&ducked, 9.0) / at(&plain, 9.0);
+    println!(
+        "under the level-up fanfare the theme is at {:.0}% (the pack asks {:.0}%); 6 s later {:.0}%",
+        ratio * 100.0,
+        dip * 100.0,
+        100.0 * at(&ducked, 15.0) / at(&plain, 15.0)
+    );
+    assert!((ratio - dip).abs() < 0.08, "dipped to {ratio}, not {dip}");
+    assert!(
+        (at(&ducked, 15.0) / at(&plain, 15.0) - 1.0).abs() < 0.05,
+        "and back"
+    );
+    // the dip itself is a glide: no step larger than the theme's own
+    assert!(step(&ducked) <= step(&plain) * 1.25);
+    // a stinger: it is heard, and the theme under it dips the same way
+    // (measured after it has rung out, on the way back up)
+    let (plain, stung) = levels(&|a, music| music.stinger(a, "discovery"));
+    assert!(
+        at(&stung, 9.0) > at(&plain, 9.0) * 0.5,
+        "the stinger sounds"
+    );
+    assert_eq!(m.stingers["discovery"], "discovery");
+    // a fight: the drums come in over the theme, which steps back
+    let mut a = Audio::offline(RATE);
+    a.set_volumes(Volumes::only(Bus::Music));
+    let mut music = Music::default();
+    left(&mut a, &mut music, &["hearthstead"], false, 6.0);
+    assert_eq!(a.held_sounds().1, 1);
+    left(&mut a, &mut music, &["hearthstead"], true, 1.0);
+    assert_eq!(a.held_sounds().1, 3, "the theme, the drums and the sting");
+    left(&mut a, &mut music, &["hearthstead"], true, 6.0);
+    assert_eq!(a.held_sounds().1, 2, "the theme and the drums");
+    // ...and leave a while after the last blow
+    left(
+        &mut a,
+        &mut music,
+        &["hearthstead"],
+        false,
+        m.combat_linger + 5.0,
+    );
+    assert_eq!(a.held_sounds().1, 1, "the theme alone again");
 }

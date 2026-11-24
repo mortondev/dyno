@@ -3,7 +3,9 @@
 //! the pack's (`audio.json`, audio.rs); this only says what happened.
 
 use super::Play;
+use crate::ambience::{self, Ambience, Env, Search};
 use crate::audio::Audio;
+use crate::music::{Music, Scene};
 use dyno_protocol::{Act, Actor};
 use dyno_world as w;
 use glam::Vec3;
@@ -16,6 +18,16 @@ pub struct Heard {
     /// false until a frame in the world has been seen (joining opens
     /// nothing)
     known: bool,
+    /// the sound of the place, the sounding blocks near by, the music
+    ambience: Ambience,
+    search: Search,
+    music: Music,
+    /// how much sky reaches the listener (it glides: a doorway is not a
+    /// switch)
+    sky: f32,
+    /// the place the player was in last frame, and those found so far
+    zone: String,
+    found: std::collections::HashSet<String>,
 }
 
 /// The event of a block's material: `break.stone`, `place.wood`, `dig.earth`.
@@ -57,9 +69,61 @@ pub fn frame(audio: &mut Audio, heard: &mut Heard, p: Option<&Play>, ctx: &egui:
                 }
             }
             heard.panels = now;
+            // the place: its beds and voices, what stands near, its theme
+            let eye = p.player.eye();
+            let cell = [
+                eye.x.floor() as i32,
+                eye.y.floor() as i32,
+                eye.z.floor() as i32,
+            ];
+            let sky = p.light.sky(cell[0], cell[1], cell[2]) as f32 / 15.0;
+            heard.sky = if heard.known {
+                heard.sky + (sky - heard.sky) * (dt * 2.0).min(1.0)
+            } else {
+                sky
+            };
+            let env = Env {
+                content: &p.content,
+                hearth: p.hearth,
+                pos: eye,
+                time: (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract(),
+                weather: (p.weather.0, p.weather_mix),
+                sky: heard.sky,
+            };
+            if let Some(d) = ambience::data() {
+                heard.search.step(&p.world, &d, eye);
+            }
+            heard.ambience.update(audio, &env, &heard.search.found, dt);
+            let combat = p.dead.is_none() && (p.attacking.is_some() || p.hurt_flash > 0.0);
+            let areas = env.areas();
+            let h = p.hearth.unwrap_or([0; 3]);
+            let scene = Scene::World {
+                at: [eye.x - h[0] as f32, eye.z - h[2] as f32],
+                areas: &areas,
+                combat,
+            };
+            heard.music.update(audio, scene, dt);
+            // a named place entered for the first time (the one you wake
+            // in is not a discovery)
+            if p.zone != heard.zone {
+                heard.zone = p.zone.clone();
+                let new = !p.zone.is_empty() && heard.found.insert(p.zone.clone());
+                if new && heard.known {
+                    heard.music.stinger(audio, "discovery");
+                }
+            }
             heard.known = true;
         }
-        None => *heard = Heard::default(),
+        None => {
+            if heard.known {
+                heard.ambience.hush(audio);
+                heard.found.clear();
+                heard.zone.clear();
+            }
+            heard.known = false;
+            heard.panels = 0;
+            heard.music.update(audio, Scene::Title, dt);
+        }
     }
     // a button, a tab, a slot: anything of the interface that was clicked
     if ctx.interaction_snapshot(|s| s.clicked.is_some()) && ctx.is_pointer_over_area() {

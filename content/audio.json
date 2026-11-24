@@ -1,5 +1,6 @@
 {
  "reach": 32,
+ "duck": 0.35,
  "limiter": {"ceiling": 0.89, "release": 0.12},
  "targets": {
   "effects": {"peak_db": -5, "loudness_db": -20},
@@ -28,8 +29,8 @@
   "ui.quest_step": {"file": "sounds/ui/quest_step", "variants": 3, "bus": "ui", "gain": 0.5, "gap": 0.2},
   "ui.quest_accept": {"file": "sounds/ui/quest_accept", "variants": 3, "bus": "ui", "gain": 0.6, "gap": 0.5},
   "ui.quest_ready": {"file": "sounds/ui/quest_ready", "variants": 3, "bus": "ui", "gain": 0.6, "gap": 0.5},
-  "ui.quest_complete": {"file": "sounds/ui/quest_complete", "variants": 3, "bus": "ui", "gain": 0.7, "gap": 0.5},
-  "ui.level_up": {"file": "sounds/ui/level_up", "variants": 1, "bus": "ui", "gain": 0.78, "once": true, "gap": 1.0},
+  "ui.quest_complete": {"file": "sounds/ui/quest_complete", "variants": 3, "bus": "ui", "gain": 0.7, "gap": 0.5, "duck": 1.8},
+  "ui.level_up": {"file": "sounds/ui/level_up", "variants": 1, "bus": "ui", "gain": 0.78, "once": true, "gap": 1.0, "duck": 2.6},
   "ui.ability_new": {"file": "sounds/ui/ability_new", "variants": 1, "bus": "ui", "gain": 0.6, "once": true, "gap": 1.0},
   "ui.chat": {"file": "sounds/ui/chat", "variants": 4, "bus": "ui", "gain": 1.0, "gap": 0.2},
   "ui.join": {"file": "sounds/ui/join", "variants": 4, "bus": "ui", "gain": 1.0, "gap": 0.5},
@@ -66,12 +67,7 @@
   "dig.wood": {"file": "sounds/world/dig_wood", "variants": 4, "bus": "effects", "gain": 0.8, "pitch": 0.04},
   "world.heartbeat": {"file": "sounds/world/heartbeat", "variants": 4, "bus": "effects", "gain": 1.0, "gap": 0.3},
   "world.dusk": {"file": "sounds/world/horn", "variants": 4, "bus": "ambience", "gain": 0.8, "gap": 2.0},
-  "world.dawn": {"file": "sounds/world/chime", "variants": 4, "bus": "ambience", "gain": 1.0, "gap": 2.0},
-  "amb.bird": {"file": "sounds/amb/bird", "variants": 4, "bus": "ambience", "gain": 1.0, "pitch": 0.05},
-  "amb.cricket": {"file": "sounds/amb/cricket", "variants": 4, "bus": "ambience", "gain": 0.7, "pitch": 0.03},
-  "amb.rain": {"file": "sounds/amb/rain", "variants": 4, "bus": "ambience", "gain": 0.22, "gap": 0.5},
-  "amb.wind": {"file": "sounds/amb/wind", "variants": 4, "bus": "ambience", "gain": 0.18, "pitch": 0.05, "gap": 0.5},
-  "amb.hammer": {"file": "sounds/amb/hammer", "variants": 4, "bus": "ambience", "gain": 0.5, "pitch": 0.04}
+  "world.dawn": {"file": "sounds/world/chime", "variants": 4, "bus": "ambience", "gain": 1.0, "gap": 2.0}
  },
  "named": {"file": "sounds/abilities/", "variants": 3, "bus": "effects", "gain": 0.6, "pitch": 0.04},
  "footsteps": {

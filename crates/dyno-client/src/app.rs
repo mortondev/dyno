@@ -237,7 +237,6 @@ struct Play {
     /// weather from the server (kind, strength), and how far we have blended into it
     weather: (u8, f32),
     weather_mix: f32,
-    ambience_clock: f32,
     attacking: Option<u32>,
     /// open tab of the character / bags / spellbook / skills window
     screen_tab: Option<screens::Tab>,
@@ -308,7 +307,6 @@ struct Play {
     sent_held: usize,
     /// night ambience: firefly positions and phases, and the next cricket
     fireflies: Vec<(Vec3, f32)>,
-    next_cricket: f32,
     /// my recent single-block edits: (position, block before, block after)
     undo: Vec<([i32; 3], w::BlockId, w::BlockId)>,
     /// fill selection corners
@@ -1613,7 +1611,6 @@ fn new_play(j: Joined) -> Play {
         fov_kick: 0.0,
         picker_open: false,
         fireflies: Vec::new(),
-        next_cricket: 3.0,
         undo: Vec::new(),
         sel: (None, None),
         minimap: crate::minimap::Minimap::new(),
@@ -1653,7 +1650,6 @@ fn new_play(j: Joined) -> Play {
         zone: String::new(),
         weather: (0, 0.0),
         weather_mix: 0.0,
-        ambience_clock: 0.0,
         attacking: None,
         screen_tab: None,
         bar: Vec::new(),
@@ -3108,22 +3104,12 @@ impl App {
                         );
                     }
                 }
-                p.next_cricket -= dt;
-                if p.next_cricket <= 0.0 {
-                    p.next_cricket = 2.0 + (t * 7.3).sin().abs() * 5.0;
-                    self.audio.play("amb.cricket", night);
-                }
             } else {
                 p.fireflies.clear();
             }
             // weather: blend in, rain falls around you, and the land has its sounds
             p.weather_mix = (p.weather_mix + dt / 20.0).min(p.weather.1.max(0.01));
             let raining = p.weather.0 == 2 && p.weather_mix > 0.1;
-            let outside = p.light.sky(
-                p.player.pos.x.floor() as i32,
-                (p.player.pos.y + 1.6).floor() as i32,
-                p.player.pos.z.floor() as i32,
-            ) > 10;
             if raining {
                 let n = (p.weather_mix * 90.0 * dt * 30.0) as usize;
                 let seed = (p.fps.0.elapsed().as_nanos() as u32) | 1;
@@ -3154,30 +3140,7 @@ impl App {
                     }
                 }
             }
-            p.ambience_clock -= dt;
-            if p.ambience_clock <= 0.0 {
-                p.ambience_clock = 0.9;
-                let near_town = p.hearth.is_some_and(|h| {
-                    Vec3::new(h[0] as f32, h[1] as f32, h[2] as f32).distance(p.player.pos) < 30.0
-                });
-                let tod = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
-                let day = tod < 0.5;
-                let roll = (p.fps.0.elapsed().as_millis() % 1000) as f32 / 1000.0;
-                if raining && outside {
-                    self.audio.play("amb.rain", p.weather_mix);
-                } else if outside && day && p.weather.0 != 2 && roll < 0.35 {
-                    self.audio.play("amb.bird", 1.0);
-                }
-                if outside && roll > 0.8 {
-                    self.audio.play(
-                        "amb.wind",
-                        0.5 + 0.5 * if p.weather.0 == 2 { p.weather_mix } else { 0.0 },
-                    );
-                }
-                if near_town && day && roll > 0.55 && roll < 0.7 {
-                    self.audio.play("amb.hammer", 1.0);
-                }
-            }
+            // (what the place sounds like: app/sound.rs and ambience.rs)
             // particles
             for pt in &mut p.particles {
                 pt.vel.y -= pt.gravity * dt;

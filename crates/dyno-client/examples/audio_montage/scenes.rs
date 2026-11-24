@@ -221,6 +221,7 @@ pub fn all() -> Vec<Scene> {
 /// Play a scene through `audio` (offline): what was heard, left and right
 /// interleaved. `extra` is called each slice with the time (to lay
 /// something under the scene).
+#[allow(dead_code)]
 pub fn render(
     audio: &mut Audio,
     scene: &Scene,

@@ -1,0 +1,55 @@
+{
+ "fade": 3.0,
+ "search": 24,
+ "events": {
+  "amb.air": {"file": "sounds/amb/air", "bus": "ambience", "gain": 0.16, "once": true},
+  "amb.night": {"file": "sounds/amb/night", "bus": "ambience", "gain": 0.14, "once": true},
+  "amb.leaves": {"file": "sounds/amb/leaves", "bus": "ambience", "gain": 0.12, "once": true},
+  "amb.eerie": {"file": "sounds/amb/eerie", "bus": "ambience", "gain": 0.2, "once": true},
+  "amb.town": {"file": "sounds/amb/town", "bus": "ambience", "gain": 0.16, "once": true},
+  "amb.mine": {"file": "sounds/amb/mine", "bus": "ambience", "gain": 0.26, "once": true},
+  "amb.wind": {"file": "sounds/amb/wind", "bus": "ambience", "gain": 0.16, "once": true},
+  "amb.rain": {"file": "sounds/amb/rain", "bus": "ambience", "gain": 0.13, "once": true},
+  "amb.fire": {"file": "sounds/amb/fire", "bus": "ambience", "gain": 0.4, "once": true, "reach": 14},
+  "amb.river": {"file": "sounds/amb/river", "bus": "ambience", "gain": 0.4, "once": true, "reach": 22},
+  "amb.lap": {"file": "sounds/amb/lap", "bus": "ambience", "gain": 0.4, "once": true, "reach": 22},
+  "amb.bird": {"file": "sounds/amb/bird", "variants": 6, "bus": "ambience", "gain": 0.3, "pitch": 0.06, "gap": 0.5, "reach": 60},
+  "amb.owl": {"file": "sounds/amb/owl", "variants": 3, "bus": "ambience", "gain": 0.3, "pitch": 0.04, "gap": 2.0, "reach": 80},
+  "amb.cricket": {"file": "sounds/amb/cricket", "variants": 3, "bus": "ambience", "gain": 0.16, "pitch": 0.04, "gap": 0.5, "reach": 24},
+  "amb.frog": {"file": "sounds/amb/frog", "variants": 3, "bus": "ambience", "gain": 0.26, "pitch": 0.08, "gap": 0.5, "reach": 50},
+  "amb.crow": {"file": "sounds/amb/crow", "variants": 3, "bus": "ambience", "gain": 0.24, "pitch": 0.05, "gap": 2.0, "reach": 90},
+  "amb.gull": {"file": "sounds/amb/gull", "variants": 3, "bus": "ambience", "gain": 0.22, "pitch": 0.05, "gap": 2.0, "reach": 90},
+  "amb.drip": {"file": "sounds/amb/drip", "variants": 4, "bus": "ambience", "gain": 0.3, "pitch": 0.1, "gap": 0.3, "reach": 30},
+  "amb.gust": {"file": "sounds/amb/gust", "variants": 3, "bus": "ambience", "gain": 0.22, "pitch": 0.08, "gap": 3.0, "reach": 60},
+  "amb.anvil": {"file": "sounds/amb/anvil", "variants": 4, "bus": "ambience", "gain": 0.32, "pitch": 0.03, "gap": 0.5, "reach": 40}
+ },
+ "beds": [
+  {"sound": "amb.air", "where": {"not_areas": ["hollow_mines"], "time": [0.99, 0.51]}, "outdoors": true},
+  {"sound": "amb.night", "where": {"not_areas": ["hollow_mines"], "time": [0.49, 0.01]}, "outdoors": true},
+  {"sound": "amb.leaves", "where": {"areas": ["birchrise", "logging_camp", "north_watch", "hollow_oak"]}, "outdoors": true},
+  {"sound": "amb.eerie", "where": {"areas": ["barrowwood"]}},
+  {"sound": "amb.town", "where": {"areas": ["hearthstead", "fishers_landing", "miners_rest", "logging_camp", "windmill"], "time": [0.01, 0.52]}},
+  {"sound": "amb.town", "where": {"areas": ["hearthstead"], "time": [0.52, 0.62]}, "gain": 0.5},
+  {"sound": "amb.mine", "where": {"areas": ["hollow_mines"]}},
+  {"sound": "amb.wind", "height": [14, 1000], "outdoors": true},
+  {"sound": "amb.rain", "weather": 2, "outdoors": true}
+ ],
+ "scatter": [
+  {"sound": "amb.bird", "where": {"not_areas": ["hollow_mines", "barrowwood"], "time": [0.98, 0.47]}, "outdoors": true, "every": [3, 9], "distance": [10, 36]},
+  {"sound": "amb.owl", "where": {"not_areas": ["hollow_mines"], "time": [0.56, 0.94]}, "outdoors": true, "every": [16, 40], "distance": [20, 50]},
+  {"sound": "amb.cricket", "where": {"not_areas": ["hollow_mines"], "time": [0.5, 0.98]}, "outdoors": true, "every": [4, 11], "distance": [3, 12]},
+  {"sound": "amb.frog", "where": {"areas": ["mirrormere", "fishers_landing", "sunken_shrine"], "time": [0.42, 0.04]}, "outdoors": true, "every": [5, 14], "distance": [8, 30]},
+  {"sound": "amb.crow", "where": {"areas": ["barrowwood", "hollow_oak"]}, "outdoors": true, "every": [10, 26], "distance": [20, 55]},
+  {"sound": "amb.gull", "where": {"areas": ["mirrormere", "fishers_landing", "sunken_shrine"], "time": [0.0, 0.5]}, "outdoors": true, "every": [9, 22], "distance": [20, 55]},
+  {"sound": "amb.drip", "where": {"areas": ["hollow_mines"]}, "every": [3, 9], "distance": [3, 16]},
+  {"sound": "amb.gust", "where": {"not_areas": ["hollow_mines"]}, "outdoors": true, "every": [22, 50], "distance": [8, 30]}
+ ],
+ "emitters": [
+  {"sound": "amb.fire", "block": "hearth"},
+  {"sound": "amb.fire", "block": "brazier", "gain": 0.8},
+  {"sound": "amb.fire", "block": "furnace", "gain": 0.6},
+  {"sound": "amb.anvil", "block": "anvil", "where": {"time": [0.02, 0.5]}, "every": [1.3, 3.6]},
+  {"sound": "amb.lap", "block": "water", "above": "air", "where": {"areas": ["mirrormere", "fishers_landing", "sunken_shrine"]}},
+  {"sound": "amb.river", "block": "water", "above": "air", "where": {"not_areas": ["mirrormere", "fishers_landing", "sunken_shrine"]}}
+ ]
+}

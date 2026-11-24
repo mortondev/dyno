@@ -306,3 +306,40 @@ def write_wav(path, x):
 
 def midi(n):
     return 440.0 * 2.0 ** ((n - 69) / 12.0)
+
+
+def seamless(x, t):
+    """Make `x` go round without a seam: its last `t` seconds are folded
+    under its first (an equal-power crossfade), and the result is that
+    much shorter."""
+    o = secs(t)
+    n = len(x) - o
+    out = list(x[:n])
+    for i in range(o):
+        u = i / o
+        out[i] = x[i] * math.sqrt(u) + x[n + i] * math.sqrt(1.0 - u)
+    return out
+
+
+def lfo(n, cycles, r=None, lo=0.0, hi=1.0):
+    """A slow wave over n samples that comes back to where it began:
+    whole `cycles` of a sine, from lo to hi."""
+    ph = r.uniform(0.0, TAU) if r else 0.0
+    return [lo + (hi - lo) * (0.5 + 0.5 * math.sin(TAU * cycles * i / n + ph)) for i in range(n)]
+
+
+def wander(n, r, rate=5.0, lo=0.0, hi=1.0):
+    """A level that drifts at random about `rate` times a second."""
+    hop = max(1, int(SR / rate))
+    pts = [r.uniform(lo, hi) for _ in range(n // hop + 3)]
+    out = [0.0] * n
+    for i in range(n):
+        k, f = divmod(i, hop)
+        u = f / hop
+        u = u * u * (3.0 - 2.0 * u)
+        out[i] = pts[k] + (pts[k + 1] - pts[k]) * u
+    return out
+
+
+def times(x, env):
+    return [a * b for a, b in zip(x, env)]

@@ -16,6 +16,7 @@
 //! tests and the review montages hear exactly what a player would.
 
 use crate::assets;
+use crate::tracker::{Deck, Room, Song};
 use glam::Vec3;
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap};
@@ -104,6 +105,8 @@ pub struct Event {
     pub once: bool,
     /// metres it carries when it has a place (else the pack's `reach`)
     pub reach: Option<f32>,
+    /// the music dips under it for this many seconds (a fanfare)
+    pub duck: f32,
 }
 
 impl Default for Event {
@@ -117,6 +120,7 @@ impl Default for Event {
             gap: 0.03,
             once: false,
             reach: None,
+            duck: 0.0,
         }
     }
 }
@@ -179,6 +183,8 @@ pub struct AudioData {
     /// how the sounds the rules name are played (an ability's `sound`):
     /// the files are `<file><name>_<n>.wav`, up to `variants` of them
     pub named: Option<Event>,
+    /// how far the music dips under a stinger or a cue (1: not at all)
+    pub duck: Option<f32>,
 }
 
 impl AudioData {
@@ -217,6 +223,15 @@ pub fn data() -> Option<Arc<AudioData>> {
     );
     *c = Some((bytes, d.clone()));
     Some(d)
+}
+
+/// An event by its key: one of `audio.json`'s, or one of the ambience
+/// file's (which streams: ambience.rs).
+pub fn event(key: &str) -> Option<Event> {
+    if let Some(e) = data().and_then(|d| d.events.get(key).cloned()) {
+        return Some(e);
+    }
+    crate::ambience::data().and_then(|d| d.events.get(key).cloned())
 }
 
 // ---- events from code with no `Audio` to hand ----
@@ -322,6 +337,59 @@ pub enum Cmd {
     },
     Volumes(Volumes),
     Limit(Limit),
+    /// A sound that goes round until it is stopped (a bed of ambience, a
+    /// fire). Sent again with the same `id`, it only moves the levels,
+    /// which glide.
+    Loop {
+        id: u32,
+        clip: Arc<Clip>,
+        bus: Bus,
+        gain: [f32; 2],
+    },
+    /// Fade a loop out and end it.
+    LoopStop {
+        id: u32,
+    },
+    /// Start a song on a deck, its level rising over `fade` seconds. A
+    /// song played `over` the rest (a stinger) dips the other decks.
+    Deck {
+        slot: usize,
+        song: Arc<Song>,
+        level: f32,
+        fade: f32,
+        over: bool,
+    },
+    /// Glide a deck to a level.
+    DeckLevel {
+        slot: usize,
+        level: f32,
+        fade: f32,
+    },
+    /// Fade a deck out and end its song.
+    DeckStop {
+        slot: usize,
+        fade: f32,
+    },
+    /// Dip the music to `level` for `secs` (under a cue that is not
+    /// itself music); `level` is also how far stingers dip it from now on.
+    Duck {
+        level: f32,
+        secs: f32,
+    },
+}
+
+/// Songs at once: two themes crossing, a layer, a stinger, and room to spare.
+pub const DECKS: usize = 6;
+
+struct Loop {
+    id: u32,
+    clip: Arc<Clip>,
+    bus: Bus,
+    gain: [f32; 2],
+    to: [f32; 2],
+    at: f64,
+    step: f64,
+    stopping: bool,
 }
 
 struct Voice {
@@ -350,6 +418,16 @@ pub struct Mixer {
     ahead_at: usize,
     /// the most the limiter has had to take off so far (1: nothing)
     pub held: f32,
+    loops: Vec<Loop>,
+    decks: [Option<Deck>; DECKS],
+    room: Room,
+    /// frames of the room's tail still to play
+    room_tail: usize,
+    /// the music's dip under stingers and cues: its level now, how low
+    /// it goes, and the frames a cue still holds it down
+    duck: f32,
+    duck_level: f32,
+    duck_frames: usize,
 }
 
 impl Mixer {
@@ -367,6 +445,13 @@ impl Mixer {
             wants: vec![1.0; (rate as usize * 3 / 2000).max(8)],
             ahead_at: 0,
             held: 1.0,
+            loops: Vec::with_capacity(VOICES),
+            decks: Default::default(),
+            room: Room::new(rate),
+            room_tail: 0,
+            duck: 1.0,
+            duck_level: 0.35,
+            duck_frames: 0,
         }
     }
 
@@ -401,11 +486,68 @@ impl Mixer {
             }
             Cmd::Volumes(v) => self.volumes = v,
             Cmd::Limit(l) => self.limit = l,
+            Cmd::Loop {
+                id,
+                clip,
+                bus,
+                gain,
+            } => {
+                if let Some(l) = self.loops.iter_mut().find(|l| l.id == id && !l.stopping) {
+                    l.to = gain;
+                } else if clip.samples.len() > 1 && self.loops.len() < VOICES {
+                    self.loops.push(Loop {
+                        id,
+                        step: clip.rate as f64 / self.rate as f64,
+                        clip,
+                        bus,
+                        gain: [0.0; 2],
+                        to: gain,
+                        at: 0.0,
+                        stopping: false,
+                    });
+                }
+            }
+            Cmd::LoopStop { id } => {
+                for l in self.loops.iter_mut().filter(|l| l.id == id) {
+                    l.to = [0.0; 2];
+                    l.stopping = true;
+                }
+            }
+            Cmd::Deck {
+                slot,
+                song,
+                level,
+                fade,
+                over,
+            } => {
+                if let Some(d) = self.decks.get_mut(slot) {
+                    *d = Some(Deck::new(song, level, fade, over, self.rate));
+                }
+            }
+            Cmd::DeckLevel { slot, level, fade } => {
+                if let Some(Some(d)) = self.decks.get_mut(slot) {
+                    d.fade_to(level, fade, self.rate);
+                }
+            }
+            Cmd::DeckStop { slot, fade } => {
+                if let Some(Some(d)) = self.decks.get_mut(slot) {
+                    d.stop(fade, self.rate);
+                }
+            }
+            Cmd::Duck { level, secs } => {
+                self.duck_level = level.clamp(0.0, 1.0);
+                self.duck_frames = self.duck_frames.max((secs * self.rate as f32) as usize);
+            }
         }
     }
 
     pub fn playing(&self) -> usize {
         self.voices.len()
+    }
+
+    /// The loops going round, and the decks with a song on them.
+    pub fn held_sounds(&self) -> (usize, usize) {
+        (self.loops.len(), self.decks.iter().flatten().count())
     }
 
     /// Fill `out` (left, right, left, right…) with the next frames.
@@ -440,6 +582,66 @@ impl Mixer {
             }
             self.voices
                 .retain(|v| (v.at as usize) < v.clip.samples.len() - 1);
+            let frames = block.len() / 2;
+            // loops: their levels glide (about a twentieth of a second)
+            let glide = 1.0 - (-1.0 / (0.05 * self.rate as f32)).exp();
+            for l in &mut self.loops {
+                let lvl = self.level[l.bus as usize];
+                let s = &l.clip.samples;
+                let n = s.len();
+                for f in block.as_chunks_mut::<2>().0 {
+                    l.gain[0] += (l.to[0] - l.gain[0]) * glide;
+                    l.gain[1] += (l.to[1] - l.gain[1]) * glide;
+                    let i = (l.at as usize).min(n - 1);
+                    let t = (l.at - i as f64) as f32;
+                    let x = s[i] + (s[(i + 1) % n] - s[i]) * t;
+                    f[0] += x * l.gain[0] * lvl;
+                    f[1] += x * l.gain[1] * lvl;
+                    l.at += l.step;
+                    if l.at >= n as f64 {
+                        l.at -= n as f64;
+                    }
+                }
+            }
+            self.loops
+                .retain(|l| !(l.stopping && l.gain[0].abs() + l.gain[1].abs() < 1e-4));
+            // music: the decks, the themes dipped under a stinger or a cue,
+            // and the room they all play in
+            let stinger = self.decks.iter().flatten().any(|d| d.over);
+            let dip = if stinger || self.duck_frames > 0 {
+                self.duck_level
+            } else {
+                1.0
+            };
+            self.duck_frames = self.duck_frames.saturating_sub(frames);
+            // (down in a fifth of a second, back up over a second and a half)
+            let secs = if dip < self.duck { 0.2 } else { 1.5 };
+            let moved = frames as f32 / (secs * self.rate as f32);
+            self.duck += (dip - self.duck).clamp(-moved, moved);
+            let music = self.level[Bus::Music as usize];
+            let mut room = [0.0f32; CHUNK];
+            let mut any = false;
+            for slot in &mut self.decks {
+                if let Some(d) = slot {
+                    let lvl = if d.over { music } else { music * self.duck };
+                    d.render(self.rate, lvl, block, &mut room[..frames]);
+                    any = true;
+                    if d.finished() {
+                        *slot = None;
+                    }
+                }
+            }
+            if any {
+                self.room_tail = self.rate as usize * 4;
+            }
+            if self.room_tail > 0 {
+                self.room_tail = self.room_tail.saturating_sub(frames);
+                self.room.render(&mut room[..frames]);
+                for (f, w) in block.as_chunks_mut::<2>().0.iter_mut().zip(&room) {
+                    f[0] += w;
+                    f[1] += w;
+                }
+            }
             // the limiter: it sees each peak a moment before it plays (the
             // sound is held back by `ahead`), turns down smoothly in that
             // moment, and lets go slowly: no peak passes the ceiling and
@@ -676,9 +878,73 @@ impl Audio {
     /// Ask for an event's files before it is needed. How many variants of
     /// it are ready to play.
     pub fn want(&mut self, key: &str) -> usize {
-        let Some(d) = data() else { return 0 };
-        let Some(e) = d.events.get(key) else { return 0 };
+        let Some(e) = event(key) else { return 0 };
         e.paths().filter(|p| self.clip(p).is_some()).count()
+    }
+
+    /// A sample for a song, if it has arrived (else it is asked for).
+    pub fn sample(&mut self, path: &str) -> Option<Arc<Clip>> {
+        self.clip(path)
+    }
+
+    /// Keep an event's sound going round under `id`, at this share of its
+    /// level and (with `at`) at a place in the world. Call it again to
+    /// move the level or the place: both glide. False until its file has
+    /// arrived.
+    pub fn loop_set(&mut self, id: u32, key: &str, gain: f32, at: Option<Vec3>) -> bool {
+        let Some(e) = event(key) else { return false };
+        let Some(clip) = self.clip(&format!("{}_0.wav", e.file)) else {
+            return false;
+        };
+        let reach = e.reach.or(data().map(|d| d.reach)).unwrap_or(32.0);
+        let (near, side) = match at {
+            Some(at) => self.placed(at, reach),
+            None => (1.0, 0.0),
+        };
+        let g = gain * e.gain * near;
+        let angle = (side.clamp(-1.0, 1.0) * 0.8 + 1.0) * std::f32::consts::FRAC_PI_4;
+        self.send(Cmd::Loop {
+            id,
+            clip,
+            bus: e.bus,
+            gain: [g * angle.cos(), g * angle.sin()],
+        });
+        true
+    }
+
+    /// Fade a loop out.
+    pub fn loop_stop(&mut self, id: u32) {
+        self.send(Cmd::LoopStop { id });
+    }
+
+    /// Start a song on a deck of the mixer (music.rs decides which).
+    pub fn deck(&mut self, slot: usize, song: Arc<Song>, level: f32, fade: f32, over: bool) {
+        if over && let Some(level) = data().and_then(|d| d.duck) {
+            self.send(Cmd::Duck { level, secs: 0.0 });
+        }
+        self.send(Cmd::Deck {
+            slot,
+            song,
+            level,
+            fade,
+            over,
+        });
+    }
+
+    pub fn deck_level(&mut self, slot: usize, level: f32, fade: f32) {
+        self.send(Cmd::DeckLevel { slot, level, fade });
+    }
+
+    pub fn deck_stop(&mut self, slot: usize, fade: f32) {
+        self.send(Cmd::DeckStop { slot, fade });
+    }
+
+    /// Offline only: the loops going round and the decks playing.
+    pub fn held_sounds(&self) -> (usize, usize) {
+        match &self.out {
+            Out::Offline(m) => m.held_sounds(),
+            _ => (0, 0),
+        }
     }
 
     /// Play an event. `gain` scales its level.
@@ -689,8 +955,8 @@ impl Audio {
     /// Play an event at a place in the world: quieter with distance, and
     /// to the side it is on.
     pub fn play_at(&mut self, key: &str, at: Vec3, gain: f32) {
-        let Some(d) = data() else { return };
-        let reach = d.events.get(key).and_then(|e| e.reach).unwrap_or(d.reach);
+        let Some(e) = event(key) else { return };
+        let reach = e.reach.or(data().map(|d| d.reach)).unwrap_or(32.0);
         let (near, side) = self.placed(at, reach);
         self.start(key, gain * near, side);
     }
@@ -745,15 +1011,21 @@ impl Audio {
     }
 
     fn start(&mut self, key: &str, gain: f32, side: f32) {
-        let Some(d) = data() else { return };
-        let Some(e) = d.events.get(key) else { return };
+        let Some(e) = event(key) else { return };
         // (every variant is looked at, so the missing ones are asked for)
         let ready: Vec<(u8, Arc<Clip>)> = e
             .paths()
             .enumerate()
             .filter_map(|(i, p)| Some((i as u8, self.clip(&p)?)))
             .collect();
-        self.voice(key, e, ready, gain, side);
+        if e.duck > 0.0 && !ready.is_empty() && gain * e.gain >= 0.004 {
+            let level = data().and_then(|d| d.duck).unwrap_or(0.35);
+            self.send(Cmd::Duck {
+                level,
+                secs: e.duck,
+            });
+        }
+        self.voice(key, &e, ready, gain, side);
     }
 
     /// Start one of the variants that are `ready`.

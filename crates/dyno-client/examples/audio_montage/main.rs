@@ -7,6 +7,7 @@
 //! output). Mono, 16-bit, 22050 Hz: the sounds' own rate, and small. The
 //! game itself plays in stereo, with placed sounds to their side.
 
+mod places;
 mod scenes;
 
 use dyno_client::audio::{self, Audio, Bus, Volumes};
@@ -42,6 +43,14 @@ fn write_wav(path: &Path, stereo: &[f32]) -> std::io::Result<usize> {
     Ok(f.len())
 }
 
+fn limiter(held: f32) -> String {
+    if held < 1.0 {
+        format!("took off {:.1} dB at most", -20.0 * held.log10())
+    } else {
+        "idle".to_string()
+    }
+}
+
 fn main() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let out: PathBuf = std::env::args()
@@ -52,61 +61,71 @@ fn main() {
     dyno_client::assets::load_dir(&root.join("content")).expect("the pack in content/");
     let data = audio::data().expect("audio.json");
     let all = scenes::all();
+    let visits = places::all();
 
     println!("| Montage | Seconds | Peak (dBFS) | Loudness (dB) | Limiter | Bytes |");
     println!("|---|---|---|---|---|---|");
     let mut heard_in = Vec::new();
+    let mut row = |name: &str, what: &str, secs: f32, heard: &[f32], held: f32| {
+        heard_in.push(format!("- `{name}.wav`: {what}."));
+        let bytes = write_wav(&out.join(format!("{name}.wav")), heard).expect("writing");
+        println!(
+            "| `{name}.wav` | {secs:.1} | {:.1} | {:.1} | {} | {bytes} |",
+            scenes::peak_db(heard),
+            scenes::loudness_db(heard, RATE),
+            limiter(held),
+        );
+    };
     for s in &all {
         let mut a = Audio::offline(RATE);
         let heard = scenes::render(&mut a, s, |_, _| {});
-        heard_in.push(format!("- `{}.wav`: {}.", s.name, s.what));
-        let file = out.join(format!("{}.wav", s.name));
-        let bytes = write_wav(&file, &heard).expect("writing the montage");
-        let held = a.held();
-        println!(
-            "| `{}.wav` | {:.1} | {:.1} | {:.1} | {} | {} |",
-            s.name,
-            s.secs,
-            scenes::peak_db(&heard),
-            scenes::loudness_db(&heard, RATE),
-            if held < 1.0 {
-                format!("took off {:.1} dB at most", -20.0 * held.log10())
-            } else {
-                "idle".to_string()
-            },
-            bytes
-        );
+        row(s.name, s.what, s.secs, &heard, a.held());
     }
-
+    for v in &visits {
+        let mut a = Audio::offline(RATE);
+        let heard = places::render(&mut a, &mut places::Stage::new(), v);
+        row(v.name, v.what, v.secs, &heard, a.held());
+    }
     println!();
     println!("{}", heard_in.join("\n"));
-    // each bus alone, in the scene where it is busiest (the peak target is
-    // for one event alone: tests/pack.rs holds each event to it)
+
+    // each bus alone, in the worst case: the fight of `6_everything` in
+    // the plaza in heavy rain, with the theme, the drums and a stinger
+    // (the peak target is for one event alone: tests/pack.rs holds each
+    // event to it)
+    let fight = all.iter().find(|s| s.name == "6_everything").unwrap();
+    let worst = places::worst(fight);
     println!();
-    println!("| Bus | Busiest in | Peak there (dBFS) | Loudness (dB) | Target |");
-    println!("|---|---|---|---|---|");
+    println!("| Bus | Peak in the worst case (dBFS) | Loudness (dB) | Target |");
+    println!("|---|---|---|---|");
     for bus in Bus::ALL {
         let name = format!("{bus:?}").to_lowercase();
         let target = data.targets.get(&name).copied().unwrap_or_default();
-        let mut best: Option<(f32, f32, &str)> = None;
-        for s in &all {
-            let mut a = Audio::offline(RATE);
-            a.set_volumes(Volumes::only(bus));
-            let heard = scenes::render(&mut a, s, |_, _| {});
-            let (peak, loud) = (scenes::peak_db(&heard), scenes::loudness_db(&heard, RATE));
-            if peak > -100.0 && best.is_none_or(|b| loud > b.1) {
-                best = Some((peak, loud, s.name));
-            }
-        }
-        match best {
-            Some((peak, loud, scene)) => println!(
-                "| {name} | `{scene}` | {peak:.1} | {loud:.1} | {:.0} |",
-                target.loudness_db
-            ),
-            None => println!(
-                "| {name} | (nothing plays on it yet) | | | {:.0} |",
-                target.loudness_db
-            ),
-        }
+        let mut a = Audio::offline(RATE);
+        a.set_volumes(Volumes::only(bus));
+        let heard = places::render(&mut a, &mut places::Stage::new(), &worst);
+        println!(
+            "| {name} | {:.1} | {:.1} | {:.0} |",
+            scenes::peak_db(&heard),
+            scenes::loudness_db(&heard, RATE),
+            target.loudness_db
+        );
+    }
+    for (what, volumes) in [
+        ("all at full", Volumes::FULL),
+        (
+            "a new player's",
+            dyno_client::options::Sound::of(&dyno_client::settings::Settings::default()).volumes(),
+        ),
+    ] {
+        let mut a = Audio::offline(RATE);
+        a.set_volumes(volumes);
+        let heard = places::render(&mut a, &mut places::Stage::new(), &worst);
+        println!(
+            "worst case, sliders {what}: peak {:.1} dBFS, loudness {:.1} dB, limiter {}",
+            scenes::peak_db(&heard),
+            scenes::loudness_db(&heard, RATE),
+            limiter(a.held())
+        );
     }
 }
