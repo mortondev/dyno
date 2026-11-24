@@ -864,10 +864,21 @@
    "name": "The North Pass",
    "radius": 16,
    "stamps": [
-    {"stamp": "ruin_tower", "at": [12, -4], "fit": "ground"},
     {"stamp": "gate", "at": [0, -10], "fit": "ground"},
-    {"stamp": "boulders", "at": [-2, -14], "fit": "ground"},
-    {"stamp": "boulders", "at": [4, -17], "rot": 1, "fit": "ground"}
+    {"stamp": "birchrise_pass_tower", "at": [19, -13], "fit": "float"},
+    {"stamp": "birchrise_crag", "at": [-15, -26], "fit": "float"},
+    {"stamp": "birchrise_crag", "at": [15, -30], "rot": 2, "fit": "float"},
+    {"stamp": "boulders", "at": [-12, -8], "fit": "ground"},
+    {"stamp": "birchrise_rubble", "at": [-12, -40], "rot": 2, "fit": "ground"}
+   ]
+  },
+  {
+   "key": "birchrise_pass_sign",
+   "kind": "wayside",
+   "at": [-66, -792],
+   "radius": 6,
+   "stamps": [
+    {"stamp": "signpost", "at": [4, 0], "fit": "ground"}
    ]
   },
   {
@@ -889,12 +900,14 @@
     "radius": [26, 30]
    },
    "stamps": [
+    {"stamp": "birchrise_yard", "at": [-6, -5]},
     {"stamp": "hut", "at": [-19, -9]},
     {"stamp": "fence_run", "at": [14, 16], "fit": "ground"},
-    {"stamp": "sawmill", "at": [2, -20], "rot": 1},
+    {"stamp": "birchrise_sawmill", "at": [2, -20], "rot": 1},
     {"stamp": "log_pile", "at": [9, 5]},
-    {"stamp": "birch_pile", "at": [-3, 8]},
-    {"stamp": "tent_white", "at": [-16, 18], "rot": 1},
+    {"stamp": "birch_pile", "at": [-10, 3]},
+    {"stamp": "birchrise_chopping", "at": [8, -6]},
+    {"stamp": "birchrise_tent", "at": [-16, 18], "rot": 1},
     {"stamp": "stumps", "at": [18, 8]},
     {"stamp": "campfire", "at": [4, 5]},
     {"stamp": "log_pile", "at": [-8, 14], "rot": 1},
@@ -905,6 +918,19 @@
     "radius": 14
    },
    "trees": []
+  },
+  {
+   "key": "birchrise_cut",
+   "kind": "site",
+   "at": [-205, -470],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "birchrise_clear_14", "at": [0, 0], "dy": 40, "fit": "float"},
+    {"stamp": "birchrise_cut", "at": [0, 0], "fit": "ground"},
+    {"stamp": "stumps", "at": [9, -8], "fit": "ground"},
+    {"stamp": "birchrise_skid", "at": [-6, 8], "fit": "ground"},
+    {"stamp": "birch_pile", "at": [8, 7], "fit": "ground"}
+   ]
   },
   {
    "key": "hollow_oak",
@@ -1620,25 +1646,175 @@
    "key": "birchrise_boars_1",
    "kind": "camp",
    "at": [-90, -380],
-   "radius": 20
+   "radius": 20,
+   "stamps": [
+    {"stamp": "birchrise_wallow", "at": [8, -7], "fit": "ground"},
+    {"stamp": "stumps", "at": [-12, -5], "fit": "ground"},
+    {"stamp": "birchrise_bones", "at": [-5, -11], "fit": "ground"},
+    {"stamp": "birchrise_log_seat", "at": [2, -15], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-16, -12]}
+   ]
   },
   {
    "key": "birchrise_boars_2",
    "kind": "camp",
    "at": [-290, -520],
-   "radius": 20
+   "radius": 20,
+   "stamps": [
+    {"stamp": "birchrise_den", "at": [7, -11], "fit": "ground"},
+    {"stamp": "birchrise_wallow", "at": [-9, 5], "fit": "ground"},
+    {"stamp": "birchrise_bones", "at": [3, 12], "fit": "ground"},
+    {"stamp": "birchrise_log_seat", "at": [-13, -8], "rot": 1, "fit": "ground"}
+   ]
   },
   {
    "key": "birchrise_boars_3",
    "kind": "camp",
    "at": [-40, -590],
-   "radius": 20
+   "radius": 20,
+   "stamps": [
+    {"stamp": "birchrise_wallow", "at": [9, -3], "fit": "ground"},
+    {"stamp": "stumps", "at": [12, 11], "fit": "ground"},
+    {"stamp": "birchrise_bones", "at": [3, 10], "fit": "ground"},
+    {"stamp": "birchrise_log_seat", "at": [-4, -13], "fit": "ground"}
+   ]
   },
   {
    "key": "birchrise_flock",
    "kind": "camp",
    "at": [50, -475],
-   "radius": 20
+   "radius": 20,
+   "stamps": [
+    {"stamp": "birchrise_hay_rack", "at": [9, -8], "fit": "ground"},
+    {"stamp": "birchrise_broken_fence", "at": [-11, 11], "fit": "ground"},
+    {"stamp": "birchrise_broken_fence", "at": [14, 8], "rot": 1, "fit": "ground"},
+    {"stamp": "birchrise_field_wall", "at": [2, -27], "fit": "ground"},
+    {"stamp": "birchrise_field_wall", "at": [-24, -22], "fit": "ground"},
+    {"stamp": "birchrise_field_wall", "at": [27, 4], "rot": 1, "fit": "ground"},
+    {"stamp": "birchrise_field_wall", "at": [-5, 26], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "birchrise_east_birches",
+   "kind": "site",
+   "at": [30, -430],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "boulders", "at": [7, 7], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "birch", "at": [0, 0]},
+    {"species": "birch", "at": [7, -4]},
+    {"species": "birch", "at": [-5, 5]},
+    {"species": "young_birch", "at": [2, -8]}
+   ]
+  },
+  {
+   "key": "birchrise_east_oak",
+   "kind": "site",
+   "at": [70, -520],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "birchrise_log_seat", "at": [5, 9], "fit": "ground"},
+    {"stamp": "boulders", "at": [-9, 6], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [0, 0]},
+    {"species": "young_birch", "at": [10, -6]}
+   ]
+  },
+  {
+   "key": "birchrise_east_copse",
+   "kind": "site",
+   "at": [15, -560],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "stumps", "at": [8, 6], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "birch", "at": [0, 0]},
+    {"species": "birch", "at": [-6, 4]},
+    {"species": "young_birch", "at": [5, -4]},
+    {"species": "oak", "at": [-3, -8]}
+   ]
+  },
+  {
+   "key": "birchrise_glade",
+   "kind": "site",
+   "at": [-150, -560],
+   "name": "Birch Glade",
+   "radius": 14,
+   "stamps": [
+    {"stamp": "birchrise_clear_14", "at": [0, 0], "dy": 40, "fit": "float"},
+    {"stamp": "birchrise_log_seat", "at": [6, 5], "rot": 1, "fit": "ground"},
+    {"stamp": "boulders", "at": [-7, -4], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [0, -2]}
+   ]
+  },
+  {
+   "key": "birchrise_old_wall",
+   "kind": "site",
+   "at": [-300, -620],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [0, 0], "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [8, 7], "rot": 1, "fit": "ground"},
+    {"stamp": "birchrise_rubble", "at": [1, 2], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "young_birch", "at": [3, -4]}
+   ]
+  },
+  {
+   "key": "birchrise_high_seat",
+   "kind": "site",
+   "at": [-250, -720],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "birchrise_clear_10", "at": [0, 4], "dy": 40, "fit": "float"},
+    {"stamp": "birchrise_blind", "at": [0, 0], "fit": "ground"},
+    {"stamp": "birchrise_hide_rack", "at": [5, 3], "fit": "ground"},
+    {"stamp": "birchrise_log_seat", "at": [-5, 4], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "birchrise_woodpile",
+   "kind": "site",
+   "at": [-140, -700],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "saw_pit", "at": [0, 0], "fit": "ground"},
+    {"stamp": "birch_pile", "at": [7, 4], "fit": "ground"},
+    {"stamp": "stumps", "at": [-7, 6], "fit": "ground"},
+    {"stamp": "birchrise_chopping", "at": [4, -6], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "birchrise_east_cairn",
+   "kind": "site",
+   "at": [40, -660],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "birchrise_cairn", "at": [0, 0], "fit": "ground"},
+    {"stamp": "boulders", "at": [6, 5], "fit": "ground"},
+    {"stamp": "birchrise_log_seat", "at": [-5, 4], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "birchrise_kiln",
+   "kind": "site",
+   "at": [-380, -500],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "birchrise_clear_10", "at": [0, 0], "dy": 40, "fit": "float"},
+    {"stamp": "birchrise_charcoal_clamp", "at": [0, 0], "fit": "ground"},
+    {"stamp": "birch_pile", "at": [-8, 3], "fit": "ground"},
+    {"stamp": "birchrise_chopping", "at": [3, 8], "fit": "ground"}
+   ]
   },
   {
    "key": "oak_webs",
@@ -1753,8 +1929,8 @@
    "at": [-39, -510],
    "radius": 10,
    "stamps": [
-    {"stamp": "milestone", "at": [7, -2], "fit": "ground"},
-    {"stamp": "bench_lamp", "at": [-9, -5], "fit": "ground"}
+    {"stamp": "milestone", "at": [6, -3], "fit": "ground"},
+    {"stamp": "birchrise_log_seat", "at": [-10, -5], "rot": 1, "fit": "ground"}
    ]
   },
   {
@@ -1764,7 +1940,9 @@
    "radius": 10,
    "stamps": [
     {"stamp": "cart", "at": [-9, 0], "fit": "ground"},
-    {"stamp": "haystack", "at": [9, -7], "fit": "ground"}
+    {"stamp": "log_pile", "at": [10, -7], "fit": "ground"},
+    {"stamp": "campfire", "at": [9, 3], "fit": "ground"},
+    {"stamp": "birchrise_log_seat", "at": [13, 5], "rot": 1, "fit": "ground"}
    ]
   },
   {
@@ -1945,8 +2123,11 @@
    "at": [-165, -388],
    "radius": 10,
    "stamps": [
-    {"stamp": "cairn", "at": [4, -5], "fit": "ground"},
-    {"stamp": "boulders", "at": [-12, 4], "fit": "ground"}
+    {"stamp": "birchrise_cairn", "at": [4, -5], "fit": "ground"},
+    {"stamp": "boulders", "at": [-17, 7], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-8, 6]}
    ]
   },
   {
@@ -1955,7 +2136,9 @@
    "at": [-295, -407],
    "radius": 10,
    "stamps": [
-    {"stamp": "hunter_camp", "at": [5, 11], "fit": "ground"}
+    {"stamp": "hunter_camp", "at": [3, 6], "rot": 2, "fit": "ground"},
+    {"stamp": "campfire", "at": [-4, 9], "fit": "ground"},
+    {"stamp": "birchrise_hide_rack", "at": [11, 4], "rot": 1, "fit": "ground"}
    ]
   },
   {
