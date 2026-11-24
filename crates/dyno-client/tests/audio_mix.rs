@@ -218,8 +218,15 @@ fn themes_cross_without_a_click_or_a_hole() {
             a.set_volumes(Volumes::only(Bus::Music));
             let mut music = Music::default();
             left(&mut a, &mut music, &[from], false, 8.0);
-            // the crossing: the pack's crossfade and a second either side
-            let x = left(&mut a, &mut music, &[to], false, m.crossfade + 2.0);
+            // the crossing: the moment the pack waits before it starts,
+            // its crossfade, and a second either side
+            let x = left(
+                &mut a,
+                &mut music,
+                &[to],
+                false,
+                m.dwell + m.crossfade + 2.0,
+            );
             assert_eq!(music.playing(), Some(*b_name));
             let own = alone[i].0.max(alone[j].0);
             let ratio = step(&x) / own;
@@ -305,14 +312,29 @@ fn the_music_dips_under_a_stinger_and_a_fanfare_and_under_the_drums() {
     );
     // the dip itself is a glide: no step larger than the theme's own
     assert!(step(&ducked) <= step(&plain) * 1.25);
-    // a stinger: it is heard, and the theme under it dips the same way
-    // (measured after it has rung out, on the way back up)
+    // a stinger: it is heard, the themes dip under it for as long as it
+    // sounds and no longer, and come back
     let (plain, stung) = levels(&|a, music| music.stinger(a, "discovery"));
     assert!(
         at(&stung, 9.0) > at(&plain, 9.0) * 0.5,
         "the stinger sounds"
     );
     assert_eq!(m.stingers["discovery"], "discovery");
+    let mut a = Audio::offline(RATE);
+    let mut music = Music::default();
+    left(&mut a, &mut music, &["hearthstead"], false, 6.0);
+    assert_eq!(a.ducked(), 1.0);
+    music.stinger(&mut a, "discovery");
+    left(&mut a, &mut music, &["hearthstead"], false, 1.0);
+    assert!((a.ducked() - dip).abs() < 0.01, "dipped to {}", a.ducked());
+    let mut down = 1.0;
+    while a.ducked() < 1.0 && down < 20.0 {
+        left(&mut a, &mut music, &["hearthstead"], false, 0.25);
+        down += 0.25;
+    }
+    println!("the themes are dipped for {down:.1} s by the discovery stinger");
+    assert!(down < 9.0, "the dip outlasts the stinger: {down} s");
+    assert_eq!(a.held_sounds().1, 1, "the stinger has ended");
     // a fight: the drums come in over the theme, which steps back
     let mut a = Audio::offline(RATE);
     a.set_volumes(Volumes::only(Bus::Music));
@@ -332,4 +354,66 @@ fn the_music_dips_under_a_stinger_and_a_fanfare_and_under_the_drums() {
         m.combat_linger + 5.0,
     );
     assert_eq!(a.held_sounds().1, 1, "the theme alone again");
+}
+
+#[test]
+fn a_restless_player_makes_no_clicks() {
+    load();
+    let m = music::data().unwrap();
+    // calm: a theme, then a fight on it with its sting, then a stinger:
+    // how big a step all of that makes when nothing is hurried
+    let mut a = Audio::offline(RATE);
+    a.set_volumes(Volumes::only(Bus::Music));
+    let mut music = Music::default();
+    let mut calm = left(&mut a, &mut music, &["hearthstead"], false, 6.0);
+    calm.extend(left(&mut a, &mut music, &["hearthstead"], true, 8.0));
+    music.stinger(&mut a, "discovery");
+    calm.extend(left(&mut a, &mut music, &["hearthstead"], true, 8.0));
+    calm.extend(left(&mut a, &mut music, &["mirrormere"], false, 12.0));
+    let own = step(&calm);
+
+    // restless: back and forth over a border every two seconds (so every
+    // crossing is cut short by the next), fights that start and stop inside
+    // the drums' fade, stingers on top of stingers
+    let mut a = Audio::offline(RATE);
+    a.set_volumes(Volumes::only(Bus::Music));
+    let mut music = Music::default();
+    let mut x = left(&mut a, &mut music, &["hearthstead"], false, 4.0);
+    let mut most = 0;
+    for i in 0..40 {
+        let area = if (i / 4) % 2 == 0 {
+            "mirrormere"
+        } else {
+            "hearthstead"
+        };
+        // (three half-seconds of fighting, then five without: the drums
+        // are still leaving when the next fight calls them back)
+        let combat = i % 8 < 3;
+        if i % 5 == 0 {
+            music.stinger(&mut a, "discovery");
+        }
+        if i % 5 == 1 {
+            music.stinger(&mut a, "combat");
+        }
+        x.extend(left(&mut a, &mut music, &[area], combat, 0.5));
+        most = most.max(a.held_sounds().1);
+    }
+    println!(
+        "restless: largest step {:.4} (calm: {own:.4}); {most} songs at once at most; crossfade {} s, dwell {} s",
+        step(&x),
+        m.crossfade,
+        m.dwell
+    );
+    assert!(
+        most >= 4,
+        "themes crossing, the drums and a stinger overlapped: {most}"
+    );
+    assert!(
+        step(&x) <= own * 1.25,
+        "a step of {} (calm: {own})",
+        step(&x)
+    );
+    // and it all settles: one theme left when the player stands still
+    left(&mut a, &mut music, &["hearthstead"], false, 20.0);
+    assert_eq!(a.held_sounds().1, 1);
 }

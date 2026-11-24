@@ -59,6 +59,8 @@ pub struct MusicData {
     pub stingers: BTreeMap<String, String>,
     /// seconds to cross from one theme to the next
     pub crossfade: f32,
+    /// seconds a place's theme must be wanted before the music crosses
+    pub dwell: f32,
     /// the theme's level under the combat layer (1: unchanged)
     pub combat_dip: f32,
     /// seconds after the last blow before the combat layer goes
@@ -76,6 +78,7 @@ impl Default for MusicData {
             combat: String::new(),
             stingers: BTreeMap::new(),
             crossfade: 4.0,
+            dwell: 1.5,
             combat_dip: 0.45,
             combat_linger: 5.0,
         }
@@ -167,6 +170,9 @@ pub struct Music {
     /// the combat layer is on; seconds since the last blow
     combat: bool,
     quiet: f32,
+    /// the theme wanted, and for how long it has been (a border walked
+    /// along must not flip the music with every step)
+    wanted: (String, f32),
 }
 
 impl Music {
@@ -233,8 +239,15 @@ impl Music {
             Scene::World { at, areas, combat } => (d.theme(at, areas), combat),
             Scene::Silence => ("", false),
         };
-        // the theme: cross to the one wanted, once it is ready to play
-        if self.playing() != Some(want).filter(|w| !w.is_empty()) {
+        if self.wanted.0 == want {
+            self.wanted.1 += dt;
+        } else {
+            self.wanted = (want.to_string(), 0.0);
+        }
+        // the theme: cross to the one wanted, once it has been wanted a
+        // moment (the first of all at once) and is ready to play
+        let settled = self.theme.is_none() || self.wanted.1 >= d.dwell;
+        if settled && self.playing() != Some(want).filter(|w| !w.is_empty()) {
             let dip = if self.combat { d.combat_dip } else { 1.0 };
             if want.is_empty() {
                 if let Some((_, deck)) = self.theme.take() {

@@ -393,6 +393,7 @@ MUSIC = {
     "combat": "combat",
     "stingers": {"combat": "combat_sting", "discovery": "discovery"},
     "crossfade": 4.0,
+    "dwell": 1.5,
     "combat_dip": 0.45,
     "combat_linger": 5.0,
 }

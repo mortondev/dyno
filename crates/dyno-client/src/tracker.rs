@@ -305,11 +305,10 @@ impl Deck {
     }
 
     pub fn finished(&self) -> bool {
+        // (a stinger is over when its last note has died away, not at
+        // the end of its last bar: the music waits under it no longer)
         (self.stopping && self.level <= 0.0)
-            || (!self.song.looped
-                && self.next >= self.song.notes.len()
-                && self.voices.is_empty()
-                && self.clock > self.song.seconds as f64)
+            || (!self.song.looped && self.next >= self.song.notes.len() && self.voices.is_empty())
     }
 
     /// The same song (so starting it again would change nothing).

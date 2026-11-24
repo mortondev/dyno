@@ -32,6 +32,7 @@
   {"sound": "amb.town", "where": {"areas": ["hearthstead"], "time": [0.52, 0.62]}, "gain": 0.5},
   {"sound": "amb.mine", "where": {"areas": ["hollow_mines"]}},
   {"sound": "amb.wind", "height": [14, 1000], "outdoors": true},
+  {"sound": "amb.wind", "where": {"areas": ["watch_hill", "beacon_rocks", "north_pass", "barrow_overlook", "ridge_cut", "broken_tower"]}, "outdoors": true},
   {"sound": "amb.rain", "weather": 2, "outdoors": true}
  ],
  "scatter": [

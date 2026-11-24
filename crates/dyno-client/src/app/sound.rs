@@ -94,7 +94,17 @@ pub fn frame(audio: &mut Audio, heard: &mut Heard, p: Option<&Play>, ctx: &egui:
                 heard.search.step(&p.world, &d, eye);
             }
             heard.ambience.update(audio, &env, &heard.search.found, dt);
-            let combat = p.dead.is_none() && (p.attacking.is_some() || p.hurt_flash > 0.0);
+            // a fight: you are attacking, or you were just hurt with a
+            // hostile creature near (a fall is not a fight)
+            let foe_near = || {
+                p.entities.values().any(|e| {
+                    matches!(e.kind, super::EntityKind::Creature(c)
+                        if p.content.creature(c).is_some_and(|c| c.hostile))
+                        && e.pos().distance(eye) < 24.0
+                })
+            };
+            let combat =
+                p.dead.is_none() && (p.attacking.is_some() || (p.hurt_flash > 0.0 && foe_near()));
             let areas = env.areas();
             let h = p.hearth.unwrap_or([0; 3]);
             let scene = Scene::World {
@@ -107,8 +117,10 @@ pub fn frame(audio: &mut Audio, heard: &mut Heard, p: Option<&Play>, ctx: &egui:
             // in is not a discovery)
             if p.zone != heard.zone {
                 heard.zone = p.zone.clone();
+                // (nor the first place named after you arrive)
+                let first = heard.found.is_empty();
                 let new = !p.zone.is_empty() && heard.found.insert(p.zone.clone());
-                if new && heard.known {
+                if new && !first && heard.known {
                     heard.music.stinger(audio, "discovery");
                 }
             }

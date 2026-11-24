@@ -420,6 +420,9 @@ pub struct Mixer {
     pub held: f32,
     loops: Vec<Loop>,
     decks: [Option<Deck>; DECKS],
+    /// songs put off their decks by another, in the few hundredths of a
+    /// second they take to fade (a song is never cut: a cut is a click)
+    leaving: Vec<Deck>,
     room: Room,
     /// frames of the room's tail still to play
     room_tail: usize,
@@ -447,6 +450,7 @@ impl Mixer {
             held: 1.0,
             loops: Vec::with_capacity(VOICES),
             decks: Default::default(),
+            leaving: Vec::with_capacity(DECKS),
             room: Room::new(rate),
             room_tail: 0,
             duck: 1.0,
@@ -498,11 +502,13 @@ impl Mixer {
                     self.loops.push(Loop {
                         id,
                         step: clip.rate as f64 / self.rate as f64,
+                        // (each loop starts somewhere of its own: two fires
+                        // side by side are not one fire twice as loud)
+                        at: (id as usize * 7919 % clip.samples.len()) as f64,
                         clip,
                         bus,
                         gain: [0.0; 2],
                         to: gain,
-                        at: 0.0,
                         stopping: false,
                     });
                 }
@@ -521,7 +527,14 @@ impl Mixer {
                 over,
             } => {
                 if let Some(d) = self.decks.get_mut(slot) {
-                    *d = Some(Deck::new(song, level, fade, over, self.rate));
+                    let new = Deck::new(song, level, fade, over, self.rate);
+                    if let Some(mut old) = d.replace(new) {
+                        old.stop(0.06, self.rate);
+                        if self.leaving.len() == DECKS {
+                            self.leaving.remove(0);
+                        }
+                        self.leaving.push(old);
+                    }
                 }
             }
             Cmd::DeckLevel { slot, level, fade } => {
@@ -547,7 +560,15 @@ impl Mixer {
 
     /// The loops going round, and the decks with a song on them.
     pub fn held_sounds(&self) -> (usize, usize) {
-        (self.loops.len(), self.decks.iter().flatten().count())
+        (
+            self.loops.len(),
+            self.decks.iter().flatten().count() + self.leaving.len(),
+        )
+    }
+
+    /// The level the themes are dipped to now (1: not at all).
+    pub fn ducked(&self) -> f32 {
+        self.duck
     }
 
     /// Fill `out` (left, right, left, right…) with the next frames.
@@ -631,6 +652,12 @@ impl Mixer {
                     }
                 }
             }
+            for d in &mut self.leaving {
+                let lvl = if d.over { music } else { music * self.duck };
+                d.render(self.rate, lvl, block, &mut room[..frames]);
+                any = true;
+            }
+            self.leaving.retain(|d| !d.finished());
             if any {
                 self.room_tail = self.rate as usize * 4;
             }
@@ -937,6 +964,14 @@ impl Audio {
 
     pub fn deck_stop(&mut self, slot: usize, fade: f32) {
         self.send(Cmd::DeckStop { slot, fade });
+    }
+
+    /// Offline only: the level the themes are dipped to now.
+    pub fn ducked(&self) -> f32 {
+        match &self.out {
+            Out::Offline(m) => m.ducked(),
+            _ => 1.0,
+        }
     }
 
     /// Offline only: the loops going round and the decks playing.

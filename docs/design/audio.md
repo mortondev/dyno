@@ -137,16 +137,24 @@ disk, streamed when first wanted; a new theme costs about 5 KB.
 | `combat_sting` | as a fight starts | two drum blows and a low horn |
 | `discovery` | a named place entered for the first time | the first notes of the valley's tune, opening upward |
 
-- **Crossing.** When you walk into another theme's place, the new theme
-  rises as the old one falls, over 4 s. Each deck's level moves a little
-  every sample, so there is no step to click.
-- **A fight.** When you attack or are hurt, the drums come in over 1.2 s,
-  the theme steps back to 45%, and the sting plays. Five seconds after the
-  last blow the drums leave and the theme returns.
-- **Ducking.** While a stinger plays, and for the length of the level-up
-  and quest-complete fanfares (their `duck` seconds in `audio.json`), the
-  themes and the drums dip to 35% (`audio.json`, `duck`), down in a fifth
-  of a second and back over a second and a half.
+- **Crossing.** When you have been in another theme's place for a second
+  and a half (so a border walked along does not flip the music), the new
+  theme rises as the old one falls, over 4 s. Each deck's level moves a
+  little every sample, and a song put off its deck by another fades in
+  six hundredths of a second rather than stopping, so there is no step to
+  click however restless the player.
+- **A fight.** When you attack, or are hurt with a hostile creature within
+  24 m (a fall is not a fight), the drums come in over 1.2 s, the theme
+  steps back to 45%, and the sting plays. Five seconds after the last blow
+  the drums leave and the theme returns.
+- **Ducking.** While a stinger sounds (until its last note has died away),
+  and for the length of the level-up and quest-complete fanfares (their
+  `duck` seconds in `audio.json`), the themes and the drums dip to 35%
+  (`audio.json`, `duck`), down in a fifth of a second and back over a
+  second and a half. The discovery stinger holds them down for 8 s in all.
+- **Discovery** is the client's: the first time in a session that you
+  enter a named place, other than the one you arrive in. It is not tied to
+  the server's exploration reward.
 
 The level-up and quest-complete moments keep their cues from the first
 hand-in (on the interface bus) rather than gaining a second, musical
@@ -192,8 +200,8 @@ discovery stinger all playing. Measured through the mixer:
 
 | Sliders | Peak (dBFS) | Loudness (dB) | Limiter | Clipped samples |
 |---|---|---|---|---|
-| All at full | -1.0 | -16.2 | took off 1.3 dB at most | 0 |
-| A new player's | -3.9 | -21.4 | idle | 0 |
+| All at full | -1.0 | -16.1 | took off 1.3 dB at most | 0 |
+| A new player's | -4.0 | -21.4 | idle | 0 |
 
 Footsteps and routine interface sounds sit well under a fight on purpose:
 a walk measures -35 dB and an errand at a merchant -33 dB against a
@@ -283,7 +291,7 @@ the ambience above replaces them.
 | `amb.eerie` (bed) | the Barrow wood, indoors and out | a low moan that slides and never settles |
 | `amb.town` (bed) | Hearthstead and the other settlements by day (Hearthstead a little into the evening) | people talking somewhere near, never a word |
 | `amb.mine` (bed) | down the Hollow Mines | the weight of the hill, air in a shaft |
-| `amb.wind` (bed) | outdoors 14 m or more above the hearth | wind with nothing in its way |
+| `amb.wind` (bed) | outdoors 14 m or more above the hearth, and on the named heights (Watch Hill, Beacon Rocks, the North Pass, the Barrow Overlook, the Ridge Cut, the Broken Tower) | wind with nothing in its way |
 | `amb.rain` (bed) | outdoors in rain, as strong as the rain | steady rain on leaves and ground |
 | `amb.bird` (6 songs) | by day, every 3 to 9 s, 10 to 36 m off | falling notes, a trill, two notes, a warble, rising whistles, a twitter |
 | `amb.owl` | by night, every 16 to 40 s | two or three hoots, far off |
@@ -316,12 +324,12 @@ by is written into each).
 | `4_fight.wav` | one foe ahead: blows both ways, a crit, a bolt, a heal, a burst, the kill, the loot | 11.5 | -6.0 | -24.0 | idle |
 | `5_level_up.wav` | the last blows, the kill, coin, the level, the new ability | 8.5 | -7.1 | -20.9 | idle |
 | `6_everything.wav` | the worst case of the first hand-in: three foes, the interface, a level-up, your death (no ambience or music) | 13.0 | -1.0 | -17.3 | took off 0.9 dB at most |
-| `7_town_morning.wav` | Hearthstead's plaza in the morning: the town's murmur, birds, the hearth fire to the right, the anvil off to the left, steps on the flagstones at 13 s, the town's theme coming in | 24.0 | -11.4 | -23.3 | idle |
-| `8_barrowwood_night.wav` | the old barrow at midnight: the wood's moan, crickets, an owl, a brazier ahead, the barrow's theme | 26.0 | -13.0 | -26.3 | idle |
-| `9_lakeside_sunset.wav` | Mirrormere's shore from late afternoon into dusk: the lake lapping to the right, gulls then frogs, day's air giving way to crickets from 8 s, steps on sand and into the shallows, the lake's theme | 26.0 | -12.0 | -24.9 | idle |
-| `10_mines.wav` | down the Hollow Mines: the hill's weight, drips with long echoes, a brazier behind to the left, steps on stone at 10 s, the mines' theme | 24.0 | -12.7 | -25.9 | idle |
+| `7_town_morning.wav` | Hearthstead's plaza in the morning: the town's murmur, birds, the hearth fire to the right, the anvil off to the left, steps on the flagstones at 13 s, the town's theme coming in | 24.0 | -11.2 | -23.3 | idle |
+| `8_barrowwood_night.wav` | the old barrow at midnight: the wood's moan, crickets, an owl, a brazier ahead, the barrow's theme | 26.0 | -13.6 | -26.3 | idle |
+| `9_lakeside_sunset.wav` | Mirrormere's shore from late afternoon into dusk: the lake lapping to the right, gulls then frogs, day's air giving way to crickets from 8 s, steps on sand and into the shallows, the lake's theme | 26.0 | -12.1 | -24.9 | idle |
+| `10_mines.wav` | down the Hollow Mines: the hill's weight, drips with long echoes, a brazier behind to the left, steps on stone at 10 s, the mines' theme | 24.0 | -12.9 | -26.0 | idle |
 | `11_fight_ducking.wav` | the east road, the valley's theme; at 6 s a fight (the sting, the theme steps back, drums over it); the kill at 13.7 s; at 15 s the level-up fanfare with the music dipping under it; from about 19 s the drums leave and the theme returns | 28.0 | -5.7 | -20.5 | idle |
-| `12_title_to_world.wav` | the title theme; at 10 s you arrive in the plaza and it crosses into the town's theme over 4 s as the town comes up; at 20 s the discovery stinger, the theme dipping under it | 28.0 | -10.7 | -23.4 | idle |
+| `12_title_to_world.wav` | the title theme; at 10 s you arrive in the plaza and the town comes up; from 11.5 s the title crosses into the town's theme over 4 s; at 20 s the discovery stinger, the theme dipping under it | 28.0 | -10.7 | -23.7 | idle |
 
 The montages are rendered with every slider at full. They are 10.3 MB in
 all (6.9 MB of it the six new ones, which need their length to show a
@@ -356,8 +364,9 @@ run the tool, add the event to `content/audio.json`, and play it by key.
 | `tests/pack.rs` `sounds_for_the_first_minute_come_with_the_join_and_the_rest_stream` | which sounds join and which stream |
 | `tests/pack.rs` `each_event_keeps_to_the_level_of_its_bus` | each event's peak through the mixer, and each ability sound's, is under its bus's target |
 | `tests/audio_mix.rs` `the_worst_case_never_clips_and_each_bus_keeps_its_level` | the worst case (with the real ambience and music) has no clipped sample; each bus is within 4 dB of its target; the limiter is idle at a new player's levels; a slider at nothing silences only its bus |
-| `tests/audio_mix.rs` `themes_cross_without_a_click_or_a_hole` | all 30 crossings between the title and the five zone themes: no sample-to-sample step larger than the themes' own notes make (the largest is 100% of them), no half second quieter than a quarter of the quieter theme (the quietest is 52%), one deck left playing after |
-| `tests/audio_mix.rs` `the_music_dips_under_a_stinger_and_a_fanfare_and_under_the_drums` | under the level-up fanfare the theme measures 35% (the pack asks 35%) and is back to 100% six seconds later, with no step; the drums and the sting come and go with a fight |
+| `tests/audio_mix.rs` `themes_cross_without_a_click_or_a_hole` | all 30 crossings between the title and the five zone themes: no sample-to-sample step larger than 1.25 times what the themes' own notes make (the largest measured is 100% of them), no half second quieter than a quarter of the quieter theme, one deck left playing after |
+| `tests/audio_mix.rs` `a_restless_player_makes_no_clicks` | 20 s of crossing a border every 2 s, fights starting and stopping inside the drums' fade, and stingers on top of stingers (five songs at once at most): the largest step is 0.083 against 0.101 for the same music played calmly, and one theme is left when the player stands still |
+| `tests/audio_mix.rs` `the_music_dips_under_a_stinger_and_a_fanfare_and_under_the_drums` | under the level-up fanfare the theme measures 35% (the pack asks 35%) and is back to 100% six seconds later, with no step; under the discovery stinger the mixer's dip reaches 35% and is gone 8 s after it starts; the drums and the sting come and go with a fight |
 | `tests/pack.rs` `every_gauntlet_place_has_a_bed_at_every_hour_and_a_theme` | the 18 gauntlet places at nine hours each hear a bed; each has a theme with a track; the moods are where they should be; every rule names sounds, areas and blocks that exist |
 | `tests/pack.rs` `beds_and_loops_go_round_without_a_seam` | each bed and placed loop steps no further from its last sample to its first than it does anywhere else |
 | `tests/pack.rs` `every_song_plays_on_instruments_the_pack_has` | every song parses and builds from the pack's samples; held instruments' samples are seamless; themes loop and stingers end; nothing under `music/` is unused |
@@ -403,8 +412,18 @@ travel with the lossless `PCM16` filter.
   only once a join has cached it.
 - **No theme by night**, and themes loop without rests; a long stay in one
   place hears the same minute round and round.
-- **Beds ignore walls.** A bed marked outdoors fades with the sky light
-  where you stand, but placed sounds are not muffled by what is between.
+- **Beds ignore walls.** A bed marked outdoors is heard wherever a fair
+  share of sky light reaches (from a fifth of full to a half it fades in),
+  but placed sounds are not muffled by what is between.
+- **Not tried in the running game.** The rules were checked against the
+  rules' areas and the gauntlet's camera positions, and the search for
+  sounding blocks against a small test world; the stamps do contain the
+  blocks (hearth, brazier, furnace, anvil). Nobody has walked the valley
+  with this playing: how much sky light a canopy lets through, how high
+  the hills really are, and whether a fight's start and end feel right
+  are for a hand run.
+- **The combat sting is in D**, like the valley's theme; over the other
+  themes it may sit badly.
 - **Indoors by night away from the Barrow wood and the mine there is no
   bed** (the night's is outdoors only), only what stands near.
 - **Creature voices** (aggro, hurt, death by family): aggro needs the

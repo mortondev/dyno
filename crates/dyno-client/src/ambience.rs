@@ -213,8 +213,14 @@ impl Env<'_> {
         life::time_gate(place.time, self.time)
     }
 
+    /// How much of an outdoor sound is heard: all of it wherever a fair
+    /// share of sky light reaches (under leaves too), none indoors.
     fn open(&self, outdoors: bool) -> f32 {
-        if outdoors { self.sky } else { 1.0 }
+        if outdoors {
+            ((self.sky - 0.2) / 0.3).clamp(0.0, 1.0)
+        } else {
+            1.0
+        }
     }
 
     /// How loud a bed is here and now, before its own gain.
