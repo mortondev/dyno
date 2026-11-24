@@ -1323,6 +1323,7 @@ mod tests {
             "wait",
             "shot",
             "expect",
+            "turn",
         ];
         let lines: Vec<&str> = s
             .lines()
@@ -1336,7 +1337,7 @@ mod tests {
         }
         assert_eq!(lines.first(), Some(&"yard"));
         assert!(lines.contains(&"camera record"));
-        assert!(lines.last().unwrap().starts_with("camera check"));
+        assert!(lines.iter().any(|l| l.starts_with("camera check")));
     }
 
     #[test]

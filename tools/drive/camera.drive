@@ -27,6 +27,14 @@ swing 100 -10
 # --- 6. back along the edge, down the stairs, back through the door ---------
 walk-path 0 -55 1 -41 1 -31 1 -20 1 -12 1 -2
 shot camera-end
+# --- 7. along the house's east wall, a shoulder's width from it -------------
+walk-path 6.6 -5 6.6 -13
 wait 1
 
 camera check 60
+
+# --- 8. (set-up) back to the wall: the camera is squeezed to the head and
+# the character fades out of its way
+turn -90
+wait 1
+shot camera-fade
