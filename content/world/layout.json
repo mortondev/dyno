@@ -959,22 +959,78 @@
    "name": "The Ashcloak Stockade",
    "radius": 30,
    "pad": {
-    "radius": [19, 20]
+    "radius": [19, 20],
+    "surface": {"dirt": 3, "basalt": 1}
    },
    "stamps": [
-    {"stamp": "stockade", "at": [0, 0]},
-    {"stamp": "banner_pole_red", "at": [-7, 18]},
-    {"stamp": "banner_pole_red", "at": [7, 18]},
+    {"stamp": "ashcloak_stockade_keep", "at": [0, 0]},
+    {"stamp": "ashcloak_ash_flag", "at": [-7, 18], "rot": 2},
+    {"stamp": "ashcloak_ash_flag", "at": [7, 18]},
     {"stamp": "campfire", "at": [-12, 22], "fit": "ground"},
     {"stamp": "tent_red", "at": [14, 24], "rot": 2, "fit": "ground"},
-    {"stamp": "boulders", "at": [-22, 18], "fit": "ground"},
-    {"stamp": "boulders", "at": [24, -8], "rot": 2, "fit": "ground"}
+    {"stamp": "ashcloak_charred_stumps", "at": [-30, -25], "fit": "ground"},
+    {"stamp": "ashcloak_charred_stumps", "at": [28, -30], "rot": 1, "fit": "ground"},
+    {"stamp": "ashcloak_charred_stumps", "at": [-38, 6], "rot": 2, "fit": "ground"},
+    {"stamp": "log_pile", "at": [-26, -12], "rot": 1, "fit": "ground"},
+    {"stamp": "ashcloak_loot_cart", "at": [22, 30], "rot": 1, "fit": "ground"},
+    {"stamp": "ashcloak_lookout", "at": [-12, -42], "fit": "ground"},
+    {"stamp": "ashcloak_charred_stumps", "at": [-16, 42], "rot": 3, "fit": "ground"},
+    {"stamp": "ashcloak_charred_stumps", "at": [18, 40], "rot": 1, "fit": "ground"},
+    {"stamp": "ashcloak_clear_10", "at": [3, 47], "fit": "float", "dy": 40},
+    {"stamp": "fence_run", "at": [32, 4], "fit": "ground"},
+    {"stamp": "fence_run", "at": [32, 16], "fit": "ground"},
+    {"stamp": "fence_run", "at": [38, 10], "rot": 1, "fit": "ground"},
+    {"stamp": "haystack", "at": [33, 10], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [22, -12], "fit": "ground"}
    ],
    "was": {
     "at": [62, 62],
     "radius": 16
    },
    "trees": []
+  },
+  {
+   "key": "ashcloak_sentry",
+   "kind": "site",
+   "at": [290, 390],
+   "name": "Ashcloak Sentry Fire",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "ashcloak_scorch", "at": [11, -1], "fit": "ground"},
+    {"stamp": "campfire", "at": [11, -1], "fit": "ground"},
+    {"stamp": "tent_red", "at": [19, -2], "rot": 1, "fit": "ground"},
+    {"stamp": "fallen_log", "at": [12, 5], "fit": "ground"},
+    {"stamp": "ashcloak_scorch", "at": [-11, 35], "fit": "ground"},
+    {"stamp": "ashcloak_scorch", "at": [-1, -24], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ashcloak_fork",
+   "kind": "wayside",
+   "at": [250, 452],
+   "name": "The Ashcloak Fork",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "signpost", "at": [-3, -8], "rot": 1, "fit": "ground"},
+    {"stamp": "ashcloak_ash_flag", "at": [2, -11], "rot": 2, "fit": "ground"},
+    {"stamp": "ashcloak_burnt_cart", "at": [-9, -12], "rot": 1, "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ashcloak_lookout_hill",
+   "kind": "site",
+   "at": [380, 260],
+   "name": "The Burnt Croft",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [0, -3], "fit": "ground"},
+    {"stamp": "ashcloak_scorch", "at": [-2, 3], "fit": "ground"},
+    {"stamp": "ashcloak_charred_stumps", "at": [10, 6], "fit": "ground"},
+    {"stamp": "ashcloak_burnt_cart", "at": [-9, 6], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "dark_oak", "at": [7, -9]}
+   ]
   },
   {
    "key": "emberford_toll_hut",
@@ -1013,15 +1069,61 @@
    "kind": "site",
    "at": [345, 430],
    "name": "The Emberrun Ford",
-   "radius": 14,
+   "radius": 20,
    "stamps": [
-    {"stamp": "signpost", "at": [-16, 4], "fit": "ground"},
-    {"stamp": "cairn", "at": [14, -5], "fit": "ground"}
+    {"stamp": "ashcloak_ford_stones", "at": [0, 0], "fit": "float"},
+    {"stamp": "signpost", "at": [-20, 1], "rot": 1, "fit": "ground"},
+    {"stamp": "bench_lamp", "at": [-21, 13], "fit": "ground"},
+    {"stamp": "cairn", "at": [20, -6], "fit": "ground"}
    ],
    "was": {
     "at": [66, 86],
     "radius": 8
    }
+  },
+  {
+   "key": "ashcloak_bluff",
+   "kind": "wayside",
+   "at": [430, 370],
+   "name": "Emberrun Bluff",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [-9, -10], "rot": 1, "fit": "ground"},
+    {"stamp": "fallen_log", "at": [7, 8], "fit": "ground"},
+    {"stamp": "boulders", "at": [-14, -2], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ashcloak_cache",
+   "kind": "site",
+   "at": [530, 420],
+   "name": "Bandit Cache",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "boulders", "at": [0, 0], "fit": "ground"},
+    {"stamp": "ashcloak_loot_cart", "at": [-6, 5], "rot": 2, "fit": "ground"},
+    {"stamp": "cairn", "at": [5, -4], "fit": "ground"},
+    {"stamp": "ashcloak_ash_flag", "at": [3, 4], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-6, -8]}
+   ]
+  },
+  {
+   "key": "ashcloak_burnt_wagon",
+   "kind": "site",
+   "at": [450, 500],
+   "name": "The Burnt Wagon",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ashcloak_burnt_cart", "at": [0, 0], "fit": "ground"},
+    {"stamp": "ashcloak_scorch", "at": [-5, 4], "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [6, -7], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [-6, -6], "rot": 1, "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "birch", "at": [10, 6]}
+   ]
   },
   {
    "key": "miners_rest",
@@ -1327,7 +1429,26 @@
    "key": "mere_ashcloaks",
    "kind": "camp",
    "at": [230, 495],
-   "radius": 20
+   "radius": 20,
+   "pad": {
+    "radius": [9, 10],
+    "blend": 6,
+    "surface": {"dirt": 3, "basalt": 1}
+   },
+   "stamps": [
+    {"stamp": "ashcloak_clear_20", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "campfire", "at": [0, 0]},
+    {"stamp": "tent_red", "at": [-13, -3], "rot": 3, "fit": "ground"},
+    {"stamp": "tent_red", "at": [4, -15], "fit": "ground"},
+    {"stamp": "ashcloak_ash_flag", "at": [-5, -17], "fit": "ground"},
+    {"stamp": "ashcloak_ash_flag", "at": [15, 9], "fit": "ground"},
+    {"stamp": "log_pile", "at": [-6, 12], "fit": "ground"},
+    {"stamp": "ashcloak_loot_cart", "at": [13, -2], "rot": 1, "fit": "ground"},
+    {"stamp": "ashcloak_weapon_rack", "at": [-4, -6]},
+    {"stamp": "boulders", "at": [18, -12], "fit": "ground"},
+    {"stamp": "boulders", "at": [-16, -12], "rot": 2, "fit": "ground"}
+   ],
+   "trees": []
   },
   {
    "key": "mere_flock",
@@ -1562,7 +1683,7 @@
    "at": [273, 447],
    "radius": 10,
    "stamps": [
-    {"stamp": "standing_stones", "at": [2, 13], "fit": "ground"}
+    {"stamp": "standing_stones", "at": [2, 15], "fit": "ground"}
    ]
   },
   {
@@ -1571,7 +1692,25 @@
    "at": [492, 305],
    "radius": 10,
    "stamps": [
-    {"stamp": "wayshrine", "at": [-5, -4], "fit": "ground"}
+    {"stamp": "wayshrine", "at": [-8, -6], "fit": "ground"},
+    {"stamp": "bench_lamp", "at": [-11, -1], "fit": "ground"},
+    {"stamp": "flower_garden", "at": [-12, -8], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ashcloak_old_tower",
+   "kind": "site",
+   "at": [560, 280],
+   "name": "The Old Watch",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "ruin_tower", "at": [0, 0], "fit": "ground"},
+    {"stamp": "boulders", "at": [-7, 5], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [6, 8], "fit": "ground"},
+    {"stamp": "ashcloak_scorch", "at": [-1, 7], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [9, -6]}
    ]
   },
   {
