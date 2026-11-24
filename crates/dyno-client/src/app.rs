@@ -263,9 +263,15 @@ struct Play {
     autorun: bool,
     /// last frame's inverse view-projection and screen size, for cursor picking
     inv_vp: Option<glam::Mat4>,
+    /// the same frame's view-projection itself (inverting the inverse loses
+    /// too much: a script projects with this)
+    view_proj: Option<glam::Mat4>,
     screen_px: (f32, f32),
     /// the creature or person under the cursor
     hover: Option<u32>,
+    /// what was under the cursor when the mouse button went down: a click
+    /// is on that, even if it has walked on by the time the button is up
+    press_hover: Option<u32>,
     /// a world event near you: title, task, progress
     world_event: Option<(String, String, f32)>,
     /// the first-login intro, when it started
@@ -1052,7 +1058,9 @@ fn animate_blow(p: &mut Play) {
 /// The creature or person along a ray (the mouse cursor), nearest first,
 /// unless a block is in the way.
 fn pick_entity_ray(p: &Play, o: Vec3, dir: Vec3, max: f32) -> Option<u32> {
-    let wall = game::raycast(&p.world, o, dir, max).map(|t| {
+    // (what hides a creature is what you cannot see through: a body lying
+    // in tall grass can still be clicked)
+    let wall = game::raycast_solid(&p.world, o, dir, max).map(|t| {
         let c = Vec3::new(
             t.block[0] as f32 + 0.5,
             t.block[1] as f32 + 0.5,
@@ -1654,8 +1662,10 @@ fn new_play(j: Joined) -> Play {
         cam_orbit: 0.0,
         autorun: false,
         inv_vp: None,
+        view_proj: None,
         screen_px: (1.0, 1.0),
         hover: None,
+        press_hover: None,
         world_event: None,
         intro: None,
         chat_tab_combat: false,
@@ -1848,6 +1858,7 @@ impl App {
                 }
                 if !held {
                     p.drag = 0.0;
+                    p.press_hover = p.hover;
                 }
                 if button == MouseButton::Right {
                     p.rmb = true;
@@ -1971,9 +1982,12 @@ impl App {
         let Screen::Playing(p) = &mut self.screen else {
             return;
         };
+        // what the button went down on, if the cursor is on nothing now
         let hover = p
             .hover
+            .or(p.press_hover.take())
             .and_then(|id| p.entities.get(&id).map(|e| (id, e.kind)));
+        p.press_hover = None;
         match (button, hover) {
             (MouseButton::Left, Some((_, EntityKind::Corpse { .. }))) => {}
             (MouseButton::Left, Some((id, _))) => p.focus = Some(id),
@@ -3686,6 +3700,7 @@ impl App {
             gfx.water
                 .look_from(&p.world, eye.into(), p.hearth.unwrap_or_default());
             p.inv_vp = Some(vp.inverse());
+            p.view_proj = Some(vp);
             p.screen_px = (wdt, hgt);
             p.fps.1 += 1;
             if p.fps.0.elapsed() >= Duration::from_secs(1) {

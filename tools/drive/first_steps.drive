@@ -17,6 +17,8 @@ key Escape
 expect panel none
 
 # --- 2. a creature: select it with the mouse; a key; a click on the bar ----
+# (creatures are summoned in front of the character: face open ground first)
+turn 180
 say /summon grazer
 wait 1.5
 look-at creature grazer
@@ -36,11 +38,16 @@ shot 2-casting
 expect not casting
 
 # --- 3. loot a body ----------------------------------------------------------
+# (every grazer near falls, so none stands between the pointer and a body)
 until loot open
   say /summon grazer
-  wait 1.5
+  wait 1.2
   say /slay
-  wait 1.5
+  wait 0.6
+  say /slay
+  wait 0.6
+  say /slay
+  wait 1.2
   look-at corpse grazer
   click right corpse grazer
   wait 1
@@ -90,8 +97,6 @@ key Escape
 expect map closed
 
 # --- 8. with the window open and a tip on screen, the world still takes clicks
-say /summon grazer
-wait 1.5
 walk-to npc brannoc 3
 look-at npc brannoc
 click left npc brannoc
@@ -99,6 +104,9 @@ expect target npc
 key P
 expect tab spellbook
 expect mark tip
+turn 180
+say /summon grazer
+wait 1.5
 look-at creature grazer
 click left creature grazer
 expect target creature

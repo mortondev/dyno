@@ -34,6 +34,7 @@ for _ in $(seq 240); do
 done
 grep -q "listening" "$work/server.log" || { echo "the server did not start" >&2; exit 1; }
 
-args=("127.0.0.1:$port" --script "$root/tools/drive/first_steps.drive" --as Driver --class mage)
+# (a small picture: the frames stay quick on a busy machine)
+args=("127.0.0.1:$port" --script "$root/tools/drive/first_steps.drive" --as Driver --class mage --size "${DRIVE_SIZE:-1280x720}")
 [ -n "$shots" ] && args+=(--shots "$shots")
 "$bin" drive "${args[@]}"

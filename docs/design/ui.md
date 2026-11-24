@@ -244,11 +244,21 @@ the world with a window open and a tip showing. `tools/drive/run.sh` builds
 the release `dyno`, starts a fresh world whose operator is the driven
 character, and runs it.
 
-What it has found so far: a tip with no HUD part to point at used to sit in
-the lower middle of the screen, over the character and whoever stood in
-front of it, so the "right-click the person with the gold !" tip could
-cover that person and take the click. Those tips now sit at the left, over
-the chat; and a tip never lies over an open window.
+What it has found so far, each fixed:
+- a tip with no HUD part to point at sat in the lower middle of the screen,
+  over the character and whoever stood in front of it, so the "right-click
+  the person with the gold !" tip could cover that person. Those tips now
+  sit at the left, over the chat, and no tip lies over an open window;
+- a body lying in grass or flowers could not be clicked: the pick stopped
+  at any block on the line, plants and torches included. It now stops only
+  at what you cannot see through (`game::raycast_solid`);
+- a click on someone walking was lost if they had stepped from under the
+  pointer by the time the button came up. A click is now on what the button
+  went down on.
+
+A script's world clicks wait for a walker to stand still and aim again if
+something else is under the pointer, so the test does not depend on where
+creatures wander; summon creatures facing open ground (`turn`).
 
 ## Looking at it
 

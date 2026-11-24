@@ -30,6 +30,7 @@ const HELP: &str = "\
 say TEXT                      chat or a /command (set-up: sent directly)
 wait SECONDS
 look-at KIND NAME             set-up: turn the camera to an npc, creature or corpse
+turn DEGREES                  set-up: turn the character and the camera
 walk-to KIND NAME DIST        hold W toward it until within DIST metres
 click left|right KIND NAME    click it in the world (it must be on screen and uncovered)
 click left|right at MARK      click a marked part of the interface
@@ -170,10 +171,36 @@ impl Driver {
         Ok(all)
     }
 
+    /// Wait (up to 12 s) for an entity to stand still, and give the point
+    /// on it to aim at.
+    fn settled(&mut self, id: u32, kind: &str) -> Result<Vec3, String> {
+        let up = match kind {
+            "npc" => 1.0,
+            "creature" => 0.6,
+            _ => 0.45,
+        };
+        let pos = |d: &Driver| -> Result<Vec3, String> {
+            play(&d.app)?
+                .entities
+                .get(&id)
+                .map(|e| e.pos())
+                .ok_or_else(|| "it has gone".to_string())
+        };
+        let until = Instant::now() + Duration::from_secs(12);
+        loop {
+            let before = pos(self)?;
+            self.frames(4)?;
+            let now = pos(self)?;
+            if now.distance(before) < 0.03 || Instant::now() > until {
+                return Ok(now + Vec3::Y * up);
+            }
+        }
+    }
+
     /// Where a point of the world is on screen, in physical pixels.
     fn on_screen(&self, at: Vec3) -> Result<(f64, f64), String> {
         let p = play(&self.app)?;
-        let vp = p.inv_vp.ok_or("no frame has been drawn yet")?.inverse();
+        let vp = p.view_proj.ok_or("no frame has been drawn yet")?;
         let clip = vp * at.extend(1.0);
         if clip.w <= 0.1 {
             return Err("it is behind the camera".into());
@@ -208,7 +235,9 @@ impl Driver {
     }
 
     fn press(&mut self, button: MouseButton, at: (f64, f64)) -> Result<(), String> {
-        self.move_to(at)?;
+        if self.app.cursor != at {
+            self.move_to(at)?;
+        }
         self.trace("before press");
         self.app.input(Hand::Mouse(button, true));
         self.trace("pressed");
@@ -224,15 +253,60 @@ impl Driver {
         if let Ok(p) = play(&self.app) {
             let kind = |id: Option<u32>| id.and_then(|id| p.entities.get(&id)).map(|e| e.kind);
             let mut trail = self.trail.borrow_mut();
+            let sight = p.cursor_ray(self.app.cursor).map(|(o, d)| {
+                let wall = game::raycast_solid(&p.world, o, d, 60.0).map(|t| {
+                    (Vec3::new(
+                        t.block[0] as f32 + 0.5,
+                        t.block[1] as f32 + 0.5,
+                        t.block[2] as f32 + 0.5,
+                    ) - o)
+                        .length()
+                });
+                // the nearest person: where, and how far the line passes from them
+                let me = p.player.pos;
+                let near = p
+                    .entities
+                    .iter()
+                    .filter(|(_, e)| matches!(e.kind, EntityKind::Npc(_)))
+                    .min_by(|a, b| a.1.pos().distance(me).total_cmp(&b.1.pos().distance(me)))
+                    .map(|(id, e)| {
+                        let c = e.pos() + Vec3::Y;
+                        let off = (c - o).cross(d).length();
+                        format!(
+                            "; nearest person #{id} at {:.2} {:.2} {:.2}, {:.2} m off the line",
+                            e.pos().x,
+                            e.pos().y,
+                            e.pos().z,
+                            off
+                        )
+                    })
+                    .unwrap_or_default();
+                format!(
+                    "camera {:.2} {:.2} {:.2}, first solid block {}{near}",
+                    o.x,
+                    o.y,
+                    o.z,
+                    wall.map_or("none".into(), |w| format!("{w:.2} m"))
+                )
+            });
             trail.push_back(format!(
-                "{at}: pointer on {:?}, target {:?}, steering {}, buttons held {}{}, over the interface {}, the interface wants the pointer {}",
+                "{at}: pointer on {:?}, target {:?}, steering {}, buttons held {}{}, over the interface {}, the interface wants the pointer {}; cursor {:.0},{:.0}; facing {:.3} {:.3} orbit {:.3}; at {:.2} {:.2} {:.2}; {}",
                 kind(p.hover),
                 kind(p.focus),
                 p.captured,
                 if p.lmb { "L" } else { "-" },
                 if p.rmb { "R" } else { "-" },
                 self.app.egui_ctx.is_pointer_over_area(),
-                self.app.egui_ctx.wants_pointer_input()
+                self.app.egui_ctx.wants_pointer_input(),
+                self.app.cursor.0,
+                self.app.cursor.1,
+                p.player.yaw,
+                p.player.pitch,
+                p.cam_orbit,
+                p.player.pos.x,
+                p.player.pos.y,
+                p.player.pos.z,
+                sight.unwrap_or_default()
             ));
             while trail.len() > 8 {
                 trail.pop_front();
@@ -402,6 +476,14 @@ impl Driver {
                 let s: f32 = need(1)?.parse().map_err(|_| "wait SECONDS")?;
                 self.secs(s)
             }
+            "turn" => {
+                let by: f32 = need(1)?.parse().map_err(|_| "turn DEGREES")?;
+                let p = play_mut(&mut self.app)?;
+                p.player.yaw += by.to_radians();
+                p.cam_orbit = 0.0;
+                // (long enough for the server to hear which way I face)
+                self.secs(0.4)
+            }
             "look-at" => {
                 let (_, at) = self.entity(need(1)?, need(2)?)?;
                 self.face(at)?;
@@ -445,15 +527,22 @@ impl Driver {
                 // aim again (at the next nearest, too) until it is on one
                 let (kind, name) = (need(2)?, need(3)?);
                 let mut why = String::new();
-                for attempt in 0..8 {
+                for attempt in 0..16 {
                     let all = self.entities(kind, name)?;
                     if all.is_empty() {
                         return Err(format!("no {kind} '{name}' is near"));
                     }
-                    let (_, at) = all[(attempt / 2) % all.len()];
+                    let (id, _) = all[(attempt / 2) % all.len()];
+                    // a walker is clicked when it next stands still (a
+                    // player waits for that too)
+                    let at = self.settled(id, kind)?;
                     // (a little higher or lower each time: a different line
                     // of sight past whatever is in the way)
-                    let at = at + Vec3::Y * [0.0, 0.5, -0.4, 0.25][attempt % 4];
+                    let feet = {
+                        let p = play(&self.app)?;
+                        p.entities.get(&id).map_or(at, |e| e.pos())
+                    };
+                    let at = feet + (at - feet) * [1.0, 1.3, 0.65, 1.15][attempt % 4];
                     let px = match self.on_screen(at) {
                         Ok(px) => px,
                         Err(e) => {
@@ -463,7 +552,10 @@ impl Driver {
                             continue;
                         }
                     };
-                    self.move_to(px)?;
+                    // (one frame, so a walker has not gone far by the time
+                    // the game looks under the pointer)
+                    self.app.input(Hand::Cursor(px.0, px.1));
+                    self.frames(1)?;
                     // what a player sees before clicking: is the pointer on it?
                     if self.app.egui_ctx.is_pointer_over_area() {
                         return Err(format!("the interface covers it. {}", self.state()));
@@ -472,11 +564,18 @@ impl Driver {
                     if hover.is_some_and(|h| all.iter().any(|(id, _)| *id == h)) {
                         return self.press(button, px);
                     }
-                    // why not: is a block in the line of sight?
+                    // why not: something else under the pointer, or a block
+                    // in the line of sight?
                     let p = play(&self.app)?;
+                    if let Some(other) = hover.and_then(|h| p.entities.get(&h)) {
+                        why = format!("{:?} is in front of it, under the pointer", other.kind);
+                        self.face(at)?;
+                        self.frames(3)?;
+                        continue;
+                    }
                     why = match p.cursor_ray(self.app.cursor) {
                         Some((o, d)) => {
-                            let wall = game::raycast(&p.world, o, d, 60.0).map(|t| {
+                            let wall = game::raycast_solid(&p.world, o, d, 60.0).map(|t| {
                                 let c = Vec3::new(
                                     t.block[0] as f32 + 0.5,
                                     t.block[1] as f32 + 0.5,
@@ -484,10 +583,19 @@ impl Driver {
                                 );
                                 (c - o).length()
                             });
+                            let e = p.entities.get(&id);
                             format!(
-                                "the pointer is on its place on screen but the game picks nothing there (it is {:.1} m from the camera; the first block on that line is {})",
+                                "the pointer is on its place on screen but the game picks nothing there (it is {:.1} m from the camera; the first block on that line is {}; #{id} is {:?} at {:?}, aimed at {:?}, {:.2} m off the pointer's line; a pick now gives {:?}; cursor {:?} of {:?}; zoom {:.1})",
                                 (at - o).length(),
-                                wall.map_or("none".into(), |w| format!("{w:.1} m away"))
+                                wall.map_or("none".into(), |w| format!("{w:.1} m away")),
+                                e.map(|e| e.kind),
+                                e.map(|e| e.pos()),
+                                at,
+                                (at - o).cross(d).length(),
+                                pick_entity_ray(p, o, d, 60.0),
+                                self.app.cursor,
+                                p.screen_px,
+                                p.zoom
                             )
                         }
                         None => "the pointer is not on it".into(),
@@ -756,7 +864,7 @@ mod tests {
     fn the_shipped_script_uses_only_what_the_driver_knows() {
         let commands = [
             "say", "wait", "look-at", "walk-to", "click", "hover", "drag", "key", "remember",
-            "shot", "expect", "until", "end", "press", "move", "release",
+            "shot", "expect", "until", "end", "press", "move", "release", "turn",
         ];
         let mut open = 0;
         let mut expects = 0;
