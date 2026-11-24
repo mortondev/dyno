@@ -673,7 +673,7 @@
    "pad": {
     "radius": [15, 15]
    },
-   "plaza": {"radius": 8, "surface": {"cobble": 6, "flagstones": 2, "dirt": 1}},
+   "plaza": {"radius": 8, "surface": {"cobble": 6, "flagstones": 2}},
    "stamps": [
     {"stamp": "north_watch", "at": [13, -5], "rot": 1},
     {"stamp": "boulders", "at": [24, 8], "fit": "ground"},
@@ -1718,10 +1718,10 @@
     {"stamp": "ruin_tower", "at": [0, -2], "fit": "ground"},
     {"stamp": "ruin_wall", "at": [10, 2], "rot": 1, "fit": "ground"},
     {"stamp": "stone_wall", "at": [-2, 9], "fit": "ground"},
-    {"stamp": "fallen_log", "at": [6, -9], "fit": "ground"}
+    {"stamp": "fallen_log", "at": [-7, -8], "fit": "ground"}
    ],
    "trees": [
-    {"species": "hero_oak", "at": [-12, -3]}
+    {"species": "hero_oak", "at": [12, -11]}
    ]
   }
  ],
