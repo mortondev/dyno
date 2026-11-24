@@ -132,6 +132,15 @@
       "file": "cover/reeds_thick.vox",
       "sway": 0.9,
       "soft": 0.7
+    },
+    "cattail": {
+      "file": "cover/cattail.vox",
+      "sway": 0.9,
+      "soft": 0.7
+    },
+    "boulder_small": {
+      "file": "cover/boulder_small.vox",
+      "voxel": 0.125
     }
   },
   "layers": [
@@ -139,7 +148,7 @@
       "name": "short turf tufts, scattered; roads, paths and props stay clear",
       "kinds": ["grass_short", "grass_short", "grass"],
       "on": ["grass"],
-      "per_block": 2.3,
+      "per_block": 2.0,
       "patch": {
         "scale": 7,
         "from": 0.2,
@@ -234,6 +243,18 @@
           "density": 0.3
         }
       }
+    },
+    {
+      "name": "tufts leaning over the kerb: taller grass hard against roads and paving",
+      "kinds": ["grass", "grass_tall", "grass"],
+      "on": ["grass"],
+      "per_block": 0.8,
+      "near": {
+        "blocks": ["cobble", "mossy_cobble", "flagstones"],
+        "within": 1
+      },
+      "far": 0.2,
+      "tint": [[0.66, 0.72, 0.38], [0.86, 0.86, 0.5]]
     },
     {
       "name": "lupin meadows",
@@ -475,7 +496,7 @@
       "name": "reeds along the water",
       "kinds": ["reeds", "reeds_thick", "reeds_thick"],
       "on": ["grass", "sand", "dirt", "clay"],
-      "per_block": 2.2,
+      "per_block": 1.4,
       "near": {
         "blocks": ["water"],
         "within": 2
@@ -487,6 +508,17 @@
         "seed": 8
       },
       "far": 0.4
+    },
+    {
+      "name": "cattails at every water's edge",
+      "kinds": ["cattail"],
+      "on": ["grass", "sand", "dirt", "clay"],
+      "per_block": 1.1,
+      "near": {
+        "blocks": ["water"],
+        "within": 1
+      },
+      "far": 0.8
     },
     {
       "name": "pebbles on the shore",
@@ -542,7 +574,7 @@
       "name": "small mossy rocks",
       "kinds": ["rock_small"],
       "on": ["grass", "dirt", "sand"],
-      "per_block": 0.035,
+      "per_block": 0.02,
       "far": 0.9,
       "tint": [[0.9, 0.9, 0.9], [1.05, 1.05, 1.05]]
     },
@@ -550,10 +582,29 @@
       "name": "rocks beside roads and water, where the concepts frame the view",
       "kinds": ["rock", "rock", "rock_small"],
       "on": ["grass"],
-      "per_block": 0.05,
+      "per_block": 0.035,
       "near": {
         "blocks": ["cobble", "mossy_cobble", "flagstones", "water"],
         "within": 3
+      },
+      "far": 1.0,
+      "tint": [[0.9, 0.9, 0.9], [1.05, 1.05, 1.05]]
+    },
+    {
+      "name": "mossy boulders in clusters, with small stones round them",
+      "kinds": ["boulder_small", "rock", "rock", "rock_small"],
+      "on": ["grass"],
+      "per_block": 0.45,
+      "patch": {
+        "scale": 5,
+        "from": 0.8,
+        "to": 0.9,
+        "seed": 21
+      },
+      "away": {
+        "blocks": ["cobble", "mossy_cobble", "flagstones"],
+        "within": 1,
+        "keep": 0.0
       },
       "far": 1.0,
       "tint": [[0.9, 0.9, 0.9], [1.05, 1.05, 1.05]]
@@ -689,7 +740,7 @@
     {
       "name": "fallen leaves in the autumn wood",
       "kinds": ["leaf_litter"],
-      "on": ["grass", "dirt", "cobble", "mossy_cobble"],
+      "on": ["grass", "dirt"],
       "per_block": 0.6,
       "patch": {
         "scale": 6,

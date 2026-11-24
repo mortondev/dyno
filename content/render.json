@@ -15,10 +15,15 @@
   "relief": 0.022,
   "grade": {
     "tint": [1.04, 1.0, 0.94],
-    "saturation": 1.1,
+    "saturation": 1.02,
     "contrast": 1.06,
     "knee": 0.75,
-    "rolloff": 1.8
+    "rolloff": 1.8,
+    "shadow_tint": [0.84, 0.9, 1.14],
+    "highlight_tint": [1.06, 1.0, 0.9],
+    "green_warm": 0.52,
+    "green_saturation": 0.86,
+    "night_saturation": 0.62
   },
   "water": {
     "deep": [0.012, 0.1, 0.36],
@@ -85,7 +90,7 @@
     "day_horizon": [0.66, 0.8, 0.97],
     "sunset_horizon": [0.99, 0.6, 0.36],
     "sunset_top": [0.16, 0.08, 0.22],
-    "night_light": [0.4, 0.47, 0.78],
+    "night_light": [0.46, 0.56, 0.95],
     "day_light": [1.0, 0.99, 0.96],
     "sunset_light": [1.0, 0.8, 0.58],
     "dusk_top": [0.3, 0.24, 0.62],
@@ -117,11 +122,11 @@
   },
   "atmosphere": {
     "haze_start": 40,
-    "haze_density": 0.0017,
-    "haze_max": 0.78,
+    "haze_density": 0.0045,
+    "haze_max": 0.9,
     "haze_day": [0.4, 0.58, 0.92],
     "haze_night": [0.14, 0.16, 0.38],
-    "haze_follow": 0.22,
+    "haze_follow": 0.3,
     "fog_height": 27,
     "fog_falloff": 0.3,
     "fog_density": 0.004,
@@ -129,8 +134,9 @@
     "fog_day": [0.86, 0.9, 0.96],
     "fog_night": [0.2, 0.22, 0.42],
     "fog_dawn": 2.5,
-    "edge": 0.88,
-    "fog_start": 60
+    "edge": 0.72,
+    "fog_start": 60,
+    "haze_follow_night": 0.75
   },
   "dome": {
     "sun": [1.0, 0.96, 0.85],
@@ -145,13 +151,13 @@
     "glow_tight": 3,
     "stars": 1.2,
     "clouds": {
-      "cover": 0.42,
+      "cover": 0.6,
       "speed": 0.05,
       "day": [1.0, 1.0, 1.0],
       "night": [0.22, 0.24, 0.46],
       "sunset": [1.0, 0.66, 0.72],
       "shade": [0.72, 0.78, 0.92],
-      "size": 0.75
+      "size": 1.1
     },
     "horizon": {
       "height": 0.8,
@@ -171,7 +177,7 @@
     },
     "ao": {
       "radius": 2.0,
-      "strength": 2.3,
+      "strength": 2.8,
       "reach": 80
     }
   },
@@ -223,11 +229,13 @@
         "haze_color": [0.46, 0.38, 0.76],
         "haze_color_mix": 0.3,
         "fog_color": [0.52, 0.46, 0.82],
-        "fog_color_mix": 0.4,
-        "fog": 1.5,
+        "fog_color_mix": 0.5,
+        "fog": 4.0,
         "clouds": 0.5,
         "light_tint": [1.1, 0.98, 0.95],
-        "saturation": 1.08
+        "saturation": 1.08,
+        "moon": [244, 13],
+        "fog_lift": 3
       }
     },
     {
@@ -304,7 +312,8 @@
       "mood": {
         "time": 0.63,
         "time_pull": 0.9,
-        "clouds": 0.45
+        "clouds": 0.45,
+        "moon": [22, 9]
       },
       "order": 1
     },
@@ -338,6 +347,20 @@
       "at": [40, 0],
       "radius": 24,
       "feather": 8,
+      "order": 2,
+      "mood": {
+        "time": 0.48,
+        "time_pull": 0.95,
+        "light_tint": [1.2, 1.0, 0.8],
+        "exposure": 1.15,
+        "ambient": 0.95,
+        "tint": [1.05, 1.0, 0.94]
+      }
+    },
+    {
+      "at": [4, 34],
+      "radius": 10,
+      "feather": 6,
       "order": 2,
       "mood": {
         "time": 0.48,

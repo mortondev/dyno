@@ -126,18 +126,10 @@ impl State {
         for (nid, at, phase) in npcs {
             let (x, z) = (h[0] + at[0], h[2] + at[2]);
             let y0 = h[1] + at[1];
-            // feet on ground, never on a tree's crown
-            let free = |y: i32| {
-                w::is_solid(self.world.get(x, y - 1, z))
-                    && !w::is_leaves(self.world.get(x, y - 1, z))
-                    && !w::is_solid(self.world.get(x, y, z))
-                    && self.world.get(x, y, z) != w::WATER
-                    && !w::is_solid(self.world.get(x, y + 1, z))
-            };
-            let y = (0..12)
-                .flat_map(|d| [y0 + d, y0 - d])
-                .find(|y| free(*y))
-                .unwrap_or(y0);
+            // feet on a floor near where they were written: never on a
+            // tree's crown, nor on top of a lamp post or pillar that stands
+            // on their spot (routines.rs)
+            let [x, y, z] = crate::routines::footing(&self.world, x, y0, z).unwrap_or([x, y0, z]);
             let pos = [x as f32 + 0.5, y as f32, z as f32 + 0.5];
             // face the hearth
             let yaw = (-(h[0] as f32 + 0.5 - pos[0])).atan2(-(h[2] as f32 + 0.5 - pos[2]));
