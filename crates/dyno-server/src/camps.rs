@@ -90,10 +90,19 @@ impl State {
             let sp = self.spawn_points[i].clone();
             if let Some(e) = sp.entity {
                 if !self.entities.contains_key(&e) {
-                    // killed (or despawned): wait for the camp's respawn time
-                    let respawn = self.content.areas[sp.area].camps[sp.camp].respawn;
+                    // killed (or despawned): wait for the camp's respawn
+                    // time, less where players crowd (`world.crowd_respawn`)
+                    let respawn = self.content.areas[sp.area].camps[sp.camp].respawn as f32;
+                    let crowd = self.content.world.crowd_respawn.map_or(1.0, |c| {
+                        c.factor(
+                            players
+                                .iter()
+                                .filter(|p| dist(**p, sp.pos) < c.radius)
+                                .count(),
+                        )
+                    });
                     self.spawn_points[i].entity = None;
-                    self.spawn_points[i].ready_at = now + Duration::from_secs(respawn as u64);
+                    self.spawn_points[i].ready_at = now + Duration::from_secs_f32(respawn * crowd);
                 }
                 continue;
             }
@@ -107,15 +116,22 @@ impl State {
             if sp.ready_at > now || !(watched || players.iter().any(|p| dist(*p, sp.pos) < WAKE)) {
                 continue;
             }
+            // not on top of someone (how near, and for how long a due point
+            // waits for them to step away, are rules: at 12 m and for ever,
+            // players waiting where an elite stands keep it from returning)
+            let rule = self.content.world.crowd_respawn;
+            let keep = rule.and_then(|c| c.near).unwrap_or(12.0);
+            let waited_out = rule
+                .and_then(|c| c.patience)
+                .is_some_and(|secs| now.duration_since(sp.ready_at).as_secs_f32() >= secs);
             let area = &self.content.areas[sp.area];
             let camp = &area.camps[sp.camp];
-            // never spawn on top of someone (a training dummy is stood
-            // back up where it fell, whoever is by)
+            // (a training dummy is stood back up where it fell, whoever is by)
             let dummy = self
                 .content
                 .creature(camp.creature)
                 .is_some_and(|c| c.anchored);
-            if !dummy && players.iter().any(|p| dist(*p, sp.pos) < 12.0) {
+            if !dummy && !waited_out && players.iter().any(|p| dist(*p, sp.pos) < keep) {
                 continue;
             }
             let (creature, levels, rare) = (
@@ -239,6 +255,16 @@ impl State {
     }
 
     /// Is this point inside an area marked safe?
+    /// Inside an area where the dark rises (`Area::dark`)?
+    pub fn in_dark_area(&self, pos: [f32; 3]) -> bool {
+        let h = self.spawn_hearth;
+        self.content.areas.iter().any(|a| {
+            let dx = pos[0] - (h[0] + a.at[0]) as f32;
+            let dz = pos[2] - (h[2] + a.at[1]) as f32;
+            a.dark && (dx * dx + dz * dz).sqrt() <= a.radius
+        })
+    }
+
     pub fn in_safe_area(&self, pos: [f32; 3]) -> bool {
         let h = self.spawn_hearth;
         self.content.areas.iter().any(|a| {

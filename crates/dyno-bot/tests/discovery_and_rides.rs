@@ -81,8 +81,11 @@ fn discovery_pays_once_and_rides_need_it() {
             range: 3.0,
             why: "out".into(),
         });
+        // the walk goes round the town wall by a gate: allow for a slow
+        // machine (CI) rather than a fixed minute
+        let walk = 30.0 + 3.0 * home.distance(out);
         assert!(
-            run_until(&mut a, 60.0, |a| a.task.is_none()),
+            run_until(&mut a, walk, |a| a.task.is_none()),
             "walked out of town"
         );
         run_until(&mut a, 1.0, |_| false);
@@ -92,7 +95,10 @@ fn discovery_pays_once_and_rides_need_it() {
             range: 3.0,
             why: "home".into(),
         });
-        assert!(run_until(&mut a, 60.0, |a| a.task.is_none()));
+        assert!(
+            run_until(&mut a, walk, |a| a.task.is_none()),
+            "walked home"
+        );
     }
     drop(server);
     let _ = std::fs::remove_dir_all(&dir);

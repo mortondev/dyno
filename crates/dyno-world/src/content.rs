@@ -339,6 +339,10 @@ pub struct Creature {
     /// of `life.json`'s impacts; empty: the plain one)
     #[serde(default)]
     pub material: String,
+    /// a hostile creature that leaves players below this level alone until
+    /// they hit it (0: it attacks anyone on sight)
+    #[serde(default)]
+    pub spares_below: u8,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -658,6 +662,55 @@ pub struct WorldRules {
     /// a test yard (test packs only): `/feel` takes an operator there
     #[serde(default)]
     pub test_place: Option<TestPlace>,
+    /// open-world tags: players outside the tagger's party who did their
+    /// part of a kill share it (none: the first to hit takes everything)
+    #[serde(default)]
+    pub shared_tags: Option<SharedTags>,
+    /// camps where players crowd come back sooner (none: the camp's time)
+    #[serde(default)]
+    pub crowd_respawn: Option<CrowdRespawn>,
+    /// on the surface, creatures that spawn in the dark rise only in areas
+    /// marked `dark` (false: anywhere dark, as in a survival world)
+    #[serde(default)]
+    pub dark_in_areas: bool,
+}
+
+/// Who shares a kill with the player (and party) who tagged the creature.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct SharedTags {
+    /// the share of the creature's health a player must have taken off it
+    pub damage: f32,
+    /// the helper's kill XP, as a share of what the kill pays one player
+    #[serde(default = "always")]
+    pub xp: f32,
+}
+
+/// Faster respawns where players crowd: with `n` players within `radius`
+/// of the camp's creature when it dies, its respawn time is multiplied by
+/// `per_player` for each one past the first, down to `least` of the time.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct CrowdRespawn {
+    pub radius: f32,
+    pub per_player: f32,
+    pub least: f32,
+    /// how close a player may stand to a point that respawns (none: 12 m)
+    #[serde(default)]
+    pub near: Option<f32>,
+    /// seconds a point that is due waits for players to step away; after
+    /// that its creature comes back whoever stands there (none: it waits
+    /// for ever, and a crowd on an elite's one spawn point keeps it empty)
+    #[serde(default)]
+    pub patience: Option<f32>,
+}
+
+impl CrowdRespawn {
+    /// The share of a camp's respawn time with `players` near it.
+    pub fn factor(&self, players: usize) -> f32 {
+        self.per_player
+            .clamp(0.0, 1.0)
+            .powi(players.saturating_sub(1) as i32)
+            .max(self.least.clamp(0.0, 1.0))
+    }
 }
 
 /// Where a pack's test yard is: (x, z) from the spawn hearth.
@@ -726,6 +779,10 @@ pub struct Area {
     /// a hearth's peace: no hostile creatures spawn
     #[serde(default)]
     pub safe: bool,
+    /// a haunted place: creatures of the dark rise here at night (see
+    /// `WorldRules::dark_in_areas`)
+    #[serde(default)]
+    pub dark: bool,
     #[serde(default)]
     pub camps: Vec<Camp>,
 }
@@ -833,6 +890,8 @@ struct AArea {
     levels: [u8; 2],
     #[serde(default)]
     safe: bool,
+    #[serde(default)]
+    dark: bool,
     #[serde(default)]
     camps: Vec<ACamp>,
 }
@@ -1131,6 +1190,8 @@ struct ACreature {
     /// of `life.json`'s impacts; empty: the plain one)
     #[serde(default)]
     material: String,
+    #[serde(default)]
+    spares_below: u8,
 }
 
 fn level_one() -> [u8; 2] {
@@ -1337,7 +1398,8 @@ impl Content {
                 immortal: c.immortal,
                 crit_taken: c.crit_taken,
                 heavy: c.heavy,
-                material: c.material,
+                material: c.material.clone(),
+                spares_below: c.spares_below,
             });
         }
         let phase_of = |v: &Option<String>| -> Result<Option<(u8, bool)>, String> {
@@ -1593,6 +1655,7 @@ impl Content {
                 radius: a.radius,
                 levels: a.levels,
                 safe: a.safe,
+                dark: a.dark,
                 camps,
             });
         }
@@ -1779,6 +1842,25 @@ pub fn default_quest_xp(level: u8) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn crowd_respawn_is_data() {
+        let c = CrowdRespawn {
+            radius: 45.0,
+            per_player: 0.8,
+            least: 0.4,
+            near: None,
+            patience: None,
+        };
+        assert!((c.factor(0) - 1.0).abs() < 1e-6);
+        assert!(
+            (c.factor(1) - 1.0).abs() < 1e-6,
+            "alone: the camp's own time"
+        );
+        assert!((c.factor(2) - 0.8).abs() < 1e-6);
+        assert!((c.factor(3) - 0.64).abs() < 1e-6);
+        assert!((c.factor(12) - 0.4).abs() < 1e-6, "never under the least");
+    }
 
     #[test]
     fn group_bonus_is_data() {

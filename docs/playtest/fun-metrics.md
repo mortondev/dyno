@@ -35,6 +35,26 @@ follows, joins its fights and talks to the same NPCs). Compare `party` with
 `completionist` in the "By brain" table to see whether grouping pays. Bots join with fresh characters (a run id in
 their names), rotating through the classes.
 
+More options of `dyno bots` (round 2 of the first 30 minutes):
+
+```sh
+dyno bots --local --port 7710 --count 12 --minutes 30     # the local server on a port of your choosing
+dyno bots --local --count 3 --brain party --party-size 3  # parties of three
+# a staged run: every bot is an operator and says these lines on joining
+dyno bots --local --count 1 --class priest --setup "/xp 2700;/give keen_dagger;/finish cold_hearth"
+```
+
+A `--local` report carries the machine's load and what the server's ticks
+cost (mean, p95, p99, worst, and the worst minute's p95; the budget is
+50 ms). Each bot also records every pull (health, what stood near, day or
+night), the surroundings of every death, every unbroken stretch of travel
+and a trail every 5 seconds; `tools/playtest/round2.py` turns them into
+deaths by cause, travel by purpose, the longest runs and every reward gap
+(`--rules FILE` classifies with the rules the run was made on), and
+`compare.py` puts two sets of runs side by side per player type or class.
+Bots take a cart to a hub they have walked to, and at night look for
+Shades in an area the rules mark `dark`.
+
 In `dyno play`, type `help` for the commands. Every answer ends with a
 description of the situation and a line `[ready]`. Positions are x,z blocks
 from the spawn hearth (north is -z). The body keeps living between commands

@@ -30,6 +30,12 @@ pub struct Options {
     /// a name prefix (a run id is added)
     pub prefix: String,
     pub quiet: bool,
+    /// the local server's port (0: any)
+    pub port: u16,
+    /// how many bots make a party
+    pub party_size: usize,
+    /// chat lines every bot says once it has joined (operator commands, for staged tests)
+    pub setup: Vec<String>,
 }
 
 impl Default for Options {
@@ -45,6 +51,9 @@ impl Default for Options {
             stagger: 2.0,
             prefix: "Bot".into(),
             quiet: false,
+            port: 0,
+            party_size: 2,
+            setup: Vec::new(),
         }
     }
 }
@@ -91,6 +100,7 @@ pub fn run_bot(
     stop: Arc<AtomicBool>,
     board: Option<Board>,
     party: Option<PartyRole>,
+    setup: &[String],
 ) -> Telemetry {
     let mut tries = 0;
     let body = loop {
@@ -112,6 +122,13 @@ pub fn run_bot(
         }
     };
     let mut a = Agent::new(body, kind.key());
+    for line in setup {
+        a.body.say(line);
+        for _ in 0..4 {
+            a.update();
+            std::thread::sleep(Duration::from_secs_f32(TICK));
+        }
+    }
     // take in the join burst before measuring anything
     let settle = Instant::now();
     while settle.elapsed() < Duration::from_millis(1500) {
@@ -180,13 +197,17 @@ fn run_id() -> String {
 }
 
 /// Start a server in this process on a fresh world. Returns its address.
-pub fn local_server(players: usize) -> Result<(String, dyno_server::Handle), String> {
+pub fn local_server(
+    players: usize,
+    port: u16,
+    ops: Vec<String>,
+) -> Result<(String, dyno_server::Handle), String> {
     let dir = std::env::temp_dir().join(format!("dyno-bots-{}-{}", std::process::id(), run_id()));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let cfg = dyno_server::Config {
-        bind: "127.0.0.1:0".parse().unwrap(),
+        bind: std::net::SocketAddr::from(([127, 0, 0, 1], port)),
         world_path: dir.join("world.dynw"),
-        ops: vec!["botmaster".into()],
+        ops,
         max_players: players + 8,
         ..Default::default()
     };
@@ -196,27 +217,12 @@ pub fn local_server(players: usize) -> Result<(String, dyno_server::Handle), Str
 
 /// Run a swarm and write the report (JSON, and Markdown beside it).
 pub fn run(o: Options) -> Result<report::Report, String> {
-    let mut _server = None;
-    let addr = match (&o.addr, o.local) {
-        (_, true) => {
-            let (a, h) = local_server(o.count)?;
-            eprintln!("Started a local server on {a}");
-            _server = Some(h);
-            a
-        }
-        (Some(a), false) => a.clone(),
-        (None, false) => return Err("give a server address or --local".into()),
-    };
     let fixed = if o.brain == "mix" {
         None
     } else {
         Some(Personality::parse(&o.brain).ok_or_else(|| format!("unknown brain '{}'", o.brain))?)
     };
     let id = run_id();
-    let stop = Arc::new(AtomicBool::new(false));
-    let board: Board = Arc::new(Mutex::new(BTreeMap::new()));
-    let start = Instant::now();
-    let end = start + Duration::from_secs_f32(o.minutes * 60.0 + o.stagger * o.count as f32);
     let mut handles = Vec::new();
     let kinds: Vec<Personality> = (0..o.count)
         .map(|i| fixed.unwrap_or_else(|| Personality::mix(i)))
@@ -230,26 +236,51 @@ pub fn run(o: Options) -> Result<report::Report, String> {
             n
         })
         .collect();
-    // party brains go in twos: the first of each pair leads
+    let mut _server = None;
+    let addr = match (&o.addr, o.local) {
+        (_, true) => {
+            // with set-up lines every bot may use operator commands
+            let ops = if o.setup.is_empty() {
+                vec!["botmaster".into()]
+            } else {
+                names.clone()
+            };
+            let (a, h) = local_server(o.count, o.port, ops)?;
+            eprintln!("Started a local server on {a}");
+            _server = Some(h);
+            a
+        }
+        (Some(a), false) => a.clone(),
+        (None, false) => return Err("give a server address or --local".into()),
+    };
+    // party brains go in twos (or `party_size`): the first of each leads
     let mut roles: Vec<Option<PartyRole>> = vec![None; o.count];
     let party: Vec<usize> = (0..o.count)
         .filter(|i| kinds[*i] == Personality::Party)
         .collect();
-    for pair in party.chunks(2) {
-        if let [l, f] = pair {
+    for group in party.chunks(o.party_size.max(2)) {
+        if let [l, f, more @ ..] = group {
             let link: Link = Default::default();
             roles[*l] = Some(PartyRole {
                 leader: true,
                 mate: names[*f].clone(),
+                others: more.iter().map(|i| names[*i].clone()).collect(),
                 link: link.clone(),
             });
-            roles[*f] = Some(PartyRole {
-                leader: false,
-                mate: names[*l].clone(),
-                link,
-            });
+            for m in std::iter::once(f).chain(more) {
+                roles[*m] = Some(PartyRole {
+                    leader: false,
+                    mate: names[*l].clone(),
+                    others: Vec::new(),
+                    link: link.clone(),
+                });
+            }
         }
     }
+    let stop = Arc::new(AtomicBool::new(false));
+    let board: Board = Arc::new(Mutex::new(BTreeMap::new()));
+    let start = Instant::now();
+    let end = start + Duration::from_secs_f32(o.minutes * 60.0 + o.stagger * o.count as f32);
     for i in 0..o.count {
         let kind = kinds[i];
         let class = o
@@ -261,6 +292,7 @@ pub fn run(o: Options) -> Result<report::Report, String> {
         let addr = addr.clone();
         let stop = stop.clone();
         let board = board.clone();
+        let setup = o.setup.clone();
         // each bot plays the same length of time, whenever it joined
         let my_end = Instant::now() + Duration::from_secs_f32(o.minutes * 60.0);
         let my_end = my_end.min(end);
@@ -278,6 +310,7 @@ pub fn run(o: Options) -> Result<report::Report, String> {
                         stop,
                         Some(board),
                         role,
+                        &setup,
                     )
                 })
                 .map_err(|e| e.to_string())?,
@@ -287,8 +320,30 @@ pub fn run(o: Options) -> Result<report::Report, String> {
         }
     }
     let mut last = Instant::now();
+    // the machine's load and the local server's tick cost, minute by minute
+    let mut load = vec![loadavg()];
+    let mut minute = Instant::now();
+    let mut tick_at = _server.as_ref().map(|h| h.tick_cost());
+    let mut tick_minutes: Vec<f64> = Vec::new();
     while handles.iter().any(|h| !h.is_finished()) {
         std::thread::sleep(Duration::from_millis(250));
+        if minute.elapsed() >= Duration::from_secs(60) {
+            minute = Instant::now();
+            load.push(loadavg());
+            if let (Some(h), Some(at)) = (&_server, &mut tick_at) {
+                let now = h.tick_cost();
+                let m = now.since(at);
+                tick_minutes.push(m.percentile_ms(0.95));
+                eprintln!(
+                    "[{:>4.1} min] server tick: mean {:.2} ms, p95 {:.2} ms; load {:.1}",
+                    start.elapsed().as_secs_f32() / 60.0,
+                    m.mean_ms(),
+                    m.percentile_ms(0.95),
+                    load.last().copied().unwrap_or(0.0)
+                );
+                *at = now;
+            }
+        }
         if !o.quiet && last.elapsed() >= Duration::from_secs(30) {
             last = Instant::now();
             let b = board.lock().unwrap();
@@ -314,7 +369,8 @@ pub fn run(o: Options) -> Result<report::Report, String> {
         .into_iter()
         .map(|h| h.join().unwrap_or_default())
         .collect();
-    let rep = report::build(
+    load.push(loadavg());
+    let mut rep = report::build(
         &format!(
             "Hearthblock playtest: {} bots, {} min, brain {}",
             o.count, o.minutes, o.brain
@@ -322,8 +378,33 @@ pub fn run(o: Options) -> Result<report::Report, String> {
         if o.local { "local" } else { &addr },
         tels,
     );
+    rep.machine = Some(report::Machine {
+        load_start: load[0],
+        load_mean: load.iter().sum::<f64>() / load.len() as f64,
+        load_max: load.iter().cloned().fold(0.0, f64::max),
+        cores: std::thread::available_parallelism().map_or(0, |n| n.get()),
+        tick: _server.as_ref().map(|h| {
+            let c = h.tick_cost();
+            report::Tick {
+                mean_ms: c.mean_ms(),
+                p95_ms: c.percentile_ms(0.95),
+                p99_ms: c.percentile_ms(0.99),
+                worst_ms: c.worst.as_secs_f64() * 1e3,
+                ticks: c.ticks,
+                worst_minute_p95_ms: tick_minutes.iter().cloned().fold(0.0, f64::max),
+            }
+        }),
+    });
     write_report(&rep, &o.report)?;
     Ok(rep)
+}
+
+/// The machine's one-minute load average (0 where there is no /proc).
+fn loadavg() -> f64 {
+    std::fs::read_to_string("/proc/loadavg")
+        .ok()
+        .and_then(|s| s.split_whitespace().next().and_then(|v| v.parse().ok()))
+        .unwrap_or(0.0)
 }
 
 pub fn write_report(rep: &report::Report, path: &std::path::Path) -> Result<(), String> {

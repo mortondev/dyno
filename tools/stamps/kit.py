@@ -239,9 +239,11 @@ def house(x0, z0, x1, z1, storeys=1, style="tile", ridge_x=None, door=("s", None
         x, z = cell(pos)
         v.doors.append({"at": [x, 0, z], "height": DOOR})
         v.points[name] = (x + out[0] * 2, 0, z + out[1] * 2)
-        # something left by the door
+        # something left by the door, and a lantern hung beside it
         x, z = cell(pos - 2)
         v.set(x + out[0], 0, z + out[1], pick(x, 0, z, ["crate", "barrel"]))
+        x, z = cell(pos + 2)
+        v.set(x + out[0], 2, z + out[1], "lantern")
     top = roof(v, x0, z0, x1, z1, h - 1, s, ridge_x)
     if chimney:
         cx, cz = chimney

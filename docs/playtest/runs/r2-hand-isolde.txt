@@ -1,0 +1,2490 @@
+# Round 2 hand run: Isolde, 30 minutes on the merged build (dyno play, 24 November 2026). NPC lists cut.
+Joined 127.0.0.1:7714 as Isolde. Type 'help' for commands.
+Events:
+  You are the first player here, so you own this world: you can use /gamemode, /time, /give and /reload.
+  You are now a Mage. Your abilities are on keys 1 to 7.
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 06:00 day | at 0,7 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 104/108 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+[ready]
+> talk brannoc
+talk Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  offers [cold_hearth] The Cold Hearth (lv1): You've woken by the old hearth like the rest of us, I see. Shades took the valley the night the Great Hearth went out. If you mean to help, Captain Maren keeps what's left of the Watch. Go and speak with her.
+== Hearthstead (safe) lv1-1 | 06:00 day | at 0,7 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 107/108 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+Players near: Sable 0m here
+[ready]
+> accept cold_hearth
+accept at Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+Events:
+  Quest accepted: The Cold Hearth [cold_hearth]
+== Hearthstead (safe) lv1-1 | 06:00 day | at 0,7 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 107/108 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 22m N (3,-15)
+Players near: Sable 0m here
+[ready]
+> talk tilda
+talk Tilda: done (talked) in 1 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  offers [meat_for_the_pot] Meat for the Pot (lv1): Grazers wander the meadows around Hearthstead. Bring me 6 pieces of raw meat and I'll make sure nobody fights on an empty stomach.
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+== Hearthstead (safe) lv1-1 | 06:00 day | at -7,7 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 107/108 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 24m NE (3,-15)
+Players near: Sable 9m NE
+[ready]
+> accept meat
+accept at Tilda: done (talked) in 0 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  in progress: [meat_for_the_pot]
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+Events:
+  Quest accepted: Meat for the Pot [meat_for_the_pot]
+== Hearthstead (safe) lv1-1 | 06:00 day | at -7,7 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 107/108 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (2/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 24m NE (3,-15)
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 87m SW (-66,71)
+Players near: Sable 12m NE
+[ready]
+> talk maren
+talk Captain Maren: done (talked) in 4 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  ready to turn in: [cold_hearth] choices: none
+Events:
+  Progress: The Cold Hearth: talk to Captain Maren (done)
+== Hearthstead (safe) lv1-1 | 06:00 day | at 1,-11 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 107/108 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (2/20):
+  [cold_hearth] READY The Cold Hearth: talk to Captain Maren (done) -> turn in to Captain Maren 4m NE (3,-15)
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 105m NE (80,-80)
+  ? Captain Maren <Captain of the Watch> 4m NE (3,-15) turn in: cold_hearth
+Players near: Sable 1m SE
+[ready]
+> turnin cold_hearth
+turn in at Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  offers [thin_the_herd] Thinning the Herd (lv2): The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 8 of them should do. The nearest flocks graze just outside the gates.
+Events:
+  QUEST COMPLETE: The Cold Hearth
+== Hearthstead (safe) lv1-1 | 06:00 day | at 1,-11 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 107/108 | XP 30/400 | 10c | rested 0 | bags 4/36
+Quests (1/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 105m NE (80,-80)
+Players near: Sable 2m S
+[ready]
+> accept thin
+accept at Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  in progress: [thin_the_herd]
+Events:
+  Quest accepted: Thinning the Herd [thin_the_herd]
+== Hearthstead (safe) lv1-1 | 06:00 day | at 1,-11 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 107/108 | XP 30/400 | 10c | rested 0 | bags 4/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 105m NE (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 0/8 -> kill Grazer 105m NE (80,-80)
+Players near: Sable 6m SW
+[ready]
+> goto 80,-80
+goto 80,-80: done (arrived) in 24 s, +25 xp
+Events:
+  Entered Hearthmeadow
+  Discovered: Hearthmeadow (+25 XP)
+== Hearthmeadow lv1-2 | 07:00 day | at 79,-80 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 107/108 | XP 55/400 | 10c | rested 0 | bags 4/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 1m E (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 0/8 -> kill Grazer 1m E (80,-80)
+Creatures within 60m (7):
+  #47 Grazer lv1 32/32 7m SE [quest]
+  #48 Grazer lv2 41/41 8m N [quest]
+  #43 Grazer lv2 41/41 14m S [quest]
+  #44 Grazer lv2 41/41 14m W [quest]
+  #56 Grazer lv1 32/32 16m NE [quest]
+  #46 Grazer lv2 41/41 17m SE [quest]
+  #51 Grazer lv1 32/32 55m NW [quest]
+Players near: Sable 10m W
+[ready]
+> attack grazer
+fight Grazer #47: done (it died) in 4 s, +35 xp (took 0 damage, 2 casts)
+Events:
+  +2 Raw meat
+  You receive loot: Raw meat ×2
+  Progress: Meat for the Pot: Raw meat 2/6
+  Progress: Thinning the Herd: Grazer 1/8
+  Killed Grazer (+35 xp)
+== Hearthmeadow lv1-2 | 07:00 day | at 79,-80 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 85/108 | XP 90/400 | 10c | rested 0 | bags 5/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 2/6 -> Raw meat (dropped by Grazer) 1m E (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 1/8 -> kill Grazer 1m E (80,-80)
+Creatures within 60m (6):
+  #48 Grazer lv2 41/41 8m N [quest]
+  #44 Grazer lv2 41/41 14m W [quest]
+  #43 Grazer lv2 41/41 14m SW [quest]
+  #56 Grazer lv1 32/32 16m E [quest]
+  #46 Grazer lv2 41/41 18m SE [quest]
+  #51 Grazer lv1 32/32 55m NW [quest]
+Lootable corpses: Grazer corpse #64 5m SE (yours)
+Players near: Sable 2m SE
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 White
+  You receive loot: White
+== Hearthmeadow lv1-2 | 07:00 day | at 79,-80 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 86/108 | XP 90/400 | 10c | rested 0 | bags 6/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 2/6 -> Raw meat (dropped by Grazer) 1m NE (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 1/8 -> kill Grazer 1m NE (80,-80)
+Creatures within 60m (6):
+  #48 Grazer lv2 41/41 8m N [quest]
+  #44 Grazer lv2 41/41 14m W [quest]
+  #43 Grazer lv2 41/41 14m SW [quest]
+  #56 Grazer lv1 32/32 15m E [quest]
+  #46 Grazer lv2 41/41 17m SE [quest]
+  #51 Grazer lv1 32/32 55m NW [quest]
+Players near: Sable 2m SE
+[ready]
+> attack grazer
+fight Grazer #48: done (it died) in 4 s, +28 xp (took 0 damage, 2 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 2/8
+  Killed Grazer (+28 xp)
+== Hearthmeadow lv1-2 | 07:00 day | at 79,-80 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 64/108 | XP 118/400 | 10c | rested 0 | bags 6/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 2/6 -> Raw meat (dropped by Grazer) 1m NE (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 2/8 -> kill Grazer 1m NE (80,-80)
+Creatures within 60m (5):
+  #44 Grazer lv2 41/41 13m W [quest]
+  #43 Grazer lv2 41/41 14m SW [quest]
+  #46 Grazer lv2 41/41 15m SE [quest]
+  #56 Grazer lv1 32/32 18m E [quest]
+  #51 Grazer lv1 32/32 54m NW [quest]
+Players near: Sable 6m N
+[ready]
+> loot
+No lootable corpse within 30m.
+== Hearthmeadow lv1-2 | 07:00 day | at 79,-80 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 64/108 | XP 118/400 | 10c | rested 0 | bags 6/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 2/6 -> Raw meat (dropped by Grazer) 1m NE (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 2/8 -> kill Grazer 1m NE (80,-80)
+Creatures within 60m (5):
+  #44 Grazer lv2 41/41 13m W [quest]
+  #43 Grazer lv2 41/41 14m SW [quest]
+  #46 Grazer lv2 41/41 15m SE [quest]
+  #56 Grazer lv1 32/32 18m E [quest]
+  #51 Grazer lv1 32/32 54m NW [quest]
+Players near: Sable 6m N
+[ready]
+> attack grazer
+fight Grazer #44: done (it died) in 4 s, +41 xp (took 0 damage, 2 casts)
+Events:
+  +1 Raw meat
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 3/6
+  Progress: Thinning the Herd: Grazer 3/8
+  Killed Grazer (+41 xp)
+== Hearthmeadow lv1-2 | 07:00 day | at 79,-80 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 43/108 | XP 159/400 | 10c | rested 0 | bags 6/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 3/6 -> Raw meat (dropped by Grazer) 1m NE (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 3/8 -> kill Grazer 1m NE (80,-80)
+Creatures within 60m (4):
+  #43 Grazer lv2 41/41 14m SW [quest]
+  #46 Grazer lv2 41/41 15m SE [quest]
+  #56 Grazer lv1 32/32 18m E [quest]
+  #51 Grazer lv1 32/32 51m NW [quest]
+Lootable corpses: Grazer corpse #66 12m W (yours)
+Players near: Sable 11m NW
+[ready]
+> loot
+loot: done (nothing left) in 2 s
+Events:
+  +1 Torn Grazer Hide
+  You receive loot: Torn Grazer Hide
+== Hearthmeadow lv1-2 | 08:00 day | at 71,-82 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 44/108 | XP 159/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 3/6 -> Raw meat (dropped by Grazer) 9m E (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 3/8 -> kill Grazer 9m E (80,-80)
+Creatures within 60m (5):
+  #43 Grazer lv2 41/41 13m S [quest]
+  #46 Grazer lv2 41/41 22m SE [quest]
+  #56 Grazer lv1 32/32 27m E [quest]
+  #51 Grazer lv1 32/32 44m NW [quest]
+  #50 Grazer lv2 41/41 57m NW [quest]
+Players near: Sable 2m W
+[ready]
+> attack grazer
+fight Grazer #43: done (it died) in 4 s, +41 xp (took 0 damage, 2 casts)
+Events:
+  +2 Raw meat
+  You receive loot: Raw meat ×2
+  Progress: Meat for the Pot: Raw meat 5/6
+  Progress: Thinning the Herd: Grazer 4/8
+  Killed Grazer (+41 xp)
+== Hearthmeadow lv1-2 | 08:00 day | at 71,-82 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 22/108 | XP 200/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 5/6 -> Raw meat (dropped by Grazer) 9m E (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 4/8 -> kill Grazer 9m E (80,-80)
+Creatures within 60m (4):
+  #46 Grazer lv2 41/41 23m SE [quest]
+  #56 Grazer lv1 32/32 28m E [quest]
+  #51 Grazer lv1 32/32 42m NW [quest]
+  #50 Grazer lv2 41/41 57m NW [quest]
+Lootable corpses: Grazer corpse #67 10m S (yours)
+Players near: Sable 9m S
+[ready]
+> loot
+loot: done (nothing left) in 2 s
+Events:
+  +1 White
+  You receive loot: White
+== Hearthmeadow lv1-2 | 08:00 day | at 71,-76 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 24/108 | XP 200/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 5/6 -> Raw meat (dropped by Grazer) 10m NE (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 4/8 -> kill Grazer 10m NE (80,-80)
+Creatures within 60m (4):
+  #46 Grazer lv2 41/41 21m SE [quest]
+  #56 Grazer lv1 32/32 31m NE [quest]
+  #51 Grazer lv1 32/32 46m NW [quest]
+  #50 Grazer lv2 41/41 60m NW [quest]
+Players near: Sable 3m S
+[ready]
+> rest
+rest: done (rested) in 25 s
+== Hearthmeadow lv1-2 | 08:00 day | at 71,-76 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 105/108 | XP 200/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 5/6 -> Raw meat (dropped by Grazer) 8m NW (68,-83)
+  [thin_the_herd] Thinning the Herd: Grazer 4/8 -> kill Grazer 8m NW (68,-83)
+Creatures within 60m (5):
+  #74 Grazer lv2 41/41 8m NW [quest]
+  #71 Grazer lv1 14/32 18m E [quest]
+  #72 Grazer lv1 32/32 19m NE [quest]
+  #51 Grazer lv1 32/32 40m NW [quest]
+  #62 Thornboar lv2 61/61 50m NE hostile
+Players near: Sable 19m E
+[ready]
+> attack grazer
+fight Grazer #74: done (it died) in 6 s, +41 xp (took 0 damage, 3 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 5/8
+  Killed Grazer (+41 xp)
+== Hearthmeadow lv1-2 | 08:00 day | at 71,-76 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 72/108 | XP 241/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 5/6 -> Raw meat (dropped by Grazer) 10m NE (80,-80)
+  [thin_the_herd] Thinning the Herd: Grazer 5/8 -> kill Grazer 10m NE (80,-80)
+Creatures within 60m (3):
+  #72 Grazer lv1 7/32 19m NE [quest]
+  #51 Grazer lv1 32/32 41m NW [quest]
+  #62 Thornboar lv2 61/61 51m E hostile
+Lootable corpses: Grazer corpse #76 5m N (yours)
+Players near: Sable 18m NE
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  +1 White
+  +1 Torn Grazer Hide
+  You receive loot: Torn Grazer Hide
+  You receive loot: White
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 6/6
+== Hearthmeadow lv1-2 | 08:00 day | at 70,-77 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 73/108 | XP 241/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 117m SW (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 5/8 -> kill Grazer 10m E (80,-80)
+Creatures within 60m (3):
+  #72 Grazer lv1 7/32 19m NE [quest]
+  #51 Grazer lv1 32/32 40m NW [quest]
+  #62 Thornboar lv2 61/61 51m E hostile
+Players near: Sable 18m NE
+[ready]
+> attack grazer
+fight Grazer #72: done (it died) in 1 s (took 0 damage, 1 casts)
+== Hearthmeadow lv1-2 | 08:00 day | at 70,-77 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 74/108 | XP 241/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 117m SW (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 5/8 -> kill Grazer 10m E (80,-80)
+Creatures within 60m (2):
+  #51 Grazer lv1 32/32 41m NW [quest]
+  #62 Thornboar lv2 61/61 51m E hostile
+Lootable corpses: Grazer corpse #77 19m NE
+Players near: Sable 18m NE
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  Your target is gone.
+== Hearthmeadow lv1-2 | 08:00 day | at 71,-77 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 74/108 | XP 241/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 118m SW (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 5/8 -> kill Grazer 10m E (80,-80)
+Creatures within 60m (2):
+  #51 Grazer lv1 32/32 42m NW [quest]
+  #62 Thornboar lv2 61/61 50m E hostile
+Players near: Sable 18m NE
+[ready]
+> rest
+rest: done (rested) in 13 s
+== Hearthmeadow lv1-2 | 09:00 day | at 71,-77 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 105/108 | XP 241/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 118m SW (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 5/8 -> kill Grazer 10m E (80,-80)
+Creatures within 60m (2):
+  #51 Grazer lv1 32/32 47m NW [quest]
+  #62 Thornboar lv2 61/61 55m NE hostile
+Players near: Sable 18m NE
+[ready]
+> attack grazer
+fight Grazer #51: done (it died) in 8 s, +35 xp (took 0 damage, 2 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 6/8
+  Killed Grazer (+35 xp)
+== Hearthmeadow lv1-2 | 09:00 day | at 51,-92 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 85/108 | XP 276/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 118m SW (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 30m SE (73,-70)
+Creatures within 60m (6):
+  #78 Grazer lv1 32/32 30m SE [quest]
+  #50 Grazer lv2 41/41 39m NW [quest]
+  #52 Grazer lv1 32/32 40m N [quest]
+  #53 Grazer lv2 41/41 44m NW [quest]
+  #79 Grazer lv2 41/41 46m SE [quest]
+  #59 Grazer lv1 32/32 54m NE [quest]
+Lootable corpses: Grazer corpse #81 19m NW (yours)
+Players near: Sable 34m E
+[ready]
+> loot
+loot: done (nothing left) in 3 s
+Events:
+  +2 Raw meat
+  +1 Torn Grazer Hide
+  You receive loot: Torn Grazer Hide
+  You receive loot: Raw meat ×2
+== Hearthmeadow lv1-2 | 09:00 day | at 39,-101 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 87/108 | XP 276/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 119m SW (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 25m NW (21,-118)
+Creatures within 60m (7):
+  #50 Grazer lv2 41/41 25m NW [quest]
+  #53 Grazer lv2 41/41 31m NW [quest]
+  #52 Grazer lv1 32/32 31m N [quest]
+  #78 Grazer lv1 32/32 46m SE [quest]
+  #59 Grazer lv1 32/32 53m NE [quest]
+  #55 Grazer lv1 32/32 58m N [quest]
+  #58 Grazer lv2 41/41 60m N [quest]
+[ready]
+> attack grazer
+fight Grazer #50: done (it died) in 7 s, +41 xp (took 0 damage, 3 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 7/8
+  Killed Grazer (+41 xp)
+== Hearthmeadow lv1-2 | 09:00 day | at 35,-105 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 53/108 | XP 317/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 122m S (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 7/8 -> kill Grazer 22m NW (16,-115)
+Creatures within 60m (6):
+  #53 Grazer lv2 41/41 22m NW [quest]
+  #52 Grazer lv1 32/32 29m N [quest]
+  #78 Grazer lv1 32/32 51m SE [quest]
+  #59 Grazer lv1 32/32 52m NE [quest]
+  #55 Grazer lv1 32/32 56m NW [quest]
+  #58 Grazer lv2 41/41 56m N [quest]
+Lootable corpses: Grazer corpse #83 17m NW (yours)
+[ready]
+> loot
+loot: done (nothing left) in 2 s
+Events:
+  +2 White
+  +1 Raw meat
+  +1 Torn Grazer Hide
+  You receive loot: Torn Grazer Hide
+  You receive loot: White ×2
+  You receive loot: Raw meat
+== Hearthmeadow lv1-2 | 09:00 day | at 26,-114 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 55/108 | XP 317/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 128m S (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 7/8 -> kill Grazer 10m W (17,-114)
+Creatures within 60m (6):
+  #53 Grazer lv2 41/41 10m W [quest]
+  #52 Grazer lv1 32/32 24m NE [quest]
+  #55 Grazer lv1 32/32 44m N [quest]
+  #58 Grazer lv2 41/41 49m NE [quest]
+  #60 Grazer lv1 32/32 53m N [quest]
+  #59 Grazer lv1 32/32 54m NE [quest]
+[ready]
+> attack grazer
+fight Grazer #53: done (it died) in 4 s, +41 xp (took 0 damage, 2 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 8/8
+  Killed Grazer (+41 xp)
+== Hearthmeadow lv1-2 | 09:00 day | at 26,-114 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 48/108 | XP 358/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 128m S (-11,8)
+  [thin_the_herd] READY Thinning the Herd: Grazer 8/8 -> turn in to Captain Maren 102m S (3,-15)
+  ? Captain Maren <Captain of the Watch> 102m S (3,-15) turn in: thin_the_herd
+Creatures within 60m (7):
+  #52 Grazer lv1 32/32 27m NE [quest]
+  #55 Grazer lv1 32/32 44m N [quest]
+  #58 Grazer lv2 41/41 48m NE [quest]
+  #85 Grazer lv2 41/41 48m SE [quest]
+  #60 Grazer lv1 32/32 50m N [quest]
+  #59 Grazer lv1 32/32 55m NE [quest]
+  #86 Grazer lv1 32/32 56m SE [quest]
+Lootable corpses: Grazer corpse #87 8m W (yours)
+[ready]
+> loot
+loot: done (nothing left) in 1 s
+Events:
+  +1 White
+  +1 Raw meat
+  You receive loot: White
+  You receive loot: Raw meat
+== Hearthmeadow lv1-2 | 09:00 day | at 22,-114 (from hearth; north is -z)
+Isolde lv1 Mage | HP 50/50 | Mana 49/108 | XP 358/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 126m S (-11,8)
+  [thin_the_herd] READY Thinning the Herd: Grazer 8/8 -> turn in to Captain Maren 101m S (3,-15)
+  ? Captain Maren <Captain of the Watch> 101m S (3,-15) turn in: thin_the_herd
+Creatures within 60m (6):
+  #52 Grazer lv1 32/32 31m NE [quest]
+  #55 Grazer lv1 32/32 43m N [quest]
+  #58 Grazer lv2 41/41 50m NE [quest]
+  #60 Grazer lv1 32/32 51m N [quest]
+  #85 Grazer lv2 41/41 52m SE [quest]
+  #59 Grazer lv1 32/32 59m NE [quest]
+[ready]
+> turnin thin
+turn in at Captain Maren: done (talked) in 21 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  offers [north_watch] The North Watch (lv3): Before the dark came, we kept a beacon north of here. Follow the north road to it, and if Sergeant Holt still holds the watch there, give him my orders and do what he asks.
+Events:
+  Entered Hearthstead (safe)
+  +1 Keen Dagger
+  LEVEL UP: you are now level 2
+  Isolde reached level 2!
+  You have learned Fire Blast: An instant burst of flame.
+  QUEST COMPLETE: Thinning the Herd
+== Hearthstead (safe) lv1-1 | 10:00 day | at 4,-19 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 88/900 | 70c | rested 0 | bags 8/36
+Quests (1/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 31m SW (-11,8)
+Players near: Sable 10m N
+[ready]
+> turnin meat
+turn in at Tilda: done (talked) in 5 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  offers [wool_for_winter] Wool for Winter (lv2): Nights are cold and blankets are thin. Grazer wool, 8 bundles of it, and I'll stitch something warm.
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+Events:
+  +4 Cooked meat
+  QUEST COMPLETE: Meat for the Pot
+== Hearthstead (safe) lv1-1 | 10:00 day | at -10,4 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 0 | bags 9/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+Players near: Sable 10m N
+[ready]
+> accept all
+accept at Tilda: done (talked) in 0 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  in progress: [wool_for_winter]
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+Events:
+  Quest accepted: Wool for Winter [wool_for_winter]
+== Hearthstead (safe) lv1-1 | 10:00 day | at -10,4 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 0 | bags 9/36
+Quests (1/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 79m SW (-57,67)
+Players near: Sable 6m N
+[ready]
+> talk brannoc
+talk Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  offers [kindling] Kindling (lv2): If we are ever to relight the Great Hearth we will need wood. Bring me 8 logs from the woods. Trees grow back here, faster than you'd think.
+== Hearthstead (safe) lv1-1 | 10:00 day | at -7,4 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 0 | bags 9/36
+Quests (1/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 79m SW (-57,66)
+Players near: Sable 2m W
+[ready]
+> accept all
+accept at Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  in progress: [kindling]
+Events:
+  Quest accepted: Kindling [kindling]
+== Hearthstead (safe) lv1-1 | 10:00 day | at -7,4 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 0 | bags 9/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 79m SW (-56,66)
+  [kindling] Kindling: Log 0/8 -> gather Log (use: gather log) 39m N (-19,-33)
+Players near: Sable 2m W
+[ready]
+> quests
+[wool_for_winter] Wool for Winter (lv2)
+  Nights are cold and blankets are thin. Grazer wool, 8 bundles of it, and I'll stitch something warm.
+  Wool for Winter: White 6/8
+  next: White (dropped by Grazer) 79m SW (-56,66)
+  ender: Tilda | reward: 80 xp, 60c, items: Woolen Cloak, Hearth Bread
+[kindling] Kindling (lv2)
+  If we are ever to relight the Great Hearth we will need wood. Bring me 8 logs from the woods. Trees grow back here, faster than you'd think.
+  Kindling: Log 0/8
+  next: gather Log (use: gather log) 39m N (-19,-33)
+  ender: Old Brannoc | reward: 100 xp, 50c, items: Stone pickaxe
+Available to accept: north_watch (lv3, from Captain Maren), broken_tower (lv2, from Guard Tolan)
+Done: 3
+== Hearthstead (safe) lv1-1 | 10:00 day | at -7,4 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 0 | bags 9/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 79m SW (-56,66)
+  [kindling] Kindling: Log 0/8 -> gather Log (use: gather log) 39m N (-19,-33)
+Players near: Sable 2m W
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 8 s
+Events:
+  You have learned Woodcutting.
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 2.
+  Progress: Kindling: Log 1/8
+== Hearthstead (safe) lv1-1 | 10:00 day | at -18,-27 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 61m NW (-58,-74)
+  [kindling] Kindling: Log 1/8 -> gather Log (use: gather log) 6m N (-19,-33)
+Players near: Sable 0m here
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 3.
+  Progress: Kindling: Log 2/8
+== Hearthstead (safe) lv1-1 | 10:00 day | at -18,-28 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 61m NW (-59,-73)
+  [kindling] Kindling: Log 2/8 -> gather Log (use: gather log) 5m N (-19,-33)
+Players near: Sable 0m here
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 4.
+  Progress: Kindling: Log 3/8
+== Hearthstead (safe) lv1-1 | 11:00 day | at -18,-28 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 61m NW (-59,-73)
+  [kindling] Kindling: Log 3/8 -> gather Log (use: gather log) 5m N (-19,-33)
+Players near: Sable 0m here
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 5.
+  Progress: Kindling: Log 4/8
+== Hearthstead (safe) lv1-1 | 11:00 day | at -18,-29 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 61m NW (-59,-73)
+  [kindling] Kindling: Log 4/8 -> gather Log (use: gather log) 4m N (-19,-33)
+Players near: Sable 0m here
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 6.
+  Progress: Kindling: Log 5/8
+== Hearthstead (safe) lv1-1 | 11:00 day | at -18,-29 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 62m W (-77,-48)
+  [kindling] Kindling: Log 5/8 -> gather Log (use: gather log) 4m N (-19,-33)
+Players near: Sable 0m here
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 7.
+== Hearthstead (safe) lv1-1 | 11:00 day | at -18,-29 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 62m W (-77,-48)
+  [kindling] Kindling: Log 6/8 -> gather Log (use: gather log) 4m N (-19,-33)
+Players near: Sable 0m here
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  Progress: Kindling: Log 6/8
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 8.
+== Hearthstead (safe) lv1-1 | 11:00 day | at -18,-29 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 62m W (-77,-47)
+  [kindling] Kindling: Log 7/8 -> gather Log (use: gather log) 4m N (-19,-33)
+Players near: Sable 0m here
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  Progress: Kindling: Log 7/8
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 9.
+  Progress: Kindling: Log 8/8
+== Hearthstead (safe) lv1-1 | 11:00 day | at -18,-29 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 198/900 | 1s 10c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 62m W (-78,-46)
+  [kindling] READY Kindling: Log 8/8 -> turn in to Old Brannoc 37m SE (-3,5)
+  ? Old Brannoc <Hearthkeeper> 37m SE (-3,5) turn in: kindling
+Players near: Sable 0m here
+[ready]
+> turnin kindling
+turn in at Old Brannoc: done (talked) in 6 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  offers [coal_for_the_watch] Coal for the Watch (lv3): Light keeps the Shades back, and torches need coal. There is a seam in the rocks outside the north gate, on the left, and more at the Old Quarry north-west of the town. Bring me 6 coal. Your wooden pick will do.
+Events:
+  +1 Stone pickaxe
+  QUEST COMPLETE: Kindling
+== Hearthstead (safe) lv1-1 | 11:00 day | at -5,1 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 298/900 | 1s 60c | rested 1 | bags 10/36
+Quests (1/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 86m NW (-76,-46)
+Players near: Sable 0m here
+[ready]
+> accept all
+accept at Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  in progress: [coal_for_the_watch]
+Events:
+  Quest accepted: Coal for the Watch [coal_for_the_watch]
+== Hearthstead (safe) lv1-1 | 11:00 day | at -5,1 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 298/900 | 1s 60c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 85m NW (-76,-46)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 760m E (742,-138)
+Players near: Sable 0m here
+[ready]
+> talk tolan
+talk Guard Tolan: done (talked) in 7 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+  offers [broken_tower] The Broken Tower (lv2): There's an old watchtower on the south road, three minutes out. Something has been moving in it after dark. Walk down, look it over and tell me what you see.
+== Hearthstead (safe) lv1-1 | 11:00 day | at 1,-41 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 298/900 | 1s 60c | rested 1 | bags 10/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 67m E (67,-48)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 747m E (742,-138)
+Players near: Sable 7m S
+[ready]
+> accept all
+accept at Guard Tolan: done (talked) in 0 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+  in progress: [broken_tower]
+Events:
+  Quest accepted: The Broken Tower [broken_tower]
+== Hearthstead (safe) lv1-1 | 11:00 day | at 1,-41 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 298/900 | 1s 60c | rested 1 | bags 10/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 67m E (67,-48)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 747m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 224m S (17,183)
+Players near: Sable 3m S
+[ready]
+> talk maren
+talk Captain Maren: done (talked) in 4 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  offers [north_watch] The North Watch (lv3): Before the dark came, we kept a beacon north of here. Follow the north road to it, and if Sergeant Holt still holds the watch there, give him my orders and do what he asks.
+== Hearthstead (safe) lv1-1 | 11:00 day | at 2,-19 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 298/900 | 1s 60c | rested 1 | bags 10/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 71m NE (67,-47)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 750m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 203m S (17,183)
+Players near: Sable 21m N
+[ready]
+> accept all
+accept at Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+Events:
+  Quest accepted: The North Watch [north_watch]
+== Hearthstead (safe) lv1-1 | 11:00 day | at 2,-19 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 298/900 | 1s 60c | rested 1 | bags 10/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 71m NE (67,-47)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 750m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 203m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 234m N (0,-253)
+Players near: Sable 21m N
+[ready]
+> attack grazer
+fight Grazer #78: done (it died) in 19 s (took 0 damage, 0 casts)
+Events:
+  Entered Hearthmeadow
+== Hearthmeadow lv1-2 | 12:00 day | at 37,-79 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 298/900 | 1s 60c | rested 1 | bags 10/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 27m NE (51,-102)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 708m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 263m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 178m N (0,-253)
+Creatures within 60m (7):
+  #85 Grazer lv2 41/41 27m NE
+  #90 Grazer lv1 32/32 35m N
+  #86 Grazer lv1 32/32 41m E
+  #84 Grazer lv2 41/41 44m E
+  #89 Grazer lv2 41/41 50m N
+  #52 Grazer lv1 32/32 51m N
+  #82 Grazer lv2 41/41 58m E
+Players near: Sable 38m E
+[ready]
+> loot
+No lootable corpse within 30m.
+== Hearthmeadow lv1-2 | 12:00 day | at 37,-79 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 298/900 | 1s 60c | rested 1 | bags 10/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 27m NE (51,-102)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 708m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 263m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 178m N (0,-253)
+Creatures within 60m (7):
+  #85 Grazer lv2 41/41 27m NE
+  #90 Grazer lv1 32/32 35m N
+  #86 Grazer lv1 32/32 41m E
+  #84 Grazer lv2 41/41 44m E
+  #89 Grazer lv2 41/41 50m N
+  #52 Grazer lv1 32/32 51m N
+  #82 Grazer lv2 41/41 58m E
+Players near: Sable 38m E
+[ready]
+> attack grazer
+fight Grazer #85: done (it died) in 7 s, +40 xp (took 0 damage, 3 casts)
+Events:
+  You feel normal again.
+  Killed Grazer (+40 xp)
+== Hearthmeadow lv1-2 | 12:00 day | at 37,-89 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 83/116 | XP 338/900 | 1s 60c | rested 0 | bags 10/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 26m N (44,-113)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 707m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 272m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 168m N (0,-253)
+Creatures within 60m (7):
+  #90 Grazer lv1 32/32 26m N
+  #89 Grazer lv2 41/41 41m N
+  #52 Grazer lv1 32/32 43m N
+  #86 Grazer lv1 32/32 44m E
+  #55 Grazer lv1 32/32 53m N
+  #91 Grazer lv1 32/32 53m NW
+  #82 Grazer lv2 41/41 56m E
+Lootable corpses: Grazer corpse #94 13m NE (yours)
+[ready]
+> loot
+loot: done (nothing left) in 2 s
+Events:
+  +1 White
+  +2 Raw meat
+  You receive loot: White
+  You receive loot: Raw meat ×2
+  Progress: Wool for Winter: White 7/8
+== Hearthmeadow lv1-2 | 12:00 day | at 43,-95 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 85/116 | XP 338/900 | 1s 60c | rested 0 | bags 10/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 18m N (44,-114)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 700m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 280m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 163m N (0,-253)
+Creatures within 60m (10):
+  #90 Grazer lv1 32/32 18m N
+  #89 Grazer lv2 41/41 36m N
+  #52 Grazer lv1 32/32 36m N
+  #86 Grazer lv1 22/32 38m E
+  #55 Grazer lv1 32/32 45m N
+  #82 Grazer lv2 41/41 50m E
+  #91 Grazer lv1 32/32 51m NW
+Players near: Sable 38m E
+[ready]
+> goto -36,-114
+goto -36,-114: done (arrived) in 16 s, +25 xp
+Events:
+  Entered North Gate Rocks
+  Discovered: North Gate Rocks (+25 XP)
+== North Gate Rocks lv1-2 | 12:00 day | at -36,-113 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 363/900 | 1s 60c | rested 0 | bags 10/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 43m SW (-54,-74)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 779m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 301m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 144m N (0,-253)
+Creatures within 60m (4):
+  #54 Grazer lv1 32/32 43m SW
+  #57 Grazer lv2 41/41 49m SW
+  #91 Grazer lv1 32/32 50m NE
+  #49 Grazer lv1 32/32 53m SW
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  You have learned Mining.
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 2.
+== North Gate Rocks lv1-2 | 12:00 day | at -36,-113 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 363/900 | 1s 60c | rested 0 | bags 11/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 43m SW (-54,-74)
+  [coal_for_the_watch] Coal for the Watch: Coal 1/6 -> gather Coal (use: gather coal) 2m SW (-38,-112)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 301m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 144m N (0,-253)
+Creatures within 60m (4):
+  #54 Grazer lv1 32/32 43m SW
+  #57 Grazer lv2 41/41 48m SW
+  #91 Grazer lv1 32/32 50m NE
+  #49 Grazer lv1 32/32 53m SW
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  Progress: Coal for the Watch: Coal 1/6
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 3.
+== North Gate Rocks lv1-2 | 12:00 day | at -36,-113 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 363/900 | 1s 60c | rested 0 | bags 11/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 42m SW (-53,-76)
+  [coal_for_the_watch] Coal for the Watch: Coal 2/6 -> gather Coal (use: gather coal) 2m SW (-38,-112)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 301m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 144m N (0,-253)
+Creatures within 60m (4):
+  #54 Grazer lv1 32/32 42m SW
+  #57 Grazer lv2 41/41 47m SW
+  #91 Grazer lv1 32/32 48m E
+  #49 Grazer lv1 32/32 53m SW
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  Progress: Coal for the Watch: Coal 2/6
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 4.
+== North Gate Rocks lv1-2 | 12:00 day | at -36,-113 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 363/900 | 1s 60c | rested 0 | bags 11/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 39m SW (-53,-78)
+  [coal_for_the_watch] Coal for the Watch: Coal 3/6 -> gather Coal (use: gather coal) 3m E (-33,-114)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 301m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 144m N (0,-253)
+Creatures within 60m (4):
+  #54 Grazer lv1 32/32 39m SW
+  #57 Grazer lv2 41/41 45m SW
+  #91 Grazer lv1 32/32 49m E
+  #49 Grazer lv1 32/32 53m SW
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  Progress: Coal for the Watch: Coal 3/6
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 5.
+== North Gate Rocks lv1-2 | 13:00 day | at -36,-113 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 363/900 | 1s 60c | rested 0 | bags 11/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 37m SW (-53,-80)
+  [coal_for_the_watch] Coal for the Watch: Coal 4/6 -> gather Coal (use: gather coal) 3m NE (-34,-116)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 301m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 144m N (0,-253)
+Creatures within 60m (4):
+  #54 Grazer lv1 32/32 37m SW
+  #57 Grazer lv2 41/41 46m SW
+  #91 Grazer lv1 32/32 51m E
+  #49 Grazer lv1 32/32 53m SW
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  Progress: Coal for the Watch: Coal 4/6
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 6.
+== North Gate Rocks lv1-2 | 13:00 day | at -36,-113 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 363/900 | 1s 60c | rested 0 | bags 11/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 36m SW (-53,-81)
+  [coal_for_the_watch] Coal for the Watch: Coal 5/6 -> gather Coal (use: gather coal) 4m N (-36,-117)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 301m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 144m N (0,-253)
+Creatures within 60m (4):
+  #54 Grazer lv1 32/32 36m SW
+  #57 Grazer lv2 41/41 49m SW
+  #91 Grazer lv1 32/32 52m E
+  #49 Grazer lv1 32/32 53m SW
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  Progress: Coal for the Watch: Coal 5/6
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 7.
+== North Gate Rocks lv1-2 | 13:00 day | at -36,-113 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 363/900 | 1s 60c | rested 0 | bags 11/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 36m SW (-53,-81)
+  [coal_for_the_watch] READY Coal for the Watch: Coal 6/6 -> turn in to Old Brannoc 123m S (-3,5)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 301m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 144m N (0,-253)
+Creatures within 60m (4):
+  #54 Grazer lv1 32/32 36m SW
+  #57 Grazer lv2 41/41 49m SW
+  #91 Grazer lv1 32/32 51m E
+  #49 Grazer lv1 32/32 54m SW
+[ready]
+> attack grazer
+fight Grazer #54: done (it died) in 6 s, +29 xp (took 0 damage, 2 casts)
+Events:
+  Progress: Coal for the Watch: Coal 6/6
+  Killed Grazer (+29 xp)
+== North Gate Rocks lv1-2 | 13:00 day | at -36,-102 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 93/116 | XP 392/900 | 1s 60c | rested 0 | bags 11/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 44m W (-79,-93)
+  [coal_for_the_watch] READY Coal for the Watch: Coal 6/6 -> turn in to Old Brannoc 112m S (-3,5)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 290m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 155m N (0,-253)
+Creatures within 60m (2):
+  #57 Grazer lv2 41/41 44m W
+  #49 Grazer lv1 32/32 47m SW
+Lootable corpses: Grazer corpse #101 21m SW (yours)
+Players near: Sable 4m NE
+[ready]
+> loot
+loot: done (nothing left) in 6 s
+Events:
+  Entered Hearthmeadow
+  +1 Raw meat
+  You receive loot: Raw meat
+== Hearthmeadow lv1-2 | 14:00 day | at -46,-88 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 100/116 | XP 392/900 | 1s 60c | rested 0 | bags 11/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 25m SW (-65,-71)
+  [coal_for_the_watch] READY Coal for the Watch: Coal 6/6 -> turn in to Old Brannoc 102m SE (-3,5)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 278m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 171m N (0,-253)
+Creatures within 60m (5):
+  #49 Grazer lv1 32/32 25m SW
+  #57 Grazer lv2 41/41 33m W
+  #88 Grazer lv2 41/41 50m SW
+  #45 Grazer lv1 32/32 52m SW
+  #96 Grazer lv1 32/32 55m W
+Players near: Sable 25m E
+[ready]
+> turnin coal
+turn in at Old Brannoc: done (talked) in 23 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+Events:
+  Entered Hearthstead (safe)
+  +16 Torch
+  QUEST COMPLETE: Coal for the Watch
+== Hearthstead (safe) lv1-1 | 14:00 day | at -5,1 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 562/900 | 2s 30c | rested 0 | bags 11/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 89m SW (-65,67)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 183m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 254m N (0,-253)
+Players near: Sable 24m S
+[ready]
+> accept all
+No quest to accept matches 'all'.
+== Hearthstead (safe) lv1-1 | 14:00 day | at -5,1 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 562/900 | 2s 30c | rested 0 | bags 11/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 89m SW (-65,67)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 183m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 254m N (0,-253)
+Players near: Sable 24m S
+[ready]
+> turnin wool
+[wool_for_winter] is not finished: Wool for Winter: White 7/8
+== Hearthstead (safe) lv1-1 | 14:00 day | at -5,1 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 562/900 | 2s 30c | rested 0 | bags 11/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 89m SW (-65,67)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 183m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 254m N (0,-253)
+Players near: Sable 25m S
+[ready]
+> accept all
+No quest to accept matches 'all'.
+== Hearthstead (safe) lv1-1 | 14:00 day | at -5,1 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 562/900 | 2s 30c | rested 0 | bags 11/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 89m SW (-65,67)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 183m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 254m N (0,-253)
+Players near: Sable 27m S
+[ready]
+> equip best
+Nothing in your bags is an upgrade.
+== Hearthstead (safe) lv1-1 | 14:00 day | at -5,1 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 562/900 | 2s 30c | rested 0 | bags 11/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 89m SW (-65,67)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 183m S (17,183)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 254m N (0,-253)
+Players near: Sable 28m S
+[ready]
+> goto broken_tower
+goto explore the Broken Tower: done (arrived) in 32 s, +25 xp
+Events:
+  Entered Hearthmeadow
+  Entered The Broken Tower
+  Discovered: The Broken Tower (+25 XP)
+  Progress: The Broken Tower: explore the Broken Tower (done)
+== The Broken Tower lv1-2 | 15:00 day | at 17,179 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 587/900 | 2s 30c | rested 0 | bags 11/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 50m NW (-15,141)
+  [broken_tower] READY The Broken Tower: explore the Broken Tower (done) -> turn in to Guard Tolan 223m N (4,-44)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 432m N (0,-253)
+Creatures within 60m (2):
+  #113 Grazer lv2 41/41 50m NW
+  #110 Grazer lv2 41/41 53m NW
+Players near: Sable 26m N
+[ready]
+> turnin broken_tower
+turn in at Guard Tolan: done (talked) in 46 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+  offers [lay_of_the_land] The Lay of the Land (lv2): If you're to be any use to the Watch, learn the meadow. Go and stand in two places: the Old Quarry north-west of this gate, and the Trapper's Camp on the west trail beyond it.
+Events:
+  Entered Hearthmeadow
+  Entered Hearthstead (safe)
+  QUEST COMPLETE: The Broken Tower
+== Hearthstead (safe) lv1-1 | 16:00 day | at 2,-38 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 677/900 | 2s 70c | rested 0 | bags 11/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 69m NW (-59,-69)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 215m N (0,-253)
+Players near: Sable 4m NE
+[ready]
+> accept all
+accept at Guard Tolan: done (talked) in 0 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+  in progress: [lay_of_the_land]
+Events:
+  Quest accepted: The Lay of the Land [lay_of_the_land]
+== Hearthstead (safe) lv1-1 | 16:00 day | at 2,-38 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 116/116 | XP 677/900 | 2s 70c | rested 0 | bags 11/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 69m NW (-59,-70)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 215m N (0,-253)
+  [lay_of_the_land] The Lay of the Land: explore the Old Quarry , explore the Trapper's Camp  -> explore the Old Quarry 201m NW (-158,-160)
+Players near: Sable 4m NE
+[ready]
+> attack grazer
+fight Grazer #45: done (it died) in 11 s, +29 xp (took 0 damage, 2 casts)
+Events:
+  Killed Grazer (+29 xp)
+== Hearthstead (safe) lv1-1 | 16:00 day | at -38,-57 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 96/116 | XP 706/900 | 2s 70c | rested 0 | bags 11/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 33m NW (-63,-79)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 200m N (0,-253)
+  [lay_of_the_land] The Lay of the Land: explore the Old Quarry , explore the Trapper's Camp  -> explore the Old Quarry 158m NW (-158,-160)
+Creatures within 60m (3):
+  #49 Grazer lv1 32/32 33m NW
+  #122 Grazer lv2 41/41 44m NW
+  #88 Grazer lv2 41/41 50m W
+Lootable corpses: Grazer corpse #124 16m NW (yours)
+Players near: Sable 36m N
+[ready]
+> loot
+loot: done (nothing left) in 14 s
+Events:
+  +1 Grazer-hide Leggings
+  You receive loot: Grazer-hide Leggings
+== Hearthstead (safe) lv1-1 | 16:00 day | at -46,-68 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 706/900 | 2s 70c | rested 1 | bags 12/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 22m NW (-64,-81)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 191m N (0,-253)
+  [lay_of_the_land] The Lay of the Land: explore the Old Quarry , explore the Trapper's Camp  -> explore the Old Quarry 145m NW (-158,-160)
+Creatures within 60m (5):
+  #49 Grazer lv1 32/32 22m NW
+  #122 Grazer lv2 41/41 26m NW
+  #88 Grazer lv2 41/41 40m W
+  #57 Grazer lv2 41/41 48m NW
+  #96 Grazer lv1 32/32 60m W
+[ready]
+> goto -158,-160
+goto -158,-160: done (arrived) in 25 s, +25 xp
+Events:
+  Entered Hearthmeadow
+  Entered The Old Quarry
+  Discovered: The Old Quarry (+25 XP)
+  Progress: The Lay of the Land: explore the Old Quarry (done), explore the Trapper's Camp 
+== The Old Quarry lv1-2 | 17:00 day | at -157,-160 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 731/900 | 2s 70c | rested 1 | bags 12/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 70m NW (-203,-212)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 182m NE (0,-253)
+  [lay_of_the_land] The Lay of the Land: explore the Old Quarry (done), explore the Trapper's Camp  -> explore the Trapper's Camp 175m S (-177,14)
+[ready]
+> goto -177,14
+goto -177,14: done (arrived) in 31 s, +25 xp
+Events:
+  Dusk is coming. Find light.
+  Nightfall: Shades gather at the south gate of Hearthstead!
+  World event: Nightfall Incursion
+  Entered Hearthmeadow
+  Wave 1 of 3 pours out of the dark!
+  Entered Trapper's Camp
+  Discovered: Trapper's Camp (+25 XP)
+  Progress: The Lay of the Land: explore the Old Quarry (done), explore the Trapper's Camp (done)
+== Trapper's Camp lv1-2 | 17:00 day | at -176,13 (from hearth; north is -z)
+Isolde lv2 Mage | HP 50/50 | Mana 115/116 | XP 756/900 | 2s 70c | rested 1 | bags 12/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 54m NE (-134,-20)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 319m NE (0,-253)
+  [lay_of_the_land] READY The Lay of the Land: explore the Old Quarry (done), explore the Trapper's Camp (done) -> turn in to Guard Tolan 189m E (4,-44)
+Creatures within 60m (4):
+  #136 Thornboar lv1 48/48 40m S hostile
+  #134 Grazer lv2 41/41 54m NE
+  #133 Grazer lv1 32/32 54m NE
+  #129 Grazer lv1 32/32 60m E
+[ready]
+> turnin lay
+turn in at Guard Tolan: done (talked) in 38 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+Events:
+  Entered Hearthmeadow
+  Entered Hearthstead (safe)
+  Wave 2 of 3 pours out of the dark!
+  +1 Woolen Cloak
+  LEVEL UP: you are now level 3
+  Isolde reached level 3!
+  QUEST COMPLETE: The Lay of the Land
+== Hearthstead (safe) lv1-1 | 18:00 NIGHT | at 0,-46 (from hearth; north is -z)
+Isolde lv3 Mage | HP 55/55 | Mana 132/132 | XP 56/1400 | 3s 60c | rested 1 | bags 13/36
+World event: Nightfall Incursion: Wave 2 of 3: 8 Shades destroyed
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 66m NW (-57,-79)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 207m N (0,-253)
+Players near: Sable 2m W
+[ready]
+> turnin wool
+[wool_for_winter] is not finished: Wool for Winter: White 7/8
+== Hearthstead (safe) lv1-1 | 18:00 NIGHT | at 0,-46 (from hearth; north is -z)
+Isolde lv3 Mage | HP 55/55 | Mana 132/132 | XP 56/1400 | 3s 60c | rested 1 | bags 13/36
+World event: Nightfall Incursion: Wave 2 of 3: 8 Shades destroyed
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 66m NW (-57,-79)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 207m N (0,-253)
+Players near: Sable 2m W
+[ready]
+> equip best
+Equipping Woolen Cloak
+Events:
+  Equipped Woolen Cloak
+== Hearthstead (safe) lv1-1 | 18:00 NIGHT | at 0,-46 (from hearth; north is -z)
+Isolde lv3 Mage | HP 55/55 | Mana 132/132 | XP 56/1400 | 3s 60c | rested 1 | bags 13/36
+World event: Nightfall Incursion: Wave 2 of 3: 8 Shades destroyed
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 66m NW (-57,-79)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 207m N (0,-253)
+Players near: Sable 2m W
+[ready]
+> goto 0,-253
+goto 0,-253: done (arrived) in 34 s, +35 xp
+Events:
+  Entered Hearthmeadow
+  Wave 3 of 3 pours out of the dark!
+  The Watch holds! Hearthstead stands through the night.
+  Entered The North Watch (safe)
+  Discovered: The North Watch (+35 XP)
+  Progress: The North Watch: explore the North Watch beacon (done)
+== The North Watch (safe) lv2-3 | 21:00 NIGHT | at 0,-252 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 91/1400 | 3s 60c | rested 2 | bags 12/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 93m S (12,-159)
+  [north_watch] READY The North Watch: explore the North Watch beacon (done) -> turn in to Sergeant Holt 2m E (2,-251)
+  ? Sergeant Holt <The North Watch> 2m E (2,-251) turn in: north_watch
+Creatures within 60m (1):
+  #156 Thornboar lv2 61/61 55m SW hostile
+Players near: Sable 0m here
+[ready]
+> turnin north_watch
+turn in at Sergeant Holt: done (talked) in 0 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  offers [eyes_in_the_dark] Eyes in the Dark (lv3): East of this tower the wood goes dim, and after dusk the Shades stand among the trees. They pass over the green and the weak until struck: strike first, one at a time. Destroy 5 of them.
+  offers [watchfire] Feed the Watchfire (lv3): The watchfire eats coal. There is a seam in the Beacon Rocks, a stone's throw east of the tower: bring me 3 coal and it burns through the night.
+  offers [boar_trouble] Boar Trouble (lv3): Thornboars charge anything on the north road. There is a pack either side of this tower: five fewer would make it walkable again.
+  offers [garricks_camp] Garrick's Camp (lv3): West of here Foreman Garrick runs the logging camp. He sent for help two days ago. Go.
+  offers [lookouts_eye] A Lookout's Eye (lv3): From the hill up the road you can see the whole of Birchrise. Climb to the lookout and count the boar packs, so I know what we're up against.
+Events:
+  QUEST COMPLETE: The North Watch
+== The North Watch (safe) lv2-3 | 21:00 NIGHT | at 0,-252 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 211/1400 | 4s 40c | rested 2 | bags 12/36
+Quests (1/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 93m S (12,-159)
+Creatures within 60m (1):
+  #156 Thornboar lv2 61/61 55m SW hostile
+Players near: Sable 0m here
+[ready]
+> accept all
+accept at Sergeant Holt: done (talked) in 0 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  in progress: [eyes_in_the_dark]
+  in progress: [watchfire]
+  in progress: [boar_trouble]
+  in progress: [lookouts_eye]
+Events:
+  Quest accepted: Eyes in the Dark [eyes_in_the_dark]
+  Quest accepted: Feed the Watchfire [watchfire]
+  Quest accepted: Boar Trouble [boar_trouble]
+  Quest accepted: Garrick's Camp [garricks_camp]
+  Quest accepted: A Lookout's Eye [lookouts_eye]
+== The North Watch (safe) lv2-3 | 21:00 NIGHT | at 0,-252 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 211/1400 | 4s 40c | rested 2 | bags 12/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 94m S (12,-159)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 0/3 -> gather Coal (use: gather coal) 135m S (-45,-124)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 54m SW (-44,-221)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 283m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 83m N (-4,-335)
+Creatures within 60m (1):
+  #156 Thornboar lv2 61/61 54m SW hostile [quest]
+Players near: Sable 0m here
+[ready]
+> goto 95,-315
+goto 95,-315: done (arrived) in 22 s, +70 xp
+Events:
+  Entered Hearthmeadow
+  Entered Beacon Rocks
+  Discovered: Beacon Rocks (+35 XP)
+  Entered Hearthmeadow
+  Entered The Dimwood
+  Discovered: The Dimwood (+35 XP)
+== The Dimwood lv2-3 | 22:00 NIGHT | at 94,-314 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 281/1400 | 4s 40c | rested 3 | bags 12/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 64m SE (133,-262)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5 -> kill Shade 29m SW (73,-295)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 671m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 102m S (63,-217)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 337m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 101m W (-4,-335)
+Creatures within 60m (1):
+  #163 Shade lv3 62/62 29m SW hostile [quest]
+Players near: Sable 6m N
+[ready]
+> attack shade
+fight Shade #163: done (it died) in 7 s, +45 xp (took 0 damage, 3 casts)
+Events:
+  You feel normal again.
+  Progress: Eyes in the Dark: Shade 1/5
+  Killed Shade (+45 xp)
+== The Dimwood lv2-3 | 22:00 NIGHT | at 87,-309 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 100/132 | XP 326/1400 | 4s 40c | rested 0 | bags 12/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 66m SE (134,-262)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 1/5
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 677m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 98m S (64,-214)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 332m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 95m W (-4,-335)
+Lootable corpses: Shade corpse #168 9m SW (yours)
+Players near: Sable 7m SW
+[ready]
+> loot
+loot: done (nothing left) in 1 s
+Events:
+  +2 Shade dust
+  +1 Shade Wisp
+  You loot 18c
+  You receive loot: Shade Wisp
+  You receive loot: Shade dust ×2
+== The Dimwood lv2-3 | 22:00 NIGHT | at 84,-306 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 101/132 | XP 326/1400 | 4s 58c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 65m SE (133,-263)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 1/5 -> kill Shade 24m S (81,-282)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 679m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 94m S (66,-213)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 330m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 93m W (-4,-335)
+Creatures within 60m (1):
+  #169 Shade lv2 51/51 24m S hostile [quest]
+Players near: Sable 2m SW
+[ready]
+> attack shade
+fight Shade #169: done (it died) in 3 s, +32 xp (took 0 damage, 2 casts)
+Events:
+  Progress: Eyes in the Dark: Shade 2/5
+  Killed Shade (+32 xp)
+== The Dimwood lv2-3 | 22:00 NIGHT | at 83,-301 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 81/132 | XP 358/1400 | 4s 58c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 64m SE (133,-261)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 2/5 -> kill Shade 31m E (114,-301)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 679m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 86m S (70,-215)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 331m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 94m W (-4,-335)
+Creatures within 60m (1):
+  #170 Shade lv3 62/62 31m E hostile [quest]
+Lootable corpses: Shade corpse #172 18m S (yours)
+Players near: Sable 14m S
+[ready]
+> loot
+loot: done (nothing left) in 2 s
+Events:
+  +2 Shade dust
+  You receive loot: Shade dust ×2
+== The Dimwood lv2-3 | 22:00 NIGHT | at 83,-286 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 83/132 | XP 358/1400 | 4s 58c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 54m SE (132,-263)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 2/5 -> kill Shade 37m E (118,-298)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 676m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 72m S (70,-215)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 336m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 100m NW (-4,-335)
+Creatures within 60m (2):
+  #170 Shade lv3 62/62 37m E hostile [quest]
+  #164 Grazer lv2 41/41 54m SE
+Players near: Sable 3m NE
+[ready]
+> attack shade
+fight Shade #170: done (it died) in 7 s, +42 xp (took 0 damage, 3 casts)
+Events:
+  Progress: Eyes in the Dark: Shade 3/5
+  Killed Shade (+42 xp)
+== The Dimwood lv2-3 | 23:00 NIGHT | at 96,-289 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 59/132 | XP 400/1400 | 4s 58c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 39m SE (129,-267)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 3/5
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 663m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 71m S (95,-218)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 347m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 110m NW (-4,-335)
+Creatures within 60m (2):
+  #164 Grazer lv2 41/41 39m SE
+  #165 Grazer lv2 41/41 59m E
+Lootable corpses: Shade corpse #173 20m E (yours)
+Players near: Sable 15m NE
+[ready]
+> loot
+loot: done (nothing left) in 4 s
+Events:
+  +1 Shade Wisp
+  +1 Shade dust
+  You loot 9c
+  You receive loot: Shade Wisp
+  You receive loot: Shade dust
+== The Dimwood lv2-3 | 23:00 NIGHT | at 111,-297 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 62/132 | XP 400/1400 | 4s 67c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 34m SE (129,-268)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 3/5 -> kill Shade 28m NE (134,-313)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 651m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 80m S (95,-218)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 358m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 121m W (-4,-335)
+Creatures within 60m (4):
+  #174 Shade lv3 62/62 28m NE hostile [quest]
+  #164 Grazer lv2 41/41 34m SE
+  #165 Grazer lv2 41/41 49m SE
+  #167 Grazer lv1 32/32 54m SE
+Players near: Sable 0m here
+[ready]
+> attack shade
+fight Shade #174: done (it died) in 5 s, +42 xp (took 0 damage, 3 casts)
+Events:
+  Progress: Eyes in the Dark: Shade 4/5
+  Killed Shade (+42 xp)
+== The Dimwood lv2-3 | 23:00 NIGHT | at 115,-300 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 52/132 | XP 442/1400 | 4s 67c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 35m SE (129,-268)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 4/5 -> kill Shade 20m N (118,-320)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 648m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 90m S (100,-212)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 361m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 124m W (-4,-335)
+Creatures within 60m (4):
+  #175 Shade lv3 62/62 20m N hostile [quest]
+  #164 Grazer lv2 41/41 35m SE
+  #165 Grazer lv2 41/41 44m SE
+  #167 Grazer lv1 32/32 52m SE
+Lootable corpses: Shade corpse #176 16m NE (yours)
+Players near: Sable 14m NE
+[ready]
+> loot
+loot: done (nothing left) in 3 s
+Events:
+  Interrupted.
+  +2 Shade dust
+  +1 Shade Wisp
+  You receive loot: Shade Wisp
+  You receive loot: Shade dust ×2
+== The Dimwood lv2-3 | 23:00 NIGHT | at 124,-308 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 54/132 | XP 442/1400 | 4s 67c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 38m S (129,-271)
+  [eyes_in_the_dark] Eyes in the Dark: Shade 4/5 -> kill Shade 13m N (119,-320)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 641m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 100m S (101,-211)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 366m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 131m W (-4,-335)
+Creatures within 60m (4):
+  #175 Shade lv3 62/62 13m N hostile [quest]
+  #164 Grazer lv2 41/41 38m S
+  #165 Grazer lv2 41/41 44m SE
+  #167 Grazer lv1 32/32 51m SE
+Players near: Sable 3m E
+[ready]
+> attack shade
+fight Shade #175: done (it died) in 4 s, +42 xp (took 0 damage, 3 casts)
+Events:
+  Progress: Eyes in the Dark: Shade 5/5
+  Killed Shade (+42 xp)
+== The Dimwood lv2-3 | 23:00 NIGHT | at 124,-308 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 24/132 | XP 484/1400 | 4s 67c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 36m S (128,-272)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 134m SW (2,-251)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 641m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 100m S (101,-211)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 366m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 131m W (-4,-335)
+Creatures within 60m (3):
+  #164 Grazer lv2 41/41 36m S
+  #165 Grazer lv2 41/41 44m SE
+  #167 Grazer lv1 32/32 50m SE
+Lootable corpses: Shade corpse #177 8m NW (yours)
+Players near: Sable 3m E
+[ready]
+> loot
+loot: done (nothing left) in 1 s
+Events:
+  +1 Shade dust
+  You loot 21c
+  You receive loot: Shade dust
+== The Dimwood lv2-3 | 23:00 NIGHT | at 121,-311 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 25/132 | XP 484/1400 | 4s 88c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 39m S (128,-272)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 133m SW (2,-251)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 645m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 102m S (101,-211)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 363m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 127m W (-4,-335)
+Creatures within 60m (3):
+  #164 Grazer lv2 41/41 39m S
+  #165 Grazer lv2 41/41 48m SE
+  #167 Grazer lv1 32/32 54m SE
+Players near: Sable 6m E
+[ready]
+> rest
+rest: done (rested) in 24 s
+== The Dimwood lv2-3 | 01:00 NIGHT | at 121,-311 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 127/132 | XP 484/1400 | 4s 88c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 42m S (122,-269)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 133m SW (2,-251)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 645m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 97m SW (72,-227)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 363m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 127m W (-4,-335)
+Creatures within 60m (5):
+  #183 Shade lv3 62/62 34m W hostile [quest]
+  #181 Shade lv2 51/51 38m W hostile [quest]
+  #164 Grazer lv2 41/41 42m S
+  #165 Grazer lv2 41/41 45m SE
+  #167 Grazer lv1 32/32 51m SE
+[ready]
+> attack grazer
+fight Grazer #164: done (it died) in 8 s, +32 xp (took 0 damage, 3 casts)
+Events:
+  Killed Grazer (+32 xp)
+== The Dimwood lv2-3 | 01:00 NIGHT | at 121,-291 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 110/132 | XP 516/1400 | 4s 88c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 32m SE (149,-277)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 126m W (2,-251)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 640m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 80m SW (72,-227)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m W (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 132m W (-4,-335)
+Creatures within 60m (4):
+  #165 Grazer lv2 41/41 32m SE
+  #167 Grazer lv1 32/32 38m SE
+  #183 Shade lv3 62/62 38m NW hostile [quest]
+  #181 Shade lv2 51/51 49m NW hostile [quest]
+Lootable corpses: Grazer corpse #184 13m S (yours)
+[ready]
+> loot
+loot: done (nothing left) in 2 s
+Events:
+  +2 White
+  +1 Torn Grazer Hide
+  +2 Raw meat
+  You receive loot: Torn Grazer Hide
+  You receive loot: White ×2
+  You receive loot: Raw meat ×2
+  Progress: Wool for Winter: White 8/8
+== The Dimwood lv2-3 | 01:00 NIGHT | at 121,-282 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 111/132 | XP 516/1400 | 4s 88c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 319m SW (-11,8)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 123m W (2,-251)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 637m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 73m SW (72,-227)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 373m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 136m NW (-4,-335)
+Creatures within 60m (7):
+  #165 Grazer lv2 41/41 30m E
+  #185 Shade lv2 51/51 32m W hostile [quest]
+  #167 Grazer lv1 32/32 34m E
+  #183 Shade lv3 62/62 43m NW hostile [quest]
+  #181 Shade lv2 51/51 54m NW hostile [quest]
+  #166 Grazer lv2 41/41 56m SE
+  #171 Grazer lv1 32/32 58m SE
+[ready]
+> goto 45,-275
+goto 45,-275: done (arrived) in 17 s
+Events:
+  Entered Hearthmeadow
+  Entered Beacon Rocks
+== Beacon Rocks lv2-3 | 02:00 NIGHT | at 46,-275 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 516/1400 | 4s 88c | rested 0 | bags 14/36
+Quests (6/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 289m S (-11,8)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 50m SW (2,-251)
+  [watchfire] Feed the Watchfire: Coal 0/3 -> Coal (dropped by Candlekin) 710m E (742,-138)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 63m SE (72,-218)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 308m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 78m NW (-4,-335)
+  ? Sergeant Holt <The North Watch> 50m SW (2,-251) turn in: eyes_in_the_dark
+Creatures within 60m (2):
+  #185 Shade lv2 51/51 33m NE hostile [quest]
+  #183 Shade lv3 62/62 46m NE hostile [quest]
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal ×2) in 2 s
+Events:
+  +2 Coal
+  You gather: Coal ×2
+  Your skill in Mining has increased to 8.
+  Progress: Feed the Watchfire: Coal 2/3
+== Beacon Rocks lv2-3 | 02:00 NIGHT | at 46,-275 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 516/1400 | 4s 88c | rested 0 | bags 15/36
+Quests (6/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 289m S (-11,8)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 50m SW (2,-251)
+  [watchfire] Feed the Watchfire: Coal 2/3 -> gather Coal (use: gather coal) 3m NW (43,-277)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 65m SE (71,-215)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 308m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 78m NW (-4,-335)
+  ? Sergeant Holt <The North Watch> 50m SW (2,-251) turn in: eyes_in_the_dark
+Creatures within 60m (2):
+  #185 Shade lv2 51/51 34m E hostile [quest]
+  #183 Shade lv3 62/62 46m NE hostile [quest]
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 9.
+  Progress: Feed the Watchfire: Coal 3/3
+== Beacon Rocks lv2-3 | 02:00 NIGHT | at 46,-275 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 516/1400 | 4s 88c | rested 0 | bags 15/36
+Quests (6/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 289m S (-11,8)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 50m SW (2,-251)
+  [watchfire] READY Feed the Watchfire: Coal 3/3 -> turn in to Sergeant Holt 50m SW (2,-251)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 65m S (70,-215)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 308m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 78m NW (-4,-335)
+  ? Sergeant Holt <The North Watch> 50m SW (2,-251) turn in: eyes_in_the_dark, watchfire
+Creatures within 60m (2):
+  #185 Shade lv2 51/51 37m E hostile [quest]
+  #183 Shade lv3 62/62 45m NE hostile [quest]
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 10.
+== Beacon Rocks lv2-3 | 02:00 NIGHT | at 46,-275 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 516/1400 | 4s 88c | rested 0 | bags 15/36
+Quests (6/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 289m S (-11,8)
+  [eyes_in_the_dark] READY Eyes in the Dark: Shade 5/5 -> turn in to Sergeant Holt 50m SW (2,-251)
+  [watchfire] READY Feed the Watchfire: Coal 3/3 -> turn in to Sergeant Holt 50m SW (2,-251)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 65m S (70,-215)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 308m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 78m NW (-4,-335)
+  ? Sergeant Holt <The North Watch> 50m SW (2,-251) turn in: eyes_in_the_dark, watchfire
+Creatures within 60m (2):
+  #185 Shade lv2 51/51 39m E hostile [quest]
+  #183 Shade lv3 62/62 44m E hostile [quest]
+[ready]
+> turnin eyes 1
+turn in at Sergeant Holt: done (talked) in 8 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  ready to turn in: [watchfire] choices: none
+  in progress: [boar_trouble]
+  in progress: [lookouts_eye]
+Events:
+  Entered Hearthmeadow
+  Entered The North Watch (safe)
+  +1 Shadowweave Gloves
+  QUEST COMPLETE: Eyes in the Dark
+== The North Watch (safe) lv2-3 | 02:00 NIGHT | at 6,-252 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 776/1400 | 6s 8c | rested 0 | bags 16/36
+Quests (5/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 261m S (-11,8)
+  [watchfire] READY Feed the Watchfire: Coal 3/3 -> turn in to Sergeant Holt 4m W (2,-251)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 66m SW (-53,-223)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 288m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 83m N (-4,-335)
+  ? Sergeant Holt <The North Watch> 4m W (2,-251) turn in: watchfire
+Players near: Sable 0m here
+[ready]
+> turnin watchfire
+turn in at Sergeant Holt: done (talked) in 0 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  in progress: [boar_trouble]
+  in progress: [lookouts_eye]
+Events:
+  QUEST COMPLETE: Feed the Watchfire
+== The North Watch (safe) lv2-3 | 02:00 NIGHT | at 6,-252 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 876/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 261m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 65m SE (64,-222)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 288m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 83m N (-4,-335)
+Players near: Sable 0m here
+[ready]
+> equip best
+Nothing in your bags is an upgrade.
+== The North Watch (safe) lv2-3 | 02:00 NIGHT | at 6,-252 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 876/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 261m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 65m SE (64,-221)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 288m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 83m N (-4,-335)
+Players near: Sable 0m here
+[ready]
+> rest
+rest: done (rested) in 0 s
+== The North Watch (safe) lv2-3 | 02:00 NIGHT | at 6,-252 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 876/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 261m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 65m SE (63,-221)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 288m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 83m N (-4,-335)
+Players near: Sable 0m here
+[ready]
+> goto 60,-225
+goto 60,-225: done (arrived) in 11 s
+Events:
+  Entered Hearthmeadow
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 59,-226 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 876/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 244m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 14m W (45,-222)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 346m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 126m NW (-4,-335)
+Creatures within 60m (8):
+  #161 Thornboar lv2 27/61 14m W hostile [quest]
+  #155 Thornboar lv2 61/61 23m SE hostile [quest]
+  #80 Grazer lv1 32/32 26m S
+  #158 Thornboar lv2 61/61 31m SE hostile [quest]
+  #159 Thornboar lv3 75/75 40m SE hostile [quest]
+  #60 Grazer lv1 32/32 48m SW
+  #61 Grazer lv2 41/41 58m S
+Players near: Sable 14m W
+[ready]
+> attack thornboar
+fight Thornboar #161: done (it died) in 0 s (took 0 damage, 1 casts)
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 59,-226 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 876/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 244m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 19m SE (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 346m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 126m NW (-4,-335)
+Creatures within 60m (7):
+  #155 Thornboar lv2 61/61 22m SE hostile [quest]
+  #80 Grazer lv1 32/32 26m S
+  #158 Thornboar lv2 61/61 31m SE hostile [quest]
+  #159 Thornboar lv3 75/75 40m SE hostile [quest]
+  #60 Grazer lv1 32/32 48m SW
+  #61 Grazer lv2 41/41 59m S
+  #58 Grazer lv2 41/41 59m S
+Lootable corpses: Thornboar corpse #187 14m W
+Players near: Sable 14m W
+[ready]
+> loot
+loot: FAILED (not ours to loot) after 4 s
+Events:
+  Interrupted.
+  That is not yours to loot.
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 48,-223 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 876/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 239m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 25m SE (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 339m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 123m NW (-4,-335)
+Creatures within 60m (6):
+  #155 Thornboar lv2 41/61 27m SE hostile [quest]
+  #80 Grazer lv1 32/32 29m SE
+  #158 Thornboar lv2 61/61 34m SE hostile [quest]
+  #60 Grazer lv1 32/32 39m SW
+  #159 Thornboar lv3 75/75 46m SE hostile [quest]
+  #58 Grazer lv2 41/41 58m S
+Lootable corpses: Thornboar corpse #187 3m SW
+Players near: Sable 25m SE
+[ready]
+> rest
+rest: done (rested) in 0 s
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 48,-223 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 876/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 239m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 25m SE (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 339m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 123m NW (-4,-335)
+Creatures within 60m (6):
+  #155 Thornboar lv2 41/61 26m SE hostile [quest]
+  #80 Grazer lv1 32/32 30m SE
+  #158 Thornboar lv2 61/61 34m SE hostile [quest]
+  #60 Grazer lv1 32/32 39m SW
+  #159 Thornboar lv3 75/75 46m SE hostile [quest]
+  #58 Grazer lv2 41/41 58m S
+Lootable corpses: Thornboar corpse #187 3m SW
+Players near: Sable 25m SE
+[ready]
+> attack thornboar
+fight Thornboar #155: done (it died) in 2 s, +22 xp (took 0 damage, 1 casts)
+Events:
+  Progress: Boar Trouble: Thornboar 1/5
+  Killed Thornboar (+22 xp)
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 48,-223 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 122/132 | XP 898/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 239m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 1/5 -> kill Thornboar 25m SE (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 339m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 123m NW (-4,-335)
+Creatures within 60m (5):
+  #80 Grazer lv1 32/32 31m SE
+  #158 Thornboar lv2 61/61 34m SE hostile [quest]
+  #60 Grazer lv1 32/32 39m SW
+  #159 Thornboar lv3 75/75 46m SE hostile [quest]
+  #58 Grazer lv2 41/41 59m S
+Lootable corpses: Thornboar corpse #187 3m SW
+Players near: Sable 25m SE
+[ready]
+> loot
+loot: FAILED (not ours to loot) after 2 s
+Events:
+  That is not yours to loot.
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 48,-223 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 124/132 | XP 898/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 239m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 1/5 -> kill Thornboar 25m SE (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 339m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 123m NW (-4,-335)
+Creatures within 60m (4):
+  #80 Grazer lv1 32/32 32m SE
+  #158 Thornboar lv2 61/61 34m SE hostile [quest]
+  #60 Grazer lv1 32/32 38m SW
+  #159 Thornboar lv3 75/75 46m SE hostile [quest]
+Lootable corpses: Thornboar corpse #187 3m SW
+Players near: Sable 30m SE
+[ready]
+> rest
+rest: done (rested) in 3 s
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 48,-223 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 126/132 | XP 898/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 239m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 1/5 -> kill Thornboar 25m SE (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 339m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 123m NW (-4,-335)
+Creatures within 60m (4):
+  #80 Grazer lv1 32/32 33m S
+  #158 Thornboar lv2 22/61 34m SE hostile [quest]
+  #60 Grazer lv1 32/32 36m SW
+  #159 Thornboar lv3 75/75 46m SE hostile [quest]
+Lootable corpses: Thornboar corpse #187 3m SW
+Players near: Sable 33m SE
+[ready]
+> attack thornboar
+fight Thornboar #158: done (it died) in 2 s (took 0 damage, 0 casts)
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 53,-213 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 131/132 | XP 898/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 230m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 1/5 -> kill Thornboar 17m E (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 348m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 135m NW (-4,-335)
+Creatures within 60m (5):
+  #80 Grazer lv1 32/32 22m S
+  #60 Grazer lv1 32/32 28m SW
+  #159 Thornboar lv3 75/75 38m SE hostile [quest]
+  #58 Grazer lv2 41/41 52m S
+  #61 Grazer lv2 41/41 53m SE
+Lootable corpses: Thornboar corpse #189 23m SE; Thornboar corpse #187 12m NW
+Players near: Sable 22m SE
+[ready]
+> loot
+loot: FAILED (not ours to loot) after 3 s
+Events:
+  That is not yours to loot.
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at 47,-219 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 131/132 | XP 898/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 234m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 1/5 -> kill Thornboar 24m E (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 341m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 127m NW (-4,-335)
+Creatures within 60m (4):
+  #80 Grazer lv1 32/32 29m SE
+  #60 Grazer lv1 32/32 29m S
+  #159 Thornboar lv3 75/75 48m SE hostile [quest]
+  #58 Grazer lv2 41/41 57m S
+Lootable corpses: Thornboar corpse #187 4m NW
+Players near: Sable 38m SE
+[ready]
+> rest
+rest: done (rested) in 0 s
+== Hearthmeadow lv1-2 | 05:00 NIGHT | at 47,-219 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 131/132 | XP 898/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 234m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 1/5 -> kill Thornboar 24m E (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 341m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 127m NW (-4,-335)
+Creatures within 60m (5):
+  #80 Grazer lv1 32/32 29m SE
+  #60 Grazer lv1 32/32 29m S
+  #159 Thornboar lv3 75/75 49m SE hostile [quest]
+  #58 Grazer lv2 41/41 57m S
+  #61 Grazer lv2 41/41 60m SE
+Lootable corpses: Thornboar corpse #187 4m NW
+[ready]
+> attack thornboar
+fight Thornboar #159: done (it died) in 5 s, +29 xp (took 0 damage, 1 casts)
+Events:
+  Progress: Boar Trouble: Thornboar 2/5
+  Killed Thornboar (+29 xp)
+== Hearthmeadow lv1-2 | 05:00 NIGHT | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 120/132 | XP 927/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 2/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (4):
+  #80 Grazer lv1 32/32 17m SW
+  #61 Grazer lv2 41/41 35m S
+  #60 Grazer lv1 32/32 38m SW
+  #58 Grazer lv2 41/41 42m S
+Lootable corpses: Thornboar corpse #190 20m SE (yours)
+Players near: Sable 19m SE
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+== Hearthmeadow lv1-2 | 05:00 NIGHT | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 121/132 | XP 927/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 2/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (4):
+  #80 Grazer lv1 32/32 17m SW
+  #61 Grazer lv2 41/41 35m S
+  #60 Grazer lv1 32/32 38m SW
+  #58 Grazer lv2 41/41 42m S
+Players near: Sable 19m SE
+[ready]
+> rest
+rest: done (rested) in 5 s
+== Hearthmeadow lv1-2 | 05:00 NIGHT | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 128/132 | XP 927/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 2/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (4):
+  #80 Grazer lv1 32/32 17m SW
+  #61 Grazer lv2 41/41 35m S
+  #60 Grazer lv1 32/32 37m W
+  #58 Grazer lv2 41/41 44m S
+[ready]
+> attack thornboar
+Nothing to attack matches 'thornboar'.
+== Hearthmeadow lv1-2 | 05:00 NIGHT | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 128/132 | XP 927/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 2/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (4):
+  #80 Grazer lv1 32/32 17m SW
+  #61 Grazer lv2 41/41 35m S
+  #60 Grazer lv1 32/32 37m W
+  #58 Grazer lv2 41/41 44m S
+[ready]
+> loot
+No lootable corpse within 30m.
+== Hearthmeadow lv1-2 | 05:00 NIGHT | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 128/132 | XP 927/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 2/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (4):
+  #80 Grazer lv1 32/32 17m SW
+  #61 Grazer lv2 41/41 35m S
+  #60 Grazer lv1 32/32 37m W
+  #58 Grazer lv2 41/41 44m S
+[ready]
+> attack thornboar
+fight Thornboar #196: done (it died) in 5 s, +32 xp (took 0 damage, 3 casts)
+Events:
+  Day 2 dawns in the valley.
+  Progress: Boar Trouble: Thornboar 3/5
+  Killed Thornboar (+32 xp)
+== Hearthmeadow lv1-2 | 06:00 day | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 99/132 | XP 959/1400 | 6s 68c | rested 0 | bags 16/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 3/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (8):
+  #197 Thornboar lv2 61/61 6m NE hostile [quest]
+  #80 Grazer lv1 32/32 16m SW
+  #194 Thornboar lv3 75/75 22m W hostile [quest]
+  #193 Thornboar lv2 61/61 31m NE hostile [quest]
+  #61 Grazer lv2 41/41 35m S
+  #58 Grazer lv2 41/41 40m S
+  #60 Grazer lv1 32/32 41m SW
+Lootable corpses: Thornboar corpse #198 4m S (yours)
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Boar Tusk
+  +1 Raw meat
+  You receive loot: Boar Tusk
+  You receive loot: Raw meat
+== Hearthmeadow lv1-2 | 06:00 day | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 99/132 | XP 959/1400 | 6s 68c | rested 0 | bags 17/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 3/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (8):
+  #197 Thornboar lv2 61/61 6m NE hostile [quest]
+  #80 Grazer lv1 32/32 16m SW
+  #194 Thornboar lv3 75/75 22m W hostile [quest]
+  #193 Thornboar lv2 61/61 32m NE hostile [quest]
+  #61 Grazer lv2 41/41 35m S
+  #58 Grazer lv2 41/41 40m S
+  #60 Grazer lv1 32/32 41m SW
+[ready]
+> rest
+rest: done (rested) in 12 s
+== Hearthmeadow lv1-2 | 06:00 day | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 127/132 | XP 959/1400 | 6s 68c | rested 0 | bags 17/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 3/5 -> kill Thornboar 4m E (77,-206)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (8):
+  #197 Thornboar lv2 61/61 4m E hostile [quest]
+  #80 Grazer lv1 32/32 21m SW
+  #61 Grazer lv2 41/41 31m S
+  #193 Thornboar lv2 61/61 32m NE hostile [quest]
+  #194 Thornboar lv3 75/75 34m W hostile [quest]
+  #58 Grazer lv2 41/41 40m S
+  #60 Grazer lv1 32/32 42m SW
+Players near: Sable 23m SW
+[ready]
+> attack thornboar
+fight Thornboar #197: done (it died) in 4 s, +32 xp (took 11 damage, 3 casts)
+Events:
+  Progress: Boar Trouble: Thornboar 4/5
+  Killed Thornboar (+32 xp)
+  You have no target.
+== Hearthmeadow lv1-2 | 06:00 day | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 49/60 | Mana 104/132 | XP 991/1400 | 6s 68c | rested 0 | bags 17/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 4/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (7):
+  #80 Grazer lv1 32/32 23m SW
+  #61 Grazer lv2 41/41 30m S
+  #193 Thornboar lv2 61/61 32m NE hostile [quest]
+  #194 Thornboar lv3 75/75 33m W hostile [quest]
+  #60 Grazer lv1 32/32 42m SW
+  #58 Grazer lv2 41/41 42m S
+  #59 Grazer lv1 32/32 52m S
+Lootable corpses: Thornboar corpse #199 1m W (yours)
+Players near: Sable 31m W
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  +1 Boar Tusk
+  +1 Torn Grazer Hide
+  You loot 14c
+  You receive loot: Torn Grazer Hide
+  You receive loot: Boar Tusk
+  You receive loot: Raw meat
+== Hearthmeadow lv1-2 | 06:00 day | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 49/60 | Mana 104/132 | XP 991/1400 | 6s 82c | rested 0 | bags 17/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 4/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (7):
+  #80 Grazer lv1 32/32 23m SW
+  #61 Grazer lv2 41/41 30m S
+  #194 Thornboar lv3 47/75 32m W hostile [quest]
+  #193 Thornboar lv2 61/61 32m NE hostile [quest]
+  #60 Grazer lv1 32/32 42m SW
+  #58 Grazer lv2 41/41 43m S
+  #59 Grazer lv1 32/32 52m S
+Players near: Sable 33m W
+[ready]
+> rest
+rest: done (rested) in 11 s
+== Hearthmeadow lv1-2 | 06:00 day | at 73,-205 (from hearth; north is -z)
+Isolde lv3 Mage | HP 59/60 | Mana 129/132 | XP 991/1400 | 6s 82c | rested 0 | bags 17/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 229m S (-11,8)
+  [boar_trouble] Boar Trouble: Thornboar 4/5 -> kill Thornboar 6m NW (70,-210)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 369m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 151m NW (-4,-335)
+Creatures within 60m (6):
+  #80 Grazer lv1 32/32 19m SW
+  #61 Grazer lv2 41/41 28m S
+  #60 Grazer lv1 32/32 42m SW
+  #193 Thornboar lv2 61/61 42m N hostile [quest]
+  #58 Grazer lv2 41/41 45m S
+  #59 Grazer lv1 32/32 50m S
+[ready]
+> attack thornboar
+fight Thornboar #193: done (it died) in 9 s, +32 xp (took 0 damage, 3 casts)
+Events:
+  Progress: Boar Trouble: Thornboar 5/5
+  Killed Thornboar (+32 xp)
+== Hearthmeadow lv1-2 | 07:00 day | at 80,-226 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 100/132 | XP 1023/1400 | 6s 82c | rested 0 | bags 17/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 251m S (-11,8)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 82m W (2,-251)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 363m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 138m NW (-4,-335)
+  ? Sergeant Holt <The North Watch> 82m W (2,-251) turn in: boar_trouble
+Creatures within 60m (3):
+  #80 Grazer lv1 32/32 39m SW
+  #186 Grazer lv1 32/32 46m NE
+  #61 Grazer lv2 41/41 52m S
+Lootable corpses: Thornboar corpse #201 5m N (yours)
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  You loot 6c
+  You receive loot: Raw meat
+== Hearthmeadow lv1-2 | 07:00 day | at 80,-227 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 100/132 | XP 1023/1400 | 6s 88c | rested 0 | bags 17/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 252m S (-11,8)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 82m W (2,-251)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 363m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 137m NW (-4,-335)
+  ? Sergeant Holt <The North Watch> 82m W (2,-251) turn in: boar_trouble
+Creatures within 60m (3):
+  #80 Grazer lv1 32/32 40m SW
+  #186 Grazer lv1 32/32 45m NE
+  #61 Grazer lv2 41/41 53m S
+[ready]
+> turnin boar 3
+turn in at Sergeant Holt: done (talked) in 16 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  offers [old_tusk] Old Tusk (Group) (lv4): The boars follow one old brute with tusks like scythes. He keeps to a hollow in the trees west of here, past the pack. He has put two of my men in their beds: do not go alone. Take two with you, and bring him down.
+  in progress: [lookouts_eye]
+Events:
+  Entered The North Watch (safe)
+  +1 Hearthkeeper's Robe
+  QUEST COMPLETE: Boar Trouble
+== The North Watch (safe) lv2-3 | 07:00 day | at 5,-248 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 1243/1400 | 7s 68c | rested 0 | bags 18/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 256m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 289m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 87m N (-4,-335)
+Creatures within 60m (1):
+  #154 Thornboar lv3 75/75 55m SW hostile
+[ready]
+> accept all
+accept at Sergeant Holt: done (talked) in 0 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  in progress: [lookouts_eye]
+  in progress: [old_tusk]
+Events:
+  Quest accepted: Old Tusk (Group) [old_tusk]
+== The North Watch (safe) lv2-3 | 07:00 day | at 5,-248 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 1243/1400 | 7s 68c | rested 0 | bags 18/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 256m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 289m NW (-223,-426)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 87m N (-4,-335)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 157m W (-150,-270)
+Creatures within 60m (1):
+  #154 Thornboar lv3 75/75 59m SW hostile
+[ready]
+> goto -4,-335
+goto -4,-335: done (arrived) in 18 s, +70 xp
+Events:
+  Entered Hearthmeadow
+  Entered Birchrise
+  Discovered: Birchrise (+35 XP)
+  Entered Watch Hill Lookout
+  Discovered: Watch Hill Lookout (+35 XP)
+  Progress: A Lookout's Eye: explore Watch Hill Lookout (done)
+== Watch Hill Lookout lv2-3 | 07:00 day | at -3,-334 (from hearth; north is -z)
+Isolde lv3 Mage | HP 60/60 | Mana 132/132 | XP 1313/1400 | 7s 68c | rested 0 | bags 18/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 342m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 238m NW (-223,-426)
+  [lookouts_eye] READY A Lookout's Eye: explore Watch Hill Lookout (done) -> turn in to Sergeant Holt 84m S (2,-251)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 160m SW (-150,-270)
+  ? Sergeant Holt <The North Watch> 84m S (2,-251) turn in: lookouts_eye
+[ready]
+> turnin lookout
+turn in at Sergeant Holt: done (talked) in 13 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  in progress: [old_tusk]
+Events:
+  Entered Birchrise
+  Entered Hearthmeadow
+  Entered The North Watch (safe)
+  LEVEL UP: you are now level 4
+  Isolde reached level 4!
+  You have learned Ice Ring: Frost holds every foe within 6 yards in place for 5 seconds.
+  QUEST COMPLETE: A Lookout's Eye
+== The North Watch (safe) lv2-3 | 08:00 day | at 1,-255 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 140/140 | XP 13/2100 | 8s 18c | rested 0 | bags 18/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 263m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 151m W (-150,-270)
+Creatures within 60m (1):
+  #160 Thornboar lv2 61/61 37m SW hostile
+[ready]
+> equip best
+Equipping Shadowweave Gloves, Hearthkeeper's Robe
+Events:
+  Equipped Shadowweave Gloves
+  Equipped Hearthkeeper's Robe
+== The North Watch (safe) lv2-3 | 08:00 day | at 1,-255 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 140/140 | XP 13/2100 | 8s 18c | rested 0 | bags 18/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 263m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 151m W (-150,-270)
+Creatures within 60m (1):
+  #160 Thornboar lv2 61/61 37m SW hostile
+[ready]
+> rest
+rest: done (rested) in 0 s
+Events:
+  +1 Novice's Robe
+== The North Watch (safe) lv2-3 | 16:00 day | at 1,-255 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 163/164 | XP 13/2100 | 8s 18c | rested 13 | bags 17/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 263m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 151m W (-150,-270)
+[ready]
+> wait 40
+wait 40 s: done (waited) in 40 s
+== The North Watch (safe) lv2-3 | 17:00 day | at 1,-255 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 163/164 | XP 13/2100 | 8s 18c | rested 14 | bags 17/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 263m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 151m W (-150,-270)
+Creatures within 60m (1):
+  #160 Thornboar lv2 61/61 58m W hostile
+Players near: Sable 19m S
+[ready]
+> say /invite Sable
+say: done (waited) in 1 s
+Events:
+  You invite Sable to your party.
+== The North Watch (safe) lv2-3 | 17:00 day | at 1,-255 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 163/164 | XP 13/2100 | 8s 18c | rested 14 | bags 17/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 263m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 151m W (-150,-270)
+Creatures within 60m (1):
+  #160 Thornboar lv2 61/61 58m W hostile
+Players near: Sable 10m S
+[ready]
+> wait 15
+wait 15 s: done (waited) in 15 s
+Events:
+  Sable joins the party.
+  Dusk is coming. Find light.
+== The North Watch (safe) lv2-3 | 17:00 day | at 1,-255 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 163/164 | XP 13/2100 | 8s 18c | rested 14 | bags 17/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 263m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 151m W (-150,-270)
+Creatures within 60m (1):
+  #160 Thornboar lv2 61/61 51m W hostile
+Players near: Sable 9m S
+[ready]
+> goto -125,-262
+goto -125,-262: done (arrived) in 24 s, +35 xp
+Events:
+  Entered Hearthmeadow
+  Entered Birchrise
+  You feel normal again.
+== Birchrise lv2-3 | 18:00 day | at -124,-261 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 163/164 | XP 48/2100 | 8s 18c | rested 0 | bags 17/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 292m SE (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 192m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 13m NW (-136,-268)
+Creatures within 60m (2):
+  #206 Old Tusk lv4 442/442 13m NW hostile [quest]
+  #162 Thornboar lv2 61/61 52m SE hostile
+Players near: Sable 9m E
+[ready]
+> wait 4
+wait 4 s: done (waited) in 4 s
+== Birchrise lv2-3 | 18:00 day | at -124,-261 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 163/164 | XP 48/2100 | 8s 18c | rested 0 | bags 17/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 292m SE (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 192m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 13m W (-137,-264)
+Creatures within 60m (2):
+  #206 Old Tusk lv4 407/442 13m W hostile [quest]
+  #162 Thornboar lv2 61/61 52m SE hostile
+Players near: Sable 13m W
+[ready]
+> attack old tusk
+fight Old Tusk #206: done (it died) in 16 s, +39 xp (took 0 damage, 9 casts)
+Events:
+  Progress: Old Tusk (Group): Old Tusk 1/1
+  Killed Old Tusk (+39 xp)
+== Birchrise lv2-3 | 18:00 NIGHT | at -124,-261 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 58/164 | XP 87/2100 | 8s 18c | rested 0 | bags 17/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 292m SE (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 192m NW (-223,-426)
+  [old_tusk] READY Old Tusk (Group): Old Tusk 1/1 -> turn in to Sergeant Holt 126m E (2,-251)
+Creatures within 60m (2):
+  #157 Thornboar lv2 61/61 48m SE hostile
+  #162 Thornboar lv2 61/61 53m SE hostile
+Lootable corpses: Old Tusk corpse #210 2m W (yours)
+Players near: Sable 4m NW
+[ready]
+> loot
+No lootable corpse within 30m.
+== Birchrise lv2-3 | 18:00 NIGHT | at -124,-261 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 58/164 | XP 87/2100 | 8s 18c | rested 0 | bags 17/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 292m SE (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 192m NW (-223,-426)
+  [old_tusk] READY Old Tusk (Group): Old Tusk 1/1 -> turn in to Sergeant Holt 126m E (2,-251)
+Creatures within 60m (2):
+  #157 Thornboar lv2 61/61 47m SE hostile
+  #162 Thornboar lv2 61/61 53m SE hostile
+Players near: Sable 4m NW
+[ready]
+> turnin old_tusk
+turn in at Sergeant Holt: done (talked) in 23 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+Events:
+  Entered Hearthmeadow
+  Entered The North Watch (safe)
+  +1 Hearthkeeper's Robe
+  QUEST COMPLETE: Old Tusk (Group)
+== The North Watch (safe) lv2-3 | 19:00 NIGHT | at -2,-252 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 164/164 | XP 587/2100 | 10s 18c | rested 0 | bags 18/36
+Quests (2/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 260m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+Creatures within 60m (1):
+  #154 Thornboar lv3 75/75 48m SW hostile
+Players near: Sable 3m W
+[ready]
+> equip best
+Nothing in your bags is an upgrade.
+== The North Watch (safe) lv2-3 | 19:00 NIGHT | at -2,-252 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 164/164 | XP 587/2100 | 10s 18c | rested 0 | bags 18/36
+Quests (2/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 260m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+Creatures within 60m (1):
+  #154 Thornboar lv3 75/75 48m SW hostile
+Players near: Sable 2m W
+[ready]
+> quests
+[wool_for_winter] Wool for Winter (lv2)
+  Nights are cold and blankets are thin. Grazer wool, 8 bundles of it, and I'll stitch something warm.
+  Wool for Winter: White 8/8
+  next: turn in to Tilda 260m S (-11,8)
+  ender: Tilda | reward: 80 xp, 60c, items: Woolen Cloak, Hearth Bread
+[garricks_camp] Garrick's Camp (lv3)
+  West of here Foreman Garrick runs the logging camp. He sent for help two days ago. Go.
+  Garrick's Camp: talk to Foreman Garrick 
+  next: talk to Foreman Garrick 281m NW (-223,-426)
+  ender: Foreman Garrick | reward: 100 xp, 50c
+Available to accept: iron_for_hollis (lv4, from Hollis), dust_of_shadows (lv4, from Old Brannoc), know_the_vale (lv5, from Old Brannoc)
+Done: 13
+== The North Watch (safe) lv2-3 | 19:00 NIGHT | at -2,-252 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 164/164 | XP 587/2100 | 10s 18c | rested 0 | bags 18/36
+Quests (2/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 260m S (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+Creatures within 60m (1):
+  #154 Thornboar lv3 75/75 48m SW hostile
+Players near: Sable 1m NW
+[ready]
+> goto garrick
+goto Foreman Garrick: done (arrived) in 61 s, +80 xp
+Events:
+  Entered Hearthmeadow
+  Entered Birchrise
+  Entered Woodcutters' Well
+  Discovered: Woodcutters' Well (+35 XP)
+  Entered Birchrise
+  Entered Garrick's Logging Camp (safe)
+  Discovered: Garrick's Logging Camp (+45 XP)
+== Garrick's Logging Camp (safe) lv3-3 | 22:00 NIGHT | at -220,-426 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 164/164 | XP 667/2100 | 10s 18c | rested 2 | bags 18/36
+Quests (2/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 482m SE (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 3m W (-223,-426)
+Players near: Sable 0m here
+[ready]
+> turnin garricks_camp
+[garricks_camp] is not finished: Garrick's Camp: talk to Foreman Garrick
+== Garrick's Logging Camp (safe) lv3-3 | 22:00 NIGHT | at -220,-426 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 164/164 | XP 667/2100 | 10s 18c | rested 2 | bags 18/36
+Quests (2/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 482m SE (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 3m W (-223,-426)
+Players near: Sable 0m here
+[ready]
+> accept all
+accept at Hollis: done (talked) in 94 s
+Hollis <Smith>: "Hammer's ready. Iron isn't. Never is."
+  in progress: [iron_for_hollis]
+  sells: Worn Shortsword 1s 44c, Rough Maul 1s 44c, Hunting Bow 1s 44c, Rusty Dagger 1s 44c, Oak Mace 1s 44c, Apprentice's Staff 1s 44c, Battered Buckler 40c, Worn Tunic 1s 8c, Worn Trousers 1s 8c, Worn Boots 1s 8c, Stone pickaxe 20c, Stone axe 20c, Iron pickaxe 1s 50c, Iron axe 1s 50c
+Events:
+  Entered Birchrise
+  Entered Hearthmeadow
+  Entered Hearthstead (safe)
+  Quest accepted: Iron for Hollis [iron_for_hollis]
+== Hearthstead (safe) lv1-1 | 02:00 NIGHT | at 35,-29 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 164/164 | XP 667/2100 | 10s 18c | rested 2 | bags 18/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 59m SW (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 473m NW (-223,-426)
+  [iron_for_hollis] Iron for Hollis: Raw iron 0/6 -> Raw iron (dropped by Candlekin) 716m E (742,-138)
+[ready]
+> look
+== Hearthstead (safe) lv1-1 | 02:00 NIGHT | at 35,-29 (from hearth; north is -z)
+Isolde lv4 Mage | HP 65/65 | Mana 164/164 | XP 667/2100 | 10s 18c | rested 2 | bags 18/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 59m SW (-11,8)
+  [garricks_camp] Garrick's Camp: talk to Foreman Garrick  -> talk to Foreman Garrick 473m NW (-223,-426)
+  [iron_for_hollis] Iron for Hollis: Raw iron 0/6 -> Raw iron (dropped by Candlekin) 716m E (742,-138)
+[ready]
+> quit

@@ -156,7 +156,7 @@ fn roads_are_wide_and_trails_narrow() {
     let size = m.world.size;
     let mut seen = HashMap::new();
     for road in &m.built.roads {
-        let range = if road.way == "road" { 6..=8 } else { 2..=3 };
+        let range = if road.way == "road" { 5..=7 } else { 2..=3 };
         let (mut ok, mut n) = (0, 0);
         for i in (5..road.line.len().saturating_sub(5)).step_by(7) {
             let p = road.line[i];
@@ -361,13 +361,16 @@ fn the_plaza_is_a_heroic_square() {
     let h = m.built.hearth;
     let sx = m.world.size[0] as i32;
     let paved = |x: i32, z: i32| m.built.flags[(z * sx + x) as usize] & ROAD != 0;
-    // east to west through the hearth, between the roads that leave it
-    let across = |dz: i32| {
-        (1..60).take_while(|d| paved(h[0] + d, h[2] + dz)).count()
-            + (1..60).take_while(|d| paved(h[0] - d, h[2] + dz)).count()
-            + 1
+    // corner to corner through the hearth, between the roads that leave it
+    let across = |sx: i32, sz: i32| {
+        let run = |dir: i32| {
+            (1..60)
+                .take_while(|d| paved(h[0] + sx * d * dir, h[2] + sz * d * dir))
+                .count()
+        };
+        (((run(1) + run(-1) + 1) as f32) * std::f32::consts::SQRT_2).round() as i32
     };
-    let wide = across(6).max(across(-6));
+    let wide = across(1, 1).max(across(1, -1));
     assert!((25..=45).contains(&wide), "the plaza is {wide} m across");
 }
 

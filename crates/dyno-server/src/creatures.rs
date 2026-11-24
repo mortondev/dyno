@@ -462,7 +462,12 @@ impl State {
                             let daylit = !night && self.light.sky(s[0], s[1], s[2]) >= 4;
                             let crowded =
                                 self.players.values().any(|p| hdist(p.pose.pos, f) < 12.0);
+                            // in a world of areas the dark rises only in its haunts
+                            let haunt = underground
+                                || !self.content.world.dark_in_areas
+                                || self.in_dark_area(f);
                             if dark
+                                && haunt
                                 && !daylit
                                 && !crowded
                                 && !in_sanctuary(&self.hearths, f)
@@ -652,6 +657,8 @@ impl State {
                         return None;
                     }
                     prey.iter()
+                        // some creatures leave new characters alone (`spares_below`)
+                        .filter(|(pid, ..)| levels.get(pid).copied().unwrap_or(1) >= c.spares_below)
                         .filter(|(pid, p, away)| {
                             let lvl = levels.get(pid).copied().unwrap_or(1) as f32;
                             let r = if rpg {
@@ -671,6 +678,13 @@ impl State {
                         .copied()
                 });
                 mob.target = target.map(|t| t.0);
+                // nobody left of those who fought it (dead, or gone): a camp's
+                // creature goes home and heals, so the player it killed does
+                // not walk back to finish a half-dead elite
+                if rpg && mob.camp && provoked && target.is_none() {
+                    mob.evade();
+                    heal_info.push(id);
+                }
                 if let Some((pid, p, _)) = target {
                     let dx = p[0] - e.pos[0];
                     let dz = p[2] - e.pos[2];
@@ -967,11 +981,34 @@ impl State {
                 .filter(|(_, at)| at.elapsed() < Duration::from_secs(10))
                 .map(|(p, _)| p));
         let credited = killer.map(|k| self.credited(k, pos)).unwrap_or_default();
-        // in a party, quest items drop for each member who needs one (and go
-        // straight into their bags); the shared body holds the rest
-        let personal: Vec<(PlayerId, Vec<u16>)> = if credited.len() > 1 {
+        // shared tags (`world.shared_tags`): players outside the tagger's
+        // party who took their part of its health off it share the kill
+        let helpers: Vec<PlayerId> = match self.content.world.shared_tags {
+            Some(rule) if !credited.is_empty() => {
+                let need = rule.damage * mob.max_health;
+                let mut h: Vec<PlayerId> = mob
+                    .threat
+                    .iter()
+                    .filter(|(pid, dealt)| **dealt >= need && !credited.contains(pid))
+                    .filter(|(pid, _)| {
+                        self.players
+                            .get(pid)
+                            .is_some_and(|p| !p.dead && crate::game::dist(p.pose.pos, pos) < 80.0)
+                    })
+                    .map(|(pid, _)| *pid)
+                    .collect();
+                h.sort_unstable();
+                h
+            }
+            _ => Vec::new(),
+        };
+        // when a kill is shared (a party, or helpers), quest items drop for
+        // each player who needs one (and go straight into their bags); the
+        // body, which is the tagger's and their party's, holds the rest
+        let personal: Vec<(PlayerId, Vec<u16>)> = if credited.len() + helpers.len() > 1 {
             credited
                 .iter()
+                .chain(&helpers)
                 .map(|pid| (*pid, self.quest_items_needed(*pid)))
                 .collect()
         } else {
@@ -1009,6 +1046,11 @@ impl State {
         // everyone who shares the kill gets quest credit; XP is split, with a group bonus
         let share = self.content.world.kill_share(credited.len());
         for pid in credited {
+            self.credit_kill(pid, mob.creature, mob.level, share);
+        }
+        // a helper's kill counts for their quests and pays their own XP
+        let share = self.content.world.shared_tags.map_or(0.0, |r| r.xp);
+        for pid in helpers {
             self.credit_kill(pid, mob.creature, mob.level, share);
         }
     }
