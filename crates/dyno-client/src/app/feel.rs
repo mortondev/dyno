@@ -328,6 +328,7 @@ pub(super) fn draw(p: &Play, boxes: &mut Vec<Vertex>, book: &mut Anims, dt: f32)
             .get(v.x.floor() as i32, v.y.floor() as i32, v.z.floor() as i32) as f32
             / 15.0
     };
+    if !f.bits.list.is_empty() {}
     f.bits.frame(dt, boxes, light);
     // a body has come where one fell: it is drawn instead
     f.fallen.retain(|fl| {

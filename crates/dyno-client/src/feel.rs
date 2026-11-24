@@ -330,7 +330,8 @@ pub struct Burst {
     pub speed: [f32; 2],
     /// metres a second added upward
     pub up: f32,
-    /// how far the throw follows the blow (0: all round, 1: on along it)
+    /// how far the throw comes back off the struck face, toward the one
+    /// who struck (0: all round, 1: mostly back)
     pub follow: f32,
     pub gravity: f32,
     /// seconds (least, most)
@@ -451,7 +452,8 @@ impl Bits {
     }
 
     /// Throw a burst out from `at`; `along` is the way the blow went (zero:
-    /// all round); `more` scales the count and the speed (a crit).
+    /// all round): the cubes fly back off the struck face, against it;
+    /// `more` scales the count and the speed (a crit).
     pub fn burst(&mut self, b: &Burst, at: Vec3, along: Vec3, more: f32) {
         let n = ((b.cubes as f32) * more.max(0.0)).round() as usize;
         let along = along.normalize_or_zero();
@@ -462,7 +464,7 @@ impl Bits {
                 self.rnd() * 2.0 - 1.0,
             )
             .normalize_or_zero();
-            let dir = (dir + along * b.follow * 1.5).normalize_or_zero();
+            let dir = (dir - along * b.follow * 1.5).normalize_or_zero();
             let speed = b.speed[0] + (b.speed[1] - b.speed[0]) * self.rnd();
             let life = b.life[0] + (b.life[1] - b.life[0]) * self.rnd();
             let color = if b.colors.is_empty() {

@@ -2704,9 +2704,12 @@ impl App {
                                 && entity == p.attacking
                                 && now - p.anims.last_swing > 0.75;
                             if swung {
+                                // (the blow has landed: the swing is shown
+                                // from where the weapon meets the target)
+                                let from = now - crate::feel::data().hit_stop.contact;
                                 let swing = anim::attack_for(p.anims.grip);
-                                p.anims.me(now).play_fresh(now, swing);
-                                p.anims.last_swing = now;
+                                p.anims.me(now).play_fresh(from, swing);
+                                p.anims.last_swing = from;
                             }
                             sound::struck(&mut self.audio, p, entity, crit, swung);
                             let (text, col) = match entity {

@@ -1,0 +1,57 @@
+# The feel checks a picture can show (docs/design/feel-f2.md), as a warrior
+# on the feel yard: the F3 overlay and the yard (F1); the button's pulse,
+# a refused press and a queued one; a heavy blow's tell; a stun's daze.
+# Run by tools/feel/check.sh.
+
+say /feel
+wait 3
+say /time noon
+wait 1
+
+# --- F1: the overlay on F3, and the yard -------------------------------------
+key f3
+wait 1.5
+shot overlay
+key f3
+orbit 150
+wait 1
+shot yard-east
+orbit -150
+wait 1
+shot yard-west
+orbit 0
+
+# --- the press: lit at once; a press too early is refused; one late is queued
+walk-to creature training_dummy 2.2
+look-at creature training_dummy
+click right creature training_dummy
+key 1
+shot press-lit
+wait 0.15
+key 1
+shot press-refused
+wait 1.0
+key 1
+shot press-queued
+wait 1.5
+
+# --- a heavy blow's tell: stand in its reach and let it strike three times ---
+walk-to creature training_dummy 1.0
+look-at creature training_dummy
+orbit 40
+wait 1.0
+clip-start tell
+wait 8.0
+clip-end
+orbit 0
+
+# --- a stun's daze: Onrush (key 3) stuns for 1.5 s ---------------------------
+walk-to creature training_dummy 9
+look-at creature training_dummy
+wait 1.0
+key 3
+wait 0.5
+orbit 40
+shot daze-1
+wait 0.4
+shot daze-2

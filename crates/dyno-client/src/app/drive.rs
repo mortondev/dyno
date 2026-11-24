@@ -37,7 +37,7 @@ click left|right at MARK      click a marked part of the interface
 hover at MARK                 rest the pointer there
 drag at MARK to MARK | by DX DY
 press at MARK · move at MARK · release   a drag in three lines (to `shot` it half way)
-key NAME                      press and release (1-9, 0, Minus, Equal, B, C, P, K, L, M, Tab, Escape, Enter)
+key NAME                      press and release (1-9, 0, Minus, Equal, B, C, P, K, L, M, W, Tab, Escape, Enter, F3)
 remember MARK                 note where it is, for `expect moved MARK`
 shot NAME                     save the frame
 orbit DEGREES                 set-up: swing the camera round the character (0: behind)
@@ -116,6 +116,7 @@ fn key_code(name: &str) -> Option<KeyCode> {
         "tab" => KeyCode::Tab,
         "escape" | "esc" => KeyCode::Escape,
         "enter" => KeyCode::Enter,
+        "f3" => KeyCode::F3,
         _ => return None,
     })
 }
