@@ -31,6 +31,13 @@ pub const QUEUE_MS: u32 = 2000;
 /// A new body's budget, so its first steps run at once.
 const START_MS: f32 = 200.0;
 
+/// The server's clock (milliseconds since it started): what creatures'
+/// positions are stamped with (`EntityMoves`).
+pub fn clock_ms() -> u32 {
+    static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+    START.get_or_init(Instant::now).elapsed().as_millis() as u32
+}
+
 /// One player's movement on the server: the body, and the steps on their way.
 #[derive(Clone, Debug)]
 pub struct Moves {

@@ -168,6 +168,8 @@ struct Play {
     body: Player,
     pred: crate::predict::Predictor,
     remotes: Remotes,
+    /// the server's clock for creatures' stamped positions (interp.rs)
+    entity_clock: crate::interp::Clock,
     /// everyone's animation state
     anims: Anims,
     chat: Vec<Chat>,
@@ -336,9 +338,9 @@ struct Play {
 
 struct ClientEntity {
     kind: EntityKind,
-    from: [f32; 3],
-    to: [f32; 3],
-    at: Instant,
+    /// its stamped positions, drawn 100 ms behind (interp.rs)
+    track: crate::interp::Track,
+    /// as drawn
     yaw: f32,
     born: Instant,
     hurt_at: Option<Instant>,
@@ -350,8 +352,7 @@ struct ClientEntity {
 
 impl ClientEntity {
     fn pos(&self) -> Vec3 {
-        let t = (self.at.elapsed().as_secs_f32() / 0.1).clamp(0.0, 1.0);
-        Vec3::from(self.from).lerp(Vec3::from(self.to), t)
+        self.track.pos()
     }
 }
 
@@ -668,12 +669,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
     };
     for (id, e) in &p.entities {
         let pos = p.ground.feet(&p.world, e.pos());
-        let step = Vec3::from(e.to) - Vec3::from(e.from);
-        let vel = if e.at.elapsed().as_secs_f32() < 0.25 {
-            step / 0.1
-        } else {
-            Vec3::ZERO
-        };
+        let vel = e.track.vel();
         let at = pos + Vec3::Y;
         let light = p.light.get(
             at.x.floor() as i32,
@@ -1609,6 +1605,7 @@ fn new_play(j: Joined) -> Play {
         player: Player::new(j.spawn),
         body: Player::new(j.spawn),
         pred: Default::default(),
+        entity_clock: Default::default(),
         anims: Anims::default(),
         remotes: j
             .players
@@ -2210,14 +2207,15 @@ impl App {
                     }
                     NetEvent::Msg(m) => match m {
                         ServerMsg::Poses(list) => {
-                            for (id, pose) in list {
+                            let now = crate::interp::now();
+                            for (id, stamp, pose) in list {
                                 if id == p.my_id {
                                     continue;
                                 }
                                 p.remotes
                                     .entry(id)
                                     .or_insert_with(|| Remote::new("?".into(), pose))
-                                    .set(pose);
+                                    .set(stamp, pose, now);
                             }
                         }
                         ServerMsg::PlayerJoined(info) => {
@@ -2243,6 +2241,8 @@ impl App {
                             blocks,
                         } => {
                             p.shard = shard;
+                            // (another shard may be another server: another clock)
+                            p.entity_clock.reset();
                             p.entities.clear();
                             p.wielding.clear();
                             p.wearing.clear();
@@ -2483,9 +2483,7 @@ impl App {
                                 id,
                                 ClientEntity {
                                     kind,
-                                    from: pos,
-                                    to: pos,
-                                    at: Instant::now(),
+                                    track: crate::interp::Track::new(Vec3::from(pos), yaw),
                                     yaw,
                                     born,
                                     hurt_at: None,
@@ -2494,14 +2492,16 @@ impl App {
                                 },
                             );
                         }
-                        ServerMsg::EntityMoves(list) => {
-                            for (id, pos, yaw) in list {
-                                if let Some(e) = p.entities.get_mut(&id) {
-                                    e.from = e.pos().into();
-                                    e.to = pos;
-                                    e.yaw = yaw;
-                                    e.at = Instant::now();
+                        ServerMsg::EntityMoves { at, list } => {
+                            let t = at as f64 / 1000.0;
+                            p.entity_clock.arrived(crate::interp::now(), t);
+                            for (id, pos, yaw) in &list {
+                                if let Some(e) = p.entities.get_mut(id) {
+                                    e.track.push(t, Vec3::from(*pos), *yaw);
                                 }
+                            }
+                            for e in p.entities.values_mut() {
+                                e.track.still_at(t);
                             }
                         }
                         ServerMsg::EntityGone { id, picked_by } => {
@@ -3123,6 +3123,16 @@ impl App {
                 }
             }
             p.debug.net = p.pred.stats;
+            // others, 100 ms behind their newest positions (interp.rs)
+            let now = crate::interp::now();
+            let t = p.entity_clock.render(now);
+            for e in p.entities.values_mut() {
+                e.track.update(t);
+                e.yaw = e.track.yaw();
+            }
+            for r in p.remotes.values_mut() {
+                r.update(now);
+            }
             p.hurt_flash = (p.hurt_flash - dt * 1.5).max(0.0);
             if p.title
                 .as_ref()
@@ -5663,9 +5673,7 @@ pub fn shot_with_ui(
                             id,
                             ClientEntity {
                                 kind,
-                                from: pos,
-                                to: pos,
-                                at: Instant::now(),
+                                track: crate::interp::Track::new(Vec3::from(pos), yaw),
                                 yaw,
                                 born: Instant::now(),
                                 hurt_at: None,
@@ -5694,11 +5702,10 @@ pub fn shot_with_ui(
                         p.money = money;
                         p.max_health = max_health;
                     }
-                    ServerMsg::EntityMoves(list) => {
+                    ServerMsg::EntityMoves { list, .. } => {
                         for (id, pos, yaw) in list {
                             if let Some(e) = p.entities.get_mut(&id) {
-                                e.from = pos;
-                                e.to = pos;
+                                e.track.snap(pos.into(), yaw);
                                 e.yaw = yaw;
                             }
                         }
@@ -6030,9 +6037,7 @@ pub fn shot_with_ui(
                     creature,
                     loot: true,
                 },
-                from: at.into(),
-                to: at.into(),
-                at: Instant::now(),
+                track: crate::interp::Track::new(at, p.player.yaw + 1.2),
                 yaw: p.player.yaw + 1.2,
                 born: if std::env::var_os("DYNO_CORPSE_UPRIGHT").is_some() {
                     Instant::now()
@@ -6288,13 +6293,11 @@ pub fn shot_with_ui(
         // what moved meanwhile
         while let Ok(ev) = p.conn.rx.try_recv() {
             match ev {
-                NetEvent::Msg(ServerMsg::EntityMoves(list)) => {
+                NetEvent::Msg(ServerMsg::EntityMoves { list, .. }) => {
                     for (id, pos, yaw) in list {
                         if let Some(e) = p.entities.get_mut(&id) {
-                            e.from = e.pos().into();
-                            e.to = pos;
+                            e.track.snap(pos.into(), yaw);
                             e.yaw = yaw;
-                            e.at = Instant::now();
                         }
                     }
                 }

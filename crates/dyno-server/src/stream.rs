@@ -452,15 +452,16 @@ impl State {
         let cfg = self.stream;
         // the dead send no poses, but still come and go: a body left behind
         // by someone who respawned far away is told to go (PlayersFar)
-        let all: Vec<(PlayerId, Pose, bool)> = self
+        // (each stamped with its player's movement clock)
+        let all: Vec<(PlayerId, u32, Pose, bool)> = self
             .players
             .iter()
-            .map(|(i, p)| (*i, p.pose, p.dead))
+            .map(|(i, p)| (*i, p.moves.clock, p.pose, p.dead))
             .collect();
         for (id, p) in self.players.iter_mut() {
             let mut list = Vec::new();
             let mut far = Vec::new();
-            for (o, pose, dead) in &all {
+            for (o, clock, pose, dead) in &all {
                 if o == id {
                     continue;
                 }
@@ -469,7 +470,7 @@ impl State {
                 if d <= cfg.aoi || (near && d <= cfg.aoi + cfg.aoi_keep) {
                     p.near.insert(*o);
                     if !dead {
-                        list.push((*o, *pose));
+                        list.push((*o, *clock, *pose));
                     }
                 } else if near {
                     p.near.remove(o);
@@ -489,7 +490,7 @@ impl State {
             let all = all
                 .into_iter()
                 .filter(|(.., dead)| !dead)
-                .map(|(i, pose, _)| (i, pose))
+                .map(|(i, clock, pose, _)| (i, clock, pose))
                 .collect();
             let bytes = std::sync::Arc::new(dyno_protocol::encode(&ServerMsg::Poses(all)));
             for o in self.observers.values() {

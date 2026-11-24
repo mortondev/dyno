@@ -606,8 +606,11 @@ pub enum ServerMsg {
     PlayerLeft {
         id: PlayerId,
     },
-    /// Poses of the other players near you (your area of interest), sent 20 times per second.
-    Poses(Vec<(PlayerId, Pose)>),
+    /// Poses of the other players near you (your area of interest), sent 20
+    /// times per second. Each is stamped with that player's movement clock:
+    /// the milliseconds of their steps the server has run, so the client
+    /// can draw them in the time they moved (docs/design/netcode.md).
+    Poses(Vec<(PlayerId, u32, Pose)>),
     /// One cell changed.
     Block {
         pos: [i32; 3],
@@ -653,8 +656,13 @@ pub enum ServerMsg {
         pos: [f32; 3],
         yaw: f32,
     },
-    /// Positions and yaw of moving entities.
-    EntityMoves(Vec<(u32, [f32; 3], f32)>),
+    /// Positions and yaw of the entities near you that moved this tick,
+    /// stamped `at` with the server's clock (milliseconds). Sent every tick,
+    /// empty too: an entity not in it has not moved since.
+    EntityMoves {
+        at: u32,
+        list: Vec<(u32, [f32; 3], f32)>,
+    },
     /// An entity left. `picked_by` is set when a player picked up an item.
     EntityGone {
         id: u32,

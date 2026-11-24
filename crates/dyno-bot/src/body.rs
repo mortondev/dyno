@@ -698,7 +698,7 @@ impl Body {
                 self.players.remove(&id);
             }
             ServerMsg::Poses(list) => {
-                for (id, pose) in list {
+                for (id, _, pose) in list {
                     if let Some(p) = self.players.get_mut(&id) {
                         p.1 = pose.pos.into();
                     }
@@ -792,7 +792,7 @@ impl Body {
                 e.pos = pos.into();
                 e.seen = now;
             }
-            ServerMsg::EntityMoves(list) => {
+            ServerMsg::EntityMoves { list, .. } => {
                 for (id, pos, _) in list {
                     if let Some(e) = self.ents.get_mut(&id) {
                         e.pos = pos.into();

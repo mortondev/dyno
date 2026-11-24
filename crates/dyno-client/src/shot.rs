@@ -281,7 +281,7 @@ pub fn shot(o: ShotOptions) -> Result<String, String> {
             }
             Ok(NetEvent::Msg(ServerMsg::Time { time, .. })) => server_time = time,
             Ok(NetEvent::Msg(ServerMsg::Poses(list))) => {
-                poses = list.into_iter().map(|(_, p)| p).collect()
+                poses = list.into_iter().map(|(.., p)| p).collect()
             }
             Ok(NetEvent::Closed(r)) => return Err(r),
             _ => {}

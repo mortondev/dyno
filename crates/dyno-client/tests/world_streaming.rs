@@ -65,7 +65,7 @@ impl Client {
                             self.known.remove(id);
                         }
                         ServerMsg::Poses(list) => {
-                            self.near.extend(list.iter().map(|(i, _)| *i));
+                            self.near.extend(list.iter().map(|(i, ..)| *i));
                         }
                         ServerMsg::PlayersFar(ids) => {
                             for i in ids {
@@ -205,7 +205,7 @@ fn the_world_streams_around_each_player_and_so_do_entities_and_players() {
     b.go(far);
     b.pump(1.0);
     for m in &b.log[since..] {
-        if let ServerMsg::EntityMoves(list) = m {
+        if let ServerMsg::EntityMoves { list, .. } = m {
             assert!(
                 list.iter().all(|(id, ..)| b.known.contains(id)),
                 "only moves of what b knows"

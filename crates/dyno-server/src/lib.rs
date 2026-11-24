@@ -1373,11 +1373,10 @@ impl Server {
                 // the world and the entities around each player (stream.rs)
                 st.update_interest();
                 st.stream_sections(dt);
-                if n.is_multiple_of(2)
-                    && let Some(m) = st.entity_moves()
-                {
-                    st.broadcast(&m, None);
-                }
+                // creatures that moved, 20 times a second (stamped: the
+                // client draws them 100 ms behind, docs/design/netcode.md)
+                let m = st.entity_moves();
+                st.broadcast(&m, None);
             }
             if n.is_multiple_of(10) {
                 *self.snaps.lock().unwrap() = snaps;

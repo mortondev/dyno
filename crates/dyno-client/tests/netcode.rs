@@ -19,8 +19,11 @@
 //! `DYNO_NETCODE_MODE=pose` runs either the way movement worked before
 //! (clients send their pose 20 times a second, the server trusts it, and
 //! others are drawn between the last two poses), for the before numbers.
+//! Either way the watcher draws the runner both as before and from the
+//! buffer (interp.rs), from the same poses.
 
 use dyno_client::game::{Input, Player, Remote, apply_rules};
+use dyno_client::interp;
 use dyno_client::net::{self, Joined, NetEvent, NetSim};
 use dyno_client::predict::Predictor;
 use dyno_protocol::{self as proto, ClientMsg, Pose, ServerMsg};
@@ -36,6 +39,11 @@ const POOR: NetSim = NetSim {
     jitter_ms: 30.0,
     loss: 0.02,
 };
+
+/// The line of the session: `POOR`, or `DYNO_NET_SIM` when set.
+fn line() -> NetSim {
+    NetSim::from_env().unwrap_or(POOR)
+}
 
 fn pose_mode() -> bool {
     std::env::var("DYNO_NETCODE_MODE").is_ok_and(|m| m == "pose")
@@ -179,7 +187,9 @@ impl Mover {
     }
 }
 
-/// The course: a stone track high above the town, along +x.
+/// The course: a stone loop high above the town, along x. The east-bound
+/// lane has the features; the west-bound lane, past a dividing wall, is
+/// flat.
 struct Course {
     x0: i32,
     len: i32,
@@ -193,36 +203,44 @@ impl Course {
     /// ways: where the watcher measures drawn speed.
     fn steady(&self, x: f32) -> bool {
         let x = x - self.x0 as f32;
-        (64.0..=96.0).contains(&x)
+        (66.0..=94.0).contains(&x)
     }
 
-    fn mid_z(&self) -> f32 {
-        self.z0 as f32 + 0.5
+    /// The middle of the lane the runner keeps to, going `dir`.
+    fn lane(&self, dir: f32) -> f32 {
+        self.z0 as f32 + if dir > 0.0 { 0.5 } else { 6.5 }
+    }
+
+    /// On the middle of either lane.
+    fn on_lane(&self, z: f32) -> bool {
+        (z - self.lane(1.0)).abs() < 0.4 || (z - self.lane(-1.0)).abs() < 0.4
     }
 
     /// The fills that make it.
     fn fills(&self) -> Vec<([i32; 3], [i32; 3], u8)> {
         use dyno_world::{AIR, STONE};
         let (x0, x1, z0, f) = (self.x0, self.x0 + self.len, self.z0, self.feet);
-        let mut v = vec![
-            // clear sky, and the track
-            ([x0 - 2, f - 1, z0 - 3], [x1 + 2, f + 7, z0 + 3], AIR),
-            ([x0, f - 1, z0 - 2], [x1, f - 1, z0 + 2], STONE),
+        let e = |a: i32, b: i32, h: i32| ([x0 + a, f, z0 - 2], [x0 + b, f + h - 1, z0 + 2], STONE);
+        vec![
+            // clear sky, and the floor of both lanes
+            ([x0 - 2, f - 1, z0 - 4], [x1 + 2, f + 7, z0 + 10], AIR),
+            ([x0, f - 1, z0 - 2], [x1, f - 1, z0 + 8], STONE),
+            // walls along the sides, and between the lanes (open at both ends)
+            ([x0, f - 1, z0 - 3], [x1, f + 1, z0 - 3], STONE),
+            ([x0, f - 1, z0 + 9], [x1, f + 1, z0 + 9], STONE),
+            ([x0 + 14, f, z0 + 3], [x1 - 14, f + 1, z0 + 3], STONE),
+            ([x0 - 1, f - 1, z0 - 3], [x0 - 1, f + 1, z0 + 9], STONE),
+            ([x1 + 1, f - 1, z0 - 3], [x1 + 1, f + 1, z0 + 9], STONE),
             // stairs of 1 m up to a 3 m deck, and a 3 m ledge down from it
-            ([x0 + 15, f, z0 - 2], [x0 + 15, f, z0 + 2], STONE),
-            ([x0 + 16, f, z0 - 2], [x0 + 16, f + 1, z0 + 2], STONE),
-            ([x0 + 17, f, z0 - 2], [x0 + 25, f + 2, z0 + 2], STONE),
+            e(20, 20, 1),
+            e(21, 21, 2),
+            e(22, 30, 3),
             // a wall with a doorway 1 m wide and 2 m high
-            ([x0 + 35, f, z0 - 2], [x0 + 35, f + 3, z0 + 2], STONE),
-            ([x0 + 35, f, z0], [x0 + 35, f + 1, z0], AIR),
+            e(40, 40, 4),
+            ([x0 + 40, f, z0], [x0 + 40, f + 1, z0], AIR),
             // a step up of 1 m and down again
-            ([x0 + 45, f, z0 - 2], [x0 + 50, f, z0 + 2], STONE),
-        ];
-        // low walls along the sides, so a stray step never falls off
-        for z in [z0 - 3, z0 + 3] {
-            v.push(([x0, f - 1, z], [x1, f + 1, z], STONE));
-        }
-        v
+            e(48, 53, 1),
+        ]
     }
 }
 
@@ -233,29 +251,33 @@ fn runner_input(c: &Course, x: f32, dir: f32, t: f32, lap: u32) -> Input {
         forward: 1.0,
         ..Default::default()
     };
-    if rel < 56.0 {
-        // the features: walk some laps, sprint others, jump now and then
+    if dir > 0.0 && rel < 60.0 {
+        // the features: walk some laps (the first stretch), sprint others,
+        // jump now and then, and stop and start again
         match lap % 4 {
-            1 => i.forward = 0.45,
+            1 if rel < 35.0 => i.forward = 0.45,
             2 => i.sprint = true,
             _ => {}
         }
         i.jump = (t * 1.7).fract() < 0.12 && lap % 3 != 0;
+        if lap % 4 == 3 && (t * 0.4).fract() < 0.15 {
+            i.forward = 0.0;
+        }
         // and a little strafe in the open
-        if !(30.0..40.0).contains(&rel) && lap % 5 == 4 {
-            i.right = ((t * 0.9).sin() * 0.4 * dir).clamp(-1.0, 1.0);
+        if rel < 18.0 && lap % 5 == 4 {
+            i.right = ((t * 0.9).sin() * 0.4).clamp(-1.0, 1.0);
         }
     }
-    if rel > 104.0 && lap % 2 == 1 {
-        // a stop and a start at the far end
-        i.forward = 0.0;
+    if dir < 0.0 && rel < 60.0 && lap % 3 == 2 {
+        // the flat lane back: a jump or two there too
+        i.jump = (t * 1.3).fract() < 0.1;
     }
     i
 }
 
-/// Facing along the track, steering back to its middle.
+/// Facing along the lane, steering back to its middle.
 fn runner_yaw(c: &Course, pos: Vec3, dir: f32) -> f32 {
-    let dz = ((c.mid_z() - pos.z) * 0.8).clamp(-0.6, 0.6);
+    let dz = ((c.lane(dir) - pos.z) * 0.8).clamp(-0.6, 0.6);
     let d = Vec3::new(dir, 0.0, dz).normalize();
     (-d.x).atan2(-d.z)
 }
@@ -285,6 +307,45 @@ impl Wobble {
     }
 }
 
+/// How the runner was drawn before (the old `Remote`): between the last
+/// two poses, by when they arrived.
+struct OldLerp {
+    from: Vec3,
+    to: Vec3,
+    at: Instant,
+}
+
+impl OldLerp {
+    fn set(&mut self, pos: Vec3) {
+        self.from = self.current();
+        self.to = pos;
+        self.at = Instant::now();
+    }
+    fn current(&self) -> Vec3 {
+        let t = (self.at.elapsed().as_secs_f32() / 0.05).clamp(0.0, 1.0);
+        self.from.lerp(self.to, t)
+    }
+}
+
+/// What the watcher saw of the runner on the straight.
+#[derive(Default)]
+struct Watched {
+    /// drawn as before (between the last two poses, by arrival)
+    old: Wobble,
+    /// drawn from the buffer (interp.rs): every frame
+    new: Wobble,
+    /// the frames drawn from the buffer, not past its newest position
+    buffered: Wobble,
+}
+
+/// Drawn speed this frame, if both ends are on the straight.
+fn on_straight(course: &Course, prev: Vec3, at: Vec3, dt: f32) -> Option<f32> {
+    let on = |p: Vec3| {
+        course.steady(p.x) && (p.y - course.feet as f32).abs() < 0.05 && course.on_lane(p.z)
+    };
+    (on(prev) && on(at)).then(|| Vec3::new(at.x - prev.x, 0.0, at.z - prev.z).length() / dt)
+}
+
 /// The watcher: another player who draws the runner as the game would, 60
 /// frames a second, and measures its drawn speed on the steady stretch.
 fn watch(
@@ -293,36 +354,50 @@ fn watch(
     course: Arc<Course>,
     want: f32,
     stop: Arc<AtomicBool>,
-) -> Wobble {
-    let mut lerp: Option<Remote> = None;
-    let mut wobble = Wobble::default();
-    let mut prev: Option<(Instant, Vec3)> = None;
+) -> Watched {
+    let mut old: Option<OldLerp> = None;
+    let mut remote: Option<Remote> = None;
+    let mut w = Watched::default();
+    let mut prev: Option<(Instant, Vec3, Vec3)> = None;
     let frame = Duration::from_micros(16_667);
     let mut next = Instant::now();
     while !stop.load(Ordering::Relaxed) {
         while let Ok(ev) = j.conn.rx.try_recv() {
             if let NetEvent::Msg(ServerMsg::Poses(list)) = ev {
-                for (id, pose) in list {
-                    if id == runner {
-                        lerp.get_or_insert_with(|| Remote::new("runner".into(), pose))
-                            .set(pose);
+                for (id, stamp, pose) in list {
+                    if id != runner {
+                        continue;
                     }
+                    let pos = Vec3::from(pose.pos);
+                    old.get_or_insert(OldLerp {
+                        from: pos,
+                        to: pos,
+                        at: Instant::now(),
+                    })
+                    .set(pos);
+                    remote
+                        .get_or_insert_with(|| Remote::new("runner".into(), pose))
+                        .set(stamp, pose, interp::now());
                 }
             }
         }
         let now = Instant::now();
-        if let Some(r) = &lerp {
-            let at = Vec3::from(r.current().pos);
-            if let Some((t, p)) = prev {
-                let dt = now.duration_since(t).as_secs_f32();
-                let v = Vec3::new(at.x - p.x, 0.0, at.z - p.z).length() / dt.max(1e-4);
-                let on_track =
-                    (at.y - course.feet as f32).abs() < 0.05 && (at.z - course.mid_z()).abs() < 0.4;
-                if course.steady(at.x) && course.steady(p.x) && on_track {
-                    wobble.add(v, want);
+        if let (Some(o), Some(r)) = (&old, &mut remote) {
+            r.update(interp::now());
+            let (a, b) = (o.current(), Vec3::from(r.current().pos));
+            if let Some((t, pa, pb)) = prev {
+                let dt = now.duration_since(t).as_secs_f32().max(1e-4);
+                if let Some(v) = on_straight(&course, pa, a, dt) {
+                    w.old.add(v, want);
+                }
+                if let Some(v) = on_straight(&course, pb, b, dt) {
+                    w.new.add(v, want);
+                    if !r.late() {
+                        w.buffered.add(v, want);
+                    }
                 }
             }
-            prev = Some((now, at));
+            prev = Some((now, a, b));
         }
         next += frame;
         match next.checked_duration_since(Instant::now()) {
@@ -330,7 +405,7 @@ fn watch(
             None => next = Instant::now(),
         }
     }
-    wobble
+    w
 }
 
 fn start_server(dir: &std::path::Path, trust: bool, crowd: usize) -> dyno_server::Handle {
@@ -356,8 +431,8 @@ fn prediction_holds_under_a_poor_line() {
     let dir = std::env::temp_dir().join(format!("dyno-test-netcode-{}", std::process::id()));
     let server = start_server(&dir, pose, 0);
     let addr = format!("127.0.0.1:{}", server.local_addr.port());
-    let mut m = Mover::new(join(&addr, "Runner", 8101, Some(POOR)), pose);
-    let watcher = join(&addr, "Watcher", 8102, Some(POOR));
+    let mut m = Mover::new(join(&addr, "Runner", 8101, Some(line())), pose);
+    let watcher = join(&addr, "Watcher", 8102, Some(line()));
     let runner_id = m.j.your_id;
     let course = Arc::new(Course {
         x0: 40,
@@ -370,14 +445,14 @@ fn prediction_holds_under_a_poor_line() {
     m.send(ClientMsg::Chat {
         text: "/gamemode build".into(),
     });
-    let start = [course.x0 as f32 + 3.5, course.feet as f32, course.mid_z()];
+    let start = [course.x0 as f32 + 3.5, course.feet as f32, course.lane(1.0)];
     std::thread::sleep(Duration::from_millis(600));
     m.send(ClientMsg::Pose(Pose {
         pos: start,
         yaw: 0.0,
         pitch: 0.0,
     }));
-    m.land([course.x0 as f32 + 55.0, start[1], start[2]], 70.0);
+    m.land([course.x0 as f32 + 55.0, start[1], start[2] + 3.0], 72.0);
     for (a, b, block) in course.fills() {
         m.send(ClientMsg::Fill { a, b, block });
     }
@@ -391,6 +466,7 @@ fn prediction_holds_under_a_poor_line() {
     m.body.pos = start.into();
     m.body.vel = Vec3::ZERO;
     let base = m.pred.stats;
+    m.last = Instant::now();
 
     // the watcher, from the town
     let stop = Arc::new(AtomicBool::new(false));
@@ -405,9 +481,10 @@ fn prediction_holds_under_a_poor_line() {
     let mut next = Instant::now();
     let mut lowest = f32::MAX;
     while t0.elapsed().as_secs_f32() < run_for {
+        let seen = m.pred.stats.eased + m.pred.stats.snaps;
         m.pump();
         let rel = m.body.pos.x - course.x0 as f32;
-        if (dir_x > 0.0 && rel > course.len as f32 - 3.0) || (dir_x < 0.0 && rel < 3.0) {
+        if (dir_x > 0.0 && rel > course.len as f32 - 2.0) || (dir_x < 0.0 && rel < 2.0) {
             dir_x = -dir_x;
             lap += 1;
         }
@@ -416,6 +493,15 @@ fn prediction_holds_under_a_poor_line() {
         let yaw = runner_yaw(&course, m.body.pos, dir_x);
         m.frame(input, yaw);
         lowest = lowest.min(m.body.pos.y);
+        if m.pred.stats.eased + m.pred.stats.snaps != seen {
+            eprintln!(
+                "CORRECTION at {:.1} s: {:.2} m at {:?} (lap {lap}, {} unanswered)",
+                t,
+                m.pred.stats.last,
+                m.body.pos,
+                m.pred.unanswered()
+            );
+        }
         next += frame;
         match next.checked_duration_since(Instant::now()) {
             Some(d) => std::thread::sleep(d),
@@ -423,23 +509,33 @@ fn prediction_holds_under_a_poor_line() {
         }
     }
     stop.store(true, Ordering::Relaxed);
-    let wobble = watching.join().unwrap();
+    let w = watching.join().unwrap();
     let st = m.pred.stats;
     let (snaps, eased) = (st.snaps - base.snaps, st.eased - base.eased);
     eprintln!(
         "NETCODE {}: {:.0} s, {lap} laps; snaps {snaps}, eased {eased}, worst correction {:.2} m, \
-         {} answers, teleports {}; watched runner on the straight: {} frames, drawn speed mean {:.2} \
-         (true {want}), rms error {:.3} m/s, worst {:.2} m/s",
+         {} answers, teleports {}",
         if pose { "pose" } else { "steps" },
         t0.elapsed().as_secs_f32(),
         st.worst,
         st.acks,
         st.teleports,
-        wobble.n,
-        wobble.mean(),
-        wobble.rms(),
-        wobble.worst,
     );
+    for (name, wb) in [
+        ("as before (last two poses)", &w.old),
+        ("from the buffer, every frame", &w.new),
+        ("from the buffer, not late", &w.buffered),
+    ] {
+        eprintln!(
+            "  runner drawn {name}: {} frames on the straight, mean {:.2} m/s (true {want}), \
+             rms error {:.3} m/s, worst {:.2} m/s",
+            wb.n,
+            wb.mean(),
+            wb.rms(),
+            wb.worst
+        );
+    }
+
     assert!(
         lap >= 2,
         "the runner went up and down the course: {lap} laps"
@@ -448,9 +544,22 @@ fn prediction_holds_under_a_poor_line() {
         lowest > course.feet as f32 - 0.5,
         "the runner stayed on the course"
     );
-    assert!(wobble.n > 100, "the runner was watched on the straight");
+    assert!(w.new.n > 100, "the runner was watched on the straight");
     if !pose {
         assert_eq!(snaps, 0, "no snap in normal play");
+        // drawn from the buffer: steady where its positions were on time,
+        // and far steadier than before through the line's stalls
+        assert!(
+            w.buffered.rms() < 0.5 && w.buffered.worst < 2.0,
+            "the runner's drawn speed wobbles: {:.2} m/s rms, worst {:.2}",
+            w.buffered.rms(),
+            w.buffered.worst
+        );
+        assert!(
+            w.new.rms() < 1.5,
+            "the runner's drawn speed wobbles through stalls: {:.2} m/s rms",
+            w.new.rms()
+        );
     }
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);

@@ -18,6 +18,7 @@ pub mod figure;
 pub mod foliage;
 pub mod front;
 pub mod game;
+pub mod interp;
 pub mod item_ui;
 pub mod ladder;
 pub mod life;

@@ -530,7 +530,7 @@ impl State {
             ServerMsg::Effect { from, to, .. } => To::Near(vec![*from, *to]),
             ServerMsg::Block { pos, .. } => To::Holds(*pos, *pos),
             ServerMsg::Fill { a, b, .. } => To::Holds(*a, *b),
-            ServerMsg::EntityMoves(list) => {
+            ServerMsg::EntityMoves { at, list } => {
                 for (id, p) in &self.players {
                     if Some(*id) == except {
                         continue;
@@ -540,9 +540,11 @@ impl State {
                         .filter(|(eid, ..)| p.known.borrow().contains(eid))
                         .copied()
                         .collect();
-                    if !mine.is_empty() {
-                        p.send(&ServerMsg::EntityMoves(mine));
-                    }
+                    // (empty too: what is not in it stood still)
+                    p.send(&ServerMsg::EntityMoves {
+                        at: *at,
+                        list: mine,
+                    });
                 }
                 let bytes = Arc::new(proto::encode(msg));
                 for (id, o) in &self.observers {
@@ -1813,8 +1815,9 @@ impl State {
         }
     }
 
-    /// Positions of entities that moved, then clear the flags.
-    pub fn entity_moves(&mut self) -> Option<ServerMsg> {
+    /// Positions of entities that moved, then clear the flags: sent every
+    /// tick, stamped with the server's clock (empty too).
+    pub fn entity_moves(&mut self) -> ServerMsg {
         let moves: Vec<(u32, [f32; 3], f32)> = self
             .entities
             .iter_mut()
@@ -1824,10 +1827,9 @@ impl State {
                 (*i, e.pos, e.yaw)
             })
             .collect();
-        if moves.is_empty() {
-            None
-        } else {
-            Some(ServerMsg::EntityMoves(moves))
+        ServerMsg::EntityMoves {
+            at: crate::movement::clock_ms(),
+            list: moves,
         }
     }
 

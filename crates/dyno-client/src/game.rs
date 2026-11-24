@@ -4,7 +4,6 @@ use dyno_protocol::{PlayerId, Pose};
 use dyno_world::{self as w, World};
 use glam::Vec3;
 use std::collections::HashMap;
-use std::time::Instant;
 
 pub use dyno_sim::movement::{EYE, Input, Player, apply_rules};
 pub const REACH: f32 = 7.0;
@@ -106,7 +105,8 @@ fn raycast_where(
     None
 }
 
-/// Another player, drawn between the last two poses received.
+/// Another player, drawn from a buffer of their stamped poses, 100 ms
+/// behind (docs/design/netcode.md, interp.rs).
 pub struct Remote {
     pub name: String,
     /// how they chose to look, and their class colour
@@ -115,9 +115,9 @@ pub struct Remote {
     /// out of your area of interest: no poses come, so they are not drawn
     /// (they start so, until their first pose arrives)
     pub far: bool,
-    from: Pose,
-    to: Pose,
-    at: Instant,
+    clock: crate::interp::Clock,
+    track: crate::interp::Track,
+    pitch: f32,
 }
 
 impl Remote {
@@ -127,62 +127,54 @@ impl Remote {
             look: Default::default(),
             color: [0.5, 0.5, 0.6],
             far: true,
-            from: pose,
-            to: pose,
-            at: Instant::now(),
+            clock: Default::default(),
+            track: crate::interp::Track::new(pose.pos.into(), pose.yaw),
+            pitch: pose.pitch,
         }
     }
 
-    pub fn set(&mut self, pose: Pose) {
+    /// A pose stamped with their movement clock (`stamp`, ms) arrived `now`
+    /// (s, [`crate::interp::now`]).
+    pub fn set(&mut self, stamp: u32, pose: Pose, now: f64) {
         if self.far {
             // back in view: appear where they are, not slide in from where they were
             self.far = false;
-            self.from = pose;
-            self.to = pose;
-            self.at = Instant::now();
-            return;
+            self.clock.reset();
+            self.track.snap(pose.pos.into(), pose.yaw);
         }
-        self.from = self.current();
-        self.to = pose;
-        self.at = Instant::now();
+        let t = stamp as f64 / 1000.0;
+        self.clock.arrived(now, t);
+        self.track.push(t, pose.pos.into(), pose.yaw);
+        self.pitch = pose.pitch;
     }
 
-    /// Velocity in blocks per second, from the last two poses (zero once
-    /// they go stale).
+    /// Where they are drawn `now` (each frame).
+    pub fn update(&mut self, now: f64) {
+        let t = self.clock.render(now);
+        self.track.update(t);
+    }
+
+    /// Velocity in blocks per second, as drawn.
     pub fn velocity(&self) -> glam::Vec3 {
-        if self.at.elapsed().as_secs_f32() > 0.2 {
-            return glam::Vec3::ZERO;
-        }
-        (glam::Vec3::from(self.to.pos) - glam::Vec3::from(self.from.pos)) / 0.05
+        self.track.vel()
+    }
+
+    /// Drawn past their newest pose: their poses are late.
+    pub fn late(&self) -> bool {
+        self.track.beyond()
     }
 
     /// Horizontal speed in blocks per second.
     pub fn speed(&self) -> f32 {
-        let d = [
-            self.to.pos[0] - self.from.pos[0],
-            self.to.pos[2] - self.from.pos[2],
-        ];
-        (d[0] * d[0] + d[1] * d[1]).sqrt() / 0.05
+        let v = self.track.vel();
+        v.x.hypot(v.z)
     }
 
     pub fn current(&self) -> Pose {
-        let t = (self.at.elapsed().as_secs_f32() / 0.05).clamp(0.0, 1.0);
-        let l = |a: f32, b: f32| a + (b - a) * t;
-        let mut dyaw = self.to.yaw - self.from.yaw;
-        while dyaw > std::f32::consts::PI {
-            dyaw -= std::f32::consts::TAU;
-        }
-        while dyaw < -std::f32::consts::PI {
-            dyaw += std::f32::consts::TAU;
-        }
         Pose {
-            pos: [
-                l(self.from.pos[0], self.to.pos[0]),
-                l(self.from.pos[1], self.to.pos[1]),
-                l(self.from.pos[2], self.to.pos[2]),
-            ],
-            yaw: self.from.yaw + dyaw * t,
-            pitch: l(self.from.pitch, self.to.pitch),
+            pos: self.track.pos().into(),
+            yaw: self.track.yaw(),
+            pitch: self.pitch,
         }
     }
 }

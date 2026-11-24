@@ -1899,9 +1899,10 @@ pub fn shot_state(p: &mut Play, ui: &str) {
                 id,
                 ClientEntity {
                     kind: EntityKind::Creature(kind),
-                    from: at,
-                    to: at,
-                    at: Instant::now(),
+                    track: crate::interp::Track::new(
+                        Vec3::from(at),
+                        p.player.yaw + std::f32::consts::PI,
+                    ),
                     yaw: p.player.yaw + std::f32::consts::PI,
                     born: Instant::now() - Duration::from_secs(5),
                     hurt_at: None,
