@@ -682,7 +682,7 @@
     {"stamp": "hollow_oak", "at": [0, 0]},
     {"stamp": "outcrop", "at": [-18, -12]},
     {"stamp": "fallen_log", "at": [10, -14], "rot": 1},
-    {"stamp": "pond_big", "at": [-12, 20]},
+    {"stamp": "pond_big", "at": [-14, 34]},
     {"stamp": "boulders", "at": [15, 16]}
    ],
    "was": {
@@ -762,12 +762,11 @@
     {"stamp": "windmill", "at": [-10, -3]},
     {"stamp": "stone_wall", "at": [2, -21], "fit": "ground"},
     {"stamp": "hedge", "at": [27, 4], "rot": 1, "fit": "ground"},
-    {"stamp": "hedge", "at": [-2, 21], "fit": "ground"},
     {"stamp": "farmhouse", "at": [13, -9]},
     {"stamp": "field", "at": [12, 9]},
-    {"stamp": "haystack", "at": [-16, 8]},
-    {"stamp": "cart", "at": [-18, 15]},
-    {"stamp": "pond", "at": [-1, 12]},
+    {"stamp": "haystack", "at": [-23, 1]},
+    {"stamp": "cart", "at": [14, 22]},
+    {"stamp": "pond_big", "at": [-7, 13]},
     {"stamp": "fence_run", "at": [-24, -10], "fit": "ground"},
     {"stamp": "signpost", "at": [-28, -6], "fit": "ground"}
    ],
@@ -1556,6 +1555,6 @@
  "water": [
   {"kind": "shrine", "place": "sunken_shrine", "radius": [26, 18], "feather": 0.4},
   {"kind": "barrow", "place": "old_barrow", "radius": [34, 40]},
-  {"kind": "oak", "place": "hollow_oak", "at": [-12, 20], "radius": [16, 14]}
+  {"kind": "oak", "place": "hollow_oak", "at": [-14, 34], "radius": [16, 14]}
  ]
 }

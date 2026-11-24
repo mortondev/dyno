@@ -527,8 +527,8 @@ def sawmill():
     for a in range(0, 360, 5):
         y = cy + round(math.sin(math.radians(a)) * 5)
         z = cz + round(math.cos(math.radians(a)) * 5)
-        v.set(cx, y, z, "dark_planks")
-        v.set(cx + 1, y, z, "dark_planks")
+        v.set(cx, y, z, "birch_planks")
+        v.set(cx + 1, y, z, "birch_planks")
     for k in range(-4, 5):
         v.set(cx, cy + k, cz, "timber_beam")
         v.set(cx, cy, cz + k, "timber_beam")
