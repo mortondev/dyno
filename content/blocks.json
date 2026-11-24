@@ -23,7 +23,7 @@
     "lip": 1.15,
     "shade_within": 24,
     "blocks": {
-      "grass": {"under": "dirt", "shade": 0.45, "smooth": 0.75, "jitter": 0.13, "tint": [1.1, 1.06, 0.68], "saturation": 1.35},
+      "grass": {"under": "dirt", "shade": 0.45, "smooth": 0.75, "jitter": 0.13, "tint": [1.28, 0.93, 0.72], "saturation": 0.9},
       "snow": {"under": "stone", "jitter": 0.04},
       "sand": {"smooth": 0.6, "jitter": 0.07, "tint": [1.1, 1.02, 0.82], "saturation": 1.2},
       "dirt": {"jitter": 0.1, "tint": [1.08, 0.96, 0.82], "saturation": 1.1},
@@ -102,7 +102,8 @@
     {"id":62,"key":"anvil","textures":{"bottom":"textures/anvil_bottom.png","side":"textures/anvil_side.png","top":"textures/anvil_top.png"},"tags":["prop","on_paving","chamfer"],"shape":{"rules":"anvil","vox":"shapes/anvil.vox"}},
     {"id":63,"key":"brazier","textures":{"bottom":"textures/brazier_bottom.png","side":"textures/brazier_side.png","top":"textures/brazier_top.png"},"tags":["prop","on_paving"],"shape":{"rules":"brazier","vox":"shapes/brazier.vox"}},
     {"id":64,"key":"flower_bed","textures":{"bottom":"textures/dirt.png","side":"textures/flower_bed_side.png","top":"textures/flower_bed_top.png"},"tags":["prop","on_paving","chamfer"],"shape":{"rules":"flower_bed","vox":"shapes/flower_bed.vox"}},
-    {"id":65,"key":"rail","textures":{"bottom":"textures/rail.png","side":"textures/rail.png","top":"textures/rail.png"},"tags":["prop","on_paving"],"shape":{"rules":"rail","vox":"shapes/rail.vox"}}
+    {"id":65,"key":"rail","textures":{"bottom":"textures/rail.png","side":"textures/rail.png","top":"textures/rail.png"},"tags":["prop","on_paving"],"shape":{"rules":"rail","vox":"shapes/rail.vox"}},
+    {"id":66,"key":"blossom_leaves","textures":{"bottom":"textures/blossom_leaves.png","side":"textures/blossom_leaves.png","top":"textures/blossom_leaves.png"},"tags":["leaves"]}
   ],
   "shape_rules": {
     "rail": {
