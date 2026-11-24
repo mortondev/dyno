@@ -1543,7 +1543,24 @@ def inn_sign():
     return v
 
 
+def load_sections():
+    """Recipes kept per world section in tools/stamps/sections/<section>.py
+    (each file does `from build import recipe` and uses the kit), so work on
+    different parts of the world never edits the same file."""
+    import importlib.util
+    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sections")
+    if not os.path.isdir(here):
+        return
+    sys.modules.setdefault("build", sys.modules[__name__])
+    for f in sorted(os.listdir(here)):
+        if f.endswith(".py") and not f.startswith("_"):
+            spec = importlib.util.spec_from_file_location(f"sections.{f[:-3]}", os.path.join(here, f))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+
+
 def main():
+    load_sections()
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "content", "stamps")
     names = sys.argv[1:] or sorted(R)
     for n in names:
