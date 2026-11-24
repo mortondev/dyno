@@ -175,7 +175,7 @@ two rounds, what was built for each, how each was checked, and the result.
 | 9 | Kill moment | **pass** | the kill rows of the after strips: death fall, a pop of cubes; the fallen figure covers any frames before the body comes. The loot sparkle is in the code and data but not in a picture: the yard's dummies drop nothing, and the yard was left as the before clips had it |
 | 10 | Instant press | **pass** | `checks/press.jpg`, top to bottom: Onrush's key lit on the frame of the press; Heroic Blow pressed straight after, refused (no pulse, error sound); Heroic Blow pressed in the last moment of the global cooldown, queued (gold frame) |
 | 11 | Proof | **pass** | after strips in `docs/design/feel/after/`. A fresh agent judge got only the 12 strips, as `classN-X/Y` in an order drawn at random per class, and no hint of what changed. It picked "after" for all six classes on its first and only verdict, naming in each case "a burst of block-shaped bits thrown off the dummy in the frames right after the hit" |
-| 12 | Gates | GATES | below |
+| 12 | Gates | **pass**, with one inherited count failure | below |
 | 13 | Voxel rule | **pass** | every burst cube is snapped to the ladder (`feel::on_ladder`) and drawn as an upright cube; it shrinks only by a whole ladder step. The tell is two rings of 12.5 cm cubes on one grid (`feel::ring_cells`, tested). The daze is 6.25 cm cubes. No billboards, cards, curves or diagonals |
 
 ### Swarm (goal 7)
@@ -206,7 +206,41 @@ creatures' `heavy` entries: the control pack has them removed.
 
 ### Gates (goal 12)
 
-GATE_RESULTS
+All run on the branch merged with main (the voxel-rule tests included).
+
+| Gate | Result |
+|---|---|
+| `cargo fmt --all` | pass |
+| `cargo clippy --workspace --all-targets -- -D warnings` | pass |
+| `cargo test --workspace` | pass, run once. It includes the voxel rule's mesh test, with F2's bursts, rings, daze, pop and sparkle registered in it (`feel::voxel_objects`) |
+| `bash .github/scripts/check-client.sh` | pass: 9.34 MB, no content strings |
+| `tools/drive/run.sh` (port 7781) | pass: 136 steps |
+| `dyno bench --local --tier high --check tools/bench/reference.json` | **times within budget; the count check fails, not because of F2** (below) |
+
+**The bench's times** at the default tier:
+
+| | Measured | Budget |
+|---|---|---|
+| GPU median, the six scenes | 1.1–2.1 ms | 8 ms |
+| GPU median, the flight | 4.8 ms | 8 ms |
+| Main thread, the six scenes | 1.3–4.3 ms | 8 ms |
+| Main thread, the flight | 5.7 ms | 10 ms |
+
+**The count check** fails on three numbers against
+`tools/bench/reference.json`:
+
+| Scene | Count | Over the reference |
+|---|---|---|
+| Hearthstead plaza | triangles | +34% |
+| Hearthstead plaza | vertex memory | +16% |
+| Miner's Rest | triangles | +18% |
+
+These are world meshes. Main's voxel-rule work (`b4c644c`, roofs as stairs)
+recorded +16% to +43% world triangles in `tests/budget.rs`, which passes,
+but did not record the bench's `reference.json` again. F2 touches no mesher
+(`git diff main -- render.rs terrain_mesh.rs shapes.rs worldwork.rs` is
+empty), and the bench scenes have no fight in them. Recording the
+reference again is the voxel-rule lane's or the lead's call.
 
 ### Not done, or left as it was
 - **Hit-stop is hard to see in stills.** The judge saw the bursts. A stop of
