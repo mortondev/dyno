@@ -66,6 +66,7 @@ Ladder step: 1 = 1 m, 2 = 50 cm, 3 = 25 cm, 4 = 12.5 cm, 5 = 6.25 cm,
 | `render.rs` `ring` | a 40-segment circle round the target | — | a stepped circle of 6.25 cm cells |
 | `sky.rs` | round sun and moon discs | — | squares, the moon's seas in cells as before |
 | `particles.rs` `edge` | cubes of any size as an effect grows and fades | off | sizes snap to the ladder (`ladder::snap`); smaller than two thirds of 3.125 cm is not drawn |
+| `app.rs` `spawn_bolt`, `spawn_burst`, `spawn_motes`, block chips | sparks, motes and chips shrinking smoothly as they die | off | drawn at ladder edges (`particle_edge`, `ladder::snap`); in the mesh test |
 | `render.rs` `push_glow`, `particles.rs` `halo` | camera-facing glow quads round lamps and glowing particles (billboards) | — | removed (the lead's ruling): the glow is the emissive cubes' and the bloom's |
 | `content/figures.json` person (`per_block` 34.63 × detail 2 and 2.5) | people at 1.44 cm and 1.16 cm voxels | off | sculpted at 32/34.63 a rig unit: 3.125 cm (hand-in 2) |
 | `content/rigs/biped.json` part `scale` (builds 0.93–1.1, head 1.14); `figure.rs` `reshape` taper | parts stretched unevenly off their grid | off | builds and the head sculpted into the voxels; `shape`, `reshape` and the taper removed |
@@ -139,3 +140,5 @@ draw calls, meshing 0.8–1.4 ms a section (mean). Two tools keep the count
 down: `stairs.py` (25 cm treads, a quarter of the steps of the 6.25 cm
 diagonal) and `rounds.py` (a clean circle per slice merges into tall
 faces), and round parts join from cell to cell (`"joins": true`).
+`tools/bench/reference.json` was recorded again for the same reason
+(the plaza 28–34% and Miner's Rest 18% over the old reference).
