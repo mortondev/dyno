@@ -43,6 +43,9 @@ round 3's wake point ([picture](runs/r2-wake-view.jpg)).
   rules file the server was given, so the bots, which skip creatures four
   levels above them and cannot read "(Group)", leave him alone. His camp
   still sets his real level; players see no difference. Why: next section.
+- **A swarm on the merged build**, rules as shipped, after everything else:
+  one run, not pooled (main's class pass changed the bot and the classes).
+  It is at the end of section 2.
 - **Tick and load** are printed beside each table. A `--local` swarm now
   records the server's tick cost itself (mean, p95, p99, worst, and the
   worst minute's p95) and `/proc/loadavg` each minute; for a swarm against a
@@ -64,6 +67,13 @@ round 3's wake point ([picture](runs/r2-wake-view.jpg)).
   reads as 2 to 6 an hour. Counts and bot-hours are shown; rates are pooled
   over both runs.
 - **Hand play** through `dyno play`, driven command by command.
+- **What the hand-in is:** this branch merged with main three times as
+  main moved (the class pass and world round 3; the UI and life rounds;
+  v0.11.0). The rules of this round are applied by
+  `tools/playtest/round2_rules.py` on top of main's each time. The counted
+  swarms are from before the first merge; the hand runs and Old Tusk's
+  last table are from after it (`ca3d71f`); the swarm on the merged build
+  is from after the second (`d370863`); the gates ran on the last.
 
 ## What the first pass taught
 
@@ -289,6 +299,33 @@ number. What it was set to catch (the night,
 adds from new packs, creatures above the zone's level on roads and by
 quest givers) is 9 of 15 deaths before and 1 of 13 after.
 
+### One swarm on the merged build, rules as shipped
+
+Not pooled with anything above: main's class pass changed the bot and
+every class. 12 bots, 30 minutes, on this branch merged with main
+(`d370863`), Old Tusk in plain sight; tick p95 5.50 ms with the test suite
+compiling beside it (load 31 mean, 74 at most). Report and analysis:
+[runs/r2-confirm-analysis.md](runs/r2-confirm-analysis.md).
+
+- **Tags and pace as before the merge:** kills lost to a tag 2%; levels 2,
+  3 and 4 at 2:26, 8:24 and 14:58.
+- **No death to a Shade**, by day or night, in 5.7 bot-hours.
+- **Old Tusk fell to two, in the wild:** two priests who were not grouped
+  arrived together at minute 17 and killed him in 19 s, each with the
+  kill and the quest. He killed three who came alone, four times (two
+  warriors, and a level 2 rogue of the party pair). Completionists died 4
+  times in 2 hours, 3 of them these.
+- **Then he did not come back for twelve minutes.** Four bots stood in
+  his hollow from minute 17 to the end, 11 to 14 minutes each, and with
+  four of them there one was nearly always within 5 m of his one spawn
+  point (he returned in the last seconds of the run). The 5 m rule was not
+  enough. Changed after this swarm: a point that has been due for 30 s
+  fills whoever stands on it (`crowd_respawn.patience`). By hand on the hand-in build he was back about 110 s after dying, with a player waiting in the hollow; I could not find his exact point to stand on it, so the 30 s rule itself has not been seen to fire in play.
+- An explorer died in the Ashcloak Stockade to six level 5 and 6 bandits:
+  it walks into any named place on the map. The explorer's 4 deaths an
+  hour, here and above, are mostly this habit.
+
+
 ## 3. Travel
 
 Share of the time played, before and after:
@@ -438,7 +475,9 @@ Now a camp's creature with nobody left alive of those who fought it walks
 home and heals. And **he could not come back while anyone stood within
 12 m of his one spawn point**, which is where you wait for him: the
 longest stretch without a reward in the baseline, 7:30, is a rogue standing
-in his hollow. A creature may now come back 5 m from a player.
+in his hollow. A creature may now come back 5 m from a player, and a
+creature 30 s overdue comes back wherever players stand: the swarm on the
+merged build showed four bots in the hollow still holding him off at 5 m.
 
 His quest text said "take a friend"; a pair wins, sometimes with one of
 them on the floor. It now says "do not go alone. Take two with you".
@@ -490,8 +529,9 @@ off it shares the kill:
 
 Two more rules for crowds (`world.crowd_respawn`): a camp's creature comes
 back sooner for each player within 45 m when it dies (80% of its time per
-extra player, never under 40%), and may come back 5 m from a player, not
-12 m (twelve players stand on most of a flock's spawn points).
+extra player, never under 40%), may come back 5 m from a player, not
+12 m (twelve players stand on most of a flock's spawn points), and once
+30 s overdue comes back whoever stands there.
 
 Twelve completionist bots, all on the first quests at the gate flocks, 8
 minutes, each on a fresh world
@@ -557,7 +597,7 @@ this is the rules only: an NPC's position.
 | Change | Why |
 |---|---|
 | `world.shared_tags: {"damage": 0.1, "xp": 0.7}` | Section 6 |
-| `world.crowd_respawn: {"radius": 45, "per_player": 0.8, "least": 0.4, "near": 5}` | Crowded camps come back sooner; a creature may come back 5 m from a player (Old Tusk never came back while someone waited for him) |
+| `world.crowd_respawn: {"radius": 45, "per_player": 0.8, "least": 0.4, "near": 5, "patience": 30}` | Crowded camps come back sooner; a creature may come back 5 m from a player, and after 30 s overdue wherever players stand (Old Tusk never came back while someone waited for him) |
 | `world.dark_in_areas: true`; a new area, **the Dimwood**, 45 m across, 100 m east of the North Watch, marked `dark`; the Forgotten Graves and the Old Barrow marked `dark` | Shades rise in the dark's haunts and nowhere else on the surface. The road, the flocks and the boar packs are the same by night as by day |
 | Shade: `spares_below: 5` | A Shade does not start a fight with a character under level 5. It fights back. This covers the Nightfall Incursion too: its Shades still gather at a gate and march on the hearth, and a level 3 may join in or watch |
 | Eyes in the Dark and Dust of Shadows name the Dimwood | "Wait for dusk. They'll come" told you nothing about where |
@@ -575,7 +615,7 @@ this is the rules only: an NPC's position.
 | Change | Where |
 |---|---|
 | Shared tags: players outside the tagger's party who dealt `damage` of a creature's health share the kill (quest credit, their own quest drops, `xp` of the kill's XP) | `content.rs` `SharedTags`, `creatures.rs` `kill_mob` |
-| Crowd respawn, and how near a player a creature may come back | `content.rs` `CrowdRespawn`, `camps.rs` `tick_camps` |
+| Crowd respawn, how near a player a creature may come back, and how long a due creature waits for players to step away | `content.rs` `CrowdRespawn`, `camps.rs` `tick_camps` |
 | `world.dark_in_areas` and `Area.dark`: on the surface, creatures of the dark rise only in marked areas (underground as before) | `content.rs`, `creatures.rs` `spawn_creatures`, `camps.rs` `in_dark_area` |
 | `Creature.spares_below`: a hostile creature that leaves characters under a level alone until struck | `content.rs`, `creatures.rs` |
 | A camp's creature whose attackers are all dead or gone walks home and heals | `creatures.rs` `tick_creatures` |
@@ -755,15 +795,17 @@ I felt):
   merge and nothing on the merged tree is pooled with them.
 - `/xp <amount>` was added here and on main at the same time; main's is
   kept.
-- The full test suite was run twice, not once: main moved between the
-  first run and the hand-in.
+- The full test suite was run more than once: main moved three times
+  between the first run and the hand-in, and each merge was tested.
 
 ## Still open, and what I would do next
 
-1. **Teach the bot three things, then freeze it again.** Leave "(Group)"
+1. **Teach the bot four things, then freeze it again.** Leave "(Group)"
    quests alone unless in a party; rest before a pull even while the combat
    flag lingers (28 of the grinders' 35 baseline deaths); choose a camp by
-   the level of what stands in it. Until then the grinders' numbers measure
+   the level of what stands in it; do not swap a two-handed weapon and an
+   off-hand for ever (a warrior with the Watch Greataxe stands still). The
+   party brain's stalls want looking at too. Until then the grinders' numbers measure
    the bot, and a real elite cannot be in a mixed swarm.
 2. **Kill quests with a place.** The thieves needed their own creature
    because a kill objective cannot say where. `{"kill": "ashcloak", "at":
