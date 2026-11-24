@@ -947,6 +947,8 @@
     {"stamp": "meadow_east_rut", "at": [-10, -8], "fit": "ground"},
     {"stamp": "campfire", "at": [0, -14], "fit": "ground"},
     {"stamp": "meadow_east_ash_flag", "at": [-16, -24], "fit": "ground"},
+    {"stamp": "meadow_east_dropped", "at": [28, -7], "fit": "ground"},
+    {"stamp": "meadow_east_dropped", "at": [39, -8], "rot": 2, "fit": "ground"},
     {"stamp": "meadow_east_clear_10", "at": [25, 4], "fit": "float", "dy": 40},
     {"stamp": "meadow_east_clear_10", "at": [45, -6], "fit": "float", "dy": 40}
    ],
