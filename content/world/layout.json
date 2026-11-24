@@ -1109,14 +1109,47 @@
    "name": "The Wrecked Caravan",
    "radius": 14,
    "stamps": [
-    {"stamp": "wrecked_caravan", "at": [0, -8], "fit": "ground"}
+    {"stamp": "meadow_east_caravan", "at": [-3, -12], "fit": "ground"},
+    {"stamp": "meadow_east_spill", "at": [-2, -5], "fit": "ground"},
+    {"stamp": "meadow_east_rut", "at": [-10, -8], "fit": "ground"},
+    {"stamp": "campfire", "at": [0, -14], "fit": "ground"},
+    {"stamp": "meadow_east_ash_flag", "at": [-16, -24], "fit": "ground"},
+    {"stamp": "meadow_east_dropped", "at": [28, -7], "fit": "ground"},
+    {"stamp": "meadow_east_dropped", "at": [39, -8], "rot": 2, "fit": "ground"},
+    {"stamp": "meadow_east_clear_10", "at": [25, 4], "fit": "float", "dy": 40},
+    {"stamp": "meadow_east_clear_10", "at": [45, -6], "fit": "float", "dy": 40}
    ],
    "was": {
     "at": [50, -11],
     "radius": 8
    },
    "trees": [
-    {"species": "oak", "at": [13, -2]}
+    {"species": "oak", "at": [30, -22]}
+   ]
+  },
+  {
+   "key": "meadow_east_eastfold_sign",
+   "kind": "wayside",
+   "at": [235, -48],
+   "name": "Eastfold Turning",
+   "radius": 6,
+   "stamps": [
+    {"stamp": "signpost", "at": [4, -1], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "meadow_east_raid",
+   "kind": "wayside",
+   "at": [300, -40],
+   "name": "The Raiders' Trail",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "milestone", "at": [-3, -6], "fit": "ground"},
+    {"stamp": "meadow_east_spill", "at": [5, -8], "rot": 2, "fit": "ground"},
+    {"stamp": "outcrop", "at": [10, -22], "fit": "float"},
+    {"stamp": "meadow_east_ash_flag", "at": [3, -16], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_east_dropped", "at": [-10, -34], "fit": "ground"},
+    {"stamp": "meadow_east_dropped", "at": [-22, -58], "rot": 1, "fit": "ground"}
    ]
   },
   {
@@ -1313,25 +1346,47 @@
    "at": [270, -170],
    "radius": 20,
    "pad": {
-    "radius": [21, 19]
+    "radius": [28, 25],
+    "blend": 12
    },
    "stamps": [
-    {"stamp": "farmhouse", "at": [-7, -8]},
-    {"stamp": "stone_wall", "at": [0, -19], "fit": "ground"},
-    {"stamp": "stone_wall", "at": [-20, 0], "rot": 1, "fit": "ground"},
-    {"stamp": "hedge", "at": [20, 0], "rot": 1, "fit": "ground"},
-    {"stamp": "hedge", "at": [0, 19], "fit": "ground"},
-    {"stamp": "field", "at": [8, 8]},
-    {"stamp": "haystack", "at": [-12, 7]},
-    {"stamp": "cart", "at": [10, -10]}
+    {"stamp": "farmhouse", "at": [-7, -6]},
+    {"stamp": "barn", "at": [9, -8]},
+    {"stamp": "field", "at": [8, 10]},
+    {"stamp": "meadow_east_farm_bounds", "at": [0, 0]},
+    {"stamp": "well", "at": [-15, 3]},
+    {"stamp": "meadow_east_pen", "at": [-14, 11]},
+    {"stamp": "log_pile", "at": [-16, -6], "rot": 1},
+    {"stamp": "haystack", "at": [-8, -14]},
+    {"stamp": "cart", "at": [-1, -14]},
+    {"stamp": "flower_garden", "at": [-3, 2]}
    ],
    "trees": [
-    {"species": "oak", "at": [-18, -14]}
+    {"species": "oak", "at": [-25, -10]}
    ],
    "was": {
     "at": [54, -34],
     "radius": 10
    }
+  },
+  {
+   "key": "meadow_east_lookout",
+   "kind": "site",
+   "at": [265, -118],
+   "name": "Ashcloak Lookout",
+   "radius": 10,
+   "pad": {
+    "radius": [7, 7],
+    "blend": 10,
+    "surface": {"dirt": 3, "basalt": 1}
+   },
+   "stamps": [
+    {"stamp": "meadow_east_lookout", "at": [3, -3]},
+    {"stamp": "tent_red", "at": [3, 2]},
+    {"stamp": "campfire", "at": [-3, 8], "fit": "ground"},
+    {"stamp": "meadow_east_ash_flag", "at": [-3, -3]},
+    {"stamp": "meadow_east_dropped", "at": [9, 7], "fit": "ground"}
+   ]
   },
   {
    "key": "meadow_farm_3",
@@ -1381,7 +1436,10 @@
    "at": [265, -272],
    "radius": 14,
    "stamps": [
-    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+    {"stamp": "pasture", "at": [0, 0], "rot": 2, "fit": "ground"},
+    {"stamp": "hut", "at": [15, 1], "rot": 2, "fit": "ground"},
+    {"stamp": "haystack", "at": [-12, 2], "fit": "ground"},
+    {"stamp": "meadow_east_clear_14", "at": [2, 0], "fit": "float", "dy": 40}
    ]
   },
   {
@@ -1389,8 +1447,61 @@
    "kind": "farm",
    "at": [247, 145],
    "radius": 14,
+   "pad": {
+    "radius": [22, 19],
+    "blend": 8,
+    "surface": {"grass": 2, "dirt": 1}
+   },
    "stamps": [
-    {"stamp": "pasture", "at": [0, 0], "fit": "ground"}
+    {"stamp": "pasture", "at": [0, 0], "fit": "ground"},
+    {"stamp": "haystack", "at": [13, 4], "fit": "ground"},
+    {"stamp": "meadow_east_clear_20", "at": [0, 0], "fit": "float", "dy": 40}
+   ],
+   "trees": [
+    {"species": "young_oak", "at": [-13, -10]}
+   ]
+  },
+  {
+   "key": "meadow_east_old_fold",
+   "kind": "site",
+   "at": [165, 140],
+   "name": "The Old Fold",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [-4, -6], "fit": "ground"},
+    {"stamp": "stone_wall", "at": [6, -7], "fit": "ground"},
+    {"stamp": "stone_wall", "at": [-10, 3], "rot": 1, "fit": "ground"},
+    {"stamp": "fallen_log", "at": [5, 6], "rot": 1, "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [10, 8]}
+   ]
+  },
+  {
+   "key": "meadow_east_hay_field",
+   "kind": "site",
+   "at": [190, -150],
+   "name": "Upper Hayfield",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "stone_wall", "at": [0, -7], "fit": "ground"},
+    {"stamp": "cart", "at": [-4, 2], "rot": 3, "fit": "ground"},
+    {"stamp": "haystack", "at": [4, 0], "fit": "ground"},
+    {"stamp": "haystack", "at": [7, 4], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "meadow_east_east_ruin",
+   "kind": "site",
+   "at": [290, 75],
+   "name": "Broken Wall",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [0, 0], "rot": 1, "fit": "ground"},
+    {"stamp": "fallen_log", "at": [6, 5], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-8, 6]}
    ]
   },
   {
@@ -1443,7 +1554,7 @@
   {
    "key": "meadow_flock_1",
    "kind": "camp",
-   "at": [240, 110],
+   "at": [247, 145],
    "radius": 20
   },
   {
@@ -1480,7 +1591,7 @@
   {
    "key": "meadow_flock_5",
    "kind": "camp",
-   "at": [290, -150],
+   "at": [300, -140],
    "radius": 20
   },
   {
@@ -1659,23 +1770,32 @@
   {
    "key": "east_road_wood_5",
    "kind": "wayside",
-   "at": [180, -12],
+   "at": [165, -8],
    "radius": 10,
    "stamps": [
     {"stamp": "log_pile", "at": [1, 10], "fit": "ground"},
-    {"stamp": "stumps", "at": [5, -14], "fit": "ground"}
+    {"stamp": "stumps", "at": [5, -14], "fit": "ground"},
+    {"stamp": "saw_pit", "at": [-8, 10], "fit": "ground"},
+    {"stamp": "meadow_east_clear_10", "at": [-20, -10], "fit": "float", "dy": 40}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-2, 20]},
+    {"species": "oak", "at": [10, 18]},
+    {"species": "young_oak", "at": [-14, 16]},
+    {"species": "oak", "at": [12, -26]}
    ]
   },
   {
    "key": "east_road_glade_6",
    "kind": "wayside",
-   "at": [187, -43],
+   "at": [200, -26],
    "radius": 10,
    "stamps": [
-    {"stamp": "flower_garden", "at": [-3, -10], "fit": "ground"}
+    {"stamp": "flower_garden", "at": [-3, -10], "fit": "ground"},
+    {"stamp": "meadow_east_clear_14", "at": [-3, -18], "fit": "float", "dy": 40}
    ],
    "trees": [
-    {"species": "hero_oak", "at": [4, 12]}
+    {"species": "hero_oak", "at": [-3, -22]}
    ]
   },
   {
