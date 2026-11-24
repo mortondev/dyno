@@ -50,6 +50,8 @@ pub struct Settings {
     pub ui_scale: f32,
     /// show the tutorial tips (tips.rs)
     pub tips: bool,
+    /// the camera shakes on your crits and heavy blows you take (feel.rs)
+    pub camera_shake: bool,
     /// the tips this player has seen, by id
     pub tips_seen: Vec<String>,
     /// each character's action bar: ability keys in its 12 slots ("" empty)
@@ -86,6 +88,7 @@ impl Default for Settings {
             token: 0,
             ui_scale: 1.0,
             tips: true,
+            camera_shake: true,
             tips_seen: Vec::new(),
             bars: Default::default(),
             camera_zoom: crate::camera::DEFAULT_ZOOM,

@@ -876,6 +876,33 @@ pub fn action_bar(
                 theme::GOLD_BRIGHT,
             );
         }
+        // the key just pressed lights at once; one pressed in the last
+        // moment of the global cooldown beats until it goes off (feel.rs)
+        if let Some(pr) = p.feel.borrow().pressed.filter(|pr| pr.slot == i) {
+            let t = pr.at.elapsed().as_secs_f32();
+            if pr.queued {
+                let beat = 0.5 + 0.5 * (t * 18.0).cos();
+                painter.rect_stroke(
+                    r.expand(1.5),
+                    4.0,
+                    Stroke::new(
+                        2.5_f32,
+                        theme::GOLD_BRIGHT.gamma_multiply(0.35 + 0.65 * beat),
+                    ),
+                    egui::StrokeKind::Outside,
+                );
+            } else {
+                let pulse = crate::feel::data().press.pulse.max(0.05);
+                let u = (1.0 - t / pulse).clamp(0.0, 1.0);
+                painter.rect_filled(r.shrink(3.0), 3.0, Color32::WHITE.gamma_multiply(0.45 * u));
+                painter.rect_stroke(
+                    r.expand(1.0 + 3.0 * (1.0 - u)),
+                    5.0,
+                    Stroke::new(2.5_f32, theme::GOLD_BRIGHT.gamma_multiply(u)),
+                    egui::StrokeKind::Outside,
+                );
+            }
+        }
         if look.fresh > 0.0 {
             // a new ability: a slow gold pulse round its slot
             let pulse = 0.55 + 0.45 * (ctx.input(|i| i.time) as f32 * 4.0).sin();

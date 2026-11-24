@@ -37,14 +37,19 @@ click left|right at MARK      click a marked part of the interface
 hover at MARK                 rest the pointer there
 drag at MARK to MARK | by DX DY
 press at MARK · move at MARK · release   a drag in three lines (to `shot` it half way)
-key NAME                      press and release (1-9, 0, Minus, Equal, B, C, P, K, L, M, Tab, Escape, Enter)
+key NAME                      press and release (1-9, 0, Minus, Equal, B, C, P, K, L, M, W, Tab, Escape, Enter, F3)
 remember MARK                 note where it is, for `expect moved MARK`
 shot NAME                     save the frame
+orbit DEGREES                 set-up: swing the camera round the character (0: behind)
+clip-start NAME · clip-end    save every frame between as NAME/f0000.ppm ..., and NAME/frames.txt:
+                              a line a frame (number, milliseconds, hit, crit or kill when a
+                              blow of yours landed that frame, and @x,y: where your target is
+                              in the picture, 0 to 1)
 expect [not] CONDITION        wait up to 8 s for it, else fail
 until CONDITION ... end       repeat the lines between (up to 6 times) until it holds
 yard                          set-up (operator): build the camera yard round the character
 walk-path X Z [X Z ...]       hold W, steering (at most 150 deg/s) through yard points
-orbit DEGREES [PITCH]         hold the left button and drag the camera round (and up)
+swing DEGREES [PITCH]         hold the left button and drag the camera round (and up)
 camera record                 log the play camera every frame from now
 camera check SPEED            fail if it ever moved faster than SPEED m/s (a pop) or was in a wall
 conditions: panel dialog|log|vendor|none · quest KEY · done KEY · target creature|npc|none ·
@@ -52,8 +57,24 @@ conditions: panel dialog|log|vendor|none · quest KEY · done KEY · target crea
   equipped ITEM · pack ITEM · bar N KEY|empty · mark NAME · tip ID|any|none · moved MARK ·
   hover creature|npc|corpse|none · map open|closed · tip-clear · level N · debuff · banner";
 
+/// A clip being recorded (`clip-start`): every frame is saved, and a line
+/// of `frames.txt` says when it was drawn and what blows landed in it.
+struct Clip {
+    dir: std::path::PathBuf,
+    frames: usize,
+    started: Instant,
+    /// combat text newer than this is new
+    seen: Instant,
+    /// the creatures hit so far (one that is gone has been killed)
+    struck: Vec<u32>,
+    /// where the creature I fight stands, or stood
+    target: Option<Vec3>,
+    log: String,
+}
+
 struct Driver {
     app: App,
+    clip: Option<Clip>,
     shots: Option<std::path::PathBuf>,
     remembered: HashMap<String, Rect>,
     log: Vec<String>,
@@ -172,6 +193,7 @@ fn key_code(name: &str) -> Option<KeyCode> {
         "tab" => KeyCode::Tab,
         "escape" | "esc" => KeyCode::Escape,
         "enter" => KeyCode::Enter,
+        "f3" => KeyCode::F3,
         _ => return None,
     })
 }
@@ -182,8 +204,70 @@ impl Driver {
         for _ in 0..n {
             let t = Instant::now();
             probe::begin_frame();
+            if let (Some(c), Some(g)) = (&self.clip, self.app.gfx.as_mut()) {
+                g.screenshot = Some(c.dir.join(format!("f{:04}.ppm", c.frames)));
+            }
             self.app.frame();
             let p = play(&self.app)?;
+            if let Some(c) = self.clip.as_mut() {
+                // what this frame learned: blows of mine that landed, and
+                // whether a creature I struck is gone
+                let mut events: Vec<&str> = Vec::new();
+                let mut newest = c.seen;
+                for (at, entity, text, _) in &p.combat_text {
+                    let Some(id) = entity else { continue };
+                    if *at <= c.seen {
+                        continue;
+                    }
+                    newest = newest.max(*at);
+                    events.push(if text.ends_with('!') { "crit" } else { "hit" });
+                    if !c.struck.contains(id) {
+                        c.struck.push(*id);
+                    }
+                }
+                c.seen = newest;
+                let before = c.struck.len();
+                c.struck.retain(|id| {
+                    matches!(
+                        p.entities.get(id).map(|e| e.kind),
+                        Some(EntityKind::Creature(_))
+                    )
+                });
+                if c.struck.len() < before {
+                    events.push("kill");
+                }
+                events.dedup();
+                // where the creature I fight is in the picture (0 to 1
+                // across and down), for whoever crops the frames
+                // (once it has fallen: where it stood)
+                if let Some(e) = p
+                    .attacking
+                    .or(p.focus)
+                    .or(p.hover)
+                    .and_then(|id| p.entities.get(&id))
+                    .filter(|e| matches!(e.kind, EntityKind::Creature(_)))
+                {
+                    c.target = Some(e.pos());
+                }
+                let at = c
+                    .target
+                    .zip(p.view_proj)
+                    .and_then(|(pos, vp)| {
+                        let clip = vp * (pos + Vec3::Y * 0.9).extend(1.0);
+                        (clip.w > 0.1).then(|| {
+                            let n = clip.truncate() / clip.w;
+                            format!("@{:.3},{:.3}", n.x * 0.5 + 0.5, 0.5 - n.y * 0.5)
+                        })
+                    })
+                    .unwrap_or_default();
+                c.log += &format!(
+                    "{} {:.1} {} {at}\n",
+                    c.frames,
+                    c.started.elapsed().as_secs_f32() * 1e3,
+                    events.join(" ")
+                );
+                c.frames += 1;
+            }
             if let Some(log) = self.cam_log.as_mut() {
                 log.add(p);
             }
@@ -778,6 +862,43 @@ impl Driver {
                 }
                 self.frames(2)
             }
+            "orbit" => {
+                let by: f32 = need(1)?.parse().map_err(|_| "orbit DEGREES")?;
+                play_mut(&mut self.app)?.cam_orbit = by.to_radians();
+                self.frames(2)
+            }
+            "clip-start" => {
+                let name = need(1)?;
+                let dir = self
+                    .shots
+                    .clone()
+                    .ok_or("no --shots directory was given")?
+                    .join(name);
+                std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+                let now = Instant::now();
+                self.clip = Some(Clip {
+                    dir,
+                    frames: 0,
+                    started: now,
+                    seen: now,
+                    struck: Vec::new(),
+                    target: None,
+                    log: String::new(),
+                });
+                Ok(())
+            }
+            "clip-end" => {
+                let c = self.clip.take().ok_or("no clip was started")?;
+                std::fs::write(c.dir.join("frames.txt"), &c.log)
+                    .map_err(|e| format!("{}: {e}", c.dir.display()))?;
+                self.log.push(format!(
+                    "clip {}: {} frames in {:.1} s",
+                    c.dir.display(),
+                    c.frames,
+                    c.started.elapsed().as_secs_f32()
+                ));
+                Ok(())
+            }
             "expect" => self.expect(&w[1..], 8.0),
             "yard" => self.build_yard(),
             "walk-path" => {
@@ -791,13 +912,13 @@ impl Driver {
                 }
                 self.walk_path(&nums)
             }
-            "orbit" => {
-                let yaw: f32 = need(1)?.parse().map_err(|_| "orbit DEGREES [PITCH]")?;
+            "swing" => {
+                let yaw: f32 = need(1)?.parse().map_err(|_| "swing DEGREES [PITCH]")?;
                 let pitch: f32 = match w.get(2) {
-                    Some(v) => v.parse().map_err(|_| "orbit DEGREES [PITCH]")?,
+                    Some(v) => v.parse().map_err(|_| "swing DEGREES [PITCH]")?,
                     None => 0.0,
                 };
-                self.orbit(yaw, pitch)
+                self.swing(yaw, pitch)
             }
             "camera" => match need(1)? {
                 "record" => {
@@ -938,7 +1059,7 @@ impl Driver {
 
     /// Hold the left button in the world and drag: the camera orbits by
     /// `yaw` degrees (and tilts up by `pitch`), over about a second.
-    fn orbit(&mut self, yaw: f32, pitch: f32) -> Result<(), String> {
+    fn swing(&mut self, yaw: f32, pitch: f32) -> Result<(), String> {
         let s = 0.0025 * self.app.settings.mouse_sensitivity;
         let mid = {
             let (w, h) = play(&self.app)?.screen_px;
@@ -1085,6 +1206,7 @@ pub fn drive(o: DriveOptions) -> Result<String, String> {
     };
     let mut d = Driver {
         app,
+        clip: None,
         shots: o.shots.clone(),
         remembered: HashMap::new(),
         log: Vec::new(),
@@ -1136,8 +1258,26 @@ mod tests {
     #[test]
     fn the_shipped_script_uses_only_what_the_driver_knows() {
         let commands = [
-            "say", "wait", "look-at", "walk-to", "click", "hover", "drag", "key", "remember",
-            "shot", "expect", "until", "end", "press", "move", "release", "turn",
+            "say",
+            "wait",
+            "look-at",
+            "walk-to",
+            "click",
+            "hover",
+            "drag",
+            "key",
+            "remember",
+            "shot",
+            "expect",
+            "until",
+            "end",
+            "press",
+            "move",
+            "release",
+            "turn",
+            "orbit",
+            "clip-start",
+            "clip-end",
         ];
         let mut open = 0;
         let mut expects = 0;
@@ -1175,7 +1315,7 @@ mod tests {
         let known = [
             "yard",
             "walk-path",
-            "orbit",
+            "swing",
             "camera",
             "wait",
             "shot",

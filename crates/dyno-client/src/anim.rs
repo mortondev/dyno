@@ -289,6 +289,13 @@ pub struct Animator {
     plays: u32,
     mirrored: bool,
     last_pos: Option<Vec3>,
+    /// a hit-stop: from when the figure's own clock stands still, and for
+    /// how long; and the time it has lost to stops that are over
+    stop: Option<(f32, f32)>,
+    lag: f32,
+    /// the action is a wind-up: this share of its clip is stretched over
+    /// this many seconds, and the rest follows at the clip's own speed
+    warp: Option<(f32, f32)>,
     /// when this was last driven, for pruning
     pub touched: f32,
 }
@@ -307,6 +314,9 @@ impl Animator {
             plays: 0,
             mirrored: false,
             last_pos: None,
+            stop: None,
+            lag: 0.0,
+            warp: None,
             seed: (h >> 8) as f32 / (1u32 << 24) as f32,
             touched: now,
         }
@@ -326,9 +336,70 @@ impl Animator {
         self.base
     }
 
+    /// The figure's own clock at `now`: the book's, less the time its
+    /// hit-stops have held it still.
+    fn local(&self, now: f32) -> f32 {
+        match self.stop {
+            Some((from, secs)) if now >= from + secs => now - self.lag - secs,
+            Some((from, _)) if now >= from => from - self.lag,
+            _ => now - self.lag,
+        }
+    }
+
+    /// A hit-stop: the figure's animation stands still for `secs` from
+    /// `now` (a blow landed). Only what it looks like: where it stands and
+    /// how far its stride has come are not held. A stop under way is
+    /// lengthened, never cut short.
+    pub fn freeze(&mut self, now: f32, secs: f32) {
+        if secs <= 0.0 {
+            return;
+        }
+        match self.stop {
+            Some((from, len)) if now < from + len => {
+                self.stop = Some((from, len.max(now + secs - from)));
+            }
+            _ => {
+                if let Some((_, len)) = self.stop.take() {
+                    self.lag += len;
+                }
+                self.stop = Some((now, secs));
+            }
+        }
+    }
+
+    /// Whether a hit-stop holds the figure at `now`.
+    pub fn frozen(&self, now: f32) -> bool {
+        self.stop
+            .is_some_and(|(from, secs)| now >= from && now < from + secs)
+    }
+
+    /// Start a one-shot as a wind-up: the first `share` of its clip takes
+    /// `secs` (the creature gathers itself for as long as the server says),
+    /// then the rest plays at the clip's speed (the blow).
+    pub fn wind_up(&mut self, now: f32, action: Anim, share: f32, secs: f32) {
+        self.play(now, action);
+        self.warp = Some((share.clamp(0.05, 0.95), secs.max(0.05)));
+    }
+
+    /// Stop the one-shot that is playing (the server refused the ability;
+    /// a wind-up was broken off): it fades out from where it is.
+    pub fn cancel_action(&mut self, now: f32) {
+        let now = self.local(now);
+        if let (Some((_, start)), Some(len)) = (self.action.as_mut(), self.action_len) {
+            // as if it were at the start of its fade out
+            let t = now - *start;
+            if t < len - ACTION_OUT {
+                *start = now - (len - ACTION_OUT).max(0.0);
+            }
+        } else {
+            self.action = None;
+        }
+    }
+
     /// The action playing at `now`, if any (until it is posed past its
     /// end).
     pub fn action(&self, now: f32) -> Option<Anim> {
+        let now = self.local(now);
         self.action
             .filter(|(_, at)| self.action_len.is_none_or(|d| now - at < d))
             .map(|(a, _)| a)
@@ -336,13 +407,14 @@ impl Animator {
 
     /// How long the base state has run.
     pub fn base_time(&self, now: f32) -> f32 {
-        now - self.since
+        self.local(now) - self.since
     }
 
     /// Set the base state (crossfading if it changes) and move the stride on
     /// by `moved` blocks at `step` blocks per step.
     pub fn drive(&mut self, now: f32, base: Anim, moved: f32, step: f32) {
         self.touched = now;
+        let now = self.local(now);
         if base != self.base {
             if let Some(last) = self.last {
                 self.from = Some((last, now));
@@ -357,8 +429,10 @@ impl Animator {
 
     /// Start a one-shot action, replacing any playing.
     pub fn play(&mut self, now: f32, action: Anim) {
+        let now = self.local(now);
         self.action = Some((action, now));
         self.action_len = None;
+        self.warp = None;
         // the side, from the figure and the count of plays: the same for
         // the same history, so sheets and tests stay put
         self.plays = self.plays.wrapping_add(1);
@@ -369,7 +443,8 @@ impl Animator {
 
     /// Start a one-shot unless another began in the last quarter second.
     pub fn play_fresh(&mut self, now: f32, action: Anim) {
-        if !self.action.is_some_and(|(_, at)| now - at < 0.25) {
+        let local = self.local(now);
+        if !self.action.is_some_and(|(_, at)| local - at < 0.25) {
             self.play(now, action);
         }
     }
@@ -389,6 +464,7 @@ impl Animator {
     /// from the last, and the action layered on (upper body only while the
     /// legs move).
     pub fn pose(&mut self, now: f32, set: &ClipSet) -> Pose {
+        let now = self.local(now);
         let mut p = set.pose(
             self.base,
             (now - self.since).max(0.0),
@@ -406,13 +482,29 @@ impl Animator {
         self.last = Some(p);
         if let Some((a, start)) = self.action {
             let t = now - start;
-            let d = set.duration(a).unwrap_or(0.0);
+            let clip = set.duration(a).unwrap_or(0.0);
+            // a wind-up: the first part of the clip, slowly; then the rest
+            let (d, at) = match self.warp {
+                Some((share, secs)) => {
+                    let held = clip * share;
+                    (
+                        secs + clip - held,
+                        if t < secs {
+                            held * smooth(t / secs)
+                        } else {
+                            held + (t - secs)
+                        },
+                    )
+                }
+                None => (clip, t),
+            };
             self.action_len = Some(d);
             if t >= d || t < 0.0 {
                 self.action = None;
+                self.warp = None;
             } else {
                 let w = smooth(t / ACTION_IN).min(smooth((d - t) / ACTION_OUT));
-                let q = set.pose_side(a, t, self.stride, self.seed, self.mirrored);
+                let q = set.pose_side(a, at, self.stride, self.seed, self.mirrored);
                 let mask = if self.base.moving() {
                     set.upper
                 } else {
@@ -624,6 +716,71 @@ mod tests {
         let _ = an.pose(2.1, set);
         let _ = an.pose(3.0, set);
         assert_eq!(an.action(3.0), None);
+    }
+
+    fn test_set() -> HashMap<String, std::rc::Rc<ClipSet>> {
+        let sk: crate::clip::SkeletonSpec =
+            serde_json::from_value(serde_json::json!({"bones": ["body", "arm"], "upper": ["arm"]}))
+                .unwrap();
+        crate::clip::parse_sets(
+            &sk,
+            &serde_json::json!({"sets": {"default": {
+                "Idle": {"loop": 1.0, "time": {"arm.rx": [[0, 0], [1, 10]]}},
+                "Attack1H": {"duration": 0.5, "time": {"arm.rz": [[0, 0], [0.25, 50], [0.5, 0]]}},
+                "Special": {"duration": 1.0, "time": {"arm.rz": [[0, 0], [0.5, 40], [1.0, 0]]}}
+            }}}),
+        )
+        .unwrap()
+    }
+
+    /// A hit-stop holds the pose and then lets it go on from where it was:
+    /// the swing ends later by the length of the stop, and nothing is
+    /// skipped.
+    #[test]
+    fn a_hit_stop_holds_the_pose_and_loses_no_animation() {
+        let sets = test_set();
+        let set = &sets["default"];
+        let mut an = Animator::new(1, 0.0);
+        an.drive(0.0, Anim::Idle, 0.0, 1.0);
+        an.play(1.0, Anim::Attack1H);
+        let before = an.pose(1.2, set);
+        an.freeze(1.2, 0.08);
+        assert!(an.frozen(1.25));
+        let held = an.pose(1.26, set);
+        assert!(held.distance(&before) < 1e-4, "the pose moved in the stop");
+        // a longer stop asked for meanwhile lengthens it; a shorter one does not cut it
+        an.freeze(1.25, 0.01);
+        assert!(an.frozen(1.27));
+        assert!(!an.frozen(1.29));
+        // the swing runs its whole length after the stop
+        assert_eq!(an.action(1.0 + 0.5 + 0.07), Some(Anim::Attack1H));
+        let _ = an.pose(1.0 + 0.5 + 0.09, set);
+        assert_eq!(an.action(1.0 + 0.5 + 0.09), None);
+        // and a second stop adds to the first
+        an.play(3.0, Anim::Attack1H);
+        an.freeze(3.1, 0.1);
+        assert_eq!(an.action(3.55), Some(Anim::Attack1H));
+    }
+
+    /// A wind-up stretches the first part of the clip over the time given
+    /// and plays the blow after it; breaking it off fades it out.
+    #[test]
+    fn a_wind_up_takes_the_time_the_server_gives() {
+        let sets = test_set();
+        let set = &sets["default"];
+        let mut an = Animator::new(1, 0.0);
+        an.drive(0.0, Anim::Idle, 0.0, 1.0);
+        an.wind_up(1.0, Anim::Special, 0.5, 2.0);
+        let _ = an.pose(2.0, set);
+        // 2 s of wind-up and the other half of the 1 s clip
+        assert_eq!(an.action(1.0 + 2.4), Some(Anim::Special));
+        let _ = an.pose(1.0 + 2.6, set);
+        assert_eq!(an.action(1.0 + 2.6), None);
+        an.wind_up(5.0, Anim::Special, 0.5, 2.0);
+        let _ = an.pose(5.5, set);
+        an.cancel_action(5.5);
+        let _ = an.pose(5.5 + ACTION_OUT + 0.01, set);
+        assert_eq!(an.action(5.5 + ACTION_OUT + 0.01), None);
     }
 
     #[test]

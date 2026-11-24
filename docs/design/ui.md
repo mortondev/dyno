@@ -253,7 +253,7 @@ character, and runs it.
 run the same way by `tools/drive/camera.sh`. `yard` builds a course round
 the character (a house with a door at each end, a tree whose crown hangs
 over the way, stairs, a cliff); `walk-path X Z ...` holds W and steers
-through points of it at a hand's turning rate; `orbit DEG [PITCH]` drags the
+through points of it at a hand's turning rate; `swing DEG [PITCH]` drags the
 camera round with the left button held; `camera record` logs the camera
 every frame and `camera check SPEED` fails on a pop (a frame that moved it
 faster than SPEED m/s) or an eye in a wall.

@@ -19,11 +19,11 @@ walk-path 1 -31 1 -40
 walk-path 2.5 -42 3.2 -45 3.2 -57
 wait 0.5
 # --- 5. the camera swung out over the edge and back, looking up and down ----
-orbit 100 20
+swing 100 20
 wait 0.5
-orbit -200 -10
+swing -200 -10
 wait 0.5
-orbit 100 -10
+swing 100 -10
 # --- 6. back along the edge, down the stairs, back through the door ---------
 walk-path 3.2 -45 1 -41 1 -31 1 -20 1 -12 1 -2
 shot camera-end

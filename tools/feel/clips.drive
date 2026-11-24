@@ -1,0 +1,48 @@
+# The feel clips of one class (docs/design/feel.md, F1): three seconds each
+# of a basic hit, a critical hit and a kill, on the dummies of the feel
+# yard. Run by tools/feel/run.sh, which sets CLASS and STAND (how far from
+# a dummy the class fights) and makes the contact strips.
+#
+# Each clip begins before the blow: the right click (auto-attack) and the
+# first ability key are inside it.
+
+say /feel
+wait 3
+say /time noon
+wait 1
+
+# --- a basic hit: the Training Dummy ------------------------------------------
+walk-to creature training_dummy STAND
+look-at creature training_dummy
+orbit 35
+wait 2.0
+clip-start CLASS-hit
+click right creature training_dummy
+key 1
+wait 2.8
+clip-end
+expect attacking
+
+# --- a critical hit: every blow on the Keen Dummy is one ----------------------
+orbit 0
+walk-to creature keen_dummy STAND
+look-at creature keen_dummy
+orbit 35
+wait 2.0
+clip-start CLASS-crit
+click right creature keen_dummy
+key 1
+wait 2.8
+clip-end
+
+# --- a kill: the Straw Dummy falls to any blow --------------------------------
+orbit 0
+walk-to creature straw_dummy STAND
+look-at creature straw_dummy
+orbit 35
+wait 2.0
+clip-start CLASS-kill
+click right creature straw_dummy
+key 1
+wait 2.8
+clip-end

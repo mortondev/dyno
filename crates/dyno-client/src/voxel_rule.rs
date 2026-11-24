@@ -513,6 +513,7 @@ mod tests {
         objects.extend(crate::cover::voxel_objects());
         objects.extend(crate::critters::voxel_objects());
         objects.extend(crate::particles::voxel_objects());
+        objects.extend(crate::feel::voxel_objects());
         objects.extend(crate::farview::voxel_objects());
         objects.extend(crate::figure::voxel_objects());
         objects.extend(crate::render::voxel_objects());

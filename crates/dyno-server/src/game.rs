@@ -177,6 +177,8 @@ pub struct State {
     pub rng: Rng,
     /// time of day: 0 sunrise, 0.25 noon, 0.5 sunset, 0.75 midnight
     pub clock: f32,
+    /// world ticks run so far (the answer to a ping carries it)
+    pub ticks: u32,
     /// day number, starting at 1
     pub day: u32,
     pub ops: Vec<String>,
@@ -1192,6 +1194,14 @@ impl State {
                     p.look_at = Some(pos);
                 }
             }
+            ClientMsg::Ping { nonce } => {
+                if let Some(p) = self.players.get(&id) {
+                    p.send(&ServerMsg::Pong {
+                        nonce,
+                        tick: self.ticks,
+                    });
+                }
+            }
             ClientMsg::AcceptQuest { quest } => self.accept_quest(id, quest),
             ClientMsg::CompleteQuest { quest, choice } => self.complete_quest(id, quest, choice),
             ClientMsg::AbandonQuest { quest } => self.abandon_quest(id, quest),
@@ -1637,6 +1647,7 @@ impl State {
 
     /// Advance the world by `dt` seconds.
     pub fn tick(&mut self, dt: f32) {
+        self.ticks = self.ticks.wrapping_add(1);
         self.tick_clock(dt);
         self.tick_casts();
         self.tick_auto_attacks();
