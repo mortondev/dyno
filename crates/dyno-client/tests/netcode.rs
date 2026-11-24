@@ -6,7 +6,8 @@
 //! sprint, jump, stairs, a ledge, a doorway, a step up) with 150 ms of
 //! latency, 30 ms of jitter and 2% loss, while a second player watches. It
 //! fails on a snap, or when the watched runner's drawn speed wobbles. It
-//! runs for 40 s; `DYNO_NETCODE_SECS=600` makes it the 10-minute session.
+//! runs for 50 s; `DYNO_NETCODE_SECS=600` makes it the 10-minute session.
+//! The watcher also measures the creatures and townsfolk it sees walking.
 //!
 //! `measure_crowd` (ignored: run by hand) puts 40 players in one area and
 //! reports the bytes a player receives and sends a second, by message kind,
@@ -26,7 +27,7 @@ use dyno_client::game::{Input, Player, Remote, apply_rules};
 use dyno_client::interp;
 use dyno_client::net::{self, Joined, NetEvent, NetSim};
 use dyno_client::predict::Predictor;
-use dyno_protocol::{self as proto, ClientMsg, Pose, ServerMsg};
+use dyno_protocol::{self as proto, ClientMsg, EntityKind, Pose, ServerMsg};
 use glam::Vec3;
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -38,6 +39,7 @@ const POOR: NetSim = NetSim {
     latency_ms: 150.0,
     jitter_ms: 30.0,
     loss: 0.02,
+    seed: 0,
 };
 
 /// The line of the session: `POOR`, or `DYNO_NET_SIM` when set.
@@ -327,6 +329,33 @@ impl OldLerp {
     }
 }
 
+/// A creature or townsperson the watcher draws: as before (between where
+/// it was drawn and the newest position, over 100 ms from its arrival),
+/// from the buffer, and the positions as stamped (the truth).
+struct Walker {
+    track: interp::Track,
+    old_from: Vec3,
+    old_to: Vec3,
+    old_at: Instant,
+    stamped: std::collections::VecDeque<(f64, Vec3)>,
+    prev: Option<(Vec3, Vec3)>,
+    prev_v: Option<(f32, f32)>,
+}
+
+impl Walker {
+    fn old(&self) -> Vec3 {
+        let t = (self.old_at.elapsed().as_secs_f32() / 0.1).clamp(0.0, 1.0);
+        self.old_from.lerp(self.old_to, t)
+    }
+    /// Its speed as stamped at `t`, if `t` is between two stamped positions.
+    fn true_speed(&self, t: f64) -> Option<f32> {
+        let i = self.stamped.iter().position(|s| s.0 > t)?;
+        let (a, b) = (self.stamped.get(i.checked_sub(1)?)?, self.stamped[i]);
+        let d = Vec3::new(b.1.x - a.1.x, 0.0, b.1.z - a.1.z).length();
+        Some(d / (b.0 - a.0).max(1e-3) as f32)
+    }
+}
+
 /// What the watcher saw of the runner on the straight.
 #[derive(Default)]
 struct Watched {
@@ -336,6 +365,13 @@ struct Watched {
     new: Wobble,
     /// the frames drawn from the buffer, not past its newest position
     buffered: Wobble,
+    /// walking creatures and townsfolk, drawn from the buffer, against
+    /// their stamped speed
+    walkers: Wobble,
+    /// their drawn speed's change from frame to frame (m/s), from the
+    /// buffer and as before
+    walk_jerk: Wobble,
+    walk_jerk_old: Wobble,
 }
 
 /// Drawn speed this frame, if both ends are on the straight.
@@ -357,12 +393,85 @@ fn watch(
 ) -> Watched {
     let mut old: Option<OldLerp> = None;
     let mut remote: Option<Remote> = None;
+    let mut walkers: std::collections::HashMap<u32, Walker> = Default::default();
+    let mut clock = interp::Clock::default();
     let mut w = Watched::default();
     let mut prev: Option<(Instant, Vec3, Vec3)> = None;
     let frame = Duration::from_micros(16_667);
     let mut next = Instant::now();
+    // what came while the course was built (a backlog no client would
+    // have): only the entities in it, then draw for 2 s before measuring
+    while let Ok(ev) = j.conn.rx.try_recv() {
+        if let NetEvent::Msg(ServerMsg::EntitySpawn { id, kind, pos, yaw }) = ev
+            && matches!(kind, EntityKind::Creature(_) | EntityKind::Npc(_))
+        {
+            let p = Vec3::from(pos);
+            walkers.insert(
+                id,
+                Walker {
+                    track: interp::Track::new(p, yaw),
+                    old_from: p,
+                    old_to: p,
+                    old_at: Instant::now(),
+                    stamped: Default::default(),
+                    prev: None,
+                    prev_v: None,
+                },
+            );
+        }
+    }
+    let started = Instant::now();
+    let mut last_frame: Option<Instant> = None;
     while !stop.load(Ordering::Relaxed) {
         while let Ok(ev) = j.conn.rx.try_recv() {
+            match &ev {
+                NetEvent::Msg(ServerMsg::EntitySpawn { id, kind, pos, yaw })
+                    if matches!(kind, EntityKind::Creature(_) | EntityKind::Npc(_)) =>
+                {
+                    let p = Vec3::from(*pos);
+                    walkers.insert(
+                        *id,
+                        Walker {
+                            track: interp::Track::new(p, *yaw),
+                            old_from: p,
+                            old_to: p,
+                            old_at: Instant::now(),
+                            stamped: Default::default(),
+                            prev: None,
+                            prev_v: None,
+                        },
+                    );
+                }
+                NetEvent::Msg(ServerMsg::EntityGone { id, .. }) => {
+                    walkers.remove(id);
+                }
+                NetEvent::Msg(ServerMsg::EntityMoves { at, list }) => {
+                    let t = *at as f64 / 1000.0;
+                    clock.arrived(interp::now(), t);
+                    for (id, pos, yaw) in list {
+                        if let Some(w) = walkers.get_mut(id) {
+                            let p = Vec3::from(*pos);
+                            w.track.push(t, p, *yaw);
+                            w.old_from = w.old();
+                            w.old_to = p;
+                            w.old_at = Instant::now();
+                            if w.stamped.back().is_some_and(|s| s.0 < t - 0.06) {
+                                // it stood still in between
+                                let last = w.stamped.back().unwrap().1;
+                                w.stamped.push_back((t - 0.05, last));
+                            }
+                            w.stamped.push_back((t, p));
+                            while w.stamped.len() > 200 {
+                                w.stamped.pop_front();
+                            }
+                        }
+                    }
+                    for w in walkers.values_mut() {
+                        w.track.still_at(t);
+                    }
+                }
+                _ => {}
+            }
             if let NetEvent::Msg(ServerMsg::Poses(list)) = ev {
                 for (id, stamp, pose) in list {
                     if id != runner {
@@ -382,15 +491,47 @@ fn watch(
             }
         }
         let now = Instant::now();
+        let t = clock.render(interp::now());
+        let warm = started.elapsed() > Duration::from_secs(2);
+        let frame_dt = last_frame.map_or(1.0 / 60.0, |l: Instant| {
+            now.duration_since(l).as_secs_f32().max(1e-4)
+        });
+        last_frame = Some(now);
+        for wk in walkers.values_mut() {
+            wk.track.update(t);
+            let (a, b) = (wk.old(), wk.track.pos());
+            if let Some((pa, pb)) = wk.prev {
+                let flat = |v: Vec3| Vec3::new(v.x, 0.0, v.z).length() / frame_dt;
+                let (va, vb) = (flat(a - pa), flat(b - pb));
+                if let Some(truth) = t.and_then(|t| wk.true_speed(t))
+                    && truth > 0.3
+                    && !wk.track.beyond()
+                    && warm
+                {
+                    w.walkers.add(vb, truth);
+                    if let Some((_, pvb)) = wk.prev_v {
+                        w.walk_jerk.add(vb - pvb, 0.0);
+                    }
+                }
+                if let Some((pva, _)) = wk.prev_v
+                    && (va > 0.3 || pva > 0.3)
+                    && warm
+                {
+                    w.walk_jerk_old.add(va - pva, 0.0);
+                }
+                wk.prev_v = Some((va, vb));
+            }
+            wk.prev = Some((a, b));
+        }
         if let (Some(o), Some(r)) = (&old, &mut remote) {
             r.update(interp::now());
             let (a, b) = (o.current(), Vec3::from(r.current().pos));
             if let Some((t, pa, pb)) = prev {
                 let dt = now.duration_since(t).as_secs_f32().max(1e-4);
-                if let Some(v) = on_straight(&course, pa, a, dt) {
+                if let Some(v) = on_straight(&course, pa, a, dt).filter(|_| warm) {
                     w.old.add(v, want);
                 }
-                if let Some(v) = on_straight(&course, pb, b, dt) {
+                if let Some(v) = on_straight(&course, pb, b, dt).filter(|_| warm) {
                     w.new.add(v, want);
                     if !r.late() {
                         w.buffered.add(v, want);
@@ -431,8 +572,17 @@ fn prediction_holds_under_a_poor_line() {
     let dir = std::env::temp_dir().join(format!("dyno-test-netcode-{}", std::process::id()));
     let server = start_server(&dir, pose, 0);
     let addr = format!("127.0.0.1:{}", server.local_addr.port());
-    let mut m = Mover::new(join(&addr, "Runner", 8101, Some(line())), pose);
-    let watcher = join(&addr, "Watcher", 8102, Some(line()));
+    // (each line its own fixed seed, unless DYNO_NET_SIM gives one: the
+    // same losses each run)
+    let seeded = |seed| {
+        let l = line();
+        NetSim {
+            seed: if l.seed == 0 { seed } else { l.seed },
+            ..l
+        }
+    };
+    let mut m = Mover::new(join(&addr, "Runner", 8101, Some(seeded(11))), pose);
+    let watcher = join(&addr, "Watcher", 8102, Some(seeded(12)));
     let runner_id = m.j.your_id;
     let course = Arc::new(Course {
         x0: 40,
@@ -474,7 +624,7 @@ fn prediction_holds_under_a_poor_line() {
     let want = 6.2;
     let watching = std::thread::spawn(move || watch(watcher, runner_id, c2, want, s2));
 
-    let run_for = secs(40.0);
+    let run_for = secs(50.0);
     let t0 = Instant::now();
     let (mut dir_x, mut lap) = (1.0f32, 0u32);
     let frame = Duration::from_micros(16_667);
@@ -521,6 +671,17 @@ fn prediction_holds_under_a_poor_line() {
         st.acks,
         st.teleports,
     );
+    eprintln!(
+        "  walkers from the buffer: {} frames, drawn speed against stamped: rms error {:.3} m/s, \
+         worst {:.2}; change frame to frame: rms {:.3} m/s from the buffer, {:.3} m/s as before \
+         ({} frames)",
+        w.walkers.n,
+        w.walkers.rms(),
+        w.walkers.worst,
+        w.walk_jerk.rms(),
+        w.walk_jerk_old.rms(),
+        w.walk_jerk_old.n
+    );
     for (name, wb) in [
         ("as before (last two poses)", &w.old),
         ("from the buffer, every frame", &w.new),
@@ -554,6 +715,11 @@ fn prediction_holds_under_a_poor_line() {
             "the runner's drawn speed wobbles: {:.2} m/s rms, worst {:.2}",
             w.buffered.rms(),
             w.buffered.worst
+        );
+        assert!(
+            w.walkers.n < 100 || w.walkers.rms() < 0.5,
+            "walking creatures and townsfolk wobble: {:.2} m/s rms",
+            w.walkers.rms()
         );
         assert!(
             w.new.rms() < 1.5,

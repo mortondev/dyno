@@ -192,6 +192,11 @@ impl Track {
                 self.snap(pos, yaw);
             } else if stamp == t {
                 self.samples.pop_back();
+            } else if let Some(s) = self.still_since.filter(|s| *s > t && *s < stamp) {
+                // it stood there until the last batch without it: it set
+                // off from there then, not from where it stopped long ago
+                let y = self.samples.back().map_or(yaw, |b| b.2);
+                self.samples.push_back((s, p, y));
             }
         }
         self.samples.push_back((stamp, pos, yaw));
@@ -363,6 +368,22 @@ mod tests {
         }
         t2.update(Some(5.0));
         assert!((t2.pos().x - (2.7 + 6.0 * 0.15)).abs() < 1e-3);
+    }
+
+    /// A mover that set off after a rest is drawn setting off when it did,
+    /// not sliding from where it stopped long ago.
+    #[test]
+    fn a_start_after_a_rest_is_not_a_jump() {
+        let mut track = Track::new(Vec3::ZERO, 0.0);
+        track.push(0.0, Vec3::ZERO, 0.0);
+        for i in 1..=40 {
+            track.still_at(i as f64 * 0.05);
+        }
+        // it set off: 0.1 m in the next 50 ms
+        track.push(2.05, Vec3::new(0.1, 0.0, 0.0), 0.0);
+        track.update(Some(2.025));
+        assert!(track.pos().x < 0.06, "{:?}", track.pos());
+        assert!((track.vel().x - 2.0).abs() < 1e-3, "{:?}", track.vel());
     }
 
     /// A long jump is a teleport: drawn there at once.

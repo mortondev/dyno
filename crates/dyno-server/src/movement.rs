@@ -34,6 +34,8 @@ pub const BANK_MS: f32 = 1000.0;
 pub const QUEUE_MS: u32 = 2000;
 /// A new body's budget, so its first steps run at once.
 const START_MS: f32 = 200.0;
+/// The most idle steps run for a silent player in one tick (ms).
+const MAX_IDLE_MS: u32 = 250;
 
 fn log_on() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
@@ -114,10 +116,20 @@ impl Moves {
         self.body.pos = pos.into();
         self.body.vel = glam::Vec3::ZERO;
         self.body.step_offset = 0.0;
+        self.rest(Instant::now());
+        self.changed = true;
+    }
+
+    /// Nothing waiting, nothing owed, nothing banked: as if steps had just
+    /// come (after a teleport, a death, build mode, a trusted pose).
+    fn rest(&mut self, now: Instant) {
         self.queue.clear();
         self.queued_ms = 0;
         self.owed = 0;
-        self.changed = true;
+        self.at = now;
+        self.heard = now;
+        self.idle_to = now;
+        self.budget = self.budget.min(START_MS);
     }
 
     /// Take in steps from the client (arrived `now`): those numbered after
@@ -182,30 +194,26 @@ impl Moves {
         self.at = now;
         self.budget = (self.budget + real).min(BANK_MS);
         let before = (self.body.pos, self.body.vel);
-        // steps owed to a stand-still: skipped if they came as a burst (the
-        // client caught up on the stall), forgotten if they did not
+        // the first steps after a stand-still: if they came as a burst (the
+        // client caught up on the stall), as much as the budget cannot run
+        // at once, up to the time stood still, is answered unrun; so the
+        // queue does not lag real time from then on
         if self.owed > 0 && !self.queue.is_empty() {
-            if self.queued_ms <= self.owed {
-                self.owed = 0;
-            }
-            while self.owed > 0 {
-                let Some(&(n, s)) = self.queue.front() else {
-                    break;
-                };
-                if (s.ms as u32) > self.owed {
-                    self.owed = 0;
+            let mut skip = (self.queued_ms as f32 - self.budget)
+                .max(0.0)
+                .min(self.owed as f32) as u32;
+            self.owed = 0;
+            while let Some(&(n, s)) = self.queue.front() {
+                if (s.ms as u32) > skip {
                     break;
                 }
+                skip -= s.ms as u32;
                 self.queue.pop_front();
                 self.queued_ms -= s.ms as u32;
-                self.owed -= s.ms as u32;
                 self.seq = n;
                 self.changed = true;
                 if log_on() {
-                    crate::game::log(format!(
-                        "movement: step {n} answered unrun ({} ms owed)",
-                        self.owed
-                    ));
+                    crate::game::log(format!("movement: step {n} answered unrun (a stall's)"));
                 }
             }
         }
@@ -227,7 +235,10 @@ impl Moves {
             .idle_to
             .max(self.heard + std::time::Duration::from_secs_f32(BANK_MS / 1000.0));
         if self.queue.is_empty() && now > since {
-            let mut idle = (now.duration_since(since).as_secs_f32() * 1000.0).round() as u32;
+            // (a tick's worth or so: a server that stalled does not run
+            // minutes of idle steps at once)
+            let mut idle = ((now.duration_since(since).as_secs_f32() * 1000.0).round() as u32)
+                .min(MAX_IDLE_MS);
             self.idle_to = now;
             if log_on() && self.last_in.is_some() {
                 crate::game::log(format!(
@@ -326,9 +337,7 @@ impl State {
         m.body.vel = glam::Vec3::ZERO;
         m.body.yaw = pose.yaw;
         m.pitch = pose.pitch;
-        m.queue.clear();
-        m.queued_ms = 0;
-        m.owed = 0;
+        m.rest(now);
         m.posed = true;
         p.pose = pose;
         p.last_pose_at = now;
@@ -342,11 +351,7 @@ impl State {
         for p in self.players.values_mut() {
             let m = &mut p.moves;
             if p.dead || p.mode == Mode::Build || m.posed {
-                m.at = now;
-                m.budget = START_MS;
-                m.queue.clear();
-                m.queued_ms = 0;
-                m.owed = 0;
+                m.rest(now);
                 continue;
             }
             apply_rules(&mut m.body, protected, false);
@@ -473,7 +478,9 @@ mod tests {
         m.budget = 0.0;
         m.take(0, &[Step::idle(1, 0)], t0);
         // silent for 1.5 s: half a second more than the bank is stood still
-        m.run(&w, t0 + Duration::from_millis(1500));
+        for i in 1..=30u64 {
+            m.run(&w, t0 + Duration::from_millis(50 * i));
+        }
         assert_eq!(m.owed, 500);
         // the late steps come: 1.5 s of running
         let steps: Vec<Step> = (0..75).map(|_| run(20)).collect();
@@ -514,6 +521,45 @@ mod tests {
         assert_eq!(m.owed, 0);
         assert_eq!(m.seq, seq - 1);
         assert!(ran > 6.2 * 5.9 && ran < 6.2 * 6.1, "{ran} m in 6 s");
+    }
+
+    /// A long stall (5 s): the client comes back with the 2 s of steps it
+    /// keeps; the server, which stood the body still, runs what the bank
+    /// allows and answers the rest unrun, so nothing is left waiting.
+    #[test]
+    fn a_very_long_stall_leaves_no_lag() {
+        let w = flat();
+        let mut m = Moves::new([32.5, 5.0, 60.5], true, Mode::Play);
+        let t0 = Instant::now();
+        m.at = t0;
+        m.take(0, &[Step::idle(1, 0)], t0);
+        for i in 1..=100u64 {
+            m.run(&w, t0 + Duration::from_millis(50 * i));
+        }
+        let steps: Vec<Step> = (0..100).map(|_| run(20)).collect();
+        m.take(1, &steps, t0 + Duration::from_millis(5020));
+        m.run(&w, t0 + Duration::from_millis(5050));
+        assert!(m.queue.is_empty(), "{} ms still waiting", m.queued_ms);
+        assert_eq!(m.seq, 100);
+    }
+
+    /// Back from death (or build mode) after a long while: no flood of
+    /// idle steps for the time away.
+    #[test]
+    fn coming_back_runs_no_flood_of_idle_steps() {
+        let w = flat();
+        let mut m = Moves::new([32.5, 5.0, 32.5], true, Mode::Play);
+        let t0 = Instant::now();
+        m.at = t0;
+        let clock = m.clock;
+        // an hour away (as tick_moves does for the dead), then a tick
+        m.rest(t0 + Duration::from_secs(3600));
+        m.run(&w, t0 + Duration::from_millis(3_600_050));
+        assert!(
+            m.clock - clock <= MAX_IDLE_MS,
+            "{} ms of idle steps",
+            m.clock - clock
+        );
     }
 
     /// Steps from before a teleport are answered but never run.

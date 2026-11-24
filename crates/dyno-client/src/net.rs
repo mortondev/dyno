@@ -44,6 +44,9 @@ pub struct NetSim {
     pub jitter_ms: f32,
     /// the share of packets lost each way (0 to 1)
     pub loss: f32,
+    /// what decides which packets are late and lost (0: the clock), so a
+    /// test can run the same line again
+    pub seed: u64,
 }
 
 impl NetSim {
@@ -52,7 +55,8 @@ impl NetSim {
     /// trip and four times its jitter, as TCP reckons it.
     pub const RETRY_MS: f32 = 200.0;
 
-    /// `lat=150,jitter=30,loss=2` (milliseconds, milliseconds, percent).
+    /// `lat=150,jitter=30,loss=2` (milliseconds, milliseconds, percent),
+    /// and optionally `seed=N`.
     pub fn parse(s: &str) -> Option<NetSim> {
         let mut n = NetSim::default();
         for part in s.split(',').map(str::trim).filter(|p| !p.is_empty()) {
@@ -62,6 +66,7 @@ impl NetSim {
                 "lat" | "latency" => n.latency_ms = v.max(0.0),
                 "jitter" => n.jitter_ms = v.max(0.0),
                 "loss" => n.loss = (v / 100.0).clamp(0.0, 1.0),
+                "seed" => n.seed = v as u64,
                 _ => return None,
             }
         }
@@ -830,9 +835,12 @@ fn pump(
 ) -> String {
     // Keepalive: a minimised window stops drawing and sends nothing, so ping the server.
     let mut last_ping = Instant::now();
-    let seed = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(1, |d| d.as_nanos() as u64);
+    let seed = match sim.map_or(0, |s| s.seed) {
+        0 => std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(1, |d| d.as_nanos() as u64),
+        s => s.wrapping_mul(0x9e37_79b9_7f4a_7c15),
+    };
     let mut sim_out: Option<Lane<ClientMsg>> = sim.map(|s| Lane::new(s, seed ^ 0x9e37_79b9));
     let mut sim_in: Option<Lane<NetEvent>> = sim.map(|s| Lane::new(s, seed ^ 0x7f4a_7c15));
     loop {
