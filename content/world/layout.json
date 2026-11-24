@@ -682,8 +682,8 @@
     {"stamp": "hollow_oak", "at": [0, 0]},
     {"stamp": "outcrop", "at": [-18, -12]},
     {"stamp": "fallen_log", "at": [10, -14], "rot": 1},
-    {"stamp": "pond_big", "at": [16, 12]},
-    {"stamp": "boulders", "at": [-13, 12]}
+    {"stamp": "pond_big", "at": [-12, 20]},
+    {"stamp": "boulders", "at": [15, 16]}
    ],
    "was": {
     "at": [-95, -54],
@@ -765,9 +765,9 @@
     {"stamp": "hedge", "at": [-2, 21], "fit": "ground"},
     {"stamp": "farmhouse", "at": [13, -9]},
     {"stamp": "field", "at": [12, 9]},
-    {"stamp": "haystack", "at": [-4, 12]},
-    {"stamp": "cart", "at": [-6, 17]},
-    {"stamp": "pond_big", "at": [-26, 10], "fit": "ground"},
+    {"stamp": "haystack", "at": [-16, 8]},
+    {"stamp": "cart", "at": [-18, 15]},
+    {"stamp": "pond", "at": [-1, 12]},
     {"stamp": "fence_run", "at": [-24, -10], "fit": "ground"},
     {"stamp": "signpost", "at": [-28, -6], "fit": "ground"}
    ],
@@ -798,7 +798,7 @@
    ],
    "stamps": [
     {"stamp": "fisher_hut", "at": [-9, -8]},
-    {"stamp": "fisher_hut", "at": [-10, 7], "rot": 3},
+    {"stamp": "fisher_hut", "at": [-24, 16], "rot": 3, "fit": "ground"},
     {"stamp": "dock", "at": [9, 0], "rot": 3},
     {"stamp": "dock", "at": [7, 15], "rot": 3},
     {"stamp": "boat", "at": [13, -8], "dy": -1},
@@ -1556,6 +1556,6 @@
  "water": [
   {"kind": "shrine", "place": "sunken_shrine", "radius": [26, 18], "feather": 0.4},
   {"kind": "barrow", "place": "old_barrow", "radius": [34, 40]},
-  {"kind": "oak", "place": "hollow_oak", "at": [16, 12], "radius": [16, 14]}
+  {"kind": "oak", "place": "hollow_oak", "at": [-12, 20], "radius": [16, 14]}
  ]
 }
