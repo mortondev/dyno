@@ -89,6 +89,7 @@
   "off": "Off",
   "on": "On",
   "tips_again": "Show again",
+  "shake": "Camera shake",
   "sound": "Sound",
   "volumes": [
    "Master",
@@ -675,5 +676,17 @@
   "one": "Craft",
   "five": "×5",
   "five_hint": "Craft five times"
+ },
+ "debug": {
+  "title": "Debug (F3)",
+  "fps": "Frames a second",
+  "frame": "Frame time",
+  "frame_value": "{mean} ms mean, {worst} ms worst",
+  "ping": "Ping (round trip)",
+  "ping_value": "{ms} ms",
+  "tick": "Server tick",
+  "corrections": "Movement corrections",
+  "drawn": "Entities drawn",
+  "none": "…"
  }
 }

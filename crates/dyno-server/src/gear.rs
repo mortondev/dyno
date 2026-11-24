@@ -204,7 +204,7 @@ impl State {
             let haste = 1.0 + self.buff_amount(id, dyno_world::content::BuffKind::Haste) / 100.0;
             let speed = speed / haste;
             amount *= 1.0 + self.buff_amount(id, dyno_world::content::BuffKind::Damage) / 100.0;
-            let crit = self.rng.f32() * 100.0 < sheet.crit;
+            let crit = self.rng.f32() * 100.0 < sheet.crit + self.crit_taken(Some(t));
             if crit {
                 amount *= 2.0;
             }

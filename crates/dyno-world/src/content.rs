@@ -323,6 +323,22 @@ pub struct Creature {
     /// sight range for hostile creatures (0: the default)
     #[serde(default)]
     pub aggro: f32,
+    /// never walks, turns or gives up a fight (a training dummy)
+    #[serde(default)]
+    pub anchored: bool,
+    /// cannot die: at no health it is whole again
+    #[serde(default)]
+    pub immortal: bool,
+    /// percent added to the chance that a blow on it is a critical one
+    #[serde(default)]
+    pub crit_taken: f32,
+    /// a heavy blow it winds up for (none: it has none)
+    #[serde(default)]
+    pub heavy: Option<Heavy>,
+    /// what it is made of, for the effect where a blow lands on it (a key
+    /// of `life.json`'s impacts; empty: the plain one)
+    #[serde(default)]
+    pub material: String,
     /// a hostile creature that leaves players below this level alone until
     /// they hit it (0: it attacks anyone on sight)
     #[serde(default)]
@@ -338,6 +354,22 @@ pub enum CreatureAbility {
     Bolt { range: f32 },
     /// runs away at low health
     Flee { below: f32 },
+}
+
+/// A heavy blow: every so many attacks the creature winds up instead of
+/// striking, and the blow that follows is stronger. It is shown to players
+/// before it lands (`Act::WindUp`), so it can be stepped away from or
+/// broken off with a stun.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Heavy {
+    /// every this many attacks is a heavy one
+    pub every: u8,
+    /// seconds of wind-up before it lands
+    pub windup: f32,
+    /// its damage, as a multiple of the creature's ordinary blow
+    pub damage: f32,
+    /// it lands on its target within this many metres
+    pub reach: f32,
 }
 
 fn one_f() -> f32 {
@@ -565,6 +597,11 @@ pub struct Ability {
     /// empty: the plain bolt or burst sound
     #[serde(default)]
     pub sound: String,
+    /// what kind of magic it is, for the effect where it lands ("fire",
+    /// "frost", "holy"...: a key of `life.json`'s impacts); empty: a blow
+    /// of the weapon in hand
+    #[serde(default)]
+    pub school: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -626,6 +663,9 @@ pub struct WorldRules {
     /// the formula assumed.
     #[serde(default)]
     pub kill_xp: Option<f32>,
+    /// a test yard (test packs only): `/feel` takes an operator there
+    #[serde(default)]
+    pub test_place: Option<TestPlace>,
     /// open-world tags: players outside the tagger's party who did their
     /// part of a kill share it (none: the first to hit takes everything)
     #[serde(default)]
@@ -675,6 +715,12 @@ impl CrowdRespawn {
             .powi(players.saturating_sub(1) as i32)
             .max(self.least.clamp(0.0, 1.0))
     }
+}
+
+/// Where a pack's test yard is: (x, z) from the spawn hearth.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct TestPlace {
+    pub at: [i32; 2],
 }
 
 impl WorldRules {
@@ -934,6 +980,8 @@ struct AAbility {
     slow: [f32; 2],
     image: Option<String>,
     sound: String,
+    #[serde(default)]
+    school: String,
 }
 
 #[derive(Deserialize)]
@@ -1132,6 +1180,22 @@ struct ACreature {
     ability: Option<CreatureAbility>,
     #[serde(default)]
     aggro: f32,
+    /// never walks, turns or gives up a fight (a training dummy)
+    #[serde(default)]
+    anchored: bool,
+    /// cannot die: at no health it is whole again
+    #[serde(default)]
+    immortal: bool,
+    /// percent added to the chance that a blow on it is a critical one
+    #[serde(default)]
+    crit_taken: f32,
+    /// a heavy blow it winds up for (none: it has none)
+    #[serde(default)]
+    heavy: Option<Heavy>,
+    /// what it is made of, for the effect where a blow lands on it (a key
+    /// of `life.json`'s impacts; empty: the plain one)
+    #[serde(default)]
+    material: String,
     #[serde(default)]
     spares_below: u8,
 }
@@ -1336,6 +1400,11 @@ impl Content {
                 attack_speed: c.attack_speed,
                 ability: c.ability,
                 aggro: c.aggro,
+                anchored: c.anchored,
+                immortal: c.immortal,
+                crit_taken: c.crit_taken,
+                heavy: c.heavy,
+                material: c.material.clone(),
                 spares_below: c.spares_below,
             });
         }
@@ -1550,6 +1619,7 @@ impl Content {
                 slow: a.slow,
                 image: a.image.clone(),
                 sound: a.sound.clone(),
+                school: a.school.clone(),
             });
         }
         let mut areas = Vec::new();

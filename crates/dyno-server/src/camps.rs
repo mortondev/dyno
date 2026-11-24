@@ -124,11 +124,16 @@ impl State {
             let waited_out = rule
                 .and_then(|c| c.patience)
                 .is_some_and(|secs| now.duration_since(sp.ready_at).as_secs_f32() >= secs);
-            if !waited_out && players.iter().any(|p| dist(*p, sp.pos) < keep) {
-                continue;
-            }
             let area = &self.content.areas[sp.area];
             let camp = &area.camps[sp.camp];
+            // (a training dummy is stood back up where it fell, whoever is by)
+            let dummy = self
+                .content
+                .creature(camp.creature)
+                .is_some_and(|c| c.anchored);
+            if !dummy && !waited_out && players.iter().any(|p| dist(*p, sp.pos) < keep) {
+                continue;
+            }
             let (creature, levels, rare) = (
                 camp.creature,
                 camp.levels.unwrap_or(area.levels),
