@@ -325,6 +325,13 @@ mod tests {
     }
 
     #[test]
+    fn rails_lie_on_the_ground_and_are_walked_over() {
+        assert_eq!(crate::block_by_key("rail"), Some(crate::RAIL));
+        assert!(!is_solid(crate::RAIL), "nobody is stopped by a rail");
+        assert!(!crate::is_opaque(crate::RAIL));
+    }
+
+    #[test]
     fn bad_stamps_are_refused() {
         assert!(Stamp::parse(b"nope").is_err());
         let h = r#"{"size":[1,1,1],"anchor":[0,0,0],"palette":["skip","no_such_block"]}"#;

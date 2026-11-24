@@ -582,7 +582,7 @@
         "within": 3
       },
       "away": {
-        "blocks": ["cobble", "mossy_cobble", "flagstones"],
+        "blocks": ["cobble", "mossy_cobble", "flagstones", "rail"],
         "within": 1,
         "keep": 0.0
       },
@@ -648,7 +648,7 @@
         "seed": 10
       },
       "away": {
-        "blocks": ["cobble", "mossy_cobble", "flagstones"],
+        "blocks": ["cobble", "mossy_cobble", "flagstones", "rail"],
         "within": 2,
         "keep": 0.0
       },
