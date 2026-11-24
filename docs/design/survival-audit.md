@@ -197,7 +197,7 @@ The four stone tools were cut as well: they need cobble, and nothing in the live
 
 ### Wire and saves
 
-- Protocol 23 is unchanged: no variant was added, removed or reordered. `DigStart`, `Throw`, `Interact`, `CloseContainer`, `Container`, `Milestone` and `Digging` stay as unused variants.
+- This work changes nothing on the wire: no variant was added, removed or reordered. (The protocol number is 24 after merging main, from the class pass.) `DigStart`, `Throw`, `Interact`, `CloseContainer`, `Container`, `Milestone` and `Digging` stay as unused variants.
 - `Mode` is saved by name. The variants carry `#[serde(rename = "Survival")]` and `#[serde(rename = "Creative")]`, so saves read and write as before.
 - `PlayerData` has every field it had, including `food` and `milestones`.
 
@@ -207,7 +207,7 @@ T-1 said `survival_loop()` was the only test on a seed world. That was wrong. Th
 
 ### Checked against main as it moved
 
-The work was merged with main twice (the flow designer's rules, quest chain and layout 3; then the UI branch).
+The work was merged with main four times (the flow designer's rules, quest chain and layout 3; the UI branch; the class pass; sound).
 
 - **Quests and the cut recipes.** No quest step asks for anything to be crafted. Two quests give a stone pickaxe and torches as rewards, and Hollis sells the stone pickaxe and axe: the items are all still there. Only the recipes that made them are gone.
 - **Bots and playtests.** `dyno bots` and `dyno play` gather with the `Gather` cast. Nothing in `dyno-bot` sends `Dig`, `DigStart`, `Place`, `Interact` or `Throw`.
@@ -227,7 +227,7 @@ Before is main at `4de5b40`; after is this branch on top of it.
 
 The fun reports differ in two checks, both of them counts of rare events in two bot-hours: deaths per hour went from 5.52 (fail) to 3.02 (warn), and stuck events per bot-hour from 1.00 (pass) to 2.01 (warn, the limit is 2). The other twenty checks kept their result. No bot used the recall that replaces `/spawn`.
 
-Gates on the last code commit: `cargo fmt --all --check` clean, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo test --workspace` 216 passed and none failed (12 ignored), `check-client.sh` passed.
+Main moved twice more while these ran (the class pass with protocol 24, then sound). The branch was merged with each, and the gates and sizes were run again on the result, `806eb5a` on main `de581d0`: `cargo fmt --all --check` clean, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo test --workspace` 236 passed and none failed (12 ignored), `check-client.sh` passed. Sizes there: client 9,551,824 bytes against main's 9,564,344; first join 2,946,283 bytes against main's 2,947,175. The pictures, the save load and the fun reports were not run again after those two merges.
 
 ### What `grep -ri survival crates content docs tools` returns now
 
