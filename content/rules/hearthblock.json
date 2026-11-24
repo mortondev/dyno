@@ -5230,6 +5230,55 @@
     }
    },
    "aggro": 4
+  },
+  {
+   "key": "ashcloak_thief",
+   "name": "Ashcloak Thief",
+   "model": "humanoid",
+   "variant": 1,
+   "health": 50,
+   "damage": 6,
+   "levels": [
+    3,
+    4
+   ],
+   "color": [
+    0.45,
+    0.45,
+    0.48
+   ],
+   "drops": [
+    {
+     "item": "coin_purse",
+     "min": 1,
+     "max": 1,
+     "chance": 0.4
+    },
+    {
+     "item": "grain_sack",
+     "min": 1,
+     "max": 1,
+     "chance": 0.55
+    },
+    {
+     "item": "ashcloak_hatchet",
+     "min": 1,
+     "max": 1,
+     "chance": 0.012
+    }
+   ],
+   "hostile": true,
+   "scale": 1.0,
+   "speed": 3.4,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false,
+   "ability": {
+    "flee": {
+     "below": 0.2
+    }
+   }
   }
  ],
  "world": {
@@ -7633,10 +7682,10 @@
    "title": "Thieves in the Fields",
    "level": 4,
    "giver": "ostrin",
-   "text": "Ashcloak bandits raid my east field at all hours. Drive five of them off for good.",
+   "text": "Ashcloak thieves raid my east field at all hours. Drive five of them off for good.",
    "objectives": [
     {
-     "kill": "ashcloak",
+     "kill": "ashcloak_thief",
      "count": 5
     }
    ],
@@ -10141,7 +10190,7 @@
      "respawn": 90
     },
     {
-     "creature": "ashcloak",
+     "creature": "ashcloak_thief",
      "count": 5,
      "place": "windmill_farm",
      "at": [

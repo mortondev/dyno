@@ -105,6 +105,18 @@ areas["mirrormere"]["camps"].append(
 quests["thieves_in_fields"]["text"] = ("Ashcloak bandits raid my east field at all hours. Drive five of them off for good.")
 quests["stolen_grain"]["text"] = ("They carry off my grain in sacks, out of the east field. Bring back four and Tilda gets her flour.")
 
+# --- Thieves in the Fields counted any Ashcloak anywhere: bots (and the
+# tracker) went 450 m to the level 5 scouts on the East Road and died there.
+# Ostrin's thieves are their own creature, in his east field and nowhere else.
+thief = dict(creatures["ashcloak"])
+thief.update({"key": "ashcloak_thief", "name": "Ashcloak Thief", "levels": [3, 4]})
+r["creatures"].append(thief)
+field = [c for c in areas["mirrormere"]["camps"] if c.get("place") == "windmill_farm" and c["creature"] == "ashcloak"]
+assert len(field) == 1, "the east field camp"
+field[0]["creature"] = "ashcloak_thief"
+quests["thieves_in_fields"]["objectives"] = [{"kill": "ashcloak_thief", "count": 5}]
+quests["thieves_in_fields"]["text"] = "Ashcloak thieves raid my east field at all hours. Drive five of them off for good."
+
 json.dump(r, open(PATH, "w"), indent=1)
 open(PATH, "a").write("\n")
 print("applied")

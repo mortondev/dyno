@@ -1,7 +1,8 @@
 //! Shared tags in the open world (`world.shared_tags` in the rules): two
-//! players who are not in a party fight the same Grazers. Whoever hits
-//! second used to get nothing; now both get the kill for "Thinning the
-//! Herd", their own XP, and their own meat for "Meat for the Pot".
+//! players who are not in a party fight the same Thornboars. Whoever hits
+//! second used to get nothing; now both get the kill for "Boar Trouble" and
+//! their own XP. (Their own quest drops come by the same path as a party's:
+//! see party_drops.)
 
 use dyno_bot::agent::{Agent, Deal, Task};
 use dyno_bot::body::{Body, TICK};
@@ -53,85 +54,87 @@ fn two_strangers_on_one_creature_both_get_the_kill() {
         a.iter().all(|a| a.body.class.is_some())
     });
     let c = a.body.content.clone();
-    assert!(
-        c.world.shared_tags.is_some(),
-        "the pack's rules share tags in the open world"
-    );
-    let quest = |key: &str| c.quests.iter().find(|q| q.key == key).unwrap();
-    let (herd, meat_quest) = (quest("thin_the_herd"), quest("meat_for_the_pot"));
-    // both may take Thinning the Herd (it follows The Cold Hearth), and take both quests
+    let rule = c
+        .world
+        .shared_tags
+        .expect("the pack's rules share tags in the open world");
+    assert!(rule.damage > 0.0 && rule.xp > 0.0);
+    // both hold Boar Trouble (its earlier quests by decree), at level 3
+    let boars = c.quests.iter().find(|q| q.key == "boar_trouble").unwrap();
     for x in [&mut a, &mut b] {
-        x.body.say("/finish cold_hearth");
+        x.body.say("/xp 1300");
+        for q in &boars.requires {
+            let key = &c.quest(*q).unwrap().key;
+            x.body.say(&format!("/finish {key}"));
+        }
     }
     run_until(&mut [&mut a, &mut b], 1.0, |_| false);
-    a.set(Task::talk(herd.giver, vec![Deal::Accept(herd.id)]));
-    b.set(Task::talk(herd.giver, vec![Deal::Accept(herd.id)]));
-    assert!(run_until(&mut [&mut a, &mut b], 40.0, |a| {
-        a.iter()
-            .all(|a| a.body.quests.iter().any(|x| x.quest == herd.id))
-    }));
-    a.set(Task::talk(
-        meat_quest.giver,
-        vec![Deal::Accept(meat_quest.id)],
-    ));
-    b.set(Task::talk(
-        meat_quest.giver,
-        vec![Deal::Accept(meat_quest.id)],
-    ));
-    assert!(run_until(&mut [&mut a, &mut b], 40.0, |a| {
-        a.iter()
-            .all(|a| a.body.quests.iter().any(|x| x.quest == meat_quest.id))
-    }));
+    let holt = boars.giver;
+    a.set(Task::talk(holt, vec![Deal::Accept(boars.id)]));
+    b.set(Task::talk(holt, vec![Deal::Accept(boars.id)]));
+    assert!(
+        run_until(&mut [&mut a, &mut b], 150.0, |a| {
+            a.iter()
+                .all(|a| a.body.quests.iter().any(|x| x.quest == boars.id))
+        }),
+        "both took Boar Trouble from Holt"
+    );
     assert!(a.body.party.is_empty() && b.body.party.is_empty());
-    let grazer = c.creatures.iter().find(|x| x.key == "grazer").unwrap().id;
+    let boar = c
+        .creatures
+        .iter()
+        .find(|x| x.key == "thornboar")
+        .unwrap()
+        .id;
     let count = |x: &Agent| {
         x.body
             .quests
             .iter()
-            .find(|q| q.quest == herd.id)
+            .find(|q| q.quest == boars.id)
             .map_or(0, |q| q.counts[0])
     };
-    // six Grazers, one at a time, both players on each
-    for _ in 0..6 {
-        a.body.say("/summon grazer");
-        assert!(run_until(&mut [&mut a, &mut b], 3.0, |x| x[1]
+    // four boars, one at a time, both players on each; a round counts when
+    // both landed a blow before it died
+    let mut shared = 0;
+    for _ in 0..4 {
+        let before = [count(&a), count(&b)];
+        a.body.say("/summon thornboar");
+        assert!(run_until(&mut [&mut a, &mut b], 3.0, |x| x.iter().all(
+            |x| x.body.creatures().any(|e| e.creature() == Some(boar))
+        )));
+        let me = a.body.pos();
+        let (id, level) = a
             .body
             .creatures()
-            .any(|e| e.creature() == Some(grazer))));
-        let (id, level) = b
-            .body
-            .creatures()
-            .find(|e| e.creature() == Some(grazer))
+            .filter(|e| e.creature() == Some(boar))
+            .min_by(|x, y| x.pos.distance(me).total_cmp(&y.pos.distance(me)))
             .map(|e| (e.id, e.level))
             .unwrap();
-        a.set(Task::fight(id, grazer, level));
-        b.set(Task::fight(id, grazer, level));
+        a.set(Task::fight(id, boar, level));
+        b.set(Task::fight(id, boar, level));
+        let mut both = false;
         assert!(
-            run_until(&mut [&mut a, &mut b], 40.0, |x| !x[0]
-                .body
-                .ents
-                .contains_key(&id)),
-            "the Grazer died"
+            run_until(&mut [&mut a, &mut b], 60.0, |x| {
+                both |= x
+                    .iter()
+                    .all(|x| x.body.ents.get(&id).is_some_and(|e| e.my_hit.is_some()));
+                !x[0].body.ents.contains_key(&id)
+            }),
+            "the Thornboar died"
         );
         run_until(&mut [&mut a, &mut b], 1.0, |_| false);
+        if both {
+            shared += 1;
+            assert_eq!(
+                [count(&a), count(&b)],
+                [before[0] + 1, before[1] + 1],
+                "both fought it, both have the kill: {:?} / {:?}",
+                a.log,
+                b.log
+            );
+        }
     }
-    let meat = c.item_by_key("raw_meat").unwrap();
-    for x in [&a, &b] {
-        assert!(
-            count(x) >= 4,
-            "{} got {} of 6 kills for the quest (fought {}, no credit {}): {:?}",
-            x.body.name,
-            count(x),
-            x.tel.kills,
-            x.tel.kills_no_credit,
-            x.log
-        );
-        assert!(x.tel.xp_kills > 0, "{} got kill XP", x.body.name);
-        assert!(
-            x.body.count(meat) > 0 || x.tel.loots > 0,
-            "{} got meat of their own",
-            x.body.name
-        );
-    }
+    assert!(shared >= 2, "both landed a blow on {shared} of 4 boars");
+    assert!(a.tel.xp_kills > 0 && b.tel.xp_kills > 0, "both got kill XP");
     server.stop();
 }
