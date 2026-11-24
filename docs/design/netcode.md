@@ -152,7 +152,7 @@ section.
 | 4 | Pose rate | Bandwidth per player with 40 in one area measured before and after; under 64 KB/s received | **Pass, at 20 Hz** (30 Hz not needed: 0.033 m/s on a clean line). Received 20.8 KB/s a player (before 17.2: stamps, 20 Hz creature moves, `Moved`); sent 0.6 KB/s (before 0.33). |
 | 5 | Everything that moves players | Shard moves, cluster relays (cluster tests green), rides, knockback, recall and teleports, anti-cheat rubber-band, bots (their tests, including the real-time ones), `dyno drive` (`tools/drive/run.sh`) | **Pass.** Cluster tests green, with a new one running through a move between instances (no snap); the shard and crowding protocol tests green; rides (bots' `discovery_pays_once_and_rides_need_it`), `/feel`, `/spawn` (28 teleports in the session); `knockback_moves_the_body_on_the_server`; every `dyno-bot` test; a 40-bot swarm; `tools/drive/run.sh` PASS (0 snaps). |
 | 6 | Protocol | Still 26; a copy of the live world's saves loads unchanged | **Pass.** 26. A copy of `~/dyno-world` loaded without a rebuild (layout v6), a stepping bot moved on it and was saved; the live folder untouched. |
-| 7 | Gates | fmt, clippy `-D warnings`, `cargo test --workspace`, `check-client.sh` | See the hand-in. |
+| 7 | Gates | fmt, clippy `-D warnings`, `cargo test --workspace`, `check-client.sh` | **Pass** on the tree merged with main (flow round 3): fmt, clippy, every test binary of the workspace green in one run, `check-client.sh` (9.26 MB, no content strings). |
 
 ## Measurements
 
