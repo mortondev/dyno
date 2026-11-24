@@ -1294,8 +1294,20 @@ fn emit(
                 &mut geo.opaque
             };
             out.extend([vs[0], vs[1], vs[2], vs[0], vs[2], vs[3]]);
+            #[cfg(test)]
+            DRAWN.with(|d| {
+                *d.borrow_mut()
+                    .entry(p.files[file as usize].0.clone())
+                    .or_default() += 1
+            });
         }
     }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Rectangles drawn per shape file (for measuring).
+    pub(crate) static DRAWN: std::cell::RefCell<BTreeMap<String, usize>> = Default::default();
 }
 
 /// Every model of every shape file as the mesher draws it, in voxels of
@@ -1352,7 +1364,7 @@ mod tests {
             }
         }
         all.sort_by(|a, b| b.cmp(a));
-        for (n, path, name) in all.iter().take(25) {
+        for (n, path, name) in &all {
             println!("{n:5} {path} {name}");
         }
     }

@@ -1007,6 +1007,22 @@ mod tests {
         }
     }
 
+    /// Rectangles each shape file draws in the six cameras' sections
+    /// (`cargo test -p dyno-client --lib shape_cost -- --ignored --nocapture`).
+    #[test]
+    #[ignore]
+    fn shape_cost() {
+        load_pack();
+        world_objects(&mut Report::new());
+        crate::shapes::DRAWN.with(|d| {
+            let mut v: Vec<_> = d.borrow().iter().map(|(k, n)| (*n, k.clone())).collect();
+            v.sort();
+            for (n, k) in v.iter().rev() {
+                println!("{n:9} {k}");
+            }
+        });
+    }
+
     #[test]
     fn allowlists_only_shrink() {
         let found = [
