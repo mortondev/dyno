@@ -877,8 +877,13 @@ impl Driver {
                     self.app.input(Hand::Cursor(px.0, px.1));
                     self.frames(1)?;
                     // what a player sees before clicking: is the pointer on it?
+                    // (a window over it: a player turns to bring it clear of
+                    // the window, as for anything else in the way)
                     if self.app.egui_ctx.is_pointer_over_area() {
-                        return Err(format!("the interface covers it. {}", self.state()));
+                        why = format!("the interface covers it. {}", self.state());
+                        self.face(at)?;
+                        self.frames(3)?;
+                        continue;
                     }
                     let hover = play(&self.app)?.hover;
                     if hover.is_some_and(|h| all.iter().any(|(id, _)| *id == h)) {
