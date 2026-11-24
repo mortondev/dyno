@@ -62,10 +62,11 @@ fn a_two_handed_weapon_and_a_shield_do_not_swap_for_ever() {
         run_until(&mut [&mut a], 0.5, |_| false);
     }
     let c = a.body.content.clone();
-    let axe = c.items.iter().position(|i| i.key == "watch_greataxe").unwrap() as u16;
+    let axe = c.item_by_key("watch_greataxe").unwrap();
     assert!(
         run_until(&mut [&mut a], 5.0, |a| a[0].body.count(axe) > 0),
-        "the axe arrives"
+        "the axe arrives: {:?}",
+        a.log
     );
     // wear upgrades as the brain does, and count what goes on
     let mut equips = 0;
