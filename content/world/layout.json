@@ -1446,7 +1446,9 @@
    "name": "The Toll Hut",
    "radius": 10,
    "stamps": [
-    {"stamp": "toll_hut", "at": [0, -9], "fit": "ground"}
+    {"stamp": "emberford_toll_hut", "at": [0, -9], "fit": "ground"},
+    {"stamp": "emberford_toll_gate", "at": [6, 3], "rot": 1, "fit": "ground"},
+    {"stamp": "emberford_toll_desk", "at": [7, -7], "fit": "ground"}
    ],
    "was": {
     "at": [81, -6],
@@ -1461,14 +1463,109 @@
    "radius": 20,
    "level": "water",
    "stamps": [
-    {"stamp": "bridge", "at": [0, 0], "fit": "pad"}
+    {"stamp": "emberford_bridge_arch", "at": [0, 0], "fit": "pad"},
+    {"stamp": "boulders", "at": [-16, 9], "fit": "ground"},
+    {"stamp": "boulders", "at": [19, -9], "rot": 2, "fit": "ground"}
    ],
    "was": {
     "at": [95, 0],
     "radius": 10
    },
    "trees": [
-    {"species": "oak", "at": [14, 8]}
+    {"species": "willow", "at": [14, 8]},
+    {"species": "willow", "at": [-13, -10]}
+   ]
+  },
+  {
+   "key": "emberford_sign_west",
+   "kind": "wayside",
+   "at": [450, 7],
+   "name": "Emberford Bridge, west end",
+   "radius": 6,
+   "stamps": [
+    {"stamp": "signpost", "at": [0, 1], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_burnt_cart",
+   "kind": "site",
+   "at": [450, 4],
+   "name": "The Burnt Cart",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "emberford_scorch", "at": [3, -14], "fit": "ground"},
+    {"stamp": "emberford_burnt_cart", "at": [-4, -12], "rot": 1, "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_sign_east",
+   "kind": "wayside",
+   "at": [502, 8],
+   "name": "Emberford Bridge, east end",
+   "radius": 6,
+   "stamps": [
+    {"stamp": "signpost", "at": [0, 0], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_mill",
+   "kind": "site",
+   "at": [458, -60],
+   "name": "The Old Mill",
+   "radius": 14,
+   "level": "water",
+   "stamps": [
+    {"stamp": "emberford_watermill", "at": [7, 0], "fit": "pad"}
+   ]
+  },
+  {
+   "key": "emberford_reeds_north",
+   "kind": "site",
+   "at": [455, -120],
+   "name": "Willow Bend",
+   "radius": 14,
+   "stamps": [
+    {"stamp": "cairn", "at": [6, 3], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [-1, -7], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "willow", "at": [11, -5]}
+   ]
+  },
+  {
+   "key": "emberford_jetty",
+   "kind": "site",
+   "at": [482, 90],
+   "name": "The Fishing Jetty",
+   "radius": 14,
+   "level": "water",
+   "stamps": [
+    {"stamp": "dock", "at": [-6, 0], "rot": 1, "fit": "pad"},
+    {"stamp": "boat", "at": [-18, 7], "fit": "pad", "dy": -1},
+    {"stamp": "drying_rack", "at": [2, -7], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_reeds_south",
+   "kind": "site",
+   "at": [450, 130],
+   "name": "The Reed Shallows",
+   "radius": 16,
+   "stamps": [
+    {"stamp": "fallen_log", "at": [19, -4], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "willow", "at": [-13, -3]}
+   ]
+  },
+  {
+   "key": "emberford_milestone",
+   "kind": "wayside",
+   "at": [560, 18],
+   "name": "The Emberford Milestone",
+   "radius": 6,
+   "stamps": [
+    {"stamp": "milestone", "at": [2, -7], "fit": "ground"}
    ]
   },
   {
@@ -2274,19 +2371,141 @@
    "key": "road_scouts_1",
    "kind": "camp",
    "at": [420, -80],
-   "radius": 20
+   "radius": 20,
+   "stamps": [
+    {"stamp": "emberford_clear_20", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "emberford_scorch", "at": [0, 0], "fit": "ground"},
+    {"stamp": "campfire", "at": [0, 0], "fit": "ground"},
+    {"stamp": "tent_red", "at": [-8, -10], "fit": "ground"},
+    {"stamp": "emberford_loot", "at": [8, -3], "fit": "ground"},
+    {"stamp": "emberford_ash_flag", "at": [3, 9], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_scouts_lookout",
+   "kind": "site",
+   "at": [405, -92],
+   "name": "The Scouts' Lookout",
+   "radius": 8,
+   "stamps": [
+    {"stamp": "emberford_lookout", "at": [0, 0], "fit": "ground"},
+    {"stamp": "emberford_loot", "at": [-5, 3], "fit": "ground"}
+   ]
   },
   {
    "key": "road_scouts_2",
    "kind": "camp",
-   "at": [475, 40],
-   "radius": 20
+   "at": [495, 50],
+   "radius": 20,
+   "stamps": [
+    {"stamp": "emberford_clear_10", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "emberford_scorch", "at": [1, 1], "fit": "ground"},
+    {"stamp": "campfire", "at": [1, 1], "fit": "ground"},
+    {"stamp": "emberford_cart_overturned", "at": [-6, -7], "rot": 1, "fit": "ground"},
+    {"stamp": "emberford_scout_tent", "at": [10, -1], "rot": 1, "fit": "ground"},
+    {"stamp": "emberford_ash_flag", "at": [-10, -12], "fit": "ground"},
+    {"stamp": "emberford_spill", "at": [-3, -17], "rot": 2, "fit": "ground"},
+    {"stamp": "emberford_spill", "at": [-1, -27], "fit": "ground"}
+   ]
   },
   {
    "key": "road_boars",
    "kind": "camp",
    "at": [550, -150],
-   "radius": 20
+   "radius": 20,
+   "pad": {
+    "radius": [11, 10],
+    "blend": 14,
+    "surface": {"dirt": 4, "clay": 1, "grass": 1}
+   },
+   "stamps": [
+    {"stamp": "emberford_clear_20", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "emberford_wallow", "at": [2, 1]},
+    {"stamp": "emberford_rooted", "at": [8, 5]},
+    {"stamp": "emberford_rooted", "at": [-7, -3]},
+    {"stamp": "stumps", "at": [-5, 4]},
+    {"stamp": "fallen_log", "at": [5, -8]},
+    {"stamp": "emberford_bones", "at": [-4, -7]},
+    {"stamp": "boulders", "at": [-13, -11], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_beacon",
+   "kind": "view",
+   "at": [404, 92],
+   "name": "The Old Beacon",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "emberford_beacon", "at": [0, 0], "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [-9, 5], "rot": 1, "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_felling",
+   "kind": "site",
+   "at": [548, -112],
+   "name": "The Felling",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "emberford_clear_10", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "stumps", "at": [0, 0], "fit": "ground"},
+    {"stamp": "log_pile", "at": [4, 7], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_burnt_steading",
+   "kind": "site",
+   "at": [560, -60],
+   "name": "The Burnt Steading",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [0, 0], "fit": "ground"},
+    {"stamp": "emberford_scorch", "at": [3, 5], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [-6, 7], "rot": 1, "fit": "ground"},
+    {"stamp": "stone_wall", "at": [2, -9], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_old_fold",
+   "kind": "site",
+   "at": [380, 170],
+   "name": "The Old Fold",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "stone_wall", "at": [0, -8], "fit": "ground"},
+    {"stamp": "stone_wall", "at": [-9, 0], "rot": 1, "fit": "ground"},
+    {"stamp": "stone_wall", "at": [9, 1], "rot": 1, "fit": "ground"},
+    {"stamp": "haystack", "at": [3, 2], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "young_oak", "at": [-6, -14]}
+   ]
+  },
+  {
+   "key": "emberford_north_wall",
+   "kind": "site",
+   "at": [400, -200],
+   "name": "The Fallen Wall",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [0, 0], "rot": 1, "fit": "ground"},
+    {"stamp": "boulders", "at": [6, 5], "fit": "ground"},
+    {"stamp": "cairn", "at": [-5, -4], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "young_oak", "at": [-7, 6]}
+   ]
+  },
+  {
+   "key": "emberford_north_stones",
+   "kind": "site",
+   "at": [565, -190],
+   "name": "The Ember Stones",
+   "radius": 12,
+   "stamps": [
+    {"stamp": "emberford_clear_20", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "standing_stones", "at": [0, 0], "fit": "ground"}
+   ]
   },
   {
    "key": "north_road_glade_1",
@@ -2747,7 +2966,7 @@
    "at": [583, 134],
    "radius": 10,
    "stamps": [
-    {"stamp": "hunter_camp", "at": [10, 5], "fit": "ground"}
+    {"stamp": "emberford_hunter_camp", "at": [10, 5], "fit": "ground"}
    ]
   },
   {
