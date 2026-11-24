@@ -50,6 +50,7 @@ pub struct Routine {
 /// Whether someone can stand with their feet in this cell.
 fn free(world: &World, x: i32, y: i32, z: i32) -> bool {
     w::is_solid(world.get(x, y - 1, z))
+        && !w::is_leaves(world.get(x, y - 1, z))
         && !w::is_solid(world.get(x, y, z))
         && world.get(x, y, z) != w::WATER
         && !w::is_solid(world.get(x, y + 1, z))
