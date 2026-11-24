@@ -1,6 +1,6 @@
 # Survival audit
 
-Step 1 of removing the survival game from Hearthblock Online. Read-only: nothing was built, run or deleted. The lead approves this table before any row is acted on.
+Step 1 of removing the survival game from Hearthblock Online: the audit, written read-only before anything was changed. The table was approved and acted on; what was decided and done is in "Outcome" at the end.
 
 - **Audited at:** `9e1b755` (v0.10.0, protocol 23). All line numbers are from that commit.
 - **"Live"** means reachable when the server runs the shipped pack (`content/rules/hearthblock.json`, `world.protected: true`, world built from `content/world/layout.json`) with the `hearthblock` client. Rows are classed by their callers, not their names.
@@ -163,3 +163,46 @@ No test is deleted without a reason in the step 2 report. Tests of live behaviou
 - Whether blocks changed in creative mode survive a layout rebuild.
 - How the WoW-mode `click` path at `app.rs:3951-4080` is reached while steering with a held button. I treated its non-creative block arms as dead on the strength of the guards at `4028`, `4037` and the server refusals.
 - Sizes. No build was run, so client bytes and first-join bytes have no "before" figure yet. Step 2 starts by measuring both.
+
+## Outcome (steps 2 and 3)
+
+The table above was approved and acted on. This section records what was decided and what was done; the rows above keep their step 1 wording and line numbers.
+
+### Decisions
+
+| Row | Decision | Done |
+|---|---|---|
+| P-1 to P-3 | Keep night Shades, the light rules and the Incursion | Kept. The rules are now written in `rpg.md`, "Night and light" |
+| P-4 | Home is made only at the inn, through Hearthstead's innkeeper. Other beds are decoration. No sleeping through the night | An NPC can be an `innkeeper` (rules data); talking to one makes that spot your home. The pack has one at the Wayfarer's Rest. The server ignores `Interact`; the sleep code is gone |
+| P-5 | Chests are decoration until a bank exists | The server ignores `Interact` and refuses chest slots. `chests.json` is still loaded, saved and migrated untouched |
+| P-6, P-7 | Profession crafting. Stations are data and a recipe names its station. Cut the block and dye recipes. Every recipe left can be made in the live world, with a test | `stations` in the rules: `table` (Workbench: crafting table, anvil, furnace) and `furnace` (Forge). 18 recipes remain of 46. Test: `every_recipe_can_be_made_in_the_live_world` |
+| P-8 | The server refuses `Dig` and `Place` outside build mode; hold-to-mine goes | Done; `DigStart` is ignored |
+| P-9 to P-11 | Keep the operator build mode under a new name; delete `--creative`, `default_mode` and `dyno fill` | `Mode::Build`, `/gamemode build` and `/gamemode play`, operators only. Observers still use it |
+| P-12 | No throwing with Q; ground items stay for drops | Q only strafes; the window's "Throw selected" button is gone too and the server ignores `Throw` |
+| P-14 | `/kill`, `/spawn`, `/tp` are for operators | Done. Bots that are stuck recall instead of using `/spawn` |
+| D-20 | Keep the seed terrain as a renamed test fixture behind a feature | `World::test_terrain` in `fixture.rs`, feature `test-fixtures`, enabled only by dev-dependencies |
+| D-26, D-27 | Move the night rules to `rpg.md`, delete `survival.md`, reword the spec | Done |
+| D-30 | Delete only the dead arms; keep the key parsed | `protected` is still read. A pack without a layout is now refused at start |
+| F-1, F-2 | Fix the death text; show the air meter | Done |
+
+### Deleted without a row of their own
+
+- The item-drop arm of a kill (`creatures.rs`, the `!rpg` arm beside the corpse): creatures always leave a body that holds the loot.
+- `rpg::build_landmarks`: the beacons of seed worlds, called only from `load_or_generate` (D-9).
+- `Play.mouse_left` in the client: read only by hold-to-mine (D-12).
+
+### Recipes cut beyond blocks and dyes
+
+The four stone tools were cut as well: they need cobble, and nothing in the live world gives cobble (stone is not a resource node). They would have failed the "can be made" test. Hollis still sells the stone pickaxe and axe, and the blacksmithing ladder still climbs without them (wooden tools at 1, ingots at 15, iron tools at 25, ember tools at 60).
+
+### Wire and saves
+
+- Protocol 23 is unchanged: no variant was added, removed or reordered. `DigStart`, `Throw`, `Interact`, `CloseContainer`, `Container`, `Milestone` and `Digging` stay as unused variants.
+- `Mode` is saved by name. The variants carry `#[serde(rename = "Survival")]` and `#[serde(rename = "Creative")]`, so saves read and write as before.
+- `PlayerData` has every field it had, including `food` and `milestones`.
+
+### What `grep -ri survival crates content docs tools` returns now
+
+1. `crates/dyno-protocol/src/lib.rs`: the `#[serde(rename = "Survival")]` line.
+2. `docs/design/rpg.md`: the record of the pivot (the lines that say what was built for survival and what replaced it).
+3. `docs/design/survival-audit.md`: this file.
