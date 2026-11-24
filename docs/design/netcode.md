@@ -125,6 +125,20 @@ the larger of 200 ms (Linux's least timeout) and the round trip plus four
 times the jitter (270 ms here), and nothing overtakes it. Messages that
 leave within 3 ms of each other share a packet.
 
+### How it is checked
+
+| Tool | What it does |
+|---|---|
+| `crates/dyno-client/tests/netcode.rs`, `prediction_holds_under_a_poor_line` | A real server and two clients through the conditioner (150 ms, 30 ms, 2%, fixed seeds). A runner laps a course built for it high over the town (walk, run, sprint, jump, stop and start, strafe, stairs to a 3 m deck, a 3 m ledge, a 1 m wide doorway, a 1 m step, a flat lane back); a watcher draws it, and the walking creatures and townsfolk it sees, from the buffer and as before, and measures drawn speed. 50 s in `cargo test`; `DYNO_NETCODE_SECS=600` for the 10-minute run; `DYNO_NETCODE_MODE=pose` for the old way. |
+| the same file, `measure_crowd` (ignored) | 40 players in one area, all running circles: bytes received and sent a player a second by message kind, and the tick's cost. |
+| `tools/netcode/session.sh` | The real client (`dyno drive`, off screen) on the poor line, lap after lap of `tools/netcode/lap.drive`: the feel yard (stairs, deck, ledges, the half-roofed corridor), open ground (jumping as it runs, sneaking, sprinting, strafing, backing), `/feel` and `/spawn` teleports, and a doorway in town walked in and out. Fails on a snap; prints the overlay's counts. |
+| `crates/dyno-server/src/movement.rs` tests | Speed hacks queue, held jump is a jump, a silent body falls, stalls of any length leave no lag, steady steps after a silence all run, steps from before a teleport are skipped, no idle flood after a death. |
+| `crates/dyno-client/tests/protocol.rs` | `cheating_movement_is_impossible` (the old movement test, adapted: a pose, a speed hack and a held jump get nowhere), `knockback_moves_the_body_on_the_server`. |
+| `crates/dyno-client/tests/cluster.rs` | `running_through_a_move_between_instances_is_not_snapped`. |
+
+Bots predict with the same code (`dyno_client::predict`) in 25 ms slices,
+as they moved before.
+
 ## Goals and results
 
 Pass lines were set before measuring. The measurements are in the next
