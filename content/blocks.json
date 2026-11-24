@@ -23,7 +23,7 @@
     "lip": 1.15,
     "shade_within": 24,
     "blocks": {
-      "grass": {"under": "dirt", "shade": 0.45, "smooth": 0.75, "jitter": 0.13, "tint": [1.28, 0.93, 0.72], "saturation": 0.9},
+      "grass": {"under": "dirt", "shade": 0.45, "smooth": 0.75, "jitter": 0.13, "tint": [1.1, 1.06, 0.68], "saturation": 1.35},
       "snow": {"under": "stone", "jitter": 0.04},
       "sand": {"smooth": 0.6, "jitter": 0.07, "tint": [1.1, 1.02, 0.82], "saturation": 1.2},
       "dirt": {"jitter": 0.1, "tint": [1.08, 0.96, 0.82], "saturation": 1.1},
