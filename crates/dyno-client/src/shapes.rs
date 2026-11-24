@@ -1961,6 +1961,42 @@ fn emit(
     }
 }
 
+/// Every model of every shape file as the mesher draws it, in voxels of
+/// the cell (for the voxel rule's mesh test).
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let p = pack();
+    let mut out = Vec::new();
+    for (fi, (path, set, _)) in p.files.iter().enumerate() {
+        let models = p.models(fi as u16);
+        let names = &p.sets[*set as usize].models;
+        for (name, quads) in names.iter().zip(&models.models) {
+            let mut tris = Vec::new();
+            for q in quads {
+                let corners: &[[usize; 3]] = if q.tri {
+                    &[[0, 1, 2]]
+                } else {
+                    &[[0, 1, 2], [0, 2, 3]]
+                };
+                for c in corners {
+                    tris.push(crate::voxel_rule::Tri {
+                        p: c.map(|i| q.p[i]),
+                        n: Some(c.map(|i| q.n[i])),
+                    });
+                }
+            }
+            out.push(crate::voxel_rule::Object {
+                name: format!("shape {path}"),
+                part: name.clone(),
+                per_unit: 1.0,
+                origin: Some([0.0; 3]),
+                tris,
+            });
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

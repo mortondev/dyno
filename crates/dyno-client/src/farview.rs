@@ -332,6 +332,41 @@ fn mesh_cell(
     }
 }
 
+/// The far view of a small world, in metres (for the voxel rule's mesh
+/// test): near tiles in 4 m cells and far ones in 8 m cells.
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let world = dyno_world::World::test_terrain([256, 96, 256], 7);
+    let mut tiles = FarTiles::new();
+    for tz in 0..4 {
+        for tx in 0..4 {
+            tiles.insert([tx, tz], FarTile::build(&world, [tx, tz]));
+        }
+    }
+    let mut out = Vec::new();
+    for (what, centre) in [("near", [128.0, 128.0]), ("far", [-900.0, -900.0])] {
+        for at in tiles.keys() {
+            let verts: Vec<([f32; 3], Option<[f32; 3]>)> = mesh_tile(&tiles, *at, centre, 96.0)
+                .iter()
+                .map(|v| {
+                    (
+                        v.pos,
+                        Some([v.normal[0], v.normal[1], v.normal[2]].map(|n| n as f32 / 127.0)),
+                    )
+                })
+                .collect();
+            out.push(crate::voxel_rule::Object::from_list(
+                "far view",
+                format!("{what} tile {at:?}"),
+                2.0,
+                Some([0.0; 3]),
+                &verts,
+            ));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

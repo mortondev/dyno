@@ -197,6 +197,12 @@ impl Foliage {
         self.cells > 0
     }
 
+    /// Cubes a metre the crowns are drawn in.
+    #[cfg(test)]
+    pub(crate) fn cells_per_metre(&self) -> f32 {
+        self.cells as f32
+    }
+
     /// Whether a section is drawn in clumps for a camera at `focus` (always,
     /// without one). `was` is how it is drawn now, if it is: a section keeps
     /// its level a little past the line, so walking along it changes nothing.

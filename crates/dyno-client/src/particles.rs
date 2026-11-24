@@ -586,11 +586,9 @@ fn emit(s: &Scene, fx: &Effect, e: &Emitter, clock: f64, thin: f32, wind: Vec3, 
             let b = (age * fx.blink * std::f32::consts::TAU + r.unit() * 6.3).sin();
             k *= ((b + 0.3) * 1.6).clamp(0.0, 1.0);
         }
-        let size = (fx.size[0] + (fx.size[1] - fx.size[0]) * u)
-            * if fx.glow > 0.0 { 0.5 + 0.5 * k } else { k };
-        if size < 0.004 {
+        let Some(size) = edge(fx, u, k) else {
             continue;
-        }
+        };
         // colour through life
         let cs = &fx.colors;
         let at = u * (cs.len() - 1) as f32;
@@ -618,6 +616,17 @@ fn emit(s: &Scene, fx: &Effect, e: &Emitter, clock: f64, thin: f32, wind: Vec3, 
             );
         }
     }
+}
+
+/// The edge of a cube `u` of the way through its life, at strength `k` (its
+/// fade, its blink): the size the effect asks for there, taken to the
+/// nearest step of the cube ladder (`ladder.rs`), so a puff of smoke grows
+/// by doubling and an ember dies by halving. `None` once it is smaller
+/// than the finest cube.
+fn edge(fx: &Effect, u: f32, k: f32) -> Option<f32> {
+    let size = (fx.size[0] + (fx.size[1] - fx.size[0]) * u)
+        * if fx.glow > 0.0 { 0.5 + 0.5 * k } else { k };
+    crate::ladder::snap(size)
 }
 
 /// The three faces of a small cube that the camera can see.
@@ -690,4 +699,34 @@ fn halo(out: &mut Vec<Vertex>, pos: Vec3, rgb: [f32; 3], size: f32, alpha: f32) 
             tex: [0.0, 0.0, render::KIND_GLOW, 0.0],
         });
     }
+}
+
+/// Every effect's cubes through their lives, each in its own frame (for
+/// the voxel rule's mesh test).
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let d = life::data().expect("life.json");
+    let mut out = Vec::new();
+    for (name, fx) in &d.effects {
+        for i in 0..=40 {
+            for k in [0.1, 0.35, 0.7, 1.0] {
+                let Some(size) = edge(fx, i as f32 / 40.0, k) else {
+                    continue;
+                };
+                let mut verts = Vec::new();
+                let c = Vec3::splat(size * 0.5);
+                cube(&mut verts, Vec3::new(9.0, 7.0, -5.0), c, size * 0.5, [1.0; 3], 1.0, 1.0, 1.0);
+                let list: Vec<([f32; 3], Option<[f32; 3]>)> =
+                    verts.iter().map(|v| (v.pos, None)).collect();
+                out.push(crate::voxel_rule::Object::from_list(
+                    format!("particles {name}"),
+                    format!("a cube of {size} m"),
+                    1.0 / size,
+                    Some([0.0; 3]),
+                    &list,
+                ));
+            }
+        }
+    }
+    out
 }

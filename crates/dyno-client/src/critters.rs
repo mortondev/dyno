@@ -641,3 +641,28 @@ fn walk(c: &mut Critter, k: &Kind, place: &Place, s: &Scene, clock: f64, dt: f32
         }
     }
 }
+
+/// Every critter's frames, in metres (for the voxel rule's mesh test).
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let d = life::data().expect("life.json");
+    let mut out = Vec::new();
+    for (name, kind) in &d.critters {
+        let frames = load(kind).unwrap_or_else(|| panic!("{}", kind.model));
+        for (fi, mesh) in frames.mesh.iter().enumerate() {
+            let verts: Vec<([f32; 3], Option<[f32; 3]>)> = mesh
+                .verts
+                .iter()
+                .map(|v| (v.pos.map(|p| p * kind.unit), None))
+                .collect();
+            out.push(crate::voxel_rule::Object::from_list(
+                format!("critter {name}"),
+                format!("frame {fi}"),
+                1.0 / kind.unit,
+                Some([0.0; 3]),
+                &verts,
+            ));
+        }
+    }
+    out
+}

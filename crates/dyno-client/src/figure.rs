@@ -2134,6 +2134,64 @@ pub fn placeholder(out: &mut Vec<Vertex>, feet: Vec3, scale: f32, light: f32) {
     );
 }
 
+/// Every figure's parts at every level of detail, each part in its own
+/// voxels (for the voxel rule's mesh test): people in the showcase's looks,
+/// creatures and held things as they come.
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let s = spec().expect("figures.json");
+    let mut names: Vec<&String> = s.figures.keys().collect();
+    names.sort();
+    let person = player_figure();
+    let mut out = Vec::new();
+    for name in names {
+        let fig = figure(name).unwrap_or_else(|| panic!("figure {name}"));
+        let mut looks = vec![Look::default()];
+        if Some(name) == person.as_ref() {
+            looks.clear();
+            for (_, people) in showcase() {
+                looks.extend(people.into_iter().take(3).map(|p| p.1));
+            }
+            for build in 0..3 {
+                let mut l = Look::from_appearance(&Default::default(), [0.5; 3]);
+                l.set("build", build);
+                looks.push(l);
+            }
+            looks.truncate(12);
+        }
+        for look in &looks {
+            let b = build(&fig, look);
+            let derived = fig.derived(look);
+            for (li, lod) in fig.lods.iter().enumerate() {
+                let meshes = b.level(&fig, &derived, li);
+                for (pi, mesh) in meshes.iter().enumerate() {
+                    if mesh.verts.is_empty() {
+                        continue;
+                    }
+                    let grid = fig.rig.as_ref().map(|r| r.parts[pi].grid).unwrap_or(0);
+                    // cubes per unit of the mesh: the grid's detail, halved
+                    // as the level of detail says
+                    let per = fig.grids[grid].detail / (1 << lod.half.of(grid)) as f32;
+                    let verts: Vec<([f32; 3], Option<[f32; 3]>)> =
+                        mesh.verts.iter().map(|v| (v.pos, None)).collect();
+                    let mut o = crate::voxel_rule::Object::from_list(
+                        format!("figure {name}"),
+                        format!("level {li}, part {pi}"),
+                        per,
+                        None,
+                        &verts,
+                    );
+                    if mesh.smooth() {
+                        o.name += " (smooth)";
+                    }
+                    out.push(o);
+                }
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2950,6 +2950,26 @@ impl Gfx {
     }
 }
 
+/// The ring drawn round a target, on level ground (for the voxel rule's
+/// mesh test).
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let mut out = Vec::new();
+    for (centre, radius) in [(Vec3::new(10.3, 4.0, -7.8), 0.6), (Vec3::new(0.0, 12.0, 0.0), 1.7)] {
+        let mut verts = Vec::new();
+        push_ground_ring(&mut verts, centre, radius, [1.0, 0.2, 0.1]);
+        let list: Vec<([f32; 3], Option<[f32; 3]>)> = verts.iter().map(|v| (v.pos, None)).collect();
+        out.push(crate::voxel_rule::Object::from_list(
+            "the ring round a target",
+            format!("radius {radius}"),
+            16.0,
+            Some([0.0; 3]),
+            &list,
+        ));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
