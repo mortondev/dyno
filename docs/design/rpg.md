@@ -1,6 +1,6 @@
 # Hearthblock Online: the RPG direction
 
-Decision (22 November 2026): Hearthblock becomes a small online RPG in the style of World of Warcraft, on the same Dyno engine. This document replaces the survival design as the main game plan. `survival.md` stays as the record of the systems we keep.
+Decision (22 November 2026): Hearthblock becomes a small online RPG in the style of World of Warcraft, on the same Dyno engine. This document replaced the survival design as the main game plan. The systems kept from it are written down here: night and light (below), bags, and profession crafting.
 
 ## Assessment
 
@@ -20,7 +20,7 @@ Decision (22 November 2026): Hearthblock becomes a small online RPG in the style
 
 | Survival | RPG |
 |---|---|
-| Players break and place any block | The world is a designed place. Players gather from **resource nodes** that respawn (ore, herbs, trees). Building moves to **housing plots** later. Operators keep creative mode to build the world. |
+| Players break and place any block | The world is a designed place. Players gather from **resource nodes** that respawn (ore, herbs, trees). Building moves to **housing plots** later. Operators have a build mode (`/gamemode build`) to work on the world. |
 | Progress is tools and tiers | Progress is **character level** (1 to 20 at first), **gear** and **quests** |
 | Hunger and starving | Removed. Food and drink restore health and mana out of combat. |
 | Death drops items | Death sends you to the nearest **hearth** as a spirit; walk back to your body or take a durability penalty. You never lose items. |
@@ -147,6 +147,28 @@ The action bar has 12 keys (1 to 0, -, =). By default, Recall is on - and Eat is
 | Cinder Reach | 15 to 20 | Volcanic highlands where emberstone surfaces | Forge Camp |
 
 The story: the Great Hearth that kept the valley safe has gone out. Shades rise each night. Players rekindle it stage by stage (the staged Great Hearth from the fun review becomes the main story line, and the final stage is a server-wide event).
+
+## Night and light
+
+The dark is dangerous and light is safety. These rules run in every zone (`creatures.rs`, `events.rs`):
+
+- **Shades rise in the dark.** A Shade spawns 18 to 32 blocks from an active player where block light is below 4, at night on the surface or at any time underground. At most one every 20 seconds for each player, and never where players are standing close by. It takes the level of the area it rises in.
+- **Hearths are sanctuary.** No Shade rises or enters within 16 blocks of a hearth, or inside a safe area such as Hearthstead.
+- **Strong light burns.** In block light 10 or more a Shade moves at half speed and loses health each second.
+- **Daylight unmakes them.** A Shade under the open sky at dawn burns away.
+- **Away players** are not hunted and do not count for spawning. The clock stops while nobody plays. A night lasts 5 minutes of a 16-minute day; nobody sleeps through it.
+- **Nightfall Incursion.** After dusk, when players are near Hearthstead, Shades assault one of its gates in three waves; the defenders share the reward.
+
+## Home
+
+- You make your home at an inn by talking to its innkeeper (Hearthstead's is at the Wayfarer's Rest). Home is where you wake after dying and where Recall takes you. Until then it is the hearth of Hearthstead.
+- Beds and chests in the towns are decoration. A bank will come later.
+
+## Crafting
+
+- A recipe names the **station** it is made at. Stations are data (`stations` in the rules): each lists the blocks that serve as it, so the forge and anvil of a smithy are a workbench as well.
+- Recipes carry a profession and a skill. Every recipe in the pack can be made in the live world: its station stands in the built world, its ingredients come from nodes, creatures, merchants or other recipes, and its skill can be reached. A test holds this (`world_scale.rs`, `every_recipe_can_be_made_in_the_live_world`).
+- Nothing is dug, placed or thrown in play. Players gather from resource nodes; operators build in build mode.
 
 ## Death
 
