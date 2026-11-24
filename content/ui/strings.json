@@ -62,7 +62,7 @@
  },
  "death": {
   "title": "You have died",
-  "hint": "You keep everything you carry. Release to wake at the hearth.",
+  "hint": "You keep everything you carry. Release to wake at the inn you made your home, or at the town hearth if you have none.",
   "release": "Release spirit"
  },
  "menu": {
@@ -89,7 +89,13 @@
   "on": "On",
   "tips_again": "Show again",
   "sound": "Sound",
-  "volumes": ["Master", "Music", "Effects", "Ambience", "Interface"]
+  "volumes": [
+   "Master",
+   "Music",
+   "Effects",
+   "Ambience",
+   "Interface"
+  ]
  },
  "keys": {
   "rpg": [
@@ -430,7 +436,7 @@
     "on": "death",
     "anchor": "center",
     "title": "Death is not the end",
-    "text": "You lose nothing you carry. Release, and you wake at the nearest hearth."
+    "text": "You lose nothing you carry. Release, and you wake at the inn you made your home (speak with an innkeeper to choose one), or at the town hearth."
    },
    {
     "id": "map",
@@ -656,5 +662,11 @@
   "tab_chat": "Chat",
   "tab_combat": "Combat",
   "hint": "Say something. Enter sends, Esc cancels, / starts a command."
+ },
+ "craft": {
+  "search": "Search recipes",
+  "one": "Craft",
+  "five": "×5",
+  "five_hint": "Craft five times"
  }
 }

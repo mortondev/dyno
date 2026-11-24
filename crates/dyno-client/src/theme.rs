@@ -1230,6 +1230,50 @@ fn header(ui: &mut egui::Ui, title: &str, subtitle: &str, open: &mut bool) {
     ui.add_space(8.0);
 }
 
+/// A button: gold for the one thing a window is for, dark for the rest.
+pub fn button(ui: &mut egui::Ui, text: &str, gold: bool) -> egui::Response {
+    sized_button(ui, text, gold, 13.0, Vec2::new(96.0, 30.0))
+}
+
+/// The same, small, for a row of a list ("Craft", "x5").
+pub fn small_button(ui: &mut egui::Ui, text: &str, gold: bool) -> egui::Response {
+    sized_button(ui, text, gold, 11.5, Vec2::new(0.0, 22.0))
+}
+
+fn sized_button(ui: &mut egui::Ui, text: &str, gold: bool, font: f32, min: Vec2) -> egui::Response {
+    let (ink, fill, edge) = if gold {
+        (INK, GOLD, GOLD_BRIGHT)
+    } else {
+        (GOLD, WOOD_DARK, GOLD_DARK)
+    };
+    ui.add(
+        egui::Button::new(egui::RichText::new(text).font(title_font(font)).color(ink))
+            .fill(fill)
+            .stroke(Stroke::new(1.0_f32, edge))
+            .min_size(min),
+    )
+}
+
+/// A one-line text field: a dark well with a gold rim.
+pub fn field(ui: &mut egui::Ui, text: &mut String, width: f32, hint: &str) -> egui::Response {
+    egui::Frame::new()
+        .fill(Color32::from_rgb(16, 11, 8))
+        .stroke(Stroke::new(1.0_f32, GOLD_DARK))
+        .corner_radius(4.0)
+        .inner_margin(egui::Margin::symmetric(8, 5))
+        .show(ui, |ui| {
+            ui.add(
+                egui::TextEdit::singleline(text)
+                    .frame(false)
+                    .font(body_font(15.0))
+                    .text_color(TEXT)
+                    .desired_width(width)
+                    .hint_text(egui::RichText::new(hint).color(TEXT_DIM)),
+            )
+        })
+        .inner
+}
+
 /// A parchment page: ink-coloured text on warm paper with a darker edge.
 pub fn parchment<R>(ui: &mut egui::Ui, add: impl FnOnce(&mut egui::Ui) -> R) -> R {
     let bg = ui.painter().add(Shape::Noop);

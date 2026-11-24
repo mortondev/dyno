@@ -2084,39 +2084,14 @@ pub fn shot_state(p: &mut Play, ui: &str) {
 
 // ---- the smaller windows: class picker, invitations, trade, chat ----
 
-/// A button in the theme: gold for the one thing to do, dark for the rest.
+/// A button in the theme (`theme::button`).
 pub fn button(ui: &mut egui::Ui, text: &str, gold: bool) -> egui::Response {
-    let (ink, fill, edge) = if gold {
-        (theme::INK, theme::GOLD, theme::GOLD_BRIGHT)
-    } else {
-        (theme::GOLD, theme::WOOD_DARK, theme::GOLD_DARK)
-    };
-    ui.add(
-        egui::Button::new(RichText::new(text).font(theme::title_font(13.0)).color(ink))
-            .fill(fill)
-            .stroke(Stroke::new(1.0_f32, edge))
-            .min_size(Vec2::new(96.0, 30.0)),
-    )
+    theme::button(ui, text, gold)
 }
 
-/// A one-line text field in the theme (dark well, gold rim).
+/// A one-line text field in the theme (`theme::field`).
 pub fn field(ui: &mut egui::Ui, text: &mut String, width: f32, hint: &str) -> egui::Response {
-    egui::Frame::new()
-        .fill(Color32::from_rgb(16, 11, 8))
-        .stroke(Stroke::new(1.0_f32, theme::GOLD_DARK))
-        .corner_radius(4.0)
-        .inner_margin(egui::Margin::symmetric(8, 5))
-        .show(ui, |ui| {
-            ui.add(
-                egui::TextEdit::singleline(text)
-                    .frame(false)
-                    .font(theme::body_font(15.0))
-                    .text_color(theme::TEXT)
-                    .desired_width(width)
-                    .hint_text(RichText::new(hint).color(theme::TEXT_DIM)),
-            )
-        })
-        .inner
+    theme::field(ui, text, width, hint)
 }
 
 /// A character without a class chooses one (the creation screen normally

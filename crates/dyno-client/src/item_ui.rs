@@ -521,10 +521,11 @@ fn side_panel(
         }
     });
     ui.add_space(2.0);
-    ui.add(
-        egui::TextEdit::singleline(recipes_filter)
-            .hint_text("Search recipes")
-            .desired_width(f32::INFINITY),
+    theme::field(
+        ui,
+        recipes_filter,
+        ui.available_width() - 18.0,
+        &crate::uitext::t("craft.search"),
     );
     ui.add_space(2.0);
     let inv = Inventory {
@@ -603,14 +604,16 @@ fn side_panel(
                                     egui::Layout::right_to_left(egui::Align::Center),
                                     |ui| {
                                         if can {
-                                            if ui
-                                                .small_button("×5")
-                                                .on_hover_text("Craft five times")
+                                            let t = crate::uitext::t;
+                                            if theme::small_button(ui, &t("craft.five"), false)
+                                                .on_hover_text(t("craft.five_hint"))
                                                 .clicked()
                                             {
                                                 out.push(PackCmd::Craft(r.id, 5));
                                             }
-                                            if ui.small_button("Craft").clicked() {
+                                            if theme::small_button(ui, &t("craft.one"), true)
+                                                .clicked()
+                                            {
                                                 out.push(PackCmd::Craft(r.id, 1));
                                             }
                                         } else if let Err(why) = &ok {
