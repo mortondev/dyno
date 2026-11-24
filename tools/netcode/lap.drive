@@ -1,0 +1,57 @@
+# One lap of the netcode session (docs/design/netcode.md, goal 2), run
+# over and over by tools/netcode/session.sh on a poor line: the feel yard
+# (tools/feel/make_pack.py: stairs to a 4 m deck, a 2 m ledge and a 2 m
+# drop, a corridor 2 m wide and half roofed), open ground, and a doorway in
+# the town. Places are metres from the hearth; the yard's middle is at
+# 140, 150. A snap (a correction shown as a jump) fails the lap.
+
+# --- the yard: a teleport (counted apart: not a correction) -------------
+say /feel
+wait 3
+expect snaps 0
+# up the stairs, across the deck, off it onto the ledge and off that
+walk-to place 145 144 0.8
+walk-to place 154 144 0.8
+walk-to place 154 157 0.8
+# along the field to the corridor, through it under the roof, and back
+walk-to place 137 157 0.8
+walk-to place 137 143 0.6
+walk-to place 118.5 143 0.6
+walk-to place 137 143 0.6
+expect snaps 0
+
+# --- open ground: jumping as you run, sneaking, sprinting, strafing --------
+walk-to place 140 160 1
+hold Space
+walk-to place 128 172 1
+let-go Space
+hold Shift
+walk-to place 122 168 1
+let-go Shift
+hold Ctrl
+walk-to place 150 172 1
+let-go Ctrl
+hold E
+wait 1
+let-go E
+hold Q
+wait 1
+let-go Q
+hold W
+wait 0.6
+key Space
+wait 0.7
+key Space
+wait 0.4
+let-go W
+wait 0.3
+hold S
+wait 0.8
+let-go S
+expect snaps 0
+
+# --- the town: a doorway, in and out -----------------------------------------
+say /spawn
+wait 3
+walk-through door
+expect snaps 0

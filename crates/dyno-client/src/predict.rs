@@ -11,7 +11,7 @@
 //! ([`Predictor::offset`]); a large one (over [`SNAP`]) is a snap.
 //!
 //! Used by the game, the bots and the tests alike; it reads no clock (time
-//! comes in as `dt`).
+//! comes in as `dt`). `DYNO_PREDICT_LOG` prints every correction over 5 cm.
 
 use dyno_protocol::ClientMsg;
 use dyno_sim::movement::{Input, MAX_STEP_MS, Player, Step};
@@ -31,6 +31,11 @@ const MAX_PENDING: usize = 600;
 /// The most time one call may turn into steps: the rest of a long stall
 /// is dropped (the server stands a silent player still meanwhile).
 const MAX_CATCH_UP_MS: f32 = 2000.0;
+
+fn log_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("DYNO_PREDICT_LOG").is_some())
+}
 
 /// What the reconciliation has done, for the debug overlay and the tests.
 #[derive(Clone, Copy, Debug, Default)]
@@ -171,6 +176,13 @@ impl Predictor {
         body.step_offset = step_offset;
         let err = was - body.pos;
         let size = err.length();
+        if size > 0.05 && log_on() {
+            eprintln!(
+                "prediction: corrected {size:.2} m after step {seq} ({} unanswered): \
+                 server {pos:?} vel {vel:?} ground {ground}; predicted {was:?}",
+                self.pending.len()
+            );
+        }
         self.stats.last = size;
         self.stats.worst = self.stats.worst.max(size);
         if size > SNAP || (self.offset + err).length() > SNAP {

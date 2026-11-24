@@ -656,6 +656,17 @@ impl Server {
             .sum()
     }
 
+    /// Run `f` on the shard a player is in (tests and tools).
+    pub fn with_shard_of<R>(
+        &self,
+        id: PlayerId,
+        f: impl FnOnce(&mut game::State) -> R,
+    ) -> Option<R> {
+        let sh = self.shard_of(id)?;
+        let mut st = sh.state.lock().unwrap();
+        Some(f(&mut st))
+    }
+
     /// How many shards are open.
     pub fn shard_count(&self) -> usize {
         self.shards.read().unwrap().len()

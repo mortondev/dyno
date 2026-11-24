@@ -635,19 +635,20 @@ after joining at the spawn (it was 1.1–1.8 s at the play rate).
 - `World::generate` (terrain from a seed) stays for worlds without a
   layout (builder worlds, tests).
 
-## 6. Authoritative movement (last)
+## 6. Authoritative movement (built: docs/design/netcode.md)
 
-1. Move player physics from `dyno-client/src/game.rs` into `dyno-sim` on a
-   fixed timestep (60 Hz), deterministic for the same inputs.
-2. The client sends `Input { seq, dt_ticks, forward, right, jump, down, sprint, yaw, pitch }`
-   instead of `Pose`.
-3. The server simulates each player from inputs, computes falls, drowning
-   and environment damage itself, and sends each client its own
-   authoritative state with the last input `seq` applied.
-4. The client predicts with the same code and replays unacknowledged inputs
-   on correction; other players are interpolated.
-5. Keep today's checked `Pose` path until bots under injected latency
-   (100–200 ms, jitter) show almost no corrections; then remove it.
+1. Player physics is in `dyno-sim` (`movement.rs`), deterministic for the
+   same steps. Steps are of whole milliseconds (1–50) rather than a fixed
+   60 Hz: a frame becomes steps that add up to its time.
+2. The client sends `Steps { seq, teleports, pitch, steps }` (each step:
+   ms, forward, right, keys, facing) instead of `Pose`.
+3. The server runs each player's steps on a real-time budget and sends the
+   client its body after the last step run (`Moved`). Falls and drowning
+   are still measured by the client and reported (`Hurt`), as before.
+4. The client predicts with the same code and runs unanswered steps again
+   on each answer; others are drawn from a stamped buffer 100 ms behind.
+5. The checked `Pose` path is gone: a pose is taken only in build mode, or
+   where the server trusts movement (tests, `--trust-movement`).
 
 ## 7. Binaries and updates
 

@@ -83,8 +83,8 @@ flowchart TD
 | Crate | Owns |
 |---|---|
 | `dyno-world` | The block grid (`World`, 1 m blocks in 16³ sections: all-one-block sections free, others palette-packed, shared copy-on-write between shards; clients hold only the streamed sections), the far view's heightmap tiles (`far.rs`), lighting (stored the same way), the content schema and parser, and building a world from data: the layout (`layout.rs`), stamps (`stamp.rs`) and the generator that shapes land, lays roads, places stamps and scatters vegetation (`worldgen.rs`). |
-| `dyno-sim` | Rules shared by client and server: the XP curve and mob scaling (`progression.rs`), the character sheet and armour maths (`character.rs`), inventory and stacks. |
-| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 24). A version mismatch is refused with a clear reason. |
+| `dyno-sim` | Rules shared by client and server: player movement (`movement.rs`: the body, collision, the `Step` the client sends and both sides run), the XP curve and mob scaling (`progression.rs`), the character sheet and armour maths (`character.rs`), inventory and stacks. |
+| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 26). A version mismatch is refused with a clear reason. |
 | `dyno-server` | The game: shards, world streaming and area of interest (`stream.rs`), players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. The content pack (`pack.rs`: loading, hashing, the built-in pack embedded from `content/`, each session's asset outbox). |
 | `dyno-client` | Rendering (wgpu), the UI (egui, themed), input (classic MMO controls), audio, the front end (title, character select and creation), the minimap, headless screenshots. The asset store (`assets.rs`) and the cache of pack files (`cache.rs`). Local hosting only with the `host` feature. |
 | `dyno-update` | Checks GitHub Releases, verifies the signed manifest, picks the artifact named like its own executable (`dyno` or `hearthblock`), swaps the binary. Used by clients and by servers (`--auto-update`). |
@@ -113,8 +113,8 @@ sequenceDiagram
   S-->>C: Sections nearest first (join budget), until the land round the spawn is here
   Note over C: loading screen ends
   loop play
-    C->>S: Pose, Cast, Talk, Loot, Buy…
-    S-->>C: Sections/SectionsGone as you move; Poses, EntityMoves… within your area of interest
+    C->>S: Steps (movement as input), Cast, Talk, Loot, Buy…
+    S-->>C: Moved (your body after your last step run); Sections/SectionsGone as you move; Poses, EntityMoves (stamped)… within your area of interest
   end
   B->>S: crowded area / party apart / quiet shard
   S-->>C: Shard{players, block diffs in the sections you hold}  (same connection, no loading)
@@ -343,6 +343,7 @@ flowchart LR
 | Professions | `professions.rs` | Gathering by cast, skill-ups by colour. |
 | Events | `events.rs` | Nightfall Incursion: waves at a gate after dusk. |
 | Parties | `party.rs` | Up to 5; invites across shards; party chat and whispers. |
+| Movement | `movement.rs` | Server-authoritative (docs/design/netcode.md): clients send steps (keys, facing, whole milliseconds); the server runs every player with `dyno_sim::movement` on a real-time budget, answers with `Moved`, and puts players elsewhere only through `Player::put` (`Teleport`). Poses are taken only in build mode. |
 | Persistence | `store.rs` | JSON for characters, chests, server meta; binary world. Saved every 10 s and on stop. |
 
 ## 8. The client

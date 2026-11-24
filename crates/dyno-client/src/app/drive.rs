@@ -32,12 +32,16 @@ wait SECONDS
 look-at KIND NAME             set-up: turn the camera to an npc, creature or corpse
 turn DEGREES                  set-up: turn the character and the camera
 walk-to KIND NAME DIST        hold W toward it until within DIST metres
+walk-to place X Z DIST        the same toward a point (metres from the hearth, as content places are)
+walk-through door             to the nearest doorway, through it 2 m and back out
+hold KEY · let-go KEY         keep a key down (W A S D Q E Space Shift Ctrl), and let it go
 click left|right KIND NAME    click it in the world (it must be on screen and uncovered)
 click left|right at MARK      click a marked part of the interface
 hover at MARK                 rest the pointer there
 drag at MARK to MARK | by DX DY
 press at MARK · move at MARK · release   a drag in three lines (to `shot` it half way)
-key NAME                      press and release (1-9, 0, Minus, Equal, B, C, P, K, L, M, W, Tab, Escape, Enter, F3)
+key NAME                      press and release (1-9, 0, Minus, Equal, B, C, P, K, L, M, W, A, S, D, Q, E,
+                              Space, Shift, Ctrl, Tab, Escape, Enter, F3)
 remember MARK                 note where it is, for `expect moved MARK`
 shot NAME                     save the frame
 orbit DEGREES                 set-up: swing the camera round the character (0: behind)
@@ -50,7 +54,9 @@ until CONDITION ... end       repeat the lines between (up to 6 times) until it 
 conditions: panel dialog|log|vendor|none · quest KEY · done KEY · target creature|npc|none ·
   attacking · casting · gcd · loot open|closed · tab bags|character|spellbook|skills|none ·
   equipped ITEM · pack ITEM · bar N KEY|empty · mark NAME · tip ID|any|none · moved MARK ·
-  hover creature|npc|corpse|none · map open|closed · tip-clear · level N · debuff · banner";
+  hover creature|npc|corpse|none · map open|closed · tip-clear · level N · debuff · banner ·
+  snaps N (movement corrections shown as a jump: at most N; docs/design/netcode.md)
+At the end the run reports the movement corrections (snapped, eased, the worst) and teleports.";
 
 /// A clip being recorded (`clip-start`): every frame is saved, and a line
 /// of `frames.txt` says when it was drawn and what blows landed in it.
@@ -117,6 +123,14 @@ fn key_code(name: &str) -> Option<KeyCode> {
         "escape" | "esc" => KeyCode::Escape,
         "enter" => KeyCode::Enter,
         "f3" => KeyCode::F3,
+        "a" => KeyCode::KeyA,
+        "d" => KeyCode::KeyD,
+        "s" => KeyCode::KeyS,
+        "q" => KeyCode::KeyQ,
+        "e" => KeyCode::KeyE,
+        "space" => KeyCode::Space,
+        "shift" => KeyCode::ShiftLeft,
+        "ctrl" => KeyCode::ControlLeft,
         _ => return None,
     })
 }
@@ -398,6 +412,101 @@ impl Driver {
         }
     }
 
+    /// Hold W toward a point until within `dist` (horizontally).
+    fn walk_to_point(&mut self, at: Vec3, dist: f32, limit: Duration) -> Result<(), String> {
+        let started = Instant::now();
+        self.app.input(Hand::Key(KeyCode::KeyW, true, false));
+        let done = loop {
+            let d = {
+                let p = play(&self.app)?;
+                Vec3::new(at.x - p.player.pos.x, 0.0, at.z - p.player.pos.z).length()
+            };
+            if d <= dist {
+                break Ok(());
+            }
+            if started.elapsed() > limit {
+                break Err(format!(
+                    "still {d:.1} m from {:.1}, {:.1} after {} s",
+                    at.x,
+                    at.z,
+                    limit.as_secs()
+                ));
+            }
+            let feet = play(&self.app)?.player.pos.y;
+            self.face(Vec3::new(at.x, feet + 1.0, at.z))?;
+            self.frames(1)?;
+        };
+        self.app.input(Hand::Key(KeyCode::KeyW, false, false));
+        self.frames(2)?;
+        done
+    }
+
+    /// The nearest doorway (within 40 m) with a straight walk to it and
+    /// room inside: the middle of its open cell at feet height, and the way
+    /// through it.
+    fn doorway(&self) -> Result<(Vec3, Vec3), String> {
+        let p = play(&self.app)?;
+        let world = &p.world;
+        let me = p.player.pos;
+        let (cx, cy, cz) = (
+            me.x.floor() as i32,
+            me.y.floor() as i32,
+            me.z.floor() as i32,
+        );
+        // a body can stand in the column at about this height (a step up or
+        // down of a metre is walked)
+        let room = |x: f32, y: i32, z: f32| {
+            let (x, z) = (x.floor() as i32, z.floor() as i32);
+            let free = |y: i32| !w::is_solid(world.get(x, y, z));
+            (y - 1..=y + 1).any(|f| w::is_solid(world.get(x, f - 1, z)) && free(f) && free(f + 1))
+        };
+        let clear = |a: Vec3, b: Vec3, y: i32| {
+            let n = (a.distance(b) / 0.3).ceil().max(1.0) as usize;
+            (0..=n).all(|i| {
+                let q = a.lerp(b, i as f32 / n as f32);
+                room(q.x, y, q.z)
+            })
+        };
+        let mut found: Vec<(f32, Vec3, Vec3)> = Vec::new();
+        for y in cy - 6..=cy + 6 {
+            for z in cz - 40..=cz + 40 {
+                for x in cx - 40..=cx + 40 {
+                    if world.get(x, y, z) != w::WOODEN_DOOR
+                        || world.get(x, y - 1, z) == w::WOODEN_DOOR
+                    {
+                        continue;
+                    }
+                    // the open half beside the door, along the wall
+                    for (dx, dz) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                        let (gx, gz) = (x + dx, z + dz);
+                        let open = |yy: i32| world.get(gx, yy, gz) == w::AIR;
+                        if !(open(y) && open(y + 1) && w::is_solid(world.get(gx, y - 1, gz))) {
+                            continue;
+                        }
+                        let gap = Vec3::new(gx as f32 + 0.5, y as f32, gz as f32 + 0.5);
+                        let n = Vec3::new(dz as f32, 0.0, dx as f32);
+                        found.push((gap.distance(me), gap, n));
+                    }
+                }
+            }
+        }
+        found.sort_by(|a, b| a.0.total_cmp(&b.0));
+        found
+            .into_iter()
+            .find(|(_, gap, n)| {
+                let side = if (me - *gap).dot(*n) >= 0.0 {
+                    1.0
+                } else {
+                    -1.0
+                };
+                let (out, inn) = (*gap + *n * side * 2.0, *gap - *n * side * 1.8);
+                let y = gap.y as i32;
+                clear(me, out, y) && clear(out, inn, y)
+            })
+            .map(|(_, g, n)| (g, n))
+            .ok_or_else(|| "no doorway within 40 m that can be walked to".into())
+    }
+
     /// Turn the character and the camera toward a point (set-up).
     fn face(&mut self, at: Vec3) -> Result<(), String> {
         let p = play_mut(&mut self.app)?;
@@ -492,6 +601,7 @@ impl Driver {
                     .any(|w| w.intersects(tip))
             }),
             "level" => p.level >= arg.parse::<u8>().map_err(|_| "level N")?,
+            "snaps" => p.pred.stats.snaps <= arg.parse::<u32>().map_err(|_| "snaps N")?,
             // my target carries a timed effect a player put on it
             "debuff" => p
                 .focus
@@ -587,6 +697,37 @@ impl Driver {
                 let (_, at) = self.entity(need(1)?, need(2)?)?;
                 self.face(at)?;
                 self.frames(3)
+            }
+            "walk-to" if w.get(1) == Some(&"place") => {
+                let x: f32 = need(2)?.parse().map_err(|_| "walk-to place X Z DIST")?;
+                let z: f32 = need(3)?.parse().map_err(|_| "walk-to place X Z DIST")?;
+                let dist: f32 = need(4)?.parse().map_err(|_| "walk-to place X Z DIST")?;
+                let p = play(&self.app)?;
+                let h = p.hearth.ok_or("no hearth yet")?;
+                let at = Vec3::new(h[0] as f32 + x, p.player.pos.y, h[2] as f32 + z);
+                self.walk_to_point(at, dist, Duration::from_secs(25))
+            }
+            "walk-through" => {
+                if need(1)? != "door" {
+                    return Err("walk-through door".into());
+                }
+                let (gap, n) = self.doorway()?;
+                let side = if (play(&self.app)?.player.pos - gap).dot(n) >= 0.0 {
+                    1.0
+                } else {
+                    -1.0
+                };
+                let (out, inn) = (gap + n * side * 2.0, gap - n * side * 1.8);
+                let limit = Duration::from_secs(12);
+                for (at, dist) in [(out, 0.5), (gap, 0.35), (inn, 0.5), (gap, 0.35), (out, 0.5)] {
+                    self.walk_to_point(at, dist, limit)?;
+                }
+                Ok(())
+            }
+            "hold" | "let-go" => {
+                let code = key_code(need(1)?).ok_or_else(|| format!("no key '{}'", w[1]))?;
+                self.app.input(Hand::Key(code, w[0] == "hold", false));
+                self.frames(2)
             }
             "walk-to" => {
                 let (kind, name) = (need(1)?, need(2)?);
@@ -970,6 +1111,14 @@ pub fn drive(o: DriveOptions) -> Result<String, String> {
         }
     }
     let result = d.run(&o.script);
+    // what the movement did (docs/design/netcode.md)
+    if let Ok(p) = play(&d.app) {
+        let st = p.pred.stats;
+        d.log.push(format!(
+            "movement: {} snapped, {} eased, worst correction {:.2} m, {} answers, {} teleports",
+            st.snaps, st.eased, st.worst, st.acks, st.teleports
+        ));
+    }
     // a picture of where it stopped, beside the others
     if let (Err(_), Some(dir)) = (&result, &d.shots) {
         let _ = std::fs::create_dir_all(dir);
@@ -1021,6 +1170,9 @@ mod tests {
             "orbit",
             "clip-start",
             "clip-end",
+            "hold",
+            "let-go",
+            "walk-through",
         ];
         let mut open = 0;
         let mut expects = 0;

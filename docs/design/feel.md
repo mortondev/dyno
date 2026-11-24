@@ -40,6 +40,9 @@ Every hit should land in the hands and eyes.
 **Goal:** a blind side-by-side of 3 s clips, before and after, where the judge picks the "after" clip as "hits land" for every class. Hand play agrees.
 
 ### F3. Movement that never fights you
+
+**Built:** see `docs/design/netcode.md` for the design, the measurements and
+pass or fail on each goal.
 - **Server-simulated movement with client prediction and reconciliation.** Inputs are sent with sequence numbers. The server simulates with the same `dyno_sim::movement` code, and the client predicts and replays from the last acknowledged state. Corrections blend over 100–150 ms instead of snapping.
 - **Remote smoothing:** an interpolation buffer of about 100 ms with timestamps; extrapolation capped at 150 ms.
 - **Tick rate:** consider 30 Hz for poses near the player, measured against the server budget.

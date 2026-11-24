@@ -1541,6 +1541,91 @@ fn cheating_movement_is_impossible() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Knockback is the server's (docs/design/netcode.md): a blow pushes the
+/// body the server runs, and the client, which only stood still, learns of
+/// it in `Moved` and follows without a snap. (In RPG worlds blows push
+/// nobody; here the blow is dealt directly, as a creature's would be.)
+#[test]
+fn knockback_moves_the_body_on_the_server() {
+    use dyno_client::game::{Input, Player, apply_rules};
+    use dyno_client::predict::Predictor;
+    let dir = std::env::temp_dir().join(format!("dyno-test-knock-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    let cfg = dyno_server::Config {
+        bind: "127.0.0.1:0".parse().unwrap(),
+        world_path: dir.join("world.dynw"),
+        world_size: [96, 48, 96],
+        ..Default::default()
+    };
+    let server = dyno_server::start(cfg).expect("server starts");
+    let addr = format!("127.0.0.1:{}", server.local_addr.port());
+    let mut j = net::connect(&addr, "knocked", 4401, false, Duration::from_secs(5)).expect("join");
+    let spawn = j.spawn;
+    land(&mut j, spawn, 24.0);
+    let mut body = Player::new(j.spawn);
+    apply_rules(&mut body, j.content.world.protected, false);
+    let mut pred = Predictor::new();
+    let mut last = Instant::now();
+    let (mut struck, mut hurt, mut farthest, mut rose) = (false, false, 0.0f32, 0.0f32);
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(4) {
+        if !struck && start.elapsed() > Duration::from_millis(1500) {
+            let id = j.your_id;
+            server
+                .server
+                .with_shard_of(id, |st| st.damage(id, 1.0, [5.0, 4.5, 0.0], "was knocked"))
+                .expect("the player's shard");
+            struck = true;
+        }
+        // standing still: nothing but idle steps go out
+        let now = Instant::now();
+        pred.advance(
+            &mut body,
+            &j.world,
+            Input::default(),
+            0.0,
+            (now - last).as_secs_f32(),
+        );
+        last = now;
+        if let Some(m) = pred.flush(0.0) {
+            send(&j, m);
+        }
+        while let Ok(ev) = j.conn.rx.try_recv() {
+            let NetEvent::Msg(m) = ev else { continue };
+            match m {
+                ServerMsg::Moved {
+                    seq,
+                    pos,
+                    vel,
+                    ground,
+                } => {
+                    pred.ack(&mut body, &j.world, seq, pos, vel, ground);
+                    farthest = farthest.max(flat_dist(pos, spawn));
+                    rose = rose.max(pos[1] - spawn[1]);
+                }
+                ServerMsg::Hurt { .. } => hurt = true,
+                ServerMsg::Teleport { pos } => pred.teleport(&mut body, pos),
+                m => {
+                    net::apply_world(&mut j.world, &m);
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_millis(16));
+    }
+    assert!(hurt, "the blow landed");
+    assert!(
+        farthest > 0.5 && rose > 0.2,
+        "the blow knocked the body back and up on the server: {farthest} m, {rose} m up"
+    );
+    assert!(
+        flat_dist(body.pos.into(), spawn) > 0.5,
+        "the client followed"
+    );
+    assert_eq!(pred.stats.snaps, 0, "without a snap");
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// Fighting together pays: a party member nearby shares the kill (XP with a
 /// group bonus, quest credit) and may loot the body.
 #[test]

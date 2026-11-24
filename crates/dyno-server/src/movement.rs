@@ -10,11 +10,15 @@
 //! - **Positions never come from the client,** so a teleport or a hover
 //!   can't be asked for: the body falls and collides on the server.
 //! - **A silent client is stood still.** When steps stop coming (a stall, a
-//!   minimised window) the budget banks up to [`BANK_MS`]; beyond that the
+//!   minimised window) the budget banks up to [`BANK_MS`], so a burst of late
+//!   steps runs at once; when none have come for longer than that, the
 //!   server runs idle steps itself, so the body falls and takes knockback.
 //!
 //! The answer is `ServerMsg::Moved` (the body after the last step run),
 //! sent at the end of each tick in which the body changed.
+//!
+//! `DYNO_MOVE_LOG` logs what departs from plain running: steps dropped,
+//! idle steps run for a silent client, steps answered unrun.
 
 use crate::game::State;
 use dyno_protocol::{Mode, PlayerId, Pose, ServerMsg};
@@ -31,6 +35,11 @@ pub const QUEUE_MS: u32 = 2000;
 /// A new body's budget, so its first steps run at once.
 const START_MS: f32 = 200.0;
 
+fn log_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("DYNO_MOVE_LOG").is_some())
+}
+
 /// The server's clock (milliseconds since it started): what creatures'
 /// positions are stamped with (`EntityMoves`).
 pub fn clock_ms() -> u32 {
@@ -46,10 +55,13 @@ pub struct Moves {
     queued_ms: u32,
     /// real milliseconds the player may still spend
     budget: f32,
-    /// milliseconds the server stood a silent player still: as many of
-    /// the steps that come late for that time are answered, not run, so the
-    /// queue never lags real time for good
+    /// milliseconds the server stood a silent player still: if the steps
+    /// of that time come late after all (a burst), as many are answered,
+    /// not run, so the queue never lags real time for good
     owed: u32,
+    /// when steps last came, and how far idle steps have run since
+    heard: Instant,
+    idle_to: Instant,
     at: Instant,
     /// the last step run (acknowledged in `Moved`)
     pub seq: u32,
@@ -81,6 +93,8 @@ impl Moves {
             queued_ms: 0,
             budget: START_MS,
             owed: 0,
+            heard: Instant::now(),
+            idle_to: Instant::now(),
             at: Instant::now(),
             seq: 0,
             last_in: None,
@@ -106,8 +120,17 @@ impl Moves {
         self.changed = true;
     }
 
-    /// Take in steps from the client: those numbered after the last taken.
-    pub fn take(&mut self, seq: u32, steps: &[Step]) {
+    /// Take in steps from the client (arrived `now`): those numbered after
+    /// the last taken.
+    pub fn take(&mut self, seq: u32, steps: &[Step], now: Instant) {
+        if steps.is_empty() {
+            return;
+        }
+        self.heard = now;
+        if self.last_in.is_none() {
+            // the first steps: no time banked before them (a join, a load)
+            self.budget = self.budget.min(START_MS);
+        }
         for (i, s) in steps.iter().enumerate() {
             let n = seq.wrapping_add(i as u32);
             if self.last_in.is_some_and(|l| n.wrapping_sub(l) as i32 <= 0) {
@@ -120,6 +143,12 @@ impl Moves {
             };
             self.queued_ms += s.ms as u32;
             self.queue.push_back((n, s));
+        }
+        if self.queued_ms > QUEUE_MS && log_on() {
+            crate::game::log(format!(
+                "movement: {} ms of steps waiting, over {QUEUE_MS}: the oldest dropped",
+                self.queued_ms
+            ));
         }
         while self.queued_ms > QUEUE_MS {
             let Some((n, s)) = self.queue.pop_front() else {
@@ -151,21 +180,41 @@ impl Moves {
     pub fn run(&mut self, world: &dyno_world::World, now: Instant) -> bool {
         let real = now.duration_since(self.at).as_secs_f32() * 1000.0;
         self.at = now;
-        self.budget += real.min(BANK_MS * 2.0);
+        self.budget = (self.budget + real).min(BANK_MS);
         let before = (self.body.pos, self.body.vel);
+        // steps owed to a stand-still: skipped if they came as a burst (the
+        // client caught up on the stall), forgotten if they did not
+        if self.owed > 0 && !self.queue.is_empty() {
+            if self.queued_ms <= self.owed {
+                self.owed = 0;
+            }
+            while self.owed > 0 {
+                let Some(&(n, s)) = self.queue.front() else {
+                    break;
+                };
+                if (s.ms as u32) > self.owed {
+                    self.owed = 0;
+                    break;
+                }
+                self.queue.pop_front();
+                self.queued_ms -= s.ms as u32;
+                self.owed -= s.ms as u32;
+                self.seq = n;
+                self.changed = true;
+                if log_on() {
+                    crate::game::log(format!(
+                        "movement: step {n} answered unrun ({} ms owed)",
+                        self.owed
+                    ));
+                }
+            }
+        }
         while let Some(&(n, s)) = self.queue.front() {
             if self.budget < s.ms as f32 {
                 break;
             }
             self.queue.pop_front();
             self.queued_ms -= s.ms as u32;
-            if self.owed >= s.ms as u32 {
-                // its time was spent standing still
-                self.owed -= s.ms as u32;
-                self.seq = n;
-                self.changed = true;
-                continue;
-            }
             self.budget -= s.ms as f32;
             self.body.step(world, s);
             self.facing = s.yaw;
@@ -173,18 +222,26 @@ impl Moves {
             self.clock = self.clock.wrapping_add(s.ms as u32);
             self.changed = true;
         }
-        // nothing came for longer than the bank: stand still for the rest
-        if self.queue.is_empty() && self.budget > BANK_MS {
-            let mut extra = (self.budget - BANK_MS).round() as u32;
-            self.budget = BANK_MS;
-            // (a client that has sent steps sends those of a stall when it
-            // comes back, up to 2 s of them: predict.rs)
-            if self.last_in.is_some() {
-                self.owed = (self.owed + extra).min(QUEUE_MS);
+        // nothing has come for longer than the bank: stand still meanwhile
+        let since = self
+            .idle_to
+            .max(self.heard + std::time::Duration::from_secs_f32(BANK_MS / 1000.0));
+        if self.queue.is_empty() && now > since {
+            let mut idle = (now.duration_since(since).as_secs_f32() * 1000.0).round() as u32;
+            self.idle_to = now;
+            if log_on() && self.last_in.is_some() {
+                crate::game::log(format!(
+                    "movement: silent past the bank: {idle} ms stood still"
+                ));
             }
-            while extra > 0 {
-                let ms = extra.min(MAX_STEP_MS as u32) as u8;
-                extra -= ms as u32;
+            // (a client that has sent steps may send those of a stall when
+            // it comes back, up to 2 s of them: predict.rs)
+            if self.last_in.is_some() {
+                self.owed = (self.owed + idle).min(QUEUE_MS);
+            }
+            while idle > 0 {
+                let ms = idle.min(MAX_STEP_MS as u32) as u8;
+                idle -= ms as u32;
                 self.body.step(world, Step::idle(ms, self.facing));
                 self.clock = self.clock.wrapping_add(ms as u32);
             }
@@ -249,7 +306,7 @@ impl State {
             m.teleports = teleports;
         }
         m.posed = false;
-        m.take(seq, steps);
+        m.take(seq, steps, Instant::now());
     }
 
     /// A trusted pose (build mode, or a server that trusts movement: tests).
@@ -354,7 +411,7 @@ mod tests {
         let mut seq = 1;
         for i in 0..10 {
             let steps: Vec<Step> = (0..20).map(|_| run(25)).collect();
-            m.take(seq, &steps);
+            m.take(seq, &steps, t0 + Duration::from_millis(50 * i));
             seq += steps.len() as u32;
             m.run(&w, t0 + Duration::from_millis(50 * (i + 1)));
         }
@@ -383,7 +440,7 @@ mod tests {
         );
         let mut top: f32 = 0.0;
         for i in 0..150u32 {
-            m.take(i + 1, &[jump]);
+            m.take(i + 1, &[jump], t0 + Duration::from_millis(20 * i as u64));
             m.run(&w, t0 + Duration::from_millis(20 * (i as u64 + 1)));
             top = top.max(m.body.pos.y - 5.0);
         }
@@ -414,19 +471,49 @@ mod tests {
         let t0 = Instant::now();
         m.at = t0;
         m.budget = 0.0;
-        m.take(0, &[Step::idle(1, 0)]);
+        m.take(0, &[Step::idle(1, 0)], t0);
         // silent for 1.5 s: half a second more than the bank is stood still
         m.run(&w, t0 + Duration::from_millis(1500));
         assert_eq!(m.owed, 500);
         // the late steps come: 1.5 s of running
         let steps: Vec<Step> = (0..75).map(|_| run(20)).collect();
-        m.take(1, &steps);
+        m.take(1, &steps, t0 + Duration::from_millis(1540));
         m.run(&w, t0 + Duration::from_millis(1550));
         assert_eq!(m.owed, 0);
         assert!(m.queue.is_empty(), "all answered at once");
         assert_eq!(m.seq, 75);
         let ran = 60.5 - m.body.pos.z;
         assert!(ran < 6.4 * 1.05 && ran > 5.0, "a second's running: {ran}");
+    }
+
+    /// A client that was silent for a while (joining, loading) and then
+    /// sends steps in real time, in uneven bursts, has every one of them
+    /// run: none stood still for, none skipped.
+    #[test]
+    fn steady_steps_after_a_silence_all_run() {
+        let w = flat();
+        let mut m = Moves::new([32.5, 5.0, 62.5], true, Mode::Play);
+        let t0 = Instant::now();
+        m.at = t0;
+        let at = |ms: u64| t0 + Duration::from_millis(ms);
+        for i in 1..=60u64 {
+            m.run(&w, at(50 * i));
+        }
+        let start = m.body.pos;
+        // then 6 s of running, 100 ms of steps every other tick
+        let mut seq = 1;
+        for i in 61..=180u64 {
+            if i % 2 == 0 {
+                let steps: Vec<Step> = (0..5).map(|_| run(20)).collect();
+                m.take(seq, &steps, at(50 * i - 10));
+                seq += 5;
+            }
+            m.run(&w, at(50 * i));
+        }
+        let ran = start.z - m.body.pos.z;
+        assert_eq!(m.owed, 0);
+        assert_eq!(m.seq, seq - 1);
+        assert!(ran > 6.2 * 5.9 && ran < 6.2 * 6.1, "{ran} m in 6 s");
     }
 
     /// Steps from before a teleport are answered but never run.
@@ -437,9 +524,9 @@ mod tests {
         m.put([10.5, 5.0, 10.5]);
         m.skip(1, 10);
         assert_eq!(m.seq, 10);
-        m.take(5, &[run(20)]);
+        m.take(5, &[run(20)], Instant::now());
         assert!(m.queue.is_empty(), "an old step is not taken");
-        m.take(11, &[run(20)]);
+        m.take(11, &[run(20)], Instant::now());
         m.run(&w, Instant::now());
         assert_eq!(m.seq, 11);
         assert!((m.body.pos.x - 10.5).abs() < 0.01);
