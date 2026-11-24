@@ -1684,7 +1684,11 @@ fn new_play(j: Joined) -> Play {
         gcd: (Instant::now(), 0.0),
         my_cast: None,
         class_pick: false,
-        zoom: if rpg_world { crate::camera::DEFAULT_ZOOM } else { 0.0 },
+        zoom: if rpg_world {
+            crate::camera::DEFAULT_ZOOM
+        } else {
+            0.0
+        },
         equip: vec![None; 17],
         skills: Vec::new(),
         auras: Vec::new(),
@@ -3215,7 +3219,9 @@ impl App {
                 let follow = self.settings.camera_follow && !p.lmb;
                 p.cam.follow(&mut p.cam_orbit, follow, moving, dt);
                 // the zoom is remembered once the wheel has rested
-                if p.zoom_moved.is_some_and(|t| t.elapsed() > Duration::from_secs(1)) {
+                if p.zoom_moved
+                    .is_some_and(|t| t.elapsed() > Duration::from_secs(1))
+                {
                     p.zoom_moved = None;
                     self.settings.camera_zoom = p.zoom;
                     let _ = self.settings.save();

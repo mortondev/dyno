@@ -120,7 +120,7 @@ impl CamLog {
         if let Some((f, o)) = self.csv.as_mut() {
             use std::io::Write;
             let (e, h) = (eye - *o, p.player.eye() - *o);
-            let dt = self.last.map_or(0.0, |(t, _)| (now - t).as_secs_f32());
+            let dt = p.cam.view.dt;
             let step = self.last.map_or(0.0, |(_, l)| eye.distance(l));
             let v = p.cam.view;
             let _ = writeln!(
@@ -129,11 +129,11 @@ impl CamLog {
                 self.frames, e.x, e.y, e.z, h.x, h.y, h.z, v.arm, v.limit, p.zoom, p.cam_orbit
             );
         }
-        if let Some((t, e)) = self.last {
+        if let Some((_, e)) = self.last {
             let step = eye.distance(e);
             // (the frame time, but no shorter than a 60 Hz frame: a frame
             // drawn twice as fast does not make a step twice as sudden)
-            let dt = (now - t).as_secs_f32().max(1.0 / 60.0);
+            let dt = p.cam.view.dt.max(1.0 / 60.0);
             self.worst_step = self.worst_step.max(step);
             if step / dt > self.worst_speed.0 {
                 self.worst_speed = (step / dt, step, eye);
@@ -1310,7 +1310,10 @@ mod tests {
     /// it ends by checking the camera it recorded.
     #[test]
     fn the_camera_script_records_and_checks() {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tools/drive/camera.drive");
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../tools/drive/camera.drive"
+        );
         let s = std::fs::read_to_string(path).unwrap();
         let known = [
             "yard",

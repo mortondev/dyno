@@ -25,8 +25,8 @@ swing -200 -10
 wait 0.5
 swing 100 -10
 # --- 6. back along the edge, down the stairs, back through the door ---------
-walk-path 3.2 -45 1 -41 1 -31 1 -20 1 -12 1 -2
+walk-path 0 -55 1 -41 1 -31 1 -20 1 -12 1 -2
 shot camera-end
 wait 1
 
-camera check 30
+camera check 60

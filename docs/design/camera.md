@@ -46,35 +46,46 @@ each metre back): a test holds this.
 Two rules, kept apart:
 
 - **Hard, every frame:** the eye, a ball of 0.25 m (the near plane is
-  0.05 m), is never in a solid cell. When it would be, the boom is cut to
-  its clear length at once.
+  0.05 m), is never in a solid cell. When the boom would put it in one, the
+  eye first *slides*: it is pushed out of the surface it grazes (a ceiling
+  or a crown of leaves above, the ground below, a cliff to the side) by as
+  much as it went in, up to 1 m, if the character can still be seen from
+  there. Only when that cannot be done is the boom cut to its clear length
+  at once.
 - **Eased:** the boom's wanted length is found by marching out from the
-  follow point. Where the boom passes within 0.9 m of something it is
-  already shortened, in proportion, so it comes in as an edge *nears* the
-  boom instead of all at once when the edge crosses it (near the head this
-  counts only in part, so a doorway's sides do not pull it in). That length
-  changes smoothly as the character and the view move. The camera follows
-  it in fast (an exponential at 20/s, at most 30 m/s) and back out with a
-  critically damped spring that settles in about 0.3 s.
+  follow point in 5 cm steps. Where the boom passes within 1.5 m of
+  something it is already shortened, in proportion, so it comes in as an
+  edge *nears* the boom instead of all at once when the edge crosses it
+  (near the head this counts only in part, so a doorway's sides do not pull
+  it in); and something closing on the eye's end from the side draws the
+  eye in up to 1.5 units ahead of the touch. That length changes smoothly as
+  the character and the view move. The boom follows it on one critically
+  damped spring, so its speed never jumps: in at 18 rad/s (45 rad/s while
+  the eye is cut off from the character, so what it then must cross is
+  still thin), at most 50 units/s, and back out settling in about 0.3 s.
 
-The one case with no smooth way in is a wall appearing from nowhere
-between the camera and the character (nothing in play does this; a door
-block placed by another player could): the eye then crosses it in one
-step of the wall's thickness plus the margins. A test holds that bound.
+What is left are the cases with no smooth way in: a wall appearing from
+nowhere between the camera and the character (nothing in play does this; a
+block placed by another player could), and an edge swung or dropped across
+the boom faster than the spring can follow. The eye then crosses what is
+between in one step: its thickness along the boom plus the margins. A unit
+test bounds the first; the drive run measures the rest (below).
 
 **The head:** the boom is never shorter than the clear length from the
-follow point, and the follow point is the head or a point at most 0.9 m
-behind it on the way it came. Nearer than 1.3 m to the head the character
-is dithered out (a screen-space dither in the fragment shader: whole cubes,
-nothing moved, so the voxel rule's shader test is untouched), and nearer
-than 0.5 m it is not drawn.
+follow point, and the follow point is the head or a point at most 1 m
+behind it on the way it came (2 m below or above: stairs); if that point is
+not in the open it moves towards the head until it is. Nearer than 1.3 m to
+the head the character is dithered out (a screen-space dither in the
+fragment shader: whole cubes, nothing moved, so the voxel rule's shader
+test is untouched), and nearer than 0.5 m it is not drawn.
 
 ## Following
 
 - **Lag:** the follow point trails the head on critically damped springs
-  (across at 22 rad/s, up at 12 rad/s), never more than 0.9 m behind. At a
-  run (6.2 m/s) it trails about 0.55 m. The slower spring upward turns the
-  auto-step's one-block jumps on stairs into a glide.
+  (across at 22 rad/s, up at 12 rad/s), never more than 1 m behind across
+  or 2 m below or above. At a run (6.2 m/s) it trails about 0.55 m. The
+  slower spring upward turns the auto-step's one-block jumps on stairs into
+  a glide.
 - **Snap:** further than 4 m from the head (a teleport, a respawn), and on
   the server's `Teleport`, the springs are forgotten and the camera starts
   where the character is.
@@ -82,8 +93,14 @@ than 0.5 m it is not drawn.
   going: 0.09 s of travel (at most 0.7 m), eased in at 3/s, less when the
   camera is close in. Yaw and pitch themselves are not smoothed, so the
   mouse is never behind the hand.
-- **Shake (F2):** `Camera::shake` is an offset added to the eye after the
-  collision, dropped for a frame if it would put the eye in a wall.
+- **Shake (F2):** F2's shake (`feel.rs`, on crits and heavy blows, capped
+  at 1.6°, with its own option) turns the picture: `app.rs` turns this
+  camera's view direction by it after the camera has placed the eye, so it
+  never moves the eye, never puts it in a wall, and is not in what the
+  no-pop test measures (the eye's position). For a shake that moves the
+  eye instead, `Camera::shake` is an offset added to the eye after the
+  collision, dropped for a frame if it would put the eye in a wall (unused
+  today; a unit test holds it).
 
 ## Mouse-look and auto-follow
 

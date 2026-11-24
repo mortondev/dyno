@@ -38,16 +38,19 @@ pub const MARGIN: f32 = 0.25;
 const HEAD: f32 = 0.5;
 /// Nearer than this to the head the character starts to fade (dithered).
 const FADE_FROM: f32 = 1.3;
-/// Pull-in: an exponential rate (1/s) capped at a speed (m/s).
-const IN_RATE: f32 = 30.0;
-pub const IN_SPEED: f32 = 60.0;
+/// Pull-in: a critically damped spring (rad/s), its speed capped (zoom units/s).
+const IN_RATE: f32 = 18.0;
+const IN_RATE_HIDDEN: f32 = 45.0;
+pub const IN_SPEED: f32 = 50.0;
 /// Ease back out: about this long to settle (a critically damped spring).
 pub const OUT_TIME: f32 = 0.3;
 /// The follow point's springs (critically damped), rad/s: across and up.
 const FOLLOW_ACROSS: f32 = 22.0;
 const FOLLOW_UP: f32 = 12.0;
-/// The follow point never trails the head by more than this, metres.
-const MAX_LAG: f32 = 0.9;
+/// The follow point never trails the head by more than this across, metres...
+const MAX_LAG: f32 = 1.0;
+/// ...nor above or below it by more than this (two steps of a stair).
+const MAX_LAG_UP: f32 = 2.0;
 /// Further than this from the head (a teleport, a respawn): snap.
 const SNAP: f32 = 4.0;
 /// Look-ahead: seconds of travel, the most it leads, and how fast it eases.
@@ -63,9 +66,11 @@ const FOLLOW_RATE: f32 = 2.0;
 /// The step along the boom when looking for its clear length, metres.
 const PROBE_STEP: f32 = 0.05;
 /// The boom starts to shorten when it passes this near something, metres...
-const SOFT: f32 = 1.4;
+const SOFT: f32 = 1.5;
 /// ...but within this far of the head only in part (a doorway's sides).
-const SOFT_RAMP: f32 = 2.0;
+const SOFT_RAMP: f32 = 2.5;
+/// How far (zoom units) the eye comes in ahead of something closing on it.
+const END: f32 = 1.5;
 
 /// What the camera shows this frame.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -80,6 +85,8 @@ pub struct View {
     pub arm: f32,
     /// the clear length of the boom this frame (zoom units)
     pub limit: f32,
+    /// the frame time it was stepped by, seconds
+    pub dt: f32,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -148,6 +155,58 @@ pub fn clearance(solid: &impl Fn(i32, i32, i32) -> bool, q: Vec3, most: f32) -> 
     best.sqrt()
 }
 
+/// The nearest point of a solid cell to `q` within `most`, if any.
+fn nearest(solid: &impl Fn(i32, i32, i32) -> bool, q: Vec3, most: f32) -> Option<Vec3> {
+    let lo = (q - Vec3::splat(most)).floor();
+    let hi = (q + Vec3::splat(most)).floor();
+    let mut best: Option<(f32, Vec3)> = None;
+    for x in lo.x as i32..=hi.x as i32 {
+        for y in lo.y as i32..=hi.y as i32 {
+            for z in lo.z as i32..=hi.z as i32 {
+                if !solid(x, y, z) {
+                    continue;
+                }
+                let c = Vec3::new(x as f32, y as f32, z as f32);
+                let p = q.clamp(c, c + Vec3::ONE);
+                let d = p.distance_squared(q);
+                if d < most * most && best.is_none_or(|(b, _)| d < b) {
+                    best = Some((d, p));
+                }
+            }
+        }
+    }
+    best.map(|(_, p)| p)
+}
+
+/// The most the eye is pushed off the boom to slide along a surface, metres.
+const PUSH: f32 = 1.0;
+
+/// `q` moved out of the solid cells near it until a ball of `r` is clear,
+/// by no more than [`PUSH`]; `None` when it cannot be (it is inside one).
+fn push_out(solid: &impl Fn(i32, i32, i32) -> bool, q: Vec3, r: f32) -> Option<Vec3> {
+    let mut e = q;
+    for _ in 0..4 {
+        let Some(p) = nearest(solid, e, r) else {
+            return (e.distance(q) <= PUSH).then_some(e);
+        };
+        let d = e.distance(p);
+        if d < 1e-4 {
+            return None;
+        }
+        e = p + (e - p) / d * (r * 1.001);
+    }
+    (clear(solid, e, r) && e.distance(q) <= PUSH).then_some(e)
+}
+
+/// Can the eye at `to` see `from` (no solid cell on the line between)?
+fn sight(solid: &impl Fn(i32, i32, i32) -> bool, from: Vec3, to: Vec3) -> bool {
+    let n = (from.distance(to) / 0.1).ceil().max(1.0) as usize;
+    (0..=n).all(|i| {
+        let p = from.lerp(to, i as f32 / n as f32).floor();
+        !solid(p.x as i32, p.y as i32, p.z as i32)
+    })
+}
+
 /// How long the boom may be: from `from` along `boom` (the eye's offset
 /// per zoom unit), up to `want` units. Two lengths:
 /// - `hard`: the eye ball ([`MARGIN`]) is clear the whole way to it;
@@ -177,6 +236,11 @@ pub fn reach(
         let w = smoothstep(MARGIN, SOFT, s);
         let ramp = (next * len / SOFT_RAMP).min(1.0);
         soft = soft.min(next + (want - next) * (1.0 - (1.0 - w) * ramp));
+        // near the eye's end, something closing in from the side draws it
+        // in before it gets there (the above alone would wait for the touch)
+        if next > want - END {
+            soft = soft.min(want - (1.0 - w) * END * ramp);
+        }
         d = next;
     }
     (soft, want)
@@ -252,6 +316,7 @@ impl Camera {
                 fade: 0.0,
                 arm: 0.0,
                 limit: 0.0,
+                dt,
             };
             return self.view;
         }
@@ -273,13 +338,17 @@ impl Camera {
         self.pivot = Vec3::new(x, y, z);
         self.pivot_vel = Vec3::new(vx, vy, vz);
         let lag = self.pivot - head;
-        if lag.length() > MAX_LAG {
-            self.pivot = head + lag.normalize() * MAX_LAG;
-        }
+        let across = Vec3::new(lag.x, 0.0, lag.z).clamp_length_max(MAX_LAG);
+        let up = lag.y.clamp(-MAX_LAG_UP, MAX_LAG_UP);
+        self.pivot = head + Vec3::new(across.x, up, across.z);
         // (it trails along the way the head came, so it is in the open; if
-        // not, the head itself)
+        // not, the nearest point towards the head that is)
         if !clear(&solid, self.pivot, MARGIN) {
-            self.pivot = head;
+            let from = self.pivot;
+            self.pivot = (1..=8)
+                .map(|i| from.lerp(head, i as f32 / 8.0))
+                .find(|q| clear(&solid, *q, MARGIN))
+                .unwrap_or(head);
             self.pivot_vel = Vec3::ZERO;
         }
         // look-ahead: a little of the way the character is going
@@ -293,25 +362,46 @@ impl Camera {
         if snap {
             self.arm = if instant() { hard } else { target };
             self.arm_vel = 0.0;
-        } else if target < self.arm {
-            // something near or between: in fast, but not in one jump
-            let gap = self.arm - target;
-            let by = (gap * (1.0 - (-IN_RATE * dt).exp())).min(IN_SPEED * dt);
-            self.arm -= by;
-            self.arm_vel = 0.0;
         } else {
-            // clear again: ease back out
-            let (a, v) = spring(self.arm, self.arm_vel, target, 4.74 / OUT_TIME, dt);
-            self.arm = a.min(target);
-            self.arm_vel = if a > target { 0.0 } else { v };
+            // one critically damped spring, so the boom's speed never jumps:
+            // in fast when something nears or comes between, back out over
+            // about OUT_TIME when it is clear
+            // (faster while the eye is cut off from the character: what it
+            // then has to cross to come in front is still thin)
+            let omega = if self.arm > hard + 0.05 {
+                IN_RATE_HIDDEN
+            } else if target < self.arm {
+                IN_RATE
+            } else {
+                4.74 / OUT_TIME
+            };
+            let (a, v) = spring(self.arm, self.arm_vel, target, omega, dt);
+            let v = v.clamp(-IN_SPEED, IN_SPEED);
+            let most = IN_SPEED * dt;
+            self.arm = a.clamp(self.arm - most, self.arm + most).max(0.0);
+            self.arm_vel = v;
+            // (never further out than it may be)
+            if self.arm > target && v > 0.0 {
+                self.arm = target;
+                self.arm_vel = 0.0;
+            }
         }
-        // the hard rule: the eye itself is never in a wall
-        if self.arm > hard && !clear(&solid, self.pivot + b * self.arm, MARGIN) {
-            self.arm = hard;
-            self.arm_vel = 0.0;
+        // the hard rule: the eye itself is never in a wall. Grazing a
+        // surface (a ceiling or the ground pressing on the eye) it slides
+        // along it, pushed out as far as it went in; only when that cannot
+        // be done is the boom cut to its clear length at once.
+        let mut eye = self.pivot + b * self.arm;
+        if self.arm > hard && !clear(&solid, eye, MARGIN) {
+            match push_out(&solid, eye, MARGIN) {
+                Some(e) if sight(&solid, self.pivot, e) => eye = e,
+                _ => {
+                    self.arm = hard;
+                    self.arm_vel = 0.0;
+                    eye = self.pivot + b * self.arm;
+                }
+            }
         }
         let limit = hard;
-        let mut eye = self.pivot + b * self.arm;
         let shaken = eye + self.shake;
         if self.shake != Vec3::ZERO && clear(&solid, shaken, MARGIN) {
             eye = shaken;
@@ -329,6 +419,7 @@ impl Camera {
             fade,
             arm: self.arm,
             limit,
+            dt,
         };
         self.view
     }
@@ -403,11 +494,13 @@ mod tests {
         // wall's thickness and the margins
         let solid = world(Some(3));
         let mut last = c.view.eye;
+        let mut jumps = Vec::new();
         let mut frames = 0;
         let mut crossings = 0;
         loop {
             let v = c.update(&solid, head, d, Vec3::ZERO, 9.0, DT);
             let jump = v.eye.distance(last);
+            jumps.push(jump);
             last = v.eye;
             frames += 1;
             assert!(clear(&solid, v.eye, MARGIN - 1e-3), "inside: {:?}", v.eye);
@@ -420,7 +513,7 @@ mod tests {
             }
             assert!(frames < 30, "still not in after {frames} frames");
         }
-        assert!(crossings <= 1);
+        assert!(crossings <= 1, "{jumps:?}");
         assert!(frames <= 20, "in after {frames} frames");
         // gone again: back out over about OUT_TIME, smoothly
         let solid = world(None);
@@ -461,7 +554,11 @@ mod tests {
             }
             last = Some(v.eye);
         }
-        assert!(c.view.arm < 6.0, "it came in under the lintel: {}", c.view.arm);
+        assert!(
+            c.view.arm < 6.0,
+            "it came in under the lintel: {}",
+            c.view.arm
+        );
         assert!(worst < 0.6, "a jump of {worst} m");
     }
 
@@ -501,7 +598,11 @@ mod tests {
         head.y += 1.0;
         let before = c.view.eye;
         let v = c.update(&solid, head, d, vel, 9.0, DT);
-        assert!((v.eye.y - before.y) < 0.3, "{} up in a frame", v.eye.y - before.y);
+        assert!(
+            (v.eye.y - before.y) < 0.3,
+            "{} up in a frame",
+            v.eye.y - before.y
+        );
         // a teleport: at once
         head += Vec3::new(50.0, 0.0, 0.0);
         let v = c.update(&solid, head, d, Vec3::ZERO, 9.0, DT);
