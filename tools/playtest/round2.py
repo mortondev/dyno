@@ -4,8 +4,9 @@ and tags, from `dyno bots` reports (docs/playtest/first-30-minutes-round2.md).
     python3 tools/playtest/round2.py REPORT.json [REPORT.json ...]     every table, the runs pooled
     python3 tools/playtest/round2.py --xp                              quest XP against the levels, from the rules
     python3 tools/playtest/round2.py --tags REPORT.json [...]          a crowd at one camp: one row per report
-    python3 tools/playtest/round2.py --rules RULES.json REPORT.json ...  classify with the rules the runs were made on
-                                                                       (git show COMMIT:content/rules/hearthblock.json)
+    python3 tools/playtest/round2.py --rules RULES.json --layout LAYOUT.json REPORT.json ...
+                                             classify with the rules and the layout the runs were made on
+                                             (git show COMMIT:content/rules/hearthblock.json, .../world/layout.json)
 
 The bots record facts (who was near, health at the pull, the time of day);
 this script decides what they mean, from the rules and the layout, so a
@@ -38,7 +39,12 @@ if "--rules" in sys.argv:
     _RULES_PATH = sys.argv[_i + 1]
     del sys.argv[_i:_i + 2]
 RULES = json.load(open(_RULES_PATH))
-LAYOUT = json.load(open(os.path.join(ROOT, "content", "world", "layout.json")))
+_LAYOUT_PATH = os.path.join(ROOT, "content", "world", "layout.json")
+if "--layout" in sys.argv:
+    _i = sys.argv.index("--layout")
+    _LAYOUT_PATH = sys.argv[_i + 1]
+    del sys.argv[_i:_i + 2]
+LAYOUT = json.load(open(_LAYOUT_PATH))
 PLACES = {p["key"]: p for p in LAYOUT["places"]}
 BRAINS = ["completionist", "casual", "explorer", "social", "party", "grinder"]
 
