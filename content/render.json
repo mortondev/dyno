@@ -194,7 +194,7 @@
     },
     {
       "area": "birchrise",
-      "feather": 30,
+      "feather": 60,
       "mood": {
         "tint": [1.08, 0.99, 0.86],
         "light_tint": [1.06, 0.98, 0.86],
@@ -220,10 +220,10 @@
     },
     {
       "area": "barrowwood",
-      "feather": 40,
+      "feather": 110,
       "mood": {
         "time": 0.54,
-        "time_pull": 0.85,
+        "time_pull": 0.7,
         "tint": [0.99, 0.96, 1.05],
         "sky_tint": [0.96, 0.88, 1.12],
         "haze_color": [0.46, 0.38, 0.76],
@@ -257,7 +257,7 @@
     },
     {
       "area": "windmill",
-      "feather": 30,
+      "feather": 70,
       "mood": {
         "tint": [1.03, 1.02, 0.95],
         "saturation": 1.06,
@@ -269,7 +269,7 @@
         "exposure": 1.0,
         "light_tint": [1, 1, 1]
       },
-      "radius": 60,
+      "radius": 90,
       "order": 1
     },
     {
@@ -293,7 +293,6 @@
       "area": "sunken_shrine",
       "feather": 20,
       "mood": {
-        "time_pull": 0,
         "tint": [0.93, 1.04, 1.04],
         "sky_tint": [0.94, 1.03, 1.03],
         "haze_color": [0.4, 0.84, 0.84],
@@ -308,10 +307,10 @@
     {
       "at": [330, 300],
       "radius": 60,
-      "feather": 30,
+      "feather": 90,
       "mood": {
-        "time": 0.63,
-        "time_pull": 0.9,
+        "time": 0.56,
+        "time_pull": 0.5,
         "clouds": 0.45,
         "moon": [22, 9]
       },
@@ -341,34 +340,6 @@
         "haze": 1.6,
         "fog_color": [0.9, 0.62, 0.36],
         "fog_color_mix": 0.6
-      }
-    },
-    {
-      "at": [40, 0],
-      "radius": 24,
-      "feather": 8,
-      "order": 2,
-      "mood": {
-        "time": 0.48,
-        "time_pull": 0.95,
-        "light_tint": [1.2, 1.0, 0.8],
-        "exposure": 1.15,
-        "ambient": 0.95,
-        "tint": [1.05, 1.0, 0.94]
-      }
-    },
-    {
-      "at": [4, 34],
-      "radius": 10,
-      "feather": 6,
-      "order": 2,
-      "mood": {
-        "time": 0.48,
-        "time_pull": 0.95,
-        "light_tint": [1.2, 1.0, 0.8],
-        "exposure": 1.15,
-        "ambient": 0.95,
-        "tint": [1.05, 1.0, 0.94]
       }
     }
   ]
