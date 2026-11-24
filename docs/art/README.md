@@ -55,3 +55,7 @@ plan" page (also `.tracker/visual-plan.html`).
 4. Keep accepted concepts here, one per location, named like the location.
 
 These are references, not assets: nothing here is shipped in the content pack.
+
+## The hard rule
+
+Everything drawn is cubes on a fixed ladder of sizes: no curves, no diagonals. See [voxel-rule.md](voxel-rule.md).

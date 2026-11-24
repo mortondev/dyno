@@ -25,7 +25,7 @@ or the round cap is reached.
    - bloom on lights;
    - warm/cool contrast.
 2. **Atmosphere:** aerial haze and distance fog, the sky, clouds, the zone's colour mood and time of day.
-3. **Voxel quality:** crisp voxel surfaces at about 8 per metre; per-voxel colour variation; no smeared textures or blobby smooth shapes.
+3. **Voxel quality (hard rule, docs/art/voxel-rule.md):** any visible curve, slope or diagonal fails the scene. Also: crisp voxel surfaces at about 8 per metre; per-voxel colour variation; no smeared textures or blobby smooth shapes.
 4. **Water:** colour and clarity, reflections, shoreline foam, motion cues.
 5. **Vegetation:**
    - species and size variety;
