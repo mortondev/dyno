@@ -4,6 +4,8 @@ and tags, from `dyno bots` reports (docs/playtest/first-30-minutes-round2.md).
     python3 tools/playtest/round2.py REPORT.json [REPORT.json ...]     every table, the runs pooled
     python3 tools/playtest/round2.py --xp                              quest XP against the levels, from the rules
     python3 tools/playtest/round2.py --tags REPORT.json [...]          a crowd at one camp: one row per report
+    python3 tools/playtest/round2.py --rules RULES.json REPORT.json ...  classify with the rules the runs were made on
+                                                                       (git show COMMIT:content/rules/hearthblock.json)
 
 The bots record facts (who was near, health at the pull, the time of day);
 this script decides what they mean, from the rules and the layout, so a
@@ -29,7 +31,13 @@ sys.path.insert(0, HERE)
 import beats  # noqa: E402
 
 ROOT = os.path.join(HERE, "..", "..")
-RULES = json.load(open(os.path.join(ROOT, "content", "rules", "hearthblock.json")))
+# the rules the reports were made on: quest areas and camps are read from them
+_RULES_PATH = os.path.join(ROOT, "content", "rules", "hearthblock.json")
+if "--rules" in sys.argv:
+    _i = sys.argv.index("--rules")
+    _RULES_PATH = sys.argv[_i + 1]
+    del sys.argv[_i:_i + 2]
+RULES = json.load(open(_RULES_PATH))
 LAYOUT = json.load(open(os.path.join(ROOT, "content", "world", "layout.json")))
 PLACES = {p["key"]: p for p in LAYOUT["places"]}
 BRAINS = ["completionist", "casual", "explorer", "social", "party", "grinder"]
@@ -188,7 +196,7 @@ def group_table(tels, key, order=None):
         r = beats.row(g)
         hours = sum(active_secs(t) for t in g) / 3600
         deaths = sum(len(t["deaths"]) for t in g)
-        secs = sum(t["secs"] for t in g)
+        secs = sum(active_secs(t) for t in g)
         kills = sum(t["kills"] for t in g)
         lost = sum(t["kills_no_credit"] - t.get("kills_no_credit_alone", 0) for t in g)
         longest = [max(l for _, l, _ in gaps_of(t)) for t in g]

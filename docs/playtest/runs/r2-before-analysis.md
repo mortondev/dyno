@@ -10,24 +10,24 @@
 | brain (bots) | first kill | level 2 | level 3 | level 4 | level 5 | level at end | quests done | gear reward | first upgrade | median gap | longest gap | worst gap | travel % | fight % | deaths | bot-hours | deaths/h | lost kills % | money |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | completionist (8) | 1:14 | 2:47 | 9:02 | 16:04 | - | 4 | 15 | 4:31 | 3:53 | 12 s | 3:33 | 7:30 | 68% | 14% | 10 | 4.00 | 2.5 | 17% | 1733.5 |
-| casual (2) | 2:03 | 3:25 | 11:19 | - | - | 3 | 8.5 | 5:20 | 7:10 | 8 s | 1:19 | 1:36 | 48% | 15% | 1 | 0.34 | 3.0 | 0% | 876.5 |
+| casual (2) | 2:03 | 3:25 | 11:19 | - | - | 3 | 8.5 | 5:20 | 7:10 | 8 s | 1:19 | 1:36 | 65% | 21% | 1 | 0.34 | 3.0 | 0% | 876.5 |
 | explorer (2) | 3:48 | 4:39 | 11:22 | 21:01 | - | 4 | 13 | 9:47 | 8:36 | 13 s | 2:38 | 3:03 | 82% | 12% | 2 | 1.00 | 2.0 | 7% | 1358 |
 | social (2) | 1:13 | 2:53 | 8:56 | 17:46 | - | 4.5 | 17.5 | 5:17 | 5:17 | 9 s | 2:14 | 2:56 | 68% | 19% | 2 | 1.00 | 2.0 | 21% | 2219.5 |
 | party (4) | 1:21 | 2:21 | 8:52 | 18:13 | - | 4 | 13 | 3:35 | 3:35 | 15 s | 3:54 | 5:05 | 73% | 7% | 0 | 2.00 | 0.0 | 2% | 959.5 |
 | grinder (6) | 0:33 | 2:58 | 8:13 | 18:43 | - | 4 | 2 | 3:07 | 3:25 | 10 s | 2:09 | 6:19 | 24% | 66% | 35 | 3.00 | 11.7 | 20% | 269.5 |
-| all (24) | 1:16 | 2:51 | 8:59 | 17:22 | - | 4 | 13.5 | 4:00 | 4:02 | 10 s | 2:46 | 7:30 | 58% | 27% | 50 | 11.34 | 4.4 | 17% | 1080.5 |
+| all (24) | 1:16 | 2:51 | 8:59 | 17:22 | - | 4 | 13.5 | 4:00 | 4:02 | 10 s | 2:46 | 7:30 | 59% | 27% | 50 | 11.34 | 4.4 | 17% | 1080.5 |
 
 ## Per class
 
 | class (bots) | first kill | level 2 | level 3 | level 4 | level 5 | level at end | quests done | gear reward | first upgrade | median gap | longest gap | worst gap | travel % | fight % | deaths | bot-hours | deaths/h | lost kills % | money |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Hunter (4) | 2:12 | 3:26 | 10:08 | 21:01 | - | 4 | 12.5 | 6:29 | 5:57 | 14 s | 2:54 | 5:03 | 77% | 12% | 2 | 2.00 | 1.0 | 5% | 1010 |
-| Mage (4) | 1:24 | 3:21 | 9:38 | - | - | 3.5 | 5 | 4:03 | 11:48 | 7 s | 1:29 | 6:11 | 35% | 43% | 11 | 1.34 | 8.2 | 11% | 572.5 |
+| Mage (4) | 1:24 | 3:21 | 9:38 | - | - | 3.5 | 5 | 4:03 | 11:48 | 7 s | 1:29 | 6:11 | 38% | 47% | 11 | 1.34 | 8.2 | 11% | 572.5 |
 | Paladin (4) | 0:30 | 2:32 | 8:09 | 19:02 | - | 4 | 2 | 2:46 | 2:32 | 10 s | 2:09 | 6:19 | 22% | 71% | 25 | 2.00 | 12.5 | 23% | 269.5 |
 | Priest (4) | 1:12 | 3:15 | 9:08 | 15:38 | - | 4 | 15 | 5:00 | 5:00 | 9 s | 2:37 | 4:35 | 65% | 16% | 3 | 2.00 | 1.5 | 21% | 1859.5 |
 | Rogue (4) | 1:21 | 2:21 | 8:15 | 17:16 | - | 4 | 14.5 | 3:38 | 3:23 | 15 s | 4:09 | 7:30 | 74% | 8% | 3 | 2.00 | 1.5 | 9% | 1221.5 |
 | Warrior (4) | 1:15 | 2:47 | 9:15 | 16:37 | - | 4 | 15.5 | 4:53 | 3:53 | 15 s | 3:20 | 4:17 | 68% | 16% | 6 | 2.00 | 3.0 | 17% | 1787.5 |
-| all (24) | 1:16 | 2:51 | 8:59 | 17:22 | - | 4 | 13.5 | 4:00 | 4:02 | 10 s | 2:46 | 7:30 | 58% | 27% | 50 | 11.34 | 4.4 | 17% | 1080.5 |
+| all (24) | 1:16 | 2:51 | 8:59 | 17:22 | - | 4 | 13.5 | 4:00 | 4:02 | 10 s | 2:46 | 7:30 | 59% | 27% | 50 | 11.34 | 4.4 | 17% | 1080.5 |
 
 ## Deaths, each one
 
@@ -35,14 +35,14 @@
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | A | 06com | completionist | Warrior | 11:15 | 3 | Shade 1 (-2) | Shade 1×3, Shade 2×2 | night | 9% | Shade 2 (attacked) | Hearthstead | Hearthstead | yes | night |
 | A | 03com | completionist | Rogue | 18:59 | 3 | Ashcloak Bandit 4 (+1) | Ashcloak Bandit 4×2 | day | 79% | Ashcloak Bandit 4 | mere_ashcloaks | ashcloak camp | no | adds |
-| A | 00com | completionist | Warrior | 23:45 | 4 | Thornboar 3 (-1) | Thornboar 3 | day | 16% | Thornboar 3 (attacked) | 30 m from logging_trail_well_14 | outside | no | jumped |
-| B | 00com | completionist | Warrior | 9:09 | 2 | Thornboar 2 (+0) | Thornboar 2 | day | 11% | Thornboar 2 | 50 m from logging_trail_well_14 | outside | no | low pull |
+| A | 00com | completionist | Warrior | 23:45 | 4 | Thornboar 3 (-1) | Thornboar 3 | day | 16% | Thornboar 3 (attacked) | 30 m from logging_trail_well_14 | thornboar camp | no | jumped |
+| B | 00com | completionist | Warrior | 9:09 | 2 | Thornboar 2 (+0) | Thornboar 2 | day | 11% | Thornboar 2 | 50 m from logging_trail_well_14 | thornboar camp | no | low pull |
 | B | 00com | completionist | Warrior | 11:05 | 3 | Shade 1 (-2) | Shade 1×4, Shade 2×4 | night | 100% | Shade 2 | 87 m from Hearthstead | outside | yes | night |
 | B | 06com | completionist | Warrior | 11:19 | 3 | Shade 2 (-1) | Shade 2 | night | 0% | Shade 2 | 95 m from Hearthstead | grazer camp | no | night |
 | B | 03com | completionist | Rogue | 11:42 | 3 | Shade 2 (-1) | Shade 2×2, Shade 1×3 | night | 29% | Shade 2 (attacked) | Hearthstead | Hearthstead | yes | night |
 | B | 10com | completionist | Priest | 18:38 | 4 | Barrow Warden 6 (+2) | Barrow Warden 6 | day | 61% | Barrow Warden 6 (attacked) | The Old Barrow | into_barrowwood | no | over-level |
 | B | 00com | completionist | Warrior | 19:17 | 4 | Barrow Warden 6 (+2) | Barrow Warden 6 | day | 79% | Barrow Warden 6 (attacked) | The Old Barrow | into_barrowwood | no | over-level |
-| B | 03com | completionist | Rogue | 20:59 | 4 | Old Tusk 4 (+0) | Old Tusk 4 | day | 100% | Old Tusk 4 | 74 m from logging_trail_cairn_15 | outside | no | one-on-one |
+| B | 03com | completionist | Rogue | 20:59 | 4 | Old Tusk 4 (+0) | Old Tusk 4 | day | 100% | Old Tusk 4 | 74 m from logging_trail_cairn_15 | old_tusk camp | no | one-on-one |
 | B | 05cas | casual | Mage | 10:14 | 2 | Shade 2 (+0) | Shade 2×2 | night | 11% | Shade 2 (attacked) | 68 m from Hearthstead | Hearthstead | yes | night |
 | A | 02exp | explorer | Hunter | 23:03 | 4 | Websnare 4 (+0) | Websnare 4 | day | 29% | Websnare 4 (attacked) | The Barrowwood Graves | forgotten_graves | no | jumped |
 | A | 02exp | explorer | Hunter | 27:52 | 4 | Ashcloak Bandit 4 (+0) | Ashcloak Bandit 4 | night | 4% | Ashcloak Bandit 4 (attacked) | mere_ashcloaks | ashcloak camp | no | jumped |
@@ -66,7 +66,7 @@
 | A | 01gri | grinder | Paladin | 15:58 | 3 | Thornboar 2 (-1) | Thornboar 2 | day | 26% | Thornboar 2 | 86 m from east_road_glade_6 | thornboar camp | no | low pull |
 | A | 11gri | grinder | Mage | 16:35 | 4 | Grazer 2 (-2) | Grazer 2 | day | 5% | Grazer 2 | meadow_flock_1 | grazer camp | no | low pull |
 | A | 07gri | grinder | Paladin | 18:10 | 3 | Grazer 1 (-2) | Grazer 1 | day | 7% | Grazer 1 (attacked) | 69 m from east_road_wood_5 | grazer camp | no | jumped |
-| A | 01gri | grinder | Paladin | 29:20 | 4 | Thornboar 3 (-1) | Thornboar 3 | night | 15% | Thornboar 3 | logging_trail_well_14 | outside | no | low pull |
+| A | 01gri | grinder | Paladin | 29:20 | 4 | Thornboar 3 (-1) | Thornboar 3 | night | 15% | Thornboar 3 | logging_trail_well_14 | thornboar camp | no | low pull |
 | B | 11gri | grinder | Mage | 4:54 | 2 | Thornboar 2 (+0) | Thornboar 2 | day | 29% | Thornboar 2 | 76 m from east_road_glade_6 | thornboar camp | no | low pull |
 | B | 07gri | grinder | Paladin | 5:26 | 2 | Grazer 2 (+0) | Grazer 2 | day | 21% | Grazer 2 | meadow_flock_6 | grazer camp | no | low pull |
 | B | 01gri | grinder | Paladin | 6:07 | 2 | Grazer 2 (+0) | Grazer 2 | day | 6% | Grazer 2 | 74 m from west_trail_camp_11 | grazer camp | no | low pull |
@@ -91,8 +91,8 @@
 | explorer | 1.00 | 2 | 2.0 | 0 | 0 | 0 | 2 | 0 | 0 | 1 | 0 |
 | social | 1.00 | 2 | 2.0 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |
 | party | 2.00 | 0 | 0.0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| grinder | 3.00 | 35 | 11.7 | 0 | 6 | 0 | 1 | 28 | 0 | 10 | 5 |
-| all | 11.34 | 50 | 4.4 | 3 | 11 | 1 | 4 | 29 | 2 | 16 | 10 |
+| grinder | 3.00 | 35 | 11.7 | 0 | 6 | 0 | 1 | 28 | 0 | 11 | 5 |
+| all | 11.34 | 50 | 4.4 | 3 | 11 | 1 | 4 | 29 | 2 | 17 | 10 |
 
 One-on-one losses at the same level or below (for the class lane):
 
