@@ -232,6 +232,14 @@ def hollow_oak_tree():
     for x in (-2, 2):
         for z in range(4, 11):
             v.col(x, z, 0, 1, "air")
+    # keep the door mouth bare and lit: no moss over the opening, and a
+    # lantern hung under the lintel where the bark meets the doorway
+    for (x, y, z), b in list(v.c.items()):
+        if b == "leaves" and abs(x) <= 3 and z >= 2 and y <= 6:
+            del v.c[(x, y, z)]
+    zl = max((z for z in range(0, 12) if v.get(0, 5, z) == "log"), default=None)
+    if zl is not None:
+        v.set(0, 4, zl, "lantern")
     v.points["hollow"] = (0, 0, 0)
     v.points["door"] = (0, 0, 9)
     v.fill((-3, -1, -3), (3, -1, 3), "dirt")
