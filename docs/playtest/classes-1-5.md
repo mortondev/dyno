@@ -77,7 +77,36 @@ were made on (checked field by field), though the world layout is not:
   none.
 - **A press during the global cooldown was silently lost.**
 
-BEFORE_TABLE
+The swarm on main (levels 1 to 4; `runs/classes-before.md`):
+
+| Class | Bots | Fights (won) | Kill time, median s | same-level kill s | Damage taken / fight | Casts / fight | Presses per 10 s | Deaths (per hour) | Level after run | XP / hour |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Warrior | 2 | 72 (94%) | 6.8 | 7.3 | 12.1 | 1.7 | 2.4 | 2 (2.0) | 4/4 | 3444 |
+| Paladin | 2 | 120 (83%) | 4.7 | 6.1 | 9.5 | 1.3 | 2.0 | 20 (20.0) | 3/4 | 2650 |
+| Hunter | 2 | 34 (94%) | 5.3 | 5.2 | 7.1 | 1.7 | 2.4 | 2 (2.0) | 3/3 | 2115 |
+| Rogue | 2 | 43 (100%) | 4.8 | 3.6 | 7.9 | 2.2 | 4.4 | 0 (0.0) | 3/4 | 2266 |
+| Priest | 2 | 71 (99%) | 4.7 | 4.6 | 3.3 | 2.4 | 4.9 | 1 (1.0) | 4/4 | 2970 |
+| Mage | 2 | 66 (86%) | 3.6 | 4.2 | 2.5 | 2.0 | 4.7 | 9 (15.1) | 1/4 | 2411 |
+
+| Class | Abilities (share of presses) | Deaths by cause |
+|---|---|---|
+| Warrior | Heroic Blow 54%, Rending Cut 28%, Battle Cry 14%, Onrush 4%, Recall 1% | Websnare (lv4) x1, Websnare (lv3) x1 |
+| Paladin | Judging Blow 63%, Holy Mend 19%, Rebuke 17% | Rook Varn (lv3) x6, Ashcloak Bandit (lv3) x6, Ashcloak Cutthroat (lv3) x4, Shade (lv2) x2, Shade (lv3) x2 |
+| Hunter | Quick Shot 57%, Barbed Arrow 40%, Recall 3% | Websnare (lv1) x1, Mirepincher (lv3) x1 |
+| Rogue | Vicious Strike 79%, Finishing Cut 20%, Recall 1% | none |
+| Priest | Smite 76%, Withering Word 21%, Recall 2%, Mend 1% | Shade (lv3) x1 |
+| Mage | Fireball 69%, Fire Blast 30%, Scholar's Focus 1% | Ashcloak Bandit (lv3) x6, Shade (lv2) x1, Ashcloak Cutthroat (lv3) x1, Rook Varn (lv3) x1 |
+
+Kill time spread vs mean (5.0 s): Warrior +36%, Paladin -6%, Hunter +6%, Rogue -4%, Priest -6%, Mage -27%
+
+| Class | L1 kill s (n) | L2 kill s (n) | L3 kill s (n) | L4 kill s (n) | L5 kill s (n) |
+|---|---|---|---|---|---|
+| Warrior | 3.9 (10) | 5.8 (16) | 7.4 (31) | 9.4 (11) | - |
+| Paladin | 3.5 (14) | 4.6 (31) | 6.2 (54) | 6.7 (1) | - |
+| Hunter | 4.8 (7) | 4.9 (13) | 6.5 (12) | - | - |
+| Rogue | 3.2 (8) | 3.6 (15) | 6.8 (14) | 8.8 (6) | - |
+| Priest | 3.2 (23) | 4.7 (17) | 4.9 (25) | 4.7 (5) | - |
+| Mage | 3.5 (11) | 4.1 (11) | 3.6 (32) | 6.1 (3) | - |
 
 ## What changed
 
@@ -152,7 +181,8 @@ moved down from later levels or retuned.
 | 5 | Scholar's Focus | 15 mana | - | instant | self | +5 Intellect for 30 minutes. |
 
 Other data changes:
-- Rogue stamina growth 10 to 12 a level; warrior 14 to 16.
+- Rogue stamina growth 10 to 12 a level; warrior 14 to 16; mage base stamina 5 to 6.
+- Warriors and paladins can wear plate and hunters mail (no class could wear plate, and the hunter's mail set did not fit hunters; found by the flow lane).
 - Starter gear (per-class items): Worn Shortsword 3-5 to 4-6; Battered
   Buckler armour 12 to 16; the warrior's and paladin's tabard and pauldrons,
   and the rogue's and hunter's jerkin and hood, carry real armour (12 and 6;
@@ -195,7 +225,36 @@ starts auto-attack on its target, as the client does.
 
 ## After
 
-AFTER_TABLE
+The swarm on this branch (levels 1 to 4; `runs/classes-after.md`). It was the fourth run; the first (before the bleed fix and the last retunes) had kill-time medians from -22% to +24% of the mean, the third from -36% to +26%, which led to the last retune of smite, Quick Shot and the rogue's strikes. One run each, two bots a class: the spread between runs is about as large as the spread between classes. Applied after this run and so not in it: Slip Away 60% on a 60-second cooldown, plate for warriors and paladins and mail for hunters, one more point of mage stamina, and main's Grazer damage (3 to 2.5):
+
+| Class | Bots | Fights (won) | Kill time, median s | same-level kill s | Damage taken / fight | Casts / fight | Presses per 10 s | Deaths (per hour) | Level after run | XP / hour |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Warrior | 2 | 64 (95%) | 5.0 | 4.5 | 7.9 | 2.2 | 3.6 | 0 (0.0) | 4/4 | 2826 |
+| Paladin | 2 | 100 (98%) | 5.9 | 6.3 | 10.5 | 2.0 | 3.0 | 1 (1.0) | 3/4 | 2659 |
+| Hunter | 2 | 43 (100%) | 4.9 | 4.9 | 3.3 | 2.5 | 3.6 | 0 (0.0) | 3/4 | 2573 |
+| Rogue | 2 | 48 (98%) | 4.4 | 4.6 | 4.7 | 1.8 | 3.5 | 1 (1.0) | 3/3 | 2606 |
+| Priest | 2 | 68 (100%) | 4.7 | 4.7 | 2.1 | 2.7 | 5.4 | 0 (0.0) | 4/4 | 3379 |
+| Mage | 2 | 44 (95%) | 5.4 | 5.7 | 5.1 | 2.5 | 4.3 | 2 (2.8) | 3/3 | 2570 |
+
+| Class | Abilities (share of presses) | Deaths by cause |
+|---|---|---|
+| Warrior | Heroic Blow 47%, Onrush 24%, Rending Cut 22%, Ground Slam 3%, Second Wind 3%, Recall 2% | none |
+| Paladin | Judging Blow 63%, Seal of Dawn 17%, Rebuke 10%, Holy Mend 6%, Valour 4% | Shade (lv2) x1 |
+| Hunter | Quick Shot 57%, Barbed Arrow 33%, Marked Shot 4%, Recall 4%, Hamstring 2% | none |
+| Rogue | Vicious Strike 43%, Finishing Cut 28%, Ambush 13%, Low Blow 13%, Recall 2% | Shade (lv2) x1 |
+| Priest | Smite 64%, Withering Word 29%, Ward of Light 4%, Recall 3% | none |
+| Mage | Fireball 58%, Frostbolt 22%, Fire Blast 19%, Recall 1% | Shade (lv3) x1, Shade (lv2) x1 |
+
+Kill time spread vs mean (5.1 s): Warrior -2%, Paladin +17%, Hunter -3%, Rogue -12%, Priest -7%, Mage +8%
+
+| Class | L1 kill s (n) | L2 kill s (n) | L3 kill s (n) | L4 kill s (n) | L5 kill s (n) |
+|---|---|---|---|---|---|
+| Warrior | 3.3 (5) | 3.2 (23) | 5.7 (24) | 5.9 (9) | - |
+| Paladin | 5.5 (14) | 4.2 (40) | 8.0 (33) | 7.8 (11) | - |
+| Hunter | 4.8 (8) | 4.7 (18) | 6.8 (17) | - | - |
+| Rogue | 3.7 (5) | 3.0 (17) | 5.1 (25) | - | - |
+| Priest | 3.3 (7) | 4.7 (21) | 4.7 (35) | 4.7 (5) | - |
+| Mage | 5.8 (11) | 5.1 (19) | 3.9 (12) | - | - |
 
 ### One creature of your level (duel model, 300 fights each)
 
@@ -224,7 +283,7 @@ about a second and a half in fact.
 | Hunter | 14% / 1% → 100% / 72% | 0% → 100% / 51% | 0% → 100% / 36% |
 | Rogue | 100% / 16% → 100% / 14% | 6% → 98% / 17% | 0% → 91% / 5% |
 | Priest | 100% / 38% → 100% / 75% | 100% / 55% → 100% / 74% | 100% / 77% → 100% / 86% |
-| Mage | 100% / 82% → 100% / 60% | 100% / 100% → 100% / 75% | 100% / 73% → 100% / 45% |
+| Mage | 100% / 82% → 100% / 63% | 100% / 100% → 100% / 77% | 100% / 73% → 100% / 49% |
 
 Two creatures are now dangerous and winnable for everyone. The rogue is
 the one that must play well: it wins with a sliver of health, and loses
@@ -244,7 +303,7 @@ Thornboars in Hearthmeadow.
 |---|---|---|
 | Buttons by level 5 | Heroic Blow, Battle Cry (2), Rending Cut (3), Onrush (4) | Heroic Blow, Onrush (1), Second Wind (2), Rending Cut (3), Ground Slam (4) |
 | First press of a new character | "Not enough rage." | Onrush: a charge, a stun and 20 rage; Heroic Blow lands on the next cooldown |
-| Most-pressed button's share (swarm) | Heroic Blow 54% | WARRIOR_SHARE |
+| Most-pressed button's share (swarm) | Heroic Blow 54% | Heroic Blow 48% (5 abilities pressed) |
 
 Before, at level 1, I pressed Heroic Blow twice at a Grazer and got "Not
 enough rage" twice; the fight was three auto-attacks and one blow. After, at
@@ -266,7 +325,7 @@ Ground Slam's slow did nothing I could see in a one-creature fight.
 |---|---|---|
 | Buttons by level 5 | Judging Blow (8 s cooldown), Holy Mend, Rebuke (3), Valour (4) | Judging Blow (4 s), Holy Mend, Seal of Dawn (1), Valour (2), Rebuke (3), Devout Ward (5) |
 | Idle cooldowns at level 5 (model) | 66% | 39% |
-| Most-pressed button's share (swarm) | Judging Blow 63% | PALADIN_SHARE |
+| Most-pressed button's share (swarm) | Judging Blow 63% | Judging Blow 63% (5 abilities pressed) |
 
 At level 1 on my first retune (Judging Blow on 6 seconds; it was 8 on
 main) I pressed it, then got "That is not ready yet" on the next two tries;
@@ -292,7 +351,7 @@ class felt helpless.
 | Buttons by level 5 | Quick Shot (6 s cooldown), Barbed Arrow (2) | Quick Shot (3 s), Barbed Arrow (1), Marked Shot (2), Hamstring (3), Snare Trap (4) |
 | Idle cooldowns at level 5 (model) | 65% | 18% |
 | Kill time against the mean, level 5 (model) | +72% | +11% |
-| Most-pressed button's share (swarm) | Quick Shot 57% | HUNTER_SHARE |
+| Most-pressed button's share (swarm) | Quick Shot 57% | Quick Shot 59% (4 abilities pressed) |
 
 At level 5 from 22 blocks: Marked Shot took a level 5 Mirepincher from 117
 to 73 before it knew I was there, which is the best single moment in the six
@@ -310,7 +369,7 @@ pet, and the "trap" is a shot.
 |---|---|---|
 | Buttons by level 5 | Vicious Strike, Finishing Cut, Low Blow (3; 1 damage for 40 energy) | Vicious Strike, Finishing Cut, Ambush (2), Low Blow (3; 25 energy, 4 s stun), Slip Away (4), Sneak (5) |
 | Two level 5 bandits (model) | 0% won | 91% won |
-| Most-pressed button's share (swarm) | Vicious Strike 79% | ROGUE_SHARE |
+| Most-pressed button's share (swarm) | Vicious Strike 79% | Vicious Strike 44% (4 abilities pressed) |
 
 At level 5 on a level 5 Mirepincher: Ambush (117 to 85, two combo points),
 Vicious Strike (to 49), Low Blow (to 32, a fourth point, stunned), Finishing
@@ -335,7 +394,7 @@ only.
 | | Before | After |
 |---|---|---|
 | Buttons by level 5 | Smite, Mend, Withering Word (2) | Smite, Mend, Withering Word (2), Ward of Light (3), Renewal (5) |
-| Most-pressed button's share (swarm) | Smite 76% | PRIEST_SHARE |
+| Most-pressed button's share (swarm) | Smite 76% | Smite 66% (3 abilities pressed) |
 
 With a level 4 bandit on me at level 5: Ward of Light soaked five blows
 ("Your shield absorbs 8." five times, 39 in all) while Withering Word and
@@ -352,7 +411,7 @@ most of what a priest presses.
 |---|---|---|
 | Buttons by level 5 | Fireball, Scholar's Focus (2), Fire Blast (2) | Fireball, Frostbolt (1), Fire Blast (2), Ice Ring (4), Scholar's Focus (5) |
 | Kill time against the mean, level 5 (model) | -45% | -2% |
-| Most-pressed button's share (swarm) | Fireball 69% | MAGE_SHARE |
+| Most-pressed button's share (swarm) | Fireball 69% | Fireball 59% (3 abilities pressed) |
 
 With a level 5 bandit summoned on top of me: Ice Ring, eight steps back
 (it stayed where it was), Frostbolt, Fireball, Fire Blast: dead before it
@@ -374,8 +433,8 @@ weaker and opens the fight.
 | Resources matter | Met by hand play | Rage climbs through a fight and Second Wind spends it on health; a rogue ends an opener at 16 energy; a hunter spends half its mana on one level 5 kill; a priest 45% on a fight with shield, shadow and renewal. Paladin and mage mana barely move in one fight. |
 | A single same-level creature is safe | Met in the model | 100% wins for every class and level; the warrior still loses 36% of its health to a level 5 bandit. |
 | Two are dangerous but winnable | Met in the model | See the table; rogue 91% at level 5. |
-| Deaths under 1.5 an hour | Not shown | DEATHS_LINE |
-| Classes within 20% in kill time and deaths | Kill time: met at levels 3 to 5 in the model, KILLSPREAD_LINE Deaths: cannot be told from these runs. |
+| Deaths under 1.5 an hour | Met in one run, not shown | 34 deaths in the swarm before (6.1 an hour: Ashcloak Bandit 12, Rook Varn 7, Shade 6, Ashcloak Cutthroat 5) and 4 after (0.7 an hour, all Shades). Do not read this as a sixfold gain: the two runs between them had 23 and 14 deaths (4.0 and 2.5 an hour), and the difference is mostly whether one or two bots walk into the bandit stockade and keep going back. Six bot-hours is too little to show a rate of 1.5. |
+| Classes within 20% in kill time and deaths | Kill time: met at levels 3 to 5 in the model, and in the swarm (levels 1 to 4) the class medians run from -12% to +17% of the mean (before: -27% to +36%). Deaths: cannot be told from these runs. |
 | Party tagging, loot and XP | Not touched | |
 
 ### Section 7: abilities (presentation)
