@@ -13,7 +13,7 @@
 
 use crate::fine::{self, Lod};
 use crate::light::Light;
-use crate::render::{self, KIND_FOLIAGE, SECTION, Vertex};
+use crate::render::{self, SECTION, Vertex};
 use dyno_world::{self as w, BlockId, World};
 use glam::Vec3;
 
@@ -21,10 +21,6 @@ const N: i32 = SECTION;
 /// Cells read around the section.
 const PAD: i32 = 4;
 const G: usize = (N + 2 * PAD) as usize;
-/// Grid corners -1..=17 on each axis.
-const LV: usize = (N + 3) as usize;
-/// Blocks -2..=17 on each axis have a density.
-const DB: usize = (N + 4) as usize;
 
 /// How far outside a section its mesh reads blocks. A block edit must re-mesh
 /// every section within this distance.
@@ -43,12 +39,8 @@ pub(crate) const F_DARK: u8 = 32;
 /// Drawn by the detail mesher (see `detail.rs`), not as a plain cube.
 pub(crate) const F_DETAIL: u8 = 64;
 
-/// Leaf canopies: the surface sits where the blurred leaf field crosses this.
-const LEAF_ISO: f32 = 0.37;
-const LEAF_IN: f32 = 0.2;
-const LEAF_OUT: f32 = 0.08;
 /// How far the water surface sits below the top of its block.
-pub const WATER_DROP: f32 = 0.2;
+pub const WATER_DROP: f32 = 0.1875;
 /// Natural ground: drawn as fine voxels (the pack's `terrain` tag).
 pub fn is_terrain(b: BlockId) -> bool {
     crate::shapes::has(b, crate::shapes::tag::TERRAIN)
@@ -333,285 +325,6 @@ const FACES: [Face; 6] = [
 ];
 const QUAD: [(i32, i32); 4] = [(-1, -1), (1, -1), (1, 1), (-1, 1)];
 
-#[inline]
-fn li(i: i32, j: i32, k: i32) -> usize {
-    ((j + 1) as usize * LV + (k + 1) as usize) * LV + (i + 1) as usize
-}
-
-#[inline]
-fn di(x: i32, y: i32, z: i32) -> usize {
-    ((y + 2) as usize * DB + (z + 2) as usize) * DB + (x + 2) as usize
-}
-
-/// The eight cells around a grid corner, as offsets from the lowest one:
-/// bit 0 is +x, bit 1 is +z, bit 2 is +y.
-const CELL8: [usize; 8] = [0, DX, DZ, DZ + DX, DY, DY + DX, DY + DZ, DY + DZ + DX];
-
-/// Leaf canopies: one smooth, puffed-up surface over the leaf blocks
-/// (surface nets with the topology of the cube mesh: every exposed leaf
-/// face becomes one quad whose corners sit at positions computed per grid
-/// corner).
-struct Nets<'a> {
-    g: &'a Grid,
-    pos: Vec<[f32; 3]>,
-    nrm: Vec<[f32; 3]>,
-    /// bit 0: position known; bit 1: light known
-    state: Vec<u8>,
-    dens: Vec<f32>,
-    lit: Vec<[f32; 3]>,
-}
-
-struct Quad {
-    block: BlockId,
-    dir: u8,
-    /// grid corners, in order around the face
-    c: [[i8; 3]; 4],
-}
-
-impl<'a> Nets<'a> {
-    fn new(g: &'a Grid) -> Self {
-        let n = LV * LV * LV;
-        Nets {
-            g,
-            pos: vec![[0.0; 3]; n],
-            nrm: vec![[0.0; 3]; n],
-            state: vec![0; n],
-            dens: vec![f32::NAN; DB * DB * DB],
-            lit: vec![[0.0; 3]; n],
-        }
-    }
-
-    /// Blurred leaf field at a cell: positive inside, negative outside,
-    /// never the wrong sign for the cell. Blurred in all directions, so
-    /// canopies come out round.
-    fn density(&mut self, x: i32, y: i32, z: i32) -> f32 {
-        let k = di(x, y, z);
-        let d = self.dens[k];
-        if !d.is_nan() {
-            return d;
-        }
-        let g = self.g;
-        let c = at(x, y, z);
-        let mut s = 0u32;
-        for oy in [c - DY, c, c + DY] {
-            for oz in [oy - DZ, oy, oy + DZ] {
-                for q in [oz - DX, oz, oz + DX] {
-                    s += (g.fl[q] & F_LEAVES != 0) as u32;
-                }
-            }
-        }
-        let d = s as f32 / 27.0 - LEAF_ISO;
-        let d = if g.fl[c] & F_LEAVES != 0 {
-            d.max(LEAF_IN)
-        } else {
-            d.min(-LEAF_OUT)
-        };
-        self.dens[k] = d;
-        d
-    }
-
-    /// World position of a grid corner. It is the whole-number corner plus an
-    /// offset that depends only on the blocks around it, so every section
-    /// that shares the corner gets the same bits.
-    fn vertex(&mut self, i: i32, j: i32, k: i32) -> [f32; 3] {
-        let idx = li(i, j, k);
-        if self.state[idx] & 1 != 0 {
-            return self.pos[idx];
-        }
-        let mut p = [0f32; 3];
-        let g = self.g;
-        let base = at(i - 1, j - 1, k - 1);
-        let cnt = CELL8
-            .iter()
-            .filter(|o| g.fl[base + **o] & F_LEAVES != 0)
-            .count();
-        if cnt != 0 && cnt != 8 {
-            let mut d = [0f32; 8];
-            for (c, d) in d.iter_mut().enumerate() {
-                *d = self.density(
-                    i - 1 + (c & 1) as i32,
-                    j - 1 + ((c >> 2) & 1) as i32,
-                    k - 1 + ((c >> 1) & 1) as i32,
-                );
-            }
-            // mean of the points where the surface crosses the cell's edges
-            let mut sum = [0f32; 3];
-            let mut n = 0u32;
-            for (bit, axis) in [(1usize, 0usize), (2, 2), (4, 1)] {
-                for a in 0..8usize {
-                    if a & bit != 0 {
-                        continue;
-                    }
-                    let (da, db) = (d[a], d[a | bit]);
-                    if (da > 0.0) == (db > 0.0) {
-                        continue;
-                    }
-                    let mut q = [
-                        (a & 1) as f32 - 0.5,
-                        ((a >> 2) & 1) as f32 - 0.5,
-                        ((a >> 1) & 1) as f32 - 0.5,
-                    ];
-                    q[axis] = da / (da - db) - 0.5;
-                    sum[0] += q[0];
-                    sum[1] += q[1];
-                    sum[2] += q[2];
-                    n += 1;
-                }
-            }
-            if n > 0 {
-                for a in 0..3 {
-                    p[a] += sum[a] / n as f32;
-                }
-            }
-            // a little disorder, the same from whichever section looks
-            let h = hash3(g.o[0] + i, g.o[1] + j, g.o[2] + k);
-            let r = |s: u32| ((h >> s) & 255) as f32 / 255.0 - 0.5;
-            p[0] += r(0) * 0.22;
-            p[1] += r(8) * 0.22;
-            p[2] += r(16) * 0.22;
-        }
-        let p = [
-            (g.o[0] + i) as f32 + p[0],
-            (g.o[1] + j) as f32 + p[1],
-            (g.o[2] + k) as f32 + p[2],
-        ];
-        self.pos[idx] = p;
-        self.state[idx] |= 1;
-        p
-    }
-
-    /// Block light, sky light and occlusion at a grid corner.
-    fn light(&mut self, light: &Light, c: [i8; 3]) -> [f32; 3] {
-        let (i, j, k) = (c[0] as i32, c[1] as i32, c[2] as i32);
-        let idx = li(i, j, k);
-        if self.state[idx] & 2 != 0 {
-            return self.lit[idx];
-        }
-        let g = self.g;
-        let base = at(i - 1, j - 1, k - 1);
-        let (mut bl, mut sl, mut open) = (0u32, 0u32, 0u32);
-        for (ci, o) in CELL8.iter().enumerate() {
-            if g.fl[base + o] & F_DARK != 0 {
-                continue;
-            }
-            let (x, y, z) = (
-                g.o[0] + i - 1 + (ci & 1) as i32,
-                g.o[1] + j - 1 + ((ci >> 2) & 1) as i32,
-                g.o[2] + k - 1 + ((ci >> 1) & 1) as i32,
-            );
-            bl += light.get(x, y, z) as u32;
-            sl += light.sky(x, y, z) as u32;
-            open += 1;
-        }
-        let k15 = 1.0 / (open.max(1) as f32 * 15.0);
-        // darker in the folds between the puffs, lighter on them
-        let leafy = CELL8
-            .iter()
-            .filter(|o| g.fl[base + **o] & F_LEAVES != 0)
-            .count();
-        let ao = (1.12 - 0.075 * leafy as f32).min(1.0);
-        let v = [bl as f32 * k15, sl as f32 * k15, ao];
-        self.lit[idx] = v;
-        self.state[idx] |= 2;
-        v
-    }
-
-    /// Mesh the surface: quads for the section's own blocks, with normals
-    /// that also take in the faces just outside it.
-    fn run(&mut self, light: &Light, geo: &mut SectionGeo) {
-        let g = self.g;
-        let hide = F_OPAQUE | F_LEAVES;
-        let mut quads: Vec<Quad> = Vec::new();
-        for y in -1..=N {
-            for z in -1..=N {
-                for x in -1..=N {
-                    let c = at(x, y, z);
-                    if g.fl[c] & F_LEAVES == 0 {
-                        continue;
-                    }
-                    let own = (0..N).contains(&x) && (0..N).contains(&y) && (0..N).contains(&z);
-                    for (dir, (n, u, v, _)) in FACES.iter().enumerate() {
-                        if g.fl[step(c, *n)] & hide != 0 {
-                            continue;
-                        }
-                        let mut cs = [[0i8; 3]; 4];
-                        let mut ps = [Vec3::ZERO; 4];
-                        for (q, (su, sv)) in QUAD.iter().enumerate() {
-                            let l = [
-                                x + (n[0] + su * u[0] + sv * v[0] + 1) / 2,
-                                y + (n[1] + su * u[1] + sv * v[1] + 1) / 2,
-                                z + (n[2] + su * u[2] + sv * v[2] + 1) / 2,
-                            ];
-                            cs[q] = [l[0] as i8, l[1] as i8, l[2] as i8];
-                            ps[q] = Vec3::from(self.vertex(l[0], l[1], l[2]));
-                        }
-                        // area-weighted normal, pointing out of the block
-                        let mut fnorm = (ps[2] - ps[0]).cross(ps[3] - ps[1]);
-                        let nf = Vec3::new(n[0] as f32, n[1] as f32, n[2] as f32);
-                        if fnorm.dot(nf) < 0.0 {
-                            fnorm = -fnorm;
-                        }
-                        for c in cs {
-                            let a = &mut self.nrm[li(c[0] as i32, c[1] as i32, c[2] as i32)];
-                            a[0] += fnorm.x;
-                            a[1] += fnorm.y;
-                            a[2] += fnorm.z;
-                        }
-                        if own {
-                            quads.push(Quad {
-                                block: g.ids[c],
-                                dir: dir as u8,
-                                c: cs,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-        let t = render::textures();
-        geo.opaque.reserve(quads.len() * 6);
-        for q in &quads {
-            let n = FACES[q.dir as usize].0;
-            let nf = Vec3::new(n[0] as f32, n[1] as f32, n[2] as f32);
-            let mut ps = [Vec3::ZERO; 4];
-            let mut ns = [Vec3::ZERO; 4];
-            let mut ls = [[0f32; 3]; 4];
-            for i in 0..4 {
-                let c = q.c[i];
-                let idx = li(c[0] as i32, c[1] as i32, c[2] as i32);
-                ps[i] = Vec3::from(self.pos[idx]);
-                let nn = Vec3::from(self.nrm[idx]).normalize_or_zero();
-                ns[i] = if nn == Vec3::ZERO { nf } else { nn };
-                ls[i] = self.light(light, c);
-            }
-            // wind the corners anticlockwise seen from outside
-            let mut order = [0usize, 1, 2, 3];
-            if (ps[2] - ps[0]).cross(ps[3] - ps[1]).dot(nf) < 0.0 {
-                order = [0, 3, 2, 1];
-            }
-            // split along the shorter diagonal
-            let [a, b1, c, d] = order;
-            let tris = if ps[a].distance_squared(ps[c]) <= ps[b1].distance_squared(ps[d]) {
-                [a, b1, c, a, c, d]
-            } else {
-                [b1, c, d, b1, d, a]
-            };
-            let top = t.face(q.block, 0);
-            let tex = [0.0, 0.0, KIND_FOLIAGE + top as f32, render::layer_anim(top)];
-            for i in tris {
-                geo.opaque.push(Vertex {
-                    pos: ps[i].into(),
-                    normal: ns[i].into(),
-                    color: [1.0, 1.0, 1.0, ls[i][2]],
-                    light: ls[i][0],
-                    sky: ls[i][1],
-                    tex,
-                });
-            }
-        }
-    }
-}
-
 /// Cubes, posts and water for the section's own blocks.
 fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
     let lget = |p: [i32; 3]| g.light(light, p).0;
@@ -674,9 +387,6 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                     // a built sill that holds water back: it runs over
                     crate::water::bank(g, &lget, &lsky, [x, y, z], wt, false, &mut geo.trans);
                 }
-                // one size for every block, so a chamfer runs on unbroken
-                // from one block to the next
-                let bevel = if bevels(g, c) { BEVEL } else { 0.0 };
                 for (n, u, v, shade) in FACES {
                     let nc = step(c, n);
                     if g.fl[nc] & F_OPAQUE != 0 || (tr && g.ids[nc] == b) {
@@ -698,16 +408,9 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                         wpos[1] as f32 + 0.5 + n[1] as f32 * 0.5,
                         wpos[2] as f32 + 0.5 + n[2] as f32 * 0.5,
                     ];
-                    // a convex edge (open beyond it, as well as in front)
-                    // is bevelled: the face pulls back from it and a slanted
-                    // strip joins it to the face round the corner
-                    let convex = |e: [i32; 3]| bevel > 0.0 && g.fl[step(c, e)] & F_OPAQUE == 0;
                     let mut corners = [([0f32; 3], 0f32, 0f32, 0f32, 0f32, 0f32); 4];
                     for (i, (su, sv)) in QUAD.into_iter().enumerate() {
-                        let eu = [su * u[0], su * u[1], su * u[2]];
-                        let ev = [sv * v[0], sv * v[1], sv * v[2]];
-                        let ku = 0.5 - if convex(eu) { bevel } else { 0.0 };
-                        let kv = 0.5 - if convex(ev) { bevel } else { 0.0 };
+                        let (ku, kv) = (0.5, 0.5);
                         let mut p = [
                             center[0] + ku * (su * u[0]) as f32 + kv * (sv * v[0]) as f32,
                             center[1] + ku * (su * u[1]) as f32 + kv * (sv * v[1]) as f32,
@@ -801,155 +504,9 @@ fn cubes(g: &Grid, light: &Light, has_water: bool, geo: &mut SectionGeo) {
                         let (p, l, bl, sl, au, av) = corners[i];
                         out.push(vert(p, nf, l, bl, sl, uv(au, av)));
                     }
-                    if bevel > 0.0 {
-                        let fi = face_index(n);
-                        let add = |p: [f32; 3], d: [i32; 3], k: f32| {
-                            [
-                                p[0] + (d[0] - n[0]) as f32 * k,
-                                p[1] + (d[1] - n[1]) as f32 * k,
-                                p[2] + (d[2] - n[2]) as f32 * k,
-                            ]
-                        };
-                        // strips along the four edges: (corner, corner, edge direction)
-                        for (i, j, eu_side) in
-                            [(0, 1, false), (1, 2, true), (2, 3, false), (3, 0, true)]
-                        {
-                            let (su, sv) = QUAD[i];
-                            let e = if eu_side {
-                                [su * u[0], su * u[1], su * u[2]]
-                            } else {
-                                [sv * v[0], sv * v[1], sv * v[2]]
-                            };
-                            if !convex(e) || face_index(e) < fi {
-                                continue;
-                            }
-                            let nrm = Vec3::new(
-                                (n[0] + e[0]) as f32,
-                                (n[1] + e[1]) as f32,
-                                (n[2] + e[2]) as f32,
-                            )
-                            .normalize()
-                            .to_array();
-                            let (pi, li, bli, sli, ui, vi) = corners[i];
-                            let (pj, lj, blj, slj, uj, vj) = corners[j];
-                            // texture runs on over the edge
-                            let ext = |a: f32, b: f32| {
-                                let k = bevel * 2.0;
-                                if eu_side {
-                                    (a + k * su as f32, b)
-                                } else {
-                                    (a, b + k * sv as f32)
-                                }
-                            };
-                            let (ui2, vi2) = ext(ui, vi);
-                            let (uj2, vj2) = ext(uj, vj);
-                            let q = [
-                                vert(pi, nrm, li, bli, sli, uv(ui, vi)),
-                                vert(pj, nrm, lj, blj, slj, uv(uj, vj)),
-                                vert(add(pj, e, bevel), nrm, lj, blj, slj, uv(uj2, vj2)),
-                                vert(add(pi, e, bevel), nrm, li, bli, sli, uv(ui2, vi2)),
-                            ];
-                            out.extend([q[0], q[1], q[2], q[0], q[2], q[3]]);
-                            // where the chamfer stops against a solid block that
-                            // does not carry it on, close the notch it leaves
-                            for (k, p, l, bl, sl, t) in [
-                                (i, pi, li, bli, sli, uv(ui, vi)),
-                                (j, pj, lj, blj, slj, uv(uj, vj)),
-                            ] {
-                                let (su, sv) = QUAD[k];
-                                let end = if eu_side {
-                                    [sv * v[0], sv * v[1], sv * v[2]]
-                                } else {
-                                    [su * u[0], su * u[1], su * u[2]]
-                                };
-                                let q = step(c, end);
-                                if g.fl[q] & F_OPAQUE == 0 {
-                                    continue;
-                                }
-                                let carries = bevels(g, q)
-                                    && g.fl[step(q, n)] & F_OPAQUE == 0
-                                    && g.fl[step(q, e)] & F_OPAQUE == 0;
-                                if carries {
-                                    continue;
-                                }
-                                let corner = [
-                                    p[0] + e[0] as f32 * bevel,
-                                    p[1] + e[1] as f32 * bevel,
-                                    p[2] + e[2] as f32 * bevel,
-                                ];
-                                let nn = [-end[0] as f32, -end[1] as f32, -end[2] as f32];
-                                out.extend([
-                                    vert(p, nn, l, bl, sl, t),
-                                    vert(corner, nn, l, bl, sl, t),
-                                    vert(add(p, e, bevel), nn, l, bl, sl, t),
-                                ]);
-                            }
-                        }
-                        // corner triangles where two bevels meet
-                        for (i, (su, sv)) in QUAD.into_iter().enumerate() {
-                            let eu = [su * u[0], su * u[1], su * u[2]];
-                            let ev = [sv * v[0], sv * v[1], sv * v[2]];
-                            if !convex(eu)
-                                || !convex(ev)
-                                || face_index(eu) < fi
-                                || face_index(ev) < fi
-                            {
-                                continue;
-                            }
-                            let nrm = Vec3::new(
-                                (n[0] + eu[0] + ev[0]) as f32,
-                                (n[1] + eu[1] + ev[1]) as f32,
-                                (n[2] + eu[2] + ev[2]) as f32,
-                            )
-                            .normalize()
-                            .to_array();
-                            let (p, l, bl, sl, au, av) = corners[i];
-                            let t = uv(au, av);
-                            out.extend([
-                                vert(p, nrm, l, bl, sl, t),
-                                vert(add(p, eu, bevel), nrm, l, bl, sl, t),
-                                vert(add(p, ev, bevel), nrm, l, bl, sl, t),
-                            ]);
-                        }
-                    }
                 }
             }
         }
-    }
-}
-
-/// How far the convex edges of built cubes are chamfered.
-const BEVEL: f32 = 0.05;
-
-#[cfg(test)]
-thread_local! {
-    /// Tests of the bare skin turn the chamfers off: where a chamfered
-    /// block meets one without, its edges meet in T-junctions.
-    static NO_BEVEL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-/// True for a cube the cube mesher draws with chamfered edges: built,
-/// opaque, tagged `chamfer` (not glass, not glowing).
-fn bevels(g: &Grid, c: usize) -> bool {
-    #[cfg(test)]
-    if NO_BEVEL.with(|n| n.get()) {
-        return false;
-    }
-    let f = g.fl[c];
-    f & (F_PIN | F_OPAQUE) == F_PIN | F_OPAQUE
-        && f & (F_TERRAIN | F_LEAVES | F_WATER) == 0
-        && crate::shapes::has(g.ids[c], crate::shapes::tag::CHAMFER)
-}
-
-/// Index in `FACES` of the face with this normal.
-fn face_index(n: [i32; 3]) -> usize {
-    match n {
-        [1, 0, 0] => 0,
-        [-1, 0, 0] => 1,
-        [0, 1, 0] => 2,
-        [0, -1, 0] => 3,
-        [0, 0, 1] => 4,
-        _ => 5,
     }
 }
 
@@ -1006,14 +563,11 @@ pub fn mesh_at(
         fine::mesh(&g, light, lod, &mut geo);
     }
     if own & F_LEAVES != 0 {
-        // as clumps of cubes when the pack says so (`foliage.rs`), else smooth
-        match crate::foliage::current().filter(|f| f.voxels()) {
-            Some(f) => {
-                let fine = f.fine(focus, [sx, sy, sz], was);
-                crate::foliage::mesh(&f, &g, light, &mut geo, fine)
-            }
-            None => Nets::new(&g).run(light, &mut geo),
-        }
+        // as clumps of cubes (`foliage.rs`), whole blocks without a
+        // foliage.json
+        let f = crate::foliage::current().unwrap_or_else(crate::foliage::plain);
+        let fine = f.fine(focus, [sx, sy, sz], was);
+        crate::foliage::mesh(&f, &g, light, &mut geo, fine)
     }
     let has_water = all & F_WATER != 0;
     if own & (F_PIN | F_WATER) != 0 || (has_water && own & F_TERRAIN != 0) {

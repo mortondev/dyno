@@ -14,7 +14,7 @@
 //!
 //! ```json
 //! { "blocks": [ { "id": 49, "key": "red_roof_tiles", "textures": {...},
-//!                  "tags": ["roof", "chamfer"],
+//!                  "tags": ["roof"],
 //!                  "shape": { "rules": "roof", "vox": "shapes/roof_red.vox" } } ],
 //!   "shape_rules": { "roof": { "models": ["rows.0", ...], "classes": [
 //!       { "class": "slope", "fills": false, "turns": [1, 3, 0, 2], "pick": "best",
@@ -36,26 +36,19 @@
 //!
 //! How the voxels are drawn is data too:
 //!
-//! - **Slopes.** Where a model's voxels of one colour step diagonally (a
-//!   45° run of convex corners, two or more long), the mesher draws one
-//!   sloped polygon across the run instead of the steps, merged greedily
-//!   along the slope and its length; faces across the run are cut to match.
-//!   A palette entry with `"slope": false` keeps its steps (the lip of a
-//!   course of shingles).
+//! - **Cubes only.** Every voxel is drawn as a cube: its faces open to the
+//!   air, merged into rectangles of one colour per plane. There are no
+//!   slopes, bevels or solids of revolution (docs/art/voxel-rule.md): a
+//!   roof is a stair, a log a stepped circle, as the model's voxels are.
 //! - **Texture.** By default a face takes its texture by its place in the
-//!   cell (slopes: along the slope, a repeat per block of rise). A palette
+//!   cell. A palette
 //!   entry with `"uv": "fit"` stretches the texture over that colour's
 //!   bounds in the model (a crate's planks, a door).
-//! - **Round parts.** A part with `"round": {"axis": 1, "sides": 8, "wrap":
-//!   2, "vscale": 1, "phase": 0, "flat": false, "only": [colours]}` is drawn
-//!   as a solid of revolution with the voxels' cross-section area, slice by
-//!   slice (trunks, posts, barrels, pillars); `wrap` is texture repeats
-//!   round it, `vscale` repeats per block along it, `flat` gives each side
-//!   one normal. Its ends are capped unless they reach the cell's side.
-//! - **Variation per place.** A class's `"spin": {"salt", "steps", "step"}`
-//!   turns it by `(hash(x, salt, z) % steps) * step` radians (a twisted
-//!   trunk); a part's `"lift"` (same form, in voxels) raises it (flowers
-//!   standing higher in one bed than the next). `jitter` is a small turn.
+//! - **Variation per place.** A class's `"spin": {"salt", "steps"}` turns
+//!   it by `hash(x, salt, z) % steps` more quarter turns (crates and
+//!   barrels that do not all face one way); a part's `"lift": {"salt",
+//!   "steps", "step"}` raises it by `(hash % steps) * step` whole voxels
+//!   (flowers standing higher in one bed than the next).
 //! - **Joins.** A part with `"joins": true` drops its faces on the cell's
 //!   sides where the next cell is the same block in the same class and turn
 //!   (the inside of a long roof).
@@ -129,9 +122,7 @@ struct ClassJson {
     #[serde(default)]
     min: f32,
     #[serde(default)]
-    jitter: f32,
-    #[serde(default)]
-    spin: Option<VaryJson>,
+    spin: Option<SpinJson>,
     #[serde(default)]
     parts: Vec<PartJson>,
 }
@@ -142,8 +133,6 @@ struct PartJson {
     name: String,
     features: Vec<CondJson>,
     table: BTreeMap<String, Option<EntryJson>>,
-    #[serde(default)]
-    round: Option<RoundJson>,
     #[serde(default)]
     lift: Option<VaryJson>,
     /// its faces on the cell's sides are hidden by a neighbour of the same
@@ -162,6 +151,11 @@ struct EntryJson {
 #[derive(Deserialize)]
 struct ShapeFileJson {
     palette: BTreeMap<String, MatJson>,
+    /// the step of the cube ladder its voxels are (`ladder.rs`): 5, 6.25 cm,
+    /// for 16 a block
+    #[serde(default)]
+    #[allow(dead_code)]
+    step: Option<u8>,
 }
 
 fn one3() -> [f32; 3] {
@@ -192,10 +186,6 @@ struct MatJson {
     /// `"fit"`: the texture stretched over the colour's bounds in a model
     #[serde(default)]
     uv: Option<String>,
-    /// `false`: voxels of this colour keep their steps instead of joining
-    /// a slope
-    #[serde(default)]
-    slope: Option<bool>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -265,15 +255,12 @@ struct Class {
     when: Option<Cond>,
     score: Vec<(f32, Cond)>,
     min: f32,
-    jitter: f32,
-    spin: Option<VaryJson>,
+    spin: Option<SpinJson>,
     parts: Vec<Part>,
 }
 
 struct RuleSet {
     models: Vec<String>,
-    /// per model: drawn round (the part it belongs to says so)
-    round: Vec<Option<RoundJson>>,
     classes: Vec<Class>,
 }
 
@@ -303,10 +290,10 @@ pub(crate) struct Pack {
 pub(crate) mod tag {
     pub const TERRAIN: u32 = 1;
     pub const PAVING: u32 = 2;
-    pub const CHAMFER: u32 = 4;
+    // 4 was `chamfer`, retired: cubes have no chamfers (the voxel rule)
     pub const ON_PAVING: u32 = 8;
 }
-const ENGINE_TAGS: [&str; 4] = ["terrain", "paving", "chamfer", "on_paving"];
+const ENGINE_TAGS: [&str; 4] = ["terrain", "paving", "(retired)", "on_paving"];
 
 fn compile(c: &CondJson, p: &mut Pack) -> Cond {
     match c {
@@ -415,7 +402,6 @@ impl Pack {
         let mut set_index = HashMap::new();
         for (name, s) in &f.shape_rules {
             let mut classes = Vec::new();
-            let mut round = vec![None; s.models.len()];
             for c in &s.classes {
                 let id = p.class_id(&c.class);
                 let when = c.when.as_ref().map(|w| compile(w, &mut p));
@@ -459,13 +445,6 @@ impl Pack {
                     } else {
                         Vec::new()
                     };
-                    if let Some(r) = &part.round {
-                        for e in part.table.values().flatten() {
-                            if let Some(m) = s.models.iter().position(|m| *m == e.model) {
-                                round[m] = Some(r.clone());
-                            }
-                        }
-                    }
                     parts.push(Part {
                         features,
                         table,
@@ -482,7 +461,6 @@ impl Pack {
                     when,
                     score,
                     min: c.min,
-                    jitter: c.jitter,
                     spin: c.spin,
                     parts,
                 });
@@ -490,7 +468,6 @@ impl Pack {
             set_index.insert(name.clone(), p.sets.len() as u16);
             p.sets.push(RuleSet {
                 models: s.models.clone(),
-                round,
                 classes,
             });
         }
@@ -541,18 +518,10 @@ impl Pack {
                         .collect()
                 })
                 .unwrap_or_default();
-            // colours that keep their steps (a course of shingles)
-            let mut steps = [false; 256];
-            for (k, m) in pal.into_iter().flatten() {
-                if let (Ok(i), Some(false)) = (k.parse::<usize>(), m.slope) {
-                    steps[i.min(255)] = true;
-                }
-            }
             let models = set
                 .models
                 .iter()
-                .enumerate()
-                .map(|(i, name)| {
+                .map(|name| {
                     let Some(m) = vox.as_ref().and_then(|v| v.model(name)) else {
                         return Vec::new();
                     };
@@ -572,7 +541,7 @@ impl Pack {
                             uv[*k as usize] = Uv::Fit(lo, hi);
                         }
                     }
-                    mesh_model(&m.voxels, &uv, &steps, set.round[i].as_ref())
+                    mesh_model(&m.voxels, &uv)
                 })
                 .collect();
             let mut palette = vec![None; 256];
@@ -786,51 +755,18 @@ pub(crate) fn classify_with(p: &Pack, g: &mut Grid) {
 
 // ----------------------------------------------------------------- meshing
 
-/// A meshed shape model: polygons in voxels of the cell's local frame.
+/// A meshed shape model: rectangles in voxels of the cell's local frame.
 struct Quad {
     p: [[f32; 3]; 4],
-    /// normal at each corner (round parts are smooth)
+    /// the face's normal, at each corner
     n: [[f32; 3]; 4],
     uv: [[f32; 2]; 4],
-    /// three corners, not four
-    tri: bool,
     /// which of the material's faces: 0 top, 1 sides, 2 bottom
     tex: u8,
     pal: u8,
     /// the cell face (0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z) it lies on,
     /// facing out: hidden when the cell beside is opaque; 6 for none
     cover: u8,
-}
-
-/// A part drawn as a solid of revolution (`"round"` in a part).
-#[derive(Deserialize, Clone, Debug)]
-struct RoundJson {
-    /// 0 x, 1 y, 2 z
-    #[serde(default = "axis_y")]
-    axis: usize,
-    sides: usize,
-    /// texture repeats round it
-    #[serde(default = "one")]
-    wrap: f32,
-    /// texture repeats per block along it
-    #[serde(default = "one")]
-    vscale: f32,
-    /// only these colours (all when empty)
-    #[serde(default)]
-    only: Vec<u8>,
-    /// turn of the first corner, degrees
-    #[serde(default)]
-    phase: f32,
-    /// one normal per side (a post), not smooth (a log)
-    #[serde(default)]
-    flat: bool,
-}
-
-fn axis_y() -> usize {
-    1
-}
-fn one() -> f32 {
-    1.0
 }
 
 /// A choice per world column: `(hash(x, salt, z) % steps) * step`.
@@ -844,6 +780,19 @@ struct VaryJson {
 impl VaryJson {
     fn at(&self, wp: [i32; 3]) -> f32 {
         (hash3(wp[0], self.salt, wp[2]) % self.steps.max(1)) as f32 * self.step
+    }
+}
+
+/// More quarter turns per world column: `hash(x, salt, z) % steps`.
+#[derive(Deserialize, Clone, Copy, Debug)]
+struct SpinJson {
+    salt: i32,
+    steps: u32,
+}
+
+impl SpinJson {
+    fn at(&self, wp: [i32; 3]) -> u8 {
+        (hash3(wp[0], self.salt, wp[2]) % self.steps.clamp(1, 4)) as u8
     }
 }
 
@@ -877,9 +826,6 @@ fn tex_of(n: Vec3) -> u8 {
         1
     }
 }
-
-/// Fewest convex corners in a row along a diagonal that make a slope.
-const MIN_RUN: i32 = 2;
 
 /// The voxels of a model in a box, with a border of empty space.
 struct Vox {
@@ -931,140 +877,16 @@ fn add(p: [i32; 3], a: usize, s: i32) -> [i32; 3] {
     q
 }
 
-/// A slope orientation: the plane of axes `a` < `b` it lies across, and
-/// which way it faces on each (+1 or -1). The extrusion axis is the third.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-struct Orient {
-    a: usize,
-    b: usize,
-    sa: i32,
-    sb: i32,
-}
-
-const fn orients() -> [Orient; 12] {
-    let mut out = [Orient {
-        a: 0,
-        b: 0,
-        sa: 0,
-        sb: 0,
-    }; 12];
-    let pairs = [(0, 1), (0, 2), (1, 2)];
-    let mut i = 0;
-    let mut k = 0;
-    while k < 3 {
-        let mut s = 0;
-        while s < 4 {
-            out[i] = Orient {
-                a: pairs[k].0,
-                b: pairs[k].1,
-                sa: if s & 1 == 0 { 1 } else { -1 },
-                sb: if s & 2 == 0 { 1 } else { -1 },
-            };
-            i += 1;
-            s += 1;
-        }
-        k += 1;
-    }
-    out
-}
-
-const ORIENTS: [Orient; 12] = orients();
-
-impl Orient {
-    fn e(&self) -> usize {
-        3 - self.a - self.b
-    }
-
-    /// A voxel whose two faces this way are open.
-    fn open(&self, v: &Vox, p: [i32; 3]) -> bool {
-        v.get(p) != 0 && v.get(add(p, self.a, self.sa)) == 0 && v.get(add(p, self.b, self.sb)) == 0
-    }
-
-    /// The next voxel along the slope.
-    fn next(&self, p: [i32; 3], k: i32) -> [i32; 3] {
-        add(add(p, self.a, -self.sa * k), self.b, self.sb * k)
-    }
-
-    /// Face indices (0 +x, 1 -x, ...) of the two faces the slope replaces.
-    fn faces(&self) -> [usize; 2] {
-        [
-            self.a * 2 + usize::from(self.sa < 0),
-            self.b * 2 + usize::from(self.sb < 0),
-        ]
-    }
-}
-
-/// Mesh a model: slopes across diagonal runs of voxels, then the faces
-/// left, merged into as few polygons as their outlines allow. Round parts
-/// become solids of revolution.
-fn mesh_model(
-    voxels: &[([i32; 3], u8)],
-    uv: &[Uv; 256],
-    steps: &[bool; 256],
-    round: Option<&RoundJson>,
-) -> Vec<Quad> {
+/// Mesh a model: every face of its voxels that is open to the air,
+/// merged into rectangles of one colour per plane. Cubes only: no slopes,
+/// no solids of revolution (docs/art/voxel-rule.md).
+fn mesh_model(voxels: &[([i32; 3], u8)], uv: &[Uv; 256]) -> Vec<Quad> {
     let mut out = Vec::new();
-    let (lathe, rest): (Vec<_>, Vec<_>) = match round {
-        Some(r) => voxels
-            .iter()
-            .partition(|(_, c)| r.only.is_empty() || r.only.contains(c)),
-        None => (Vec::new(), voxels.iter().collect()),
-    };
-    if let Some(r) = round {
-        let mut by: BTreeMap<u8, Vec<[i32; 3]>> = BTreeMap::new();
-        for (p, c) in lathe {
-            by.entry(*c).or_default().push(*p);
-        }
-        for (c, ps) in by {
-            lathe_model(&ps, c, r, &mut out);
-        }
-    }
-    let rest: Vec<([i32; 3], u8)> = rest.into_iter().copied().collect();
-    if rest.is_empty() {
+    if voxels.is_empty() {
         return out;
     }
-    let v = Vox::new(&rest);
-    // faces the slopes took, per voxel (bits by face index)
-    let mut taken = vec![0u8; v.cells.len()];
-    // the slope through each voxel, per orientation (bit i of ORIENTS)
-    let mut sloped = vec![0u16; v.cells.len()];
-    let pos = |i: usize| -> [i32; 3] {
-        let s = v.size;
-        let i = i as i32;
-        [
-            v.lo[0] + i % s[0],
-            v.lo[1] + i / (s[0] * s[2]),
-            v.lo[2] + (i / s[0]) % s[2],
-        ]
-    };
-    for (oi, o) in ORIENTS.iter().enumerate() {
-        let [fa, fb] = o.faces();
-        for i in 0..v.cells.len() {
-            if v.cells[i] == 0 {
-                continue;
-            }
-            let p = pos(i);
-            // a slope runs over voxels of one colour
-            let k = v.cells[i];
-            let open = |p: [i32; 3]| o.open(&v, p) && v.get(p) == k && !steps[k as usize];
-            if !open(p) {
-                continue;
-            }
-            let run = (1..MIN_RUN).take_while(|k| open(o.next(p, *k))).count()
-                + (1..MIN_RUN).take_while(|k| open(o.next(p, -k))).count()
-                + 1;
-            if (run as i32) < MIN_RUN {
-                continue;
-            }
-            if taken[i] & (1 << fa | 1 << fb) != 0 {
-                continue;
-            }
-            taken[i] |= 1 << fa | 1 << fb;
-            sloped[i] |= 1 << oi;
-        }
-    }
-    slopes(&v, &sloped, uv, &mut out);
-    faces(&v, &taken, &sloped, uv, &mut out);
+    let v = Vox::new(voxels);
+    faces(&v, uv, &mut out);
     out
 }
 
@@ -1074,85 +896,6 @@ fn uv_at(mode: Uv, p: Vec3, n: Vec3) -> [f32; 2] {
         Uv::Fit(lo, hi) => {
             let (lo, hi) = (Vec3::from(lo), Vec3::from(hi));
             map_uv((p - lo) / (hi - lo).max(Vec3::splat(1e-3)), n)
-        }
-    }
-}
-
-/// The sloped polygons: per orientation and line, a grid of (place along
-/// the line, place along the extrusion) merged greedily.
-fn slopes(v: &Vox, sloped: &[u16], uv: &[Uv; 256], out: &mut Vec<Quad>) {
-    for (oi, o) in ORIENTS.iter().enumerate() {
-        let e = o.e();
-        // units by line: (low end along a, along e, colour)
-        let mut lines: BTreeMap<i32, Vec<(i32, i32, u8)>> = BTreeMap::new();
-        for (i, s) in sloped.iter().enumerate() {
-            if s & (1 << oi) == 0 {
-                continue;
-            }
-            let sz = v.size;
-            let ii = i as i32;
-            let p = [
-                v.lo[0] + ii % sz[0],
-                v.lo[1] + ii / (sz[0] * sz[2]),
-                v.lo[2] + (ii / sz[0]) % sz[2],
-            ];
-            // the segment from P (far end of the a face) to Q
-            let pa = p[o.a] + i32::from(o.sa > 0);
-            let pb = p[o.b] + i32::from(o.sb < 0);
-            // b = c - sa * sb * a along the line
-            let c = pb + o.sa * o.sb * pa;
-            lines.entry(c).or_default().push((p[o.a], p[e], v.cells[i]));
-        }
-        for (c, units) in lines {
-            let (mut a0, mut a1, mut e0, mut e1) = (i32::MAX, i32::MIN, i32::MAX, i32::MIN);
-            for (a, e, _) in &units {
-                a0 = a0.min(*a);
-                a1 = a1.max(*a);
-                e0 = e0.min(*e);
-                e1 = e1.max(*e);
-            }
-            let (na, ne) = (a1 - a0 + 1, e1 - e0 + 1);
-            let mut mask = vec![0u8; (na * ne) as usize];
-            for (a, e, k) in &units {
-                mask[((e - e0) * na + (a - a0)) as usize] = *k;
-            }
-            let normal = {
-                let mut n = Vec3::ZERO;
-                n[o.a] = o.sa as f32;
-                n[o.b] = o.sb as f32;
-                n.normalize()
-            };
-            let b_at = |a: i32| (c - o.sa * o.sb * a) as f32;
-            greedy(&mut mask, na, ne, |u, w, wv, hv, k| {
-                let (ga0, ga1) = (a0 + u, a0 + u + wv);
-                let (ge0, ge1) = (e0 + w, e0 + w + hv);
-                let corner = |a: i32, ee: i32| {
-                    let mut p = Vec3::ZERO;
-                    p[o.a] = a as f32;
-                    p[o.b] = b_at(a);
-                    p[e] = ee as f32;
-                    p
-                };
-                let ps = [
-                    corner(ga0, ge0),
-                    corner(ga1, ge0),
-                    corner(ga1, ge1),
-                    corner(ga0, ge1),
-                ];
-                let uvs = ps.map(|p| match uv[k as usize] {
-                    Uv::Cell if o.a == 1 || o.b == 1 => [p[e] / FINE, -p.y / FINE],
-                    m => uv_at(m, p, normal),
-                });
-                out.push(Quad {
-                    p: ps.map(|p| p.into()),
-                    n: [normal.into(); 4],
-                    uv: uvs,
-                    tri: false,
-                    tex: tex_of(normal),
-                    pal: k,
-                    cover: 6,
-                });
-            });
         }
     }
 }
@@ -1192,29 +935,10 @@ fn greedy(mask: &mut [u8], nu: i32, nv: i32, mut f: impl FnMut(i32, i32, i32, i3
     }
 }
 
-// corner cuts of a face cell, in the face's (u, v)
-const BL: u8 = 1;
-const BR: u8 = 2;
-const TL: u8 = 4;
-const TR: u8 = 8;
-
-/// One row's piece of a face: from cell `first` to `last`, its bottom
-/// edge from `b0` to `b1` and top edge from `t0` to `t1` (in u).
-#[derive(Clone, Copy)]
-struct Run {
-    last: i32,
-    b0: i32,
-    b1: i32,
-    t0: i32,
-    t1: i32,
-}
-
-/// The axis-aligned faces left after the slopes, per plane: rows of cells
-/// with their cut corners become trapezoids, and rows that continue one
-/// another (straight or along a slope) merge.
-fn faces(v: &Vox, taken: &[u8], sloped: &[u16], uv: &[Uv; 256], out: &mut Vec<Quad>) {
+/// The open faces of a model's voxels, per plane, as greedy rectangles of
+/// one colour.
+fn faces(v: &Vox, uv: &[Uv; 256], out: &mut Vec<Quad>) {
     let full = FINE as i32;
-    let get = |p: [i32; 3]| v.get(p);
     for d in 0..3usize {
         // u is the lower other axis, v the higher
         let (ua, va) = match d {
@@ -1223,11 +947,11 @@ fn faces(v: &Vox, taken: &[u8], sloped: &[u16], uv: &[Uv; 256], out: &mut Vec<Qu
             _ => (0, 1),
         };
         let (nu, nv) = (v.size[ua], v.size[va]);
-        let mut col = vec![0u8; (nu * nv) as usize];
-        let mut cut = vec![0u8; (nu * nv) as usize];
-        let mut seen = vec![false; (nu * nv) as usize];
+        let mut mask = vec![0u8; (nu * nv) as usize];
         for dir in [1i32, -1] {
             let face = d * 2 + usize::from(dir < 0);
+            let mut normal = Vec3::ZERO;
+            normal[d] = dir as f32;
             for s in 0..v.size[d] {
                 let mut any = false;
                 for w in 0..nv {
@@ -1236,55 +960,10 @@ fn faces(v: &Vox, taken: &[u8], sloped: &[u16], uv: &[Uv; 256], out: &mut Vec<Qu
                         p[d] = v.lo[d] + s;
                         p[ua] = v.lo[ua] + u;
                         p[va] = v.lo[va] + w;
-                        let i = (w * nu + u) as usize;
-                        col[i] = 0;
-                        cut[i] = 0;
-                        seen[i] = false;
-                        let Some(vi) = v.idx(p) else { continue };
-                        let k = v.cells[vi];
-                        if k == 0 || taken[vi] & (1 << face) != 0 {
-                            continue;
-                        }
-                        // the corners slopes across this plane cut off a voxel
-                        let corners = |vi: usize| {
-                            let mut c = 0;
-                            for (oi, o) in ORIENTS.iter().enumerate() {
-                                if sloped[vi] & (1 << oi) == 0 || o.e() != d {
-                                    continue;
-                                }
-                                // the convex corner, in (u, v)
-                                let (cu, cv) = if o.a == ua {
-                                    (o.sa > 0, o.sb > 0)
-                                } else {
-                                    (o.sb > 0, o.sa > 0)
-                                };
-                                c |= match (cu, cv) {
-                                    (false, false) => BL,
-                                    (true, false) => BR,
-                                    (false, true) => TL,
-                                    (true, true) => TR,
-                                };
-                            }
-                            c
-                        };
-                        let mut c = corners(vi);
-                        let q = add(p, d, dir);
-                        if get(q) != 0 {
-                            // the voxel beside covers this face, but for
-                            // the corner its own slope cut away
-                            let qc = v.idx(q).map(corners).unwrap_or(0);
-                            if qc == 0 {
-                                continue;
-                            }
-                            for (x, opp) in [(BL, TR), (TR, BL), (BR, TL), (TL, BR)] {
-                                if qc & x != 0 {
-                                    c |= opp;
-                                }
-                            }
-                        }
-                        col[i] = k;
-                        cut[i] = c;
-                        any = true;
+                        let k = v.get(p);
+                        let open = k != 0 && v.get(add(p, d, dir)) == 0;
+                        mask[(w * nu + u) as usize] = if open { k } else { 0 };
+                        any |= open;
                     }
                 }
                 if !any {
@@ -1292,344 +971,25 @@ fn faces(v: &Vox, taken: &[u8], sloped: &[u16], uv: &[Uv; 256], out: &mut Vec<Qu
                 }
                 let plane = v.lo[d] + s + i32::from(dir > 0);
                 let edge = (dir > 0 && plane == full) || (dir < 0 && plane == 0);
-                let normal = {
-                    let mut n = Vec3::ZERO;
-                    n[d] = dir as f32;
-                    n
-                };
-                // a row's piece starting at cell `u`, ending by `limit`
-                let run = |u: i32, w: i32, limit: i32, seen: &[bool]| -> Option<Run> {
-                    let at = |u: i32| (w * nu + u) as usize;
-                    if u < 0 || u >= nu || col[at(u)] == 0 || seen[at(u)] {
-                        return None;
-                    }
-                    let k = col[at(u)];
-                    let c0 = cut[at(u)];
-                    let (b0, t0) = match c0 & (BL | TL) {
-                        0 => (u, u),
-                        BL => (u + 1, u),
-                        TL => (u, u + 1),
-                        _ => return None,
+                greedy(&mut mask, nu, nv, |u, w, wd, ht, k| {
+                    let cf = |cu: i32, cv: i32| {
+                        let mut p = Vec3::ZERO;
+                        p[d] = plane as f32;
+                        p[ua] = (v.lo[ua] + cu) as f32;
+                        p[va] = (v.lo[va] + cv) as f32;
+                        p
                     };
-                    let mut last = u;
-                    if c0 & (BR | TR) == 0 {
-                        while last < limit.min(nu - 1) {
-                            let n = at(last + 1);
-                            if col[n] != k || seen[n] || cut[n] & (BL | TL) != 0 {
-                                break;
-                            }
-                            last += 1;
-                            if cut[n] & (BR | TR) != 0 {
-                                break;
-                            }
-                        }
-                    }
-                    let (b1, t1) = match cut[at(last)] & (BR | TR) {
-                        0 => (last + 1, last + 1),
-                        BR => (last, last + 1),
-                        TR => (last + 1, last),
-                        _ => return None,
-                    };
-                    Some(Run {
-                        last,
-                        b0,
-                        b1,
-                        t0,
-                        t1,
-                    })
-                };
-                for w in 0..nv {
-                    let mut u = 0;
-                    while u < nu {
-                        let Some(r) = run(u, w, nu, &seen) else {
-                            let i = (w * nu + u) as usize;
-                            if col[i] != 0 && !seen[i] {
-                                // a cell cut on both sides of one end: drop it
-                                seen[i] = true;
-                            }
-                            u += 1;
-                            continue;
-                        };
-                        let k = col[(w * nu + u) as usize];
-                        for x in u..=r.last {
-                            seen[(w * nu + x) as usize] = true;
-                        }
-                        let (dl, dr) = (r.t0 - r.b0, r.t1 - r.b1);
-                        // grow upwards while the next row continues it
-                        let (mut top, mut t0, mut t1) = (w + 1, r.t0, r.t1);
-                        if r.b0 < r.b1 && r.t0 < r.t1 {
-                            while top < nv {
-                                let start = if dl > 0 {
-                                    t0
-                                } else if dl < 0 {
-                                    t0 - 1
-                                } else {
-                                    t0
-                                };
-                                let lim = match dr {
-                                    0 => t1 - 1,
-                                    1 => t1,
-                                    _ => t1 - 1,
-                                };
-                                let Some(n) = run(start, top, lim, &seen) else {
-                                    break;
-                                };
-                                if col[(top * nu + start) as usize] != k
-                                    || n.b0 != t0
-                                    || n.b1 != t1
-                                    || n.t0 - n.b0 != dl
-                                    || n.t1 - n.b1 != dr
-                                    || n.t0 >= n.t1
-                                {
-                                    break;
-                                }
-                                for x in start..=n.last {
-                                    seen[(top * nu + x) as usize] = true;
-                                }
-                                t0 = n.t0;
-                                t1 = n.t1;
-                                top += 1;
-                            }
-                        }
-                        let cf = |cu: f32, cv: f32| {
-                            let mut p = Vec3::ZERO;
-                            p[d] = plane as f32;
-                            p[ua] = v.lo[ua] as f32 + cu;
-                            p[va] = v.lo[va] as f32 + cv;
-                            p
-                        };
-                        let (mut b0, mut b1) = (r.b0 as f32, r.b1 as f32);
-                        let (mut tt0, mut tt1) = (t0 as f32, t1 as f32);
-                        let (mut botv, mut topv) = (w as f32, top as f32);
-                        // the sides cross inside the row: that end is a point
-                        let cross = (b1 - b0) / ((b1 - b0) - (tt1 - tt0));
-                        if tt0 > tt1 {
-                            let x = b0 + (tt0 - b0) * cross;
-                            (tt0, tt1) = (x, x);
-                            topv = botv + cross * (topv - botv);
-                        } else if b0 > b1 {
-                            let x = b0 + (tt0 - b0) * cross;
-                            (b0, b1) = (x, x);
-                            botv += cross * (topv - botv);
-                        }
-                        let mut ps = Vec::with_capacity(4);
-                        ps.push(cf(b0, botv));
-                        if b1 > b0 {
-                            ps.push(cf(b1, botv));
-                        }
-                        ps.push(cf(tt1, topv));
-                        if tt1 > tt0 {
-                            ps.push(cf(tt0, topv));
-                        }
-                        if ps.len() >= 3 {
-                            let tri = ps.len() == 3;
-                            let mut p4 = [[0.0; 3]; 4];
-                            let mut uv4 = [[0.0; 2]; 4];
-                            for (j, p) in ps.iter().enumerate() {
-                                p4[j] = (*p).into();
-                                uv4[j] = uv_at(uv[k as usize], *p, normal);
-                            }
-                            if tri {
-                                p4[3] = p4[2];
-                                uv4[3] = uv4[2];
-                            }
-                            out.push(Quad {
-                                p: p4,
-                                n: [normal.into(); 4],
-                                uv: uv4,
-                                tri,
-                                tex: tex_of(normal),
-                                pal: k,
-                                cover: if edge { face as u8 } else { 6 },
-                            });
-                        }
-                        u = r.last + 1;
-                    }
-                }
+                    let ps = [cf(u, w), cf(u + wd, w), cf(u + wd, w + ht), cf(u, w + ht)];
+                    out.push(Quad {
+                        p: ps.map(|p| p.into()),
+                        n: [normal.into(); 4],
+                        uv: ps.map(|p| uv_at(uv[k as usize], p, normal)),
+                        tex: tex_of(normal),
+                        pal: k,
+                        cover: if edge { face as u8 } else { 6 },
+                    });
+                });
             }
-        }
-    }
-}
-
-/// Points of a profile kept by Douglas-Peucker within `tol`.
-fn simplify(pts: &[(f32, f32)], tol: f32) -> Vec<(f32, f32)> {
-    fn go(pts: &[(f32, f32)], tol: f32, out: &mut Vec<(f32, f32)>) {
-        let (a, b) = (pts[0], pts[pts.len() - 1]);
-        let (dx, dy) = (b.0 - a.0, b.1 - a.1);
-        let len = (dx * dx + dy * dy).sqrt().max(1e-6);
-        let (mut worst, mut at) = (0.0, 0);
-        for (i, p) in pts.iter().enumerate().take(pts.len() - 1).skip(1) {
-            let d = ((p.0 - a.0) * dy - (p.1 - a.1) * dx).abs() / len;
-            if d > worst {
-                worst = d;
-                at = i;
-            }
-        }
-        if worst > tol {
-            go(&pts[..=at], tol, out);
-            go(&pts[at..], tol, out);
-        } else {
-            out.push(b);
-        }
-    }
-    let mut out = vec![pts[0]];
-    if pts.len() > 1 {
-        go(pts, tol, &mut out);
-    }
-    out
-}
-
-/// A solid of revolution with the same cross-section area as the voxels,
-/// slice by slice, about their centre line.
-fn lathe_model(ps: &[[i32; 3]], k: u8, r: &RoundJson, out: &mut Vec<Quad>) {
-    use std::f32::consts::TAU;
-    let ax = r.axis.min(2);
-    let (ua, va) = match ax {
-        0 => (1, 2),
-        1 => (0, 2),
-        _ => (0, 1),
-    };
-    let (mut lo, mut hi) = (i32::MAX, i32::MIN);
-    let (mut cu, mut cv) = (0.0f32, 0.0f32);
-    for p in ps {
-        lo = lo.min(p[ax]);
-        hi = hi.max(p[ax]);
-        cu += p[ua] as f32 + 0.5;
-        cv += p[va] as f32 + 0.5;
-    }
-    let n = ps.len().max(1) as f32;
-    let (cu, cv) = (cu / n, cv / n);
-    let mut count = vec![0u32; (hi - lo + 1).max(0) as usize];
-    for p in ps {
-        count[(p[ax] - lo) as usize] += 1;
-    }
-    // a few stray voxels at an end are not part of the solid
-    let most = count.iter().copied().max().unwrap_or(0);
-    while count.len() > 1 && count[0] * 4 < most {
-        count.remove(0);
-        lo += 1;
-    }
-    while count.len() > 1 && count[count.len() - 1] * 4 < most {
-        count.pop();
-        hi -= 1;
-    }
-    let rad = |c: u32| (c as f32 / std::f32::consts::PI).sqrt();
-    let mut prof = vec![(lo as f32, rad(count[0]))];
-    for (i, c) in count.iter().enumerate() {
-        prof.push((lo as f32 + i as f32 + 0.5, rad(*c)));
-    }
-    prof.push(((hi + 1) as f32, rad(count[count.len() - 1])));
-    let prof = simplify(&prof, 0.45);
-    let segs = r.sides.clamp(3, 32);
-    let place = |a: f32, rr: f32, t: f32| -> Vec3 {
-        let mut p = Vec3::ZERO;
-        p[ax] = a;
-        p[ua] = cu + rr * t.cos();
-        p[va] = cv + rr * t.sin();
-        p
-    };
-    let radial = |t: f32| -> Vec3 {
-        let mut d = Vec3::ZERO;
-        d[ua] = t.cos();
-        d[va] = t.sin();
-        d
-    };
-    let mut axis_dir = Vec3::ZERO;
-    axis_dir[ax] = 1.0;
-    let phase = r.phase.to_radians();
-    let t_at = |s: usize| phase + TAU * s as f32 / segs as f32;
-    let u_at = |s: usize| r.wrap * s as f32 / segs as f32;
-    for wnd in prof.windows(2) {
-        let ((a0, r0), (a1, r1)) = (wnd[0], wnd[1]);
-        if r0 <= 0.0 && r1 <= 0.0 {
-            continue;
-        }
-        let len = ((a1 - a0).powi(2) + (r1 - r0).powi(2)).sqrt().max(1e-5);
-        let (na, nr) = ((r0 - r1) / len, (a1 - a0).abs() / len);
-        let sgn = if a1 >= a0 { 1.0 } else { -1.0 };
-        let nrm = |t: f32| (radial(t) * nr + axis_dir * na * sgn).normalize_or_zero();
-        for s in 0..segs {
-            let (t0, t1) = (t_at(s), t_at(s + 1));
-            let p = [
-                place(a0, r0, t0),
-                place(a0, r0, t1),
-                place(a1, r1, t1),
-                place(a1, r1, t0),
-            ];
-            let n = if r.flat {
-                [nrm((t0 + t1) * 0.5); 4]
-            } else {
-                [nrm(t0), nrm(t1), nrm(t1), nrm(t0)]
-            };
-            let vk = r.vscale / FINE;
-            let uv = [
-                [u_at(s), -a0 * vk],
-                [u_at(s + 1), -a0 * vk],
-                [u_at(s + 1), -a1 * vk],
-                [u_at(s), -a1 * vk],
-            ];
-            let tri = r0 <= 0.0 || r1 <= 0.0;
-            let (p, n, uv) = if r0 <= 0.0 {
-                // a point at the start: keep 0, 2, 3
-                (
-                    [p[0], p[2], p[3], p[3]],
-                    [n[0], n[2], n[3], n[3]],
-                    [uv[0], uv[2], uv[3], uv[3]],
-                )
-            } else {
-                (p, n, uv)
-            };
-            out.push(Quad {
-                p: p.map(|v| v.into()),
-                n: n.map(|v| v.into()),
-                uv,
-                tri,
-                tex: 1,
-                pal: k,
-                cover: 6,
-            });
-        }
-    }
-    // end caps: fans across the texture
-    for end in 0..2 {
-        let (a, rr) = if end == 0 {
-            prof[0]
-        } else {
-            prof[prof.len() - 1]
-        };
-        if rr <= 0.0 {
-            continue;
-        }
-        let nn = if end == 0 { -axis_dir } else { axis_dir };
-        // an end at or past the cell's side runs on into the next cell
-        if a <= 0.0 || a >= FINE {
-            continue;
-        }
-        let tex = if ax == 1 {
-            if end == 0 { 2 } else { 0 }
-        } else {
-            1
-        };
-        let disc = |s: usize| {
-            let t = t_at(s) - phase;
-            [0.5 + 0.5 * t.cos(), 0.5 + 0.5 * t.sin()]
-        };
-        for s in 1..segs - 1 {
-            out.push(Quad {
-                p: [
-                    place(a, rr, t_at(0)),
-                    place(a, rr, t_at(s)),
-                    place(a, rr, t_at(s + 1)),
-                    place(a, rr, t_at(s + 1)),
-                ]
-                .map(|v| v.into()),
-                n: [nn.into(); 4],
-                uv: [disc(0), disc(s), disc(s + 1), disc(s + 1)],
-                tri: true,
-                tex,
-                pal: k,
-                cover: 6,
-            });
         }
     }
 }
@@ -1824,22 +1184,10 @@ fn emit(
 ) {
     let x = Ctx { p, g, c, q };
     let base = Vec3::new(wp[0] as f32, wp[1] as f32, wp[2] as f32);
-    // a small turn per column, the same for a stack
-    let mut turn_by = if cl.jitter != 0.0 {
-        let h = hash3(wp[0], 11, wp[2]);
-        ((h & 1023) as f32 / 1023.0 - 0.5) * 0.24 * cl.jitter
-    } else {
-        0.0
-    };
-    if let Some(s) = &cl.spin {
-        turn_by += s.at(wp);
-    }
-    let angle = q as f32 * std::f32::consts::FRAC_PI_2 + turn_by;
-    let (sin, cos) = if turn_by == 0.0 {
-        [(0.0, 1.0), (1.0, 0.0), (0.0, -1.0), (-1.0, 0.0)][q as usize & 3]
-    } else {
-        angle.sin_cos()
-    };
+    // the class's turn, and the quarter turns a spin adds (the same for a
+    // stack); the features read the class's own
+    let qd = (q + cl.spin.map(|s| s.at(wp)).unwrap_or(0)) & 3;
+    let (sin, cos) = [(0.0, 1.0), (1.0, 0.0), (0.0, -1.0), (-1.0, 0.0)][qd as usize];
     let dir = |v: Vec3| Vec3::new(v.x * cos + v.z * sin, v.y, -v.x * sin + v.z * cos);
     let centre = base + Vec3::new(0.5, 0.0, 0.5);
     let models = p.models(file);
@@ -1851,12 +1199,10 @@ fn emit(
     let mut covered = [false; 7];
     // and which a cell of the same shape continues
     let mut joined = [false; 7];
-    if turn_by == 0.0 {
-        for (f, s) in STEPS.iter().enumerate() {
-            let n = step(c, turn(*s, q));
-            covered[f] = g.fl[n] & F_OPAQUE != 0;
-            joined[f] = covered[f] || (g.ids[n] == g.ids[c] && g.cls.get(n) == Some(&g.cls[c]));
-        }
+    for (f, s) in STEPS.iter().enumerate() {
+        let n = step(c, turn(*s, qd));
+        covered[f] = g.fl[n] & F_OPAQUE != 0;
+        joined[f] = covered[f] || (g.ids[n] == g.ids[c] && g.cls.get(n) == Some(&g.cls[c]));
     }
     for part in &cl.parts {
         let mut bits = 0u32;
@@ -1912,15 +1258,10 @@ fn emit(
             let look = look[quad.tex as usize];
             let world = quad.p.map(|v| place(Vec3::from(v) / FINE));
             let normals = quad.n.map(|n| dir(Vec3::from(n)));
-            let k = if quad.tri { 3 } else { 4 };
             let lit = if look.glow {
                 (0.0, 0.0, 1.0)
             } else {
-                let mid = if quad.tri {
-                    (world[0] + world[1] + world[2]) / 3.0
-                } else {
-                    (world[0] + world[2]) * 0.5
-                };
+                let mid = (world[0] + world[2]) * 0.5;
                 let n = (normals[0] + normals[2]).normalize_or_zero();
                 let r = (mid - base) * 4.0;
                 let m = n * 4.0;
@@ -1952,11 +1293,7 @@ fn emit(
             } else {
                 &mut geo.opaque
             };
-            if k == 3 {
-                out.extend([vs[0], vs[1], vs[2]]);
-            } else {
-                out.extend([vs[0], vs[1], vs[2], vs[0], vs[2], vs[3]]);
-            }
+            out.extend([vs[0], vs[1], vs[2], vs[0], vs[2], vs[3]]);
         }
     }
 }
@@ -1973,12 +1310,7 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
         for (name, quads) in names.iter().zip(&models.models) {
             let mut tris = Vec::new();
             for q in quads {
-                let corners: &[[usize; 3]] = if q.tri {
-                    &[[0, 1, 2]]
-                } else {
-                    &[[0, 1, 2], [0, 2, 3]]
-                };
-                for c in corners {
+                for c in &[[0, 1, 2], [0, 2, 3]] {
                     tris.push(crate::voxel_rule::Tri {
                         p: c.map(|i| q.p[i]),
                         n: Some(c.map(|i| q.n[i])),
@@ -2001,8 +1333,6 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use glam::Vec2;
-    use std::f32::consts::PI;
 
     /// Prints the quads of each shape model, heaviest first:
     /// `cargo test -p dyno-client shape_weights -- --ignored --nocapture`
@@ -2064,25 +1394,37 @@ mod tests {
         assert!(has(w::GRASS, tag::TERRAIN) && has(w::COBBLE, tag::PAVING));
     }
 
-    /// Area of a meshed model's polygons facing roughly `n`.
+    /// Area of a meshed model's rectangles facing `n`.
     fn area(quads: &[Quad], n: Vec3) -> f32 {
         quads
             .iter()
             .filter(|q| Vec3::from(q.n[0]).dot(n) > 0.99)
             .map(|q| {
                 let p = q.p.map(Vec3::from);
-                let a = (p[1] - p[0]).cross(p[2] - p[0]).length() * 0.5;
-                if q.tri {
-                    a
-                } else {
-                    a + (p[2] - p[0]).cross(p[3] - p[0]).length() * 0.5
-                }
+                (p[1] - p[0]).cross(p[2] - p[0]).length()
             })
             .sum()
     }
 
+    /// Every rectangle lies along two axes, with its own axis normal.
+    fn all_cubes(quads: &[Quad]) {
+        for q in quads {
+            let n = Vec3::from(q.n[0]);
+            assert_eq!(n.abs().max_element(), 1.0, "a slanted normal {n}");
+            for i in 0..4 {
+                let e = Vec3::from(q.p[(i + 1) % 4]) - Vec3::from(q.p[i]);
+                assert_eq!(
+                    (e.abs().cmpgt(Vec3::splat(1e-6))).bitmask().count_ones(),
+                    1,
+                    "{e}"
+                );
+                assert!(e.dot(n).abs() < 1e-6);
+            }
+        }
+    }
+
     #[test]
-    fn diagonal_runs_become_one_slope() {
+    fn diagonal_runs_are_drawn_as_stairs() {
         // a slab two voxels thick rising one voxel per voxel along +z,
         // eight voxels wide: a roof in small
         let mut voxels = Vec::new();
@@ -2092,41 +1434,20 @@ mod tests {
                 voxels.push(([x, z + 1, z], 1));
             }
         }
-        let quads = mesh_model(&voxels, &[Uv::Cell; 256], &[false; 256], None);
-        let up = Vec3::new(0.0, 1.0, -1.0).normalize();
-        let slopes: Vec<_> = quads
-            .iter()
-            .filter(|q| Vec3::from(q.n[0]).dot(up).abs() > 0.99)
-            .collect();
-        assert_eq!(slopes.len(), 2, "one slope on top, one beneath");
-        // the sides are parallelograms, one each
-        assert_eq!(quads.iter().filter(|q| q.n[0][0].abs() > 0.99).count(), 2);
-        // a closed slab: each side's area matches the other's
+        let quads = mesh_model(&voxels, &[Uv::Cell; 256]);
+        all_cubes(&quads);
+        // twelve treads on top and twelve beneath, each one row of voxels
+        // the slab's width, and as many risers
+        assert_eq!(quads.iter().filter(|q| q.n[0][1] > 0.5).count(), 12);
+        assert_eq!(quads.iter().filter(|q| q.n[0][1] < -0.5).count(), 12);
+        assert!((area(&quads, Vec3::Y) - 8.0 * 12.0).abs() < 1e-3);
+        assert!((area(&quads, Vec3::Y) - area(&quads, Vec3::NEG_Y)).abs() < 1e-3);
         assert!((area(&quads, Vec3::X) - area(&quads, Vec3::NEG_X)).abs() < 1e-3);
-        assert!((area(&quads, up) - area(&quads, -up)).abs() < 1e-3);
-        // the slope runs the whole length (√2 per voxel risen) and width
-        assert!((area(&quads, up) - 8.0 * 12.0 * 2f32.sqrt()).abs() < 1e-2);
-        // texture along the slope: a repeat per block of rise
-        let top = slopes
-            .iter()
-            .find(|q| Vec3::from(q.n[0]).dot(up) > 0.0)
-            .unwrap();
-        for (p, uv) in top.p.iter().zip(top.uv) {
-            assert!((uv[1] + p[1] / FINE).abs() < 1e-5);
-        }
-        // a colour that keeps its steps is not sloped
-        let mut steps = [false; 256];
-        steps[1] = true;
-        let stepped = mesh_model(&voxels, &[Uv::Cell; 256], &steps, None);
-        assert!(
-            stepped
-                .iter()
-                .all(|q| q.n[0].iter().filter(|c| c.abs() > 0.5).count() == 1)
-        );
+        assert!((area(&quads, Vec3::Z) - area(&quads, Vec3::NEG_Z)).abs() < 1e-3);
     }
 
     #[test]
-    fn round_parts_are_solids_of_revolution() {
+    fn round_parts_are_stepped_circles() {
         // a voxel cylinder of radius 5 and height 16
         let mut voxels = Vec::new();
         for y in 0..16 {
@@ -2139,29 +1460,33 @@ mod tests {
                 }
             }
         }
-        let round = RoundJson {
-            axis: 1,
-            sides: 8,
-            wrap: 2.0,
-            vscale: 1.0,
-            only: Vec::new(),
-            phase: 0.0,
-            flat: false,
-        };
-        let quads = mesh_model(&voxels, &[Uv::Cell; 256], &[false; 256], Some(&round));
-        // eight sides, no caps: both ends reach the cell's sides
-        assert_eq!(quads.len(), 8);
-        for q in &quads {
-            for p in q.p {
-                let r = Vec2::new(p[0] - 8.0, p[2] - 8.0).length();
-                assert!((r - (voxels.len() as f32 / 16.0 / PI).sqrt()).abs() < 0.3);
+        let quads = mesh_model(&voxels, &[Uv::Cell; 256]);
+        all_cubes(&quads);
+        // its sides are the voxels' own: as much area as the cross-section's
+        // outline is long, times the height
+        let mut outline = 0;
+        for x in 0..16i32 {
+            for z in 0..16i32 {
+                let inside = |x: i32, z: i32| {
+                    let (dx, dz) = (x as f32 - 7.5, z as f32 - 7.5);
+                    dx * dx + dz * dz <= 25.0
+                };
+                if inside(x, z) {
+                    outline += [(1, 0), (-1, 0), (0, 1), (0, -1)]
+                        .iter()
+                        .filter(|(a, b)| !inside(x + a, z + b))
+                        .count();
+                }
             }
-            assert!(q.uv.iter().all(|uv| (0.0..=2.0).contains(&uv[0])));
         }
-        // shorter, it is capped on top
-        let short: Vec<_> = voxels.iter().copied().filter(|(p, _)| p[1] < 12).collect();
-        let quads = mesh_model(&short, &[Uv::Cell; 256], &[false; 256], Some(&round));
-        assert_eq!(quads.iter().filter(|q| q.tri).count(), 6);
+        let sides: f32 = [Vec3::X, Vec3::NEG_X, Vec3::Z, Vec3::NEG_Z]
+            .iter()
+            .map(|n| area(&quads, *n))
+            .sum();
+        assert!(
+            (sides - outline as f32 * 16.0).abs() < 1e-3,
+            "{sides} {outline}"
+        );
     }
 
     #[test]
@@ -2176,7 +1501,7 @@ mod tests {
         }
         let mut uv = [Uv::Cell; 256];
         uv[1] = Uv::Fit([2.0, 0.0, 2.0], [14.0, 10.0, 14.0]);
-        let quads = mesh_model(&voxels, &uv, &[false; 256], None);
+        let quads = mesh_model(&voxels, &uv);
         assert_eq!(quads.len(), 6);
         for q in &quads {
             let (lo, hi) = q.uv.iter().fold((f32::MAX, f32::MIN), |(lo, hi), uv| {
