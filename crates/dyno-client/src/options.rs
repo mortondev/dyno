@@ -1,7 +1,8 @@
 //! The graphics options a player can change: the quality tier of the costly
 //! passes, water, ground cover, leaf detail and ambient life. One small panel draws them
 //! on the title's Options page and in the pause menu; the app applies a
-//! change at once and saves it.
+//! change at once and saves it. The sound levels are here too: a slider
+//! for the master level and one for each bus of the mixer (audio.rs).
 
 use crate::settings::Settings;
 use crate::theme;
@@ -87,6 +88,136 @@ pub fn set(g: Graphics) {
 
 pub fn get() -> Option<Graphics> {
     *CURRENT.lock().unwrap()
+}
+
+/// The sound levels a player can change, each 0 to 1.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Sound {
+    pub master: f32,
+    pub music: f32,
+    pub effects: f32,
+    pub ambience: f32,
+    pub ui: f32,
+}
+
+impl Sound {
+    pub fn of(s: &Settings) -> Sound {
+        let level = |v: f32| {
+            if v.is_finite() {
+                v.clamp(0.0, 1.0)
+            } else {
+                1.0
+            }
+        };
+        Sound {
+            master: level(s.volume),
+            music: level(s.volume_music),
+            effects: level(s.volume_effects),
+            ambience: level(s.volume_ambience),
+            ui: level(s.volume_ui),
+        }
+    }
+
+    pub fn into(self, s: &mut Settings) {
+        s.volume = self.master;
+        s.volume_music = self.music;
+        s.volume_effects = self.effects;
+        s.volume_ambience = self.ambience;
+        s.volume_ui = self.ui;
+    }
+
+    /// What the mixer is told. A slider is heard as loudness, so its
+    /// middle is far below half the signal: the level is its square.
+    pub fn volumes(self) -> crate::audio::Volumes {
+        crate::audio::Volumes {
+            master: self.master * self.master,
+            music: self.music * self.music,
+            effects: self.effects * self.effects,
+            ambience: self.ambience * self.ambience,
+            ui: self.ui * self.ui,
+        }
+    }
+
+    fn levels(&mut self) -> [&mut f32; 5] {
+        [
+            &mut self.master,
+            &mut self.music,
+            &mut self.effects,
+            &mut self.ambience,
+            &mut self.ui,
+        ]
+    }
+}
+
+/// The sound levels as the panel shows them: the mixer follows them every
+/// frame (app/sound.rs), so a slider is heard while it is dragged.
+static SOUND: Mutex<Option<Sound>> = Mutex::new(None);
+
+pub fn set_sound(s: Sound) {
+    *SOUND.lock().unwrap() = Some(s);
+}
+
+pub fn sound() -> Option<Sound> {
+    *SOUND.lock().unwrap()
+}
+
+/// A slider row: its name, a gold bar to drag, its value as a percentage.
+/// (moved, released): the value changed; the pointer came off it.
+fn slider(ui: &mut egui::Ui, name: &str, v: &mut f32) -> (bool, bool) {
+    let mut out = (false, false);
+    ui.horizontal(|ui| {
+        ui.add_sized(
+            [104.0, 26.0],
+            egui::Label::new(
+                egui::RichText::new(name)
+                    .font(theme::title_font(13.0))
+                    .color(theme::TEXT),
+            ),
+        );
+        let (rect, resp) =
+            ui.allocate_exact_size(egui::vec2(260.0, 26.0), egui::Sense::click_and_drag());
+        let track = egui::Rect::from_center_size(rect.center(), egui::vec2(rect.width(), 10.0));
+        if let Some(at) = resp.interact_pointer_pos()
+            && (resp.dragged() || resp.clicked())
+        {
+            let new = ((at.x - track.left() - 6.0) / (track.width() - 12.0)).clamp(0.0, 1.0);
+            // (in steps of one in a hundred)
+            let new = (new * 100.0).round() / 100.0;
+            out.0 = new != *v;
+            *v = new;
+        }
+        out.1 = resp.drag_stopped() || resp.clicked();
+        let p = ui.painter();
+        p.rect_filled(track, 3.0, theme::WOOD_DARK);
+        let knob = track.left() + 6.0 + (track.width() - 12.0) * *v;
+        let filled = egui::Rect::from_min_max(track.min, egui::pos2(knob, track.max.y));
+        p.rect_filled(filled, 3.0, theme::GOLD_DARK);
+        p.rect_stroke(
+            track,
+            3.0,
+            egui::Stroke::new(1.0_f32, theme::GOLD_DARK),
+            egui::StrokeKind::Inside,
+        );
+        let bright = resp.hovered() || resp.dragged();
+        p.rect_filled(
+            egui::Rect::from_center_size(
+                egui::pos2(knob, track.center().y),
+                egui::vec2(10.0, 20.0),
+            ),
+            2.0,
+            if bright {
+                theme::GOLD_BRIGHT
+            } else {
+                theme::GOLD
+            },
+        );
+        ui.label(
+            egui::RichText::new(format!("{:.0}%", *v * 100.0))
+                .font(theme::title_font(12.0))
+                .color(theme::TEXT),
+        );
+    });
+    out
 }
 
 /// What a player can change about the interface, and what it remembers
@@ -292,6 +423,28 @@ pub fn panel(ui: &mut egui::Ui) -> bool {
             });
         }
     }
+    // sound: the master level and each bus (names from the pack)
+    let names = crate::uitext::lines("options.volumes");
+    if names.len() == 5 {
+        ui.add_space(8.0);
+        ui.label(
+            egui::RichText::new(t("options.sound"))
+                .font(theme::title_font(14.0))
+                .color(theme::GOLD),
+        );
+        let mut s = sound().unwrap_or_else(|| Sound::of(&Settings::peek()));
+        let mut moved = false;
+        for (name, v) in names.iter().zip(s.levels()) {
+            let (m, released) = slider(ui, name, v);
+            moved |= m;
+            // heard at once (the mixer follows `sound()`); saved when the
+            // pointer comes off the slider
+            changed |= released;
+        }
+        if moved {
+            set_sound(s);
+        }
+    }
     changed
 }
 
@@ -308,6 +461,27 @@ mod tests {
         assert_eq!(s.water_quality, 0);
         assert_eq!(step(&COVER, 1.1), 2);
         assert_eq!(step(&LEAVES, 4.0), 3);
+    }
+
+    #[test]
+    fn sound_levels_go_into_settings_and_back() {
+        let mut s = Settings::default();
+        let mut v = Sound::of(&s);
+        assert_eq!(v.master, 0.8);
+        v.music = 0.25;
+        v.ui = 0.0;
+        v.into(&mut s);
+        assert_eq!((s.volume_music, s.volume_ui), (0.25, 0.0));
+        assert_eq!(Sound::of(&s), v);
+        // heard as loudness: a quarter of the way is a sixteenth of the
+        // signal, and the ends are silence and full
+        let m = v.volumes();
+        assert_eq!((m.music, m.ui), (0.0625, 0.0));
+        assert!((m.master - 0.64).abs() < 1e-6);
+        // a settings file from before the buses: the old volume is the master
+        let old: Settings = serde_json::from_str(r#"{ "volume": 0.5 }"#).unwrap();
+        let v = Sound::of(&old);
+        assert_eq!((v.master, v.effects), (0.5, 1.0));
     }
 
     #[test]

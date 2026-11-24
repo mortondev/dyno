@@ -22,7 +22,13 @@ pub struct Settings {
     pub leaf_detail: f32,
     /// Block IDs in the 9 hotbar slots.
     pub hotbar: Vec<u8>,
+    /// the master level, and under it the level of each bus (audio.rs),
+    /// all 0 to 1
     pub volume: f32,
+    pub volume_music: f32,
+    pub volume_effects: f32,
+    pub volume_ambience: f32,
+    pub volume_ui: f32,
     /// what the costly parts of the picture may spend (shadow detail,
     /// ambient occlusion, bloom): 0 low, 1 medium, 2 high, 3 ultra; anything
     /// higher means not chosen yet: the first run picks a tier for the
@@ -63,6 +69,10 @@ impl Default for Settings {
             leaf_detail: 1.0,
             hotbar: dyno_world::HOTBAR.to_vec(),
             volume: 0.8,
+            volume_music: 0.7,
+            volume_effects: 1.0,
+            volume_ambience: 0.8,
+            volume_ui: 0.9,
             graphics: u8::MAX,
             life: 2,
             water_quality: 2,

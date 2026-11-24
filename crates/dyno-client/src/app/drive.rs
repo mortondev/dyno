@@ -811,6 +811,7 @@ pub fn drive(o: DriveOptions) -> Result<String, String> {
         last_shot: Instant::now(),
         drive_events: Vec::new(),
         started: Instant::now(),
+        heard: Default::default(),
     };
     let mut d = Driver {
         app,

@@ -782,7 +782,7 @@ mod tests {
 
     #[test]
     fn land_not_streamed_in_is_dark() {
-        let world = World::generate([128, 64, 128], 3);
+        let world = World::test_terrain([128, 64, 128], 3);
         let mut streamed = World::sparse(world.size);
         // only the western half has arrived
         for s in world.held_list().into_iter().filter(|s| s[0] < 4) {
@@ -809,7 +809,7 @@ mod tests {
 
     #[test]
     fn rebuild_is_fast() {
-        let world = World::generate([384, 96, 384], 7);
+        let world = World::test_terrain([384, 96, 384], 7);
         let mut worst: f32 = 0.0;
         for (k, span) in ZOOMS.iter().enumerate() {
             let bpt = span / VISIBLE_TEXELS;
@@ -834,7 +834,7 @@ mod tests {
 
     #[test]
     fn changes_on_the_map_mark_it_dirty() {
-        let world = World::generate([128, 64, 128], 3);
+        let world = World::test_terrain([128, 64, 128], 3);
         let ctx = crate::theme::new_context();
         let mut m = Minimap::new();
         let _ = ctx.run(egui::RawInput::default(), |ctx| {

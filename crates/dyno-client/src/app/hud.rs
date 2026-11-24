@@ -209,6 +209,8 @@ pub fn level_up(p: &mut Play, level: u8) {
     }
     if !learned.is_empty() {
         p.ui.tips.fire("ability");
+        // (after the level's own fanfare)
+        crate::audio::emit_in("ui.ability_new", 2.4);
     }
     p.ui.tips.fire("level");
     p.ui.level_up = Some(LevelUp {
@@ -296,6 +298,17 @@ pub fn quests_changed(
     for (text, colour) in lines {
         p.ui.notice(text, colour);
     }
+    // the weightiest change is the one heard
+    let sound = ["quest_done", "quest_ready", "quest_accepted", "quest_step"]
+        .into_iter()
+        .find(|e| events.contains(e));
+    match sound {
+        Some("quest_done") => crate::audio::emit("ui.quest_complete"),
+        Some("quest_ready") => crate::audio::emit("ui.quest_ready"),
+        Some("quest_accepted") => crate::audio::emit("ui.quest_accept"),
+        Some(_) => crate::audio::emit("ui.quest_step"),
+        None => {}
+    }
     for e in events {
         p.ui.tips.fire(e);
     }
@@ -337,6 +350,9 @@ fn count_loot(p: &mut Play) {
         while p.ui.loots.len() > 6 {
             p.ui.loots.remove(0);
         }
+        if any {
+            crate::audio::emit("ui.loot");
+        }
         if gear {
             p.ui.tips.fire("gear");
         } else if any {
@@ -352,6 +368,7 @@ pub fn healed(p: &mut Play, amount: f32) {
     if amount < 0.5 {
         return;
     }
+    crate::audio::emit("combat.heal");
     p.combat_text
         .push((Instant::now(), None, format!("+{amount:.0}"), theme::GOOD));
     p.combat_log.push((
@@ -365,7 +382,7 @@ pub fn healed(p: &mut Play, amount: f32) {
 fn action_icon(painter: &egui::Painter, r: Rect, p: &Play, id: Option<u16>) {
     match id {
         Some(dyno_protocol::RECALL) => {
-            survival::item_icon(painter, r, &p.content, dyno_world::HEARTH as ItemId)
+            item_ui::item_icon(painter, r, &p.content, dyno_world::HEARTH as ItemId)
         }
         Some(BAR_EAT) => {
             let pack = dyno_sim::inventory::Inventory {
@@ -374,12 +391,12 @@ fn action_icon(painter: &egui::Painter, r: Rect, p: &Play, id: Option<u16>) {
             if let Some(food) =
                 dyno_sim::inventory::best_food(&pack, &p.content).and_then(|s| p.pack[s])
             {
-                survival::item_icon(painter, r, &p.content, food.item);
+                item_ui::item_icon(painter, r, &p.content, food.item);
             }
         }
         Some(a) => {
             if let Some(a) = p.content.ability(a) {
-                survival::ability_icon(painter, r, &p.content, a);
+                item_ui::ability_icon(painter, r, &p.content, a);
             }
         }
         None => {}
@@ -518,7 +535,7 @@ pub fn frames(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, map: R
                 let r =
                     Rect::from_min_size(row + Vec2::new(k as f32 * 30.0, 0.0), Vec2::splat(26.0));
                 theme::slot_well(painter, r);
-                survival::ability_icon(painter, r.shrink(3.0), &p.content, ab);
+                item_ui::ability_icon(painter, r.shrink(3.0), &p.content, ab);
                 painter.rect_stroke(
                     r,
                     3.0,
@@ -642,7 +659,7 @@ pub fn frames(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, map: R
             Vec2::splat(36.0),
         );
         theme::slot_well(painter, r);
-        survival::ability_icon(painter, r.shrink(4.0), &p.content, ab);
+        item_ui::ability_icon(painter, r.shrink(4.0), &p.content, ab);
         theme::slot_rim(painter, r, false);
         let left = until.saturating_duration_since(now).as_secs_f32();
         let txt = if left >= 60.0 {
@@ -1169,7 +1186,7 @@ pub fn moments(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, bar: 
             let icon = Rect::from_min_size(Pos2::new(left, row), Vec2::splat(44.0));
             if fade > 0.5 {
                 theme::slot_well(painter, icon);
-                survival::ability_icon(painter, icon.shrink(5.0), &p.content, ab);
+                item_ui::ability_icon(painter, icon.shrink(5.0), &p.content, ab);
                 theme::slot_rim(painter, icon, true);
             }
             theme::shadow_text(
@@ -1288,7 +1305,7 @@ pub fn moments(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, bar: 
             egui::StrokeKind::Inside,
         );
         if fade > 0.4 {
-            survival::item_icon(
+            item_ui::item_icon(
                 painter,
                 Rect::from_min_size(r.min + Vec2::new(4.0, 3.0), Vec2::splat(26.0)),
                 &p.content,
@@ -1363,12 +1380,31 @@ pub fn combat_text(painter: &egui::Painter, p: &mut Play, screen: Rect, vp: glam
     }
 }
 
+/// The air left while under water: a thin meter over the right end of the
+/// bar, shown only while it is not full. (Its own function, to be themed.)
+pub fn air_meter(painter: &egui::Painter, p: &Play, bar: Rect) {
+    if p.creative() || p.air >= 10.0 {
+        return;
+    }
+    let k = (p.air / 10.0).clamp(0.0, 1.0);
+    let at = Pos2::new(bar.right() - 122.0, bar.top() - 30.0);
+    painter.rect_filled(
+        Rect::from_min_size(at, Vec2::new(110.0, 5.0)).expand(1.0),
+        2.0,
+        Color32::from_black_alpha(150),
+    );
+    painter.rect_filled(
+        Rect::from_min_size(at, Vec2::new(110.0 * k, 5.0)),
+        2.0,
+        Color32::from_rgb(110, 170, 230),
+    );
+}
+
 /// The death screen: what happened, what it costs, and the way back.
 pub fn death(ctx: &egui::Context, painter: &egui::Painter, p: &Play, actions: &mut Vec<Action>) {
     let Some(msg) = &p.dead else { return };
     let screen = ctx.content_rect();
     painter.rect_filled(screen, 0.0, Color32::from_rgba_unmultiplied(40, 6, 8, 150));
-    let rpg = p.content.world.protected;
     let resp = egui::Window::new("dead")
         .id(egui::Id::new("dead"))
         .title_bar(false)
@@ -1394,23 +1430,15 @@ pub fn death(ctx: &egui::Context, painter: &egui::Painter, p: &Play, actions: &m
                 );
                 ui.add_space(4.0);
                 ui.label(
-                    RichText::new(t(if rpg {
-                        "death.hint"
-                    } else {
-                        "death.hint_survival"
-                    }))
-                    .font(theme::body_font(14.0))
-                    .color(theme::TEXT_DIM),
+                    RichText::new(t("death.hint"))
+                        .font(theme::body_font(14.0))
+                        .color(theme::TEXT_DIM),
                 );
                 ui.add_space(12.0);
                 let b = egui::Button::new(
-                    RichText::new(t(if rpg {
-                        "death.release"
-                    } else {
-                        "death.respawn"
-                    }))
-                    .font(theme::title_font(15.0))
-                    .color(theme::INK),
+                    RichText::new(t("death.release"))
+                        .font(theme::title_font(15.0))
+                        .color(theme::INK),
                 )
                 .fill(theme::GOLD)
                 .stroke(Stroke::new(1.0_f32, theme::GOLD_BRIGHT))
@@ -2311,7 +2339,7 @@ pub fn trade(ctx: &egui::Context, p: &mut Play) {
                                     Vec2::splat(32.0),
                                 );
                                 theme::item_slot(pt, slot, it.quality, None);
-                                survival::stack_icon(pt, slot, &p.content, st);
+                                item_ui::stack_icon(pt, slot, &p.content, st);
                                 pt.text(
                                     Pos2::new(slot.right() + 8.0, row.center().y),
                                     Align2::LEFT_CENTER,

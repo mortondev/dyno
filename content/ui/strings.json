@@ -8,7 +8,7 @@
    "Shades cannot cross into a hearth's light.",
    "Gather from trees, ore and bushes with a right click.",
    "Press C for your character, B for bags, P for your spellbook.",
-   "Recall (the - key) takes you home to your bed or Hearthstead."
+   "Recall (the - key) takes you home: to the inn whose innkeeper you last spoke with, or to Hearthstead."
   ]
  },
  "intro": {
@@ -52,7 +52,7 @@
   "seconds": "{n}s",
   "key": "Key: {key}",
   "recall": "Recall",
-  "recall_text": "Return to your bed, or to the town hearth.",
+  "recall_text": "Return to the inn you made your home, or to the town hearth.",
   "eat": "Eat",
   "eat_text": "Eat the best food in your bags. Out of combat, food restores health quickly.",
   "gathering": "Gathering",
@@ -63,9 +63,7 @@
  "death": {
   "title": "You have died",
   "hint": "You keep everything you carry. Release to wake at the hearth.",
-  "release": "Release spirit",
-  "hint_survival": "Your items are where you fell. Friends can pick them up too.",
-  "respawn": "Respawn"
+  "release": "Release spirit"
  },
  "menu": {
   "title": "Game Menu",
@@ -89,7 +87,9 @@
   "tips": "Tips",
   "off": "Off",
   "on": "On",
-  "tips_again": "Show again"
+  "tips_again": "Show again",
+  "sound": "Sound",
+  "volumes": ["Master", "Music", "Effects", "Ambience", "Interface"]
  },
  "keys": {
   "rpg": [

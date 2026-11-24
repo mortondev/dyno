@@ -4303,50 +4303,6 @@
    "group": "Basics"
   },
   {
-   "out": "crafting_table",
-   "in": [
-    [
-     "planks|birch_planks|dark_planks",
-     4
-    ]
-   ],
-   "group": "Basics"
-  },
-  {
-   "out": "torch",
-   "count": 4,
-   "in": [
-    [
-     "stick",
-     1
-    ],
-    [
-     "coal",
-     1
-    ]
-   ],
-   "group": "Basics"
-  },
-  {
-   "out": "hearth",
-   "in": [
-    [
-     "cobble",
-     8
-    ],
-    [
-     "log|birch_log",
-     4
-    ],
-    [
-     "coal",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Stations"
-  },
-  {
    "out": "wooden_pickaxe",
    "in": [
     [
@@ -4420,82 +4376,6 @@
    "skill": [
     "blacksmithing",
     1
-   ]
-  },
-  {
-   "out": "stone_pickaxe",
-   "in": [
-    [
-     "cobble|mossy_cobble",
-     3
-    ],
-    [
-     "stick",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Tools",
-   "skill": [
-    "blacksmithing",
-    10
-   ]
-  },
-  {
-   "out": "stone_axe",
-   "in": [
-    [
-     "cobble|mossy_cobble",
-     3
-    ],
-    [
-     "stick",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Tools",
-   "skill": [
-    "blacksmithing",
-    10
-   ]
-  },
-  {
-   "out": "stone_shovel",
-   "in": [
-    [
-     "cobble|mossy_cobble",
-     1
-    ],
-    [
-     "stick",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Tools",
-   "skill": [
-    "blacksmithing",
-    10
-   ]
-  },
-  {
-   "out": "stone_sword",
-   "in": [
-    [
-     "cobble|mossy_cobble",
-     2
-    ],
-    [
-     "stick",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Tools",
-   "skill": [
-    "blacksmithing",
-    10
    ]
   },
   {
@@ -4667,75 +4547,6 @@
    ]
   },
   {
-   "out": "furnace",
-   "in": [
-    [
-     "cobble",
-     8
-    ]
-   ],
-   "station": "table",
-   "group": "Stations"
-  },
-  {
-   "out": "chest",
-   "in": [
-    [
-     "planks|birch_planks|dark_planks",
-     8
-    ]
-   ],
-   "station": "table",
-   "group": "Stations"
-  },
-  {
-   "out": "bed",
-   "in": [
-    [
-     "planks|birch_planks|dark_planks",
-     3
-    ],
-    [
-     "white",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Stations"
-  },
-  {
-   "out": "lantern",
-   "in": [
-    [
-     "iron_ingot",
-     1
-    ],
-    [
-     "torch",
-     1
-    ],
-    [
-     "shade_dust",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Light",
-   "count": 2
-  },
-  {
-   "out": "glass",
-   "in": [
-    [
-     "sand",
-     1
-    ]
-   ],
-   "station": "furnace",
-   "fuel": 1,
-   "group": "Smelting"
-  },
-  {
    "out": "iron_ingot",
    "in": [
     [
@@ -4768,30 +4579,6 @@
    ]
   },
   {
-   "out": "stone",
-   "in": [
-    [
-     "cobble",
-     1
-    ]
-   ],
-   "station": "furnace",
-   "fuel": 1,
-   "group": "Smelting"
-  },
-  {
-   "out": "brick",
-   "in": [
-    [
-     "clay",
-     1
-    ]
-   ],
-   "station": "furnace",
-   "fuel": 1,
-   "group": "Smelting"
-  },
-  {
    "out": "coal",
    "in": [
     [
@@ -4802,224 +4589,24 @@
    "station": "furnace",
    "fuel": 1,
    "group": "Smelting"
+  }
+ ],
+ "stations": [
+  {
+   "key": "table",
+   "name": "Workbench",
+   "blocks": [
+    "crafting_table",
+    "anvil",
+    "furnace"
+   ]
   },
   {
-   "out": "terracotta",
-   "in": [
-    [
-     "dirt",
-     2
-    ],
-    [
-     "clay",
-     1
-    ]
-   ],
-   "station": "furnace",
-   "fuel": 1,
-   "group": "Smelting"
-  },
-  {
-   "out": "mossy_cobble",
-   "in": [
-    [
-     "cobble",
-     1
-    ],
-    [
-     "leaves|pine_leaves|birch_leaves",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Building"
-  },
-  {
-   "out": "dark_planks",
-   "count": 2,
-   "in": [
-    [
-     "planks|birch_planks|dark_planks",
-     2
-    ],
-    [
-     "coal",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Building"
-  },
-  {
-   "out": "marble",
-   "count": 2,
-   "in": [
-    [
-     "stone",
-     2
-    ],
-    [
-     "snow",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Building"
-  },
-  {
-   "out": "basalt",
-   "count": 2,
-   "in": [
-    [
-     "stone",
-     2
-    ],
-    [
-     "coal",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Building"
-  },
-  {
-   "out": "red",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "berries",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "black",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "coal",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "yellow",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "sand",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "lime",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "leaves",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "blue",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "glowshroom",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "orange",
-   "in": [
-    [
-     "red",
-     1
-    ],
-    [
-     "yellow",
-     1
-    ]
-   ],
-   "station": "table",
-   "count": 2,
-   "group": "Colours"
-  },
-  {
-   "out": "pink",
-   "in": [
-    [
-     "red",
-     1
-    ],
-    [
-     "white",
-     1
-    ]
-   ],
-   "station": "table",
-   "count": 2,
-   "group": "Colours"
-  },
-  {
-   "out": "purple",
-   "in": [
-    [
-     "red",
-     1
-    ],
-    [
-     "blue",
-     1
-    ]
-   ],
-   "station": "table",
-   "count": 2,
-   "group": "Colours"
-  },
-  {
-   "out": "cyan",
-   "in": [
-    [
-     "blue",
-     1
-    ],
-    [
-     "lime",
-     1
-    ]
-   ],
-   "station": "table",
-   "count": 2,
-   "group": "Colours"
+   "key": "furnace",
+   "name": "Forge",
+   "blocks": [
+    "furnace"
+   ]
   }
  ],
  "creatures": [
@@ -5641,104 +5228,6 @@
     }
    },
    "aggro": 4
-  }
- ],
- "milestones": [
-  {
-   "key": "wood",
-   "title": "Punch a tree",
-   "hint": "Hold left click on a log to break it.",
-   "trigger": "collect:log"
-  },
-  {
-   "key": "table",
-   "title": "Workbench",
-   "hint": "Open your pack (E) and craft a crafting table from planks.",
-   "trigger": "craft:crafting_table"
-  },
-  {
-   "key": "pick",
-   "title": "Getting tools",
-   "hint": "Near a crafting table, make a wooden pickaxe.",
-   "trigger": "craft:wooden_pickaxe"
-  },
-  {
-   "key": "stone",
-   "title": "Stone age",
-   "hint": "Mine stone and make a stone pickaxe.",
-   "trigger": "craft:stone_pickaxe"
-  },
-  {
-   "key": "furnace",
-   "title": "First fire",
-   "hint": "Craft a furnace from 8 cobble, then smelt a log into coal for torches.",
-   "trigger": "craft:furnace"
-  },
-  {
-   "key": "charcoal",
-   "title": "Charcoal",
-   "hint": "Smelt a log in the furnace to make coal. One log makes four torches.",
-   "trigger": "craft:coal"
-  },
-  {
-   "key": "torch",
-   "title": "Light the dark",
-   "hint": "Light the dark: place a torch. Shades cannot rise in the light.",
-   "trigger": "place:torch"
-  },
-  {
-   "key": "night",
-   "title": "First night",
-   "hint": "Survive until morning.",
-   "trigger": "night"
-  },
-  {
-   "key": "iron",
-   "title": "Iron age",
-   "hint": "Smelt raw iron in a furnace.",
-   "trigger": "craft:iron_ingot"
-  },
-  {
-   "key": "shade",
-   "title": "Shade hunter",
-   "hint": "Defeat a Shade.",
-   "trigger": "kill:shade"
-  },
-  {
-   "key": "ember",
-   "title": "Ember",
-   "hint": "Mine emberstone deep underground with an iron pickaxe.",
-   "trigger": "collect:ember_shard"
-  },
-  {
-   "key": "home",
-   "title": "Home",
-   "hint": "Craft a bed. Right click it to make it your spawn point.",
-   "trigger": "craft:bed"
-  },
-  {
-   "key": "chest",
-   "title": "Storage",
-   "hint": "Craft a chest to share items with friends.",
-   "trigger": "craft:chest"
-  },
-  {
-   "key": "cook",
-   "title": "Hot meal",
-   "hint": "Cook raw meat in a furnace.",
-   "trigger": "craft:cooked_meat"
-  },
-  {
-   "key": "ironpick",
-   "title": "Deep digger",
-   "hint": "Make an iron pickaxe to mine emberstone.",
-   "trigger": "craft:iron_pickaxe"
-  },
-  {
-   "key": "hearth",
-   "title": "Safe ground",
-   "hint": "Craft and place a hearth: no Shade can come within 16 blocks of it.",
-   "trigger": "place:hearth"
   }
  ],
  "world": {
@@ -7606,6 +7095,24 @@
      ]
     }
    ]
+  },
+  {
+   "key": "innkeeper",
+   "name": "Marta",
+   "title": "Innkeeper",
+   "color": [
+    0.62,
+    0.36,
+    0.3
+   ],
+   "place": "hearthstead",
+   "at": [
+    36,
+    0,
+    24
+   ],
+   "greeting": "There's a bed and a fire here whenever you need them. Consider this your home.",
+   "innkeeper": true
   }
  ],
  "quests": [
