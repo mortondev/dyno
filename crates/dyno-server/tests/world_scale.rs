@@ -1041,7 +1041,8 @@ fn the_innkeeper_and_the_stations_can_be_walked_to() {
     let pack = Pack::builtin();
     let c = &pack.content;
     let h = m.built.hearth;
-    let plaza = [h[0] + 4, h[1], h[2] + 4];
+    // (a free block at the middle of the town)
+    let plaza = place(m, "hearthstead");
     let free = |x: i32, y: i32, z: i32| {
         w::is_solid(m.world.get(x, y - 1, z))
             && !w::is_solid(m.world.get(x, y, z))
