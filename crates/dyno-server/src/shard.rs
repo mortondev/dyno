@@ -199,6 +199,7 @@ impl State {
             regrow: Vec::new(),
             spawn_points: Vec::new(),
             zone_clock: 0.0,
+            ticks: 0,
             depleted: Default::default(),
             incursion: None,
             next_phase: None,

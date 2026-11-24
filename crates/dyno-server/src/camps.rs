@@ -107,12 +107,17 @@ impl State {
             if sp.ready_at > now || !(watched || players.iter().any(|p| dist(*p, sp.pos) < WAKE)) {
                 continue;
             }
-            // never spawn on top of someone
-            if players.iter().any(|p| dist(*p, sp.pos) < 12.0) {
-                continue;
-            }
             let area = &self.content.areas[sp.area];
             let camp = &area.camps[sp.camp];
+            // never spawn on top of someone (a training dummy is stood
+            // back up where it fell, whoever is by)
+            let dummy = self
+                .content
+                .creature(camp.creature)
+                .is_some_and(|c| c.anchored);
+            if !dummy && players.iter().any(|p| dist(*p, sp.pos) < 12.0) {
+                continue;
+            }
             let (creature, levels, rare) = (
                 camp.creature,
                 camp.levels.unwrap_or(area.levels),

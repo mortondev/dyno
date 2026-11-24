@@ -34,6 +34,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 
+mod debug;
 mod drive;
 mod hud;
 pub use drive::{DriveOptions, drive};
@@ -271,8 +272,8 @@ struct Play {
     world_event: Option<(String, String, f32)>,
     /// the first-login intro, when it started
     intro: Option<Instant>,
-    /// F3: version, address, position, frame rate
-    show_info: bool,
+    /// F3: the debug overlay (app/debug.rs)
+    debug: debug::DebugState,
     /// my party (empty: none)
     party: Vec<dyno_protocol::PartyMember>,
     /// how tall each creature stands as drawn (for name plates)
@@ -677,6 +678,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             if !models::in_sight(at, 4.0) {
                 continue;
             }
+            p.debug.drawing.set(p.debug.drawing.get() + 1);
             let look = models::Look::npc(&npc.key, npc.color);
             models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
             if let Some(m) = me.marker(n) {
@@ -724,6 +726,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         if !models::in_sight(at, 4.0 * scale.max(1.0)) {
             continue;
         }
+        p.debug.drawing.set(p.debug.drawing.get() + 1);
         let start = boxes.len();
         models::push_creature(
             boxes, c.model, c.variant, pos, e.yaw, c.color, light, flash, scale, a, now,
@@ -863,6 +866,7 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f32)
         };
         a.drive_at(now, base, pos, 1.0);
         let dying = base == Anim::Death && a.base_time(now) < 1.5;
+        p.debug.drawing.set(p.debug.drawing.get() + 1);
         models::push_creature(
             boxes,
             c.model,
@@ -1683,7 +1687,7 @@ fn new_play(j: Joined) -> Play {
         intro: None,
         chat_tab_combat: false,
         combat_log: Vec::new(),
-        show_info: false,
+        debug: Default::default(),
         party: Vec::new(),
         invite: None,
         tops: Default::default(),
@@ -2401,7 +2405,9 @@ impl App {
                             };
                             self.audio.play(&m, gain);
                         }
+                        ServerMsg::Pong { nonce, tick } => p.debug.pong(nonce, tick),
                         ServerMsg::Teleport { pos } => {
+                            p.debug.corrections += 1;
                             p.player.pos = Vec3::from(pos);
                             p.player.vel = Vec3::ZERO;
                             p.fall_from = None;
@@ -2868,6 +2874,11 @@ impl App {
         let dt = (now - self.last_frame).as_secs_f32();
         self.last_frame = now;
         self.poll();
+        if let Screen::Playing(p) = &mut self.screen
+            && let Some(ping) = p.debug.frame(now, dt)
+        {
+            let _ = p.conn.tx.send(ping);
+        }
         let Some(gfx) = self.gfx.as_mut() else { return };
         let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
         let fov = match &self.screen {
@@ -3183,6 +3194,7 @@ impl App {
                     look.wear(keys.iter().map(String::as_str));
                 }
                 look.weapon = models::weapon_look(&p.content, p.wielding.get(id).copied());
+                p.debug.drawing.set(p.debug.drawing.get() + 1);
                 models::push_person_anim(&mut boxes, base, pose.yaw, pose.pitch, &look, bl, a, now);
             }
             p.anims = book;
@@ -3906,7 +3918,7 @@ impl App {
             p.autorun = false;
         }
         if code == KeyCode::F3 {
-            p.show_info = !p.show_info;
+            p.debug.toggle();
             return;
         }
         if code == KeyCode::Escape && p.intro.is_some() {
@@ -4641,34 +4653,41 @@ fn hud(
             Color32::from_rgb(230, 140, 40),
         );
     }
-    // top-left info: always in the builder modes, on F3 in the RPG
+    // top-left: a line of where you are in the builder modes; the debug
+    // overlay on F3 (app/debug.rs)
     let pos = p.player.pos;
-    let show_info = !p.content.world.protected || p.show_info;
     let info = format!(
-        "Dyno {} · {} · {} online · {} fps\nx {:.0}  y {:.0}  z {:.0}{}",
+        "Dyno {} · {} · {} online\nx {:.0}  y {:.0}  z {:.0}{}",
         env!("CARGO_PKG_VERSION"),
         p.url,
         p.remotes.len() + 1,
-        p.fps.2,
         pos.x,
         pos.y,
         pos.z,
         if p.player.flying { "  · flying" } else { "" }
     );
-    let info = if show_info { info } else { String::new() };
     // (under the unit frames in the RPG)
     let info_y = if p.content.world.protected {
         170.0
     } else {
         10.0
     };
-    painter.text(
-        screen.left_top() + Vec2::new(12.0, info_y),
-        Align2::LEFT_TOP,
-        info,
-        FontId::monospace(13.0),
-        Color32::from_white_alpha(230),
-    );
+    if p.debug.open {
+        debug::draw(
+            &painter,
+            &p.debug,
+            screen.left_top() + Vec2::new(12.0, info_y),
+            &info,
+        );
+    } else if !p.content.world.protected {
+        painter.text(
+            screen.left_top() + Vec2::new(12.0, info_y),
+            Align2::LEFT_TOP,
+            format!("{info} · {} fps", p.fps.2),
+            FontId::monospace(13.0),
+            Color32::from_white_alpha(230),
+        );
+    }
     if p.server_version != env!("CARGO_PKG_VERSION") {
         painter.text(
             screen.left_top() + Vec2::new(12.0, info_y + 38.0),

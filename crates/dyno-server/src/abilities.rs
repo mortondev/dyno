@@ -397,7 +397,8 @@ impl State {
         } else {
             sheet.attack_power / 7.0
         };
-        let crit_chance = if spell { sheet.spell_crit } else { sheet.crit };
+        let crit_chance =
+            if spell { sheet.spell_crit } else { sheet.crit } + self.crit_taken(target);
         let crit = self.rng.f32() * 100.0 < crit_chance;
         let weapon = if a.weapon > 0.0 {
             dyno_sim::character::swing(&sheet, self.rng.f32()) * a.weapon
@@ -673,6 +674,16 @@ impl State {
     }
 
     /// Damage a creature on behalf of a player, with an optional stun and root.
+    /// Percent a creature adds to the chance of a critical blow on it (a
+    /// test dummy: all of it).
+    pub fn crit_taken(&self, target: Option<u32>) -> f32 {
+        target
+            .and_then(|t| self.entities.get(&t))
+            .and_then(|e| e.mob.as_ref())
+            .and_then(|m| self.content.creature(m.creature))
+            .map_or(0.0, |c| c.crit_taken)
+    }
+
     pub fn hurt_mob(&mut self, pid: PlayerId, id: u32, amount: f32, stun: f32, root: f32) {
         let now = Instant::now();
         let Some(e) = self.entities.get_mut(&id) else {
@@ -682,6 +693,15 @@ impl State {
         // an evading creature takes no damage (it heals on the way home)
         if !mob.take_hit(pid, amount) {
             return;
+        }
+        // a training dummy cannot die: at no health it is whole again
+        if mob.health <= 0.0
+            && self
+                .content
+                .creature(mob.creature)
+                .is_some_and(|c| c.immortal)
+        {
+            mob.health = mob.max_health;
         }
         *mob.threat.entry(pid).or_insert(0.0) += amount.max(1.0);
         if stun > 0.0 {

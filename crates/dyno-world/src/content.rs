@@ -323,6 +323,15 @@ pub struct Creature {
     /// sight range for hostile creatures (0: the default)
     #[serde(default)]
     pub aggro: f32,
+    /// never walks, turns or gives up a fight (a training dummy)
+    #[serde(default)]
+    pub anchored: bool,
+    /// cannot die: at no health it is whole again
+    #[serde(default)]
+    pub immortal: bool,
+    /// percent added to the chance that a blow on it is a critical one
+    #[serde(default)]
+    pub crit_taken: f32,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -618,6 +627,15 @@ pub struct WorldRules {
     /// the formula assumed.
     #[serde(default)]
     pub kill_xp: Option<f32>,
+    /// a test yard (test packs only): `/feel` takes an operator there
+    #[serde(default)]
+    pub test_place: Option<TestPlace>,
+}
+
+/// Where a pack's test yard is: (x, z) from the spawn hearth.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+pub struct TestPlace {
+    pub at: [i32; 2],
 }
 
 impl WorldRules {
@@ -1067,6 +1085,15 @@ struct ACreature {
     ability: Option<CreatureAbility>,
     #[serde(default)]
     aggro: f32,
+    /// never walks, turns or gives up a fight (a training dummy)
+    #[serde(default)]
+    anchored: bool,
+    /// cannot die: at no health it is whole again
+    #[serde(default)]
+    immortal: bool,
+    /// percent added to the chance that a blow on it is a critical one
+    #[serde(default)]
+    crit_taken: f32,
 }
 
 fn level_one() -> [u8; 2] {
@@ -1269,6 +1296,9 @@ impl Content {
                 attack_speed: c.attack_speed,
                 ability: c.ability,
                 aggro: c.aggro,
+                anchored: c.anchored,
+                immortal: c.immortal,
+                crit_taken: c.crit_taken,
             });
         }
         let phase_of = |v: &Option<String>| -> Result<Option<(u8, bool)>, String> {

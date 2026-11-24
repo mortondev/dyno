@@ -463,6 +463,11 @@ pub enum ClientMsg {
     ViewAt {
         pos: [f32; 3],
     },
+    /// Answer with `Pong` and the same `nonce` at once: the client times
+    /// the round trip (its debug overlay).
+    Ping {
+        nonce: u32,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
@@ -849,6 +854,12 @@ pub enum ServerMsg {
     /// The named places you have found, by area key (the world map names
     /// them and lights their land). Sent at a join and at each discovery.
     Discovered(Vec<String>),
+    /// The answer to `Ping`: its `nonce`, and the count of world ticks (50 ms
+    /// each) this server has run.
+    Pong {
+        nonce: u32,
+        tick: u32,
+    },
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

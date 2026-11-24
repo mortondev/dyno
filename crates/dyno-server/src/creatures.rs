@@ -589,7 +589,13 @@ impl State {
             // decide where to go
             let mut want = [0.0f32; 2];
             // leash: pulled too far from home, it gives up, heals and walks back
-            if rpg && mob.camp && !mob.evading && !mob.event && hdist(e.pos, mob.home) > LEASH {
+            if rpg
+                && mob.camp
+                && !mob.evading
+                && !mob.event
+                && !c.anchored
+                && hdist(e.pos, mob.home) > LEASH
+            {
                 mob.evade();
                 heal_info.push(id);
             }
@@ -811,7 +817,7 @@ impl State {
                     mob.think = 0.0;
                 }
             }
-            if mob.stunned_until > now || mob.rooted_until > now {
+            if mob.stunned_until > now || mob.rooted_until > now || c.anchored {
                 want = [0.0, 0.0];
             }
             if mob.stun <= 0.0 {
