@@ -829,7 +829,7 @@ impl Scripted {
         // under 60% health while that flag was up)
         if !ready_to_pull(a) {
             a.doing = "resting".into();
-            return Some(Task::rest(0.95));
+            return Some(Task::rest(0.85));
         }
         // 3. wear upgrades
         if !a.equip_upgrades().is_empty() {
