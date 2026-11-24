@@ -33,7 +33,7 @@ WHERE = {
     "sunken_shrine": ("sunken_shrine", (0, 0), (0, 0), "shrine_shore"),
     "ashcloak_stockade": ("ashcloak_stockade", (0, 15), (0, 28)),
     "miners_rest": ("miners_rest", (0, -5), (-3, 8)),
-    "hollow_mines": ("hollow_mines", (3, -1), (-13, 7)),
+    "hollow_mines": ("hollow_mines", (6, -2), (-10, 7)),
 }
 # the boxes the landmarks fill now: half-sizes and height
 BOX = {
@@ -42,12 +42,12 @@ BOX = {
     "hollow_oak": ((10, 10), 29), "old_barrow": ((17, 15), 12), "barrow_crypt": ((5, 4), 5),
     "wrecked_caravan": ((9, 4), 5), "emberford_bridge": ((16, 5), 6), "windmill_farm": ((9, 6), 26),
     "fishers_landing": ((12, 12), 9), "mirrormere": ((30, 26), 3), "sunken_shrine": ((8, 8), 8),
-    "ashcloak_stockade": ((7, 5), 11), "miners_rest": ((14, 10), 14), "hollow_mines": ((13, 13), 24),
+    "ashcloak_stockade": ((7, 5), 11), "miners_rest": ((14, 10), 14), "hollow_mines": ((9, 8), 10),
 }
 
 
 # tall or far-off landmarks need more room to stand back
-FAR = {"watch_tower": 60, "hollow_oak": 56, "ashcloak_stockade": 26, "hollow_mines": 44, "sunken_shrine": 42, "north_watch": 44, "windmill_farm": 44}
+FAR = {"watch_tower": 60, "hollow_oak": 56, "ashcloak_stockade": 26, "hollow_mines": 20, "sunken_shrine": 42, "north_watch": 44, "windmill_farm": 44}
 
 
 def rnd(v):

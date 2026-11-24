@@ -138,6 +138,12 @@ pub fn rebuild(
     let h = built.hearth;
     let home = [h[0] as f32 + 2.5, h[1] as f32 + 0.01, h[2] as f32 + 0.5];
     let mut done = Rebuilt::default();
+    // a world already built from a layout keeps its geography: everyone
+    // stays where they stand (by offset from the hearth, in proportion if
+    // the map's size changed). Only a world from before layouts is mapped
+    // place by place.
+    let from_layout = meta.world_layout.is_some();
+    let grow = new.size[0] as f32 / old.size[0].max(1) as f32;
     let moved = |v: &Value| -> Option<[f32; 3]> {
         let a = v.as_array()?;
         let (x, y, z) = (
@@ -146,15 +152,25 @@ pub fn rebuild(
             a.get(2)?.as_f64()?,
         );
         let under = (old.surface(x.floor() as i32, z.floor() as i32) as f64) - y > 4.0;
-        let off = map_offset(
-            l,
-            old.size[0],
-            [
-                (x - old_hearth[0] as f64) as f32,
-                (z - old_hearth[2] as f64) as f32,
-            ],
-            under,
-        );
+        let p = [
+            (x - old_hearth[0] as f64) as f32,
+            (z - old_hearth[2] as f64) as f32,
+        ];
+        if from_layout {
+            let (nx, nz) = (h[0] as f32 + p[0] * grow, h[2] as f32 + p[1] * grow);
+            let ny = h[1] as f32 + (y as f32 - old_hearth[1] as f32);
+            let (cx, cy, cz) = (nx.floor() as i32, ny.floor() as i32, nz.floor() as i32);
+            // the very spot, where it is still somewhere to stand (indoors,
+            // underground); else open ground beside it
+            if w::is_solid(new.get(cx, cy - 1, cz))
+                && !w::is_solid(new.get(cx, cy, cz))
+                && !w::is_solid(new.get(cx, cy + 1, cz))
+            {
+                return Some([nx, ny, nz]);
+            }
+            return Some(standing(new, cx, cz).unwrap_or(home));
+        }
+        let off = map_offset(l, old.size[0], p, under);
         let (nx, nz) = (h[0] + off[0].round() as i32, h[2] + off[1].round() as i32);
         Some(standing(new, nx, nz).unwrap_or(home))
     };

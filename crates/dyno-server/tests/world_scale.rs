@@ -1032,6 +1032,76 @@ fn a_rebuild_moves_everyone_to_their_place_and_keeps_what_they_have() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A world already built from a layout is rebuilt for a new version of it:
+/// nobody is moved to a "place", everyone stays where they stand.
+#[test]
+fn a_rebuild_of_a_layout_world_leaves_everyone_where_they_stand() {
+    use dyno_server::{migrate, store};
+    use serde_json::{Value, json};
+    let m = made();
+    let dir = std::env::temp_dir().join(format!("dyno-rebuild2-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("world.dynw");
+    let h = m.built.hearth;
+    // in town, south of the hearth; and deep in the mine
+    let town = [h[0] as f64 + 0.5, h[1] as f64 + 0.01, h[2] as f64 + 22.5];
+    let (_, name, at, rot) = m
+        .built
+        .stamps
+        .iter()
+        .find(|s| s.1 == "hollow_mines")
+        .unwrap();
+    let seam = m
+        .stamps
+        .get(name)
+        .unwrap()
+        .point("deep_seam", *at, *rot)
+        .unwrap();
+    let deep = (0..4)
+        .map(|d| [seam[0], seam[1] - d, seam[2]])
+        .find(|p| {
+            w::is_solid(m.world.get(p[0], p[1] - 1, p[2]))
+                && !w::is_solid(m.world.get(p[0], p[1], p[2]))
+        })
+        .expect("the deep seam has a floor");
+    let mine = [
+        deep[0] as f64 + 0.5,
+        deep[1] as f64 + 0.01,
+        deep[2] as f64 + 0.5,
+    ];
+    let players = json!({
+        "in_town": {"pos": town, "spawn": null, "level": 4},
+        "in_the_mine": {"pos": mine, "spawn": null, "level": 9},
+    });
+    std::fs::write(
+        dir.join("players.json"),
+        serde_json::to_vec(&players).unwrap(),
+    )
+    .unwrap();
+    let meta = store::Meta {
+        spawn_hearth: Some(h),
+        world_layout: Some(m.layout.version.saturating_sub(1)),
+        ..Default::default()
+    };
+    store::save_meta(&store::meta_path(&path), &meta).unwrap();
+    m.world.save(&path).unwrap();
+    migrate::rebuild(&path, &m.world, &meta, &m.world, &m.built, &m.layout).unwrap();
+    let after: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("players.json")).unwrap()).unwrap();
+    for (name, want) in [("in_town", town), ("in_the_mine", mine)] {
+        let a = after[name]["pos"].as_array().unwrap();
+        for i in 0..3 {
+            assert!(
+                (a[i].as_f64().unwrap() - want[i]).abs() < 0.05,
+                "{name} moved: {a:?} from {want:?}"
+            );
+        }
+    }
+    assert_eq!(after["in_the_mine"]["level"], json!(9));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// Home and crafting are reached on foot, not only stood beside: from the
 /// plaza a player can walk to the innkeeper (talking makes the inn home)
 /// and to a block of every crafting station.
