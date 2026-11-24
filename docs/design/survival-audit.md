@@ -201,6 +201,34 @@ The four stone tools were cut as well: they need cobble, and nothing in the live
 - `Mode` is saved by name. The variants carry `#[serde(rename = "Survival")]` and `#[serde(rename = "Creative")]`, so saves read and write as before.
 - `PlayerData` has every field it had, including `food` and `milestones`.
 
+### A correction to the audit
+
+T-1 said `survival_loop()` was the only test on a seed world. That was wrong. Three more reached `load_or_generate`: `a_second_join_with_nothing_changed_downloads_nothing` and `streamed_files_arrive_during_play_without_holding_it_up` (`tests/streaming.rs`) and `an_instance_with_a_different_pack_drains` (`tests/cluster.rs`). Each wrote the pack as clients receive it, which has no layout, into a directory and started a server on it. They now write the pack as it is authored (`Pack::builtin_source`), layout included, and test what they tested before.
+
+### Checked against main as it moved
+
+The work was merged with main twice (the flow designer's rules, quest chain and layout 3; then the UI branch).
+
+- **Quests and the cut recipes.** No quest step asks for anything to be crafted. Two quests give a stone pickaxe and torches as rewards, and Hollis sells the stone pickaxe and axe: the items are all still there. Only the recipes that made them are gone.
+- **Bots and playtests.** `dyno bots` and `dyno play` gather with the `Gather` cast. Nothing in `dyno-bot` sends `Dig`, `DigStart`, `Place`, `Interact` or `Throw`.
+- **The UI branch.** The air meter is `hud::air_meter` in `app/hud.rs`. The death text is the UI branch's; its unprotected-world arm and the two strings only that arm used (`death.hint_survival`, `death.respawn`) were removed. The crafting window is one function, `item_ui::craft_window`, with plain widgets.
+
+### Results
+
+Before is main at `4de5b40`; after is this branch on top of it.
+
+| Check | Before | After |
+|---|---|---|
+| Client (`hearthblock`, client-release) | 9,507,656 bytes | 9,500,064 bytes |
+| First join | 3,746,571 bytes | 3,745,680 bytes |
+| Pictures (`dyno bench --diff`, high tier, six cameras) | | Three identical; three with a largest difference of 3, 18 and 69 on a few pixels: mean 0.000, 0.000% of pixels over 2. The floor in `performance.md` is 0.000 to 0.001% |
+| Live save (two characters, 24 fields each) | loaded | every field identical; chests and world bytes the same |
+| Fun report, 12 bots for 10 minutes | fails: deaths, kill credit | fails: kill credit |
+
+The fun reports differ in two checks, both of them counts of rare events in two bot-hours: deaths per hour went from 5.52 (fail) to 3.02 (warn), and stuck events per bot-hour from 1.00 (pass) to 2.01 (warn, the limit is 2). The other twenty checks kept their result. No bot used the recall that replaces `/spawn`.
+
+Gates on the last code commit: `cargo fmt --all --check` clean, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo test --workspace` 216 passed and none failed (12 ignored), `check-client.sh` passed.
+
 ### What `grep -ri survival crates content docs tools` returns now
 
 1. `crates/dyno-protocol/src/lib.rs`: the `#[serde(rename = "Survival")]` line.
