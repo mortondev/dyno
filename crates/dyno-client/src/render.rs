@@ -62,8 +62,6 @@ pub const KIND_WATER: f32 = 12288.0;
 pub const KIND_VOXEL: f32 = 16384.0;
 /// A decal just above the ground: drawn a little in front of what it lies on.
 const KIND_DECAL: f32 = -3.0;
-/// A halo: a camera-facing square, added to the picture.
-pub(crate) const KIND_GLOW: f32 = -4.0;
 
 /// The block textures from the pack.
 pub fn textures() -> &'static crate::textures::Textures {
@@ -1023,28 +1021,6 @@ fn bleed(img: &mut [u8], size: usize) {
         if !changed {
             break;
         }
-    }
-}
-
-/// The six vertices of a halo. The vertex shader turns them to the camera.
-fn push_glow(out: &mut Vec<Vertex>, g: &Glow) {
-    let c = srgb(g.color);
-    for (x, y) in [
-        (-1.0, -1.0),
-        (1.0, -1.0),
-        (1.0, 1.0),
-        (-1.0, -1.0),
-        (1.0, 1.0),
-        (-1.0, 1.0),
-    ] {
-        out.push(Vertex {
-            pos: g.pos,
-            normal: [x, y, g.size],
-            color: [c[0], c[1], c[2], 0.5],
-            light: 1.0,
-            sky: 1.0,
-            tex: [0.0, 0.0, KIND_GLOW, 0.0],
-        });
     }
 }
 
@@ -2028,7 +2004,7 @@ impl Gfx {
             packed,
             opaque,
             ground,
-            mut trans,
+            trans,
             glows,
             cover,
             lod,
@@ -2036,11 +2012,11 @@ impl Gfx {
         } = geo;
         // packed where it was meshed, as a rule
         let solid = packed.unwrap_or_else(|| crate::pack::Geo::pack(at, &ground, &opaque));
+        // (lamps glow through their emissive faces and the bloom: no
+        // camera-facing halos, the voxel rule)
+        let _ = &glows;
         let t = trans.len() as u32;
-        for g in &glows {
-            push_glow(&mut trans, g);
-        }
-        let glow = trans.len() as u32 - t;
+        let glow = 0;
         self.ensure_quad_index(solid.quads);
         // its corner keeps its place while the section is drawn
         let was = self
