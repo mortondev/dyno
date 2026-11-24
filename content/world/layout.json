@@ -470,7 +470,7 @@
   {
    "key": "north_road",
    "way": "road",
-   "path": ["hearthstead", "north_road_glade_1", "north_watch", "north_road_view_2", [-20, -420], "north_road_milestone_3", [-60, -600], "north_road_hay_4", "north_pass", [-70, -840]]
+   "path": ["hearthstead", [-4, 0], [-3, -10], [0, -18], [0, -40], "north_road_glade_1", "north_watch", "north_road_view_2", [-20, -420], "north_road_milestone_3", [-60, -600], "north_road_hay_4", "north_pass", [-70, -840]]
   },
   {
    "key": "east_road",
@@ -1316,7 +1316,7 @@
     {"stamp": "mirrormere_shoal_rocks", "at": [5, 11], "rot": 2, "dy": -1}
    ],
    "trees": [
-    {"species": "willow", "at": [3, 2]}
+    {"species": "young_birch", "at": [3, 2]}
    ]
   },
   {
