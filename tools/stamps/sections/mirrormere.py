@@ -39,6 +39,24 @@ for _r in (6, 10, 14, 20):
     _named(f"{KEY}_clear_{_r}", lambda r=_r: _clear(r))
 
 
+def _prune(v):
+    """Drop any cell not joined face to face, through other cells, to one
+    standing on the ground: what is left of a ruin never floats."""
+    solid = {k for k, b in v.c.items() if b != "air"}
+    st = [k for k in solid if k[1] <= 0 and (k[0], k[1] - 1, k[2]) not in solid]
+    seen = set(st)
+    while st:
+        x, y, z = st.pop()
+        for d in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+            q = (x + d[0], y + d[1], z + d[2])
+            if q in solid and q not in seen:
+                seen.add(q)
+                st.append(q)
+    for k in solid - seen:
+        del v.c[k]
+    return v
+
+
 # ---------------------------------------------------------------- the landing
 
 def _net(v, x0, x1, y0, y1, z=0, torn=()):
@@ -80,7 +98,6 @@ def mirrormere_net_torn():
     for x in range(1, 5):
         v.set(x, 0, 1, "timber_beam")
     _net(v, -2, -1, 2, 3)
-    v.set(-1, 1, 0, "white")
     v.set(2, 0, 0, "white")
     v.set(3, 0, 0, "white")
     return v
@@ -96,7 +113,7 @@ def mirrormere_fish_stall():
         v.col(x, z, 0, 2, "timber_beam")
     for x in range(-3, 4):
         for z in range(-2, 3):
-            v.set(x, 3 if abs(z) < 2 else 2, z, "yellow" if x % 2 == 0 else "white")
+            v.set(x, 3, z, "yellow" if x % 2 == 0 else "white")
     for x in (-1, 0, 1):
         v.set(x, 0, 1, "planks")
     v.set(-1, 1, 1, "ice")
@@ -166,7 +183,9 @@ def mirrormere_boat_trestle():
         for x in (-1, 0, 1):
             if abs(z) == 3 and x != 0:
                 continue
-            v.set(x, 2 if x == 0 else 1, z, "dark_planks")
+            v.set(x, 2, z, "dark_planks")
+            if x != 0:
+                v.set(x, 1, z, "dark_planks")
     v.set(3, 0, 0, "barrel")
     v.set(3, 0, 1, "brazier")
     return v
@@ -180,7 +199,9 @@ def mirrormere_boat_capsized():
         for x in (-1, 0, 1):
             if abs(z) == 2 and x != 0:
                 continue
-            v.set(x, 1 if x == 0 else 0, z, "dark_planks")
+            v.set(x, 1, z, "dark_planks")
+            if x != 0:
+                v.set(x, 0, z, "dark_planks")
     return v
 
 
@@ -190,25 +211,25 @@ def mirrormere_wreck():
     stove in, ribs standing out of the planking. The bow is at -z (point it
     up the bank). Place it at the waterline with fit float."""
     v = Vol("ruin")
-    # keel stepping up from the stern (+z, in the water) to the bow
+    def base(z):
+        return -1 if z >= 2 else (0 if z >= -2 else 1)
     for z in range(-4, 5):
-        y = -1 if z >= 2 else (0 if z >= -2 else 1)
-        v.set(0, y, z, "dark_planks")
-        if z <= -3:
-            v.set(0, y - 1, z, "dark_planks")
-    v.col(0, -5, 1, 3, "dark_planks")      # the stem post
-    for z in range(-3, 4):
-        y = 0 if z >= 1 else 1
+        y = base(z)
+        v.set(0, y, z, "dark_planks")                  # keel
+        if abs(z) == 4:
+            continue
         for x in (-1, 1):
-            # stove in: planks gone on the port side amidships
-            if x == 1 and z in (-1, 0, 1):
-                continue
             v.set(x, y, z, "dark_planks" if (z + x) % 3 else "planks")
+            # the upper strake, stove in on the port side amidships
+            if not (x == 1 and z in (-1, 0, 1)):
+                v.set(x, y + 1, z, "dark_planks" if (z - x) % 3 else "planks")
+    v.col(0, -5, 1, 3, "dark_planks")      # the stem post, on the keel's end
+    v.set(0, 1, -4, "dark_planks")
     # ribs where the planking went
     v.col(1, -1, 1, 2, "timber_beam")
-    v.col(1, 1, 0, 1, "timber_beam")
+    v.col(1, 1, 1, 2, "timber_beam")
     v.col(-1, -2, 2, 2, "timber_beam")
-    v.set(-2, 0, 2, "planks")   # a loose board
+    v.set(-2, 0, 2, "planks")   # a loose board, against the hull
     return v
 
 
@@ -291,8 +312,12 @@ def mirrormere_shrine_heart():
                     v.set(x, y, z, pick(x, y, z, ["stone_bricks", "mossy_cobble"], 25))
     # rubble breaking the island's south edge (clear of the keeper at [3, 8])
     for (x, y, z) in ((-7, 0, 7), (-6, 0, 7), (-6, 1, 7), (-5, 0, 8), (-7, 0, 6),
+                      (-4, 0, 7), (-3, 0, 7), (-3, 1, 7), (-2, 0, 7),
                       (7, 0, 7), (8, 0, 6), (8, 1, 6), (9, 0, 7), (8, 0, 8)):
         v.set(x, y, z, pick(x, y, z, ["mossy_cobble", "cobble", "stone"], 26))
+    # the stones that stand outside the old footprint are carried to the bed
+    for (x, z) in ((-5, 8), (9, 7), (8, 8)):
+        v.set(x, -1, z, "mossy_cobble")
     v.points["altar"] = (0, 3, 0)
     return v
 
@@ -391,16 +416,13 @@ def mirrormere_boathouse():
     v.set(x0, 1, -1, "air")
     v.set(x0, 2, -1, "air")
     top = roof(v, x0, z0, x1, z1, 3, "plank", ridge_x=False)
-    # half the roof fell in: the east slope is bare rafters, and the
+    # half the roof fell in: the east slope is open to the sky, and the
     # thatch of the west slope is holed
     for (x, y, z) in list(v.c):
         if v.c[(x, y, z)] != "thatch":
             continue
         if x > 0:
-            if z % 2 == 0 and z > z0 - 1:
-                v.c[(x, y, z)] = "timber_beam"
-            else:
-                del v.c[(x, y, z)]
+            del v.c[(x, y, z)]
         elif x < 0 and z in (z0, 1) and rnd(x, y, z, 33) % 2:
             del v.c[(x, y, z)]
     # planks gone from the land-end wall
@@ -422,7 +444,7 @@ def mirrormere_boathouse():
     v.set(-2, 0, 3, "barrel")
     v.set(2, 0, 3, "crate")
     v.col(-2, -2, 0, 1, "timber_beam")
-    return v
+    return _prune(v)
 
 
 @recipe
