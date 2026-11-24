@@ -18,7 +18,7 @@ something on the way, and adds a way to find a second player for Old Tusk.
 | 5 | Questing bots: median longest gap under 2:00, worst under 3:30; every gap over 2:00 listed | **Pass, narrowly.** 2:24 → 1:59, worst 3:22 → 2:51. All 26 listed with cause (section 5) |
 | 6 | A light, data-driven way to find a group for Old Tusk, proven by two bots or two `dyno play` sessions | **Pass.** `Quest::group` in the rules; `ServerMsg::Seekers` once a second to carriers (protocol 26, appended); a Looking for group box with Invite and Whisper, and green dots on the map; the LFG line in `dyno play`. Proof: a bot test (two strangers group and kill him), two `dyno play` sessions (whisper, invite, kill in 16 s), and 6 pairs formed in the swarms, 5 of which killed him. The client box was not looked at in a running client |
 | 7 | One 30-minute hand run as a class round 2 did not play | **Done:** a hunter, level 4 at 29:04, 13 quests, 2 deaths (section 7) |
-| 8 | Gates: fmt, clippy with warnings as errors, the workspace's tests once, the client check | GATES |
+| 8 | Gates: fmt, clippy with warnings as errors, the workspace's tests once, the client check | **Pass**, on the tree merged with main (`10b49c2`, protocol 26, with the camera lane's merge): `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo test --workspace` 292 passed and 0 failed, `check-client.sh` 9.25 MB with no content strings. An earlier full run, before that merge, lost the LFG test once: on a loaded machine, a few of its staging `/finish` lines landed late and the bots went off to other quests. The test now repeats any that are missing |
 
 ## How it was measured
 
@@ -433,7 +433,7 @@ Nobody waits for a partner: a meeting happens only when two pass close.
   to be hidden from the bots for a run to count.
 
 Not verified: the client's box and map dots were built and pass clippy
-and the client check (`hearthblock` 9.31 MB, no content strings), but I did
+and the client check (`hearthblock` 9.25 MB, no content strings), but I did
 not look at them in a running client. A `dyno shot --ui` of the box, and a
 look at where it sits beside the chat at 1080p, are for the UI lane.
 
