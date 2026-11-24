@@ -95,6 +95,10 @@ pub struct Spawn {
     pub group: [u8; 2],
     /// how far apart a group stands, metres
     pub spread: f32,
+    /// more than 0: instead of living in squares of land, one group keeps
+    /// this many metres ahead of where the camera looks (a flock in the
+    /// sky of most views, never a sky full of them)
+    pub ahead: f32,
     /// where it may be: areas, ground, time of day
     #[serde(rename = "where")]
     pub place: Where,
@@ -108,6 +112,7 @@ impl Default for Spawn {
             chance: 0.5,
             group: [1, 1],
             spread: 3.0,
+            ahead: 0.0,
             place: Where::default(),
         }
     }
@@ -146,6 +151,7 @@ struct Rule {
     chance: f32,
     group: [u8; 2],
     spread: f32,
+    ahead: f32,
     place: Place,
 }
 
@@ -232,6 +238,7 @@ impl Critters {
                     chance: r.chance,
                     group: r.group,
                     spread: r.spread,
+                    ahead: r.ahead,
                     place: Place::new(&r.place),
                 })
             })
@@ -255,13 +262,61 @@ impl Critters {
         let (rules, kinds) = (&self.rules, &self.kinds);
         self.cells.retain(|(ri, x, z), _| {
             let r = &rules[*ri as usize];
-            !far(r, &kinds[r.kind as usize], *x, *z)
+            r.ahead > 0.0 || !far(r, &kinds[r.kind as usize], *x, *z)
         });
         let cells = &self.cells;
         self.list
             .retain(|c| cells.contains_key(&(c.rule, c.cell.0, c.cell.1)));
         for (ri, rule) in self.rules.iter().enumerate() {
             let kind = &self.kinds[rule.kind as usize];
+            if rule.ahead > 0.0 {
+                // one group that keeps ahead of the view: made anew when
+                // the camera has left it far behind or turned its back
+                let key = (ri as u16, i32::MAX, i32::MAX);
+                let flat = Vec3::new(s.dir.x, 0.0, s.dir.z).normalize_or_zero();
+                let home = self
+                    .list
+                    .iter()
+                    .find(|c| c.rule == ri as u16)
+                    .map(|c| (c.home - eye) * Vec3::new(1.0, 0.0, 1.0));
+                let stale = home.is_none_or(|h| {
+                    h.length() > rule.ahead * 2.5 || h.dot(flat) < -rule.ahead * 0.5
+                });
+                if !stale {
+                    continue;
+                }
+                self.list.retain(|c| c.rule != ri as u16);
+                self.cells.insert(key, true);
+                let at = eye + flat * rule.ahead;
+                if !rule.place.area_ok(s, at.x, at.z) {
+                    continue;
+                }
+                let mut rng = Rng(life::hash2(0xF10C + ri as u32, at.x as i32, at.z as i32));
+                let n = rule.group[0]
+                    + (rng.unit() * (rule.group[1].saturating_sub(rule.group[0]) + 1) as f32) as u8;
+                let centre = Vec3::new(at.x, eye.y - 3.0 + rng.range(kind.height), at.z);
+                for _ in 0..n {
+                    let home = centre
+                        + Vec3::new(rng.signed(), 0.3 * rng.signed(), rng.signed()) * rule.spread;
+                    self.list.push(Critter {
+                        kind: rule.kind,
+                        rule: ri as u16,
+                        cell: (i32::MAX, i32::MAX),
+                        home,
+                        pos: home,
+                        yaw: 0.0,
+                        seed: rng.0,
+                        doing: Doing::Stand {
+                            until: clock,
+                            alt: false,
+                        },
+                        frame: 0,
+                        lift: 0.0,
+                    });
+                    rng.unit();
+                }
+                continue;
+            }
             let c = rule.cell;
             let reach = (kind.reach * radius / 70.0).min(radius * 2.0);
             let (x0, x1) = (
