@@ -224,7 +224,7 @@ fn tabard_cell(b: &Body, p: Vec3) -> Option<(u8, bool)> {
         ("flap.b", bz)
     };
     let hem = 15.0 + (m.x / w) * 2.4;
-    if (p.z - z0).abs() > 0.45 || p.y < hem {
+    if (p.z - z0).abs() > 0.6 || p.y < hem {
         return None;
     }
     Some((part_index(part), m.x > w - 0.6 || p.y < hem + 0.7))
@@ -453,7 +453,7 @@ fn feet(g: &Grid, b: &Body, bi: usize, s: &Si, ink: &Inks, k: u8) -> Layer {
                     }
                 }
                 _ => {
-                    if cuff && p.y > top - 0.55 || (p.y - 4.4).abs() < 0.3 {
+                    if cuff && p.y > top - 0.55 || (p.y - 4.4).abs() < 0.55 {
                         s.trim[1]
                     } else if p.y < 4.2
                         && (p.z - b.ankle.z).rem_euclid(1.3) < 0.3
@@ -548,7 +548,7 @@ fn chest(g: &Grid, b: &Body, bi: usize, s: &Si, ink: &Inks) -> Vec<Layer> {
                 return None;
             }
             let d = skirt_ring(p, rx, rf, rb, 0.25 * low);
-            if d.abs() > 0.42 {
+            if d.abs() > 0.6 {
                 return None;
             }
             let band = p.y < hem + 2.2;
@@ -733,7 +733,7 @@ fn chest(g: &Grid, b: &Body, bi: usize, s: &Si, ink: &Inks) -> Vec<Layer> {
                         s.trim[1]
                     } else if lame > 0.82 {
                         s.main[0]
-                    } else if (p.y - 46.8).abs() < 0.2 && p.z > 0.0 || m.x > 7.6 && p.y > 40.0 {
+                    } else if (p.y - 46.8).abs() < 0.55 && p.z > 0.0 || m.x > 7.6 && p.y > 40.0 {
                         s.trim[1]
                     } else {
                         s.metal(b, p)
@@ -851,7 +851,7 @@ fn tabard_flaps(g: &Grid, b: &Body, bi: usize, s: &Si) -> Layer {
         } else {
             ("flap.b", bz)
         };
-        if (p.z - z0).abs() > 0.4 {
+        if (p.z - z0).abs() > 0.6 {
             return None;
         }
         // a pointed hem
@@ -953,7 +953,7 @@ fn waist(g: &Grid, b: &Body, bi: usize, s: &Si, ink: &Inks, k: u8) -> Layer {
         }
         let c = match k {
             1 => {
-                if (p.y - lo).abs() < 0.4 || (p.y - hi).abs() < 0.4 {
+                if (p.y - lo).abs() < 0.55 || (p.y - hi).abs() < 0.55 {
                     s.trim[1]
                 } else {
                     s.cloth(p)
@@ -1430,7 +1430,7 @@ fn helm(g: &Grid, b: &Body, bi: usize, s: &Si, lamp: u8, k: u8) -> Layer {
                     if dome || cheek || back || nasal {
                         let brow = (p.y - y(57.85)).abs() < 0.35 && p.z > 0.0;
                         let rivet = p.z > 1.0
-                            && (p.y - y(57.85)).abs() < 0.3
+                            && (p.y - y(57.85)).abs() < 0.55
                             && ((p.x * 2.4).fract().abs() < 0.12);
                         let c = if rivet {
                             s.trim[2]

@@ -1752,8 +1752,8 @@
               "name": "held.battle_axe"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [25,71,9],
+          "min": [-25,-40,-9],
           "name": "main",
           "parts": [
             "",
@@ -1820,8 +1820,8 @@
               "name": "held.berries"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [18,51,7],
+          "min": [-18,-29,-7],
           "name": "main",
           "parts": [
             "",
@@ -1899,8 +1899,8 @@
               "name": "held.bow"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [22,63,8],
+          "min": [-22,-36,-8],
           "name": "main",
           "parts": [
             "",
@@ -1967,8 +1967,8 @@
               "name": "held.broom"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [18,50,7],
+          "min": [-18,-28,-7],
           "name": "main",
           "parts": [
             "",
@@ -2053,8 +2053,8 @@
               "name": "held.dagger"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [21,60,8],
+          "min": [-21,-34,-8],
           "name": "main",
           "parts": [
             "",
@@ -2130,8 +2130,8 @@
               "name": "held.dust"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [21,59,8],
+          "min": [-21,-34,-8],
           "name": "main",
           "parts": [
             "",
@@ -2203,8 +2203,8 @@
               "name": "held.garment"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [25,71,9],
+          "min": [-25,-40,-9],
           "name": "main",
           "parts": [
             "",
@@ -2273,8 +2273,8 @@
               "name": "held.gem"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [18,51,7],
+          "min": [-18,-29,-7],
           "name": "main",
           "parts": [
             "",
@@ -2319,8 +2319,8 @@
               "name": "held.hand"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [12,33,5],
+          "min": [-12,-19,-5],
           "name": "main",
           "parts": [
             "",
@@ -2369,8 +2369,8 @@
               "name": "held.hatchet"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [16,44,6],
+          "min": [-16,-25,-6],
           "name": "main",
           "parts": [
             "",
@@ -2469,8 +2469,8 @@
               "name": "held.helm"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [23,67,9],
+          "min": [-23,-38,-9],
           "name": "main",
           "parts": [
             "",
@@ -2526,8 +2526,8 @@
               "name": "held.hoe"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [17,47,7],
+          "min": [-17,-27,-7],
           "name": "main",
           "parts": [
             "",
@@ -2582,8 +2582,8 @@
               "name": "held.ingot"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [19,53,7],
+          "min": [-19,-30,-7],
           "name": "main",
           "parts": [
             "",
@@ -2623,8 +2623,8 @@
               "name": "held.lump"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [22,63,8],
+          "min": [-22,-36,-8],
           "name": "main",
           "parts": [
             "",
@@ -2704,8 +2704,8 @@
               "name": "held.mace"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [23,65,9],
+          "min": [-23,-37,-9],
           "name": "main",
           "parts": [
             "",
@@ -2790,8 +2790,8 @@
               "name": "held.meat"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [15,43,6],
+          "min": [-15,-25,-6],
           "name": "main",
           "parts": [
             "",
@@ -2834,8 +2834,8 @@
               "name": "held.pickaxe"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [16,45,6],
+          "min": [-16,-25,-6],
           "name": "main",
           "parts": [
             "",
@@ -2893,8 +2893,8 @@
               "name": "held.polearm"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [22,62,8],
+          "min": [-22,-35,-8],
           "name": "main",
           "parts": [
             "",
@@ -2987,8 +2987,8 @@
               "name": "held.ring"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [17,48,7],
+          "min": [-17,-27,-7],
           "name": "main",
           "parts": [
             "",
@@ -3041,8 +3041,8 @@
               "name": "held.rod"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [18,50,7],
+          "min": [-18,-28,-7],
           "name": "main",
           "parts": [
             "",
@@ -3119,8 +3119,8 @@
               "name": "held.shield"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [32,92,12],
+          "min": [-32,-52,-12],
           "name": "main",
           "parts": [
             "",
@@ -3182,8 +3182,8 @@
               "name": "held.shovel"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [15,41,6],
+          "min": [-15,-24,-6],
           "name": "main",
           "parts": [
             "",
@@ -3278,8 +3278,8 @@
               "name": "held.staff"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [21,59,8],
+          "min": [-21,-33,-8],
           "name": "main",
           "parts": [
             "",
@@ -3360,8 +3360,8 @@
               "name": "held.stick"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [16,45,6],
+          "min": [-16,-25,-6],
           "name": "main",
           "parts": [
             "",
@@ -3437,8 +3437,8 @@
               "name": "held.sword"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [21,61,8],
+          "min": [-21,-35,-8],
           "name": "main",
           "parts": [
             "",
@@ -3546,8 +3546,8 @@
               "name": "held.tome"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [23,66,9],
+          "min": [-23,-37,-9],
           "name": "main",
           "parts": [
             "",
@@ -3622,8 +3622,8 @@
               "name": "held.torch"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [16,44,6],
+          "min": [-16,-25,-6],
           "name": "main",
           "parts": [
             "",
@@ -3717,8 +3717,8 @@
               "name": "held.wand"
             }
           ],
-          "max": [24,72,8],
-          "min": [-24,-40,-8],
+          "max": [17,48,7],
+          "min": [-17,-27,-7],
           "name": "main",
           "parts": [
             "",
@@ -4058,868 +4058,2846 @@
           }
         }
       ],
-      "detail": 2.0,
+      "detail": 1.0,
       "file": "models/person.vox",
       "grids": [
         {
-          "detail": 2.0,
+          "detail": 0.9240542650222778,
           "groups": [
             {
               "layers": [
                 {
-                  "layer": "body/base,body=0",
-                  "when": [
-                    {
-                      "body": [0]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/base,body=1",
-                  "when": [
-                    {
-                      "body": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/legs/trousers,body=0",
+                  "layer": "body/base,body=0,build=1",
                   "when": [
                     {
                       "body": [0],
+                      "build": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/base,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/base,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/base,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/base,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/base,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/trousers,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "legs": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/legs/trousers,body=1",
+                  "layer": "body/legs/trousers,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
                       "legs": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/feet/boots,body=0",
+                  "layer": "body/legs/trousers,body=0,build=0",
                   "when": [
                     {
                       "body": [0],
+                      "build": [0],
+                      "legs": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/trousers,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "legs": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/trousers,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "legs": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/trousers,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "legs": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/boots,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "feet": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/feet/boots,body=1",
+                  "layer": "body/feet/boots,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
                       "feet": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/tunic,body=0",
+                  "layer": "body/feet/boots,body=0,build=0",
                   "when": [
                     {
                       "body": [0],
-                      "chest": [0]
+                      "build": [0],
+                      "feet": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/flaps/chest[0],body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [0]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/tunic,body=1",
+                  "layer": "body/feet/boots,body=1,build=1",
                   "when": [
                     {
                       "body": [1],
-                      "chest": [0]
+                      "build": [1],
+                      "feet": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/flaps/chest[0],body=1",
+                  "layer": "body/feet/boots,body=1,build=2",
                   "when": [
                     {
                       "body": [1],
+                      "build": [2],
+                      "feet": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/boots,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "feet": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tunic,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/apron,body=0",
+                  "layer": "body/chest/tunic,body=0,build=2",
                   "when": [
                     {
-                      "apron": [1],
-                      "body": [0]
+                      "body": [0],
+                      "build": [2],
+                      "chest": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/flap/apron,body=0",
+                  "layer": "body/chest/tunic,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[0],body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[0],body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[0],body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tunic,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tunic,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tunic,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[0],body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[0],body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[0],body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/apron,body=0,build=1",
                   "when": [
                     {
                       "apron": [1],
                       "body": [0],
+                      "build": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/apron,body=0,build=2",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [0],
+                      "build": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/apron,body=0,build=0",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [0],
+                      "build": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/apron,body=0,build=1",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [0],
+                      "build": [1],
                       "chest": [0,2,3,4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/emblem=1,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [0],
-                      "emblem": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/emblem=2,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [0],
-                      "emblem": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/emblem=3,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [0],
-                      "emblem": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/emblem=4,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [0],
-                      "emblem": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/apron,body=1",
+                  "layer": "body/flap/apron,body=0,build=2",
                   "when": [
                     {
                       "apron": [1],
-                      "body": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flap/apron,body=1",
-                  "when": [
-                    {
-                      "apron": [1],
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
                       "chest": [0,2,3,4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/emblem=1,body=1",
+                  "layer": "body/flap/apron,body=0,build=0",
                   "when": [
                     {
-                      "body": [1],
+                      "apron": [1],
+                      "body": [0],
+                      "build": [0],
+                      "chest": [0,2,3,4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=1,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [0],
                       "emblem": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/emblem=2,body=1",
+                  "layer": "body/chest/emblem=1,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "chest": [0],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=1,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [0],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=2,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [0],
                       "emblem": [2]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/emblem=3,body=1",
+                  "layer": "body/chest/emblem=2,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "chest": [0],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=2,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [0],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=3,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [0],
                       "emblem": [3]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/emblem=4,body=1",
+                  "layer": "body/chest/emblem=3,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "chest": [0],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=3,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [0],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=4,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [0],
                       "emblem": [4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/waist/belt,body=0",
+                  "layer": "body/chest/emblem=4,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "chest": [0],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=4,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [0],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/apron,body=1,build=1",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/apron,body=1,build=2",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/apron,body=1,build=0",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/apron,body=1,build=1",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [1],
+                      "chest": [0,2,3,4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/apron,body=1,build=2",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [2],
+                      "chest": [0,2,3,4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/apron,body=1,build=0",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [0],
+                      "chest": [0,2,3,4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=1,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [0],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=1,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [0],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=1,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [0],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=2,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [0],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=2,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [0],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=2,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [0],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=3,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [0],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=3,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [0],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=3,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [0],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=4,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [0],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=4,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [0],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/emblem=4,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [0],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/belt,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "waist": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/waist/sash,body=0",
+                  "layer": "body/waist/belt,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
-                      "sash": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/waist/belt,body=1",
-                  "when": [
-                    {
-                      "body": [1],
+                      "build": [2],
                       "waist": [0]
                     }
                   ]
                 },
                 {
-                  "layer": "body/waist/sash,body=1",
+                  "layer": "body/waist/belt,body=0,build=0",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [0],
+                      "waist": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "sash": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/legs/cloth,body=0",
+                  "layer": "body/waist/sash,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "sash": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "sash": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/belt,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "waist": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/belt,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "waist": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/belt,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "waist": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "sash": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "sash": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "sash": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/cloth,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "legs": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/legs/leather,body=0",
+                  "layer": "body/legs/cloth,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
-                      "legs": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/legs/mail,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "legs": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/legs/plate,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "legs": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/feet/slippers,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "feet": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/feet/soft-boots,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "feet": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/feet/mail-boots,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "feet": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/feet/sabatons,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "feet": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/legs/cloth,body=1",
-                  "when": [
-                    {
-                      "body": [1],
+                      "build": [2],
                       "legs": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/legs/leather,body=1",
+                  "layer": "body/legs/cloth,body=0,build=0",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [0],
+                      "legs": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/leather,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "legs": [2]
                     }
                   ]
                 },
                 {
-                  "layer": "body/legs/mail,body=1",
+                  "layer": "body/legs/leather,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "legs": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/leather,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "legs": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/mail,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "legs": [3]
                     }
                   ]
                 },
                 {
-                  "layer": "body/legs/plate,body=1",
+                  "layer": "body/legs/mail,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "legs": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/mail,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "legs": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/plate,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "legs": [4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/feet/slippers,body=1",
+                  "layer": "body/legs/plate,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "legs": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/plate,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "legs": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/slippers,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "feet": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/feet/soft-boots,body=1",
+                  "layer": "body/feet/slippers,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "feet": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/slippers,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "feet": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/soft-boots,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "feet": [2]
                     }
                   ]
                 },
                 {
-                  "layer": "body/feet/mail-boots,body=1",
+                  "layer": "body/feet/soft-boots,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "feet": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/soft-boots,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "feet": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/mail-boots,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "feet": [3]
                     }
                   ]
                 },
                 {
-                  "layer": "body/feet/sabatons,body=1",
+                  "layer": "body/feet/mail-boots,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "feet": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/mail-boots,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "feet": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/sabatons,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "feet": [4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/robe-cloth,body=0",
+                  "layer": "body/feet/sabatons,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "feet": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/sabatons,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "feet": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/cloth,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "legs": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/cloth,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "legs": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/cloth,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "legs": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/leather,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "legs": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/leather,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "legs": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/leather,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "legs": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/mail,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "legs": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/mail,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "legs": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/mail,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "legs": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/plate,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "legs": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/plate,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "legs": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/legs/plate,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "legs": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/slippers,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "feet": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/slippers,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "feet": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/slippers,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "feet": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/soft-boots,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "feet": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/soft-boots,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "feet": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/soft-boots,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "feet": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/mail-boots,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "feet": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/mail-boots,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "feet": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/mail-boots,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "feet": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/sabatons,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "feet": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/sabatons,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "feet": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/feet/sabatons,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "feet": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-cloth,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/skirt/robe-cloth,body=0",
+                  "layer": "body/chest/robe-cloth,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
                       "chest": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/jerkin,body=0",
+                  "layer": "body/chest/robe-cloth,body=0,build=0",
                   "when": [
                     {
                       "body": [0],
-                      "chest": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flaps/chest[2],body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/hauberk,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flaps/chest[3],body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/cuirass,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/tabard,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flap/tabard,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flaps/chest[4],body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/robe-cloth,body=1",
-                  "when": [
-                    {
-                      "body": [1],
+                      "build": [0],
                       "chest": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/skirt/robe-cloth,body=1",
+                  "layer": "body/skirt/robe-cloth,body=0,build=1",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [1],
                       "chest": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/jerkin,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flaps/chest[2],body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/hauberk,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flaps/chest[3],body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/cuirass,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/tabard,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flap/tabard,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/flaps/chest[4],body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "chest": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/waist/sash-cloth,body=0",
+                  "layer": "body/skirt/robe-cloth,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/robe-cloth,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/jerkin,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/jerkin,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/jerkin,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[2],body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[2],body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[2],body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/hauberk,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/hauberk,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/hauberk,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[3],body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[3],body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[3],body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/cuirass,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/cuirass,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/cuirass,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tabard,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tabard,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tabard,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/tabard,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/tabard,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/tabard,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[4],body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[4],body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[4],body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-cloth,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-cloth,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-cloth,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/robe-cloth,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/robe-cloth,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/robe-cloth,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/jerkin,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/jerkin,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/jerkin,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[2],body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[2],body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[2],body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/hauberk,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/hauberk,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/hauberk,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[3],body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[3],body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[3],body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/cuirass,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/cuirass,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/cuirass,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tabard,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tabard,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/tabard,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/tabard,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/tabard,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flap/tabard,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[4],body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[4],body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/flaps/chest[4],body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash-cloth,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "waist": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/waist/pouches,body=0",
+                  "layer": "body/waist/sash-cloth,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
-                      "waist": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/waist/studded,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "waist": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/waist/girdle,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "waist": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/hands/wraps,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "hands": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/hands/gloves,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "hands": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/hands/mail-gloves,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "hands": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/hands/gauntlets,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "hands": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/waist/sash-cloth,body=1",
-                  "when": [
-                    {
-                      "body": [1],
+                      "build": [2],
                       "waist": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/waist/pouches,body=1",
+                  "layer": "body/waist/sash-cloth,body=0,build=0",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [0],
+                      "waist": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/pouches,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "waist": [2]
                     }
                   ]
                 },
                 {
-                  "layer": "body/waist/studded,body=1",
+                  "layer": "body/waist/pouches,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "waist": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/pouches,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "waist": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/studded,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "waist": [3]
                     }
                   ]
                 },
                 {
-                  "layer": "body/waist/girdle,body=1",
+                  "layer": "body/waist/studded,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "waist": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/studded,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "waist": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/girdle,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "waist": [4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/hands/wraps,body=1",
+                  "layer": "body/waist/girdle,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "waist": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/girdle,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "waist": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/wraps,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "hands": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/hands/gloves,body=1",
+                  "layer": "body/hands/wraps,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "hands": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/wraps,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "hands": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gloves,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "hands": [2]
                     }
                   ]
                 },
                 {
-                  "layer": "body/hands/mail-gloves,body=1",
+                  "layer": "body/hands/gloves,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "hands": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gloves,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "hands": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/mail-gloves,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "hands": [3]
                     }
                   ]
                 },
                 {
-                  "layer": "body/hands/gauntlets,body=1",
+                  "layer": "body/hands/mail-gloves,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "hands": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/mail-gloves,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "hands": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gauntlets,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "hands": [4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/shoulders/mantle,body=0",
+                  "layer": "body/hands/gauntlets,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "hands": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gauntlets,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "hands": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash-cloth,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "waist": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash-cloth,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "waist": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/sash-cloth,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "waist": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/pouches,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "waist": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/pouches,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "waist": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/pouches,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "waist": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/studded,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "waist": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/studded,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "waist": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/studded,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "waist": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/girdle,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "waist": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/girdle,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "waist": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/waist/girdle,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "waist": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/wraps,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "hands": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/wraps,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "hands": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/wraps,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "hands": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gloves,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "hands": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gloves,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "hands": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gloves,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "hands": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/mail-gloves,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "hands": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/mail-gloves,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "hands": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/mail-gloves,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "hands": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gauntlets,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "hands": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gauntlets,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "hands": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/hands/gauntlets,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "hands": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/mantle,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "shoulders": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/shoulders/pads,body=0",
+                  "layer": "body/shoulders/mantle,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
-                      "shoulders": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/shoulders/scales,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "shoulders": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/shoulders/pauldrons,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "shoulders": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/back/quiver,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "quiver": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/shoulders/mantle,body=1",
-                  "when": [
-                    {
-                      "body": [1],
+                      "build": [2],
                       "shoulders": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/shoulders/pads,body=1",
+                  "layer": "body/shoulders/mantle,body=0,build=0",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [0],
+                      "shoulders": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pads,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "shoulders": [2]
                     }
                   ]
                 },
                 {
-                  "layer": "body/shoulders/scales,body=1",
+                  "layer": "body/shoulders/pads,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "shoulders": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pads,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "shoulders": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/scales,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "shoulders": [3]
                     }
                   ]
                 },
                 {
-                  "layer": "body/shoulders/pauldrons,body=1",
+                  "layer": "body/shoulders/scales,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "shoulders": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/scales,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "shoulders": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pauldrons,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "shoulders": [4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/back/quiver,body=1",
+                  "layer": "body/shoulders/pauldrons,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "shoulders": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pauldrons,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "shoulders": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/quiver,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "quiver": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/tabard,body=0",
+                  "layer": "body/back/quiver,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "quiver": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/quiver,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "quiver": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/mantle,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "shoulders": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/mantle,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "shoulders": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/mantle,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "shoulders": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pads,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "shoulders": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pads,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "shoulders": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pads,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "shoulders": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/scales,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "shoulders": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/scales,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "shoulders": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/scales,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "shoulders": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pauldrons,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "shoulders": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pauldrons,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "shoulders": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/shoulders/pauldrons,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "shoulders": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/quiver,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "quiver": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/quiver,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "quiver": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/quiver,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "quiver": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "tabard": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/tabard/device=1,body=0",
+                  "layer": "body/tabard,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=1,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "emblem": [1],
                       "tabard": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/tabard/device=2,body=0",
+                  "layer": "body/tabard/device=1,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "emblem": [1],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=1,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "emblem": [1],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=2,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "emblem": [2],
                       "tabard": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/tabard/device=3,body=0",
+                  "layer": "body/tabard/device=2,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "emblem": [2],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=2,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "emblem": [2],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=3,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "emblem": [3],
                       "tabard": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/tabard/device=4,body=0",
+                  "layer": "body/tabard/device=3,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "emblem": [3],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=3,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "emblem": [3],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=4,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "emblem": [4],
                       "tabard": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/chest/robe-device=1,body=0",
+                  "layer": "body/tabard/device=4,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "emblem": [4],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=4,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "emblem": [4],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=1,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [1],
                       "emblem": [1],
                       "tabard": [0]
@@ -4927,92 +6905,11 @@
                   ]
                 },
                 {
-                  "layer": "body/chest/robe-device=2,body=0",
+                  "layer": "body/chest/robe-device=1,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
-                      "chest": [1],
-                      "emblem": [2],
-                      "tabard": [0]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/robe-device=3,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [1],
-                      "emblem": [3],
-                      "tabard": [0]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/robe-device=4,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "chest": [1],
-                      "emblem": [4],
-                      "tabard": [0]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/tabard,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "tabard": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/tabard/device=1,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "emblem": [1],
-                      "tabard": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/tabard/device=2,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "emblem": [2],
-                      "tabard": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/tabard/device=3,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "emblem": [3],
-                      "tabard": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/tabard/device=4,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "emblem": [4],
-                      "tabard": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/chest/robe-device=1,body=1",
-                  "when": [
-                    {
-                      "body": [1],
+                      "build": [2],
                       "chest": [1],
                       "emblem": [1],
                       "tabard": [0]
@@ -5020,10 +6917,23 @@
                   ]
                 },
                 {
-                  "layer": "body/chest/robe-device=2,body=1",
+                  "layer": "body/chest/robe-device=1,body=0,build=0",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [0],
+                      "chest": [1],
+                      "emblem": [1],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=2,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [1],
                       "emblem": [2],
                       "tabard": [0]
@@ -5031,10 +6941,35 @@
                   ]
                 },
                 {
-                  "layer": "body/chest/robe-device=3,body=1",
+                  "layer": "body/chest/robe-device=2,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "chest": [1],
+                      "emblem": [2],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=2,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [1],
+                      "emblem": [2],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=3,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [1],
                       "emblem": [3],
                       "tabard": [0]
@@ -5042,10 +6977,35 @@
                   ]
                 },
                 {
-                  "layer": "body/chest/robe-device=4,body=1",
+                  "layer": "body/chest/robe-device=3,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "chest": [1],
+                      "emblem": [3],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=3,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [1],
+                      "emblem": [3],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=4,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "chest": [1],
                       "emblem": [4],
                       "tabard": [0]
@@ -5053,137 +7013,781 @@
                   ]
                 },
                 {
-                  "layer": "body/skirt/apron,body=0",
+                  "layer": "body/chest/robe-device=4,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "chest": [1],
+                      "emblem": [4],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=4,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "chest": [1],
+                      "emblem": [4],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=1,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "emblem": [1],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=1,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "emblem": [1],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=1,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "emblem": [1],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=2,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "emblem": [2],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=2,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "emblem": [2],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=2,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "emblem": [2],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=3,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "emblem": [3],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=3,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "emblem": [3],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=3,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "emblem": [3],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=4,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "emblem": [4],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=4,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "emblem": [4],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/tabard/device=4,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "emblem": [4],
+                      "tabard": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=1,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [1],
+                      "emblem": [1],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=1,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [1],
+                      "emblem": [1],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=1,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [1],
+                      "emblem": [1],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=2,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [1],
+                      "emblem": [2],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=2,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [1],
+                      "emblem": [2],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=2,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [1],
+                      "emblem": [2],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=3,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [1],
+                      "emblem": [3],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=3,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [1],
+                      "emblem": [3],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=3,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [1],
+                      "emblem": [3],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=4,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "chest": [1],
+                      "emblem": [4],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=4,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "chest": [1],
+                      "emblem": [4],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/chest/robe-device=4,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "chest": [1],
+                      "emblem": [4],
+                      "tabard": [0]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/apron,body=0,build=1",
                   "when": [
                     {
                       "apron": [1],
                       "body": [0],
+                      "build": [1],
                       "chest": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/skirt/apron,body=1",
+                  "layer": "body/skirt/apron,body=0,build=2",
                   "when": [
                     {
                       "apron": [1],
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
                       "chest": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/back/cape,body=0",
+                  "layer": "body/skirt/apron,body=0,build=0",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [0],
+                      "build": [0],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/apron,body=1,build=1",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [1],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/apron,body=1,build=2",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [2],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/skirt/apron,body=1,build=0",
+                  "when": [
+                    {
+                      "apron": [1],
+                      "body": [1],
+                      "build": [0],
+                      "chest": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape,body=0,build=1",
                   "when": [
                     {
                       "body": [0],
+                      "build": [1],
                       "cape": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/back/cape-device=1,body=0",
+                  "layer": "body/back/cape,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
+                      "build": [2],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=1,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "cape": [1],
                       "emblem": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/back/cape-device=2,body=0",
+                  "layer": "body/back/cape-device=1,body=0,build=2",
                   "when": [
                     {
                       "body": [0],
-                      "cape": [1],
-                      "emblem": [2]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/back/cape-device=3,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "cape": [1],
-                      "emblem": [3]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/back/cape-device=4,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "cape": [1],
-                      "emblem": [4]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/back/cape-collar,body=0",
-                  "when": [
-                    {
-                      "body": [0],
-                      "cape": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/back/cape,body=1",
-                  "when": [
-                    {
-                      "body": [1],
-                      "cape": [1]
-                    }
-                  ]
-                },
-                {
-                  "layer": "body/back/cape-device=1,body=1",
-                  "when": [
-                    {
-                      "body": [1],
+                      "build": [2],
                       "cape": [1],
                       "emblem": [1]
                     }
                   ]
                 },
                 {
-                  "layer": "body/back/cape-device=2,body=1",
+                  "layer": "body/back/cape-device=1,body=0,build=0",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [0],
+                      "cape": [1],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=2,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "cape": [1],
                       "emblem": [2]
                     }
                   ]
                 },
                 {
-                  "layer": "body/back/cape-device=3,body=1",
+                  "layer": "body/back/cape-device=2,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "cape": [1],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=2,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "cape": [1],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=3,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "cape": [1],
                       "emblem": [3]
                     }
                   ]
                 },
                 {
-                  "layer": "body/back/cape-device=4,body=1",
+                  "layer": "body/back/cape-device=3,body=0,build=2",
                   "when": [
                     {
-                      "body": [1],
+                      "body": [0],
+                      "build": [2],
+                      "cape": [1],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=3,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "cape": [1],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=4,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
                       "cape": [1],
                       "emblem": [4]
                     }
                   ]
                 },
                 {
-                  "layer": "body/back/cape-collar,body=1",
+                  "layer": "body/back/cape-device=4,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "cape": [1],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=4,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "cape": [1],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-collar,body=0,build=1",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [1],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-collar,body=0,build=2",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [2],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-collar,body=0,build=0",
+                  "when": [
+                    {
+                      "body": [0],
+                      "build": [0],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape,body=1,build=1",
                   "when": [
                     {
                       "body": [1],
+                      "build": [1],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=1,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "cape": [1],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=1,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "cape": [1],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=1,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "cape": [1],
+                      "emblem": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=2,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "cape": [1],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=2,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "cape": [1],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=2,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "cape": [1],
+                      "emblem": [2]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=3,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "cape": [1],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=3,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "cape": [1],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=3,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "cape": [1],
+                      "emblem": [3]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=4,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "cape": [1],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=4,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "cape": [1],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-device=4,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
+                      "cape": [1],
+                      "emblem": [4]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-collar,body=1,build=1",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [1],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-collar,body=1,build=2",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [2],
+                      "cape": [1]
+                    }
+                  ]
+                },
+                {
+                  "layer": "body/back/cape-collar,body=1,build=0",
+                  "when": [
+                    {
+                      "body": [1],
+                      "build": [0],
                       "cape": [1]
                     }
                   ]
@@ -5191,8 +7795,8 @@
               ]
             }
           ],
-          "max": [36,114,28],
-          "min": [-36,0,-28],
+          "max": [19,53,14],
+          "min": [-19,0,-14],
           "name": "main",
           "parts": [
             "",
@@ -5214,7 +7818,7 @@
           ]
         },
         {
-          "detail": 2.5,
+          "detail": 0.9240542650222778,
           "groups": [
             {
               "layers": [
@@ -5713,8 +8317,8 @@
               ]
             }
           ],
-          "max": [25,165,24],
-          "min": [-25,108,-27],
+          "max": [11,63,11],
+          "min": [-11,39,-12],
           "name": "head",
           "parts": [
             "",
@@ -5727,19 +8331,17 @@
           "until": 3.5
         },
         {
-          "half": [1,0],
           "until": 5.5
         },
         {
-          "half": 1,
           "until": 8.0
         },
         {
-          "half": [2,1],
+          "half": [1,0],
           "until": 40.0
         },
         {
-          "half": [3,2]
+          "half": [2,1]
         }
       ],
       "palette": [
@@ -6385,7 +8987,7 @@
           "slot": "head.gem"
         }
       ],
-      "per_block": 34.63,
+      "per_block": 34.630001068115234,
       "rig": "person",
       "skeleton": "biped"
     },
@@ -6650,196 +9252,196 @@
         "figure": "held.battle_axe",
         "fp": [0.3704,0.35,0.18,0],
         "grip": "two_hand",
-        "unit": 0.030133929289877417
+        "unit": 0.03125
       },
       "berries": {
         "carry_turn": 0,
         "figure": "held.berries",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.02142857201397419
+        "unit": 0.03125
       },
       "bow": {
         "carry_turn": 1.570796,
         "figure": "held.bow",
         "fp": [0.3231,0.2,0.12,0.12],
         "grip": "bow",
-        "unit": 0.026590910367667673
+        "unit": 0.03125
       },
       "broom": {
         "carry_turn": 0,
         "figure": "held.broom",
         "fp": [0.36,0.4,0.15,0],
         "grip": "one_hand",
-        "unit": 0.021
+        "unit": 0.03125
       },
       "dagger": {
         "carry_turn": 0,
         "figure": "held.dagger",
         "fp": [0.4444,0.35,0.18,0],
         "grip": "one_hand",
-        "unit": 0.02536363732069731
+        "unit": 0.03125
       },
       "dust": {
         "carry_turn": 0,
         "figure": "held.dust",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.02500000037252903
+        "unit": 0.03125
       },
       "garment": {
         "carry_turn": 0,
         "figure": "held.garment",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.029999999329447743
+        "unit": 0.03125
       },
       "gem": {
         "carry_turn": 0,
         "figure": "held.gem",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.02142857201397419
+        "unit": 0.03125
       },
       "hand": {
         "carry_turn": 0,
         "figure": "held.hand",
         "fp": [0.8,0.75,0.35,-0.02],
         "grip": "one_hand",
-        "unit": 0.013846154324710367
+        "unit": 0.03125
       },
       "hatchet": {
         "carry_turn": 0,
         "figure": "held.hatchet",
         "fp": [0.58,0.35,0.18,0],
         "grip": "one_hand",
-        "unit": 0.018478261306881905
+        "unit": 0.03125
       },
       "helm": {
         "carry_turn": 0,
         "figure": "held.helm",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.02857142873108387
+        "unit": 0.03125
       },
       "hoe": {
         "carry_turn": 0,
         "figure": "held.hoe",
         "fp": [0.58,0.35,0.18,0],
         "grip": "one_hand",
-        "unit": 0.019565217196941376
+        "unit": 0.03125
       },
       "ingot": {
         "carry_turn": 0,
         "figure": "held.ingot",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.02250000089406967
+        "unit": 0.03125
       },
       "lump": {
         "carry_turn": 0,
         "figure": "held.lump",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.026666665449738503
+        "unit": 0.03125
       },
       "mace": {
         "carry_turn": 0,
         "figure": "held.mace",
         "fp": [0.4138,0.35,0.18,0],
         "grip": "one_hand",
-        "unit": 0.027549999114125968
+        "unit": 0.03125
       },
       "meat": {
         "carry_turn": 0,
         "figure": "held.meat",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.0181818176060915
+        "unit": 0.03125
       },
       "pickaxe": {
         "carry_turn": 0,
         "figure": "held.pickaxe",
         "fp": [0.58,0.35,0.18,0],
         "grip": "one_hand",
-        "unit": 0.01874999888241291
+        "unit": 0.03125
       },
       "polearm": {
         "carry_turn": 0,
         "figure": "held.polearm",
         "fp": [0.3,0.4,0.15,0],
         "grip": "two_hand",
-        "unit": 0.026249999552965163
+        "unit": 0.03125
       },
       "ring": {
         "carry_turn": 0,
         "figure": "held.ring",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.019999999552965164
+        "unit": 0.03125
       },
       "rod": {
         "carry_turn": 0,
         "figure": "held.rod",
         "fp": [0.36,0.4,0.15,0],
         "grip": "one_hand",
-        "unit": 0.021
+        "unit": 0.03125
       },
       "shield": {
         "carry_turn": 0,
         "figure": "held.shield",
         "fp": [0.4167,-0.1,0.1,0.1],
         "grip": "one_hand",
-        "unit": 0.039230771362781525
+        "unit": 0.03125
       },
       "shovel": {
         "carry_turn": 0,
         "figure": "held.shovel",
         "fp": [0.58,0.35,0.18,0],
         "grip": "one_hand",
-        "unit": 0.017307691276073456
+        "unit": 0.03125
       },
       "staff": {
         "carry_turn": 0,
         "figure": "held.staff",
         "fp": [0.3,0.4,0.15,0],
         "grip": "two_hand",
-        "unit": 0.024782607704401015
+        "unit": 0.03125
       },
       "stick": {
         "carry_turn": 0,
         "figure": "held.stick",
         "fp": [0.75,-0.35,0.15,0.03],
         "grip": "one_hand",
-        "unit": 0.01874999888241291
+        "unit": 0.03125
       },
       "sword": {
         "carry_turn": 0,
         "figure": "held.sword",
         "fp": [0.3571,0.35,0.18,0],
         "grip": "one_hand",
-        "unit": 0.02596774064004421
+        "unit": 0.03125
       },
       "tome": {
         "carry_turn": 0,
         "figure": "held.tome",
         "fp": [0.7,-0.2,0.1,0.05],
         "grip": "one_hand",
-        "unit": 0.02777777798473835
+        "unit": 0.03125
       },
       "torch": {
         "carry_turn": 0,
         "figure": "held.torch",
         "fp": [0.62,0.25,0.12,0.03],
         "grip": "one_hand",
-        "unit": 0.01823529414832592
+        "unit": 0.03125
       },
       "wand": {
         "carry_turn": 0,
         "figure": "held.wand",
         "fp": [0.6,0.35,0.18,0],
         "grip": "one_hand",
-        "unit": 0.020000001415610313
+        "unit": 0.03125
       }
     },
     "slots": {
@@ -6871,9 +9473,6 @@
     }
   },
   "npcs": {
-    "ruk": {"hold": ["pickaxe", [0.6, 0.6, 0.66]]},
-    "poll": {"hold": ["hoe", [0.55, 0.55, 0.6]]},
-    "wat": {"hold": ["staff", [0.5, 0.36, 0.2]]},
     "*": {
       "colors": {
         "cape": null
@@ -7462,6 +10061,18 @@
         [0.6,0.6,0.66]
       ]
     },
+    "poll": {
+      "hold": [
+        "hoe",
+        [0.55,0.55,0.6]
+      ]
+    },
+    "ruk": {
+      "hold": [
+        "pickaxe",
+        [0.6,0.6,0.66]
+      ]
+    },
     "tam": {
       "colors": {
         "boots": [0.26,0.18,0.12],
@@ -7537,6 +10148,12 @@
         "pauldrons": 0,
         "robe": 1
       }
+    },
+    "wat": {
+      "hold": [
+        "staff",
+        [0.5,0.36,0.2]
+      ]
     },
     "wenna": {
       "colors": {

@@ -74,6 +74,13 @@ target/release/dyno bench --local --check tools/bench/reference.json    # counts
   vegetation round 4, world round 3 and v0.11's content, and main itself
   failed `--check` against it on 25 scenes and tiers (vertex memory
   45–137% over, triangles up to 42%), so it no longer caught anything.
+  It was recorded again later that day for the voxel rule
+  (`docs/art/voxel-rule.md`, `docs/art/voxel-audit.md`): roofs and awnings
+  are stairs of 25 cm cubes and logs, posts and barrels stepped circles,
+  where one sloped polygon or a 12-sided lathe stood, so the plaza drew
+  28–34% more triangles and Miner's Rest 18% (`tests/budget.rs`'s counts
+  were recorded again for the same reason). Every scene stays within the
+  budgets above.
   Record it again whenever the content of the fixed scenes is meant to
   grow, with a note of why.
 - **`--diff A B`** compares two runs' pictures: the largest and the mean
