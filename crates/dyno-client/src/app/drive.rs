@@ -42,6 +42,11 @@ remember MARK                 note where it is, for `expect moved MARK`
 shot NAME                     save the frame
 expect [not] CONDITION        wait up to 8 s for it, else fail
 until CONDITION ... end       repeat the lines between (up to 6 times) until it holds
+yard                          set-up (operator): build the camera yard round the character
+walk-path X Z [X Z ...]       hold W, steering (at most 150 deg/s) through yard points
+orbit DEGREES [PITCH]         hold the left button and drag the camera round (and up)
+camera record                 log the play camera every frame from now
+camera check SPEED            fail if it ever moved faster than SPEED m/s (a pop) or was in a wall
 conditions: panel dialog|log|vendor|none · quest KEY · done KEY · target creature|npc|none ·
   attacking · casting · gcd · loot open|closed · tab bags|character|spellbook|skills|none ·
   equipped ITEM · pack ITEM · bar N KEY|empty · mark NAME · tip ID|any|none · moved MARK ·
@@ -55,6 +60,78 @@ struct Driver {
     /// what the client held at each stage of the last clicks (shown when a
     /// step fails)
     trail: std::cell::RefCell<std::collections::VecDeque<String>>,
+    /// the camera yard's corner (`yard`): `walk-path` points are from it
+    yard: Option<Vec3>,
+    /// the play camera each frame since `camera record`
+    cam_log: Option<CamLog>,
+}
+
+/// The play camera, frame by frame (`camera record`, `camera check`).
+#[derive(Default)]
+struct CamLog {
+    last: Option<(Instant, Vec3)>,
+    frames: usize,
+    /// DYNO_CAMERA_LOG=FILE: every frame as a line of numbers, from `origin`
+    csv: Option<(std::io::BufWriter<std::fs::File>, Vec3)>,
+    /// the largest step (m), and the fastest frame (m/s, its step, where)
+    worst_step: f32,
+    worst_speed: (f32, f32, Vec3),
+    /// the nearest the eye came to a solid cell
+    nearest: f32,
+    /// frames that moved more than 0.5 m
+    big: usize,
+}
+
+impl CamLog {
+    fn add(&mut self, p: &Play) {
+        if p.zoom < 0.5 {
+            self.last = None;
+            return;
+        }
+        let now = Instant::now();
+        let eye = p.cam.view.eye;
+        let world = &p.world;
+        let solid = |x, y, z| w::is_solid(world.get(x, y, z));
+        let near = crate::camera::clearance(&solid, eye, 1.0);
+        if self.frames == 0 || near < self.nearest {
+            self.nearest = near;
+        }
+        if let Some((f, o)) = self.csv.as_mut() {
+            use std::io::Write;
+            let (e, h) = (eye - *o, p.player.eye() - *o);
+            let dt = self.last.map_or(0.0, |(t, _)| (now - t).as_secs_f32());
+            let step = self.last.map_or(0.0, |(_, l)| eye.distance(l));
+            let v = p.cam.view;
+            let _ = writeln!(
+                f,
+                "{} {dt:.4} {step:.3} {:.2} {:.2} {:.2} {:.2} {:.2} {:.2} {:.2} {:.2} {:.2} {near:.2} {:.3}",
+                self.frames, e.x, e.y, e.z, h.x, h.y, h.z, v.arm, v.limit, p.zoom, p.cam_orbit
+            );
+        }
+        if let Some((t, e)) = self.last {
+            let step = eye.distance(e);
+            // (the frame time, but no shorter than a 60 Hz frame: a frame
+            // drawn twice as fast does not make a step twice as sudden)
+            let dt = (now - t).as_secs_f32().max(1.0 / 60.0);
+            self.worst_step = self.worst_step.max(step);
+            if step / dt > self.worst_speed.0 {
+                self.worst_speed = (step / dt, step, eye);
+            }
+            if step > 0.5 {
+                self.big += 1;
+            }
+        }
+        self.frames += 1;
+        self.last = Some((now, eye));
+    }
+
+    fn report(&self) -> String {
+        let (v, step, at) = self.worst_speed;
+        format!(
+            "{} frames; fastest {v:.1} m/s ({step:.2} m in a frame at {:.1},{:.1},{:.1}); largest step {:.2} m; {} steps over 0.5 m; nearest a wall {:.2} m",
+            self.frames, at.x, at.y, at.z, self.worst_step, self.big, self.nearest,
+        )
+    }
 }
 
 fn play(app: &App) -> Result<&Play, String> {
@@ -106,7 +183,10 @@ impl Driver {
             let t = Instant::now();
             probe::begin_frame();
             self.app.frame();
-            play(&self.app)?;
+            let p = play(&self.app)?;
+            if let Some(log) = self.cam_log.as_mut() {
+                log.add(p);
+            }
             if let Some(rest) = Duration::from_millis(16).checked_sub(t.elapsed()) {
                 std::thread::sleep(rest);
             }
@@ -699,8 +779,183 @@ impl Driver {
                 self.frames(2)
             }
             "expect" => self.expect(&w[1..], 8.0),
+            "yard" => self.build_yard(),
+            "walk-path" => {
+                let nums: Vec<f32> = w[1..]
+                    .iter()
+                    .map(|v| v.parse::<f32>())
+                    .collect::<Result<_, _>>()
+                    .map_err(|_| "walk-path X Z [X Z ...]")?;
+                if nums.is_empty() || nums.len() % 2 != 0 {
+                    return Err("walk-path X Z [X Z ...]".into());
+                }
+                self.walk_path(&nums)
+            }
+            "orbit" => {
+                let yaw: f32 = need(1)?.parse().map_err(|_| "orbit DEGREES [PITCH]")?;
+                let pitch: f32 = match w.get(2) {
+                    Some(v) => v.parse().map_err(|_| "orbit DEGREES [PITCH]")?,
+                    None => 0.0,
+                };
+                self.orbit(yaw, pitch)
+            }
+            "camera" => match need(1)? {
+                "record" => {
+                    let o = self.yard.unwrap_or_default();
+                    let csv = std::env::var_os("DYNO_CAMERA_LOG")
+                        .and_then(|f| std::fs::File::create(f).ok())
+                        .map(|f| (std::io::BufWriter::new(f), o));
+                    self.cam_log = Some(CamLog {
+                        csv,
+                        ..Default::default()
+                    });
+                    Ok(())
+                }
+                "check" => {
+                    let most: f32 = need(2)?.parse().map_err(|_| "camera check SPEED")?;
+                    let log = self.cam_log.as_ref().ok_or("no `camera record` before")?;
+                    let report = log.report();
+                    self.log.push(format!("     camera: {report}"));
+                    if log.frames < 60 {
+                        Err(format!("only {} frames logged", log.frames))
+                    } else if log.worst_speed.0 > most {
+                        Err(format!("a pop: {report}"))
+                    } else if log.nearest < 0.05 {
+                        Err(format!("the camera was in a wall: {report}"))
+                    } else {
+                        Ok(())
+                    }
+                }
+                other => Err(format!("camera record|check, not '{other}'")),
+            },
             other => Err(format!("unknown command '{other}'")),
         }
+    }
+
+    /// Build the camera yard round the character (it is the server's
+    /// operator): a floor cleared of the land, then northwards (-z) a house
+    /// with a door at each end, a tree whose crown hangs over the way,
+    /// stairs up onto a cliff, and the cliff's edge. Points are metres from
+    /// the cell the character stands in.
+    fn build_yard(&mut self) -> Result<(), String> {
+        let o = play(&self.app)?.player.pos.floor();
+        let at = |x: i32, y: i32, z: i32| [o.x as i32 + x, o.y as i32 + y, o.z as i32 + z];
+        let mut fills: Vec<([i32; 3], [i32; 3], u8)> = vec![
+            (at(-10, 0, -62), at(10, 15, 6), w::AIR),
+            (at(-10, -1, -62), at(10, -1, 6), w::STONE),
+            // the house: a box of planks, hollowed, a door at each end
+            (at(-5, 0, -16), at(5, 4, -8), w::PLANKS),
+            (at(-4, 0, -15), at(4, 3, -9), w::AIR),
+            (at(0, 0, -8), at(1, 2, -8), w::AIR),
+            (at(0, 0, -16), at(1, 2, -16), w::AIR),
+            // the tree: a crown over the way from four metres up
+            (at(-3, 4, -28), at(7, 7, -20), w::LEAVES),
+            (at(3, 0, -24), at(3, 6, -24), w::LOG),
+            // the cliff: rock six high, its east edge at x = 3
+            (at(-10, 0, -60), at(3, 5, -38), w::STONE),
+        ];
+        // stairs up to it, a block a step
+        for k in 0..6 {
+            fills.push((at(-2, 0, -32 - k), at(3, k, -32 - k), w::STONE));
+        }
+        let p = play(&self.app)?;
+        let _ = p.conn.tx.send(ClientMsg::Chat {
+            text: "/gamemode build".into(),
+        });
+        for (a, b, block) in fills {
+            let _ = p.conn.tx.send(ClientMsg::Fill { a, b, block });
+        }
+        let _ = p.conn.tx.send(ClientMsg::Chat {
+            text: "/gamemode play".into(),
+        });
+        // until the last fill and the mode are back
+        let started = Instant::now();
+        loop {
+            self.frames(5)?;
+            let p = play(&self.app)?;
+            let [x, y, z] = at(-2, 5, -37);
+            if p.world.get(x, y, z) == w::STONE && p.wow() {
+                break;
+            }
+            if started.elapsed() > Duration::from_secs(20) {
+                return Err("the yard was not built (is the character the operator?)".into());
+            }
+        }
+        let p = play_mut(&mut self.app)?;
+        p.player.pos = o + Vec3::new(0.5, 0.0, 0.5);
+        p.player.vel = Vec3::ZERO;
+        p.player.yaw = 0.0;
+        p.player.pitch = -15f32.to_radians();
+        p.cam_orbit = 0.0;
+        p.cam.snap();
+        self.yard = Some(o);
+        self.secs(1.0)
+    }
+
+    /// Hold W and steer through yard points, turning at most 150 degrees a
+    /// second (a hand on the mouse, not a jump cut).
+    fn walk_path(&mut self, nums: &[f32]) -> Result<(), String> {
+        let o = self.yard.ok_or("no `yard` before")?;
+        self.app.input(Hand::Key(KeyCode::KeyW, true, false));
+        let mut result = Ok(());
+        'points: for pt in nums.chunks(2) {
+            let goal = o + Vec3::new(pt[0], 0.0, pt[1]);
+            let started = Instant::now();
+            let mut last = Instant::now();
+            loop {
+                let p = play_mut(&mut self.app)?;
+                let d = Vec3::new(goal.x - p.player.pos.x, 0.0, goal.z - p.player.pos.z);
+                if d.length() < 0.6 {
+                    break;
+                }
+                if started.elapsed() > Duration::from_secs(20) {
+                    let at = p.player.pos - o;
+                    result = Err(format!(
+                        "still {:.1} m from {},{} after 20 s (at {:.1},{:.1},{:.1})",
+                        d.length(),
+                        pt[0],
+                        pt[1],
+                        at.x,
+                        at.y,
+                        at.z
+                    ));
+                    break 'points;
+                }
+                let want = (-d.x).atan2(-d.z);
+                let turn = (want - p.player.yaw + std::f32::consts::PI)
+                    .rem_euclid(std::f32::consts::TAU)
+                    - std::f32::consts::PI;
+                let most = 150f32.to_radians() * last.elapsed().as_secs_f32().min(0.1);
+                last = Instant::now();
+                p.player.yaw += turn.clamp(-most, most);
+                self.frames(1)?;
+            }
+        }
+        self.app.input(Hand::Key(KeyCode::KeyW, false, false));
+        self.frames(2)?;
+        result
+    }
+
+    /// Hold the left button in the world and drag: the camera orbits by
+    /// `yaw` degrees (and tilts up by `pitch`), over about a second.
+    fn orbit(&mut self, yaw: f32, pitch: f32) -> Result<(), String> {
+        let s = 0.0025 * self.app.settings.mouse_sensitivity;
+        let mid = {
+            let (w, h) = play(&self.app)?.screen_px;
+            (w as f64 * 0.5, h as f64 * 0.62)
+        };
+        self.move_to(mid)?;
+        self.app.input(Hand::Mouse(MouseButton::Left, true));
+        // (a hand: about 90 degrees a second)
+        let n = ((yaw.abs().max(pitch.abs()) / 90.0 * 60.0) as usize).max(30);
+        let dx = -(yaw.to_radians() / s) as f64 / n as f64;
+        let dy = -(pitch.to_radians() / s) as f64 / n as f64;
+        for _ in 0..n {
+            self.app.input(Hand::Motion(dx, dy));
+            self.frames(1)?;
+        }
+        self.app.input(Hand::Mouse(MouseButton::Left, false));
+        self.frames(3)
     }
 
     fn run(&mut self, script: &str) -> Result<usize, String> {
@@ -834,6 +1089,8 @@ pub fn drive(o: DriveOptions) -> Result<String, String> {
         remembered: HashMap::new(),
         log: Vec::new(),
         trail: Default::default(),
+        yard: None,
+        cam_log: None,
     };
     // the land round the character, before the first line
     let started = Instant::now();
@@ -907,6 +1164,36 @@ mod tests {
         assert_eq!(open, 0, "an `until` is left open");
         // it asserts what each step caused, not just that it ran
         assert!(expects >= 30, "{expects} expectations");
+    }
+
+    /// The camera's run (tools/drive/camera.drive): only known commands, and
+    /// it ends by checking the camera it recorded.
+    #[test]
+    fn the_camera_script_records_and_checks() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tools/drive/camera.drive");
+        let s = std::fs::read_to_string(path).unwrap();
+        let known = [
+            "yard",
+            "walk-path",
+            "orbit",
+            "camera",
+            "wait",
+            "shot",
+            "expect",
+        ];
+        let lines: Vec<&str> = s
+            .lines()
+            .map(|l| l.split('#').next().unwrap().trim())
+            .filter(|l| !l.is_empty())
+            .collect();
+        for l in &lines {
+            let first = l.split_whitespace().next().unwrap();
+            assert!(known.contains(&first), "'{first}'");
+            assert!(HELP.contains(first), "'{first}' is not in the help");
+        }
+        assert_eq!(lines.first(), Some(&"yard"));
+        assert!(lines.contains(&"camera record"));
+        assert!(lines.last().unwrap().starts_with("camera check"));
     }
 
     #[test]

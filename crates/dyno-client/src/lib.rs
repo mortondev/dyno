@@ -7,6 +7,7 @@ pub mod assets;
 pub mod atmos;
 pub mod audio;
 pub mod bench;
+pub mod camera;
 pub mod cache;
 pub mod clip;
 pub mod cover;

@@ -255,6 +255,10 @@ struct Play {
     drag: f32,
     /// camera yaw around the character (left-button orbit), radians
     cam_orbit: f32,
+    /// the play camera's smoothing (camera.rs); `zoom` is where it is asked to be
+    cam: crate::camera::Camera,
+    /// when the wheel last moved the zoom (saved once it rests)
+    zoom_moved: Option<Instant>,
     autorun: bool,
     /// last frame's inverse view-projection and screen size, for cursor picking
     inv_vp: Option<glam::Mat4>,
@@ -1657,7 +1661,7 @@ fn new_play(j: Joined) -> Play {
         gcd: (Instant::now(), 0.0),
         my_cast: None,
         class_pick: false,
-        zoom: if rpg_world { 5.0 } else { 0.0 },
+        zoom: if rpg_world { crate::camera::DEFAULT_ZOOM } else { 0.0 },
         equip: vec![None; 17],
         skills: Vec::new(),
         auras: Vec::new(),
@@ -1673,6 +1677,8 @@ fn new_play(j: Joined) -> Play {
         rmb: false,
         drag: 0.0,
         cam_orbit: 0.0,
+        cam: Default::default(),
+        zoom_moved: None,
         autorun: false,
         inv_vp: None,
         view_proj: None,
@@ -1819,11 +1825,9 @@ impl App {
                 {
                     let n = 9;
                     if p.content.world.protected && !p.creative() {
-                        // RPG: the wheel zooms the camera
-                        p.zoom = (p.zoom - d * 1.2).clamp(0.0, 12.0);
-                        if p.zoom < 1.2 && d > 0.0 {
-                            p.zoom = 0.0;
-                        }
+                        // RPG: the wheel zooms the camera (camera.rs)
+                        p.zoom = crate::camera::wheel(p.zoom, d);
+                        p.zoom_moved = Some(Instant::now());
                     } else if d.abs() > 0.1 {
                         p.slot = ((p.slot as i32 - d.signum() as i32).rem_euclid(n)) as usize;
                     }
@@ -1842,6 +1846,7 @@ impl App {
                             p.player.yaw -= dx as f32 * s;
                         } else {
                             p.cam_orbit -= dx as f32 * s;
+                            p.cam.turned();
                         }
                         p.player.pitch = (p.player.pitch - dy as f32 * s).clamp(-1.4, 1.4);
                         return;
@@ -2134,6 +2139,10 @@ impl App {
             match rx.try_recv() {
                 Ok(Ok(j)) => {
                     let mut p = new_play(j);
+                    // the zoom this player left the camera at (RPG worlds)
+                    if p.zoom > 0.0 {
+                        p.zoom = crate::camera::saved(self.settings.camera_zoom);
+                    }
                     if self.joining_new {
                         p.intro = Some(Instant::now());
                     }
@@ -2403,6 +2412,7 @@ impl App {
                         }
                         ServerMsg::Teleport { pos } => {
                             p.player.pos = Vec3::from(pos);
+                            p.cam.snap();
                             p.player.vel = Vec3::ZERO;
                             p.fall_from = None;
                             p.dead = None;
@@ -3153,10 +3163,16 @@ impl App {
                     p.hover = None;
                 }
                 p.target_entity = p.hover;
-                // walking swings the camera back behind you
+                // auto-follow (an option, off unless chosen): moving swings
+                // the camera back behind you once you have left it alone
                 let moving = input.forward != 0.0 || input.right != 0.0;
-                if moving && !p.lmb {
-                    p.cam_orbit *= 1.0 - (dt * 3.0).min(1.0);
+                let follow = self.settings.camera_follow && !p.lmb;
+                p.cam.follow(&mut p.cam_orbit, follow, moving, dt);
+                // the zoom is remembered once the wheel has rested
+                if p.zoom_moved.is_some_and(|t| t.elapsed() > Duration::from_secs(1)) {
+                    p.zoom_moved = None;
+                    self.settings.camera_zoom = p.zoom;
+                    let _ = self.settings.save();
                 }
             } else {
                 p.target =
@@ -3399,20 +3415,30 @@ impl App {
             let eye = p.player.eye()
                 + Vec3::Y * (p.bob.sin().abs() * 0.06 * bob_amt)
                 + right * ((p.bob * 0.5).sin() * 0.03 * bob_amt);
-            // third person: the camera pulls back behind you, short of walls
+            // third person: the camera behind you, short of walls, smoothed
+            // (camera.rs; F2's screen shake goes in `p.cam.shake`)
             let first_person = p.zoom < 0.5;
-            let eye = if first_person {
-                eye
-            } else {
-                pull_back(&p.world, p.player.eye(), dir, p.zoom)
+            let cam_view = {
+                let world = &p.world;
+                p.cam.update(
+                    |x, y, z| w::is_solid(world.get(x, y, z)),
+                    p.player.eye(),
+                    dir,
+                    p.player.vel,
+                    if first_person { 0.0 } else { p.zoom },
+                    dt,
+                )
             };
+            let eye = if first_person { eye } else { cam_view.eye };
+            // (third person leads the view a little where you are going)
+            let view_dir = if first_person { dir } else { cam_view.dir };
             let proj = glam::Mat4::perspective_rh(
                 (fov + p.fov_kick).to_radians(),
                 wdt / hgt.max(1.0),
                 0.05,
                 far,
             );
-            let vp = proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+            let vp = proj * glam::Mat4::look_to_rh(eye, view_dir, Vec3::Y);
             // models skip faces the camera and sun cannot see, and coarsen far
             // away; creatures out of the picture whose shadows are too are not made
             models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
@@ -3452,6 +3478,7 @@ impl App {
                 let step = models::person_step(speed);
                 let me = book.me(now);
                 me.drive_at(now, state, feet, step);
+                let from = boxes.len();
                 models::push_person_anim(
                     &mut boxes,
                     feet,
@@ -3462,6 +3489,12 @@ impl App {
                     me,
                     now,
                 );
+                // the camera right up against you: you fade, then are gone
+                if cam_view.fade <= 0.0 {
+                    boxes.truncate(from);
+                } else {
+                    render::fade_out(&mut boxes[from..], cam_view.fade);
+                }
                 p.anims = book;
             }
             // block in hand, with a swing when breaking or placing
