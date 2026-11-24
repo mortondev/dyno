@@ -2,6 +2,7 @@
 
     python3 tools/playtest/round3_rules.py group [RULES.json]     the group tag only (the baseline's rules)
     python3 tools/playtest/round3_rules.py content [RULES.json]   what the baseline asked for
+    python3 tools/playtest/round3_rules.py vale [RULES.json]      what after run A asked for (not in the counted runs)
 
 Each stage applies once; the default file is content/rules/hearthblock.json.
 """
@@ -92,7 +93,20 @@ def content():
             o["at"] = [34, 0, 6]
 
 
-{"group": group, "content": content}.get(stage, lambda: sys.exit(__doc__))()
+def vale():
+    """After the counted runs: Know the Vale (level 5) sent you to stand in
+    the Shrine Shore's gloomwisp camp (levels 7 to 8); after run A lost a
+    level 5 there at night. Emberrun Ford (4 to 5) instead."""
+    k = quests["know_the_vale"]
+    if any(o.get("place") == "emberrun_ford" for o in k["objectives"]):
+        sys.exit("vale: already applied")
+    for o in k["objectives"]:
+        if o.get("place") == "shrine_shore":
+            o.update(explore("Emberrun Ford", "emberrun_ford", 14))
+    k["text"] = k["text"].replace("the Shrine Shore", "Emberrun Ford")
+
+
+{"group": group, "content": content, "vale": vale}.get(stage, lambda: sys.exit(__doc__))()
 json.dump(r, open(PATH, "w"), indent=1)
 open(PATH, "a").write("\n")
 print("applied", stage, "to", PATH)

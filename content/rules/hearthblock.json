@@ -8274,7 +8274,7 @@
    "requires": [
     "coal_for_the_watch"
    ],
-   "text": "The Great Hearth once lit the whole vale. Before we relight it, see what it will shine on. Stand at the North Pass, the Barrow Overlook, the Shrine Shore and the Ridge Cut. It is a long road: take a friend past the bridge.",
+   "text": "The Great Hearth once lit the whole vale. Before we relight it, see what it will shine on. Stand at the North Pass, the Barrow Overlook, Emberrun Ford and the Ridge Cut. It is a long road: take a friend past the bridge.",
    "progress": "North, west, south, east. The vale is bigger than it looks from here.",
    "done": "Pass to shore, and back alive. Then wear something worthy of it.",
    "objectives": [
@@ -8299,8 +8299,8 @@
      "radius": 14
     },
     {
-     "explore": "the Shrine Shore",
-     "place": "shrine_shore",
+     "explore": "Emberrun Ford",
+     "place": "emberrun_ford",
      "at": [
       0,
       0,

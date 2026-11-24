@@ -2285,7 +2285,7 @@ pub fn looking_for_group(ctx: &egui::Context, p: &mut Play) {
     if list.is_empty() {
         return;
     }
-    let me = Vec3::from(p.player.pos);
+    let me = p.player.pos;
     let mut send: Option<String> = None;
     let resp = egui::Window::new("looking-for-group")
         .id(egui::Id::new("looking-for-group"))
