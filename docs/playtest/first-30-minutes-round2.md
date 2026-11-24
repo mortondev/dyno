@@ -73,7 +73,10 @@ round 3's wake point ([picture](runs/r2-wake-view.jpg)).
   `tools/playtest/round2_rules.py` on top of main's each time. The counted
   swarms are from before the first merge; the hand runs and Old Tusk's
   last table are from after it (`ca3d71f`); the swarm on the merged build
-  is from after the second (`d370863`); the gates ran on the last.
+  is from after the second (`d370863`). The gates (fmt, clippy with
+  warnings as errors, the workspace's 257 tests, the client check) ran on
+  the tree after the third merge and the last code change; main's two
+  commits since were a document and a version number.
 
 ## What the first pass taught
 
