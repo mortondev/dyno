@@ -419,6 +419,18 @@ fn cloud_row(az: f32, el: f32, base: f32, cs: f32, seed: f32, thr: f32) -> vec2<
   return vec2<f32>(smoothstep(0.0, max(hgt * 0.5, 2.0), cy + 0.5), 1.0);
 }
 
+// Where `dir` falls on an upright square in the sky round `axis`, as big
+// across as a disc of angular radius acos(cos_r): its place on it (-1..1
+// each way) and z = 1 when inside it.
+fn on_square(dir: vec3<f32>, axis: vec3<f32>, cos_r: f32) -> vec3<f32> {
+  let r = normalize(cross(axis, vec3<f32>(0.0, 1.0, 0.0)) + vec3<f32>(0.0001, 0.0, 0.0));
+  let up = cross(r, axis);
+  let size = sqrt(max(1.0 - cos_r * cos_r, 0.000001));
+  let p = vec2<f32>(dot(dir, r), dot(dir, up)) / size;
+  let inside = dot(dir, axis) > 0.0 && max(abs(p.x), abs(p.y)) <= 1.0;
+  return vec3<f32>(p, select(0.0, 1.0, inside));
+}
+
 @fragment fn fs_sky(i: SkyOut) -> @location(0) vec4<f32> {
   let far = u.inv_view_proj * vec4<f32>(i.ndc, 1.0, 1.0);
   let dir = normalize(far.xyz / far.w - u.cam.xyz);
@@ -426,11 +438,12 @@ fn cloud_row(az: f32, el: f32, base: f32, cs: f32, seed: f32, thr: f32) -> vec2<
   let b = sky_backdrop(dir);
   var c = b.rgb;
   if (b.a > 0.5) { return vec4<f32>(c, 1.0); }
-  // the sun: a soft glow and a disc bright enough to bloom
+  // the sun: a soft glow and a square bright enough to bloom (the voxel
+  // rule: no round discs)
   let sd = dot(dir, u.sun.xyz);
   if (h > -0.02) {
     c += env.sun.rgb * (pow(max(sd, 0.0), 700.0) * 0.10 + pow(max(sd, 0.0), 40.0) * 0.02);
-    if (sd > env.sun.w) { c = env.sun.rgb; }
+    if (on_square(dir, u.sun.xyz, env.sun.w).z > 0.5) { c = env.sun.rgb; }
   }
   // stars, twinkling
   if (env.stars.x > 0.01 && h > 0.0) {
@@ -441,17 +454,14 @@ fn cloud_row(az: f32, el: f32, base: f32, cs: f32, seed: f32, thr: f32) -> vec2<
       c += vec3<f32>(0.9, 0.92, 1.0) * env.stars.x * (r - 0.9945) * 180.0 * tw * smoothstep(0.0, 0.2, h);
     }
   }
-  // the moon: a disc of cells with darker seas, and a halo
+  // the moon: a square of cells with darker seas, and a halo
   let shown = env.moon_dir.w;
   if (shown > 0.01) {
     let md = dot(dir, env.moon_dir.xyz);
     c += env.moon.rgb * (pow(max(md, 0.0), 500.0) * 0.10 + pow(max(md, 0.0), 30.0) * 0.015) * shown;
-    if (md > env.moon.w) {
-      let r = normalize(cross(env.moon_dir.xyz, vec3<f32>(0.0, 1.0, 0.0)) + vec3<f32>(0.0001, 0.0, 0.0));
-      let up = cross(r, env.moon_dir.xyz);
-      let size = sqrt(max(1.0 - env.moon.w * env.moon.w, 0.000001));
-      let p = vec2<f32>(dot(dir, r), dot(dir, up)) / size;
-      let cell = floor(p * 5.0);
+    let sq = on_square(dir, env.moon_dir.xyz, env.moon.w);
+    if (sq.z > 0.5) {
+      let cell = floor(sq.xy * 5.0);
       let sea = step(0.7, e_hash(cell + vec2<f32>(40.0, 17.0)));
       c = mix(c, env.moon.rgb * (1.0 - 0.3 * sea), shown);
     }

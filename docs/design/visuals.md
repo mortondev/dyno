@@ -121,23 +121,20 @@ seed:
   deleted; each shaped block names a rule set that picks a class and turn
   from its neighbours and, per part, a model. The engine draws the voxels,
   and what it does with them is data too:
-  - **slopes:** a 45° run of voxel steps of one colour becomes one sloped
-    polygon (lit by its own normal, textured along the slope: a repeat per
-    block of rise), merged greedily; the faces across it are cut to the
-    same line and merged row by row into trapezoids, so a roof is a few
-    polygons per cell, not hundreds of steps. `"slope": false` on a colour
-    keeps its steps (the dark lip of each course of shingles);
-  - **round parts:** `"round"` on a part draws its voxels as a solid of
-    revolution with the same area slice by slice (trunks with 8 sides,
-    posts, barrels, pillar shafts, the anvil's stump, the ridge roll),
-    with the texture wrapped round it (`wrap`, `vscale`), smooth or flat
-    sided, capped only where an end stops inside the cell;
+  - **cubes only** (the voxel rule, `docs/art/voxel-rule.md`, since
+    2026-11-24): every voxel is a cube, its open faces merged into
+    rectangles of one colour per plane. The sloped polygons over 45° runs
+    and the solids of revolution are gone: roofs and awnings are stairs
+    with 25 cm treads (`tools/shapes/stairs.py`), and trunks, posts,
+    pillars and barrels are clean stepped circles slice by slice
+    (`tools/shapes/rounds.py`);
   - **texture:** faces take their texture by place in the cell, or with
     `"uv": "fit"` on a colour stretched over that colour's bounds in the
     model (crates, hay bales, doors, the anvil, flowers);
-  - **variation per place:** a class's `spin` (a trunk's twist) and
-    `jitter` (props set a little askew), a part's `lift` (one flower bed's
-    flowers higher than the next), all hashed from the column;
+  - **variation per place:** a class's `spin` (more quarter turns, so
+    logs and props do not all face one way) and a part's `lift` (one
+    flower bed's flowers a whole voxel higher than the next), hashed from
+    the column;
   - **joins:** a part with `"joins": true` drops its faces on the cell's
     sides where the next cell is the same block, class and turn (the
     inside of a long roof, a run of windows).
@@ -148,8 +145,8 @@ seed:
 - **Paving as ground.** Cobble, mossy cobble and flagstones lying flush
   with the ground join the smooth surface, so paths and the plaza blend
   into grass along a ragged painted edge.
-- **Chamfered cubes.** Built cubes have their convex edges chamfered
-  (5 cm), with the ends closed where a chamfer stops against a block.
+- **Chamfered cubes** (removed 2026-11-24 by the voxel rule: built cubes
+  are plain cubes again).
 - **Shading.** Texture brightness becomes painted relief (mortar and
   cracks sink, stones stand out) near the camera; built blocks get the
   same slow drift of tone as the ground, so a wall is not one stamped
@@ -169,8 +166,7 @@ Each section reads its blocks with a 4-block border and decides paving and
 detail shapes for every cell the meshers read (-3..N+3), reading one cell
 beyond. Two tests hold this: `detail_shapes_agree_across_sections` (every
 shared cell is decided the same by neighbouring sections) and the existing
-`sections_agree_at_their_borders` and `the_skin_has_no_holes` (run without
-chamfers, which meet unchamfered blocks in T-junctions).
+`sections_agree_at_their_borders` and `the_skin_has_no_holes`.
 
 ### Performance
 

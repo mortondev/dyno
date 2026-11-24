@@ -462,6 +462,44 @@ fn clump(
     );
 }
 
+/// The far view of a small world, in metres (for the voxel rule's mesh
+/// test): near tiles in 4 m cells and far ones in 8 m cells.
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let world = dyno_world::World::test_terrain([256, 96, 256], 7);
+    let mut tiles = FarTiles::new();
+    for tz in 0..4 {
+        for tx in 0..4 {
+            tiles.insert([tx, tz], FarTile::build(&world, [tx, tz]));
+        }
+    }
+    let mut out = Vec::new();
+    // (four corners a quad, drawn with the shared quad index)
+    for (what, centre) in [("near", [128.0, 128.0]), ("far", [-900.0, -900.0])] {
+        for at in tiles.keys() {
+            let mesh = mesh_tile(&tiles, *at, centre, 96.0);
+            let corner = |v: &FarVertex| {
+                (
+                    [v.pos[0], v.pos[1], v.pos[2]].map(f32::from),
+                    [v.normal[0], v.normal[1], v.normal[2]].map(|n| n as f32 / 127.0),
+                )
+            };
+            let quads = mesh.as_chunks::<4>().0.iter().map(|q| {
+                let c = q.each_ref().map(corner);
+                (c.map(|c| c.0), Some(c.map(|c| c.1)))
+            });
+            out.push(crate::voxel_rule::Object::from_quads(
+                "far view",
+                format!("{what} tile {at:?}"),
+                1.0,
+                Some([0.0; 3]),
+                quads,
+            ));
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

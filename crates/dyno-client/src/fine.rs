@@ -84,11 +84,6 @@ pub(crate) struct TerrainJson {
     /// texture, so the ground reads at the same grain as props and
     /// buildings (no finer than the voxels)
     pub colour_per_metre: u8,
-    /// how much of a block's own `smooth` and `shade` a gentle slope keeps
-    /// and gives: on gentle slopes the creases soften by this share
-    pub shade_gentle: f32,
-    /// slope lighting for blocks that do not set their own `smooth`
-    pub smooth: f32,
     /// brightness of a voxel corner by how closed in it is: 3, 2, 1 and 0
     /// open neighbours of the three round it in front of the face (where
     /// steps meet, at the foot of a ledge, along a path's edge)
@@ -124,11 +119,6 @@ pub(crate) struct BlockJson {
     /// how strongly its voxels' creases and lips are shaded (1: fully;
     /// grass softer, so a slope reads gently stepped)
     shade: Option<f32>,
-    /// how much its voxels are lit as the slope they make rather than by
-    /// their own faces (0: crisp, as rock; towards 1: a stepped meadow
-    /// lights like a smooth one, without stripes of lit treads and dark
-    /// risers)
-    smooth: Option<f32>,
     /// how far it reaches into other ground and they into it (0: a crisp
     /// block edge), as a multiple of `edge`
     edge: Option<f32>,
@@ -162,8 +152,6 @@ impl Default for TerrainJson {
             cover_depth: 0.25,
             jitter: 0.08,
             colour_per_metre: 4,
-            shade_gentle: 0.6,
-            smooth: 0.0,
             ao: [0.6, 0.74, 0.87, 1.0],
             lip: 1.08,
             shade_within: 24.0,
@@ -187,7 +175,6 @@ pub(crate) struct Params {
     edge_size: f32,
     cover_depth: f32,
     colour_per_metre: u8,
-    shade_gentle: f32,
     pub(crate) ao: [f32; 4],
     lip: f32,
     shade_within: f32,
@@ -196,7 +183,6 @@ pub(crate) struct Params {
     tint: [[f32; 3]; 256],
     saturation: [f32; 256],
     shade: [f32; 256],
-    smooth: [f32; 256],
     edge_of: [f32; 256],
     inset: [f32; 256],
 }
@@ -217,7 +203,6 @@ impl Params {
             edge_size: j.edge_size.max(0.0),
             cover_depth: j.cover_depth.max(0.0),
             colour_per_metre: j.colour_per_metre.clamp(1, MAX_PER_METRE),
-            shade_gentle: j.shade_gentle.clamp(0.0, 1.0),
             ao: j.ao.map(|v| v.clamp(0.0, 2.0)),
             lip: j.lip.clamp(0.0, 2.0),
             shade_within: j.shade_within.max(0.0),
@@ -226,7 +211,6 @@ impl Params {
             tint: [[1.0; 3]; 256],
             saturation: [1.0; 256],
             shade: [1.0; 256],
-            smooth: [j.smooth.clamp(0.0, 1.0); 256],
             edge_of: [1.0; 256],
             inset: [0.0; 256],
         };
@@ -251,9 +235,6 @@ impl Params {
             }
             if let Some(v) = b.tint {
                 p.tint[id] = v;
-            }
-            if let Some(v) = b.smooth {
-                p.smooth[id] = v.clamp(0.0, 1.0);
             }
             if let Some(v) = b.shade {
                 p.shade[id] = v.clamp(0.0, 1.0);
@@ -580,8 +561,6 @@ pub(crate) struct Fine<'a> {
     ax: Vec<(usize, f32)>,
     /// light at grid corners: block, sky, occlusion; NaN when not yet known
     corners: Vec<[f32; 3]>,
-    /// the ground's smooth outward direction at grid corners; NaN unknown
-    slopes: Vec<[f32; 3]>,
     /// the light of each uniform light class (class k at k - 1)
     class_light: Vec<[f32; 3]>,
     /// per ground cell: 1 when other kinds of ground lie beside it (its
@@ -610,7 +589,6 @@ impl<'a> Fine<'a> {
             pool: Vec::new(),
             ax,
             corners: vec![[f32::NAN; 3]; (LV * LV * LV) as usize],
-            slopes: vec![[f32::NAN; 3]; (LV * LV * LV) as usize],
             ragged: vec![0; n],
             class_light: Vec::new(),
         }
@@ -1161,54 +1139,6 @@ impl<'a> Fine<'a> {
         id
     }
 
-    /// The ground's smooth outward direction at a grid corner (local): down
-    /// the field across the eight blocks round it. Not normalised.
-    fn slope_corner(&mut self, i: i32, j: i32, k: i32) -> [f32; 3] {
-        let idx = li(i, j, k);
-        let v = self.slopes[idx];
-        if !v[0].is_nan() {
-            return v;
-        }
-        let mut g = [0f32; 3];
-        for n in 0..8i32 {
-            let (a, b, c) = (n & 1, (n >> 2) & 1, (n >> 1) & 1);
-            let d = self.density(i - 1 + a, j - 1 + b, k - 1 + c);
-            g[0] -= d * (2 * a - 1) as f32;
-            g[1] -= d * (2 * b - 1) as f32;
-            g[2] -= d * (2 * c - 1) as f32;
-        }
-        self.slopes[idx] = g;
-        g
-    }
-
-    /// The ground's smooth outward direction at a vertex (fine voxels from
-    /// the section's corner), blended between grid corners; unit length,
-    /// or zero where there is no slope to speak of.
-    fn slope_at(&mut self, p: [i32; 3]) -> [f32; 3] {
-        let r = self.r;
-        let b = p.map(|v| v.div_euclid(r).clamp(-1, N));
-        let f = [0, 1, 2].map(|a| (p[a] - b[a] * r) as f32 / r as f32);
-        let mut out = [0f32; 3];
-        for n in 0..8i32 {
-            let (a, bb, c) = (n & 1, (n >> 2) & 1, (n >> 1) & 1);
-            let w = (if a == 1 { f[0] } else { 1.0 - f[0] })
-                * (if bb == 1 { f[1] } else { 1.0 - f[1] })
-                * (if c == 1 { f[2] } else { 1.0 - f[2] });
-            if w == 0.0 {
-                continue;
-            }
-            let g = self.slope_corner(b[0] + a, b[1] + bb, b[2] + c);
-            for e in 0..3 {
-                out[e] += g[e] * w;
-            }
-        }
-        let len = (out[0] * out[0] + out[1] * out[1] + out[2] * out[2]).sqrt();
-        if len < 1e-4 {
-            return [0.0; 3];
-        }
-        out.map(|v| v / len)
-    }
-
     /// Light at a vertex, given in fine voxels from the section's corner:
     /// blended between the grid corners round it.
     fn light_at(&mut self, light: &Light, p: [i32; 3]) -> [f32; 3] {
@@ -1529,9 +1459,7 @@ impl<'a> Fine<'a> {
         let sig = ((q.key >> 8) & 0xfff) as u32;
         let p = self.p;
         let strength = p.shade[(q.key & 0xff) as usize];
-        // a gentle slope's creases are softer than a cliff's: decided per
-        // corner from the slope there (near a wall it tilts), so faces that
-        // share a corner agree
+        // the creases and lips of the voxels, corner by corner
         let mut shade = [0f32; 4];
         for (k, out) in shade.iter_mut().enumerate() {
             let bits = sig >> (k * 3);
@@ -1539,15 +1467,9 @@ impl<'a> Fine<'a> {
                 *out = 1.0;
                 continue;
             }
-            let gentle = if p.shade_gentle > 0.0 {
-                let sl = self.slope_at(c[k]);
-                ((sl[1] - 0.55) / 0.35).clamp(0.0, 1.0) * p.shade_gentle
-            } else {
-                0.0
-            };
             let a = p.ao[3 - (bits & 3) as usize];
             let a = if bits & 4 != 0 { a * p.lip } else { a };
-            *out = 1.0 + (a - 1.0) * strength * (1.0 - gentle);
+            *out = 1.0 + (a - 1.0) * strength;
         }
         if cr[0] * n[0] + cr[1] * n[1] + cr[2] * n[2] < 0 {
             c.swap(1, 3);
@@ -1568,9 +1490,8 @@ impl<'a> Fine<'a> {
         };
         let glow = w::emission(b) > 0;
         // saturation (in hundredths) and jitter, packed
-        // voxels a metre, which way the face looks (the normal may be bent
-        // towards the slope, below), and colour cells a metre (no finer
-        // than the voxels)
+        // voxels a metre, which way the face looks, and colour cells a
+        // metre (no finer than the voxels)
         let grain = (p.colour_per_metre as i32).min(r);
         let tex = [
             r as f32 + 32.0 * q.dir as f32 + 256.0 * grain as f32,
@@ -1597,21 +1518,8 @@ impl<'a> Fine<'a> {
             ]
         });
         let nf = n.map(|v| v as f32);
-        // lit partly as the slope the voxels make, where the block says so
-        // and the slope faces up at all
-        let smooth = p.smooth[b as usize];
-        let ns = c.map(|c| {
-            if smooth == 0.0 {
-                return nf;
-            }
-            let sl = self.slope_at(c);
-            if sl[1] < 0.3 {
-                return nf;
-            }
-            let m = [0, 1, 2].map(|e| nf[e] + (sl[e] - nf[e]) * smooth);
-            let len = (m[0] * m[0] + m[1] * m[1] + m[2] * m[2]).sqrt().max(1e-4);
-            m.map(|v| v / len)
-        });
+        // lit by its own face: one normal over the whole of it (the voxel
+        // rule: no slope lighting across steps)
         // four corners, drawn as (0, 1, 2) and (0, 2, 3) by the shared quad
         // index: start at the corner that splits it so occlusion
         // interpolates evenly
@@ -1623,7 +1531,7 @@ impl<'a> Fine<'a> {
         for i in order {
             geo.ground.push(Vertex {
                 pos: pos[i],
-                normal: ns[i],
+                normal: nf,
                 color: [tint[0], tint[1], tint[2], if glow { 2.0 } else { ls[i][2] }],
                 light: ls[i][0],
                 sky: ls[i][1],

@@ -2,33 +2,33 @@
   "note": "The weight of the bench's still scenes, recorded by `DYNO_BLESS=1 cargo test -p dyno-client --test budget` (crates/dyno-client/tests/budget.rs): the test fails when one grows more than 15% over these. Do not edit by hand.",
   "scenes": {
     "hearthstead_plaza": {
-      "vertex_bytes": 64725864,
-      "triangles": 1139629,
+      "vertex_bytes": 78487296,
+      "triangles": 1625528,
       "cover_triangles": 783882
     },
     "hollow_oak": {
-      "vertex_bytes": 119177496,
-      "triangles": 2199599,
+      "vertex_bytes": 123397632,
+      "triangles": 2568984,
       "cover_triangles": 1734080
     },
     "logging_camp": {
-      "vertex_bytes": 94151472,
-      "triangles": 1845510,
+      "vertex_bytes": 111629760,
+      "triangles": 2324282,
       "cover_triangles": 1255806
     },
     "miners_rest": {
-      "vertex_bytes": 31567728,
-      "triangles": 628872,
+      "vertex_bytes": 35706912,
+      "triangles": 740714,
       "cover_triangles": 1101496
     },
     "mirrormere": {
-      "vertex_bytes": 47735808,
-      "triangles": 848042,
+      "vertex_bytes": 52063776,
+      "triangles": 973356,
       "cover_triangles": 672266
     },
     "windmill_farm": {
-      "vertex_bytes": 60455544,
-      "triangles": 1174829,
+      "vertex_bytes": 69311808,
+      "triangles": 1436988,
       "cover_triangles": 1308832
     }
   }

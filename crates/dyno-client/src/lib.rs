@@ -19,6 +19,7 @@ pub mod foliage;
 pub mod front;
 pub mod game;
 pub mod item_ui;
+pub mod ladder;
 pub mod life;
 pub mod look;
 pub mod minimap;
@@ -50,6 +51,8 @@ pub mod tips;
 pub mod tracker;
 pub mod uitext;
 pub mod vox;
+#[cfg(test)]
+pub(crate) mod voxel_rule;
 pub mod voxmodel;
 pub mod water;
 pub mod worldmap;

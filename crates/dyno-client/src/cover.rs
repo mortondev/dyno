@@ -1162,6 +1162,39 @@ impl Gpu {
     }
 }
 
+/// Every cover model at both levels of detail, in metres from its root
+/// (for the voxel rule's mesh test). Normals are left out: a plant's are
+/// leaned towards the sky by `soft`, the same over a whole face.
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let text = assets::text(COVER_JSON).expect("cover.json");
+    let file: CoverFile = serde_json::from_str(&text).expect("cover.json");
+    let mut out = Vec::new();
+    for (name, k) in &file.kinds {
+        let bytes = assets::get(&k.file).unwrap_or_else(|| panic!("{}", k.file));
+        let vox = crate::vox::read(&bytes).unwrap();
+        let voxel = k.voxel.unwrap_or(file.voxel);
+        for m in &vox.models {
+            let model = build_model(m, &vox.palette, voxel, k);
+            for (li, lod) in model.lods.iter().enumerate() {
+                let verts: Vec<([f32; 3], Option<[f32; 3]>)> = lod
+                    .indices
+                    .iter()
+                    .map(|i| (lod.verts[*i as usize].pos, None))
+                    .collect();
+                out.push(crate::voxel_rule::Object::from_list(
+                    format!("cover {name}"),
+                    format!("model {}, level {li}", m.name),
+                    1.0 / voxel,
+                    Some([0.0; 3]),
+                    &verts,
+                ));
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
