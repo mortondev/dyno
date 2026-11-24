@@ -841,7 +841,6 @@
     {"stamp": "hedge", "at": [27, 4], "rot": 1, "fit": "ground"},
     {"stamp": "field", "at": [36, -10], "fit": "ground"},
     {"stamp": "field", "at": [36, -25], "fit": "ground"},
-    {"stamp": "field", "at": [55, -20], "fit": "ground"},
     {"stamp": "barn", "at": [2, -32], "fit": "ground"},
     {"stamp": "stone_wall", "at": [15, -27], "fit": "ground"},
     {"stamp": "stone_wall", "at": [24, -19], "rot": 1, "fit": "ground"},
