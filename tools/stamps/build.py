@@ -349,11 +349,29 @@ def lamp_post_():
 
 @recipe
 def signpost():
+    """A fingerpost: a 4 m timber post, two plank arms 2 m long east and
+    west at head height and a third lower one south, a lantern on top.
+    5 x 5, 5 m with the lantern."""
     v = Vol("prop")
-    v.col(0, 0, 0, 2, "timber_beam")
-    v.set(1, 2, 0, "planks")
-    v.set(-1, 2, 0, "planks")
-    v.set(0, 3, 0, "lantern")
+    v.col(0, 0, 0, 3, "timber_beam")
+    for k in (1, 2):
+        v.set(k, 2, 0, "birch_planks")
+        v.set(-k, 2, 0, "birch_planks")
+        v.set(0, 1, k, "dark_planks")
+    v.set(0, 4, 0, "lantern")
+    return v
+
+
+@recipe
+def waymarker():
+    """The trail lamp: a timber post on a 2 x 2 cobble cairn, a lantern hung
+    from a short arm. 2 x 2, 3 m."""
+    v = Vol("prop")
+    for (x, z) in ((0, 0), (1, 0), (0, 1), (1, 1)):
+        v.set(x, 0, z, "cobble" if (x + z) % 2 else "mossy_cobble")
+    v.col(0, 0, 1, 2, "timber_beam")
+    v.set(1, 2, 0, "timber_beam")
+    v.set(1, 1, 0, "lantern")
     return v
 
 
@@ -423,13 +441,17 @@ def campfire():
 
 @recipe
 def log_pile():
+    """Logs stacked 3-2-1 in a stepped pile against the back, and a
+    chopping stump in front with the axe standing in it. 7 x 4, 3 m."""
     v = Vol("prop")
     for x in range(-3, 4):
-        for z, top in ((-1, 0), (0, 1), (1, 0)):
-            for y in range(top + 1):
+        for z, h in ((-1, 3), (0, 2), (1, 1)):
+            # the ends of the pile are a course lower: a stack, not a wall
+            top = h - 1 if abs(x) == 3 and h > 1 else h
+            for y in range(top):
                 v.set(x, y, z, "log")
-    v.set(-4, 0, 0, "timber_beam")
-    v.set(4, 0, 0, "timber_beam")
+    v.set(2, 0, 2, "log")
+    v.set(2, 1, 2, "timber_beam")
     return v
 
 
@@ -598,10 +620,23 @@ def field():
 def pasture():
     """A sheep field: a rail fence with a gate on the south side."""
     v = Vol("prop")
-    fence(v, -9, -7, 9, 7, gate=[(0, 7), (1, 7)])
-    v.set(-8, 0, -6, "hay_bale")
-    v.set(-7, 0, -6, "hay_bale")
-    v.set(7, 0, -6, "barrel")
+    fence(v, -9, -7, 9, 7, gate=[(-1, 7), (0, 7), (1, 7)])
+    # a lean-to against the north-west corner: a plank back wall, posts in
+    # front and a roof stepping down toward the pen
+    for x in range(-8, -5):
+        v.col(x, -6, 0, 2, "dark_planks")
+        v.set(x, 3, -6, "thatch")
+        v.set(x, 2, -5, "thatch")
+    v.col(-8, -5, 0, 1, "timber_beam")
+    v.col(-6, -5, 0, 1, "timber_beam")
+    v.set(-7, 0, -5, "hay_bale")
+    # a haystack in the north-east corner
+    for (x, y, z) in ((7, 0, -6), (8, 0, -6), (7, 0, -5), (8, 0, -5), (7, 1, -6), (8, 1, -5), (7, 2, -6)):
+        v.set(x, y, z, "hay_bale")
+    # a plank trough with water along the west fence
+    for z in range(-1, 3):
+        v.set(-8, 0, z, "planks" if z in (-1, 2) else "water")
+        v.set(-7, 0, z, "planks")
     v.points["flock"] = (0, 0, 0)
     return v
 
@@ -1023,33 +1058,70 @@ def ruin_tower():
 
 @recipe
 def standing_stones():
+    """A stone ring of radius 8: seven 2 x 1 m slabs 4-7 m tall, long side
+    on the tangent, two of them capped with a lintel (a trilithon) on the
+    +z side, one fallen 2 x 1 x 5 slab on the -z side, and a low 3 x 3
+    altar in the middle. 19 x 19, 7 m."""
     v = Vol("ruin")
-    for i in range(7):
-        a = i / 7 * math.tau
-        x, z = round(math.cos(a) * 6), round(math.sin(a) * 6)
-        h = 3 + rnd(i, 0, 0) % 3
-        if i == 4:
-            # one fell
-            for k in range(3):
-                v.set(x + k, 0, z, "mossy_cobble")
-            continue
-        v.col(x, z, 0, h, "stone" if i % 2 else "mossy_cobble")
-    v.set(0, 0, 0, "stone_bricks")
-    v.set(0, 1, 0, "brazier")
+
+    def slab(cells, h, salt):
+        for i, (x, z) in enumerate(cells):
+            for y in range(h):
+                # mossy at the foot, weathered grey above
+                low = y == 0 or (y == 1 and (i + salt) % 2 == 0)
+                v.set(x, y, z, "mossy_cobble" if low else "stone")
+            v.set(x, -1, z, "stone")
+
+    # the trilithon: uprights 6 m, a lintel course across them
+    slab([(-3, 8), (-2, 8)], 6, 0)
+    slab([(2, 8), (3, 8)], 6, 1)
+    for x in range(-3, 4):
+        v.set(x, 6, 8, "stone")
+    # the ring
+    slab([(8, -1), (8, 0)], 5, 2)
+    slab([(-8, -1), (-8, 0)], 7, 3)
+    slab([(5, -6), (6, -6)], 4, 4)
+    slab([(6, 5), (6, 6)], 5, 5)
+    slab([(-6, 5), (-6, 6)], 4, 6)
+    # the fallen one: 5 long, 2 wide, flat in the turf, cracked across
+    for x in range(-3, 2):
+        for z in (-8, -7):
+            v.set(x, 0, z, "mossy_cobble" if x == -1 else "stone")
+    # the altar: a low 3 x 3 table of dressed stone, worn flags round it
+    for x in range(-1, 2):
+        for z in range(-1, 2):
+            v.set(x, 0, z, "stone_bricks")
+            v.set(x, -1, z, "stone")
+    v.set(0, 1, 0, "mossy_cobble")
+    for (x, z) in ((-2, 0), (2, 1), (0, -2), (1, 2)):
+        v.set(x, -1, z, "flagstones")
     return v
 
 
 @recipe
 def wayshrine():
+    """A roadside shrine: a 5 x 5 stone plinth in two 1 m steps, a 2 x 2
+    shaft 3 m tall with a lantern in a niche on its +z face, a 3 x 3
+    capstone, flower beds at the foot of the shaft. 5 x 5, 6 m."""
     v = Vol("prop")
+    for x in range(-2, 3):
+        for z in range(-2, 3):
+            v.set(x, -1, z, "cobble")
+            v.set(x, 0, z, "stone_bricks")
+            if abs(x) <= 1 and abs(z) <= 1:
+                v.set(x, 1, z, "stone_bricks")
+    for x in (-1, 0):
+        for z in (-1, 0):
+            v.col(x, z, 2, 4, "stone_bricks")
+    v.set(0, 3, 0, "lantern")          # the niche in the +z face
+    v.set(-1, 3, 0, "lantern")
+    v.set(-1, 2, 0, "mossy_cobble")
+    v.set(0, 2, 0, "mossy_cobble")
     for x in range(-1, 2):
         for z in range(-1, 2):
-            v.set(x, -1, z, "cobble")
-    v.col(0, 0, 0, 1, "stone_bricks")
-    v.set(0, 2, 0, "lantern")
-    for (x, z) in ((-1, 0), (1, 0), (0, 1)):
-        v.set(x, 0, z, "flower_bed")
-    v.set(0, 0, -1, "blue_banner")
+            v.set(x, 5, z, "stone_bricks")
+    for (x, z) in ((1, 1), (1, -1), (-1, 1)):
+        v.set(x, 2, z, "flower_bed")
     return v
 
 
@@ -1063,9 +1135,15 @@ def cairn():
 
 @recipe
 def milestone():
+    """A milestone: a 1 x 1 stone shaft 3 m tall on a 3 x 3 step, with a
+    capstone. 3 x 3, 4 m."""
     v = Vol("prop")
-    v.set(0, 0, 0, "stone_bricks")
+    for x in range(-1, 2):
+        for z in range(-1, 2):
+            v.set(x, 0, z, "cobble" if (x + z) % 2 else "stone_bricks")
+    v.col(0, 0, 0, 2, "stone_bricks")
     v.set(0, 1, 0, "mossy_cobble")
+    v.set(0, 3, 0, "stone")
     return v
 
 

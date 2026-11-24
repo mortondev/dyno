@@ -461,7 +461,7 @@
   "trail": {
    "width": 3,
    "surface": {"dirt": 1},
-   "lamp": "lamp_post",
+   "lamp": "waymarker",
    "lamp_every": 90,
    "ford": true
   }
