@@ -417,8 +417,8 @@
     "slot": "main_hand",
     "weapon": {
      "kind": "sword",
-     "min": 3,
-     "max": 5,
+     "min": 4,
+     "max": 6,
      "speed": 2.0
     },
     "stats": {}
@@ -446,7 +446,7 @@
      "max": 0,
      "speed": 1.0
     },
-    "armor": 12,
+    "armor": 16,
     "stats": {}
    }
   },
@@ -3627,7 +3627,7 @@
    "gear": {
     "slot": "chest",
     "armor_type": "cloth",
-    "armor": 3,
+    "armor": 12,
     "stats": {}
    }
   },
@@ -3648,7 +3648,7 @@
    "gear": {
     "slot": "shoulders",
     "armor_type": "cloth",
-    "armor": 1,
+    "armor": 6,
     "stats": {}
    }
   },
@@ -3669,7 +3669,7 @@
    "gear": {
     "slot": "chest",
     "armor_type": "cloth",
-    "armor": 3,
+    "armor": 10,
     "stats": {}
    }
   },
@@ -3690,7 +3690,7 @@
    "gear": {
     "slot": "shoulders",
     "armor_type": "cloth",
-    "armor": 1,
+    "armor": 5,
     "stats": {}
    }
   },
@@ -3711,7 +3711,7 @@
    "gear": {
     "slot": "chest",
     "armor_type": "cloth",
-    "armor": 3,
+    "armor": 6,
     "stats": {}
    }
   },
@@ -3732,7 +3732,7 @@
    "gear": {
     "slot": "head",
     "armor_type": "cloth",
-    "armor": 1,
+    "armor": 3,
     "stats": {}
    }
   },
@@ -3753,7 +3753,7 @@
    "gear": {
     "slot": "chest",
     "armor_type": "cloth",
-    "armor": 3,
+    "armor": 7,
     "stats": {}
    }
   },
@@ -3774,7 +3774,7 @@
    "gear": {
     "slot": "head",
     "armor_type": "cloth",
-    "armor": 1,
+    "armor": 3,
     "stats": {}
    }
   },
@@ -8796,7 +8796,7 @@
     0.61,
     0.43
    ],
-   "armor": "mail",
+   "armor": "plate",
    "weapons": [
     "sword",
     "axe",
@@ -8804,7 +8804,7 @@
     "polearm",
     "shield"
    ],
-   "blurb": "A master of arms in mail. Builds rage by fighting; stands at the front and takes the blows.",
+   "blurb": "A master of arms in plate and mail. Builds rage by fighting; stands at the front and takes the blows.",
    "starter": [
     [
      "worn_shortsword",
@@ -8841,7 +8841,7 @@
    "growth": {
     "str": 15,
     "agi": 7,
-    "sta": 14,
+    "sta": 16,
     "int": 1,
     "spi": 3
    }
@@ -8855,13 +8855,13 @@
     0.55,
     0.73
    ],
-   "armor": "mail",
+   "armor": "plate",
    "weapons": [
     "mace",
     "sword",
     "shield"
    ],
-   "blurb": "A holy warrior in mail: fights up close, heals, and is a bane to Shades.",
+   "blurb": "A holy warrior in plate and mail: fights up close, heals, and is a bane to Shades.",
    "starter": [
     [
      "rough_maul",
@@ -8908,14 +8908,14 @@
     0.83,
     0.45
    ],
-   "armor": "leather",
+   "armor": "mail",
    "weapons": [
     "bow",
     "axe",
     "sword",
     "dagger"
    ],
-   "blurb": "A tracker and archer in leather who strikes from afar and pins foes in place.",
+   "blurb": "A tracker and archer in leather and mail who strikes from afar and pins foes in place.",
    "starter": [
     [
      "hunting_bow",
@@ -9004,7 +9004,7 @@
    "growth": {
     "str": 7,
     "agi": 16,
-    "sta": 10,
+    "sta": 12,
     "int": 1,
     "spi": 3
    }
@@ -9103,7 +9103,7 @@
    "base": {
     "str": 2,
     "agi": 3,
-    "sta": 5,
+    "sta": 6,
     "int": 10,
     "spi": 7
    },
@@ -9122,7 +9122,7 @@
    "name": "Heroic Blow",
    "class": "warrior",
    "level": 1,
-   "text": "A mighty strike: weapon damage plus a little more.",
+   "text": "A mighty blow: weapon damage plus more.",
    "icon": "worn_shortsword",
    "color": [
     0.9,
@@ -9133,53 +9133,59 @@
    "range": 4.5,
    "weapon": 1.0,
    "damage": [
-    10,
-    1
-   ]
+    8,
+    3
+   ],
+   "sound": "slash",
+   "image": "icons/abilities/heroic_blow.png"
   },
   {
    "key": "battle_cry",
    "name": "Battle Cry",
    "class": "warrior",
-   "level": 2,
+   "level": 6,
    "text": "Your cry steels you: 10% more damage for 2 minutes.",
    "icon": "rough_maul",
    "color": [
-    1.0,
-    0.5,
-    0.3
+    0.9,
+    0.35,
+    0.2
    ],
    "cost": 10,
    "buff": {
     "kind": "damage",
     "amount": 10,
     "secs": 120
-   }
+   },
+   "sound": "shout",
+   "image": "icons/abilities/battle_cry.png"
   },
   {
    "key": "onrush",
    "name": "Onrush",
    "class": "warrior",
-   "level": 4,
-   "text": "Rush to your target, stun it for 1 second and gain 10 rage.",
+   "level": 1,
+   "text": "Rush to your target, stun it for 1.5 seconds and gain 20 rage.",
    "icon": "watch_greataxe",
    "color": [
-    0.9,
-    0.6,
-    0.4
+    0.85,
+    0.5,
+    0.25
    ],
-   "cooldown": 15,
+   "cooldown": 12,
    "range": 25,
    "charge": true,
-   "stun": 1,
-   "gives": 10
+   "stun": 1.5,
+   "gives": 20,
+   "sound": "charge",
+   "image": "icons/abilities/onrush.png"
   },
   {
    "key": "rending_cut",
    "name": "Rending Cut",
    "class": "warrior",
    "level": 3,
-   "text": "Open a wound that bleeds for 15 seconds.",
+   "text": "Open a wound that bleeds for 12 seconds.",
    "icon": "watch_longsword",
    "color": [
     0.8,
@@ -9189,30 +9195,38 @@
    "cost": 10,
    "range": 4.5,
    "dot": [
-    25,
-    10,
-    15
-   ]
+    18,
+    6,
+    12
+   ],
+   "sound": "slash",
+   "image": "icons/abilities/rending_cut.png"
   },
   {
    "key": "ground_slam",
    "name": "Ground Slam",
    "class": "warrior",
-   "level": 8,
-   "text": "Slam the earth, hurting every foe within 5 yards.",
+   "level": 4,
+   "text": "Slam the earth: every foe within 5 yards is hurt and slowed by 40% for 4 seconds.",
    "icon": "rough_maul",
    "color": [
-    0.7,
     0.6,
-    0.4
+    0.5,
+    0.35
    ],
    "cost": 20,
-   "cooldown": 6,
+   "cooldown": 8,
    "radius": 5,
    "damage": [
-    8,
-    3
-   ]
+    7,
+    2.5
+   ],
+   "slow": [
+    40,
+    4
+   ],
+   "sound": "thud",
+   "image": "icons/abilities/ground_slam.png"
   },
   {
    "key": "last_stand",
@@ -9222,16 +9236,18 @@
    "text": "Take 30% less damage for 10 seconds.",
    "icon": "battered_buckler",
    "color": [
-    0.7,
-    0.7,
-    0.8
+    0.55,
+    0.6,
+    0.75
    ],
    "cooldown": 60,
    "buff": {
     "kind": "ward",
     "amount": 30,
     "secs": 10
-   }
+   },
+   "sound": "shield",
+   "image": "icons/abilities/last_stand.png"
   },
   {
    "key": "judging_blow",
@@ -9241,98 +9257,108 @@
    "text": "Strike with holy might: weapon damage plus more. Shades take 50% more.",
    "icon": "rough_maul",
    "color": [
-    1.0,
-    0.9,
-    0.5
+    0.8,
+    0.62,
+    0.25
    ],
-   "cost": 12,
-   "cooldown": 8,
+   "cost": 7,
+   "cooldown": 4,
    "range": 4.5,
-   "weapon": 1.0,
+   "weapon": 0.6,
    "damage": [
-    8,
+    2,
     1
    ],
-   "shade_bonus": 1.5
+   "shade_bonus": 1.5,
+   "sound": "holy_strike",
+   "image": "icons/abilities/judging_blow.png"
   },
   {
    "key": "holy_mend",
    "name": "Holy Mend",
    "class": "paladin",
    "level": 1,
-   "text": "Heal your wounds.",
+   "text": "Call on the light to heal your wounds.",
    "icon": "lantern",
    "color": [
-    1.0,
-    0.95,
+    0.55,
+    0.9,
     0.6
    ],
-   "cost": 20,
-   "cast": 2.5,
+   "cost": 18,
+   "cast": 2.0,
    "heal": [
-    28,
-    9
-   ]
+    24,
+    8
+   ],
+   "sound": "heal",
+   "image": "icons/abilities/holy_mend.png"
   },
   {
    "key": "valour",
    "name": "Valour",
    "class": "paladin",
-   "level": 4,
+   "level": 2,
    "text": "Fight with valour: 10% more damage for 5 minutes.",
    "icon": "watch_longsword",
    "color": [
-    1.0,
     0.85,
-    0.4
+    0.3,
+    0.25
    ],
    "cost": 20,
    "buff": {
     "kind": "damage",
     "amount": 10,
     "secs": 300
-   }
+   },
+   "sound": "shout",
+   "image": "icons/abilities/valour.png"
   },
   {
    "key": "rebuke",
    "name": "Rebuke",
    "class": "paladin",
    "level": 3,
-   "text": "Stun your target for 4 seconds.",
+   "text": "A stern blow that stuns your target for 3 seconds.",
    "icon": "shadowbane_mace",
    "color": [
-    1.0,
     0.9,
-    0.6
+    0.55,
+    0.25
    ],
-   "cost": 15,
-   "cooldown": 45,
+   "cost": 10,
+   "cooldown": 30,
    "range": 4.5,
    "damage": [
-    2,
-    0
+    4,
+    1
    ],
-   "stun": 4
+   "stun": 3,
+   "sound": "thud",
+   "image": "icons/abilities/rebuke.png"
   },
   {
    "key": "devout_ward",
    "name": "Devout Ward",
    "class": "paladin",
-   "level": 8,
+   "level": 5,
    "text": "Take 30% less damage for 10 seconds.",
    "icon": "battered_buckler",
    "color": [
-    1.0,
-    0.95,
-    0.7
+    0.55,
+    0.68,
+    0.95
    ],
-   "cost": 20,
+   "cost": 15,
    "cooldown": 60,
    "buff": {
     "kind": "ward",
     "amount": 30,
     "secs": 10
-   }
+   },
+   "sound": "shield",
+   "image": "icons/abilities/devout_ward.png"
   },
   {
    "key": "hallowed_ground",
@@ -9353,7 +9379,9 @@
     16,
     6
    ],
-   "shade_bonus": 2.0
+   "shade_bonus": 2.0,
+   "sound": "holy_burst",
+   "image": "icons/abilities/hallowed_ground.png"
   },
   {
    "key": "quick_shot",
@@ -9367,54 +9395,60 @@
     0.8,
     0.6
    ],
-   "cost": 10,
-   "cooldown": 6,
+   "cost": 6,
+   "cooldown": 3,
    "range": 30,
    "damage": [
-    8,
-    3
-   ]
+    7,
+    2.5
+   ],
+   "sound": "shot",
+   "image": "icons/abilities/quick_shot.png"
   },
   {
    "key": "barbed_arrow",
    "name": "Barbed Arrow",
    "class": "hunter",
-   "level": 2,
-   "text": "An arrow that keeps cutting for 15 seconds.",
+   "level": 1,
+   "text": "A barbed arrow that keeps cutting for 12 seconds.",
    "icon": "ashwood_longbow",
    "color": [
     0.8,
     0.2,
     0.2
    ],
-   "cost": 12,
+   "cost": 8,
    "range": 30,
    "dot": [
-    20,
-    7.5,
-    15
-   ]
+    16,
+    5,
+    12
+   ],
+   "sound": "shot",
+   "image": "icons/abilities/barbed_arrow.png"
   },
   {
    "key": "snare_shot",
-   "name": "Snare Shot",
+   "name": "Snare Trap",
    "class": "hunter",
-   "level": 6,
-   "text": "Pin your target in place for 4 seconds.",
+   "level": 4,
+   "text": "Loose a snare at your target's feet: it is held in place for 5 seconds.",
    "icon": "hunting_bow",
    "color": [
     0.6,
     0.8,
     0.5
    ],
-   "cost": 12,
-   "cooldown": 12,
+   "cost": 10,
+   "cooldown": 15,
    "range": 30,
    "damage": [
     2,
     0
    ],
-   "root": 4
+   "root": 5,
+   "sound": "snare",
+   "image": "icons/abilities/snare_shot.png"
   },
   {
    "key": "hawks_eye",
@@ -9433,7 +9467,9 @@
     "kind": "damage",
     "amount": 15,
     "secs": 1800
-   }
+   },
+   "sound": "seal",
+   "image": "icons/abilities/hawks_eye.png"
   },
   {
    "key": "volley",
@@ -9443,9 +9479,9 @@
    "text": "Rain arrows on every foe within 5 yards of your target.",
    "icon": "ashwood_longbow",
    "color": [
-    0.85,
-    0.75,
-    0.55
+    0.5,
+    0.65,
+    0.4
    ],
    "cost": 30,
    "cooldown": 10,
@@ -9455,7 +9491,9 @@
    "damage": [
     10,
     3
-   ]
+   ],
+   "sound": "shot_heavy",
+   "image": "icons/abilities/volley.png"
   },
   {
    "key": "vicious_strike",
@@ -9469,56 +9507,62 @@
     0.9,
     0.4
    ],
-   "cost": 40,
+   "cost": 45,
    "range": 4.5,
-   "weapon": 1.0,
+   "weapon": 0.85,
    "damage": [
-    6,
-    1
+    1,
+    0.6
    ],
-   "combo": 1
+   "combo": 1,
+   "sound": "stab",
+   "image": "icons/abilities/vicious_strike.png"
   },
   {
    "key": "finishing_cut",
    "name": "Finishing Cut",
    "class": "rogue",
    "level": 1,
-   "text": "A finisher: damage for each combo point.",
+   "text": "A finisher: damage for each combo point spent.",
    "icon": "keen_dagger",
    "color": [
-    1.0,
-    0.85,
-    0.3
+    0.9,
+    0.45,
+    0.2
    ],
-   "cost": 30,
+   "cost": 25,
    "range": 4.5,
    "damage": [
-    6,
-    2
+    2,
+    0.8
    ],
-   "combo": -1
+   "combo": -1,
+   "sound": "slash",
+   "image": "icons/abilities/finishing_cut.png"
   },
   {
    "key": "low_blow",
    "name": "Low Blow",
    "class": "rogue",
    "level": 3,
-   "text": "Stun your target for 3 seconds. Adds a combo point.",
+   "text": "Stun your target for 4 seconds. Adds a combo point.",
    "icon": "rusty_dagger",
    "color": [
-    0.8,
-    0.8,
-    0.5
+    0.6,
+    0.5,
+    0.35
    ],
-   "cost": 40,
-   "cooldown": 10,
+   "cost": 25,
+   "cooldown": 12,
    "range": 4.5,
    "damage": [
-    1,
-    0
+    3,
+    1
    ],
-   "stun": 3,
-   "combo": 1
+   "stun": 4,
+   "combo": 1,
+   "sound": "thud",
+   "image": "icons/abilities/low_blow.png"
   },
   {
    "key": "flurry",
@@ -9528,9 +9572,9 @@
    "text": "A finisher: attack 30% faster for 6 seconds, plus 3 per combo point.",
    "icon": "keen_dagger",
    "color": [
-    1.0,
-    1.0,
-    0.5
+    0.4,
+    0.72,
+    0.78
    ],
    "cost": 25,
    "combo": -1,
@@ -9539,7 +9583,9 @@
     "amount": 30,
     "secs": 6,
     "per_combo": 3
-   }
+   },
+   "sound": "slash",
+   "image": "icons/abilities/flurry.png"
   },
   {
    "key": "open_vein",
@@ -9560,26 +9606,30 @@
     12,
     4,
     12
-   ]
+   ],
+   "sound": "stab",
+   "image": "icons/abilities/open_vein.png"
   },
   {
    "key": "slip_away",
    "name": "Slip Away",
    "class": "rogue",
-   "level": 10,
-   "text": "Take 50% less damage for 8 seconds.",
+   "level": 4,
+   "text": "Twist away from every blow: take 60% less damage for 8 seconds.",
    "icon": "shade_dust",
    "color": [
     0.6,
     0.6,
     0.7
    ],
-   "cooldown": 180,
+   "cooldown": 60,
    "buff": {
     "kind": "ward",
-    "amount": 50,
+    "amount": 60,
     "secs": 8
-   }
+   },
+   "sound": "sneak",
+   "image": "icons/abilities/slip_away.png"
   },
   {
    "key": "smite",
@@ -9593,14 +9643,16 @@
     0.92,
     0.55
    ],
-   "cost": 10,
+   "cost": 9,
    "cast": 1.5,
    "range": 25,
    "damage": [
-    12,
-    4
+    11,
+    3.5
    ],
-   "shade_bonus": 2.0
+   "shade_bonus": 2.0,
+   "sound": "holy_bolt",
+   "image": "icons/abilities/smite.png"
   },
   {
    "key": "mend",
@@ -9610,55 +9662,61 @@
    "text": "Close your wounds.",
    "icon": "berries",
    "color": [
-    0.6,
-    1.0,
-    0.6
+    0.45,
+    0.85,
+    0.5
    ],
    "cost": 15,
    "cast": 2,
    "heal": [
-    25,
-    9
-   ]
+    22,
+    8
+   ],
+   "sound": "heal",
+   "image": "icons/abilities/mend.png"
   },
   {
    "key": "withering_word",
    "name": "Withering Word",
    "class": "priest",
    "level": 2,
-   "text": "Shadow eats at your target for 18 seconds.",
+   "text": "A word of shadow eats at your target for 12 seconds.",
    "icon": "shade_dust",
    "color": [
     0.55,
     0.3,
     0.7
    ],
-   "cost": 15,
+   "cost": 12,
    "range": 25,
    "dot": [
-    24,
-    9,
-    18
-   ]
+    18,
+    6,
+    12
+   ],
+   "sound": "shadow",
+   "image": "icons/abilities/withering_word.png"
   },
   {
    "key": "renewal",
    "name": "Renewal",
    "class": "priest",
-   "level": 6,
+   "level": 5,
    "text": "Heal yourself over 15 seconds.",
    "icon": "berries",
    "color": [
-    0.5,
-    1.0,
-    0.5
+    0.3,
+    0.7,
+    0.45
    ],
-   "cost": 18,
+   "cost": 16,
    "hot": [
-    25,
-    10,
+    22,
+    8,
     15
-   ]
+   ],
+   "sound": "heal",
+   "image": "icons/abilities/renewal.png"
   },
   {
    "key": "fortify",
@@ -9668,16 +9726,18 @@
    "text": "+5 Stamina for 30 minutes.",
    "icon": "acolyte_rod",
    "color": [
-    0.9,
-    0.9,
-    1.0
+    0.7,
+    0.72,
+    0.85
    ],
    "cost": 25,
    "buff": {
     "kind": "stamina",
     "amount": 5,
     "secs": 1800
-   }
+   },
+   "sound": "seal",
+   "image": "icons/abilities/fortify.png"
   },
   {
    "key": "radiance",
@@ -9702,7 +9762,9 @@
    "heal": [
     10,
     3
-   ]
+   ],
+   "sound": "holy_burst",
+   "image": "icons/abilities/radiance.png"
   },
   {
    "key": "fireball",
@@ -9718,17 +9780,19 @@
    ],
    "cost": 14,
    "cast": 2,
-   "range": 30,
+   "range": 25,
    "damage": [
-    16,
-    5
-   ]
+    13,
+    4.5
+   ],
+   "sound": "fire",
+   "image": "icons/abilities/fireball.png"
   },
   {
    "key": "scholars_focus",
    "name": "Scholar's Focus",
    "class": "mage",
-   "level": 2,
+   "level": 5,
    "text": "+5 Intellect for 30 minutes.",
    "icon": "apprentice_staff",
    "color": [
@@ -9741,7 +9805,9 @@
     "kind": "intellect",
     "amount": 5,
     "secs": 1800
-   }
+   },
+   "sound": "seal",
+   "image": "icons/abilities/scholars_focus.png"
   },
   {
    "key": "fire_blast",
@@ -9757,32 +9823,36 @@
    ],
    "cost": 12,
    "cooldown": 8,
-   "range": 25,
+   "range": 20,
    "damage": [
-    12,
-    4
-   ]
+    9,
+    3
+   ],
+   "sound": "fire_blast",
+   "image": "icons/abilities/fire_blast.png"
   },
   {
    "key": "ice_ring",
    "name": "Ice Ring",
    "class": "mage",
-   "level": 6,
-   "text": "Frost holds every foe within 6 yards in place for 6 seconds.",
+   "level": 4,
+   "text": "Frost holds every foe within 6 yards in place for 5 seconds.",
    "icon": "glass",
    "color": [
     0.6,
     0.85,
     1.0
    ],
-   "cost": 20,
+   "cost": 18,
    "cooldown": 25,
    "radius": 6,
    "damage": [
-    2,
-    0
+    3,
+    1
    ],
-   "root": 6
+   "root": 5,
+   "sound": "frost_burst",
+   "image": "icons/abilities/ice_ring.png"
   },
   {
    "key": "blink",
@@ -9798,7 +9868,9 @@
    ],
    "cost": 15,
    "cooldown": 15,
-   "blink": 10
+   "blink": 10,
+   "sound": "blink",
+   "image": "icons/abilities/blink.png"
   },
   {
    "key": "flame_nova",
@@ -9818,7 +9890,199 @@
    "damage": [
     12,
     4
-   ]
+   ],
+   "sound": "fire_blast",
+   "image": "icons/abilities/flame_nova.png"
+  },
+  {
+   "key": "second_wind",
+   "name": "Second Wind",
+   "class": "warrior",
+   "level": 2,
+   "icon": "hearth_bread",
+   "color": [
+    0.9,
+    0.45,
+    0.3
+   ],
+   "cost": 15,
+   "cooldown": 20,
+   "heal": [
+    14,
+    5
+   ],
+   "sound": "shout",
+   "text": "Turn your rage into resolve: heal your wounds.",
+   "image": "icons/abilities/second_wind.png"
+  },
+  {
+   "key": "seal_of_dawn",
+   "name": "Seal of Dawn",
+   "class": "paladin",
+   "level": 1,
+   "icon": "lantern",
+   "color": [
+    1.0,
+    0.8,
+    0.35
+   ],
+   "cost": 10,
+   "buff": {
+    "kind": "strike",
+    "amount": 3,
+    "secs": 60,
+    "per_level": 1.0
+   },
+   "sound": "seal",
+   "text": "Seal your weapon with dawnlight for 60 seconds: every swing burns for extra holy damage.",
+   "image": "icons/abilities/seal_of_dawn.png"
+  },
+  {
+   "key": "marked_shot",
+   "name": "Marked Shot",
+   "class": "hunter",
+   "level": 2,
+   "icon": "ashwood_longbow",
+   "color": [
+    0.95,
+    0.9,
+    0.55
+   ],
+   "cost": 10,
+   "cooldown": 10,
+   "cast": 1.5,
+   "range": 30,
+   "damage": [
+    8,
+    3
+   ],
+   "opener": 1.5,
+   "sound": "shot_heavy",
+   "text": "Take careful aim for a heavy shot. 50% more against a foe that is not yet fighting you.",
+   "image": "icons/abilities/marked_shot.png"
+  },
+  {
+   "key": "ambush",
+   "name": "Ambush",
+   "class": "rogue",
+   "level": 2,
+   "icon": "keen_dagger",
+   "color": [
+    0.75,
+    0.2,
+    0.25
+   ],
+   "cost": 45,
+   "cooldown": 10,
+   "range": 4.5,
+   "weapon": 0.85,
+   "damage": [
+    3,
+    1.5
+   ],
+   "opener": 1.4,
+   "combo": 2,
+   "sound": "stab_heavy",
+   "text": "A strike from the blind side: 40% more damage against a foe that is not yet fighting you. Adds 2 combo points.",
+   "image": "icons/abilities/ambush.png"
+  },
+  {
+   "key": "sneak",
+   "name": "Sneak",
+   "class": "rogue",
+   "level": 5,
+   "icon": "shade_dust",
+   "color": [
+    0.45,
+    0.4,
+    0.6
+   ],
+   "cost": 20,
+   "cooldown": 6,
+   "buff": {
+    "kind": "stealth",
+    "amount": 70,
+    "secs": 30
+   },
+   "sound": "sneak",
+   "text": "Slip into the shadows for 30 seconds: creatures notice you from much less far. Ends when you strike or are struck.",
+   "image": "icons/abilities/sneak.png"
+  },
+  {
+   "key": "ward_of_light",
+   "name": "Ward of Light",
+   "class": "priest",
+   "level": 3,
+   "icon": "glowshroom",
+   "color": [
+    0.6,
+    0.8,
+    1.0
+   ],
+   "cost": 14,
+   "cooldown": 15,
+   "buff": {
+    "kind": "absorb",
+    "amount": 12,
+    "secs": 15,
+    "per_level": 4
+   },
+   "sound": "shield",
+   "text": "A shield of light soaks up damage for 15 seconds, then breaks.",
+   "image": "icons/abilities/ward_of_light.png"
+  },
+  {
+   "key": "frostbolt",
+   "name": "Frostbolt",
+   "class": "mage",
+   "level": 1,
+   "icon": "glass",
+   "color": [
+    0.55,
+    0.8,
+    1.0
+   ],
+   "cost": 10,
+   "cast": 1.5,
+   "range": 25,
+   "damage": [
+    7,
+    2.5
+   ],
+   "slow": [
+    50,
+    6
+   ],
+   "sound": "frost",
+   "text": "A bolt of ice that slows your target by 50% for 6 seconds.",
+   "image": "icons/abilities/frostbolt.png"
+  },
+  {
+   "key": "hamstring",
+   "name": "Hamstring",
+   "class": "hunter",
+   "level": 3,
+   "icon": "woodsman_hatchet",
+   "color": [
+    0.7,
+    0.45,
+    0.3
+   ],
+   "cost": 8,
+   "cooldown": 8,
+   "range": 4.5,
+   "weapon": 1.0,
+   "damage": [
+    2,
+    1
+   ],
+   "slow": [
+    50,
+    6
+   ],
+   "sound": "slash",
+   "text": "A low cut with your hatchet: weapon damage, and the target is slowed by 50% for 6 seconds.",
+   "image": "icons/abilities/hamstring.png"
   }
  ],
  "professions": [

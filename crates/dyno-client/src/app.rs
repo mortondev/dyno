@@ -2300,6 +2300,7 @@ impl App {
                             p.gcd = (now + Duration::from_secs_f32(global), global);
                         }
                         ServerMsg::Effect {
+                            ability,
                             color,
                             from,
                             to,
@@ -2309,10 +2310,35 @@ impl App {
                             animate_caster(p, a, color);
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
-                                self.audio.play(Sfx::Dissolve, 0.5);
                             } else {
                                 spawn_bolt(&mut p.particles, a, b, color);
-                                self.audio.play(Sfx::Hit, 0.4);
+                            }
+                            // the ability's own sound from the pack, or the
+                            // plain bolt or burst sound; quieter far away
+                            let gain = (1.0 - a.distance(p.player.eye()) / 48.0).clamp(0.15, 1.0);
+                            let own = ability
+                                .and_then(|i| p.content.ability(i))
+                                .map(|x| x.sound.clone())
+                                .filter(|s| !s.is_empty());
+                            let played = own.is_some_and(|s| self.audio.play_named(&s, 0.6 * gain));
+                            if !played {
+                                if radius > 0.0 {
+                                    self.audio.play(Sfx::Dissolve, 0.5 * gain);
+                                } else {
+                                    self.audio.play(Sfx::Hit, 0.4 * gain);
+                                }
+                            }
+                        }
+                        ServerMsg::Healed { amount } => {
+                            if amount >= 0.5 {
+                                let green = Color32::from_rgb(110, 235, 120);
+                                p.floaters
+                                    .push((Instant::now(), format!("+{amount:.0}"), green));
+                                p.combat_log.push((
+                                    Instant::now(),
+                                    format!("You are healed for {amount:.0}."),
+                                    green,
+                                ));
                             }
                         }
                         ServerMsg::Equipment(e) => {

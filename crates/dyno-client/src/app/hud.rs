@@ -715,8 +715,13 @@ pub fn action_bar(
         }
         // the slot being dragged shows empty while its icon is in the air
         let lifted = dragging == Some(screens::BarDrag::Slot(i));
-        if let (Some(item), false) = (look.icon, lifted) {
-            survival::item_icon(painter, r.shrink(5.0), &p.content, item);
+        if !lifted {
+            // an ability draws its own picture (from the pack); the rest their item
+            if let ActionSlot::Ability(a) = action_at(p, i) {
+                survival::ability_icon(painter, r.shrink(5.0), &p.content, a);
+            } else if let Some(item) = look.icon {
+                survival::item_icon(painter, r.shrink(5.0), &p.content, item);
+            }
         }
         theme::action_slot(
             painter,

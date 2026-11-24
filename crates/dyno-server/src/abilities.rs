@@ -3,12 +3,15 @@
 
 use crate::game::{State, dist};
 use dyno_protocol::{PlayerId, RECALL, ServerMsg};
-use dyno_world::content::{Ability, Resource};
+use dyno_world::content::{Ability, BuffKind, Resource};
 use std::time::{Duration, Instant};
 
 /// The global cooldown after any ability (Rogues: 1 second).
 const GCD: f32 = 1.5;
 const GCD_FAST: f32 = 1.0;
+/// An ability pressed this long before the global cooldown (or a cast) ends
+/// is not lost: it goes off the moment it can.
+const QUEUE: Duration = Duration::from_millis(400);
 /// Ticks of damage and healing over time come every this many seconds.
 pub const TICK: f32 = 3.0;
 
@@ -17,6 +20,9 @@ pub const TICK: f32 = 3.0;
 pub struct Aura {
     pub ability: u16,
     pub buff: Option<dyno_world::content::Buff>,
+    /// the buff's strength as cast (with level and spell power); an absorb
+    /// shield counts down from it
+    pub amount: f32,
     /// healing per tick
     pub heal: f32,
     pub ticks: u8,
@@ -132,7 +138,24 @@ impl State {
         let Some(p) = self.players.get(&id) else {
             return;
         };
-        if p.dead || p.casting.is_some() || p.gcd_until > now {
+        if p.dead {
+            return;
+        }
+        // pressed a moment early: remember it, and use it when the global
+        // cooldown (or the cast in progress) is over
+        let busy_until = p
+            .casting
+            .as_ref()
+            .map(|c| c.end)
+            .into_iter()
+            .chain([p.gcd_until])
+            .max()
+            .unwrap_or(now);
+        if busy_until > now {
+            let queue = busy_until - now <= QUEUE;
+            if let Some(p) = self.players.get_mut(&id) {
+                p.queued = queue.then_some((ability, target));
+            }
             return;
         }
         if ability == RECALL {
@@ -178,15 +201,18 @@ impl State {
                 .map(|c| c.resource);
             return self.fail(
                 id,
-                if res == Some(Resource::Rage) {
-                    "Not enough rage."
-                } else {
-                    "Not enough mana."
+                match res {
+                    Some(Resource::Rage) => "Not enough rage.",
+                    Some(Resource::Energy) => "Not enough energy.",
+                    _ => "Not enough mana.",
                 },
             );
         }
+        if a.buff.is_some_and(|b| b.kind == BuffKind::Stealth) && p.combat_until > now {
+            return self.fail(id, "You cannot hide while in combat.");
+        }
         // abilities that hit a target need one in range
-        let needs_target = a.range > 0.0 && (a.damage[0] > 0.0 || a.root > 0.0 || a.stun > 0.0);
+        let needs_target = needs_target(&a);
         let target = if needs_target {
             let Some(t) = target.filter(|t| self.entities.get(t).is_some_and(|e| e.mob.is_some()))
             else {
@@ -228,6 +254,16 @@ impl State {
     /// Advance casts: cancel them if the caster moved, finish them when due.
     pub fn tick_casts(&mut self) {
         let now = Instant::now();
+        // abilities pressed a moment early go off now
+        let ready: Vec<(PlayerId, u16, Option<u32>)> = self
+            .players
+            .iter_mut()
+            .filter(|(_, p)| p.casting.is_none() && p.gcd_until <= now)
+            .filter_map(|(id, p)| p.queued.take().map(|(a, t)| (*id, a, t)))
+            .collect();
+        for (id, ability, target) in ready {
+            self.cast(id, ability, target);
+        }
         let mut done = Vec::new();
         let mut cancelled = Vec::new();
         for (id, p) in self.players.iter_mut() {
@@ -359,7 +395,7 @@ impl State {
         } else {
             0.0
         };
-        let boost = 1.0 + self.buff_amount(id, dyno_world::content::BuffKind::Damage) / 100.0;
+        let boost = 1.0 + self.buff_amount(id, BuffKind::Damage) / 100.0;
         let dmg = if a.damage[0] > 0.0 || weapon > 0.0 {
             (a.damage[0] + a.damage[1] * (level - 1.0) + power + weapon)
                 * roll
@@ -395,6 +431,7 @@ impl State {
                 .collect();
             self.broadcast(
                 &ServerMsg::Effect {
+                    ability: Some(a.id),
                     color: a.color,
                     from: center,
                     to: center,
@@ -409,6 +446,7 @@ impl State {
             if a.range > 6.0 {
                 self.broadcast(
                     &ServerMsg::Effect {
+                        ability: Some(a.id),
                         color: a.color,
                         from: eye,
                         to,
@@ -419,6 +457,7 @@ impl State {
             } else {
                 self.broadcast(
                     &ServerMsg::Effect {
+                        ability: Some(a.id),
                         color: a.color,
                         from: to,
                         to,
@@ -428,6 +467,7 @@ impl State {
                 );
             }
         }
+        let slowed = hits.clone();
         if dmg > 0.0 {
             for t in hits {
                 let bonus = self
@@ -436,7 +476,18 @@ impl State {
                     .and_then(|e| e.mob.as_ref())
                     .and_then(|m| self.content.creature(m.creature))
                     .is_some_and(|c| c.burns_in_daylight);
-                let amount = dmg * if bonus { a.shade_bonus } else { 1.0 };
+                // an opener: more against a creature that is not fighting you yet
+                let unaware = a.opener > 1.0
+                    && self
+                        .entities
+                        .get(&t)
+                        .and_then(|e| e.mob.as_ref())
+                        .is_some_and(|m| {
+                            (!m.engaged && m.target.is_none()) || m.surprised_until > now
+                        });
+                let amount = dmg
+                    * if bonus { a.shade_bonus } else { 1.0 }
+                    * if unaware { a.opener } else { 1.0 };
                 if let Some(p) = self.players.get(&id) {
                     p.send(&ServerMsg::Damage {
                         entity: Some(t),
@@ -448,6 +499,16 @@ impl State {
             }
         } else if let Some(t) = target {
             self.hurt_mob(id, t, 0.0, a.stun, a.root);
+        }
+        // a slow on everything it hit
+        if a.slow[1] > 0.0 {
+            let until = now + Duration::from_secs_f32(a.slow[1]);
+            for t in &slowed {
+                if let Some(m) = self.entities.get_mut(t).and_then(|e| e.mob.as_mut()) {
+                    m.slow = (a.slow[0] / 100.0).clamp(0.0, 0.9);
+                    m.slowed_until = until;
+                }
+            }
         }
         // combo points: builders add one to the target
         if a.combo > 0
@@ -494,11 +555,22 @@ impl State {
                 .buff
                 .map(|b| b.secs + b.per_combo * combo)
                 .unwrap_or(a.hot[2]);
+            // shields and seals grow with level and spell power
+            let amount = a.buff.map_or(0.0, |b| {
+                b.amount
+                    + b.per_level * (level - 1.0)
+                    + match b.kind {
+                        BuffKind::Absorb => sheet.spell_power,
+                        BuffKind::Strike => sheet.spell_power * 0.3,
+                        _ => 0.0,
+                    }
+            });
             if let Some(p) = self.players.get_mut(&id) {
                 p.auras.retain(|x| x.ability != a.id);
                 p.auras.push(Aura {
                     ability: a.id,
                     buff: a.buff,
+                    amount,
                     heal: if ticks > 0 { total / ticks as f32 } else { 0.0 },
                     ticks,
                     next: now + Duration::from_secs_f32(TICK),
@@ -507,15 +579,33 @@ impl State {
             }
             self.send_auras(id);
             self.refresh_sheet(id);
+            // a buff with nothing else to show for it still flashes
+            if heal <= 0.0 && target.is_none() && a.radius <= 0.0 && a.blink <= 0.0 {
+                self.broadcast(
+                    &ServerMsg::Effect {
+                        ability: Some(a.id),
+                        color: a.color,
+                        from: feet,
+                        to: feet,
+                        radius: 1.5,
+                    },
+                    None,
+                );
+            }
         }
         if heal > 0.0 {
             let max = self.max_health(id);
             if let Some(p) = self.players.get_mut(&id) {
+                let before = p.health;
                 p.health = (p.health + heal).min(max);
                 p.send(&p.status());
+                p.send(&ServerMsg::Healed {
+                    amount: p.health - before,
+                });
             }
             self.broadcast(
                 &ServerMsg::Effect {
+                    ability: Some(a.id),
                     color: a.color,
                     from: feet,
                     to: feet,
@@ -541,6 +631,7 @@ impl State {
             }
             self.broadcast(
                 &ServerMsg::Effect {
+                    ability: Some(a.id),
                     color: a.color,
                     from: feet,
                     to,
@@ -569,8 +660,7 @@ impl State {
         if !mob.take_hit(pid, amount) {
             return;
         }
-        let boost = 1.0;
-        *mob.threat.entry(pid).or_insert(0.0) += amount.max(1.0) * boost;
+        *mob.threat.entry(pid).or_insert(0.0) += amount.max(1.0);
         if stun > 0.0 {
             mob.stunned_until = now + Duration::from_secs_f32(stun);
         }
@@ -591,8 +681,13 @@ impl State {
             },
             None,
         );
+        let mut unhidden = false;
         if let Some(p) = self.players.get_mut(&pid) {
             p.combat_until = now + Duration::from_secs(6);
+            unhidden = drop_stealth(&mut p.auras);
+        }
+        if unhidden {
+            self.send_auras(pid);
         }
         if dead {
             self.kill_mob_by(id);
@@ -670,9 +765,8 @@ impl State {
             p.auras
                 .iter()
                 .filter(|a| a.until > now)
-                .filter_map(|a| a.buff)
-                .filter(|b| b.kind == kind)
-                .map(|b| b.amount)
+                .filter(|a| a.buff.is_some_and(|b| b.kind == kind))
+                .map(|a| a.amount)
                 .sum()
         })
     }
@@ -746,13 +840,70 @@ impl State {
             p.auras.retain(|a| a.until > now);
             let expired = p.auras.len() != before;
             if healed > 0.0 && !p.dead {
+                let was = p.health;
                 p.health = (p.health + healed).min(max);
                 p.send(&p.status());
+                if p.health > was {
+                    p.send(&ServerMsg::Healed {
+                        amount: p.health - was,
+                    });
+                }
             }
             if expired {
                 self.send_auras(id);
                 self.refresh_sheet(id);
             }
         }
+    }
+}
+
+/// Does this ability act on a creature you must have targeted? Anything
+/// with a range does: a blow, a bleed, a snare, a charge. (A bleed with no
+/// direct damage used to count as needing none, was cast at nobody, and did
+/// nothing.)
+pub fn needs_target(a: &Ability) -> bool {
+    a.range > 0.0
+}
+
+/// Dealing or taking damage ends stealth. Returns true if an aura went.
+pub fn drop_stealth(auras: &mut Vec<Aura>) -> bool {
+    let before = auras.len();
+    auras.retain(|a| a.buff.is_none_or(|b| b.kind != BuffKind::Stealth));
+    auras.len() != before
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dyno_world::content::Content;
+
+    /// Every ability that reaches out to a creature is cast at one: a bleed
+    /// (Rending Cut, Barbed Arrow, Withering Word, Open Vein) is no
+    /// exception, and nor is a snare, a slow or a charge.
+    #[test]
+    fn abilities_that_act_on_a_creature_need_a_target() {
+        let c = Content::default_pack();
+        let mut bleeds = 0;
+        for a in &c.abilities {
+            let acts = a.damage[0] > 0.0 && a.radius <= 0.0
+                || a.weapon > 0.0
+                || a.dot[2] > 0.0
+                || a.root > 0.0 && a.radius <= 0.0
+                || a.stun > 0.0
+                || a.slow[1] > 0.0 && a.radius <= 0.0
+                || a.charge
+                || a.opener > 1.0;
+            if acts {
+                assert!(needs_target(a), "{} is cast at nobody", a.key);
+            }
+            if a.dot[2] > 0.0 && a.damage[0] <= 0.0 {
+                bleeds += 1;
+            }
+            // self-only abilities must not ask for one
+            if a.range <= 0.0 {
+                assert!(!needs_target(a), "{} needs no target", a.key);
+            }
+        }
+        assert!(bleeds >= 3, "the pack has bleeds to check");
     }
 }

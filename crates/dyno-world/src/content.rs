@@ -534,6 +534,22 @@ pub struct Ability {
     pub charge: bool,
     /// rage or energy given (Onrush)
     pub gives: f32,
+    /// damage multiplier against a creature that is not yet fighting you
+    /// (an ambush, an aimed first shot); 0 or 1: none
+    #[serde(default)]
+    pub opener: f32,
+    /// slows the target: percent of its speed taken, and seconds
+    #[serde(default)]
+    pub slow: [f32; 2],
+    /// its picture in the pack ("icons/abilities/onrush.png"); without one
+    /// the `icon` item's sprite is shown
+    #[serde(default)]
+    pub image: Option<String>,
+    /// the pack sound it makes when it goes off
+    /// ("sounds/abilities/<name>_<n>.wav");
+    /// empty: the plain bolt or burst sound
+    #[serde(default)]
+    pub sound: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -549,6 +565,13 @@ pub enum BuffKind {
     Agility,
     Intellect,
     Stamina,
+    /// a shield that soaks up this much damage, then breaks
+    Absorb,
+    /// each auto-attack does this much more damage (a seal on the weapon)
+    Strike,
+    /// creatures notice you from this percent less far; ends when you deal
+    /// or take damage
+    Stealth,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -559,6 +582,9 @@ pub struct Buff {
     /// extra seconds per combo point spent
     #[serde(default)]
     pub per_combo: f32,
+    /// extra amount per level above 1 (absorb and strike)
+    #[serde(default)]
+    pub per_level: f32,
 }
 
 /// World rules.
@@ -842,6 +868,10 @@ struct AAbility {
     combo: i8,
     charge: bool,
     gives: f32,
+    opener: f32,
+    slow: [f32; 2],
+    image: Option<String>,
+    sound: String,
 }
 
 #[derive(Deserialize)]
@@ -1417,6 +1447,10 @@ impl Content {
                 combo: a.combo,
                 charge: a.charge,
                 gives: a.gives,
+                opener: a.opener,
+                slow: a.slow,
+                image: a.image.clone(),
+                sound: a.sound.clone(),
             });
         }
         let mut areas = Vec::new();
@@ -1664,6 +1698,80 @@ mod tests {
         assert_eq!(r.tier, 1);
         assert_eq!(r.drops[0].item, crate::COBBLE as ItemId);
         assert!(c.rule(crate::BEDROCK).hardness < 0.0);
+    }
+
+    /// The first five levels of every class (docs/design/quality-bar.md,
+    /// section 6): at least three abilities by level 5, something new at
+    /// level 2 or 3 and again at 4 or 5, and a second button from the start.
+    #[test]
+    fn every_class_has_a_kit_by_level_five() {
+        let c = Content::default_pack();
+        for class in &c.classes {
+            let at = |lo: u8, hi: u8| {
+                c.abilities
+                    .iter()
+                    .filter(|a| a.class == class.id && a.level >= lo && a.level <= hi)
+                    .count()
+            };
+            assert!(at(1, 1) >= 2, "{}: two buttons at level 1", class.key);
+            assert!(at(2, 3) >= 1, "{}: a new ability at 2 or 3", class.key);
+            assert!(at(4, 5) >= 1, "{}: a new ability at 4 or 5", class.key);
+            assert!(at(1, 5) >= 4, "{}: a kit by level 5", class.key);
+        }
+    }
+
+    /// Ability presentation (quality bar, section 7): each has its own icon
+    /// and a sound in the pack, and the seconds its tooltip promises are the
+    /// seconds in its data.
+    #[test]
+    fn abilities_have_icons_sounds_and_honest_tooltips() {
+        let c = Content::default_pack();
+        let pack = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+        let mut icons = std::collections::HashSet::new();
+        for a in &c.abilities {
+            let image = a
+                .image
+                .as_deref()
+                .unwrap_or_else(|| panic!("{}: no icon", a.key));
+            assert!(pack.join(image).is_file(), "{}: {image} is missing", a.key);
+            assert!(icons.insert(image), "{}: shares its icon", a.key);
+            assert!(!a.sound.is_empty(), "{}: no sound", a.key);
+            assert!(
+                pack.join(format!("sounds/abilities/{}_0.wav", a.sound))
+                    .is_file(),
+                "{}: sound '{}' is not in the pack",
+                a.key,
+                a.sound
+            );
+            assert!(a.text.ends_with('.'), "{}: tooltip text", a.key);
+            // every "N seconds" / "N minutes" in the text is a number the data holds
+            let secs = [
+                a.stun,
+                a.root,
+                a.slow[1],
+                a.dot[2],
+                a.hot[2],
+                a.cooldown,
+                a.cast,
+                a.buff.map_or(0.0, |b| b.secs),
+            ];
+            let words: Vec<&str> = a.text.split_whitespace().collect();
+            for w in words.windows(2) {
+                let unit = w[1].trim_matches(|ch: char| !ch.is_alphabetic());
+                let scale = match unit {
+                    "second" | "seconds" => 1.0,
+                    "minute" | "minutes" => 60.0,
+                    _ => continue,
+                };
+                let Ok(n) = w[0].parse::<f32>() else { continue };
+                assert!(
+                    secs.iter().any(|s| (s - n * scale).abs() < 0.01),
+                    "{}: the text says {} {unit}, the data does not",
+                    a.key,
+                    w[0]
+                );
+            }
+        }
     }
 
     #[test]

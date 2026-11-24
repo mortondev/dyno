@@ -138,6 +138,8 @@ pub struct Audio {
     sink: Option<rodio::MixerDeviceSink>,
     /// the variants of each sound that has loaded
     bank: HashMap<Sfx, Vec<Clip>>,
+    /// sounds the content names (abilities'), by name
+    named: HashMap<String, Vec<Clip>>,
     rng: u32,
     pub volume: f32,
 }
@@ -157,6 +159,7 @@ impl Audio {
         Audio {
             sink,
             bank: HashMap::new(),
+            named: HashMap::new(),
             rng: 1,
             volume: 0.8,
         }
@@ -183,6 +186,35 @@ impl Audio {
         }
     }
 
+    /// Play a sound the content names (an ability's):
+    /// `sounds/abilities/<name>_<n>.wav` in the pack. These are streamed: the
+    /// first time one is wanted it is asked for, and this returns false
+    /// until it has arrived (or if the pack has none), so the caller can
+    /// fall back to a built-in sound.
+    pub fn play_named(&mut self, name: &str, gain: f32) -> bool {
+        if !self.named.contains_key(name) {
+            let path = |v: usize| format!("sounds/abilities/{name}_{v}.wav");
+            let clips: Vec<Clip> = (0..)
+                .map_while(|v| assets::get(&path(v)))
+                .filter_map(|b| decode_wav(&b))
+                .collect();
+            if clips.is_empty() {
+                // up to three variants; asking for one the pack lacks is harmless
+                for v in 0..3 {
+                    assets::request(&path(v));
+                }
+                return false;
+            }
+            self.named.insert(name.to_string(), clips);
+        }
+        self.rng = self.rng.wrapping_mul(1_103_515_245).wrapping_add(12345);
+        let pick = (self.rng >> 16) as usize;
+        let vars = &self.named[name];
+        let v = &vars[pick % vars.len()];
+        Self::emit(&self.sink, v, gain * self.volume);
+        true
+    }
+
     /// Play a sound. `gain` scales the volume, for example by distance.
     pub fn play(&mut self, sfx: Sfx, gain: f32) {
         if self.sink.is_none() {
@@ -207,6 +239,20 @@ impl Audio {
             sink.mixer()
                 .add(rodio::buffer::SamplesBuffer::new(ch, rate, data));
         }
+    }
+
+    fn emit(sink: &Option<rodio::MixerDeviceSink>, v: &Clip, g: f32) {
+        let (Some(sink), Some(ch), Some(rate)) =
+            (sink, NonZero::new(v.channels), NonZero::new(v.rate))
+        else {
+            return;
+        };
+        if g < 0.01 {
+            return;
+        }
+        let data: Vec<f32> = v.samples.iter().map(|s| (s * g).clamp(-1.0, 1.0)).collect();
+        sink.mixer()
+            .add(rodio::buffer::SamplesBuffer::new(ch, rate, data));
     }
 }
 
