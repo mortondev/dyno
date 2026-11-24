@@ -401,6 +401,49 @@ struct Particle {
     gravity: f32,
 }
 
+/// The edge of a spark, mote or chip (`size` is its half-edge) with `life`
+/// seconds left: it shrinks in its last half second, by steps of the cube
+/// ladder (docs/art/voxel-rule.md); `None` once it is under the finest.
+fn particle_edge(size: f32, life: f32) -> Option<f32> {
+    crate::ladder::snap(2.0 * size * (life * 2.0).clamp(0.0, 1.0))
+}
+
+/// Every edge the effects' sparks, motes and chips are drawn at (for the
+/// voxel rule's mesh test): a cube of each, on its own grid.
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    let mut parts = Vec::new();
+    spawn_motes(&mut parts, Vec3::new(3.3, 9.1, -2.7), [1.0; 3], 40, 7);
+    spawn_bolt(
+        &mut parts,
+        Vec3::new(0.2, 1.1, 0.4),
+        Vec3::new(6.0, 2.3, -3.1),
+        [1.0; 3],
+    );
+    spawn_burst(&mut parts, Vec3::new(1.0, 2.0, 3.0), [1.0; 3], 2.5);
+    let mut out = Vec::new();
+    for pt in &parts {
+        for life in [1.0, 0.4, 0.2, 0.1, 0.05] {
+            let Some(edge) = particle_edge(pt.size, life) else {
+                continue;
+            };
+            let mut verts = Vec::new();
+            let lo = pt.pos - Vec3::splat(edge * 0.5);
+            render::push_box(&mut verts, lo, lo + Vec3::splat(edge), [1.0; 3], 1.0);
+            let list: Vec<([f32; 3], Option<[f32; 3]>)> =
+                verts.iter().map(|v| (v.pos, None)).collect();
+            out.push(crate::voxel_rule::Object::from_list(
+                "effects (app.rs)",
+                format!("a cube of {edge} m"),
+                1.0 / edge,
+                Some(lo.to_array()),
+                &list,
+            ));
+        }
+    }
+    out
+}
+
 /// Motes that drift upward, for a Shade coming apart.
 fn spawn_motes(out: &mut Vec<Particle>, at: Vec3, color: [f32; 3], n: usize, seed: u32) {
     let mut r = seed.wrapping_mul(2_654_435_761) | 1;
@@ -3370,7 +3413,10 @@ impl App {
                     pt.pos = next;
                 }
                 pt.life -= dt;
-                let s = pt.size * (pt.life * 2.0).clamp(0.0, 1.0);
+                let Some(edge) = particle_edge(pt.size, pt.life) else {
+                    continue;
+                };
+                let s = edge * 0.5;
                 render::push_box(
                     &mut boxes,
                     pt.pos - Vec3::splat(s),

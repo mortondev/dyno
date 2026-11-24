@@ -56,6 +56,19 @@ pub struct Layer {
     pub when: When,
     /// voxel → (part, mode, ink); later writes win
     pub cells: BTreeMap<[i32; 3], (u8, Mode, u8)>,
+    /// the same layer for the grid's other variants (pushed after it)
+    pub more: Vec<Layer>,
+}
+
+/// One way a grid's layers are sculpted again: shown when the look has
+/// these feature values, with the shapes widened (or grown) by `scale`
+/// about `pivot`. The voxels stay the grid's own cubes (the voxel rule:
+/// a build or a size is sculpted, never a stretched mesh).
+#[derive(Clone)]
+pub struct Variant {
+    pub conds: Vec<(String, u8)>,
+    pub pivot: Vec3,
+    pub scale: Vec3,
 }
 
 pub struct Group {
@@ -73,6 +86,8 @@ pub struct Grid {
     pub hi: Vec3,
     pub parts: Vec<String>,
     pub groups: Vec<Group>,
+    /// each layer is sculpted once per variant (none: once, as it is)
+    pub variants: Vec<Variant>,
 }
 
 /// What a voxel becomes in a layer.
@@ -89,7 +104,24 @@ impl Grid {
             hi,
             parts: p,
             groups: Vec::new(),
+            variants: Vec::new(),
         }
+    }
+
+    /// Sculpt every layer once per variant; the grid's bounds grow to hold
+    /// the widest.
+    pub fn with_variants(mut self, variants: Vec<Variant>) -> Grid {
+        let (mut lo, mut hi) = (self.lo, self.hi);
+        for v in &variants {
+            let a = v.pivot + (self.lo - v.pivot) * v.scale;
+            let b = v.pivot + (self.hi - v.pivot) * v.scale;
+            lo = lo.min(a.min(b));
+            hi = hi.max(a.max(b));
+        }
+        self.lo = lo;
+        self.hi = hi;
+        self.variants = variants;
+        self
     }
 
     pub fn vmin(&self) -> [i32; 3] {
@@ -105,7 +137,8 @@ impl Grid {
         (Vec3::new(v[0] as f32, v[1] as f32, v[2] as f32) + Vec3::splat(0.5)) / self.detail
     }
 
-    /// A layer of the voxels in `lo..hi` (rig units) that `f` fills.
+    /// A layer of the voxels in `lo..hi` (rig units) that `f` fills, and
+    /// the same for each of the grid's variants (in `more`).
     pub fn layer(
         &self,
         name: &str,
@@ -114,6 +147,72 @@ impl Grid {
         hi: Vec3,
         f: impl Fn(Vec3) -> Cell,
     ) -> Layer {
+        let plain = Variant {
+            conds: Vec::new(),
+            pivot: Vec3::ZERO,
+            scale: Vec3::ONE,
+        };
+        let variants = if self.variants.is_empty() {
+            vec![plain]
+        } else {
+            self.variants.clone()
+        };
+        // the variants this layer can show in, and its `when` for each
+        let mut todo = Vec::new();
+        for v in &variants {
+            let maps = if when.is_empty() {
+                vec![BTreeMap::new()]
+            } else {
+                when.clone()
+            };
+            let mut out = Vec::new();
+            'map: for mut m in maps {
+                for (k, val) in &v.conds {
+                    match m.get(k) {
+                        Some(vals) if !vals.contains(val) => continue 'map,
+                        _ => {
+                            m.insert(k.clone(), vec![*val]);
+                        }
+                    }
+                }
+                out.push(m);
+            }
+            if out.is_empty() {
+                continue;
+            }
+            let w = if out.len() == 1 && out[0].is_empty() {
+                Vec::new()
+            } else {
+                out
+            };
+            todo.push((v, w));
+        }
+        let many = todo.len() > 1;
+        let mut layers: Vec<Layer> = todo
+            .into_iter()
+            .map(|(v, w)| {
+                let mut label = name.to_string();
+                if many {
+                    for (k, val) in &v.conds {
+                        label += &format!(",{k}={val}");
+                    }
+                }
+                let a = v.pivot + (lo - v.pivot) * v.scale;
+                let b = v.pivot + (hi - v.pivot) * v.scale;
+                let at = |p: Vec3| v.pivot + (p - v.pivot) / v.scale;
+                self.cells(&label, w, a.min(b), a.max(b), |p| f(at(p)))
+            })
+            .collect();
+        assert!(
+            !layers.is_empty(),
+            "bake-figure: layer {name} shows in no variant"
+        );
+        let mut first = layers.remove(0);
+        first.more = layers;
+        first
+    }
+
+    fn cells(&self, name: &str, when: When, lo: Vec3, hi: Vec3, f: impl Fn(Vec3) -> Cell) -> Layer {
         let mut cells = BTreeMap::new();
         let (gmin, gmax) = (self.vmin(), self.vmax());
         let a = (lo * self.detail).floor().as_ivec3().to_array();
@@ -131,10 +230,14 @@ impl Grid {
             name: name.into(),
             when,
             cells,
+            more: Vec::new(),
         }
     }
 
-    pub fn push(&mut self, group: &str, layer: Layer) {
+    pub fn push(&mut self, group: &str, mut layer: Layer) {
+        for more in std::mem::take(&mut layer.more) {
+            self.push(group, more);
+        }
         let taken = self.groups.iter().any(|g| {
             g.layers
                 .iter()

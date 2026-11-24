@@ -9,6 +9,27 @@ fn free_port() -> u16 {
         .port()
 }
 
+/// Start an instance, trying a fresh port if the one picked was taken in the
+/// meantime (another test can grab it between `free_port` and the bind), or the
+/// join was refused while the seed settled. Returns the instance and its port.
+fn start_retrying(dir: &std::path::Path, join: Option<u16>) -> (Arc<Cluster>, u16) {
+    let mut last = None;
+    for _ in 0..4 {
+        let port = free_port();
+        match Cluster::start(cfg(dir, port, join), load()) {
+            Ok(c) => return (c, port),
+            Err(e) => {
+                last = Some(e);
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            }
+        }
+    }
+    panic!(
+        "the cluster instance would not start: {:?}",
+        last.map(|e| e.to_string())
+    );
+}
+
 fn cfg(dir: &std::path::Path, port: u16, join: Option<u16>) -> ClusterConfig {
     ClusterConfig {
         listen: format!("127.0.0.1:{port}").parse().unwrap(),
@@ -57,15 +78,14 @@ fn claim(c: &Cluster, name: &str) -> Outcome {
 
 fn three(root: &std::path::Path) -> [Arc<Cluster>; 3] {
     let _ = std::fs::remove_dir_all(root);
-    let ports = [free_port(), free_port(), free_port()];
-    let a = Cluster::start(cfg(&root.join("a"), ports[0], None), load()).unwrap();
+    let (a, port_a) = start_retrying(&root.join("a"), None);
     assert!(
         wait_for(5.0, || a.is_leader()),
         "the founder leads a cluster of one"
     );
-    let b = Cluster::start(cfg(&root.join("b"), ports[1], Some(ports[0])), load()).unwrap();
+    let (b, port_b) = start_retrying(&root.join("b"), Some(port_a));
     // the third joins through the second (any member is a seed)
-    let c = Cluster::start(cfg(&root.join("c"), ports[2], Some(ports[1])), load()).unwrap();
+    let (c, _) = start_retrying(&root.join("c"), Some(port_b));
     assert_eq!((a.id(), b.id(), c.id()), (1, 2, 3));
     let all = [a, b, c];
     assert!(

@@ -122,25 +122,64 @@ pub fn body_when(bi: usize, more: &[(&str, &[u8])]) -> super::When {
     when(&c)
 }
 
+/// Rig units a block: the man stands 1.78 m to the crown, the woman a
+/// little less.
+pub const PER_BLOCK: f32 = 34.63;
+
+/// Voxels a rig unit: 32 a block, the cube ladder's finest step (3.125 cm,
+/// docs/art/voxel-rule.md), for the body and the head alike.
+pub const DETAIL: f32 = 32.0 / PER_BLOCK;
+
+/// How much wider each build is (slim, middling, broad), across (x) and
+/// front to back (z): sculpted into the voxels, never a stretched part.
+pub const BUILDS: [[f32; 2]; 3] = [[0.92, 0.93], [1.0, 1.0], [1.1, 1.08]];
+
+/// The head is sculpted this much larger than life: it reads from the play
+/// camera.
+pub const HEAD: f32 = 1.14;
+
 /// The whole figure: grids and palette.
 pub fn sculpt() -> (Vec<Grid>, Palette) {
     let mut pal = Palette::default();
     let ink = Inks::new(&mut pal);
+    let bodies = bodies();
+    // every layer of the main grid once per build, widened about the body's
+    // axis (the rig moves the joints out to match)
+    let builds = BUILDS
+        .iter()
+        .enumerate()
+        .map(|(k, [x, z])| super::Variant {
+            conds: vec![("build".into(), k as u8)],
+            pivot: Vec3::ZERO,
+            scale: vec3(*x, 1.0, *z),
+        })
+        .collect();
     let mut main = Grid::new(
         "main",
-        2.0,
+        DETAIL,
         vec3(-18.0, 0.0, -14.0),
         vec3(18.0, 57.0, 14.0),
         &PARTS,
-    );
+    )
+    .with_variants(builds);
+    // the head once per body, grown about that body's neck pivot
+    let heads = bodies
+        .iter()
+        .enumerate()
+        .map(|(bi, b)| super::Variant {
+            conds: vec![("body".into(), bi as u8)],
+            pivot: b.head,
+            scale: Vec3::splat(HEAD),
+        })
+        .collect();
     let mut head = Grid::new(
         "head",
-        2.5,
+        DETAIL,
         vec3(-10.0, 43.5, -10.5),
         vec3(10.0, 66.0, 9.5),
         &["head"],
-    );
-    let bodies = bodies();
+    )
+    .with_variants(heads);
     // the bare body and head
     for (bi, b) in bodies.iter().enumerate() {
         main.push("body", bare_body(&main, b, bi, &ink));
@@ -200,7 +239,7 @@ fn bare_head(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> super::Layer {
             }
             let m = mirror(p);
             let y = |v: f32| b.hy(v);
-            if eyes < 0.0 && skull >= -0.05 {
+            if eyes < 0.0 && skull >= -0.45 / DETAIL {
                 // the eye: white, iris, pupil, a glint
                 let q = m - b.eye_centre(true);
                 let r = (q.x * q.x + q.y * q.y).sqrt();
@@ -247,7 +286,7 @@ fn bare_head(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> super::Layer {
 /// The person rig: bones where the sculpt puts the joints, for each body
 /// (and build, which widens the shoulders and hips).
 pub fn rig(bodies: &[Body; 2]) -> Value {
-    let builds = [0.92f32, 1.0, 1.1];
+    let builds = BUILDS.map(|b| b[0]);
     // a vector by body, and by body and build when `wide` (x scaled)
     let by_body = |f: &dyn Fn(&Body) -> Vec3| -> Value {
         json!({"by": "body", "values": bodies.iter().map(|b| r3(f(b))).collect::<Vec<_>>()})
@@ -296,36 +335,32 @@ pub fn rig(bodies: &[Body; 2]) -> Value {
         {"name": "socket.cloak", "parent": "spine", "at": by_body(&|b| b.cape - pel(b))},
         {"name": "socket.buckle", "parent": "pelvis", "at": [0, 3.0, 5.2]}
     ]);
-    // build widens the trunk, the arms and the legs
-    let shape = |s: [[f32; 3]; 3]| json!({"by": "build", "values": s.iter().map(|v| json!({"scale": v})).collect::<Vec<_>>()});
-    // one girth for every part, so seams between them stay closed
-    let trunk = shape([[0.93, 1.0, 0.93], [1.0, 1.0, 1.0], [1.1, 1.0, 1.08]]);
-    let limb = trunk.clone();
-    let leg = trunk.clone();
-    let flat = shape([[0.94, 1.0, 1.0], [1.0, 1.0, 1.0], [1.08, 1.0, 1.05]]);
-    let pivot = |f: &dyn Fn(&Body) -> Vec3| by_body(f);
+    // a part turns about its joint, which a build moves out with the
+    // sculpted width (the voxels are sculpted per build: no scale here)
+    let pivot = |f: &dyn Fn(&Body) -> Vec3| by_build(f);
     let parts = json!([
-        {"bone": "thigh.r", "part": "thigh.r", "pivot": pivot(&|b| b.hip), "shape": leg},
-        {"bone": "shin.r", "part": "shin.r", "pivot": pivot(&|b| b.knee), "shape": leg},
-        {"bone": "thigh.l", "part": "thigh.l", "pivot": pivot(&|b| flip(b.hip)), "shape": leg},
-        {"bone": "shin.l", "part": "shin.l", "pivot": pivot(&|b| flip(b.knee)), "shape": leg},
-        {"bone": "pelvis", "part": "skirt", "pivot": pivot(&|b| pel(b)), "shape": trunk},
-        {"bone": "flap.f", "part": "flap.f", "pivot": pivot(&|b| pel(b) + vec3(0.0, 2.0, 0.0)), "shape": flat},
-        {"bone": "flap.b", "part": "flap.b", "pivot": pivot(&|b| pel(b) + vec3(0.0, 2.0, 0.0)), "shape": flat},
-        {"bone": "spine", "part": "torso", "pivot": pivot(&|b| pel(b)), "shape": trunk},
-        {"bone": "cape.0", "part": "cape.0", "pivot": pivot(&|b| b.cape), "shape": flat},
-        {"bone": "cape.1", "part": "cape.1", "pivot": pivot(&|b| b.cape - vec3(0.0, 13.0, 0.0)), "shape": flat},
-        {"bone": "cape.2", "part": "cape.2", "pivot": pivot(&|b| b.cape - vec3(0.0, 26.0, 0.0)), "shape": flat},
-        {"bone": "upper_arm.r", "part": "arm_u.r", "pivot": pivot(&|b| b.shoulder), "shape": limb},
-        {"bone": "forearm.r", "part": "arm_l.r", "pivot": pivot(&|b| b.elbow), "shape": limb},
+        {"bone": "thigh.r", "part": "thigh.r", "pivot": pivot(&|b| b.hip)},
+        {"bone": "shin.r", "part": "shin.r", "pivot": pivot(&|b| b.knee)},
+        {"bone": "thigh.l", "part": "thigh.l", "pivot": pivot(&|b| flip(b.hip))},
+        {"bone": "shin.l", "part": "shin.l", "pivot": pivot(&|b| flip(b.knee))},
+        {"bone": "pelvis", "part": "skirt", "pivot": pivot(&|b| pel(b))},
+        {"bone": "flap.f", "part": "flap.f", "pivot": pivot(&|b| pel(b) + vec3(0.0, 2.0, 0.0))},
+        {"bone": "flap.b", "part": "flap.b", "pivot": pivot(&|b| pel(b) + vec3(0.0, 2.0, 0.0))},
+        {"bone": "spine", "part": "torso", "pivot": pivot(&|b| pel(b))},
+        {"bone": "cape.0", "part": "cape.0", "pivot": pivot(&|b| b.cape)},
+        {"bone": "cape.1", "part": "cape.1", "pivot": pivot(&|b| b.cape - vec3(0.0, 13.0, 0.0))},
+        {"bone": "cape.2", "part": "cape.2", "pivot": pivot(&|b| b.cape - vec3(0.0, 26.0, 0.0))},
+        {"bone": "upper_arm.r", "part": "arm_u.r", "pivot": pivot(&|b| b.shoulder)},
+        {"bone": "forearm.r", "part": "arm_l.r", "pivot": pivot(&|b| b.elbow)},
         {"bone": "grip", "held": true},
-        {"bone": "upper_arm.l", "part": "arm_u.l", "pivot": pivot(&|b| flip(b.shoulder)), "shape": limb},
-        {"bone": "forearm.l", "part": "arm_l.l", "pivot": pivot(&|b| flip(b.elbow)), "shape": limb},
+        {"bone": "upper_arm.l", "part": "arm_u.l", "pivot": pivot(&|b| flip(b.shoulder))},
+        {"bone": "forearm.l", "part": "arm_l.l", "pivot": pivot(&|b| flip(b.elbow))},
         {"bone": "socket.offhand", "held": "offhand"},
         {"bone": "socket.shield", "held": "shield"},
         {"bone": "socket.back", "held": "back"},
-        // a slightly large head, which reads from the play camera
-        {"bone": "head", "grid": "head", "part": "head", "pivot": pivot(&|b| b.head), "shape": {"scale": [1.14, 1.14, 1.14]}}
+        // a slightly large head, which reads from the play camera: sculpted
+        // so (`HEAD`), not scaled
+        {"bone": "head", "grid": "head", "part": "head", "pivot": by_body(&|b| b.head)}
     ]);
     json!({"bones": bones, "parts": parts})
 }
@@ -356,8 +391,8 @@ pub fn bake(content: &Path) -> Result<String, String> {
         f["rig"] = json!("person");
         f["clips"] = json!({"features": ["robe"]});
         // the man stands 1.78 m to the crown, the woman a little less
-        f["per_block"] = json!(34.63);
-        f["detail"] = json!(2.0);
+        f["per_block"] = json!(PER_BLOCK);
+        f["detail"] = json!(1.0);
         // crisp voxels (the art direction: every surface reads as voxels),
         // fine up close and coarser with distance; the shaped mesher's
         // gentle bevel (`"smooth": true` with `"smooth": {"bevel": 0.2,
@@ -366,14 +401,17 @@ pub fn bake(content: &Path) -> Result<String, String> {
         if let Some(o) = f.as_object_mut() {
             o.remove("smooth");
         }
+        // every level on the cube ladder: 32 a block near, then the body
+        // at 16 (the head stays at 32 to the play camera's distance), then
+        // the body at 8 and the head at 16
         f["lods"] = json!([
             // close-ups and the creator
             {"until": 3.5},
-            // your own figure at the default zoom: the head stays fine
-            {"half": [1, 0], "until": 5.5},
-            {"half": 1, "until": 8.0},
-            {"half": [2, 1], "until": 40.0},
-            {"half": [3, 2]}
+            // your own figure at the default zoom
+            {"until": 5.5},
+            {"until": 8.0},
+            {"half": [1, 0], "until": 40.0},
+            {"half": [2, 1]}
         ]);
         f["grids"] = gj;
         f["palette"] = pal.json();
