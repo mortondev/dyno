@@ -1,0 +1,15 @@
+# A kill with loot (run by tools/feel/check.sh with FEEL_LOOT=1, which gives
+# the Straw Dummy a sure drop): the fall, the pop, and the loot's sparkle a
+# moment after.
+say /feel
+wait 3
+say /time noon
+wait 1
+walk-to creature straw_dummy 2.2
+look-at creature straw_dummy
+orbit 35
+wait 1.5
+clip-start loot
+click right creature straw_dummy
+wait 2.5
+clip-end

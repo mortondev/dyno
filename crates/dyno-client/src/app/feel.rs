@@ -66,6 +66,7 @@ pub(super) fn damage(p: &mut Play, entity: Option<u32>, amount: f32, crit: bool,
                 pos: at,
                 along: (at - me).normalize_or_zero(),
                 blow: if crit { Blow::Crit } else { Blow::Hit },
+                crit,
                 melee,
                 tick,
                 school: spell.unwrap_or_default(),
@@ -274,7 +275,7 @@ fn land(p: &Play, f: &mut feel::State, book: &mut Anims, l: &Landing, now: f32) 
             f.bits.burst(&im.kill, mid, Vec3::ZERO, c.scale.max(0.5));
         }
     }
-    if l.blow != Blow::Hit && !l.tick && c.scale <= d.stagger.scale {
+    if l.crit && !l.tick && c.scale <= d.stagger.scale {
         f.stagger.insert(
             l.entity,
             (
@@ -283,7 +284,8 @@ fn land(p: &Play, f: &mut feel::State, book: &mut Anims, l: &Landing, now: f32) 
             ),
         );
     }
-    if l.blow != Blow::Hit && !l.tick && shaking() {
+    // (your own crits only: a kill that is not one does not shake)
+    if l.crit && !l.tick && shaking() {
         // thrown the way the blow goes, and down
         let [x, _] = on_screen(p, p.player.pos, pos);
         f.camera.kick(d.shake.crit, [x.signum() * 0.5, -1.0]);

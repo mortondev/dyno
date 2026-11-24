@@ -101,8 +101,8 @@ two rounds, what was built for each, how each was checked, and the result.
     lands with the damage number.
 - **Camera shake** (`feel::Camera`). Only the picture turns, never where
   you look or aim.
-  - A crit throws it down and towards the target's side of the screen
-    (0.9°, 0.22 s).
+  - Your own crit throws it down and towards the target's side of the
+    screen (0.9°, 0.22 s). A kill that is not a crit does not shake.
   - A heavy blow you take throws it away from whoever struck (1.3°, 0.3 s).
     A blow is heavy if it was wound up, or if it takes 15% of your health.
   - Everything at once is capped at 1.6°.
@@ -151,28 +151,31 @@ two rounds, what was built for each, how each was checked, and the result.
   - A press the client knows will fail (cooling down, too far, not enough
     power, too early in the global cooldown) gets the existing `ui.error`
     sound and nothing else.
+  - **A change of behaviour:** a press earlier than the last 0.4 s of the
+    global cooldown was always dropped by the server. It now beeps, so
+    mashing a key through the cooldown beeps until the queue window opens.
   - The server now sends `Refused { ability }` for every press it turns
     down, including one that was too early to queue. The client then takes
     back the animation, the predicted cast and the pulse, and plays
     `ui.error`.
 - **Protocol 26.** `Act::WindUp` and `ServerMsg::Refused` are new server
-  messages. v0.11.2 and v0.11.3 shipped on protocol 25, and a client on 25
+  messages, as are F1's `Ping` and `Pong`. v0.11.2 and v0.11.3 shipped on protocol 25, and a client on 25
   drops the connection on a message it cannot read. These additions cannot
-  ride on 25, so the protocol is 26.
+  ride on 25, so the protocol is 26. The lead may overrule this.
 
 ## Results
 
 | # | Goal | Result | How it was checked |
 |---|---|---|---|
-| 1 | Overlay on F3 | **pass** | `tools/feel/check.sh`: `key f3` then a shot shows fps, frame time, ping, server tick, corrections and entities drawn (`docs/design/feel/checks/f1-overlay.jpg`) |
+| 1 | Overlay on F3 | **pass** (the first message to the lead claimed this before it was checked; `check.sh` checked it afterwards) | `tools/feel/check.sh`: `key f3` then a shot shows fps, frame time, ping, server tick, corrections and entities drawn (`docs/design/feel/checks/f1-overlay.jpg`) |
 | 2 | Test yard | **pass** | the check run reaches it with `/feel`; the stairs to the deck, the ledge and the corridor are in `checks/f1-yard.jpg`; all three dummies are used by every clip run (the Keen Dummy crits every blow, the Straw Dummy falls) |
 | 3 | Before clips | **pass** | `docs/design/feel/before/*.jpg`, six classes, recorded on the merged build before any F2 code was wired in. The rogue's first kill clip lost its target and was recorded again |
 | 4 | Hit-stop | **pass** | timings in `feel.json`: hit 60 ms, crit 100 ms, kill 140 ms. `feel::tests::the_pack_keeps_to_the_design` holds the hit to 40–80 ms and crit < kill. `anim::tests::a_hit_stop_holds_the_pose_and_loses_no_animation` holds the pose and loses no animation. Movement and input are untouched by construction (only `Animator`'s clock stops) |
-| 5 | Camera shake | **pass** | directional, capped at 1.6° (`feel::tests::the_shake_is_thrown_the_way_of_the_blow_capped_and_soon_over`); Options toggle "Camera shake" |
+| 5 | Camera shake | **pass** (by test and code; not seen) | directional, capped at 1.6° (`feel::tests::the_shake_is_thrown_the_way_of_the_blow_capped_and_soon_over`); Options toggle "Camera shake". A turn of under a degree is not visible in a still, and neither the shake nor the Options row has been looked at in play |
 | 6 | Impact particles | **pass** | bursts by material and school from `Damage` and `Effect`, data in `life.json` `impacts`; visible in every after strip |
 | 7 | Enemy tells | **pass** | wind-up pose, ring and closing ring in `checks/tell.jpg` (0.8 s); server unit test `a_heavy_blow_is_wound_up_and_can_be_stepped_away_from_or_stunned`; swarm below |
 | 8 | Stagger and daze | **pass** | crit stagger on the Keen Dummy in the after strips; daze stars on the Onrush-stunned dummy in `checks/daze.jpg` |
-| 9 | Kill moment | **pass** | the kill rows of the after strips: death fall, a pop of cubes; the fallen figure covers any frames before the body comes. The loot sparkle is in the code and data but not in a picture: the yard's dummies drop nothing, and the yard was left as the before clips had it |
+| 9 | Kill moment | **pass** | the kill rows of the after strips: death fall, a pop of cubes; the fallen figure covers any frames before the body comes. The loot sparkle is in `checks/loot.jpg`, from `FEEL_LOOT=1 tools/feel/check.sh ... tools/feel/loot.drive` (a scratch pack whose Straw Dummy drops something; the yard itself is as the before clips had it): a burst of gold cubes at the body about 0.6–0.8 s after it falls, among the corpse's existing loot motes |
 | 10 | Instant press | **pass** | `checks/press.jpg`, top to bottom: Onrush's key lit on the frame of the press; Heroic Blow pressed straight after, refused (no pulse, error sound); Heroic Blow pressed in the last moment of the global cooldown, queued (gold frame) |
 | 11 | Proof | **pass** | after strips in `docs/design/feel/after/`. A fresh agent judge got only the 12 strips, as `classN-X/Y` in an order drawn at random per class, and no hint of what changed. It picked "after" for all six classes on its first and only verdict, naming in each case "a burst of block-shaped bits thrown off the dummy in the frames right after the hit" |
 | 12 | Gates | **pass**, with one inherited count failure | below |
@@ -193,8 +196,13 @@ creatures' `heavy` entries: the control pack has them removed.
 - **Deaths an hour did not rise** (4.85 to 4.70; the same 14 deaths).
 - **The heavy blows were real:** 24 were wound up and 21 landed. None
   missed, because the bots never step away, and none were broken off. The
-  other 3 ended with their target gone. A bot stands in every one: this is
-  the worst case.
+  other 3 are not accounted for: most likely the creature died mid-wind-up,
+  which no counter records. A bot stands in every one: this is the worst
+  case.
+- **Only the Thornboar's heavy blow was tested.** No Ashcloak was fought in
+  either arm: 15 minutes of new characters do not reach them.
+- **Small sample.** It was one run per arm, with 14 deaths each. The
+  client-release build of `check-client.sh` ran during the control arm.
 - **Why this does not raise deaths:** a heavy blow is 1.6 times an ordinary
   one, but it replaces a blow and is 0.8–0.9 s late. Over a round of three
   blows a creature deals about 4% more than before, and a player who steps
@@ -206,14 +214,15 @@ creatures' `heavy` entries: the control pack has them removed.
 
 ### Gates (goal 12)
 
-All run on the branch merged with main (the voxel-rule tests included).
+All run on the branch merged with main (the voxel-rule tests included). The
+check pictures in `docs/design/feel/checks/` are from the final binary.
 
 | Gate | Result |
 |---|---|
 | `cargo fmt --all` | pass |
 | `cargo clippy --workspace --all-targets -- -D warnings` | pass |
 | `cargo test --workspace` | pass, run once. It includes the voxel rule's mesh test, with F2's bursts, rings, daze, pop and sparkle registered in it (`feel::voxel_objects`) |
-| `bash .github/scripts/check-client.sh` | pass: 9.34 MB, no content strings |
+| `bash .github/scripts/check-client.sh` | pass on the merged tree: 9.30 MB, no content strings |
 | `tools/drive/run.sh` (port 7781) | pass: 136 steps |
 | `dyno bench --local --tier high --check tools/bench/reference.json` | **times within budget; the count check fails, not because of F2** (below) |
 
@@ -237,7 +246,11 @@ All run on the branch merged with main (the voxel-rule tests included).
 
 These are world meshes. Main's voxel-rule work (`b4c644c`, roofs as stairs)
 recorded +16% to +43% world triangles in `tests/budget.rs`, which passes,
-but did not record the bench's `reference.json` again. F2 touches no mesher
+but did not record the bench's `reference.json` again. Main's own bench at
+the default tier, without F2 (`docs/art/voxel-rule/bench-high.md`), already
+has the plaza at 3.71 M triangles (+28% on the reference's 2.89 M) and
+Miner's Rest at 2.60 M (+15%). This run has 3.87 M and 2.67 M, on the later
+main. F2 touches no mesher
 (`git diff main -- render.rs terrain_mesh.rs shapes.rs worldwork.rs` is
 empty), and the bench scenes have no fight in them. Recording the
 reference again is the voxel-rule lane's or the lead's call.

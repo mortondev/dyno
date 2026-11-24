@@ -519,6 +519,8 @@ pub struct Landing {
     /// the way the blow went
     pub along: Vec3,
     pub blow: Blow,
+    /// it was a critical blow (a kill may be one too)
+    pub crit: bool,
     pub melee: bool,
     /// a bleed's or a burn's tick: a small burst, no stop
     pub tick: bool,
