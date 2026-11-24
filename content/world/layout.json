@@ -1411,14 +1411,15 @@
   {
    "key": "mere_pinchers_3",
    "kind": "camp",
-   "at": [-95, 735],
+   "at": [-106, 721],
    "radius": 20,
    "pad": {
     "radius": [7, 6],
     "surface": {"sand": 3, "clay": 1}
    },
    "stamps": [
-    {"stamp": "mirrormere_wreck", "at": [22, 3], "rot": 3, "fit": "float"},
+    {"stamp": "mirrormere_clear_14", "at": [0, 0], "dy": 40, "fit": "float"},
+    {"stamp": "mirrormere_wreck", "at": [22, 1], "rot": 3, "fit": "float"},
     {"stamp": "mirrormere_net_torn", "at": [6, -9], "fit": "float"},
     {"stamp": "mirrormere_shells", "at": [-6, 5], "fit": "float"},
     {"stamp": "mirrormere_shells", "at": [11, 8], "rot": 1, "fit": "float"},
