@@ -10,7 +10,7 @@ set -euo pipefail
 root=$(cd "$(dirname "$0")/../.." && pwd)
 bin="${1:-}"
 port="${2:-7757}"
-shots="${3:-}"
+shots="${3:-}"  # defaults to a folder in the work dir (the script takes pictures)
 if [ -z "$bin" ]; then
   (cd "$root" && cargo build --release --locked -p dyno >&2)
   bin="$root/target/release/dyno"
@@ -36,5 +36,6 @@ grep -q "listening" "$work/server.log" || { echo "the server did not start" >&2;
 
 # (a small picture: the frames stay quick on a busy machine)
 args=("127.0.0.1:$port" --script "$root/tools/drive/first_steps.drive" --as Driver --class mage --size "${DRIVE_SIZE:-1280x720}")
-[ -n "$shots" ] && args+=(--shots "$shots")
+[ -z "$shots" ] && shots="$work/shots" && mkdir -p "$shots"
+args+=(--shots "$shots")
 "$bin" drive "${args[@]}"
