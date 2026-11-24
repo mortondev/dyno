@@ -45,7 +45,7 @@ until CONDITION ... end       repeat the lines between (up to 6 times) until it 
 conditions: panel dialog|log|vendor|none · quest KEY · done KEY · target creature|npc|none ·
   attacking · casting · gcd · loot open|closed · tab bags|character|spellbook|skills|none ·
   equipped ITEM · pack ITEM · bar N KEY|empty · mark NAME · tip ID|any|none · moved MARK ·
-  hover creature|npc|corpse|none · map open|closed";
+  hover creature|npc|corpse|none · map open|closed · tip-clear · level N · debuff · banner";
 
 struct Driver {
     app: App,
@@ -399,6 +399,21 @@ impl Driver {
                 }
             }
             "mark" => probe::get(arg).is_some(),
+            // the tip on show lies over no window (true with no tip)
+            "tip-clear" => probe::get("tip").is_none_or(|tip| {
+                !probe::names()
+                    .iter()
+                    .filter(|n| n.starts_with("window."))
+                    .filter_map(|n| probe::get(n))
+                    .any(|w| w.intersects(tip))
+            }),
+            "level" => p.level >= arg.parse::<u8>().map_err(|_| "level N")?,
+            // my target carries a timed effect a player put on it
+            "debuff" => p
+                .focus
+                .and_then(|id| p.entity_auras.get(&id))
+                .is_some_and(|l| l.iter().any(|(_, until)| *until > Instant::now())),
+            "banner" => p.ui.level_up.is_some(),
             "tip" => match (p.ui.tips.current(), arg) {
                 (None, "none") => true,
                 (Some(_), "any") => true,

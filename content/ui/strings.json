@@ -58,7 +58,8 @@
   "gathering": "Gathering",
   "log_heal": "You are healed for {n}.",
   "shield": "+{n}",
-  "shield_text": "A shield: it soaks up this much damage before your health is touched."
+  "shield_text": "A shield: it soaks up this much damage before your health is touched.",
+  "log_learned": "You have learned {ability}: {text}"
  },
  "death": {
   "title": "You have died",

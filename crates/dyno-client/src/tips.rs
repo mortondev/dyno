@@ -161,6 +161,7 @@ impl Tips {
         &mut self,
         ctx: &egui::Context,
         anchor: impl Fn(&str) -> Option<Rect>,
+        avoid: &[Rect],
         quiet: bool,
         dismiss_hint: &str,
     ) {
@@ -235,11 +236,32 @@ impl Tips {
             // no part to point at: at the left, over the chat, clear of the
             // middle of the screen, where the character and whatever stands
             // before it are (a tip must never cover what it says to click)
-            None => (
-                Pos2::new(screen.left() + 18.0, screen.top() + screen.height() * 0.44),
-                Align2::LEFT_CENTER,
-                None,
-            ),
+            // ...and never an open window: the first of three places that
+            // is free (left; right, under the quests; top, under the frames)
+            None => {
+                let places = [
+                    (
+                        Pos2::new(screen.left() + 18.0, screen.top() + screen.height() * 0.44),
+                        Align2::LEFT_CENTER,
+                    ),
+                    (
+                        Pos2::new(screen.right() - 18.0, screen.top() + screen.height() * 0.66),
+                        Align2::RIGHT_CENTER,
+                    ),
+                    (
+                        Pos2::new(screen.center().x, screen.top() + 96.0),
+                        Align2::CENTER_TOP,
+                    ),
+                ];
+                // (about what the panel will take: its height is not known yet)
+                let size = Vec2::new(width + 30.0, 150.0);
+                let free = places.iter().find(|(at, pivot)| {
+                    let r = pivot.anchor_size(*at, size);
+                    !avoid.iter().any(|w| w.intersects(r))
+                });
+                let (at, pivot) = free.copied().unwrap_or(places[0]);
+                (at, pivot, None)
+            }
         };
         let t = at.elapsed().as_secs_f32();
         let fade = (t / 0.35).clamp(0.0, 1.0);

@@ -194,7 +194,10 @@ pub fn level_up(p: &mut Play, level: u8) {
             .content
             .abilities
             .iter()
-            .filter(|a| a.class == c && a.level == level)
+            // (every level gained at once teaches its own)
+            .filter(|a| {
+                a.class == c && (a.level == level || (a.level > p.level && a.level < level))
+            })
             .map(|a| a.id)
             .collect();
         for a in new {
@@ -211,6 +214,20 @@ pub fn level_up(p: &mut Play, level: u8) {
         p.ui.tips.fire("ability");
         // (after the level's own fanfare)
         crate::audio::emit_in("ui.ability_new", 2.4);
+    }
+    // the banner is the one "learned" line on screen; the record of it is
+    // in the combat log
+    for (a, _) in &learned {
+        if let Some(ab) = p.content.ability(*a) {
+            p.combat_log.push((
+                Instant::now(),
+                tf(
+                    "hud.log_learned",
+                    &[("ability", &ab.name), ("text", &ab.text)],
+                ),
+                theme::GOLD_BRIGHT,
+            ));
+        }
     }
     p.ui.tips.fire("level");
     p.ui.level_up = Some(LevelUp {
@@ -1755,13 +1772,15 @@ pub fn tips(
     .filter_map(|id| ctx.memory(|m| m.area_rect(egui::Id::new(*id))))
     .collect();
     let open = p.screen_tab.is_some() || p.panel.is_some() || p.trade.is_some() || p.ui.map_open;
+    let windows = if open { windows } else { Vec::new() };
     p.ui.tips.show(
         ctx,
         |name| {
             let r = anchors.get(name).copied()?;
             let zone = r.expand2(Vec2::new(380.0, 60.0));
-            (!open || !windows.iter().any(|w| w.intersects(zone))).then_some(r)
+            (!windows.iter().any(|w| w.intersects(zone))).then_some(r)
         },
+        &windows,
         quiet,
         &hint,
     );

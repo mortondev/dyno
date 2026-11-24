@@ -57,6 +57,11 @@ corner or to the action bar. F3 puts the debug line under the unit frames.
    (`theme::parchment`); bags are stitched leather (`theme::leather`); a slot
    is a well with a bronze rim (`slot_well`, `slot_rim`, `item_slot`).
    Do not invent a new box: use these.
+   Buttons are `theme::button` (gold for the one thing a window is for,
+   dark for the rest) and `theme::small_button`; a text field is
+   `theme::field`. (The quest dialogue's Back and Farewell, the vendor and
+   loot windows still use egui's own button, coloured by the theme's
+   visuals: move them when they are next touched.)
 2. **Three fonts.** The title face for names and headings (small caps), the
    body face for sentences, the bold body face for numbers. Never
    `FontId::proportional` or `monospace` in the RPG interface.
@@ -244,17 +249,21 @@ the world with a window open and a tip showing. `tools/drive/run.sh` builds
 the release `dyno`, starts a fresh world whose operator is the driven
 character, and runs it.
 
-What it has found so far, each fixed:
+Three changes to play came out of building it. None was seen failing for
+a player; each was made because the script's failures pointed at it:
 - a tip with no HUD part to point at sat in the lower middle of the screen,
-  over the character and whoever stood in front of it, so the "right-click
-  the person with the gold !" tip could cover that person. Those tips now
-  sit at the left, over the chat, and no tip lies over an open window;
-- a body lying in grass or flowers could not be clicked: the pick stopped
-  at any block on the line, plants and torches included. It now stops only
-  at what you cannot see through (`game::raycast_solid`);
-- a click on someone walking was lost if they had stepped from under the
-  pointer by the time the button came up. A click is now on what the button
-  went down on.
+  over the character and whoever stands in front of it. Those tips now take
+  the first free of three places (left over the chat; right under the
+  quests; top under the frames), and no tip lies over an open window (the
+  script checks this: `expect tip-clear`);
+- a click is on what the button went down on, so someone who walks on
+  before the button comes up is still clicked;
+- the line of sight for picking stops at full blocks only (a torch no
+  longer hides what is behind it).
+
+The script's own early failures were its projection (it inverted the
+pick's inverse matrix, which loses too much precision); it now uses the
+frame's matrix.
 
 A script's world clicks wait for a walker to stand still and aim again if
 something else is under the pointer, so the test does not depend on where
@@ -303,7 +312,7 @@ the older names (`hud`, `talk`, `log`, `char`, `bags`, `spells`, `skills`,
 | 8 Floating text: damage, crits, heals, XP, loot | Met; a heal is one green number, from the server's `Healed` |
 | 8 Quest-progress toast, level-up banner | Met |
 | 8 Nothing overlaps at 1080p or 1440p; can be scaled | Met |
-| 9 Same theme on every panel, key and Esc, remembers its place | Met for the session, the class picker, invitations, trade window and chat box included. The survival lane's crafting-station window had not landed when this was written |
+| 9 Same theme on every panel, key and Esc, remembers its place | Met for the session, the class picker, invitations, trade window and chat box included. The crafting window (`item_ui::craft_window`) was already on the theme's window, leather and slots; its search field and buttons now use `theme::field` and `theme::small_button` |
 | 9 Quest log: objectives, rewards, story, abandon | Met; share is missing (needs a message) |
 | 9 Bags: sorting, stacking, quality colours, sell junk | Met |
 | 9 Item tooltips compared with worn gear | Met |
@@ -319,8 +328,8 @@ the older names (`hud`, `talk`, `log`, `char`, `bags`, `spells`, `skills`,
 
 1. Rebinding keys (the Controls page is a list today); merchant buyback;
    quest share.
-2. The crafting-station window on the theme, once the survival lane's
-   rename of `survival.rs` lands.
+2. The crafting window's and the front end's remaining hard-coded words
+   into the strings file.
 3. More wire for the interface: roles and difficulty in `ClassInfo` (still
    a table in `front.rs`), party members' resource, a release timer.
 4. The front end's own words into the strings file (it runs before the

@@ -35,8 +35,8 @@ pub fn raycast(world: &World, origin: Vec3, dir: Vec3, max: f32) -> Option<Targe
     raycast_where(world, origin, dir, max, |b| b != w::AIR && b != w::WATER)
 }
 
-/// The first block a ray meets that stops a line of sight: grass, flowers
-/// and torches do not hide what stands or lies among them.
+/// The first block a ray meets that stops a line of sight: a torch (the
+/// one block that is not a full cube) does not hide what stands behind it.
 pub fn raycast_solid(world: &World, origin: Vec3, dir: Vec3, max: f32) -> Option<Target> {
     raycast_where(world, origin, dir, max, w::is_solid)
 }

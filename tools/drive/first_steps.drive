@@ -9,6 +9,7 @@ walk-to npc brannoc 3
 look-at npc brannoc
 click right npc brannoc
 expect panel dialog
+expect tip-clear
 click left at dialog.quest.cold_hearth
 click left at dialog.accept
 expect quest cold_hearth
@@ -24,6 +25,10 @@ wait 1.5
 look-at creature grazer
 click left creature grazer
 expect target creature
+key 2
+expect debuff
+shot 2-debuff
+expect not casting
 key 1
 expect casting
 expect not casting
@@ -61,6 +66,7 @@ say /give acolytes_hood 1
 expect pack acolytes_hood
 key B
 expect tab bags
+expect tip-clear
 click right at bagitem.acolytes_hood
 expect equipped acolytes_hood
 shot 4-equipped
@@ -113,3 +119,22 @@ expect target creature
 click right creature grazer
 expect attacking
 shot 8-world-click
+
+# --- 9. a level: the banner, and the new ability on the first free key --------
+until level 2
+  say /summon grazer
+  wait 1.0
+  say /slay
+  wait 0.6
+  say /summon grazer
+  wait 1.0
+  say /slay
+  wait 0.6
+  say /summon grazer
+  wait 1.0
+  say /slay
+  wait 0.6
+end
+expect banner
+shot 9-level-up
+expect bar 0 fire_blast

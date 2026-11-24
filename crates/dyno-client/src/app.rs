@@ -1074,8 +1074,7 @@ fn animate_blow(p: &mut Play) {
 /// The creature or person along a ray (the mouse cursor), nearest first,
 /// unless a block is in the way.
 fn pick_entity_ray(p: &Play, o: Vec3, dir: Vec3, max: f32) -> Option<u32> {
-    // (what hides a creature is what you cannot see through: a body lying
-    // in tall grass can still be clicked)
+    // (what hides a creature is what you cannot see through: not a torch)
     let wall = game::raycast_solid(&p.world, o, dir, max).map(|t| {
         let c = Vec3::new(
             t.block[0] as f32 + 0.5,
