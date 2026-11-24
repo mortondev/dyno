@@ -4657,7 +4657,8 @@
     1,
     2
    ],
-   "scale": 0.7
+   "scale": 0.7,
+   "material": "hide"
   },
   {
    "key": "shade",
@@ -4695,7 +4696,8 @@
     2,
     9
    ],
-   "spares_below": 5
+   "spares_below": 5,
+   "material": "shadow"
   },
   {
    "key": "thornboar",
@@ -4751,7 +4753,14 @@
      "range": 10
     }
    },
-   "aggro": 4
+   "aggro": 4,
+   "material": "hide",
+   "heavy": {
+    "every": 3,
+    "windup": 0.8,
+    "damage": 1.6,
+    "reach": 2.6
+   }
   },
   {
    "key": "mirepincher",
@@ -4795,7 +4804,8 @@
    "spawn": "meadow",
    "cap": 0,
    "attack_speed": 1.8,
-   "burns_in_daylight": false
+   "burns_in_daylight": false,
+   "material": "shell"
   },
   {
    "key": "websnare",
@@ -4834,7 +4844,8 @@
    "cap": 0,
    "attack_speed": 1.8,
    "burns_in_daylight": false,
-   "aggro": 6
+   "aggro": 6,
+   "material": "shell"
   },
   {
    "key": "ashcloak",
@@ -4883,6 +4894,13 @@
     "flee": {
      "below": 0.2
     }
+   },
+   "material": "cloth",
+   "heavy": {
+    "every": 3,
+    "windup": 0.9,
+    "damage": 1.6,
+    "reach": 2.6
    }
   },
   {
@@ -4937,7 +4955,8 @@
    "spawn": "meadow",
    "cap": 0,
    "attack_speed": 1.8,
-   "burns_in_daylight": false
+   "burns_in_daylight": false,
+   "material": "metal"
   },
   {
    "key": "rook_varn",
@@ -4979,7 +4998,8 @@
    "spawn": "meadow",
    "cap": 0,
    "attack_speed": 1.8,
-   "burns_in_daylight": false
+   "burns_in_daylight": false,
+   "material": "metal"
   },
   {
    "key": "candlekin",
@@ -5046,7 +5066,8 @@
    "cap": 0,
    "attack_speed": 1.8,
    "burns_in_daylight": false,
-   "aggro": 9
+   "aggro": 9,
+   "material": "wax"
   },
   {
    "key": "gloomwisp",
@@ -5106,7 +5127,8 @@
      "range": 14
     }
    },
-   "aggro": 12
+   "aggro": 12,
+   "material": "shadow"
   },
   {
    "key": "barrow_warden",
@@ -5145,7 +5167,8 @@
    "cap": 0,
    "attack_speed": 1.8,
    "burns_in_daylight": false,
-   "aggro": 3
+   "aggro": 3,
+   "material": "bone"
   },
   {
    "key": "hollow_foreman",
@@ -5183,7 +5206,8 @@
    "spawn": "meadow",
    "cap": 0,
    "attack_speed": 1.8,
-   "burns_in_daylight": false
+   "burns_in_daylight": false,
+   "material": "metal"
   },
   {
    "key": "old_tusk",
@@ -5229,7 +5253,8 @@
      "range": 10
     }
    },
-   "aggro": 4
+   "aggro": 4,
+   "material": "hide"
   },
   {
    "key": "ashcloak_thief",
@@ -5278,7 +5303,8 @@
     "flee": {
      "below": 0.2
     }
-   }
+   },
+   "material": "cloth"
   }
  ],
  "world": {
@@ -8745,7 +8771,8 @@
     4
    ],
    "sound": "thud",
-   "image": "icons/abilities/ground_slam.png"
+   "image": "icons/abilities/ground_slam.png",
+   "school": "earth"
   },
   {
    "key": "last_stand",
@@ -8855,7 +8882,8 @@
    ],
    "stun": 3,
    "sound": "thud",
-   "image": "icons/abilities/rebuke.png"
+   "image": "icons/abilities/rebuke.png",
+   "school": "holy"
   },
   {
    "key": "devout_ward",
@@ -8900,7 +8928,8 @@
    ],
    "shade_bonus": 2.0,
    "sound": "holy_burst",
-   "image": "icons/abilities/hallowed_ground.png"
+   "image": "icons/abilities/hallowed_ground.png",
+   "school": "holy"
   },
   {
    "key": "quick_shot",
@@ -8922,7 +8951,8 @@
     2.5
    ],
    "sound": "shot",
-   "image": "icons/abilities/quick_shot.png"
+   "image": "icons/abilities/quick_shot.png",
+   "school": "arrow"
   },
   {
    "key": "barbed_arrow",
@@ -8944,7 +8974,8 @@
     12
    ],
    "sound": "shot",
-   "image": "icons/abilities/barbed_arrow.png"
+   "image": "icons/abilities/barbed_arrow.png",
+   "school": "arrow"
   },
   {
    "key": "snare_shot",
@@ -8967,7 +8998,8 @@
    ],
    "root": 5,
    "sound": "snare",
-   "image": "icons/abilities/snare_shot.png"
+   "image": "icons/abilities/snare_shot.png",
+   "school": "arrow"
   },
   {
    "key": "hawks_eye",
@@ -9012,7 +9044,8 @@
     3
    ],
    "sound": "shot_heavy",
-   "image": "icons/abilities/volley.png"
+   "image": "icons/abilities/volley.png",
+   "school": "arrow"
   },
   {
    "key": "vicious_strike",
@@ -9171,7 +9204,8 @@
    ],
    "shade_bonus": 2.0,
    "sound": "holy_bolt",
-   "image": "icons/abilities/smite.png"
+   "image": "icons/abilities/smite.png",
+   "school": "holy"
   },
   {
    "key": "mend",
@@ -9214,7 +9248,8 @@
     12
    ],
    "sound": "shadow",
-   "image": "icons/abilities/withering_word.png"
+   "image": "icons/abilities/withering_word.png",
+   "school": "shadow"
   },
   {
    "key": "renewal",
@@ -9283,7 +9318,8 @@
     3
    ],
    "sound": "holy_burst",
-   "image": "icons/abilities/radiance.png"
+   "image": "icons/abilities/radiance.png",
+   "school": "holy"
   },
   {
    "key": "fireball",
@@ -9305,7 +9341,8 @@
     4.5
    ],
    "sound": "fire",
-   "image": "icons/abilities/fireball.png"
+   "image": "icons/abilities/fireball.png",
+   "school": "fire"
   },
   {
    "key": "scholars_focus",
@@ -9348,7 +9385,8 @@
     3
    ],
    "sound": "fire_blast",
-   "image": "icons/abilities/fire_blast.png"
+   "image": "icons/abilities/fire_blast.png",
+   "school": "fire"
   },
   {
    "key": "ice_ring",
@@ -9371,7 +9409,8 @@
    ],
    "root": 5,
    "sound": "frost_burst",
-   "image": "icons/abilities/ice_ring.png"
+   "image": "icons/abilities/ice_ring.png",
+   "school": "frost"
   },
   {
    "key": "blink",
@@ -9411,7 +9450,8 @@
     4
    ],
    "sound": "fire_blast",
-   "image": "icons/abilities/flame_nova.png"
+   "image": "icons/abilities/flame_nova.png",
+   "school": "fire"
   },
   {
    "key": "second_wind",
@@ -9478,7 +9518,8 @@
    "opener": 1.5,
    "sound": "shot_heavy",
    "text": "Take careful aim for a heavy shot. 50% more against a foe that is not yet fighting you.",
-   "image": "icons/abilities/marked_shot.png"
+   "image": "icons/abilities/marked_shot.png",
+   "school": "arrow"
   },
   {
    "key": "ambush",
@@ -9574,7 +9615,8 @@
    ],
    "sound": "frost",
    "text": "A bolt of ice that slows your target by 50% for 6 seconds.",
-   "image": "icons/abilities/frostbolt.png"
+   "image": "icons/abilities/frostbolt.png",
+   "school": "frost"
   },
   {
    "key": "hamstring",

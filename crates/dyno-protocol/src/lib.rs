@@ -162,8 +162,13 @@ pub enum Act {
     Died,
     /// gets up again
     Revived,
-    /// a creature's special move (charge, bolt, roar)
+    /// a creature's special move (charge, bolt, roar); after a `WindUp`,
+    /// the heavy blow itself (it lands or misses now)
     Special,
+    /// a creature gathers itself for a heavy blow that comes in `time`
+    /// seconds: step out of its reach or stun it (a `CastEnd` that is not
+    /// `done` says it was broken off)
+    WindUp { time: f32 },
 }
 
 /// One quest in a player's log: counts per objective.
@@ -263,7 +268,7 @@ pub const MAX_WANT: usize = 1024;
 
 /// Network protocol version. Increase it on every incompatible change.
 /// Clients and servers with different versions refuse to connect.
-pub const PROTOCOL_VERSION: u32 = 25;
+pub const PROTOCOL_VERSION: u32 = 26;
 
 /// The ability ID used for the recall cast (back to your hearth or bed).
 pub const RECALL: u16 = u16::MAX;
@@ -462,6 +467,11 @@ pub enum ClientMsg {
     /// point instead of the spawn. Players' views follow their pose.
     ViewAt {
         pos: [f32; 3],
+    },
+    /// Answer with `Pong` and the same `nonce` at once: the client times
+    /// the round trip (its debug overlay).
+    Ping {
+        nonce: u32,
     },
 }
 
@@ -849,6 +859,18 @@ pub enum ServerMsg {
     /// The named places you have found, by area key (the world map names
     /// them and lights their land). Sent at a join and at each discovery.
     Discovered(Vec<String>),
+    /// The answer to `Ping`: its `nonce`, and the count of world ticks (50 ms
+    /// each) this server has run.
+    Pong {
+        nonce: u32,
+        tick: u32,
+    },
+    /// Your `Cast` of this ability was refused (not ready, too little
+    /// power, no target, out of range): what the client began to show for
+    /// the press is taken back. The reason follows as a `System` line.
+    Refused {
+        ability: u16,
+    },
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

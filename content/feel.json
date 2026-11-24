@@ -1,0 +1,12 @@
+{
+  "hit_stop": {"hit": 0.06, "crit": 0.1, "kill": 0.14, "taken": 0.05, "ranged": 0.6, "contact": 0.15},
+  "shake": {
+    "crit": {"degrees": 0.9, "secs": 0.22},
+    "heavy": {"degrees": 1.3, "secs": 0.3},
+    "heavy_share": 0.15, "rate": 13, "most": 1.6
+  },
+  "stagger": {"scale": 1.1, "push": 0.4, "secs": 0.35},
+  "press": {"pulse": 0.3, "queue": 0.4},
+  "tell": {"color": [1.0, 0.32, 0.18], "cube": 0.125, "reach": 2.5, "flash": 0.45, "strike": 0.7},
+  "kill": {"linger": 0.8, "sparkle_after": 0.6}
+}

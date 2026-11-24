@@ -227,6 +227,8 @@ pub struct Interface {
     /// beside the natural size for the window (see [`zoom_for`])
     pub scale: f32,
     pub tips: bool,
+    /// the camera shakes on a crit or a heavy blow
+    pub shake: bool,
     pub tips_seen: Vec<String>,
     pub bars: std::collections::BTreeMap<String, Vec<String>>,
 }
@@ -242,6 +244,7 @@ impl Interface {
         Interface {
             scale: s.ui_scale.clamp(0.7, 1.5),
             tips: s.tips,
+            shake: s.camera_shake,
             tips_seen: s.tips_seen.clone(),
             bars: s.bars.clone(),
         }
@@ -250,6 +253,7 @@ impl Interface {
     pub fn into(self, s: &mut Settings) {
         s.ui_scale = self.scale;
         s.tips = self.tips;
+        s.camera_shake = self.shake;
         s.tips_seen = self.tips_seen;
         s.bars = self.bars;
     }
@@ -421,6 +425,14 @@ pub fn panel(ui: &mut egui::Ui) -> bool {
                     o.tips_seen.clear();
                 }
             });
+        }
+        if let Some(i) = row(
+            ui,
+            &t("options.shake"),
+            Some(now.shake as usize),
+            &[&off, &on],
+        ) {
+            changed |= change_interface(|o| o.shake = i == 1);
         }
     }
     // sound: the master level and each bus (names from the pack)

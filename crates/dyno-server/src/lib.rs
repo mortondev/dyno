@@ -473,6 +473,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         regrow: meta.regrow.clone(),
         spawn_points: Vec::new(),
         zone_clock: 0.0,
+        ticks: 0,
         depleted: HashMap::new(),
         incursion: None,
         next_phase: None,
@@ -1333,6 +1334,12 @@ impl Server {
                     cost.1.as_secs_f64() * 1e3,
                     cost.2
                 ));
+                let [wound, landed, missed, broken] = creatures::heavy_counts();
+                if wound > 0 {
+                    log(format!(
+                        "heavy blows so far: {wound} wound up, {landed} landed, {missed} missed, {broken} broken off"
+                    ));
+                }
                 cost_at = all;
                 cost = (Duration::ZERO, Duration::ZERO, 0);
             }
@@ -1895,6 +1902,20 @@ impl Server {
                 }
             }
             "/kill" => st.damage(id, 1000.0, [0.0; 3], "gave up"),
+            // the pack's test yard (test packs only: tools/feel)
+            "/feel" => match st.content.world.test_place {
+                _ if !op => st.tell(id, "Only server operators can use /feel."),
+                None => st.tell(id, "This world has no test yard."),
+                Some(t) => {
+                    let h = st.spawn_hearth;
+                    let (x, z) = (h[0] + t.at[0], h[2] + t.at[1]);
+                    let pos = [x as f32 + 0.5, st.world.ground(x, z) as f32 + 1.0, z as f32 + 0.5];
+                    if let Some(p) = st.players.get_mut(&id) {
+                        p.pose.pos = pos;
+                        let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Teleport { pos })));
+                    }
+                }
+            },
             "/tp" => {
                 let lower = arg.to_lowercase();
                 let target = st

@@ -34,7 +34,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 
+mod debug;
 mod drive;
+mod feel;
 mod hud;
 pub use drive::{DriveOptions, drive};
 mod sound;
@@ -271,12 +273,14 @@ struct Play {
     world_event: Option<(String, String, f32)>,
     /// the first-login intro, when it started
     intro: Option<Instant>,
-    /// F3: version, address, position, frame rate
-    show_info: bool,
+    /// F3: the debug overlay (app/debug.rs)
+    debug: debug::DebugState,
     /// my party (empty: none)
     party: Vec<dyno_protocol::PartyMember>,
     /// how tall each creature stands as drawn (for name plates)
     tops: std::cell::RefCell<HashMap<u32, f32>>,
+    /// how blows feel: hit-stops, the camera's shake, bursts, tells (feel.rs)
+    feel: std::cell::RefCell<crate::feel::State>,
     /// what other players hold in their weapon hand
     wielding: HashMap<u32, u16>,
     /// what other players have equipped (item ids), worn on their figures
@@ -509,8 +513,10 @@ fn use_action(p: &mut Play, i: usize) {
         p.focus = Some(t);
     }
     // what the server will refuse sounds like a refusal: still cooling
-    // down, too little rage or mana, or the target too far (as the bar
-    // shows it: hud::slot_look)
+    // down, too little rage or mana, the target too far (as the bar shows
+    // it: hud::slot_look), or pressed too long before the global cooldown
+    // ends; a press in its last moment is kept for then (feel.rs)
+    let (queued, early) = feel::busy(p);
     let mut refused = false;
     if let ClientMsg::Cast { ability, .. } = &msg
         && let Some(a) = p.content.ability(*ability)
@@ -523,27 +529,37 @@ fn use_action(p: &mut Play, i: usize) {
             && target
                 .and_then(|id| p.entities.get(&id))
                 .is_some_and(|e| e.pos().distance(p.player.pos) > a.range + 1.0);
-        refused = cooling || far || p.power + 0.01 < a.cost;
+        refused = cooling || far || early || p.power + 0.01 < a.cost;
         if refused {
             crate::audio::emit("ui.error");
         }
     }
-    // instant abilities: a weapon strike or a flick of the hands, at once
+    // the swing or the cast begins on the frame of the press, and the key
+    // lights; the server's answer follows (a refusal takes it back)
     if let ClientMsg::Cast { ability, .. } = &msg
         && let Some(a) = p.content.ability(*ability)
-        && a.cast <= 0.0
     {
-        let now = p.anims.now();
-        let act = if a.weapon > 0.0 {
-            anim::attack_for(p.anims.grip)
-        } else {
-            Anim::CastRelease
-        };
-        p.anims.me(now).play_fresh(now, act);
-        if a.weapon > 0.0 && !refused {
-            crate::audio::emit("combat.swing");
-            // (the blow's own message must not swing again)
-            p.anims.last_swing = now;
+        let animated = !refused && !queued;
+        if animated {
+            let now = p.anims.now();
+            if a.cast <= 0.0 {
+                let act = if a.weapon > 0.0 {
+                    anim::attack_for(p.anims.grip)
+                } else {
+                    Anim::CastRelease
+                };
+                p.anims.me(now).play_fresh(now, act);
+                if a.weapon > 0.0 {
+                    crate::audio::emit("combat.swing");
+                    // (the blow's own message must not swing again)
+                    p.anims.last_swing = now;
+                }
+            } else {
+                p.my_cast = Some((a.id, Instant::now(), a.cast));
+            }
+        }
+        if !refused {
+            feel::press(p, i, a.id, queued, animated);
         }
     }
     let _ = p.conn.tx.send(msg);
@@ -677,6 +693,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             if !models::in_sight(at, 4.0) {
                 continue;
             }
+            p.debug.drawing.set(p.debug.drawing.get() + 1);
             let look = models::Look::npc(&npc.key, npc.color);
             models::push_person_anim(boxes, pos, e.yaw, 0.0, &look, light.max(0.35), a, now);
             if let Some(m) = me.marker(n) {
@@ -700,6 +717,8 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             .hurt_at
             .map(|t| (1.0 - t.elapsed().as_secs_f32() / 0.12).max(0.0))
             .unwrap_or(0.0);
+        // a stagger, the white of a wind-up's end (feel.rs)
+        let (drawn, flash) = feel::creature_look(p, *id, pos, flash, now);
         // size: the creature's own scale, and rare elites are a quarter larger
         let scale = c.scale * if e.name.is_some() { 1.25 } else { 1.0 };
         // in a fight: hit lately, or a hostile that has you targeted
@@ -724,9 +743,10 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         if !models::in_sight(at, 4.0 * scale.max(1.0)) {
             continue;
         }
+        p.debug.drawing.set(p.debug.drawing.get() + 1);
         let start = boxes.len();
         models::push_creature(
-            boxes, c.model, c.variant, pos, e.yaw, c.color, light, flash, scale, a, now,
+            boxes, c.model, c.variant, drawn, e.yaw, c.color, light, flash, scale, a, now,
         );
         // how tall it stands, so its name floats just over it
         let top = boxes[start..]
@@ -734,6 +754,7 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
             .map(|v| v.pos[1])
             .fold(pos.y, f32::max);
         p.tops.borrow_mut().insert(*id, top - pos.y);
+        feel::creature_marks(p, boxes, *id, c, pos, top - pos.y, now, clock);
     }
     push_corpses(boxes, p, book, clock);
 }
@@ -854,6 +875,7 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f32)
             / 15.0;
         let fresh = book.fresh_corpse(pos, now);
         let (a, new) = book.entity(*id, now);
+        feel::corpse(p, *id, a, fresh, new, loot, pos + Vec3::Y * 0.4, now);
         let base = if new && fresh {
             Anim::Death
         } else if new {
@@ -863,6 +885,7 @@ fn push_corpses(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f32)
         };
         a.drive_at(now, base, pos, 1.0);
         let dying = base == Anim::Death && a.base_time(now) < 1.5;
+        p.debug.drawing.set(p.debug.drawing.get() + 1);
         models::push_creature(
             boxes,
             c.model,
@@ -1683,10 +1706,11 @@ fn new_play(j: Joined) -> Play {
         intro: None,
         chat_tab_combat: false,
         combat_log: Vec::new(),
-        show_info: false,
+        debug: Default::default(),
         party: Vec::new(),
         invite: None,
         tops: Default::default(),
+        feel: Default::default(),
         wielding: HashMap::new(),
         wearing: HashMap::new(),
         shield: (0.0, 0.0),
@@ -2291,7 +2315,9 @@ impl App {
                                     }
                                 }
                                 dyno_protocol::Actor::Entity(eid) => {
+                                    // (a wind-up and its blow: feel.rs)
                                     let a = match act {
+                                        _ if feel::act(p, eid, &act) => None,
                                         dyno_protocol::Act::Swing => Some(Anim::AttackUnarmed),
                                         dyno_protocol::Act::Special => Some(Anim::Special),
                                         dyno_protocol::Act::Shoot => Some(Anim::Shoot),
@@ -2401,7 +2427,9 @@ impl App {
                             };
                             self.audio.play(&m, gain);
                         }
+                        ServerMsg::Pong { nonce, tick } => p.debug.pong(nonce, tick),
                         ServerMsg::Teleport { pos } => {
+                            p.debug.corrections += 1;
                             p.player.pos = Vec3::from(pos);
                             p.player.vel = Vec3::ZERO;
                             p.fall_from = None;
@@ -2460,6 +2488,7 @@ impl App {
                             }
                         }
                         ServerMsg::EntityGone { id, picked_by } => {
+                            feel::gone(p, id);
                             p.entity_auras.remove(&id);
                             if let Some(e) = p.entities.get(&id)
                                 && let EntityKind::Creature(_) = e.kind
@@ -2535,6 +2564,13 @@ impl App {
                         } => {
                             let (a, b) = (Vec3::from(from), Vec3::from(to));
                             animate_caster(p, a, color);
+                            if a.distance(p.player.eye()) < 1.6 {
+                                let school = ability
+                                    .and_then(|i| p.content.ability(i))
+                                    .map(|x| x.school.clone())
+                                    .unwrap_or_default();
+                                p.feel.borrow_mut().spell = Some((school, b, Instant::now()));
+                            }
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
                             } else {
@@ -2668,9 +2704,12 @@ impl App {
                                 && entity == p.attacking
                                 && now - p.anims.last_swing > 0.75;
                             if swung {
+                                // (the blow has landed: the swing is shown
+                                // from where the weapon meets the target)
+                                let from = now - crate::feel::data().hit_stop.contact;
                                 let swing = anim::attack_for(p.anims.grip);
-                                p.anims.me(now).play_fresh(now, swing);
-                                p.anims.last_swing = now;
+                                p.anims.me(now).play_fresh(from, swing);
+                                p.anims.last_swing = from;
                             }
                             sound::struck(&mut self.audio, p, entity, crit, swung);
                             let (text, col) = match entity {
@@ -2681,7 +2720,9 @@ impl App {
                                 None => (format!("-{:.0}", amount), Color32::from_rgb(255, 70, 60)),
                             };
                             p.combat_text.push((Instant::now(), entity, text, col));
+                            feel::damage(p, entity, amount, crit, swung);
                         }
+                        ServerMsg::Refused { ability } => feel::refused(p, ability),
                         ServerMsg::ChooseClass => {
                             p.class_pick = true;
                             release = true;
@@ -2868,6 +2909,11 @@ impl App {
         let dt = (now - self.last_frame).as_secs_f32();
         self.last_frame = now;
         self.poll();
+        if let Screen::Playing(p) = &mut self.screen
+            && let Some(ping) = p.debug.frame(now, dt)
+        {
+            let _ = p.conn.tx.send(ping);
+        }
         let Some(gfx) = self.gfx.as_mut() else { return };
         let (wdt, hgt) = (gfx.config.width as f32, gfx.config.height as f32);
         let fov = match &self.screen {
@@ -3169,6 +3215,8 @@ impl App {
             let mut book = std::mem::take(&mut p.anims);
             let now = book.now();
             book.prune(now);
+            // blows whose contact has come land before anyone is posed
+            feel::before_figures(p, &mut book);
             for (id, r) in p.remotes.iter().filter(|(_, r)| !r.far) {
                 let pose = r.current();
                 let base = p.ground.feet(&p.world, Vec3::from(pose.pos));
@@ -3183,6 +3231,7 @@ impl App {
                     look.wear(keys.iter().map(String::as_str));
                 }
                 look.weapon = models::weapon_look(&p.content, p.wielding.get(id).copied());
+                p.debug.drawing.set(p.debug.drawing.get() + 1);
                 models::push_person_anim(&mut boxes, base, pose.yaw, pose.pitch, &look, bl, a, now);
             }
             p.anims = book;
@@ -3412,7 +3461,8 @@ impl App {
                 0.05,
                 far,
             );
-            let vp = proj * glam::Mat4::look_to_rh(eye, dir, Vec3::Y);
+            // (the shake turns only the picture)
+            let vp = proj * glam::Mat4::look_to_rh(eye, feel::view_dir(p, dir), Vec3::Y);
             // models skip faces the camera and sun cannot see, and coarsen far
             // away; creatures out of the picture whose shadows are too are not made
             models::set_view(Some((eye, Vec3::from(sky_now.sun_dir))));
@@ -3497,6 +3547,7 @@ impl App {
             let clock = p.fps.0.elapsed().as_secs_f32() + p.time_at.elapsed().as_secs_f32();
             let mut book = std::mem::take(&mut p.anims);
             push_creatures(&mut boxes, p, &mut book, clock);
+            feel::draw(p, &mut boxes, &mut book, dt);
             p.anims = book;
             // smoke, fireflies, birds, deer
             let tod = (p.time + p.time_at.elapsed().as_secs_f32() / p.day_seconds).fract();
@@ -3906,7 +3957,7 @@ impl App {
             p.autorun = false;
         }
         if code == KeyCode::F3 {
-            p.show_info = !p.show_info;
+            p.debug.toggle();
             return;
         }
         if code == KeyCode::Escape && p.intro.is_some() {
@@ -4641,34 +4692,41 @@ fn hud(
             Color32::from_rgb(230, 140, 40),
         );
     }
-    // top-left info: always in the builder modes, on F3 in the RPG
+    // top-left: a line of where you are in the builder modes; the debug
+    // overlay on F3 (app/debug.rs)
     let pos = p.player.pos;
-    let show_info = !p.content.world.protected || p.show_info;
     let info = format!(
-        "Dyno {} · {} · {} online · {} fps\nx {:.0}  y {:.0}  z {:.0}{}",
+        "Dyno {} · {} · {} online\nx {:.0}  y {:.0}  z {:.0}{}",
         env!("CARGO_PKG_VERSION"),
         p.url,
         p.remotes.len() + 1,
-        p.fps.2,
         pos.x,
         pos.y,
         pos.z,
         if p.player.flying { "  · flying" } else { "" }
     );
-    let info = if show_info { info } else { String::new() };
     // (under the unit frames in the RPG)
     let info_y = if p.content.world.protected {
         170.0
     } else {
         10.0
     };
-    painter.text(
-        screen.left_top() + Vec2::new(12.0, info_y),
-        Align2::LEFT_TOP,
-        info,
-        FontId::monospace(13.0),
-        Color32::from_white_alpha(230),
-    );
+    if p.debug.open {
+        debug::draw(
+            &painter,
+            &p.debug,
+            screen.left_top() + Vec2::new(12.0, info_y),
+            &info,
+        );
+    } else if !p.content.world.protected {
+        painter.text(
+            screen.left_top() + Vec2::new(12.0, info_y),
+            Align2::LEFT_TOP,
+            format!("{info} · {} fps", p.fps.2),
+            FontId::monospace(13.0),
+            Color32::from_white_alpha(230),
+        );
+    }
     if p.server_version != env!("CARGO_PKG_VERSION") {
         painter.text(
             screen.left_top() + Vec2::new(12.0, info_y + 38.0),
