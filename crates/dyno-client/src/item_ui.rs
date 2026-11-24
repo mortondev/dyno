@@ -83,6 +83,36 @@ fn item_texture(ctx: &egui::Context, path: &str) -> Option<egui::TextureHandle> 
     Some(t)
 }
 
+/// An ability's icon: its own picture from the pack, or (without one, or
+/// until it arrives) the sprite of its `icon` item.
+pub fn ability_icon(
+    painter: &egui::Painter,
+    r: Rect,
+    c: &Content,
+    a: &dyno_world::content::Ability,
+) {
+    // ability pictures are streamed: ask for one the first time it is drawn
+    if let Some(p) = a.image.as_deref()
+        && crate::assets::get(p).is_none()
+    {
+        crate::assets::request(p);
+    }
+    if let Some(t) = a
+        .image
+        .as_deref()
+        .and_then(|p| item_texture(painter.ctx(), p))
+    {
+        painter.image(
+            t.id(),
+            r,
+            Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)),
+            Color32::WHITE,
+        );
+    } else if let Some(item) = c.item_by_key(&a.icon) {
+        item_icon(painter, r, c, item);
+    }
+}
+
 pub fn block_icon(painter: &egui::Painter, r: Rect, b: w::BlockId) {
     let a = atlas(painter.ctx());
     let t = crate::render::textures();

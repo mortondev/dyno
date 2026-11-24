@@ -77,6 +77,27 @@ impl State {
             let _ = max_before;
             self.broadcast(&ServerMsg::LevelUp { player: id, level }, None);
             self.event(format!("{name} reached level {level}!"));
+            // what the new level teaches, by name, with what it does
+            let class = self.players[&id].class;
+            let learned: Vec<String> = self
+                .content
+                .abilities
+                .iter()
+                .filter(|a| Some(a.class) == class && a.level > level - ups && a.level <= level)
+                .map(|a| format!("You have learned {}: {}", a.name, a.text))
+                .collect();
+            for line in learned {
+                self.tell(id, line);
+            }
+            // a level-up fills your mana too (rage and energy keep their own rules)
+            let max_power = self.max_power(id);
+            let mana = class
+                .and_then(|c| self.content.class(c))
+                .is_some_and(|c| c.resource == dyno_world::content::Resource::Mana);
+            if mana && let Some(p) = self.players.get_mut(&id) {
+                p.power = max_power;
+            }
+            self.send_power(id);
             let p = &self.players[&id];
             p.send(&p.status());
         }
