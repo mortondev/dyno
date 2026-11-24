@@ -1186,16 +1186,16 @@
     {"stamp": "meadow_west_hedgerow_17", "at": [-11, -19], "fit": "ground"},
     {"stamp": "meadow_west_hedgerow_13", "at": [4, -19], "fit": "ground"},
     {"stamp": "meadow_west_hedgerow_9", "at": [15, -19], "fit": "ground"},
-    {"stamp": "meadow_west_hedgerow_17", "at": [20, -10], "rot": 1, "fit": "ground"},
-    {"stamp": "meadow_west_gate_timber", "at": [20, 2], "rot": 1, "fit": "ground"},
-    {"stamp": "meadow_west_hedgerow_13", "at": [20, 12], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_17", "at": [20, -9], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_gate_timber", "at": [20, 4], "rot": 1, "fit": "ground"},
+    {"stamp": "meadow_west_hedgerow_13", "at": [20, 13], "rot": 1, "fit": "ground"},
     {"stamp": "meadow_west_rails_11", "at": [-14, 19], "fit": "ground"},
     {"stamp": "meadow_west_rails_11", "at": [-3, 19], "fit": "ground"},
     {"stamp": "meadow_west_rails_11", "at": [8, 19], "fit": "ground"},
     {"stamp": "meadow_west_rails_7", "at": [16, 19], "fit": "ground"},
     {"stamp": "meadow_west_hedgerow_17", "at": [-20, -10], "rot": 1, "fit": "ground"},
     {"stamp": "meadow_west_hedgerow_17", "at": [-20, 8], "rot": 1, "fit": "ground"},
-    {"stamp": "meadow_west_clear_10", "at": [31, 2], "fit": "float", "dy": 40}
+    {"stamp": "meadow_west_clear_10", "at": [29, 3], "fit": "float", "dy": 40}
    ],
    "trees": [
     {"species": "blossom", "at": [-20, -14]},
@@ -1304,7 +1304,7 @@
    "at": [-104, 342],
    "radius": 14,
    "stamps": [
-    {"stamp": "meadow_west_clear_14", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "meadow_west_clear_14", "at": [-2, 0], "fit": "float", "dy": 40},
     {"stamp": "pasture", "at": [0, 0], "rot": 2, "fit": "ground"},
     {"stamp": "meadow_west_gap", "at": [1, -7], "fit": "ground"},
     {"stamp": "haystack", "at": [-13, -2], "fit": "ground"}
