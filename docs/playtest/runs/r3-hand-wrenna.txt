@@ -1,0 +1,2869 @@
+Joined 127.0.0.1:7712 as Wrenna. Type 'help' for commands.
+Events:
+  You are the first player here, so you own this world: you can use /gamemode, /time, /give and /reload.
+  You are now a Hunter. Your abilities are on keys 1 to 7.
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 06:00 day | at 0,7 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: cold_hearth
+    Bram <Townsman> 10m N (1,-3)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Ilsa <Townswoman> 12m NW (-10,1)
+    Poll <Gardener> 19m N (2,-12)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> talk brannoc
+talk Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  offers [cold_hearth] The Cold Hearth (lv1): You've woken by the old hearth like the rest of us, I see. Shades took the valley the night the Great Hearth went out. If you mean to help, Captain Maren keeps what's left of the Watch. Go and speak with her.
+    objectives: talk to Captain Maren | reward: 30 xp, 10c
+== Hearthstead (safe) lv1-1 | 09:00 day | at 0,7 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: cold_hearth
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Ilsa <Townswoman> 12m NW (-10,1)
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> accept cold_hearth
+accept at Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+Events:
+  Quest accepted: The Cold Hearth [cold_hearth]
+== Hearthstead (safe) lv1-1 | 09:00 day | at 0,7 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 22m N (3,-15)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+    Old Brannoc <Hearthkeeper> 3m NW (-2,5)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Ilsa <Townswoman> 12m NW (-10,1)
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> accept meat_for_the_pot
+accept at Tilda: done (talked) in 1 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  in progress: [meat_for_the_pot]
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+Events:
+  Quest accepted: Meat for the Pot [meat_for_the_pot]
+== Hearthstead (safe) lv1-1 | 09:00 day | at -7,7 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (2/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 24m NE (3,-15)
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 87m SW (-66,71)
+NPCs:
+    Tilda <Cook> 4m W (-11,8) [vendor]
+    Old Brannoc <Hearthkeeper> 5m NE (-2,5)
+    Ilsa <Townswoman> 7m NW (-10,1)
+    Bram <Townsman> 8m E (1,5)
+    Poll <Gardener> 22m NE (3,-13)
+    Captain Maren <Captain of the Watch> 24m NE (3,-15)
+    Marta <Innkeeper> 46m E (36,24)
+    Carter Jeb <Carter> 47m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> turnin cold_hearth
+[cold_hearth] is not finished: The Cold Hearth: talk to Captain Maren
+== Hearthstead (safe) lv1-1 | 09:00 day | at -7,7 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (2/20):
+  [cold_hearth] The Cold Hearth: talk to Captain Maren  -> talk to Captain Maren 24m NE (3,-15)
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 87m SW (-66,71)
+NPCs:
+    Tilda <Cook> 4m W (-11,8) [vendor]
+    Old Brannoc <Hearthkeeper> 5m NE (-2,5)
+    Ilsa <Townswoman> 7m NW (-10,1)
+    Bram <Townsman> 8m E (1,5)
+    Poll <Gardener> 22m NE (3,-13)
+    Captain Maren <Captain of the Watch> 24m NE (3,-15)
+    Marta <Innkeeper> 46m E (36,24)
+    Carter Jeb <Carter> 47m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> talk maren
+talk Captain Maren: done (talked) in 4 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  ready to turn in: [cold_hearth] choices: none
+Events:
+  Progress: The Cold Hearth: talk to Captain Maren (done)
+== Hearthstead (safe) lv1-1 | 09:00 day | at 1,-11 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (2/20):
+  [cold_hearth] READY The Cold Hearth: talk to Captain Maren (done) -> turn in to Captain Maren 4m NE (3,-15)
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 105m NE (80,-80)
+NPCs:
+    Poll <Gardener> 1m NE (2,-12)
+  ? Captain Maren <Captain of the Watch> 4m NE (3,-15) turn in: cold_hearth
+    Bram <Townsman> 7m S (0,-4)
+    Ilsa <Townswoman> 16m S (-5,4)
+    Old Brannoc <Hearthkeeper> 16m S (-2,5)
+    Tilda <Cook> 23m SW (-11,8) [vendor]
+    Odo <Greengrocer> 27m N (-4,-38)
+    Nell <Street Sweeper> 28m N (7,-39)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> turnin cold_hearth
+turn in at Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  offers [thin_the_herd] Thinning the Herd (lv2): The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 8 of them should do. The nearest flocks graze just outside the gates.
+    objectives: kill 8 Grazer | reward: 130 xp, 60c, choose one: 1=Watch Longsword 2=Keen Dagger 3=Ashwood Longbow 4=Acolyte's Rod
+Events:
+  QUEST COMPLETE: The Cold Hearth
+== Hearthstead (safe) lv1-1 | 09:00 day | at 1,-11 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 30/400 | 10c | rested 0 | bags 4/36
+Quests (1/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 104m SW (-63,71)
+NPCs:
+    Poll <Gardener> 1m NE (2,-12)
+  ! Captain Maren <Captain of the Watch> 4m NE (3,-15) offers: thin_the_herd
+    Bram <Townsman> 7m S (0,-4)
+    Ilsa <Townswoman> 16m S (-5,4)
+  ! Old Brannoc <Hearthkeeper> 16m S (-2,5) offers: kindling
+    Tilda <Cook> 23m SW (-11,8) [vendor]
+    Odo <Greengrocer> 27m N (-4,-38)
+    Nell <Street Sweeper> 28m N (7,-39)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> accept all
+accept at Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  in progress: [thin_the_herd]
+Events:
+  Quest accepted: Thinning the Herd [thin_the_herd]
+== Hearthstead (safe) lv1-1 | 09:00 day | at 1,-11 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 30/400 | 10c | rested 0 | bags 4/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 104m SW (-64,70)
+  [thin_the_herd] Thinning the Herd: Grazer 0/8 -> kill Grazer 104m SW (-64,70)
+NPCs:
+    Poll <Gardener> 1m NE (2,-12)
+    Captain Maren <Captain of the Watch> 4m NE (3,-15)
+    Bram <Townsman> 7m S (0,-4)
+    Ilsa <Townswoman> 16m S (-5,4)
+  ! Old Brannoc <Hearthkeeper> 16m S (-2,5) offers: kindling
+    Tilda <Cook> 23m SW (-11,8) [vendor]
+    Odo <Greengrocer> 27m N (-4,-38)
+    Nell <Street Sweeper> 29m N (7,-39)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> goto grazer
+goto Grazer: done (arrived) in 25 s, +25 xp
+Events:
+  Entered Hearthmeadow
+  Discovered: Hearthmeadow (+25 XP)
+== Hearthmeadow lv1-2 | 10:00 day | at -64,77 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 55/400 | 10c | rested 1 | bags 4/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 4m NW (-66,74)
+  [thin_the_herd] Thinning the Herd: Grazer 0/8 -> kill Grazer 4m NW (-66,74)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 95m NE (-2,5) offers: kindling
+Creatures within 60m (7):
+  #42 Grazer lv2 41/41 4m NW [quest]
+  #44 Grazer lv1 32/32 9m SW [quest]
+  #43 Grazer lv1 32/32 14m NW [quest]
+  #46 Grazer lv1 32/32 15m SW [quest]
+  #48 Grazer lv2 41/41 24m SW [quest]
+  #51 Grazer lv1 32/32 30m W [quest]
+  #52 Grazer lv1 32/32 58m S [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> attack grazer
+fight Grazer #42: done (it died) in 6 s, +42 xp (took 10 damage, 3 casts)
+Events:
+  You feel normal again.
+  Progress: Thinning the Herd: Grazer 1/8
+  Killed Grazer (+42 xp)
+== Hearthmeadow lv1-2 | 10:00 day | at -64,77 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 40/50 | Mana 34/52 | XP 97/400 | 10c | rested 0 | bags 4/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 0/6 -> Raw meat (dropped by Grazer) 10m SW (-73,81)
+  [thin_the_herd] Thinning the Herd: Grazer 1/8 -> kill Grazer 10m SW (-73,81)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 95m NE (-2,5) offers: kindling
+Creatures within 60m (7):
+  #44 Grazer lv1 32/32 10m SW [quest]
+  #43 Grazer lv1 32/32 14m NW [quest]
+  #46 Grazer lv1 32/32 15m S [quest]
+  #48 Grazer lv2 41/41 24m SW [quest]
+  #51 Grazer lv1 32/32 30m W [quest]
+  #52 Grazer lv1 32/32 57m S [quest]
+  #47 Grazer lv1 32/32 60m SE [quest]
+Lootable corpses: Grazer corpse #57 1m W (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 White
+  +1 Torn Grazer Hide
+  +1 Raw meat
+  You receive loot: Torn Grazer Hide
+  You receive loot: White
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 1/6
+== Hearthmeadow lv1-2 | 10:00 day | at -64,77 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 40/50 | Mana 34/52 | XP 97/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 1/6 -> Raw meat (dropped by Grazer) 10m SW (-73,81)
+  [thin_the_herd] Thinning the Herd: Grazer 1/8 -> kill Grazer 10m SW (-73,81)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 95m NE (-2,5) offers: kindling
+Creatures within 60m (7):
+  #44 Grazer lv1 32/32 10m SW [quest]
+  #43 Grazer lv1 32/32 14m NW [quest]
+  #46 Grazer lv1 32/32 15m S [quest]
+  #48 Grazer lv2 41/41 24m SW [quest]
+  #51 Grazer lv1 32/32 30m W [quest]
+  #52 Grazer lv1 32/32 57m S [quest]
+  #47 Grazer lv1 32/32 60m SE [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide, White, Raw meat | junk worth 9c
+[ready]
+> attack grazer
+fight Grazer #44: done (it died) in 5 s, +35 xp (took 0 damage, 3 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 2/8
+  Killed Grazer (+35 xp)
+== Hearthmeadow lv1-2 | 10:00 day | at -64,77 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 40/50 | Mana 15/52 | XP 132/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 1/6 -> Raw meat (dropped by Grazer) 13m S (-65,90)
+  [thin_the_herd] Thinning the Herd: Grazer 2/8 -> kill Grazer 13m S (-65,90)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 95m NE (-2,5) offers: kindling
+Creatures within 60m (6):
+  #46 Grazer lv1 32/32 13m S [quest]
+  #43 Grazer lv1 32/32 14m NW [quest]
+  #48 Grazer lv2 41/41 24m SW [quest]
+  #51 Grazer lv1 32/32 30m W [quest]
+  #52 Grazer lv1 32/32 56m S [quest]
+  #47 Grazer lv1 32/32 60m SE [quest]
+Lootable corpses: Grazer corpse #58 3m SW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide, White, Raw meat | junk worth 9c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 2/6
+== Hearthmeadow lv1-2 | 10:00 day | at -64,77 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 40/50 | Mana 16/52 | XP 132/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 2/6 -> Raw meat (dropped by Grazer) 12m S (-65,89)
+  [thin_the_herd] Thinning the Herd: Grazer 2/8 -> kill Grazer 12m S (-65,89)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 95m NE (-2,5) offers: kindling
+Creatures within 60m (6):
+  #46 Grazer lv1 32/32 12m S [quest]
+  #43 Grazer lv1 32/32 14m NW [quest]
+  #48 Grazer lv2 41/41 24m SW [quest]
+  #51 Grazer lv1 32/32 30m W [quest]
+  #52 Grazer lv1 32/32 56m S [quest]
+  #47 Grazer lv1 32/32 60m SE [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide, White, Raw meat x2 | junk worth 9c
+[ready]
+> attack grazer
+fight Grazer #46: done (it died) in 5 s, +35 xp (took 4 damage, 2 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 3/8
+  Killed Grazer (+35 xp)
+== Hearthmeadow lv1-2 | 10:00 day | at -64,85 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 36/50 | Mana 3/52 | XP 167/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 2/6 -> Raw meat (dropped by Grazer) 17m W (-80,80)
+  [thin_the_herd] Thinning the Herd: Grazer 3/8 -> kill Grazer 17m W (-80,80)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 101m NE (-2,5) offers: kindling
+Creatures within 60m (5):
+  #48 Grazer lv2 41/41 17m W [quest]
+  #43 Grazer lv1 32/32 19m NW [quest]
+  #51 Grazer lv1 32/32 32m W [quest]
+  #52 Grazer lv1 32/32 49m S [quest]
+  #47 Grazer lv1 32/32 54m SE [quest]
+Lootable corpses: Grazer corpse #59 1m W (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide, White, Raw meat x2 | junk worth 9c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  +1 Torn Grazer Hide
+  +1 White
+  You receive loot: Torn Grazer Hide
+  You receive loot: White
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 3/6
+== Hearthmeadow lv1-2 | 10:00 day | at -64,85 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 36/50 | Mana 3/52 | XP 167/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 3/6 -> Raw meat (dropped by Grazer) 17m W (-80,80)
+  [thin_the_herd] Thinning the Herd: Grazer 3/8 -> kill Grazer 17m W (-80,80)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 101m NE (-2,5) offers: kindling
+Creatures within 60m (5):
+  #48 Grazer lv2 41/41 17m W [quest]
+  #43 Grazer lv1 32/32 19m NW [quest]
+  #51 Grazer lv1 32/32 32m W [quest]
+  #52 Grazer lv1 32/32 49m S [quest]
+  #47 Grazer lv1 32/32 54m SE [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x2, White x2, Raw meat x3 | junk worth 18c
+[ready]
+> attack grazer
+fight Grazer #48: done (it died) in 10 s, +41 xp (took 12 damage, 1 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 4/8
+  Killed Grazer (+41 xp)
+== Hearthmeadow lv1-2 | 10:00 day | at -76,89 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 24/50 | Mana 0/52 | XP 208/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 3/6 -> Raw meat (dropped by Grazer) 10m N (-80,80)
+  [thin_the_herd] Thinning the Herd: Grazer 4/8 -> kill Grazer 10m N (-80,80)
+Creatures within 60m (4):
+  #43 Grazer lv1 32/32 17m N [quest]
+  #51 Grazer lv1 32/32 21m NW [quest]
+  #52 Grazer lv1 32/32 44m SE [quest]
+  #47 Grazer lv1 32/32 57m SE [quest]
+Lootable corpses: Grazer corpse #61 1m NW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x2, White x2, Raw meat x3 | junk worth 18c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Torn Grazer Hide
+  +1 Raw meat
+  +1 White
+  You receive loot: Torn Grazer Hide
+  You receive loot: White
+  You receive loot: Raw meat
+  Progress: Meat for the Pot: Raw meat 4/6
+== Hearthmeadow lv1-2 | 10:00 day | at -76,89 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 24/50 | Mana 0/52 | XP 208/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 10m N (-80,80)
+  [thin_the_herd] Thinning the Herd: Grazer 4/8 -> kill Grazer 10m N (-80,80)
+Creatures within 60m (4):
+  #43 Grazer lv1 32/32 17m N [quest]
+  #51 Grazer lv1 32/32 22m NW [quest]
+  #52 Grazer lv1 32/32 43m SE [quest]
+  #47 Grazer lv1 32/32 57m SE [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> attack grazer
+fight Grazer #43: done (it died) in 12 s, +35 xp (took 12 damage, 0 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 5/8
+  Killed Grazer (+35 xp)
+== Hearthmeadow lv1-2 | 11:00 day | at -73,79 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 12/50 | Mana 5/52 | XP 243/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 7m W (-80,80)
+  [thin_the_herd] Thinning the Herd: Grazer 5/8 -> kill Grazer 7m W (-80,80)
+Creatures within 60m (2):
+  #51 Grazer lv1 32/32 24m W [quest]
+  #52 Grazer lv1 32/32 43m S [quest]
+Lootable corpses: Grazer corpse #62 1m N (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> attack grazer
+fight Grazer #51: done (it died) in 11 s, +35 xp (took 10 damage, 1 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 6/8
+  Killed Grazer (+35 xp)
+== Hearthmeadow lv1-2 | 11:00 day | at -92,72 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 1/50 | Mana 2/52 | XP 278/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 14m SE (-80,80)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 14m SE (-80,80)
+Creatures within 60m (2):
+  #65 Grazer lv2 41/41 26m E [quest]
+  #52 Grazer lv1 32/32 57m SE [quest]
+Lootable corpses: Grazer corpse #62 20m E (yours); Grazer corpse #66 1m SW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> attack grazer
+fight Grazer #65: FAILED (dead) after 5 s (took 2 damage, 0 casts)
+Events:
+  DIED: You fell to a Grazer.
+  Wrenna fell to a Grazer.
+== Hearthmeadow lv1-2 | 11:00 day | at -73,73 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 0/50 | Mana 3/52 | XP 278/400 | 10c | rested 0 | bags 7/36
+YOU ARE DEAD (You fell to a Grazer.). Type 'respawn'.
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 1m SE (-71,74)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 1m SE (-71,74)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 98m NE (-2,5) offers: kindling
+Creatures within 60m (3):
+  #65 Grazer lv2 25/41 1m SE [quest]
+  #67 Grazer lv2 41/41 6m SW [quest]
+  #52 Grazer lv1 32/32 49m S [quest]
+Lootable corpses: Grazer corpse #62 5m S (yours); Grazer corpse #66 20m W (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> attack grazer
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Hearthmeadow lv1-2 | 11:00 day | at -73,73 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 0/50 | Mana 3/52 | XP 278/400 | 10c | rested 0 | bags 7/36
+YOU ARE DEAD (You fell to a Grazer.). Type 'respawn'.
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 1m SE (-71,74)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 1m SE (-71,74)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 98m NE (-2,5) offers: kindling
+Creatures within 60m (3):
+  #65 Grazer lv2 25/41 1m SE [quest]
+  #67 Grazer lv2 41/41 6m SW [quest]
+  #52 Grazer lv1 32/32 49m S [quest]
+Lootable corpses: Grazer corpse #62 5m S (yours); Grazer corpse #66 20m W (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> look
+== Hearthmeadow lv1-2 | 11:00 day | at -73,73 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 0/50 | Mana 3/52 | XP 278/400 | 10c | rested 0 | bags 7/36
+YOU ARE DEAD (You fell to a Grazer.). Type 'respawn'.
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 1m SE (-71,74)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 1m SE (-71,74)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 98m NE (-2,5) offers: kindling
+Creatures within 60m (3):
+  #65 Grazer lv2 25/41 1m SE [quest]
+  #67 Grazer lv2 41/41 6m SW [quest]
+  #52 Grazer lv1 32/32 49m S [quest]
+Lootable corpses: Grazer corpse #62 5m S (yours); Grazer corpse #66 20m W (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> respawn
+respawn: done (alive) in 0 s
+Events:
+  You are alive again
+== Hearthmeadow lv1-2 | 11:00 day | at 0,7 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 30/50 | Mana 6/52 | XP 278/400 | 10c | rested 0 | bags 7/36
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 86m SE (57,71)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 86m SE (57,71)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: kindling
+    Tilda <Cook> 11m W (-11,8) [vendor]
+    Ilsa <Townswoman> 12m NW (-10,1)
+    Poll <Gardener> 18m N (4,-10)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> accept kindling
+accept at Old Brannoc: done (talked) in 0 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  in progress: [kindling]
+Events:
+  Entered Hearthstead (safe)
+  Quest accepted: Kindling [kindling]
+== Hearthstead (safe) lv1-1 | 17:00 day | at 0,7 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 7/36
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 98m SE (64,81)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 98m SE (64,81)
+  [kindling] Kindling: Log 0/8 -> gather Log (use: gather log) 20m SE (12,23)
+NPCs:
+    Old Brannoc <Hearthkeeper> 3m NW (-2,5)
+    Ilsa <Townswoman> 6m NW (-5,4)
+    Bram <Townsman> 11m N (0,-4)
+    Tilda <Cook> 11m W (-11,8) [vendor]
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> rest
+rest: done (rested) in 0 s
+== Hearthstead (safe) lv1-1 | 17:00 day | at 0,7 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 7/36
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 98m SE (64,81)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 98m SE (64,81)
+  [kindling] Kindling: Log 0/8 -> gather Log (use: gather log) 20m SE (12,23)
+NPCs:
+    Old Brannoc <Hearthkeeper> 3m NW (-2,5)
+    Ilsa <Townswoman> 6m NW (-5,4)
+    Bram <Townsman> 11m N (0,-4)
+    Tilda <Cook> 11m W (-11,8) [vendor]
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4 | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 4 s
+Events:
+  You have learned Woodcutting.
+  Dusk is coming. Find light.
+  Nightfall: Shades gather at the west gate of Hearthstead!
+  World event: Nightfall Incursion
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 2.
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,17 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Shades gather at the west gate. Hold it!
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 80m SE (60,80)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 80m SE (60,80)
+  [kindling] Kindling: Log 1/8 -> gather Log (use: gather log) 6m S (12,23)
+NPCs:
+    Old Brannoc <Hearthkeeper> 18m NW (-2,5)
+    Ilsa <Townswoman> 21m NW (-5,4)
+    Bram <Townsman> 22m N (3,-3)
+    Tilda <Cook> 23m NW (-11,8) [vendor]
+    Marta <Innkeeper> 26m E (36,24)
+    Carter Jeb <Carter> 31m E (40,7) [vendor]
+    Poll <Gardener> 32m N (5,-14)
+    Captain Maren <Captain of the Watch> 33m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  Progress: Kindling: Log 1/8
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 3.
+  Progress: Kindling: Log 2/8
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,17 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Shades gather at the west gate. Hold it!
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 80m SE (60,80)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 80m SE (60,80)
+  [kindling] Kindling: Log 2/8 -> gather Log (use: gather log) 6m S (12,23)
+NPCs:
+    Old Brannoc <Hearthkeeper> 18m NW (-2,5)
+    Bram <Townsman> 19m NW (3,0)
+    Ilsa <Townswoman> 23m NW (-7,3)
+    Tilda <Cook> 23m NW (-11,8) [vendor]
+    Marta <Innkeeper> 26m E (36,24)
+    Carter Jeb <Carter> 31m E (40,7) [vendor]
+    Poll <Gardener> 32m N (5,-14)
+    Captain Maren <Captain of the Watch> 33m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log x2 | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 4.
+  Progress: Kindling: Log 3/8
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,18 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Shades gather at the west gate. Hold it!
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 79m SE (60,80)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 79m SE (60,80)
+  [kindling] Kindling: Log 3/8 -> gather Log (use: gather log) 5m S (12,23)
+NPCs:
+    Bram <Townsman> 17m NW (2,4)
+    Old Brannoc <Hearthkeeper> 18m NW (-2,5)
+    Tilda <Cook> 23m NW (-11,8) [vendor]
+    Ilsa <Townswoman> 26m NW (-10,1)
+    Marta <Innkeeper> 27m E (36,24)
+    Poll <Gardener> 31m N (2,-12)
+    Carter Jeb <Carter> 32m E (40,7) [vendor]
+    Captain Maren <Captain of the Watch> 34m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log x3 | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 5.
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,18 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Shades gather at the west gate. Hold it!
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 80m SE (62,79)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 80m SE (62,79)
+  [kindling] Kindling: Log 4/8 -> gather Log (use: gather log) 5m S (12,23)
+NPCs:
+    Bram <Townsman> 14m NW (1,7)
+    Old Brannoc <Hearthkeeper> 18m NW (-2,5)
+    Tilda <Cook> 23m NW (-11,8) [vendor]
+    Ilsa <Townswoman> 26m NW (-10,1)
+    Marta <Innkeeper> 27m E (36,24)
+    Poll <Gardener> 31m N (2,-12)
+    Carter Jeb <Carter> 32m E (40,7) [vendor]
+    Captain Maren <Captain of the Watch> 34m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log x4 | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  Progress: Kindling: Log 4/8
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 6.
+  Progress: Kindling: Log 5/8
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,18 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Shades gather at the west gate. Hold it!
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 81m SE (63,79)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 81m SE (63,79)
+  [kindling] Kindling: Log 5/8 -> gather Log (use: gather log) 5m S (12,23)
+NPCs:
+    Bram <Townsman> 14m NW (1,7)
+    Old Brannoc <Hearthkeeper> 18m NW (-2,5)
+    Tilda <Cook> 23m NW (-11,8) [vendor]
+    Ilsa <Townswoman> 26m NW (-10,1)
+    Marta <Innkeeper> 27m E (36,24)
+    Poll <Gardener> 31m N (2,-12)
+    Carter Jeb <Carter> 32m E (40,7) [vendor]
+    Captain Maren <Captain of the Watch> 34m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log x5 | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 7.
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,18 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Shades gather at the west gate. Hold it!
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 81m SE (63,79)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 81m SE (63,79)
+  [kindling] Kindling: Log 6/8 -> gather Log (use: gather log) 5m S (12,23)
+NPCs:
+    Bram <Townsman> 14m NW (1,7)
+    Old Brannoc <Hearthkeeper> 18m NW (-2,5)
+    Tilda <Cook> 23m NW (-11,8) [vendor]
+    Ilsa <Townswoman> 26m NW (-10,1)
+    Marta <Innkeeper> 27m E (36,24)
+    Poll <Gardener> 31m N (2,-12)
+    Carter Jeb <Carter> 32m E (40,7) [vendor]
+    Captain Maren <Captain of the Watch> 34m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log x6 | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  Progress: Kindling: Log 6/8
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 8.
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,19 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Shades gather at the west gate. Hold it!
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 80m SE (63,79)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 80m SE (63,79)
+  [kindling] Kindling: Log 7/8 -> gather Log (use: gather log) 5m S (12,23)
+NPCs:
+    Bram <Townsman> 17m NW (1,5)
+    Old Brannoc <Hearthkeeper> 18m NW (-2,5)
+    Tilda <Cook> 24m NW (-11,8) [vendor]
+    Ilsa <Townswoman> 25m NW (-8,2)
+    Marta <Innkeeper> 26m E (36,24)
+    Poll <Gardener> 31m N (3,-11)
+    Carter Jeb <Carter> 32m E (40,7) [vendor]
+    Captain Maren <Captain of the Watch> 34m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log x7 | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  Progress: Kindling: Log 7/8
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 9.
+  Progress: Kindling: Log 8/8
+  Wave 1 of 3 pours out of the dark!
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,19 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 79m SE (63,77)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 79m SE (63,77)
+  [kindling] READY Kindling: Log 8/8 -> turn in to Old Brannoc 18m NW (-2,5)
+NPCs:
+  ? Old Brannoc <Hearthkeeper> 18m NW (-2,5) turn in: kindling
+    Bram <Townsman> 20m NW (0,1)
+    Ilsa <Townswoman> 22m NW (-5,4)
+    Tilda <Cook> 24m NW (-11,8) [vendor]
+    Marta <Innkeeper> 26m E (36,24)
+    Poll <Gardener> 29m N (4,-10)
+    Carter Jeb <Carter> 32m E (40,7) [vendor]
+    Captain Maren <Captain of the Watch> 34m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log x8 | junk worth 27c
+[ready]
+> gather log
+gather Log: done (You gather: Log) in 2 s
+Events:
+  +1 Log
+  You gather: Log
+  Your skill in Woodcutting has increased to 10.
+== Hearthstead (safe) lv1-1 | 17:00 day | at 10,19 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 278/400 | 10c | rested 1 | bags 8/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (3/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 78m SE (63,76)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 78m SE (63,76)
+  [kindling] READY Kindling: Log 8/8 -> turn in to Old Brannoc 18m NW (-2,5)
+NPCs:
+  ? Old Brannoc <Hearthkeeper> 18m NW (-2,5) turn in: kindling
+    Ilsa <Townswoman> 21m NW (-5,4)
+    Tilda <Cook> 24m NW (-11,8) [vendor]
+    Bram <Townsman> 25m NW (0,-4)
+    Marta <Innkeeper> 26m E (36,24)
+    Poll <Gardener> 29m N (4,-10)
+    Carter Jeb <Carter> 32m E (40,7) [vendor]
+    Captain Maren <Captain of the Watch> 34m N (3,-15)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log x9 | junk worth 27c
+[ready]
+> turnin kindling
+turn in at Old Brannoc: done (talked) in 2 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+Events:
+  +1 Stone pickaxe
+  QUEST COMPLETE: Kindling
+== Hearthstead (safe) lv1-1 | 17:00 day | at 0,9 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 378/400 | 60c | rested 1 | bags 9/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 91m SE (61,76)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 91m SE (61,76)
+NPCs:
+    Old Brannoc <Hearthkeeper> 4m NW (-2,5)
+    Ilsa <Townswoman> 7m NW (-5,4)
+    Tilda <Cook> 11m W (-11,8) [vendor]
+    Bram <Townsman> 13m N (0,-4)
+    Poll <Gardener> 19m N (4,-10)
+    Captain Maren <Captain of the Watch> 24m N (3,-15)
+    Marta <Innkeeper> 39m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log, Stone pickaxe | junk worth 27c
+[ready]
+> look
+== Hearthstead (safe) lv1-1 | 17:00 day | at 0,9 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 378/400 | 60c | rested 1 | bags 9/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 93m SE (63,78)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 93m SE (63,78)
+NPCs:
+    Old Brannoc <Hearthkeeper> 4m NW (-2,5)
+    Ilsa <Townswoman> 7m NW (-5,4)
+    Tilda <Cook> 11m W (-11,8) [vendor]
+    Bram <Townsman> 13m N (0,-4)
+    Poll <Gardener> 19m N (4,-10)
+    Captain Maren <Captain of the Watch> 24m N (3,-15)
+    Marta <Innkeeper> 39m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log, Stone pickaxe | junk worth 27c
+[ready]
+> goto grazer
+goto Grazer: done (arrived) in 21 s
+Events:
+  Entered Hearthmeadow
+== Hearthmeadow lv1-2 | 18:00 day | at 62,79 (from hearth; north is -z)
+Wrenna lv1 Hunter | HP 50/50 | Mana 52/52 | XP 378/400 | 60c | rested 1 | bags 9/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 3m NE (65,77)
+  [thin_the_herd] Thinning the Herd: Grazer 6/8 -> kill Grazer 3m NE (65,77)
+NPCs:
+    Marta <Innkeeper> 61m NW (36,24)
+Creatures within 60m (5):
+  #53 Grazer lv1 32/32 3m NE [quest]
+  #50 Grazer lv2 41/41 23m SE [quest]
+  #45 Grazer lv1 32/32 24m E [quest]
+  #71 Grazer lv1 32/32 27m E [quest]
+  #73 Grazer lv1 32/32 33m E [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log, Stone pickaxe | junk worth 27c
+[ready]
+> attack grazer
+fight Grazer #53: done (it died) in 4 s, +36 xp, LEVEL 2 (took 6 damage, 2 casts)
+Events:
+  You feel normal again.
+  Progress: Thinning the Herd: Grazer 7/8
+  Killed Grazer (+36 xp)
+  LEVEL UP: you are now level 2
+  Wrenna reached level 2!
+== Hearthmeadow lv1-2 | 18:00 NIGHT | at 62,79 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 52/52 | XP 14/900 | 60c | rested 0 | bags 9/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] Meat for the Pot: Raw meat 4/6 -> Raw meat (dropped by Grazer) 18m E (80,80)
+  [thin_the_herd] Thinning the Herd: Grazer 7/8 -> kill Grazer 18m E (80,80)
+NPCs:
+    Marta <Innkeeper> 61m NW (36,24)
+  ! Old Brannoc <Hearthkeeper> 98m NW (-2,5) offers: coal_for_the_watch
+Creatures within 60m (4):
+  #45 Grazer lv1 32/32 24m E [quest]
+  #50 Grazer lv2 41/41 25m SE [quest]
+  #71 Grazer lv1 32/32 25m E [quest]
+  #73 Grazer lv1 32/32 33m E [quest]
+Lootable corpses: Grazer corpse #77 1m SW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x3, Raw meat x4, Log, Stone pickaxe | junk worth 27c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 White
+  +2 Raw meat
+  You receive loot: White
+  You receive loot: Raw meat ×2
+  Progress: Meat for the Pot: Raw meat 6/6
+== Hearthmeadow lv1-2 | 18:00 NIGHT | at 62,79 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 52/52 | XP 14/900 | 60c | rested 0 | bags 9/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 102m NW (-11,8)
+  [thin_the_herd] Thinning the Herd: Grazer 7/8 -> kill Grazer 18m E (80,80)
+NPCs:
+    Marta <Innkeeper> 61m NW (36,24)
+  ! Old Brannoc <Hearthkeeper> 98m NW (-2,5) offers: coal_for_the_watch
+  ? Tilda <Cook> 102m NW (-11,8) turn in: meat_for_the_pot [vendor]
+Creatures within 60m (4):
+  #45 Grazer lv1 32/32 24m E [quest]
+  #50 Grazer lv2 41/41 25m SE [quest]
+  #71 Grazer lv1 32/32 25m E [quest]
+  #73 Grazer lv1 32/32 33m E [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x4, Raw meat x6, Log, Stone pickaxe | junk worth 27c
+[ready]
+> attack grazer
+fight Grazer #45: done (it died) in 2 s, +29 xp (took 0 damage, 2 casts)
+Events:
+  Progress: Thinning the Herd: Grazer 8/8
+  Killed Grazer (+29 xp)
+  That is not ready yet.
+  Wave 2 of 3 pours out of the dark!
+== Hearthmeadow lv1-2 | 18:00 NIGHT | at 62,79 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 42/52 | XP 43/900 | 60c | rested 0 | bags 9/36
+World event: Nightfall Incursion: Wave 2 of 3: 7 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 102m NW (-11,8)
+  [thin_the_herd] READY Thinning the Herd: Grazer 8/8 -> turn in to Captain Maren 111m NW (3,-15)
+NPCs:
+    Marta <Innkeeper> 61m NW (36,24)
+  ! Old Brannoc <Hearthkeeper> 98m NW (-2,5) offers: coal_for_the_watch
+  ? Tilda <Cook> 102m NW (-11,8) turn in: meat_for_the_pot [vendor]
+  ? Captain Maren <Captain of the Watch> 111m NW (3,-15) turn in: thin_the_herd
+Creatures within 60m (3):
+  #50 Grazer lv2 41/41 25m SE [quest]
+  #71 Grazer lv1 32/32 25m E [quest]
+  #73 Grazer lv1 32/32 33m E [quest]
+Lootable corpses: Grazer corpse #78 24m E (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x3, White x4, Raw meat x6, Log, Stone pickaxe | junk worth 27c
+[ready]
+> loot
+loot: done (nothing left) in 3 s
+Events:
+  +2 White
+  +2 Raw meat
+  +1 Grazer-hide Leggings
+  +1 Torn Grazer Hide
+  You receive loot: Grazer-hide Leggings
+  You receive loot: Torn Grazer Hide
+  You receive loot: White ×2
+  You receive loot: Raw meat ×2
+== Hearthmeadow lv1-2 | 18:00 NIGHT | at 82,79 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 43/52 | XP 43/900 | 60c | rested 0 | bags 10/36
+World event: Nightfall Incursion: Wave 2 of 3: 7 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 117m NW (-11,8)
+  [thin_the_herd] READY Thinning the Herd: Grazer 8/8 -> turn in to Captain Maren 123m NW (3,-15)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 112m NW (-2,5) offers: coal_for_the_watch
+Creatures within 60m (3):
+  #71 Grazer lv1 32/32 6m E [quest]
+  #50 Grazer lv2 41/41 15m S [quest]
+  #73 Grazer lv1 32/32 16m NE [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x8, Log, Stone pickaxe, Grazer-hide Leggings (UPGRADE) | junk worth 36c
+[ready]
+> equip best
+Equipping Grazer-hide Leggings
+Events:
+  Equipped Grazer-hide Leggings
+== Hearthmeadow lv1-2 | 19:00 NIGHT | at 82,79 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 48/52 | XP 43/900 | 60c | rested 0 | bags 10/36
+World event: Nightfall Incursion: Wave 2 of 3: 7 Shades destroyed
+Quests (2/20):
+  [meat_for_the_pot] READY Meat for the Pot: Raw meat 6/6 -> turn in to Tilda 117m NW (-11,8)
+  [thin_the_herd] READY Thinning the Herd: Grazer 8/8 -> turn in to Captain Maren 123m NW (3,-15)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 112m NW (-2,5) offers: coal_for_the_watch
+Creatures within 60m (3):
+  #71 Grazer lv1 32/32 7m E [quest]
+  #50 Grazer lv2 41/41 15m S [quest]
+  #73 Grazer lv1 32/32 19m E [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x8, Log, Stone pickaxe, Grazer-hide Leggings (UPGRADE) | junk worth 36c
+[ready]
+> turnin meat_for_the_pot
+turn in at Tilda: done (talked) in 29 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  offers [wool_for_winter] Wool for Winter (lv2): Nights are cold and blankets are thin. Grazer wool, 8 bundles of it, and I'll stitch something warm.
+    objectives: collect 8 White | reward: 80 xp, 60c, items: Woolen Cloak, Hearth Bread
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+Events:
+  +1 Worn Trousers
+  Entered Hearthstead (safe)
+  +4 Cooked meat
+  QUEST COMPLETE: Meat for the Pot
+== Hearthstead (safe) lv1-1 | 20:00 NIGHT | at -9,12 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 51/52 | XP 153/900 | 1s 0c | rested 0 | bags 11/36
+World event: Nightfall Incursion: Wave 2 of 3: 7 Shades destroyed
+Quests (1/20):
+  [thin_the_herd] READY Thinning the Herd: Grazer 8/8 -> turn in to Captain Maren 29m NE (3,-15)
+NPCs:
+  ! Tilda <Cook> 4m NW (-11,8) offers: wool_for_winter [vendor]
+    Ilsa <Townswoman> 9m NE (-5,4)
+  ! Old Brannoc <Hearthkeeper> 10m NE (-2,5) offers: coal_for_the_watch
+    Bram <Townsman> 18m NE (0,-4)
+    Poll <Gardener> 29m NE (5,-14)
+  ? Captain Maren <Captain of the Watch> 29m NE (3,-15) turn in: thin_the_herd
+    Marta <Innkeeper> 47m E (36,24)
+    Carter Jeb <Carter> 49m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4 | junk worth 63c
+[ready]
+> accept all
+accept at Tilda: done (talked) in 0 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  in progress: [wool_for_winter]
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+Events:
+  Quest accepted: Wool for Winter [wool_for_winter]
+== Hearthstead (safe) lv1-1 | 20:00 NIGHT | at -9,12 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 51/52 | XP 153/900 | 1s 0c | rested 0 | bags 11/36
+World event: Nightfall Incursion: Wave 2 of 3: 7 Shades destroyed
+Quests (2/20):
+  [thin_the_herd] READY Thinning the Herd: Grazer 8/8 -> turn in to Captain Maren 29m NE (3,-15)
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 86m SW (-67,76)
+NPCs:
+    Tilda <Cook> 4m NW (-11,8) [vendor]
+    Ilsa <Townswoman> 9m N (-6,3)
+  ! Old Brannoc <Hearthkeeper> 10m NE (-2,5) offers: coal_for_the_watch
+    Bram <Townsman> 18m NE (0,-4)
+    Poll <Gardener> 29m NE (5,-14)
+  ? Captain Maren <Captain of the Watch> 29m NE (3,-15) turn in: thin_the_herd
+    Marta <Innkeeper> 47m E (36,24)
+    Carter Jeb <Carter> 49m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4 | junk worth 63c
+[ready]
+> turnin thin_the_herd 3
+turn in at Captain Maren: done (talked) in 6 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+  offers [north_watch] The North Watch (lv3): Before the dark came, we kept a beacon north of here. Follow the north road to it, and if Sergeant Holt still holds the watch there, give him my orders and do what he asks.
+    objectives: explore the North Watch beacon | reward: 120 xp, 80c
+Events:
+  Wave 3 of 3 pours out of the dark!
+  The Watch holds! Hearthstead stands through the night.
+  +1 Ashwood Longbow
+  QUEST COMPLETE: Thinning the Herd
+== Hearthstead (safe) lv1-1 | 20:00 NIGHT | at 2,-11 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 51/52 | XP 283/900 | 1s 60c | rested 0 | bags 12/36
+Quests (1/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 105m NE (80,-80)
+NPCs:
+    Poll <Gardener> 1m N (2,-12)
+  ! Captain Maren <Captain of the Watch> 5m N (3,-15) offers: north_watch
+    Bram <Townsman> 9m S (3,-1)
+  ! Old Brannoc <Hearthkeeper> 16m S (-2,5) offers: coal_for_the_watch
+    Ilsa <Townswoman> 16m SW (-10,1)
+    Tilda <Cook> 23m SW (-11,8) [vendor]
+    Nell <Street Sweeper> 30m N (3,-41)
+    Odo <Greengrocer> 31m N (-6,-41)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Ashwood Longbow (UPGRADE) | junk worth 63c
+[ready]
+> accept all
+accept at Captain Maren: done (talked) in 0 s
+Captain Maren <Captain of the Watch>: "Keep your blade close and your torch closer. The dark has teeth now."
+Events:
+  Quest accepted: The North Watch [north_watch]
+== Hearthstead (safe) lv1-1 | 20:00 NIGHT | at 2,-11 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 51/52 | XP 283/900 | 1s 60c | rested 1 | bags 12/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 105m NE (80,-80)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 242m N (0,-253)
+NPCs:
+    Poll <Gardener> 1m N (2,-12)
+    Captain Maren <Captain of the Watch> 5m N (3,-15)
+    Bram <Townsman> 11m S (3,0)
+  ! Old Brannoc <Hearthkeeper> 16m S (-2,5) offers: coal_for_the_watch
+    Ilsa <Townswoman> 16m SW (-10,1)
+    Tilda <Cook> 23m SW (-11,8) [vendor]
+    Odo <Greengrocer> 30m N (-5,-40)
+    Nell <Street Sweeper> 31m N (2,-41)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Ashwood Longbow (UPGRADE) | junk worth 63c
+[ready]
+> equip best
+Equipping Ashwood Longbow
+Events:
+  Equipped Ashwood Longbow
+== Hearthstead (safe) lv1-1 | 20:00 NIGHT | at 2,-11 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 55/55 | Mana 51/52 | XP 283/900 | 1s 60c | rested 1 | bags 12/36
+Quests (2/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 105m NE (80,-80)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 242m N (0,-253)
+NPCs:
+    Poll <Gardener> 1m N (2,-12)
+    Captain Maren <Captain of the Watch> 5m N (3,-15)
+  ! Old Brannoc <Hearthkeeper> 16m S (-2,5) offers: coal_for_the_watch
+    Ilsa <Townswoman> 16m SW (-10,1)
+    Bram <Townsman> 17m S (1,7)
+    Tilda <Cook> 23m SW (-11,8) [vendor]
+    Odo <Greengrocer> 28m N (-4,-38)
+    Nell <Street Sweeper> 31m N (0,-42)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Ashwood Longbow (UPGRADE) | junk worth 63c
+[ready]
+> accept coal_for_the_watch
+accept at Old Brannoc: done (talked) in 3 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+  in progress: [coal_for_the_watch]
+Events:
+  +1 Hunting Bow
+  Quest accepted: Coal for the Watch [coal_for_the_watch]
+== Hearthstead (safe) lv1-1 | 20:00 NIGHT | at -1,1 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 59/60 | Mana 52/52 | XP 283/900 | 1s 60c | rested 1 | bags 12/36
+Quests (3/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 96m SW (-62,77)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 254m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 756m E (742,-138)
+NPCs:
+    Old Brannoc <Hearthkeeper> 4m S (-2,5)
+    Ilsa <Townswoman> 5m SW (-5,4)
+    Bram <Townsman> 6m S (1,7)
+    Tilda <Cook> 12m SW (-11,8) [vendor]
+    Poll <Gardener> 14m N (2,-12)
+    Captain Maren <Captain of the Watch> 17m N (3,-15)
+    Odo <Greengrocer> 40m N (-5,-39)
+    Carter Jeb <Carter> 42m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> accept broken_tower
+accept at Guard Tolan: done (talked) in 8 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+  in progress: [broken_tower]
+Events:
+  Quest accepted: The Broken Tower [broken_tower]
+== Hearthstead (safe) lv1-1 | 21:00 NIGHT | at 2,-40 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 52/52 | XP 283/900 | 1s 60c | rested 1 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 78m NE (72,-73)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 213m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 746m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 224m S (17,183)
+NPCs:
+    Guard Tolan <Hearthstead Watch> 4m NE (4,-44)
+    Nell <Street Sweeper> 5m SW (-1,-36)
+    Odo <Greengrocer> 10m W (-8,-43)
+    Captain Maren <Captain of the Watch> 25m S (3,-15)
+    Poll <Gardener> 30m S (4,-10)
+    Hollis <Smith> 37m SE (36,-25) [vendor]
+    Bram <Townsman> 39m S (0,-1)
+    Ilsa <Townswoman> 45m S (-5,4)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> quests
+[wool_for_winter] Wool for Winter (lv2)
+  Nights are cold and blankets are thin. Grazer wool, 8 bundles of it, and I'll stitch something warm.
+  Wool for Winter: White 6/8
+  next: White (dropped by Grazer) 78m NE (72,-73)
+  ender: Tilda | reward: 80 xp, 60c, items: Woolen Cloak, Hearth Bread
+[north_watch] The North Watch (lv3)
+  Before the dark came, we kept a beacon north of here. Follow the north road to it, and if Sergeant Holt still holds the watch there, give him my orders and do what he asks.
+  The North Watch: explore the North Watch beacon 
+  next: explore the North Watch beacon 213m N (0,-253)
+  ender: Sergeant Holt | reward: 120 xp, 80c
+[coal_for_the_watch] Coal for the Watch (lv3)
+  Light keeps the Shades back, and torches need coal. There is a seam in the rocks outside the north gate, on the left, and more at the Old Quarry north-west of the town. Bring me 6 coal. Your wooden pi...
+  Coal for the Watch: Coal 0/6
+  next: Coal (dropped by Candlekin) 746m E (742,-138)
+  ender: Old Brannoc | reward: 170 xp, 70c, items: Torch
+[broken_tower] The Broken Tower (lv2)
+  There's an old watchtower on the south road, three minutes out. Something has been moving in it after dark. Walk down, look it over and tell me what you see.
+  The Broken Tower: explore the Broken Tower 
+  next: explore the Broken Tower 224m S (17,183)
+  ender: Guard Tolan | reward: 90 xp, 40c
+Available to accept: none
+Done: 4
+== Hearthstead (safe) lv1-1 | 21:00 NIGHT | at 2,-40 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 52/52 | XP 283/900 | 1s 60c | rested 1 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 78m NE (72,-73)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 213m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 746m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 224m S (17,183)
+NPCs:
+    Guard Tolan <Hearthstead Watch> 4m NE (4,-44)
+    Nell <Street Sweeper> 5m SW (-1,-36)
+    Odo <Greengrocer> 10m W (-8,-43)
+    Captain Maren <Captain of the Watch> 25m S (3,-15)
+    Poll <Gardener> 30m S (4,-10)
+    Hollis <Smith> 37m SE (36,-25) [vendor]
+    Bram <Townsman> 38m S (0,-2)
+    Ilsa <Townswoman> 45m S (-5,4)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> goto grazer
+goto Grazer: done (arrived) in 12 s
+Events:
+  Entered Hearthmeadow
+== Hearthmeadow lv1-2 | 02:00 NIGHT | at 24,-103 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 52/52 | XP 283/900 | 1s 60c | rested 2 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 3m NE (27,-105)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 152m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 719m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 286m S (17,183)
+NPCs:
+    Guard Tolan <Hearthstead Watch> 64m S (2,-43)
+    Nell <Street Sweeper> 66m S (7,-39)
+    Odo <Greengrocer> 70m SW (-5,-39)
+Creatures within 60m (8):
+  #97 Grazer lv1 32/32 3m NE
+  #96 Grazer lv1 32/32 20m N
+  #101 Grazer lv1 32/32 27m NE
+  #102 Grazer lv2 41/41 32m N
+  #103 Grazer lv2 41/41 41m N
+  #93 Grazer lv2 41/41 50m E
+  #105 Grazer lv1 32/32 59m NE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> attack grazer
+fight Grazer #97: done (it died) in 2 s, +31 xp (took 0 damage, 2 casts)
+Events:
+  You feel normal again.
+  Killed Grazer (+31 xp)
+== Hearthmeadow lv1-2 | 02:00 NIGHT | at 24,-103 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 36/52 | XP 314/900 | 1s 60c | rested 0 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 6/8 -> White (dropped by Grazer) 20m N (24,-123)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 152m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 719m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 286m S (17,183)
+NPCs:
+    Nell <Street Sweeper> 66m S (7,-39)
+    Guard Tolan <Hearthstead Watch> 67m S (-1,-41)
+    Odo <Greengrocer> 68m SW (-7,-42)
+Creatures within 60m (7):
+  #96 Grazer lv1 32/32 20m N
+  #101 Grazer lv1 32/32 27m NE
+  #102 Grazer lv2 41/41 33m NW
+  #103 Grazer lv2 41/41 41m N
+  #93 Grazer lv2 41/41 49m E
+  #105 Grazer lv1 32/32 58m NE
+  #100 Grazer lv1 32/32 59m E
+Lootable corpses: Grazer corpse #110 5m NE (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x6, Raw meat x2, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 White
+  +2 Raw meat
+  You receive loot: White
+  You receive loot: Raw meat ×2
+  Progress: Wool for Winter: White 7/8
+== Hearthmeadow lv1-2 | 02:00 NIGHT | at 24,-103 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 36/52 | XP 314/900 | 1s 60c | rested 0 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 19m N (25,-123)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 152m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 718m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 286m S (17,183)
+NPCs:
+    Nell <Street Sweeper> 67m S (7,-39)
+    Guard Tolan <Hearthstead Watch> 67m S (-1,-41)
+    Odo <Greengrocer> 68m SW (-8,-43)
+Creatures within 60m (7):
+  #96 Grazer lv1 32/32 19m N
+  #101 Grazer lv1 32/32 26m NE
+  #102 Grazer lv2 41/41 33m NW
+  #103 Grazer lv2 41/41 40m N
+  #93 Grazer lv2 41/41 50m E
+  #105 Grazer lv1 32/32 58m NE
+  #100 Grazer lv1 32/32 59m E
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x7, Raw meat x4, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> attack grazer
+fight Grazer #96: done (it died) in 4 s, +29 xp (took 0 damage, 2 casts)
+Events:
+  Killed Grazer (+29 xp)
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at 24,-103 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 24/52 | XP 343/900 | 1s 60c | rested 0 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 27m N (30,-130)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 152m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 718m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 286m S (17,183)
+NPCs:
+    Nell <Street Sweeper> 67m S (7,-39)
+    Guard Tolan <Hearthstead Watch> 67m S (-1,-41)
+    Odo <Greengrocer> 68m SW (-8,-43)
+Creatures within 60m (6):
+  #101 Grazer lv1 32/32 28m NE
+  #102 Grazer lv2 41/41 34m NW
+  #103 Grazer lv2 41/41 40m N
+  #93 Grazer lv2 41/41 52m SE
+  #105 Grazer lv1 32/32 57m NE
+  #100 Grazer lv1 32/32 58m E
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x7, Raw meat x4, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> loot
+No lootable corpse within 30m.
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at 24,-103 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 24/52 | XP 343/900 | 1s 60c | rested 0 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 27m N (30,-130)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 152m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 718m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 286m S (17,183)
+NPCs:
+    Nell <Street Sweeper> 67m S (7,-39)
+    Guard Tolan <Hearthstead Watch> 67m S (-1,-41)
+    Odo <Greengrocer> 68m SW (-8,-43)
+Creatures within 60m (6):
+  #101 Grazer lv1 32/32 28m NE
+  #102 Grazer lv2 41/41 34m N
+  #103 Grazer lv2 41/41 40m N
+  #93 Grazer lv2 41/41 52m SE
+  #105 Grazer lv1 32/32 57m NE
+  #100 Grazer lv1 32/32 58m E
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x7, Raw meat x4, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> loot
+No lootable corpse within 30m.
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at 24,-103 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 24/52 | XP 343/900 | 1s 60c | rested 0 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 27m N (30,-130)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 152m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 718m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 286m S (17,183)
+NPCs:
+    Guard Tolan <Hearthstead Watch> 65m S (0,-43)
+    Nell <Street Sweeper> 67m S (7,-39)
+    Odo <Greengrocer> 68m SW (-8,-43)
+Creatures within 60m (6):
+  #101 Grazer lv1 32/32 30m NE
+  #102 Grazer lv2 41/41 34m N
+  #103 Grazer lv2 41/41 40m N
+  #93 Grazer lv2 41/41 52m E
+  #105 Grazer lv1 32/32 56m NE
+  #100 Grazer lv1 32/32 58m E
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x7, Raw meat x4, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> look
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at 24,-103 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 24/52 | XP 343/900 | 1s 60c | rested 0 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 27m N (30,-130)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 152m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 718m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 286m S (17,183)
+NPCs:
+    Guard Tolan <Hearthstead Watch> 64m S (0,-44)
+    Nell <Street Sweeper> 67m S (7,-39)
+    Odo <Greengrocer> 68m SW (-8,-43)
+Creatures within 60m (6):
+  #101 Grazer lv1 32/32 30m NE
+  #102 Grazer lv2 41/41 34m N
+  #103 Grazer lv2 41/41 40m N
+  #93 Grazer lv2 41/41 52m E
+  #105 Grazer lv1 32/32 56m NE
+  #100 Grazer lv1 32/32 58m E
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x7, Raw meat x4, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> attack grazer
+fight Grazer #101: done (it died) in 3 s, +29 xp (took 0 damage, 4 casts)
+Events:
+  That is not ready yet.
+  Killed Grazer (+29 xp)
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at 29,-109 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 6/52 | XP 372/900 | 1s 60c | rested 0 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] Wool for Winter: White 7/8 -> White (dropped by Grazer) 21m N (30,-130)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 147m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 714m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 292m S (17,183)
+NPCs:
+    Guard Tolan <Hearthstead Watch> 66m SW (2,-49)
+Creatures within 60m (6):
+  #102 Grazer lv2 41/41 32m NW
+  #103 Grazer lv2 41/41 37m N
+  #105 Grazer lv1 32/32 48m N
+  #93 Grazer lv2 41/41 50m SE
+  #100 Grazer lv1 32/32 54m E
+  #106 Grazer lv2 41/41 59m NE
+Lootable corpses: Grazer corpse #112 21m NE (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x7, Raw meat x4, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> loot
+loot: done (nothing left) in 4 s
+Events:
+  +1 White
+  +2 Raw meat
+  You receive loot: White
+  You receive loot: Raw meat ×2
+  Progress: Wool for Winter: White 8/8
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at 37,-123 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 7/52 | XP 372/900 | 1s 60c | rested 0 | bags 12/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 140m S (-11,8)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 135m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 0/6 -> Coal (dropped by Candlekin) 705m E (742,-138)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 307m S (17,183)
+Creatures within 60m (9):
+  #103 Grazer lv2 41/41 23m NW
+  #105 Grazer lv1 32/32 29m N
+  #102 Grazer lv2 41/41 30m W
+  #106 Grazer lv2 41/41 44m NE
+  #107 Grazer lv2 41/41 49m N
+  #93 Grazer lv2 41/41 49m SE
+  #108 Grazer lv1 32/32 50m NE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x8, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow | junk worth 99c
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 15 s, +25 xp
+Events:
+  Entered North Gate Rocks
+  Discovered: North Gate Rocks (+25 XP)
+  You have learned Mining.
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 2.
+  Progress: Coal for the Watch: Coal 1/6
+== North Gate Rocks lv1-2 | 04:00 NIGHT | at -28,-117 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 27/52 | XP 397/900 | 1s 60c | rested 0 | bags 13/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 126m S (-11,8)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 139m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 1/6 -> gather Coal (use: gather coal) 6m W (-34,-116)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 303m S (17,183)
+Creatures within 60m (3):
+  #95 Grazer lv2 41/41 36m W
+  #102 Grazer lv2 41/41 44m E
+  #103 Grazer lv2 41/41 59m NE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x8, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal | junk worth 99c
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 2 s
+Events:
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 3.
+== North Gate Rocks lv1-2 | 04:00 NIGHT | at -28,-117 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 34/52 | XP 397/900 | 1s 60c | rested 0 | bags 13/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 126m S (-11,8)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 139m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 2/6 -> gather Coal (use: gather coal) 8m SW (-34,-112)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 303m S (17,183)
+Creatures within 60m (3):
+  #95 Grazer lv2 41/41 33m W
+  #102 Grazer lv2 41/41 48m E
+  #103 Grazer lv2 41/41 59m NE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x8, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal x2 | junk worth 99c
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 3 s
+Events:
+  Progress: Coal for the Watch: Coal 2/6
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 4.
+  Progress: Coal for the Watch: Coal 3/6
+== North Gate Rocks lv1-2 | 04:00 NIGHT | at -29,-116 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 39/52 | XP 397/900 | 1s 60c | rested 0 | bags 13/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 125m S (-11,8)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 140m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 3/6 -> gather Coal (use: gather coal) 7m W (-36,-117)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 302m S (17,183)
+Creatures within 60m (3):
+  #95 Grazer lv2 41/41 30m W
+  #102 Grazer lv2 41/41 51m E
+  #103 Grazer lv2 41/41 59m NE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x8, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal x3 | junk worth 99c
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 3 s
+Events:
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 5.
+== North Gate Rocks lv1-2 | 04:00 NIGHT | at -30,-116 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 44/52 | XP 397/900 | 1s 60c | rested 0 | bags 13/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 126m S (-11,8)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 140m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 4/6 -> gather Coal (use: gather coal) 8m SW (-36,-111)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 303m S (17,183)
+Creatures within 60m (4):
+  #95 Grazer lv2 41/41 29m W
+  #102 Grazer lv2 41/41 51m E
+  #91 Grazer lv1 32/32 58m SW
+  #103 Grazer lv2 41/41 59m NE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x8, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal x4 | junk worth 99c
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal) in 3 s
+Events:
+  Progress: Coal for the Watch: Coal 4/6
+  +1 Coal
+  You gather: Coal
+  Your skill in Mining has increased to 6.
+== North Gate Rocks lv1-2 | 04:00 NIGHT | at -32,-115 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 49/52 | XP 397/900 | 1s 60c | rested 0 | bags 13/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 125m S (-11,8)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 142m N (0,-253)
+  [coal_for_the_watch] Coal for the Watch: Coal 5/6 -> gather Coal (use: gather coal) 6m SW (-38,-112)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 302m S (17,183)
+Creatures within 60m (3):
+  #95 Grazer lv2 41/41 26m W
+  #102 Grazer lv2 41/41 54m E
+  #91 Grazer lv1 32/32 56m SW
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x8, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal x5 | junk worth 99c
+[ready]
+> gather coal
+gather Coal: done (You gather: Coal ×2) in 2 s
+Events:
+  Progress: Coal for the Watch: Coal 5/6
+  +2 Coal
+  You gather: Coal ×2
+  Your skill in Mining has increased to 7.
+  Progress: Coal for the Watch: Coal 6/6
+== North Gate Rocks lv1-2 | 04:00 NIGHT | at -32,-115 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 52/52 | XP 397/900 | 1s 60c | rested 0 | bags 13/36
+Quests (4/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 125m S (-11,8)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 142m N (0,-253)
+  [coal_for_the_watch] READY Coal for the Watch: Coal 6/6 -> turn in to Old Brannoc 124m S (-2,5)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 302m S (17,183)
+Creatures within 60m (4):
+  #95 Grazer lv2 41/41 27m W
+  #102 Grazer lv2 41/41 54m E
+  #91 Grazer lv1 32/32 56m SW
+  #103 Grazer lv2 41/41 59m NE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x8, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal x7 | junk worth 99c
+[ready]
+> turnin coal_for_the_watch
+turn in at Old Brannoc: done (talked) in 24 s
+Old Brannoc <Hearthkeeper>: "The Great Hearth kept this valley safe for three hundred years. Now look at it: a ring of cold stones. Sit, warm your hands on what's left, and listen."
+Events:
+  Entered Hearthmeadow
+  Entered Hearthstead (safe)
+  +16 Torch
+  QUEST COMPLETE: Coal for the Watch
+== Hearthstead (safe) lv1-1 | 05:00 day | at -4,1 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 52/52 | XP 567/900 | 2s 30c | rested 0 | bags 14/36
+Quests (3/20):
+  [wool_for_winter] READY Wool for Winter: White 8/8 -> turn in to Tilda 10m SW (-11,8)
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 254m N (0,-253)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 183m S (17,183)
+NPCs:
+    Ilsa <Townswoman> 4m W (-8,2)
+    Old Brannoc <Hearthkeeper> 4m SE (-2,5)
+    Bram <Townsman> 6m E (2,2)
+  ? Tilda <Cook> 10m SW (-11,8) turn in: wool_for_winter [vendor]
+    Poll <Gardener> 14m NE (4,-10)
+    Captain Maren <Captain of the Watch> 17m NE (3,-15)
+    Odo <Greengrocer> 39m N (-4,-38)
+    Nell <Street Sweeper> 42m N (0,-41)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5, Torn Grazer Hide x4, White x8, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> turnin wool_for_winter
+turn in at Tilda: done (talked) in 1 s
+Tilda <Cook>: "Hungry? Everyone's hungry. Nobody brings me anything to cook."
+  sells: Hearth Bread 4c, Cooked meat 6c, Berries 2c, Miner's Stew 24c
+Events:
+  +1 Woolen Cloak
+  +5 Hearth Bread
+  QUEST COMPLETE: Wool for Winter
+== Hearthstead (safe) lv1-1 | 05:00 day | at -8,4 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 52/52 | XP 647/900 | 2s 90c | rested 0 | bags 14/36
+Quests (2/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 258m N (0,-253)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 180m S (17,183)
+NPCs:
+    Ilsa <Townswoman> 4m NW (-10,1)
+    Tilda <Cook> 4m SW (-11,8) [vendor]
+    Old Brannoc <Hearthkeeper> 6m E (-2,5)
+    Bram <Townsman> 10m E (2,4)
+    Poll <Gardener> 19m NE (4,-10)
+    Captain Maren <Captain of the Watch> 23m NE (3,-15)
+    Odo <Greengrocer> 43m N (-5,-39)
+    Nell <Street Sweeper> 44m N (-1,-38)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Woolen Cloak (UPGRADE), Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> equip best
+Equipping Woolen Cloak
+Events:
+  Equipped Woolen Cloak
+== Hearthstead (safe) lv1-1 | 05:00 day | at -8,4 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 60/60 | Mana 52/52 | XP 647/900 | 2s 90c | rested 0 | bags 14/36
+Quests (2/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 258m N (0,-253)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 180m S (17,183)
+NPCs:
+    Ilsa <Townswoman> 4m NW (-10,1)
+    Tilda <Cook> 4m SW (-11,8) [vendor]
+    Old Brannoc <Hearthkeeper> 6m E (-2,5)
+    Bram <Townsman> 10m E (1,5)
+    Poll <Gardener> 19m NE (4,-10)
+    Captain Maren <Captain of the Watch> 23m NE (3,-15)
+    Nell <Street Sweeper> 43m N (-1,-38)
+    Odo <Greengrocer> 44m N (-5,-39)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Woolen Cloak (UPGRADE), Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> look
+== Hearthstead (safe) lv1-1 | 05:00 day | at -8,4 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 64/65 | Mana 52/52 | XP 647/900 | 2s 90c | rested 0 | bags 13/36
+Quests (2/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 258m N (0,-253)
+  [broken_tower] The Broken Tower: explore the Broken Tower  -> explore the Broken Tower 180m S (17,183)
+NPCs:
+    Ilsa <Townswoman> 4m NW (-10,1)
+    Tilda <Cook> 4m SW (-11,8) [vendor]
+    Old Brannoc <Hearthkeeper> 6m E (-2,5)
+    Bram <Townsman> 10m E (1,7)
+    Poll <Gardener> 19m NE (4,-10)
+    Captain Maren <Captain of the Watch> 23m NE (3,-15)
+    Nell <Street Sweeper> 41m N (-1,-36)
+    Odo <Greengrocer> 47m N (-8,-42)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> goto broken_tower
+goto explore the Broken Tower: done (arrived) in 32 s, +25 xp
+Events:
+  Day 2 dawns in the valley.
+  Entered Hearthmeadow
+  Entered The Broken Tower
+  Discovered: The Broken Tower (+25 XP)
+  Progress: The Broken Tower: explore the Broken Tower (done)
+== The Broken Tower lv1-2 | 09:00 day | at 17,179 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 65/65 | Mana 52/52 | XP 672/900 | 2s 90c | rested 2 | bags 13/36
+Quests (2/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 432m N (0,-253)
+  [broken_tower] READY The Broken Tower: explore the Broken Tower (done) -> turn in to Guard Tolan 223m N (4,-44)
+Creatures within 60m (2):
+  #55 Grazer lv2 41/41 54m NW
+  #54 Grazer lv2 41/41 58m NW
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> turnin broken_tower
+turn in at Guard Tolan: done (talked) in 46 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+  offers [lay_of_the_land] The Lay of the Land (lv2): If you're to be any use to the Watch, learn the meadow. Go and stand in two places: the Old Quarry north-west of this gate, and the Trapper's Camp on the west trail beyond it.
+    objectives: explore the Old Quarry, explore the Trapper's Camp | reward: 200 xp, 90c, choose one: 1=Thornhide Boots 2=Mud-caked Boots 3=Woolen Cloak
+Events:
+  Entered Hearthmeadow
+  Entered Hearthstead (safe)
+  QUEST COMPLETE: The Broken Tower
+== Hearthstead (safe) lv1-1 | 10:00 day | at 4,-43 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 65/65 | Mana 52/52 | XP 762/900 | 3s 30c | rested 3 | bags 13/36
+Quests (1/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 210m N (0,-253)
+NPCs:
+  ! Guard Tolan <Hearthstead Watch> 4m N (3,-46) offers: lay_of_the_land
+    Nell <Street Sweeper> 5m SE (6,-38)
+    Odo <Greengrocer> 12m W (-8,-43)
+    Captain Maren <Captain of the Watch> 28m S (3,-15)
+    Poll <Gardener> 29m S (5,-14)
+    Hollis <Smith> 37m SE (36,-25) [vendor]
+    Ilsa <Townswoman> 46m S (-10,1)
+    Bram <Townsman> 46m S (2,4)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> accept lay_of_the_land
+accept at Guard Tolan: done (talked) in 0 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+  in progress: [lay_of_the_land]
+Events:
+  Quest accepted: The Lay of the Land [lay_of_the_land]
+== Hearthstead (safe) lv1-1 | 10:00 day | at 4,-43 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 65/65 | Mana 52/52 | XP 762/900 | 3s 30c | rested 3 | bags 13/36
+Quests (2/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 210m N (0,-253)
+  [lay_of_the_land] The Lay of the Land: explore the Old Quarry , explore the Trapper's Camp  -> explore the Old Quarry 200m NW (-158,-160)
+NPCs:
+    Guard Tolan <Hearthstead Watch> 1m N (4,-44)
+    Nell <Street Sweeper> 5m SE (7,-39)
+    Odo <Greengrocer> 12m W (-8,-43)
+    Captain Maren <Captain of the Watch> 28m S (3,-15)
+    Poll <Gardener> 29m S (5,-14)
+    Hollis <Smith> 38m SE (36,-23) [vendor]
+    Ilsa <Townswoman> 46m S (-10,1)
+    Old Brannoc <Hearthkeeper> 48m S (-2,5)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> goto Trapper's Camp
+goto Trapper's Camp: done (arrived) in 34 s, +25 xp
+Events:
+  Entered Hearthmeadow
+  Entered Trapper's Camp
+  Discovered: Trapper's Camp (+25 XP)
+== Trapper's Camp lv1-2 | 11:00 day | at -177,1 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 65/65 | Mana 52/52 | XP 787/900 | 3s 30c | rested 3 | bags 13/36
+Quests (2/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 310m NE (0,-253)
+  [lay_of_the_land] The Lay of the Land: explore the Old Quarry , explore the Trapper's Camp  -> explore the Old Quarry 162m N (-158,-160)
+Creatures within 60m (7):
+  #129 Grazer lv2 41/41 40m NE
+  #131 Grazer lv2 41/41 44m NE
+  #127 Grazer lv2 41/41 54m NE
+  #63 Thornboar lv1 48/48 56m S hostile
+  #64 Grazer lv2 41/41 58m NE
+  #132 Grazer lv2 41/41 59m N
+  #56 Thornboar lv1 48/48 59m SE hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> goto Old Quarry
+goto Old Quarry: done (arrived) in 27 s, +25 xp
+Events:
+  Progress: The Lay of the Land: explore the Old Quarry , explore the Trapper's Camp (done)
+  Entered Hearthmeadow
+  Entered The Old Quarry
+  Discovered: The Old Quarry (+25 XP)
+  Progress: The Lay of the Land: explore the Old Quarry (done), explore the Trapper's Camp (done)
+== The Old Quarry lv1-2 | 11:00 day | at -153,-146 (from hearth; north is -z)
+Wrenna lv2 Hunter | HP 65/65 | Mana 52/52 | XP 812/900 | 3s 30c | rested 3 | bags 13/36
+Quests (2/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 187m NE (0,-253)
+  [lay_of_the_land] READY The Lay of the Land: explore the Old Quarry (done), explore the Trapper's Camp (done) -> turn in to Guard Tolan 187m SE (4,-44)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 99c
+[ready]
+> turnin lay_of_the_land
+turn in at Guard Tolan: done (talked) in 43 s
+Guard Tolan <Hearthstead Watch>: "Tower's sound. It's the roads I'd watch."
+Events:
+  Entered Hearthmeadow
+  Entered Hearthstead (safe)
+  +1 Thornhide Boots
+  LEVEL UP: you are now level 3
+  Wrenna reached level 3!
+  QUEST COMPLETE: The Lay of the Land
+== Hearthstead (safe) lv1-1 | 12:00 day | at -1,-45 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 112/1400 | 4s 20c | rested 3 | bags 14/36
+Quests (1/20):
+  [north_watch] The North Watch: explore the North Watch beacon  -> explore the North Watch beacon 208m N (0,-253)
+NPCs:
+    Guard Tolan <Hearthstead Watch> 4m S (-1,-41)
+    Odo <Greengrocer> 7m W (-8,-43)
+    Nell <Street Sweeper> 12m S (3,-34)
+    Captain Maren <Captain of the Watch> 31m S (3,-15)
+    Poll <Gardener> 33m S (2,-12)
+  ! Hollis <Smith> 44m SE (36,-23) offers: iron_for_hollis [vendor]
+    Ilsa <Townswoman> 49m S (-5,4)
+    Old Brannoc <Hearthkeeper> 50m S (-2,5)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 2s 99c
+[ready]
+> goto north_watch
+goto explore the North Watch beacon: FAILED (too many repaths) after 34 s, +35 xp
+Events:
+  Entered Hearthmeadow
+  Entered The North Watch (safe)
+  Discovered: The North Watch (+35 XP)
+  Progress: The North Watch: explore the North Watch beacon (done)
+== The North Watch (safe) lv2-3 | 13:00 day | at 0,-249 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 147/1400 | 4s 20c | rested 4 | bags 14/36
+Quests (1/20):
+  [north_watch] READY The North Watch: explore the North Watch beacon (done) -> turn in to Sergeant Holt 3m NE (2,-251)
+NPCs:
+  ? Sergeant Holt <The North Watch> 3m NE (2,-251) turn in: north_watch
+    Guard Edric <North Watch> 16m NW (-11,-260)
+    Wat <Shepherd> 28m N (-10,-275)
+Creatures within 60m (1):
+  #141 Thornboar lv3 75/75 59m SE hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 2s 99c
+[ready]
+> turnin north_watch
+turn in at Sergeant Holt: done (talked) in 0 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  offers [eyes_in_the_dark] Eyes in the Dark (lv3): East of this tower the wood goes dim, and after dusk the Shades stand among the trees. They pass over the green and the weak until struck: strike first, one at a time. Destroy 5 of them.
+    objectives: kill 5 Shade | reward: 260 xp, 1s 20c, choose one: 1=Shadowweave Gloves 2=Smith's Gloves 3=Thornhide Boots
+  offers [watchfire] Feed the Watchfire (lv3): The watchfire eats coal. There is a seam in the Beacon Rocks, a stone's throw east of the tower: bring me 3 coal and it burns through the night.
+    objectives: collect 3 Coal | reward: 100 xp, 60c
+  offers [boar_trouble] Boar Trouble (lv3): Thornboars charge anything on the north road. There is a pack either side of this tower: five fewer would make it walkable again.
+    objectives: kill 5 Thornboar | reward: 220 xp, 80c, choose one: 1=Watchman's Mail Vest UPGRADE 2=Ranger's Leather Jerkin UPGRADE 3=Hearthkeeper's Robe
+  offers [garricks_camp] Garrick's Camp (lv3): West of here Foreman Garrick runs the logging camp. He sent for help two days ago. Take the logging trail, past the Woodcutters' Well. Go.
+    objectives: explore Woodcutters' Well, talk to Foreman Garrick | reward: 100 xp, 50c
+  offers [tusks_and_tempers] Tusks and Tempers (lv3): Garrick's lads want thornboar tusks: proof the beasts can bleed. Take him five when you go. The boars by the logging trail will give them up, and so will mine.
+    objectives: collect 5 Boar Tusk | reward: 220 xp, 90c
+  offers [lookouts_eye] A Lookout's Eye (lv3): From the hill up the road you can see the whole of Birchrise. Climb to the lookout and count the boar packs, so I know what we're up against.
+    objectives: explore Watch Hill Lookout | reward: 100 xp, 50c
+Events:
+  QUEST COMPLETE: The North Watch
+== The North Watch (safe) lv2-3 | 13:00 day | at 0,-249 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 267/1400 | 5s 0c | rested 4 | bags 14/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+  ! Sergeant Holt <The North Watch> 3m NE (2,-251) offers: eyes_in_the_dark, watchfire, boar_trouble, garricks_camp, tusks_and_tempers, lookouts_eye
+    Guard Edric <North Watch> 19m NW (-16,-260)
+    Wat <Shepherd> 28m N (-10,-275)
+Creatures within 60m (2):
+  #141 Thornboar lv3 75/75 57m SE hostile
+  #136 Thornboar lv3 75/75 59m SW hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 2s 99c
+[ready]
+> accept all
+accept at Sergeant Holt: done (talked) in 0 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  in progress: [eyes_in_the_dark]
+  in progress: [watchfire]
+  in progress: [boar_trouble]
+  in progress: [lookouts_eye]
+Events:
+  Quest accepted: Eyes in the Dark [eyes_in_the_dark]
+  Quest accepted: Feed the Watchfire [watchfire]
+  Quest accepted: Boar Trouble [boar_trouble]
+  Quest accepted: Garrick's Camp [garricks_camp]
+  Quest accepted: Tusks and Tempers [tusks_and_tempers]
+  Quest accepted: A Lookout's Eye [lookouts_eye]
+== The North Watch (safe) lv2-3 | 13:00 day | at 0,-249 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 267/1400 | 5s 0c | rested 4 | bags 14/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 133m S (-45,-124)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 55m SE (47,-220)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 74m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 0/5 -> Boar Tusk (dropped by Thornboar) 55m SE (47,-220)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 86m N (-4,-335)
+NPCs:
+    Sergeant Holt <The North Watch> 3m NE (2,-251)
+    Guard Edric <North Watch> 19m NW (-16,-260)
+    Wat <Shepherd> 28m N (-10,-275)
+Creatures within 60m (1):
+  #141 Thornboar lv3 75/75 55m SE hostile [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 2s 99c
+[ready]
+> quests
+[eyes_in_the_dark] Eyes in the Dark (lv3)
+  East of this tower the wood goes dim, and after dusk the Shades stand among the trees. They pass over the green and the weak until struck: strike first, one at a time. Destroy 5 of them.
+  Eyes in the Dark: Shade 0/5
+  ender: Sergeant Holt | reward: 260 xp, 1s 20c, choose one: 1=Shadowweave Gloves 2=Smith's Gloves 3=Thornhide Boots
+[watchfire] Feed the Watchfire (lv3)
+  The watchfire eats coal. There is a seam in the Beacon Rocks, a stone's throw east of the tower: bring me 3 coal and it burns through the night.
+  Feed the Watchfire: Coal 1/3
+  next: gather Coal (use: gather coal) 133m S (-45,-124)
+  ender: Sergeant Holt | reward: 100 xp, 60c
+[boar_trouble] Boar Trouble (lv3)
+  Thornboars charge anything on the north road. There is a pack either side of this tower: five fewer would make it walkable again.
+  Boar Trouble: Thornboar 0/5
+  next: kill Thornboar 55m SE (47,-221)
+  ender: Sergeant Holt | reward: 220 xp, 80c, choose one: 1=Watchman's Mail Vest UPGRADE 2=Ranger's Leather Jerkin UPGRADE 3=Hearthkeeper's Robe
+[garricks_camp] Garrick's Camp (lv3)
+  West of here Foreman Garrick runs the logging camp. He sent for help two days ago. Take the logging trail, past the Woodcutters' Well. Go.
+  Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick 
+  next: explore Woodcutters' Well 74m NW (-55,-298)
+  ender: Foreman Garrick | reward: 100 xp, 50c
+[tusks_and_tempers] Tusks and Tempers (lv3)
+  Garrick's lads want thornboar tusks: proof the beasts can bleed. Take him five when you go. The boars by the logging trail will give them up, and so will mine.
+  Tusks and Tempers: Boar Tusk 0/5
+  next: Boar Tusk (dropped by Thornboar) 55m SE (47,-221)
+  ender: Foreman Garrick | reward: 220 xp, 90c
+[lookouts_eye] A Lookout's Eye (lv3)
+  From the hill up the road you can see the whole of Birchrise. Climb to the lookout and count the boar packs, so I know what we're up against.
+  A Lookout's Eye: explore Watch Hill Lookout 
+  next: explore Watch Hill Lookout 86m N (-4,-335)
+  ender: Sergeant Holt | reward: 100 xp, 50c
+Available to accept: iron_for_hollis (lv4, from Hollis), windmill_breadcrumb (lv4, from Tilda)
+Done: 9
+== The North Watch (safe) lv2-3 | 13:00 day | at 0,-249 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 267/1400 | 5s 0c | rested 4 | bags 14/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 133m S (-45,-124)
+  [boar_trouble] Boar Trouble: Thornboar 0/5 -> kill Thornboar 55m SE (47,-221)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 74m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 0/5 -> Boar Tusk (dropped by Thornboar) 55m SE (47,-221)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 86m N (-4,-335)
+NPCs:
+    Sergeant Holt <The North Watch> 3m NE (2,-251)
+    Guard Edric <North Watch> 19m NW (-16,-260)
+    Wat <Shepherd> 28m N (-10,-275)
+Creatures within 60m (1):
+  #141 Thornboar lv3 75/75 55m SE hostile [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 2s 99c
+[ready]
+> attack thornboar
+fight Thornboar #141: done (it died) in 16 s, +46 xp (took 0 damage, 6 casts)
+Events:
+  Entered Hearthmeadow
+  You feel normal again.
+  Progress: Boar Trouble: Thornboar 1/5
+  Killed Thornboar (+46 xp)
+== Hearthmeadow lv1-2 | 13:00 day | at 45,-224 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 25/60 | XP 313/1400 | 5s 0c | rested 0 | bags 14/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 134m SW (-34,-116)
+  [boar_trouble] Boar Trouble: Thornboar 1/5 -> kill Thornboar 28m SE (63,-202)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 124m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 0/5 -> Boar Tusk (dropped by Thornboar) 28m SE (63,-202)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 121m NW (-4,-335)
+NPCs:
+    Sergeant Holt <The North Watch> 51m NW (2,-251)
+    Guard Edric <North Watch> 66m NW (-6,-266)
+Creatures within 60m (5):
+  #113 Thornboar lv3 75/75 28m SE hostile [quest]
+  #140 Thornboar lv3 75/75 39m E hostile [quest]
+  #114 Thornboar lv2 61/61 43m E hostile [quest]
+  #109 Grazer lv2 41/41 44m SE
+  #105 Grazer lv1 32/32 53m S
+Lootable corpses: Thornboar corpse #143 4m E (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x6, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16 | junk worth 2s 99c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  +1 Boar Tusk
+  You receive loot: Boar Tusk
+  You receive loot: Raw meat
+  Progress: Tusks and Tempers: Boar Tusk 1/5
+== Hearthmeadow lv1-2 | 13:00 day | at 45,-224 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 25/60 | XP 313/1400 | 5s 0c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 134m SW (-34,-116)
+  [boar_trouble] Boar Trouble: Thornboar 1/5 -> kill Thornboar 29m SE (70,-210)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 124m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 1/5 -> Boar Tusk (dropped by Thornboar) 29m SE (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 121m NW (-4,-335)
+NPCs:
+    Sergeant Holt <The North Watch> 51m NW (2,-251)
+    Guard Edric <North Watch> 66m NW (-6,-266)
+Creatures within 60m (5):
+  #113 Thornboar lv3 75/75 29m SE hostile [quest]
+  #140 Thornboar lv3 75/75 39m E hostile [quest]
+  #109 Grazer lv2 41/41 44m SE
+  #114 Thornboar lv2 61/61 44m E hostile [quest]
+  #105 Grazer lv1 32/32 53m S
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x7, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16, Boar Tusk | junk worth 2s 99c
+[ready]
+> attack thornboar
+fight Thornboar #113: done (it died) in 7 s, +42 xp (took 11 damage, 3 casts)
+Events:
+  Progress: Boar Trouble: Thornboar 2/5
+  Killed Thornboar (+42 xp)
+== Hearthmeadow lv1-2 | 13:00 day | at 53,-212 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 59/70 | Mana 3/60 | XP 355/1400 | 5s 0c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 129m SW (-34,-116)
+  [boar_trouble] Boar Trouble: Thornboar 2/5 -> kill Thornboar 17m E (70,-210)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 138m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 1/5 -> Boar Tusk (dropped by Thornboar) 17m E (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 136m NW (-4,-335)
+NPCs:
+    Sergeant Holt <The North Watch> 64m NW (2,-251)
+Creatures within 60m (6):
+  #109 Grazer lv2 41/41 29m S
+  #140 Thornboar lv3 75/75 29m E hostile [quest]
+  #105 Grazer lv1 32/32 45m S
+  #114 Thornboar lv2 61/61 47m E hostile [quest]
+  #107 Grazer lv2 41/41 48m SW
+  #108 Grazer lv1 32/32 52m S
+Lootable corpses: Thornboar corpse #144 1m S (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x7, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16, Boar Tusk | junk worth 2s 99c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  +1 Boar Tusk
+  You loot 6c
+  You receive loot: Boar Tusk
+  You receive loot: Raw meat
+  Progress: Tusks and Tempers: Boar Tusk 2/5
+== Hearthmeadow lv1-2 | 14:00 day | at 53,-212 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 59/70 | Mana 4/60 | XP 355/1400 | 5s 6c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 129m SW (-34,-116)
+  [boar_trouble] Boar Trouble: Thornboar 2/5 -> kill Thornboar 17m E (70,-210)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 138m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 2/5 -> Boar Tusk (dropped by Thornboar) 17m E (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 136m NW (-4,-335)
+NPCs:
+    Sergeant Holt <The North Watch> 64m NW (2,-251)
+Creatures within 60m (6):
+  #140 Thornboar lv3 75/75 28m E hostile [quest]
+  #109 Grazer lv2 41/41 29m S
+  #105 Grazer lv1 32/32 45m S
+  #114 Thornboar lv2 61/61 47m E hostile [quest]
+  #107 Grazer lv2 41/41 48m SW
+  #108 Grazer lv1 32/32 53m S
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x8, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16, Boar Tusk x2 | junk worth 2s 99c
+[ready]
+> attack thornboar
+fight Thornboar #140: done (it died) in 19 s, +42 xp (took 50 damage, 1 casts)
+Events:
+  Progress: Boar Trouble: Thornboar 3/5
+  Killed Thornboar (+42 xp)
+== Hearthmeadow lv1-2 | 14:00 day | at 68,-211 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 9/70 | Mana 4/60 | XP 397/1400 | 5s 6c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 140m SW (-34,-116)
+  [boar_trouble] Boar Trouble: Thornboar 3/5 -> kill Thornboar 2m SE (70,-210)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 151m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 2/5 -> Boar Tusk (dropped by Thornboar) 2m SE (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 144m NW (-4,-335)
+Creatures within 60m (5):
+  #114 Thornboar lv2 61/61 16m SE hostile [quest]
+  #109 Grazer lv2 41/41 29m SW
+  #105 Grazer lv1 32/32 51m SW
+  #108 Grazer lv1 32/32 53m S
+  #107 Grazer lv2 41/41 55m SW
+Lootable corpses: Thornboar corpse #147 1m NE (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x8, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16, Boar Tusk x2 | junk worth 2s 99c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  You loot 9c
+  You receive loot: Raw meat
+== Hearthmeadow lv1-2 | 14:00 day | at 68,-211 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 9/70 | Mana 4/60 | XP 397/1400 | 5s 15c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 140m SW (-34,-116)
+  [boar_trouble] Boar Trouble: Thornboar 3/5 -> kill Thornboar 2m SE (70,-210)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 151m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 2/5 -> Boar Tusk (dropped by Thornboar) 2m SE (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 144m NW (-4,-335)
+Creatures within 60m (5):
+  #114 Thornboar lv2 61/61 16m SE hostile [quest]
+  #109 Grazer lv2 41/41 30m SW
+  #105 Grazer lv1 32/32 51m SW
+  #108 Grazer lv1 32/32 53m S
+  #107 Grazer lv2 41/41 55m SW
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x9, Log, Stone pickaxe, Worn Trousers, Cooked meat x4, Hunting Bow, Coal, Torch x16, Boar Tusk x2 | junk worth 2s 99c
+[ready]
+> rest
+rest: FAILED (attacked) after 22 s
+Events:
+  (auto-defend) fighting Thornboar
+== Hearthmeadow lv1-2 | 14:00 day | at 68,-211 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 56/70 | Mana 37/60 | XP 397/1400 | 5s 15c | rested 0 | bags 15/36
+Fighting: Thornboar lv2 61/61 1m SW
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 140m SW (-34,-116)
+  [boar_trouble] Boar Trouble: Thornboar 3/5 -> kill Thornboar 1m SW (68,-210)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 151m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 2/5 -> Boar Tusk (dropped by Thornboar) 1m SW (68,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 144m NW (-4,-335)
+Creatures within 60m (5):
+  #114 Thornboar lv2 61/61 1m SW hostile [quest]
+  #109 Grazer lv2 41/41 20m SW
+  #105 Grazer lv1 32/32 51m SW
+  #108 Grazer lv1 32/32 53m S
+  #107 Grazer lv2 41/41 55m SW
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x9, Log, Stone pickaxe, Worn Trousers, Cooked meat x3, Hunting Bow, Coal, Torch x16, Boar Tusk x2 | junk worth 2s 99c
+[ready]
+auto-defend: done (it died) in 4 s, +32 xp (took 10 damage, 4 casts)
+Events:
+  Progress: Boar Trouble: Thornboar 4/5
+  Killed Thornboar (+32 xp)
+== Hearthmeadow lv1-2 | 15:00 day | at 68,-211 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 46/70 | Mana 7/60 | XP 429/1400 | 5s 15c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 140m SW (-34,-116)
+  [boar_trouble] Boar Trouble: Thornboar 4/5 -> kill Thornboar 2m SE (70,-210)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 151m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 2/5 -> Boar Tusk (dropped by Thornboar) 2m SE (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 144m NW (-4,-335)
+Creatures within 60m (5):
+  #148 Thornboar lv2 61/61 12m N hostile [quest]
+  #109 Grazer lv2 41/41 22m SW
+  #105 Grazer lv1 32/32 49m SW
+  #108 Grazer lv1 32/32 53m S
+  #107 Grazer lv2 41/41 55m SW
+Lootable corpses: Thornboar corpse #149 1m W (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x9, Log, Stone pickaxe, Worn Trousers, Cooked meat x3, Hunting Bow, Coal, Torch x16, Boar Tusk x2 | junk worth 2s 99c
+[ready]
+> attack thornboar
+fight Thornboar #148: done (it died) in 14 s, +32 xp (took 39 damage, 1 casts)
+Events:
+  Progress: Boar Trouble: Thornboar 5/5
+  Killed Thornboar (+32 xp)
+== Hearthmeadow lv1-2 | 15:00 day | at 69,-216 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 7/70 | Mana 6/60 | XP 461/1400 | 5s 15c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 143m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 75m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 149m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 2/5 -> Boar Tusk (dropped by Thornboar) 6m S (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 75m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (4):
+  #150 Thornboar lv2 61/61 22m S hostile [quest]
+  #109 Grazer lv2 41/41 23m SW
+  #105 Grazer lv1 32/32 56m SW
+  #108 Grazer lv1 32/32 58m S
+Lootable corpses: Thornboar corpse #151 1m E (yours); Thornboar corpse #149 5m S (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x9, Log, Stone pickaxe, Worn Trousers, Cooked meat x3, Hunting Bow, Coal, Torch x16, Boar Tusk x2 | junk worth 2s 99c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  +1 Boar Tusk
+  You loot 6c
+  You receive loot: Boar Tusk
+  You receive loot: Raw meat
+  Progress: Tusks and Tempers: Boar Tusk 3/5
+== Hearthmeadow lv1-2 | 15:00 day | at 69,-216 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 7/70 | Mana 6/60 | XP 461/1400 | 5s 21c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 143m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 75m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 149m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 6m S (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 75m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (4):
+  #150 Thornboar lv2 61/61 22m S hostile [quest]
+  #109 Grazer lv2 41/41 23m SW
+  #105 Grazer lv1 32/32 56m SW
+  #108 Grazer lv1 32/32 58m S
+Lootable corpses: Thornboar corpse #149 5m S (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x3, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> equip best
+Nothing in your bags is an upgrade.
+== Hearthmeadow lv1-2 | 15:00 day | at 69,-216 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 7/70 | Mana 6/60 | XP 461/1400 | 5s 21c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 143m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 75m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 149m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 6m S (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 75m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (4):
+  #150 Thornboar lv2 61/61 22m S hostile [quest]
+  #109 Grazer lv2 41/41 22m SW
+  #105 Grazer lv1 32/32 55m SW
+  #108 Grazer lv1 32/32 58m S
+Lootable corpses: Thornboar corpse #149 5m S (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x3, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> rest
+rest: FAILED (attacked) after 25 s
+Events:
+  (auto-defend) fighting Thornboar
+== Hearthmeadow lv1-2 | 15:00 day | at 69,-216 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 53/70 | Mana 40/60 | XP 461/1400 | 5s 21c | rested 0 | bags 15/36
+Fighting: Thornboar lv2 61/61 1m SE
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 143m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 75m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 149m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 1m SE (69,-215)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 75m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (5):
+  #150 Thornboar lv2 61/61 1m SE hostile [quest]
+  #152 Thornboar lv3 75/75 13m E hostile [quest]
+  #109 Grazer lv2 41/41 23m S
+  #105 Grazer lv1 32/32 53m SW
+  #108 Grazer lv1 32/32 54m S
+Lootable corpses: Thornboar corpse #149 5m S (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x2, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+auto-defend: done (it died) in 4 s, +32 xp (took 10 damage, 5 casts)
+Events:
+  That is not ready yet.
+  Killed Thornboar (+32 xp)
+== Hearthmeadow lv1-2 | 16:00 day | at 69,-216 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 43/70 | Mana 9/60 | XP 493/1400 | 5s 21c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 143m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 75m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 149m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 6m S (70,-210)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 75m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (4):
+  #152 Thornboar lv3 75/75 13m E hostile [quest]
+  #109 Grazer lv2 41/41 25m S
+  #108 Grazer lv1 32/32 54m S
+  #105 Grazer lv1 32/32 56m SW
+Lootable corpses: Thornboar corpse #149 5m S (yours); Thornboar corpse #153 1m E (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x2, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> attack thornboar
+fight Thornboar #152: FAILED (dead) after 14 s (took 44 damage, 1 casts)
+Events:
+  DIED: You fell to a Thornboar.
+  Wrenna fell to a Thornboar.
+== Hearthmeadow lv1-2 | 16:00 day | at 74,-218 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 0/70 | Mana 6/60 | XP 493/1400 | 5s 21c | rested 0 | bags 15/36
+YOU ARE DEAD (You fell to a Thornboar.). Type 'respawn'.
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 149m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 79m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 152m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 1m E (75,-219)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 79m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (3):
+  #152 Thornboar lv3 3/75 1m E hostile [quest]
+  #154 Thornboar lv3 75/75 18m S hostile [quest]
+  #109 Grazer lv2 41/41 24m S
+Lootable corpses: Thornboar corpse #149 10m SW (yours); Thornboar corpse #153 5m SW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x2, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> loot
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Hearthmeadow lv1-2 | 16:00 day | at 74,-218 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 0/70 | Mana 6/60 | XP 493/1400 | 5s 21c | rested 0 | bags 15/36
+YOU ARE DEAD (You fell to a Thornboar.). Type 'respawn'.
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 149m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 79m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 152m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 1m E (75,-219)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 79m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (3):
+  #152 Thornboar lv3 3/75 1m E hostile [quest]
+  #154 Thornboar lv3 75/75 18m S hostile [quest]
+  #109 Grazer lv2 41/41 24m S
+Lootable corpses: Thornboar corpse #149 10m SW (yours); Thornboar corpse #153 5m SW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x2, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> goto holt
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Hearthmeadow lv1-2 | 16:00 day | at 74,-218 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 0/70 | Mana 6/60 | XP 493/1400 | 5s 21c | rested 0 | bags 15/36
+YOU ARE DEAD (You fell to a Thornboar.). Type 'respawn'.
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 149m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 79m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 152m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 1m E (75,-219)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 79m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (3):
+  #152 Thornboar lv3 3/75 1m E hostile [quest]
+  #154 Thornboar lv3 75/75 18m S hostile [quest]
+  #109 Grazer lv2 41/41 24m S
+Lootable corpses: Thornboar corpse #149 10m SW (yours); Thornboar corpse #153 5m SW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x2, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> rest
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Hearthmeadow lv1-2 | 16:00 day | at 74,-218 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 0/70 | Mana 6/60 | XP 493/1400 | 5s 21c | rested 0 | bags 15/36
+YOU ARE DEAD (You fell to a Thornboar.). Type 'respawn'.
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 149m SW (-34,-116)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 79m NW (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 152m NW (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 1m E (75,-219)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 140m NW (-4,-335)
+NPCs:
+  ? Sergeant Holt <The North Watch> 79m NW (2,-251) turn in: boar_trouble
+Creatures within 60m (3):
+  #152 Thornboar lv3 3/75 1m E hostile [quest]
+  #154 Thornboar lv3 75/75 18m S hostile [quest]
+  #109 Grazer lv2 41/41 24m S
+Lootable corpses: Thornboar corpse #149 10m SW (yours); Thornboar corpse #153 5m SW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x2, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> respawn
+respawn: done (alive) in 0 s
+Events:
+  You are alive again
+== Hearthmeadow lv1-2 | 16:00 day | at 0,7 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 42/70 | Mana 21/60 | XP 493/1400 | 5s 21c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 123m N (-36,-111)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 258m N (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 310m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 154m W (-150,40)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 342m N (-4,-335)
+NPCs:
+    Old Brannoc <Hearthkeeper> 3m NW (-2,5)
+    Ilsa <Townswoman> 8m NW (-7,3)
+    Bram <Townsman> 10m N (0,-3)
+  ! Tilda <Cook> 11m W (-11,8) offers: windmill_breadcrumb [vendor]
+    Poll <Gardener> 19m N (2,-12)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat x2, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> rest
+rest: done (rested) in 19 s
+Events:
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 16:00 day | at 0,7 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 58/60 | XP 493/1400 | 5s 21c | rested 0 | bags 15/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 123m N (-36,-111)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 258m N (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 310m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 154m W (-150,40)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 342m N (-4,-335)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+    Old Brannoc <Hearthkeeper> 3m NW (-2,5)
+    Ilsa <Townswoman> 6m NW (-5,4)
+  ! Tilda <Cook> 11m W (-11,8) offers: windmill_breadcrumb [vendor]
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Torn Grazer Hide x4, Thornhide Boots, Raw meat x10, Log, Stone pickaxe, Worn Trousers, Cooked meat, Hunting Bow, Coal, Torch x16, Boar Tusk x3 | junk worth 2s 99c
+[ready]
+> sell junk
+sell to Tilda: done (talked) in 1 s
+== Hearthstead (safe) lv1-1 | 16:00 day | at -7,7 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 493/1400 | 8s 20c | rested 0 | bags 11/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 122m N (-36,-111)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 258m N (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 309m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 147m W (-150,40)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 342m N (-4,-335)
+NPCs:
+    Ilsa <Townswoman> 3m NE (-5,4)
+  ! Tilda <Cook> 4m W (-11,8) offers: windmill_breadcrumb [vendor]
+    Old Brannoc <Hearthkeeper> 5m NE (-2,5)
+    Bram <Townsman> 8m E (1,7)
+    Captain Maren <Captain of the Watch> 24m NE (3,-15)
+    Poll <Gardener> 24m NE (5,-14)
+    Nell <Street Sweeper> 42m N (3,-34)
+    Marta <Innkeeper> 46m E (36,24)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x10, Log, Stone pickaxe, Cooked meat, Coal, Torch x16, Boar Tusk x3 | junk worth 0c
+[ready]
+> goto Woodcutters' Well
+goto Woodcutters' Well: INTERRUPTED, attacked by Thornboar #137. Use 'attack' to fight back.
+Events:
+  Entered Hearthmeadow
+  Dusk is coming. Find light.
+  Nightfall: Shades gather at the west gate of Hearthstead!
+  World event: Nightfall Incursion
+  Wave 1 of 3 pours out of the dark!
+== Hearthmeadow lv1-2 | 17:00 day | at -48,-229 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 64/70 | Mana 60/60 | XP 493/1400 | 8s 20c | rested 1 | bags 11/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 105m S (-45,-124)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 55m NE (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 69m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 2m S (-48,-227)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 115m NE (-4,-335)
+NPCs:
+    Guard Edric <North Watch> 52m NE (-6,-260)
+  ? Sergeant Holt <The North Watch> 55m NE (2,-251) turn in: boar_trouble
+    Wat <Shepherd> 60m NE (-10,-275)
+Creatures within 60m (5):
+  #137 Thornboar lv3 75/75 2m S hostile [quest]
+  #139 Thornboar lv2 61/61 15m NW hostile [quest]
+  #136 Thornboar lv3 75/75 23m SW hostile [quest]
+  #138 Thornboar lv2 61/61 44m SW hostile [quest]
+  #142 Thornboar lv3 75/75 55m W hostile [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x10, Log, Stone pickaxe, Cooked meat, Coal, Torch x16, Boar Tusk x3 | junk worth 0c
+[ready]
+auto-defend: done (it died) in 6 s, +43 xp (took 17 damage, 4 casts)
+Events:
+  (auto-defend) fighting Thornboar
+  You feel normal again.
+  Killed Thornboar (+43 xp)
+== Hearthmeadow lv1-2 | 17:00 day | at -48,-229 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 48/70 | Mana 34/60 | XP 536/1400 | 8s 20c | rested 0 | bags 11/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 106m S (-45,-124)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 54m NE (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 69m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 13m W (-61,-231)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 114m NE (-4,-335)
+NPCs:
+    Guard Edric <North Watch> 45m NE (-15,-260)
+  ? Sergeant Holt <The North Watch> 54m NE (2,-251) turn in: boar_trouble
+    Wat <Shepherd> 58m NE (-13,-276)
+Creatures within 60m (4):
+  #139 Thornboar lv2 61/61 13m W hostile [quest]
+  #136 Thornboar lv3 75/75 18m SW hostile [quest]
+  #138 Thornboar lv2 61/61 44m SW hostile [quest]
+  #142 Thornboar lv3 75/75 52m W hostile [quest]
+Lootable corpses: Thornboar corpse #158 1m W (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x10, Log, Stone pickaxe, Cooked meat, Coal, Torch x16, Boar Tusk x3 | junk worth 0c
+[ready]
+> attack thornboar
+fight Thornboar #139: done (it died) in 6 s, +32 xp (took 10 damage, 4 casts)
+Events:
+  Killed Thornboar (+32 xp)
+== Hearthmeadow lv1-2 | 18:00 day | at -48,-229 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 38/70 | Mana 8/60 | XP 568/1400 | 8s 20c | rested 0 | bags 11/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 106m S (-45,-124)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 54m NE (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 69m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 13m W (-60,-225)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 114m NE (-4,-335)
+NPCs:
+    Guard Edric <North Watch> 44m NE (-16,-260)
+  ? Sergeant Holt <The North Watch> 54m NE (2,-251) turn in: boar_trouble
+    Wat <Shepherd> 58m NE (-13,-276)
+Creatures within 60m (3):
+  #136 Thornboar lv3 75/75 21m S hostile [quest]
+  #138 Thornboar lv2 61/61 40m SW hostile [quest]
+  #142 Thornboar lv3 75/75 52m W hostile [quest]
+Lootable corpses: Thornboar corpse #158 1m W (yours); Thornboar corpse #159 1m SW (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x10, Log, Stone pickaxe, Cooked meat, Coal, Torch x16, Boar Tusk x3 | junk worth 0c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  You loot 12c
+== Hearthmeadow lv1-2 | 18:00 day | at -48,-229 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 38/70 | Mana 8/60 | XP 568/1400 | 8s 32c | rested 0 | bags 11/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 106m S (-45,-124)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 54m NE (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 69m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 3/5 -> Boar Tusk (dropped by Thornboar) 13m W (-60,-225)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 114m NE (-4,-335)
+NPCs:
+    Guard Edric <North Watch> 45m NE (-16,-261)
+  ? Sergeant Holt <The North Watch> 54m NE (2,-251) turn in: boar_trouble
+    Wat <Shepherd> 58m NE (-13,-276)
+Creatures within 60m (3):
+  #136 Thornboar lv3 75/75 21m S hostile [quest]
+  #138 Thornboar lv2 61/61 39m SW hostile [quest]
+  #142 Thornboar lv3 75/75 53m W hostile [quest]
+Lootable corpses: Thornboar corpse #158 1m W (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x10, Log, Stone pickaxe, Cooked meat, Coal, Torch x16, Boar Tusk x3 | junk worth 0c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Raw meat
+  +1 Boar Tusk
+  You loot 12c
+  You receive loot: Boar Tusk
+  You receive loot: Raw meat
+  Progress: Tusks and Tempers: Boar Tusk 4/5
+== Hearthmeadow lv1-2 | 18:00 day | at -48,-229 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 40/70 | Mana 11/60 | XP 568/1400 | 8s 44c | rested 0 | bags 11/36
+World event: Nightfall Incursion: Wave 1 of 3: 3 Shades destroyed
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 106m S (-45,-124)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 54m NE (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 69m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 13m W (-60,-225)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 114m NE (-4,-335)
+NPCs:
+    Guard Edric <North Watch> 49m NE (-16,-266)
+  ? Sergeant Holt <The North Watch> 54m NE (2,-251) turn in: boar_trouble
+    Wat <Shepherd> 58m NE (-13,-276)
+Creatures within 60m (3):
+  #136 Thornboar lv3 75/75 26m S hostile [quest]
+  #138 Thornboar lv2 61/61 37m SW hostile [quest]
+  #142 Thornboar lv3 75/75 54m W hostile [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x11, Log, Stone pickaxe, Cooked meat, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> rest
+rest: done (rested) in 31 s
+Events:
+  Wave 2 of 3 pours out of the dark!
+== Hearthmeadow lv1-2 | 19:00 NIGHT | at -48,-229 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 58/60 | XP 568/1400 | 8s 44c | rested 0 | bags 10/36
+World event: Nightfall Incursion: Wave 2 of 3: 7 Shades destroyed
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 106m S (-45,-124)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 54m NE (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well , talk to Foreman Garrick  -> explore Woodcutters' Well 69m N (-55,-298)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 13m W (-60,-225)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 114m NE (-4,-335)
+NPCs:
+    Guard Edric <North Watch> 46m NE (-14,-260)
+  ? Sergeant Holt <The North Watch> 54m NE (2,-251) turn in: boar_trouble
+    Wat <Shepherd> 59m NE (-10,-275)
+Creatures within 60m (3):
+  #138 Thornboar lv2 61/61 35m SW hostile [quest]
+  #136 Thornboar lv3 75/75 37m S hostile [quest]
+  #142 Thornboar lv3 75/75 47m W hostile [quest]
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> goto Woodcutters' Well
+goto Woodcutters' Well: done (arrived) in 12 s, +70 xp
+Events:
+  Entered Birchrise
+  Discovered: Birchrise (+35 XP)
+  Entered Woodcutters' Well
+  Discovered: Woodcutters' Well (+35 XP)
+  Progress: Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick 
+== Woodcutters' Well lv2-3 | 19:00 NIGHT | at -55,-292 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 638/1400 | 8s 44c | rested 0 | bags 10/36
+World event: Nightfall Incursion: Wave 2 of 3: 7 Shades destroyed
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 166m SW (-136,-147)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 70m SE (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 215m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 67m S (-60,-225)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 67m NE (-4,-335)
+NPCs:
+    Wat <Shepherd> 45m E (-13,-276)
+    Guard Edric <North Watch> 48m SE (-16,-264)
+  ? Sergeant Holt <The North Watch> 70m SE (2,-251) turn in: boar_trouble
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> look
+== Woodcutters' Well lv2-3 | 19:00 NIGHT | at -55,-292 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 638/1400 | 8s 44c | rested 0 | bags 10/36
+World event: Nightfall Incursion: Wave 2 of 3: 7 Shades destroyed
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 166m SW (-136,-147)
+  [boar_trouble] READY Boar Trouble: Thornboar 5/5 -> turn in to Sergeant Holt 70m SE (2,-251)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 215m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 67m S (-55,-225)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 67m NE (-4,-335)
+NPCs:
+    Wat <Shepherd> 45m E (-13,-276)
+    Guard Edric <North Watch> 47m SE (-16,-266)
+  ? Sergeant Holt <The North Watch> 70m SE (2,-251) turn in: boar_trouble
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> turnin boar_trouble
+turn in at Sergeant Holt: done (talked) in 11 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  offers [old_tusk] Old Tusk (Group) (lv4): The boars follow one old brute with tusks like scythes. He keeps to a hollow in the trees west of here, past the pack. He has put two of my men in their beds: do not go alone. Find someone to go with you, and bring him down.
+    objectives: kill 1 Old Tusk | reward: 500 xp, 2s 0c, choose one: 1=Watchman's Mail Vest UPGRADE 2=Ranger's Leather Jerkin UPGRADE 3=Hearthkeeper's Robe
+  in progress: [eyes_in_the_dark]
+  in progress: [watchfire]
+  in progress: [lookouts_eye]
+Events:
+  Entered Birchrise
+  Entered Hearthmeadow
+  Entered The North Watch (safe)
+  Wave 3 of 3 pours out of the dark!
+  +1 Watchman's Mail Vest
+  QUEST COMPLETE: Boar Trouble
+== The North Watch (safe) lv2-3 | 20:00 NIGHT | at -2,-252 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 858/1400 | 9s 24c | rested 0 | bags 11/36
+World event: Nightfall Incursion: Wave 3 of 3: 12 Shades destroyed
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 135m S (-45,-124)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 49m W (-49,-236)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 83m N (-4,-335)
+NPCs:
+  ! Sergeant Holt <The North Watch> 4m E (2,-251) offers: old_tusk
+    Guard Edric <North Watch> 14m N (-6,-265)
+    Wat <Shepherd> 24m N (-10,-275)
+Creatures within 60m (1):
+  #166 Thornboar lv3 75/75 49m W hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> accept old_tusk
+accept at Sergeant Holt: done (talked) in 0 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  in progress: [eyes_in_the_dark]
+  in progress: [watchfire]
+  in progress: [lookouts_eye]
+  in progress: [old_tusk]
+Events:
+  The Watch holds! Hearthstead stands through the night.
+  Quest accepted: Old Tusk (Group) [old_tusk]
+== The North Watch (safe) lv2-3 | 20:00 NIGHT | at -2,-252 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 858/1400 | 9s 24c | rested 0 | bags 11/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 135m S (-45,-124)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 49m W (-49,-237)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 83m N (-4,-335)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 149m W (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+    Sergeant Holt <The North Watch> 4m E (2,-251)
+    Guard Edric <North Watch> 12m N (-6,-264)
+    Wat <Shepherd> 24m N (-10,-275)
+Creatures within 60m (1):
+  #166 Thornboar lv3 75/75 49m W hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> look
+== The North Watch (safe) lv2-3 | 20:00 NIGHT | at -2,-252 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 858/1400 | 9s 24c | rested 0 | bags 11/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 135m S (-45,-124)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 49m W (-49,-238)
+  [lookouts_eye] A Lookout's Eye: explore Watch Hill Lookout  -> explore Watch Hill Lookout 83m N (-4,-335)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 149m W (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+    Sergeant Holt <The North Watch> 4m E (2,-251)
+    Guard Edric <North Watch> 12m N (-6,-263)
+    Wat <Shepherd> 24m N (-10,-275)
+Creatures within 60m (1):
+  #166 Thornboar lv3 75/75 49m W hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> goto Watch Hill Lookout
+goto Watch Hill Lookout: done (arrived) in 18 s, +35 xp
+Events:
+  Entered Hearthmeadow
+  Entered Birchrise
+  Entered Watch Hill Lookout
+  Discovered: Watch Hill Lookout (+35 XP)
+  Progress: A Lookout's Eye: explore Watch Hill Lookout (done)
+== Watch Hill Lookout lv2-3 | 21:00 NIGHT | at -9,-333 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 893/1400 | 9s 24c | rested 1 | bags 11/36
+Quests (6/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> Coal (dropped by Candlekin) 776m E (742,-138)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 233m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 88m NW (-83,-380)
+  [lookouts_eye] READY A Lookout's Eye: explore Watch Hill Lookout (done) -> turn in to Sergeant Holt 82m S (2,-251)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 154m SW (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+    Wat <Shepherd> 57m S (-13,-276)
+    Guard Edric <North Watch> 67m S (-16,-266)
+  ? Sergeant Holt <The North Watch> 82m S (2,-251) turn in: lookouts_eye
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> turnin lookouts_eye
+turn in at Sergeant Holt: done (talked) in 13 s
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  in progress: [eyes_in_the_dark]
+  in progress: [watchfire]
+  in progress: [old_tusk]
+Events:
+  Entered Birchrise
+  Entered Hearthmeadow
+  Entered The North Watch (safe)
+  QUEST COMPLETE: A Lookout's Eye
+== The North Watch (safe) lv2-3 | 21:00 NIGHT | at 1,-255 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 993/1400 | 9s 74c | rested 1 | bags 11/36
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 139m S (-45,-124)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 281m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 47m W (-44,-242)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 151m W (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+    Sergeant Holt <The North Watch> 5m S (2,-251)
+    Guard Edric <North Watch> 13m NW (-6,-266)
+    Wat <Shepherd> 22m NW (-10,-275)
+Creatures within 60m (2):
+  #165 Thornboar lv3 75/75 47m W hostile
+  #166 Thornboar lv3 75/75 59m SW hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> goto garrick
+goto Foreman Garrick: done (arrived) in 61 s, +45 xp
+Events:
+  Entered Hearthmeadow
+  Entered Birchrise
+  Entered Woodcutters' Well
+  Entered Birchrise
+  Entered Garrick's Logging Camp (safe)
+  Discovered: Garrick's Logging Camp (+45 XP)
+== Garrick's Logging Camp (safe) lv3-3 | 01:00 NIGHT | at -222,-423 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 1038/1400 | 9s 74c | rested 2 | bags 11/36
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> Coal (dropped by Candlekin) 1005m E (742,-138)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 3m N (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 118m NW (-290,-520)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 169m SE (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+    Foreman Garrick <Logging Camp> 3m N (-223,-426)
+    Carter Nan <Carter> 9m SE (-217,-415) [vendor]
+    Tam <Lumberjack> 15m N (-220,-438)
+    Wyn <Lumberjack> 18m NE (-214,-439)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> turnin garricks_camp
+[garricks_camp] is not finished: Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick
+== Garrick's Logging Camp (safe) lv3-3 | 01:00 NIGHT | at -222,-423 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 1038/1400 | 9s 74c | rested 2 | bags 11/36
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> Coal (dropped by Candlekin) 1005m E (742,-138)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 3m N (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 118m NW (-290,-520)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 169m SE (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+    Foreman Garrick <Logging Camp> 3m N (-223,-426)
+    Carter Nan <Carter> 9m SE (-217,-415) [vendor]
+    Tam <Lumberjack> 15m N (-220,-438)
+    Wyn <Lumberjack> 18m NE (-214,-439)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> accept all
+accept at Hollis: INTERRUPTED, attacked by Thornboar #142. Use 'attack' to fight back.
+Events:
+  Entered Birchrise
+  Entered Hearthmeadow
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at -77,-221 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 64/70 | Mana 60/60 | XP 1038/1400 | 9s 74c | rested 2 | bags 11/36
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 95m SW (-136,-147)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 251m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 1m SE (-77,-221)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 88m NW (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+Creatures within 60m (5):
+  #142 Thornboar lv3 75/75 1m SE hostile
+  #165 Thornboar lv3 75/75 15m E hostile
+  #166 Thornboar lv3 75/75 24m E hostile
+  #136 Thornboar lv3 75/75 27m SE hostile
+  #138 Thornboar lv2 61/61 29m SE hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+auto-defend: done (it died) in 6 s, +44 xp (took 17 damage, 4 casts)
+Events:
+  (auto-defend) fighting Thornboar
+  You feel normal again.
+  Killed Thornboar (+44 xp)
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at -77,-221 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 48/70 | Mana 30/60 | XP 1082/1400 | 9s 74c | rested 0 | bags 11/36
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 95m SW (-136,-147)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 252m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 9m E (-68,-221)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 88m NW (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+Creatures within 60m (4):
+  #165 Thornboar lv3 75/75 9m E hostile
+  #166 Thornboar lv3 75/75 17m E hostile
+  #136 Thornboar lv3 75/75 27m SE hostile
+  #138 Thornboar lv2 61/61 34m SE hostile
+Lootable corpses: Thornboar corpse #177 1m E (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> look
+== Hearthmeadow lv1-2 | 03:00 NIGHT | at -77,-221 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 48/70 | Mana 30/60 | XP 1082/1400 | 9s 74c | rested 0 | bags 11/36
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 95m SW (-136,-147)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 252m NW (-223,-426)
+  [tusks_and_tempers] Tusks and Tempers: Boar Tusk 4/5 -> Boar Tusk (dropped by Thornboar) 9m E (-68,-221)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 88m NW (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+Creatures within 60m (4):
+  #165 Thornboar lv3 75/75 9m E hostile
+  #166 Thornboar lv3 75/75 17m E hostile
+  #136 Thornboar lv3 75/75 27m SE hostile
+  #138 Thornboar lv2 61/61 34m SE hostile
+Lootable corpses: Thornboar corpse #177 1m E (yours)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x4 | junk worth 0c
+[ready]
+> loot
+loot: done (nothing left) in 0 s
+Events:
+  +1 Boar Tusk
+  You loot 18c
+  You receive loot: Boar Tusk
+  Progress: Tusks and Tempers: Boar Tusk 5/5
+== Hearthmeadow lv1-2 | 04:00 NIGHT | at -77,-221 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 61/70 | Mana 49/60 | XP 1082/1400 | 9s 92c | rested 0 | bags 11/36
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> gather Coal (use: gather coal) 95m SW (-136,-147)
+  [garricks_camp] Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick  -> talk to Foreman Garrick 252m NW (-223,-426)
+  [tusks_and_tempers] READY Tusks and Tempers: Boar Tusk 5/5 -> turn in to Foreman Garrick 252m NW (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 88m NW (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+Creatures within 60m (4):
+  #165 Thornboar lv3 75/75 18m SE hostile
+  #166 Thornboar lv3 75/75 25m E hostile
+  #136 Thornboar lv3 75/75 34m SE hostile
+  #138 Thornboar lv2 61/61 36m SE hostile
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x5 | junk worth 0c
+[ready]
+> talk garrick
+talk Foreman Garrick: done (talked) in 56 s
+Foreman Garrick <Logging Camp>: "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold."
+  ready to turn in: [garricks_camp] choices: none
+  ready to turn in: [tusks_and_tempers] choices: none
+Events:
+  Entered Birchrise
+  Entered Garrick's Logging Camp (safe)
+  Progress: Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick (done)
+== Garrick's Logging Camp (safe) lv3-3 | 05:00 day | at -222,-422 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 1082/1400 | 9s 92c | rested 0 | bags 11/36
+Quests (5/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> Coal (dropped by Candlekin) 1005m E (742,-138)
+  [garricks_camp] READY Garrick's Camp: explore Woodcutters' Well (done), talk to Foreman Garrick (done) -> turn in to Foreman Garrick 4m N (-223,-426)
+  [tusks_and_tempers] READY Tusks and Tempers: Boar Tusk 5/5 -> turn in to Foreman Garrick 4m N (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 168m SE (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+  ? Foreman Garrick <Logging Camp> 4m N (-223,-426) turn in: garricks_camp, tusks_and_tempers
+    Carter Nan <Carter> 8m SE (-217,-415) [vendor]
+    Tam <Lumberjack> 16m N (-220,-438)
+    Wyn <Lumberjack> 19m NE (-214,-439)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x5 | junk worth 0c
+[ready]
+> turnin garricks_camp
+turn in at Foreman Garrick: done (talked) in 0 s
+Foreman Garrick <Logging Camp>: "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold."
+  offers [silk_for_sails] Silk for the Mill (lv4): Ostrin's mill sails are in tatters. The silk from the websnares at the Hollow Oak is the strongest thread there is. Six bundles.
+    objectives: collect 6 Websnare Silk | reward: 260 xp, 1s 10c
+  offers [word_for_rysa] Word for the Hunter (lv4): Rysa hunts out by the Hollow Oak, west along the trail. Tell her the camp will pay for every Websnare she clears. And mind the webs.
+    objectives: explore Hunter's Rest, talk to Rysa | reward: 120 xp, 50c
+  ready to turn in: [tusks_and_tempers] choices: none
+Events:
+  QUEST COMPLETE: Garrick's Camp
+== Garrick's Logging Camp (safe) lv3-3 | 05:00 day | at -222,-422 (from hearth; north is -z)
+Wrenna lv3 Hunter | HP 70/70 | Mana 60/60 | XP 1182/1400 | 10s 42c | rested 0 | bags 11/36
+Quests (4/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> Coal (dropped by Candlekin) 1005m E (742,-138)
+  [tusks_and_tempers] READY Tusks and Tempers: Boar Tusk 5/5 -> turn in to Foreman Garrick 4m N (-223,-426)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 168m SE (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+  ? Foreman Garrick <Logging Camp> 4m N (-223,-426) turn in: tusks_and_tempers offers: silk_for_sails, word_for_rysa
+    Carter Nan <Carter> 8m SE (-217,-415) [vendor]
+    Tam <Lumberjack> 16m N (-220,-438)
+    Wyn <Lumberjack> 19m NE (-214,-439)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16, Boar Tusk x5 | junk worth 0c
+[ready]
+> turnin tusks_and_tempers
+turn in at Foreman Garrick: done (talked) in 0 s
+Foreman Garrick <Logging Camp>: "Axes down, everyone, unless you fancy a tusk through the leg. Those boars got bold."
+  offers [silk_for_sails] Silk for the Mill (lv4): Ostrin's mill sails are in tatters. The silk from the websnares at the Hollow Oak is the strongest thread there is. Six bundles.
+    objectives: collect 6 Websnare Silk | reward: 260 xp, 1s 10c
+  offers [into_barrowwood] Into Barrowwood (lv5): The woods past the Hollow Oak have gone grey and dead. Find the old barrow at their heart and tell me what you see.
+    objectives: explore the Old Barrow | reward: 350 xp, 1s 20c
+  offers [word_for_rysa] Word for the Hunter (lv4): Rysa hunts out by the Hollow Oak, west along the trail. Tell her the camp will pay for every Websnare she clears. And mind the webs.
+    objectives: explore Hunter's Rest, talk to Rysa | reward: 120 xp, 50c
+Events:
+  LEVEL UP: you are now level 4
+  Wrenna reached level 4!
+  QUEST COMPLETE: Tusks and Tempers
+== Garrick's Logging Camp (safe) lv3-3 | 05:00 day | at -222,-422 (from hearth; north is -z)
+Wrenna lv4 Hunter | HP 75/75 | Mana 60/60 | XP 2/2100 | 11s 32c | rested 0 | bags 10/36
+Quests (3/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> Coal (dropped by Candlekin) 1005m E (742,-138)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 168m SE (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+  ! Foreman Garrick <Logging Camp> 4m N (-223,-426) offers: silk_for_sails, into_barrowwood, word_for_rysa
+    Carter Nan <Carter> 8m SE (-217,-415) [vendor]
+    Tam <Lumberjack> 16m N (-220,-438)
+    Wyn <Lumberjack> 19m NE (-214,-439)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16 | junk worth 0c
+[ready]
+> equip best
+Equipping Watchman's Mail Vest
+Events:
+  Equipped Watchman's Mail Vest
+== Garrick's Logging Camp (safe) lv3-3 | 05:00 day | at -222,-422 (from hearth; north is -z)
+Wrenna lv4 Hunter | HP 75/75 | Mana 60/60 | XP 2/2100 | 11s 32c | rested 0 | bags 10/36
+Quests (3/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> Coal (dropped by Candlekin) 1005m E (742,-138)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 168m SE (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+  ! Foreman Garrick <Logging Camp> 4m N (-223,-426) offers: silk_for_sails, into_barrowwood, word_for_rysa
+    Carter Nan <Carter> 8m SE (-217,-415) [vendor]
+    Tam <Lumberjack> 16m N (-220,-438)
+    Wyn <Lumberjack> 19m NE (-214,-439)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Watchman's Mail Vest (UPGRADE), Raw meat x11, Log, Stone pickaxe, Coal, Torch x16 | junk worth 0c
+[ready]
+> look
+Events:
+  +1 Tracker's Jerkin
+== Garrick's Logging Camp (safe) lv3-3 | 05:00 day | at -222,-422 (from hearth; north is -z)
+Wrenna lv4 Hunter | HP 75/85 | Mana 60/60 | XP 2/2100 | 11s 32c | rested 0 | bags 10/36
+Quests (3/20):
+  [eyes_in_the_dark] Eyes in the Dark: Shade 0/5
+  [watchfire] Feed the Watchfire: Coal 1/3 -> Coal (dropped by Candlekin) 1005m E (742,-138)
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 168m SE (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+  ! Foreman Garrick <Logging Camp> 4m N (-223,-426) offers: silk_for_sails, into_barrowwood, word_for_rysa
+    Carter Nan <Carter> 8m SE (-217,-415) [vendor]
+    Tam <Lumberjack> 16m N (-220,-438)
+    Wyn <Lumberjack> 19m NE (-214,-439)
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x11, Berries x5, Tracker's Jerkin, Raw meat x11, Log, Stone pickaxe, Coal, Torch x16 | junk worth 27c
+[ready]
+> quit

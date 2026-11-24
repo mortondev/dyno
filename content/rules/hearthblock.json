@@ -7531,8 +7531,18 @@
    "title": "Garrick's Camp",
    "level": 3,
    "giver": "holt",
-   "text": "West of here Foreman Garrick runs the logging camp. He sent for help two days ago. Go.",
+   "text": "West of here Foreman Garrick runs the logging camp. He sent for help two days ago. Take the logging trail, past the Woodcutters' Well. Go.",
    "objectives": [
+    {
+     "explore": "Woodcutters' Well",
+     "place": "logging_trail_well_14",
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "radius": 16
+    },
     {
      "talk": "garrick"
     }
@@ -7548,8 +7558,8 @@
    "key": "tusks_and_tempers",
    "title": "Tusks and Tempers",
    "level": 3,
-   "giver": "garrick",
-   "text": "Bring me five thornboar tusks. The lads want proof the beasts can bleed.",
+   "giver": "holt",
+   "text": "Garrick's lads want thornboar tusks: proof the beasts can bleed. Take him five when you go. The boars by the logging trail will give them up, and so will mine.",
    "objectives": [
     {
      "collect": "boar_tusk",
@@ -7557,11 +7567,13 @@
     }
    ],
    "requires": [
-    "garricks_camp"
+    "north_watch"
    ],
    "money": 90,
    "done": "Ha! Look at the size of that one.",
-   "xp": 220
+   "xp": 220,
+   "ender": "garrick",
+   "progress": "Five tusks. The lads are waiting on them."
   },
   {
    "key": "silk_for_sails",
@@ -7593,9 +7605,9 @@
      "explore": "the Old Barrow",
      "place": "old_barrow",
      "at": [
-      17,
+      34,
       0,
-      0
+      6
      ],
      "radius": 10
     }
@@ -7649,8 +7661,18 @@
    "title": "Bread for the Mill",
    "level": 4,
    "giver": "tilda",
-   "text": "Farmer Ostrin owes me flour. Walk south to his farm and see what's keeping him.",
+   "text": "Farmer Ostrin owes me flour. Walk south to his farm and see what's keeping him. Stop at the Listening Stones on the way; folk say they hum.",
    "objectives": [
+    {
+     "explore": "the Listening Stones",
+     "place": "south_road_stones_9",
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "radius": 16
+    },
     {
      "talk": "ostrin"
     }
@@ -7713,8 +7735,18 @@
    "title": "Down to the Water",
    "level": 4,
    "giver": "ostrin",
-   "text": "Old Wenna at Fisher's Landing could use a strong arm more than I can. Follow the shore west.",
+   "text": "Old Wenna at Fisher's Landing could use a strong arm more than I can. Follow the shore west, past the old wayshrine.",
    "objectives": [
+    {
+     "explore": "the Wayshrine of the Mere",
+     "place": "south_road_wayshrine_10",
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "radius": 16
+    },
     {
      "talk": "wenna"
     }
@@ -7730,8 +7762,8 @@
    "key": "pincher_supper",
    "title": "Pincher Supper",
    "level": 4,
-   "giver": "wenna",
-   "text": "Mirepinchers have eaten every fish in the shallows. Return the favour: six portions of claw meat.",
+   "giver": "ostrin",
+   "text": "Wenna's had nothing but pincher for supper since the fish went. Take her six portions of claw meat: the mirepinchers on the shore path will give it up.",
    "objectives": [
     {
      "collect": "claw_meat",
@@ -7739,10 +7771,11 @@
     }
    ],
    "requires": [
-    "down_to_water"
+    "windmill_breadcrumb"
    ],
    "money": 110,
-   "done": "We'll eat well tonight."
+   "done": "We'll eat well tonight.",
+   "ender": "wenna"
   },
   {
    "key": "shells_for_nets",
@@ -8152,6 +8185,16 @@
    "text": "Rysa hunts out by the Hollow Oak, west along the trail. Tell her the camp will pay for every Websnare she clears. And mind the webs.",
    "done": "Garrick pays now? Then stay: there's more here than I can shoot.",
    "objectives": [
+    {
+     "explore": "Hunter's Rest",
+     "place": "oak_trail_camp_16",
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "radius": 16
+    },
     {
      "talk": "rysa"
     }
@@ -10044,8 +10087,8 @@
      "rare": {
       "name": "Silkmother",
       "chance": 0.12,
-      "power": 2.5,
-      "levels": 1,
+      "power": 2.0,
+      "levels": 0,
       "drops": [
        {
         "item": "silkmother_gloves",

@@ -75,6 +75,21 @@ def content():
     # Garrick to Rysa, along the oak trail: Hunter's Rest on the way
     w = quests["word_for_rysa"]
     w["objectives"] = [explore("Hunter's Rest", "oak_trail_camp_16"), {"talk": "rysa"}]
+    # Silkmother, the Hollow Oak's rare, stood a level above the level 4s
+    # Rysa sends to that camp and hit for two and a half times a Websnare:
+    # 2 of round 2's 13 deaths and the one death of this round's baseline A.
+    # She stays rare and strong, at the camp's level
+    for a in r["areas"]:
+        for c in a.get("camps", []):
+            rare = c.get("rare")
+            if rare and rare["name"] == "Silkmother":
+                rare["levels"], rare["power"] = 0, 2.0
+    # Into Barrowwood (level 5) asked you to stand 20 m from the Barrow
+    # Warden (level 6 elite, a group quest's): baseline B lost a level 4
+    # there at night. The place to stand is the barrow's far edge, 37 m off
+    for o in quests["into_barrowwood"]["objectives"]:
+        if o.get("explore"):
+            o["at"] = [34, 0, 6]
 
 
 {"group": group, "content": content}.get(stage, lambda: sys.exit(__doc__))()
