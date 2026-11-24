@@ -18,7 +18,7 @@ fn run_until(
     secs: f32,
     mut done: impl FnMut(&[&mut Agent]) -> bool,
 ) -> bool {
-    let end = Instant::now() + Duration::from_secs_f32(secs);
+    let end = Instant::now() + Duration::from_secs_f32(secs * time_scale());
     while Instant::now() < end {
         tick(agents);
         if done(agents) {
@@ -92,4 +92,12 @@ fn party_members_each_get_their_quest_drops() {
     assert!(got, "the follower got raw meat of its own");
     assert!(f.tel.loots > 0, "and was told: {:?}", f.log);
     server.stop();
+}
+
+/// Real-time waits stretch on slow machines: `DYNO_TEST_TIME_SCALE` (CI sets 3).
+fn time_scale() -> f32 {
+    std::env::var("DYNO_TEST_TIME_SCALE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1.0)
 }

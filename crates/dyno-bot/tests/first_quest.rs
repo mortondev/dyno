@@ -9,7 +9,7 @@ use dyno_bot::brain::{Personality, Scripted};
 use std::time::{Duration, Instant};
 
 fn run_until(a: &mut Agent, secs: f32, mut done: impl FnMut(&Agent) -> bool) -> bool {
-    let end = Instant::now() + Duration::from_secs_f32(secs);
+    let end = Instant::now() + Duration::from_secs_f32(secs * time_scale());
     while Instant::now() < end {
         assert!(a.update(), "disconnected: {:?}", a.body.closed);
         if done(a) {
@@ -95,4 +95,12 @@ fn bot_hands_in_the_first_quest_and_plays() {
     let r = dyno_bot::report::build("test", "local", vec![a.tel.clone()]);
     assert_eq!(r.aggregate.bots, 1);
     server.stop();
+}
+
+/// Real-time waits stretch on slow machines: `DYNO_TEST_TIME_SCALE` (CI sets 3).
+fn time_scale() -> f32 {
+    std::env::var("DYNO_TEST_TIME_SCALE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1.0)
 }

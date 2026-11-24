@@ -34,7 +34,7 @@ jobs:
         run: |
           cargo clippy --workspace --all-targets --locked -- -D warnings
           cargo clippy -p hearthblock --locked -- -D warnings
-          cargo test --workspace --locked
+          DYNO_TEST_TIME_SCALE=3 cargo test --workspace --locked
 
   build:
     needs: check

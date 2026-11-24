@@ -20,7 +20,7 @@ fn run_until(
     secs: f32,
     mut done: impl FnMut(&[&mut Agent]) -> bool,
 ) -> bool {
-    let end = Instant::now() + Duration::from_secs_f32(secs);
+    let end = Instant::now() + Duration::from_secs_f32(secs * time_scale());
     while Instant::now() < end {
         tick(agents);
         if done(agents) {
@@ -114,7 +114,8 @@ fn two_strangers_on_one_creature_both_get_the_kill() {
         b.set(Task::fight(id, boar, level));
         let mut both = false;
         assert!(
-            run_until(&mut [&mut a, &mut b], 60.0, |x| {
+            // (a slow machine, as CI is, fights slowly)
+            run_until(&mut [&mut a, &mut b], 150.0, |x| {
                 both |= x
                     .iter()
                     .all(|x| x.body.ents.get(&id).is_some_and(|e| e.my_hit.is_some()));
@@ -123,18 +124,29 @@ fn two_strangers_on_one_creature_both_get_the_kill() {
             "the Thornboar died"
         );
         run_until(&mut [&mut a, &mut b], 1.0, |_| false);
-        if both {
+        // each kill counts at most once for each player; a helper counts it
+        // only after dealing a tenth of its health (`world.shared_tags`), so a
+        // single light blow is not enough: count the rounds both were credited
+        let gained = [count(&a) - before[0], count(&b) - before[1]];
+        assert!(
+            gained.iter().all(|g| *g <= 1),
+            "a kill counted twice: {:?} / {:?}",
+            a.log,
+            b.log
+        );
+        if both && gained == [1, 1] {
             shared += 1;
-            assert_eq!(
-                [count(&a), count(&b)],
-                [before[0] + 1, before[1] + 1],
-                "both fought it, both have the kill: {:?} / {:?}",
-                a.log,
-                b.log
-            );
         }
     }
-    assert!(shared >= 2, "both landed a blow on {shared} of 4 boars");
+    assert!(shared >= 2, "both were credited for {shared} of 4 boars");
     assert!(a.tel.xp_kills > 0 && b.tel.xp_kills > 0, "both got kill XP");
     server.stop();
+}
+
+/// Real-time waits stretch on slow machines: `DYNO_TEST_TIME_SCALE` (CI sets 3).
+fn time_scale() -> f32 {
+    std::env::var("DYNO_TEST_TIME_SCALE")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(1.0)
 }
