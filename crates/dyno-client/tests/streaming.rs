@@ -35,9 +35,10 @@ fn start(dir: &Path, content: Option<PathBuf>, rate: usize) -> (dyno_server::Han
     (h, addr)
 }
 
-/// The built-in pack written out as a directory.
+/// The built-in pack written out as a directory, as it is authored (with
+/// the world's layout: a server builds its world from it).
 fn write_pack(dir: &Path) {
-    for (path, bytes) in Pack::builtin().files() {
+    for (path, bytes) in Pack::builtin_source() {
         let p = dir.join(&path);
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(p, &bytes[..]).unwrap();

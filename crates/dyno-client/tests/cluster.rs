@@ -479,7 +479,7 @@ fn an_instance_with_a_different_pack_drains() {
     let _ = std::fs::remove_dir_all(&root);
     let a = node(&root, "a", None);
     let packdir = root.join("b/pack");
-    for (path, bytes) in dyno_server::pack::Pack::builtin().files() {
+    for (path, bytes) in dyno_server::pack::Pack::builtin_source() {
         let p = packdir.join(&path);
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(p, &bytes[..]).unwrap();
