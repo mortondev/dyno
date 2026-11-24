@@ -63,7 +63,6 @@ def mirrormere_drying_rack():
         v.set(x, 3, 0, "timber_beam")
     for x in (-1, 1):
         v.col(x, 0, 1, 2, "white")
-    v.set(0, 2, 0, "lantern")
     v.set(1, 0, 1, "barrel")
     return v
 
@@ -392,11 +391,21 @@ def mirrormere_boathouse():
     v.set(x0, 1, -1, "air")
     v.set(x0, 2, -1, "air")
     top = roof(v, x0, z0, x1, z1, 3, "plank", ridge_x=False)
-    # half the roof fell in: the east slope over the water end
+    # half the roof fell in: the east slope is bare rafters, and the
+    # thatch of the west slope is holed
     for (x, y, z) in list(v.c):
-        if y > 3 and x > 0 and z < 2 and v.c[(x, y, z)] == "thatch":
-            if rnd(x, y, z, 33) % 4:
+        if v.c[(x, y, z)] != "thatch":
+            continue
+        if x > 0:
+            if z % 2 == 0 and z > z0 - 1:
+                v.c[(x, y, z)] = "timber_beam"
+            else:
                 del v.c[(x, y, z)]
+        elif x < 0 and z in (z0, 1) and rnd(x, y, z, 33) % 2:
+            del v.c[(x, y, z)]
+    # planks gone from the land-end wall
+    for (x, y) in ((-2, 2), (2, 1), (2, 2), (-1, 3)):
+        v.c.pop((x, y, z1), None)
     # the slip: planks on posts over the water
     for z in range(-11, z0):
         for x in (-1, 0, 1):

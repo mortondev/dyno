@@ -879,7 +879,7 @@
     {"stamp": "boat", "at": [44, 8], "dy": -1},
     {"stamp": "boat", "at": [43, 21], "rot": 1, "dy": -1},
     {"stamp": "mirrormere_drying_rack", "at": [-15, 0], "rot": 1},
-    {"stamp": "mirrormere_drying_rack", "at": [-3, 16]},
+    {"stamp": "mirrormere_drying_rack", "at": [-12, 24], "rot": 1},
     {"stamp": "fisher_hut", "at": [-12, -18], "rot": 1},
     {"stamp": "banner_pole", "at": [4, -9]},
     {"stamp": "inn_sign", "at": [-4, -3]},
@@ -913,11 +913,10 @@
     {"stamp": "mirrormere_shrine_heart", "at": [0, 0], "dy": -1, "fit": "pad"},
     {"stamp": "mirrormere_causeway", "at": [3, 10], "dy": -1, "fit": "pad"},
     {"stamp": "boulders", "at": [-10, 9], "fit": "float"},
-    {"stamp": "boulders", "at": [12, 8], "rot": 1, "fit": "float"},
-    {"stamp": "mirrormere_causeway", "at": [-9, 10], "dy": -1, "fit": "pad"}
+    {"stamp": "boulders", "at": [12, 8], "rot": 1, "fit": "float"}
    ],
    "trees": [
-    {"species": "willow", "at": [-25, 14]}
+    {"species": "willow", "at": [-36, 14]}
    ],
    "was": {
     "at": [20, 155],
@@ -1361,7 +1360,8 @@
     {"stamp": "mirrormere_shells", "at": [-6, -8], "fit": "float"},
     {"stamp": "mirrormere_shells", "at": [9, 5], "rot": 1, "fit": "float"},
     {"stamp": "mirrormere_net_torn", "at": [-12, 4], "rot": 1, "fit": "float"},
-    {"stamp": "boulders", "at": [13, -9], "fit": "float"}
+    {"stamp": "boulders", "at": [13, -9], "fit": "float"},
+    {"stamp": "mirrormere_boat_capsized", "at": [9, 10], "rot": 1, "fit": "float"}
    ]
   },
   {
