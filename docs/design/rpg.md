@@ -51,28 +51,36 @@ The pace follows classic WoW, scaled for a small world of 20 levels.
 
 The six traditional classes, chosen when you first enter the world (`/class <name>` also works):
 
-| Class | Resource | Armour | Weapons | Abilities to level 10 |
+| Class | Resource | Armour | Weapons | Abilities to level 10 (level learned) |
 |---|---|---|---|---|
-| Warrior | Rage (from hitting and being hit) | Mail, shield | Sword, axe, mace, polearm | Heroic Blow, Battle Cry, Onrush (charge), Rending Cut (bleed), Ground Slam, Last Stand |
-| Paladin | Mana | Mail, shield | Mace, sword | Judging Blow, Holy Mend, Valour, Rebuke (stun), Devout Ward, Hallowed Ground |
-| Hunter | Mana | Leather | Bow, axe, sword, dagger | Auto-shot, Quick Shot, Barbed Arrow, Snare Shot, Hawk's Eye, Volley |
-| Rogue | Energy (10 a second), 5 combo points | Leather | Dagger, sword | Vicious Strike, Finishing Cut, Low Blow, Flurry, Open Vein, Slip Away |
-| Priest | Mana | Cloth | Mace, staff, wand | Smite, Mend, Withering Word, Renewal, Fortify, Radiance |
-| Mage | Mana | Cloth | Staff, dagger, wand | Fireball, Scholar's Focus, Fire Blast, Ice Ring, Blink, Flame Nova |
+| Warrior | Rage (from hitting and being hit; fades out of combat) | Mail, shield | Sword, axe, mace, polearm | Heroic Blow (1), Onrush (1, charge), Second Wind (2, heal), Rending Cut (3, bleed), Ground Slam (4, area and slow), Battle Cry (6), Last Stand (10) |
+| Paladin | Mana | Mail, shield | Mace, sword | Judging Blow (1), Holy Mend (1), Seal of Dawn (1, weapon seal), Valour (2), Rebuke (3, stun), Devout Ward (5), Hallowed Ground (10) |
+| Hunter | Mana | Leather | Bow, axe, sword, dagger | Auto-shot, Quick Shot (1), Barbed Arrow (1, bleed), Marked Shot (2, opener), Hamstring (3, melee slow), Snare Trap (4, root), Hawk's Eye (8), Volley (10) |
+| Rogue | Energy (10 a second), 5 combo points | Leather | Dagger, sword | Vicious Strike (1), Finishing Cut (1), Ambush (2, opener), Low Blow (3, stun), Slip Away (4), Sneak (5, stealth), Flurry (6), Open Vein (8) |
+| Priest | Mana | Cloth | Mace, staff, wand | Smite (1), Mend (1), Withering Word (2), Ward of Light (3, shield), Renewal (5), Fortify (8), Radiance (10) |
+| Mage | Mana | Cloth | Staff, dagger, wand | Fireball (1), Frostbolt (1, slow), Fire Blast (2), Ice Ring (4, root), Scholar's Focus (5), Blink (8), Flame Nova (10) |
 
-Effects available to abilities:
+Every class has two or three buttons at level 1, a new ability at level 2 or 3 and another at 4 or 5 (a test in the content loader holds this). The numbers, the play notes and the measurements are in [docs/playtest/classes-1-5.md](../playtest/classes-1-5.md).
+
+Effects available to abilities (all data, in the rules):
 - direct damage (optionally plus a weapon swing);
 - healing;
 - area damage around you or your target;
-- root and stun;
+- root, stun and slow (`slow`: percent and seconds);
 - damage over time and healing over time (ticks every 3 seconds);
 - timed buffs: damage, damage taken, attack speed, stats;
-- Rogue combo points: builders add one, finishers spend all;
+- an absorb shield (`absorb`: soaks up damage, then breaks);
+- a weapon seal (`strike`: extra damage on every auto-attack);
+- stealth (`stealth`: creatures notice you from less far, until you strike or are struck);
+- an opener (`opener`: a multiplier against a creature that is not yet fighting you, or was first hit within the last 1.5 seconds);
+- Rogue combo points: builders add one or two, finishers spend all;
 - charge to the target;
 - blink;
 - a bonus against Shades.
 
-The global cooldown is 1.5 seconds (Rogues 1.0).
+Each ability names its picture (`image`, under `icons/abilities/`) and its sound (`sound`, under `sounds/abilities/`). Both are streamed when first needed, and `tools/abilities/icons.py` and `tools/abilities/sounds.py` make them.
+
+The global cooldown is 1.5 seconds (Rogues 1.0). An ability pressed up to 0.4 seconds before the global cooldown or a cast ends is queued, and goes off the moment it can.
 
 ## Design review (22 November 2026)
 
