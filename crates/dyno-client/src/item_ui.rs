@@ -347,7 +347,7 @@ const BAG_W: f32 = 9.0 * 48.0 + 8.0 * SLOT_GAP;
 const CRAFT_W: f32 = 380.0;
 
 /// The pack screen: the bags and the recipe list.
-pub fn pack_window(
+pub fn craft_window(
     ctx: &egui::Context,
     mut v: PackView,
     recipes_filter: &mut String,

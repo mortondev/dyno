@@ -1,7 +1,7 @@
 //! Classic MMO screens: Character (C), Bags (B), Spellbook (P) and Skills (K),
 //! with item and ability tooltips.
 
-use crate::survival;
+use crate::item_ui;
 use crate::theme;
 use dyno_protocol::Stack;
 use dyno_sim::character::{self, Sheet};
@@ -262,7 +262,7 @@ fn slot_button(
     p.rect_filled(rect, 4.0, Color32::from_rgb(24, 18, 14));
     match s {
         Some(st) => {
-            survival::stack_icon(p, rect, c, st);
+            item_ui::stack_icon(p, rect, c, st);
             let q = c.item(st.item).quality;
             p.rect_stroke(
                 rect,
@@ -551,7 +551,7 @@ fn spellbook_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
                     let p = ui.painter();
                     p.rect_filled(rect, 4.0, Color32::from_black_alpha(160));
                     if let Some(item) = c.item_by_key(&a.icon) {
-                        survival::item_icon(p, rect.shrink(4.0), c, item);
+                        item_ui::item_icon(p, rect.shrink(4.0), c, item);
                     }
                     if !known {
                         p.rect_filled(rect, 4.0, Color32::from_black_alpha(170));

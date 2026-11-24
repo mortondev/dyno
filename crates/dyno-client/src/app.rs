@@ -4,6 +4,7 @@ use crate::anim::{self, Anim, Book as Anims};
 use crate::audio::{Audio, Sfx};
 use crate::front::{self, Front, FrontCmd};
 use crate::game::{self, Input, Player, PlayerPose, Remote, Remotes, Target};
+use crate::item_ui::{self, PackCmd, PackView};
 use crate::light::Light;
 use crate::models;
 use crate::net::{self, Joined, NetEvent};
@@ -11,7 +12,6 @@ use crate::render::{self, Gfx, Vertex};
 use crate::rpg_ui;
 use crate::screens;
 use crate::settings::Settings;
-use crate::survival::{self, PackCmd, PackView};
 use dyno_protocol::{
     self as proto, ClientMsg, Content, EntityKind, EnvDamage, Mode, PlayerId, ServerMsg, SlotRef,
     Stack,
@@ -553,7 +553,7 @@ fn draw_action(painter: &egui::Painter, r: Rect, p: &Play, i: usize) {
         ActionSlot::Empty => (None, 0.0, false),
     };
     if let Some(item) = icon {
-        survival::item_icon(painter, r.shrink(5.0), &p.content, item);
+        item_ui::item_icon(painter, r.shrink(5.0), &p.content, item);
     }
     if !usable && icon.is_some() {
         painter.rect_filled(r, 5.0, Color32::from_rgba_unmultiplied(120, 20, 20, 90));
@@ -4512,7 +4512,7 @@ fn hud(
             continue;
         }
         if let Some(s) = p.pack.get(i).copied().flatten() {
-            survival::stack_icon(&painter, r, &p.content, &s);
+            item_ui::stack_icon(&painter, r, &p.content, &s);
         }
         let stroke = if i == p.slot {
             Stroke::new(2.5_f32, ACCENT)
@@ -4924,7 +4924,7 @@ fn hud(
             );
             painter.rect_filled(r, 4.0, Color32::from_black_alpha(160));
             if let Some(item) = p.content.item_by_key(&ab.icon) {
-                survival::item_icon(&painter, r.shrink(3.0), &p.content, item);
+                item_ui::item_icon(&painter, r.shrink(3.0), &p.content, item);
             }
             painter.rect_stroke(
                 r,
@@ -5391,7 +5391,7 @@ fn hud(
             selected: &mut p.selected,
             hotbar_slot: p.slot,
         };
-        let cmds = survival::pack_window(ctx, view, &mut p.recipe_filter);
+        let cmds = item_ui::craft_window(ctx, view, &mut p.recipe_filter);
         if !cmds.is_empty() {
             actions.push(Action::Pack(cmds));
         }
