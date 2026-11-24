@@ -180,6 +180,7 @@ pub fn item_tooltip_vs(
     let it = c.item(s.item);
     ui.set_max_width(270.0);
     ui.spacing_mut().item_spacing.y = 2.0;
+    crate::probe::mark("tooltip.item", ui.max_rect());
     theme::tooltip_title(ui, it.name, quality_color(it.quality));
     let mut usable = true;
     if let Some(g) = it.gear {
@@ -293,6 +294,7 @@ pub fn item_tooltip_vs(
 pub fn ability_tooltip(ui: &mut egui::Ui, c: &Content, a: &Ability, known: bool) {
     ui.set_max_width(290.0);
     ui.spacing_mut().item_spacing.y = 2.0;
+    crate::probe::mark("tooltip.ability", ui.max_rect());
     theme::tooltip_title(ui, &a.name, Color32::WHITE);
     let res = c
         .class(a.class)
@@ -477,6 +479,7 @@ fn character_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
         let s = v.equip.get(i).and_then(|s| s.as_ref());
         let name = word("item.slot", EQUIP_PLACES[i].0);
         let r = slot_button(ui, 42.0, c, s, &name);
+        crate::probe::mark(format!("equip.{i}"), r.rect);
         if let Some(st) = s {
             let r = r.on_hover_ui(|ui| {
                 item_tooltip(ui, c, st, Some(class), v.level);
@@ -603,6 +606,10 @@ fn bags_tab(ui: &mut egui::Ui, v: &View, out: &mut Vec<ScreenCmd>) {
             .show(ui, |ui| {
                 for (i, s) in v.pack.iter().enumerate() {
                     let r = slot_button(ui, 44.0, c, s.as_ref(), "");
+                    crate::probe::mark(format!("bag.{i}"), r.rect);
+                    if let (Some(st), true) = (s, crate::probe::on()) {
+                        crate::probe::mark(format!("bagitem.{}", c.item_key(st.item)), r.rect);
+                    }
                     if let Some(st) = s {
                         let r = r
                             .on_hover_ui(|ui| {
@@ -798,6 +805,7 @@ fn spellbook_tab(ui: &mut egui::Ui, v: &View) {
                         Sense::hover()
                     },
                 );
+                crate::probe::mark(format!("spell.{}", a.key), row);
                 if known {
                     resp.dnd_set_drag_payload(BarDrag::Ability(a.id));
                 }

@@ -403,6 +403,7 @@ pub fn dialog_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<Rpg
                                 false,
                                 Color32::from_rgba_unmultiplied(150, 104, 30, 60),
                             );
+                            crate::probe::mark(format!("dialog.quest.{}", q.key), resp.rect);
                             if resp.clicked() {
                                 *quest = Some(q.id);
                                 *choice = 0;
@@ -475,13 +476,21 @@ pub fn dialog_window(ctx: &egui::Context, me: &Me, panel: &mut Panel) -> Vec<Rpg
                     egui::Button::new(RichText::new(t).font(theme::title_font(14.0)).color(GOLD))
                         .min_size(Vec2::new(120.0, 28.0))
                 };
-                if !in_log && me.available(q) && ui.add(big("Accept")).clicked() {
-                    out.push(RpgCmd::Accept(q.id));
-                    *quest = None;
+                if !in_log && me.available(q) {
+                    let r = ui.add(big("Accept"));
+                    crate::probe::mark("dialog.accept", r.rect);
+                    if r.clicked() {
+                        out.push(RpgCmd::Accept(q.id));
+                        *quest = None;
+                    }
                 }
-                if me.finished(q) && q.ender == *npc && ui.add(big("Complete")).clicked() {
-                    out.push(RpgCmd::Complete(q.id, *choice));
-                    *quest = None;
+                if me.finished(q) && q.ender == *npc {
+                    let r = ui.add(big("Complete"));
+                    crate::probe::mark("dialog.complete", r.rect);
+                    if r.clicked() {
+                        out.push(RpgCmd::Complete(q.id, *choice));
+                        *quest = None;
+                    }
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
@@ -1272,8 +1281,9 @@ pub fn loot_window(
                 })
                 .on_hover_ui(|ui| {
                     crate::screens::item_tooltip_vs(ui, c, &st, me.class, me.level, Some(me.equip))
-                })
-                .clicked();
+                });
+                crate::probe::mark(format!("loot.{i}"), clicked.rect);
+                let clicked = clicked.clicked();
                 if clicked {
                     out.push(RpgCmd::Loot(id, i as u8));
                 }
@@ -1281,14 +1291,13 @@ pub fn loot_window(
             }
             ui.add_space(4.0);
             ui.vertical_centered(|ui| {
-                if ui
-                    .button(
-                        RichText::new("Take All")
-                            .font(theme::title_font(13.0))
-                            .color(theme::GOLD),
-                    )
-                    .clicked()
-                {
+                let all = ui.button(
+                    RichText::new("Take All")
+                        .font(theme::title_font(13.0))
+                        .color(theme::GOLD),
+                );
+                crate::probe::mark("loot.all", all.rect);
+                if all.clicked() {
                     out.push(RpgCmd::Loot(id, 255));
                 }
             });

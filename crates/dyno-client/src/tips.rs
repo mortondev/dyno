@@ -284,6 +284,7 @@ impl Tips {
                             });
                         }
                     });
+                crate::probe::mark("tip", inner.response.rect);
                 ui.interact(
                     inner.response.rect,
                     egui::Id::new("tip-click"),

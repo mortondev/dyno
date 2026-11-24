@@ -32,6 +32,9 @@ USAGE:
                                the ground, the play camera behind it (--pitch: degrees down), no interface.
                                --hero: the stand-in is the pack's hero of that class (default: a new character)
                                --from-hearth: the positions are metres from the world's hearth
+  dyno drive <address> --script FILE [--as NAME] [--class KEY] [--size WxH] [--shots DIR]
+                               Play the real client off screen from a script of clicks, keys and
+                               expectations; fails on the first that does not hold (--help: the commands)
   dyno scout <address> [--landmarks tools/concepts/landmarks.json] [--out tools/concepts/cameras.json] [name ...]
                                Choose where the stand shot of each landmark stands; write the camera data
   dyno shot --anim-sheet <out.ppm|out.png>
@@ -136,6 +139,70 @@ fn main() {
                 }
                 Err(e) => {
                     eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "drive" => {
+            // the real client, off screen, played by a script (docs/design/ui.md)
+            let mut o = dyno_client::app::DriveOptions {
+                addr: String::new(),
+                name: "Driver".into(),
+                class: "mage".into(),
+                script: String::new(),
+                size: (1920, 1080),
+                shots: None,
+            };
+            let mut i = 1;
+            while i < args.len() {
+                let val = |i: usize| {
+                    args.get(i + 1)
+                        .cloned()
+                        .unwrap_or_else(|| fail(&format!("{} needs a value", args[i])))
+                };
+                match args[i].as_str() {
+                    "--help" => o.script = "help".into(),
+                    "--script" => {
+                        let path = val(i);
+                        o.script = std::fs::read_to_string(&path)
+                            .unwrap_or_else(|e| fail(&format!("{path}: {e}")));
+                        i += 1;
+                    }
+                    "--as" => {
+                        o.name = val(i);
+                        i += 1;
+                    }
+                    "--class" => {
+                        o.class = val(i);
+                        i += 1;
+                    }
+                    "--shots" => {
+                        o.shots = Some(val(i).into());
+                        i += 1;
+                    }
+                    "--size" => {
+                        let v = val(i);
+                        let (w, h) = v
+                            .split_once('x')
+                            .and_then(|(w, h)| Some((w.parse().ok()?, h.parse().ok()?)))
+                            .unwrap_or_else(|| fail("--size takes WxH"));
+                        o.size = (w, h);
+                        i += 1;
+                    }
+                    a if !a.starts_with("--") && o.addr.is_empty() => o.addr = a.to_string(),
+                    other => fail(&format!("unknown drive option {other}")),
+                }
+                i += 1;
+            }
+            if o.script.is_empty() || (o.addr.is_empty() && o.script != "help") {
+                fail(
+                    "usage: dyno drive <address> --script FILE [--as NAME] [--class KEY] [--size WxH] [--shots DIR]",
+                );
+            }
+            match dyno_client::app::drive(o) {
+                Ok(s) => println!("{s}"),
+                Err(e) => {
+                    eprintln!("{e}");
                     std::process::exit(1);
                 }
             }

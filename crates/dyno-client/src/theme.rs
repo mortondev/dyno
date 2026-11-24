@@ -1128,6 +1128,16 @@ pub fn window<R>(
         &ctx.layer_painter(resp.response.layer_id),
         resp.response.rect,
     );
+    // (for scripts: the window, and the strip of its header to drag it by)
+    let r = resp.response.rect;
+    crate::probe::mark(format!("window.{id}"), r);
+    crate::probe::mark(
+        format!("header.{id}"),
+        Rect::from_min_max(
+            r.min + Vec2::new(40.0, 8.0),
+            Pos2::new(r.right() - 50.0, r.top() + 36.0),
+        ),
+    );
     resp.inner
 }
 
@@ -1444,6 +1454,7 @@ pub fn tab(ui: &mut egui::Ui, label: &str, selected: bool) -> egui::Response {
         .layout_no_wrap(label.to_owned(), title_font(14.0), GOLD);
     let size = Vec2::new(galley.size().x + 28.0, 30.0);
     let (r, resp) = ui.allocate_exact_size(size, Sense::click());
+    crate::probe::mark(format!("tab.{label}"), r);
     let p = ui.painter();
     let hot = resp.hovered();
     // selected tabs stand taller and join the page below

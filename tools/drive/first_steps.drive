@@ -1,0 +1,96 @@
+# The first steps of a new mage, by mouse and keyboard, through the real
+# client (`dyno drive`, see docs/design/ui.md). Run by tools/drive/run.sh on
+# a fresh world whose operator is this character. Every `expect` is a state
+# the step before must have caused.
+
+# --- 1. arrive: a tip shows; walk to the quest giver; talk; accept ---------
+expect tip move
+walk-to npc brannoc 3
+look-at npc brannoc
+click right npc brannoc
+expect panel dialog
+click left at dialog.quest.cold_hearth
+click left at dialog.accept
+expect quest cold_hearth
+shot 1-accepted
+key Escape
+expect panel none
+
+# --- 2. a creature: select it with the mouse; a key; a click on the bar ----
+say /summon grazer
+wait 1.5
+look-at creature grazer
+click left creature grazer
+expect target creature
+key 1
+expect casting
+expect not casting
+say /summon grazer
+wait 1.5
+look-at creature grazer
+click left creature grazer
+expect target creature
+click left at bar.0
+expect casting
+shot 2-casting
+expect not casting
+
+# --- 3. loot a body ----------------------------------------------------------
+until loot open
+  say /summon grazer
+  wait 1.5
+  say /slay
+  wait 1.5
+  look-at corpse grazer
+  click right corpse grazer
+  wait 1
+end
+shot 3-loot
+click left at loot.all
+expect loot closed
+
+# --- 4. bags: open with the key, equip with a right-click -------------------
+say /give acolytes_hood 1
+expect pack acolytes_hood
+key B
+expect tab bags
+click right at bagitem.acolytes_hood
+expect equipped acolytes_hood
+shot 4-equipped
+
+# --- 5. spellbook: drag an ability to the bar; point at it for its tooltip --
+click left at tab.Spellbook
+expect tab spellbook
+drag at spell.fireball to bar.4
+expect bar 4 fireball
+expect bar 0 empty
+hover at bar.4
+expect mark tooltip.ability
+shot 5-tooltip
+
+# --- 6. a tip: click it away -------------------------------------------------
+expect mark tip
+click left at tip
+expect not mark tip
+
+# --- 7. a window: drag it by its header --------------------------------------
+remember window.screens
+drag at header.screens by 180 70
+expect moved window.screens
+
+# --- 8. with the window open and a tip on screen, the world still takes clicks
+key Escape
+say /summon grazer
+wait 1.5
+look-at npc brannoc
+click left npc brannoc
+expect target npc
+key P
+expect tab spellbook
+expect mark tip
+look-at creature grazer
+click left creature grazer
+expect target creature
+click right creature grazer
+expect attacking
+shot 8-world-click

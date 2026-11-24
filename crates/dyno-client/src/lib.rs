@@ -28,6 +28,7 @@ pub mod options;
 pub mod pack;
 pub mod particles;
 pub mod post;
+pub mod probe;
 pub mod render;
 pub mod rpg_ui;
 pub mod scout;

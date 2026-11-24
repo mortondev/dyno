@@ -34,7 +34,9 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 
+mod drive;
 mod hud;
+pub use drive::{DriveOptions, drive};
 
 const ACCENT: Color32 = Color32::from_rgb(240, 138, 60);
 
@@ -87,6 +89,8 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         autojoined: false,
         cursor: (0.0, 0.0),
         last_shot: Instant::now(),
+        drive_events: Vec::new(),
+        started: Instant::now(),
     };
     for i in 0..app.front.realms.len() {
         let token = app.settings.token;
@@ -1248,6 +1252,10 @@ struct App {
     stage_loaded: bool,
     /// the character being joined is brand new (play the intro)
     joining_new: bool,
+    /// input for egui when there is no window (`dyno drive`): what
+    /// egui-winit would have gathered since the last frame
+    drive_events: Vec<egui::Event>,
+    started: Instant,
 }
 
 /// The small world behind the front-end screens.
@@ -1680,14 +1688,236 @@ fn new_play(j: Joined) -> Play {
     }
 }
 
+/// Something the player did with the mouse or the keyboard. The window's
+/// events become these, and so do the lines of a `dyno drive` script: both
+/// go through [`App::input`], so a script exercises what a player's hands do.
+#[derive(Clone, Copy, Debug)]
+enum Hand {
+    /// the cursor, in physical pixels
+    Cursor(f64, f64),
+    Mouse(MouseButton, bool),
+    /// key, pressed, a repeat
+    Key(KeyCode, bool, bool),
+    /// lines scrolled
+    Wheel(f32),
+    /// raw mouse movement (while the cursor is locked for steering)
+    Motion(f64, f64),
+}
+
+/// The egui key of a key the interface listens to itself.
+fn egui_key(code: KeyCode) -> Option<egui::Key> {
+    Some(match code {
+        KeyCode::Escape => egui::Key::Escape,
+        KeyCode::Enter => egui::Key::Enter,
+        KeyCode::Tab => egui::Key::Tab,
+        KeyCode::KeyL => egui::Key::L,
+        KeyCode::KeyM => egui::Key::M,
+        _ => return None,
+    })
+}
+
 impl App {
+    /// Handle one input. With a window, egui has already seen the event
+    /// (egui-winit); without one, it is queued for egui's next frame here,
+    /// by the same rule: not while the cursor is locked for steering.
+    fn input(&mut self, e: Hand) {
+        let captured = matches!(&self.screen, Screen::Playing(p) if p.captured);
+        if self.egui_state.is_none() && !captured {
+            let zoom = self.egui_ctx.zoom_factor();
+            let at = |c: (f64, f64)| Pos2::new(c.0 as f32 / zoom, c.1 as f32 / zoom);
+            match e {
+                Hand::Cursor(x, y) => self
+                    .drive_events
+                    .push(egui::Event::PointerMoved(at((x, y)))),
+                Hand::Mouse(button, pressed) => {
+                    let button = match button {
+                        MouseButton::Left => Some(egui::PointerButton::Primary),
+                        MouseButton::Right => Some(egui::PointerButton::Secondary),
+                        MouseButton::Middle => Some(egui::PointerButton::Middle),
+                        _ => None,
+                    };
+                    if let Some(button) = button {
+                        self.drive_events.push(egui::Event::PointerButton {
+                            pos: at(self.cursor),
+                            button,
+                            pressed,
+                            modifiers: egui::Modifiers::NONE,
+                        });
+                    }
+                }
+                Hand::Key(code, pressed, repeat) => {
+                    if let Some(key) = egui_key(code) {
+                        self.drive_events.push(egui::Event::Key {
+                            key,
+                            physical_key: None,
+                            pressed,
+                            repeat,
+                            modifiers: egui::Modifiers::NONE,
+                        });
+                    }
+                }
+                Hand::Wheel(_) | Hand::Motion(..) => {}
+            }
+        }
+        match e {
+            Hand::Cursor(x, y) => self.cursor = (x, y),
+            Hand::Key(code, pressed, repeat) => {
+                if code == KeyCode::Tab
+                    && let Screen::Playing(p) = &mut self.screen
+                {
+                    if pressed {
+                        p.keys.insert(code);
+                    } else {
+                        p.keys.remove(&code);
+                    }
+                }
+                let wow_free = matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.chat_open && !p.menu_open)
+                    && !self.egui_ctx.wants_keyboard_input();
+                if captured || wow_free {
+                    self.key(code, pressed, repeat);
+                }
+            }
+            Hand::Mouse(button, pressed) => self.mouse_button(button, pressed, captured),
+            Hand::Wheel(d) => {
+                let free = matches!(&self.screen, Screen::Playing(p) if p.wow())
+                    && !self.egui_ctx.is_pointer_over_area();
+                if (captured || free)
+                    && let Screen::Playing(p) = &mut self.screen
+                {
+                    let n = 9;
+                    if p.content.world.protected && !p.creative() {
+                        // RPG: the wheel zooms the camera
+                        p.zoom = (p.zoom - d * 1.2).clamp(0.0, 12.0);
+                        if p.zoom < 1.2 && d > 0.0 {
+                            p.zoom = 0.0;
+                        }
+                    } else if d.abs() > 0.1 {
+                        p.slot = ((p.slot as i32 - d.signum() as i32).rem_euclid(n)) as usize;
+                    }
+                }
+            }
+            Hand::Motion(dx, dy) => {
+                if let Screen::Playing(p) = &mut self.screen
+                    && p.captured
+                    && !p.menu_open
+                    && !p.chat_open
+                {
+                    let s = 0.0025 * self.settings.mouse_sensitivity;
+                    if p.wow() {
+                        p.drag += (dx.abs() + dy.abs()) as f32;
+                        if p.rmb {
+                            p.player.yaw -= dx as f32 * s;
+                        } else {
+                            p.cam_orbit -= dx as f32 * s;
+                        }
+                        p.player.pitch = (p.player.pitch - dy as f32 * s).clamp(-1.4, 1.4);
+                        return;
+                    }
+                    p.player.yaw -= dx as f32 * s;
+                    p.player.pitch = (p.player.pitch - dy as f32 * s).clamp(-1.55, 1.55);
+                }
+            }
+        }
+    }
+
+    /// A mouse button went down or up (`captured`: the cursor was locked
+    /// when it did).
+    fn mouse_button(&mut self, button: MouseButton, pressed: bool, captured: bool) {
+        let rpg = matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.menu_open && !p.chat_open && !p.class_pick && p.dead.is_none());
+        if rpg && matches!(button, MouseButton::Left | MouseButton::Right) {
+            let over_ui =
+                self.egui_ctx.is_pointer_over_area() || self.egui_ctx.wants_pointer_input();
+            let Screen::Playing(p) = &mut self.screen else {
+                return;
+            };
+            let held = p.lmb || p.rmb;
+            if pressed {
+                if over_ui && !held {
+                    return; // the interface has it
+                }
+                if !held {
+                    p.drag = 0.0;
+                }
+                if button == MouseButton::Right {
+                    p.rmb = true;
+                    // the character turns to where the camera looks
+                    p.player.yaw += p.cam_orbit;
+                    p.cam_orbit = 0.0;
+                } else {
+                    p.lmb = true;
+                }
+                if !held {
+                    self.set_mouselook(true);
+                }
+            } else {
+                if !held {
+                    return;
+                }
+                if button == MouseButton::Right {
+                    p.rmb = false;
+                } else {
+                    p.lmb = false;
+                }
+                let click = p.drag < 6.0;
+                if !(p.lmb || p.rmb) {
+                    self.set_mouselook(false);
+                    if click {
+                        self.world_click(button);
+                    }
+                }
+            }
+            return;
+        }
+        if !pressed {
+            if button == MouseButton::Left
+                && let Screen::Playing(p) = &mut self.screen
+            {
+                p.mouse_left = false;
+            }
+            return;
+        }
+        if button == MouseButton::Left
+            && captured
+            && let Screen::Playing(p) = &mut self.screen
+        {
+            p.mouse_left = true;
+        }
+        let (playing_free, menu_or_chat) = match &self.screen {
+            Screen::Playing(p) => (
+                !p.captured,
+                p.menu_open
+                    || p.chat_open
+                    || p.picker_open
+                    || p.panel.is_some()
+                    || p.class_pick
+                    || p.screen_tab.is_some(),
+            ),
+            _ => (false, true),
+        };
+        if playing_free && !menu_or_chat && button == MouseButton::Left {
+            self.set_capture(true);
+        } else if captured {
+            self.click(button);
+        }
+    }
+
     fn window(&self) -> Option<&Arc<Window>> {
         self.gfx.as_ref().and_then(|g| g.window.as_ref())
     }
 
     fn set_capture(&mut self, on: bool) {
-        let Some(win) = self.window().cloned() else {
-            return;
+        // (a scripted client has no window: the state changes all the same)
+        let win = self.window().cloned();
+        let grab = |on: bool| {
+            let Some(win) = &win else { return };
+            if on {
+                let _ = win
+                    .set_cursor_grab(CursorGrabMode::Locked)
+                    .or_else(|_| win.set_cursor_grab(CursorGrabMode::Confined));
+            } else {
+                let _ = win.set_cursor_grab(CursorGrabMode::None);
+            }
+            win.set_cursor_visible(!on);
         };
         if let Screen::Playing(p) = &mut self.screen {
             // WoW mode: the cursor stays free; mouselook is held with a button
@@ -1696,21 +1926,13 @@ impl App {
                 return;
             }
             if p.wow() && !on {
-                let _ = win.set_cursor_grab(CursorGrabMode::None);
-                win.set_cursor_visible(true);
+                grab(false);
                 p.captured = false;
                 return;
             }
-            if on {
-                let ok = win
-                    .set_cursor_grab(CursorGrabMode::Locked)
-                    .or_else(|_| win.set_cursor_grab(CursorGrabMode::Confined));
-                win.set_cursor_visible(false);
-                p.captured = ok.is_ok() || true;
-            } else {
-                let _ = win.set_cursor_grab(CursorGrabMode::None);
-                win.set_cursor_visible(true);
-                p.captured = false;
+            grab(on);
+            p.captured = on;
+            if !on {
                 p.keys.clear();
             }
         }
@@ -1718,21 +1940,18 @@ impl App {
 
     /// Hold a mouse button to steer: hide and lock the cursor while it is held.
     fn set_mouselook(&mut self, on: bool) {
-        let Some(win) = self.window().cloned() else {
-            return;
-        };
-        if let Screen::Playing(p) = &mut self.screen {
+        if let Some(win) = self.window().cloned() {
             if on {
                 let _ = win
                     .set_cursor_grab(CursorGrabMode::Locked)
                     .or_else(|_| win.set_cursor_grab(CursorGrabMode::Confined));
-                win.set_cursor_visible(false);
-                p.captured = true;
             } else {
                 let _ = win.set_cursor_grab(CursorGrabMode::None);
-                win.set_cursor_visible(true);
-                p.captured = false;
             }
+            win.set_cursor_visible(!on);
+        }
+        if let Screen::Playing(p) = &mut self.screen {
+            p.captured = on;
         }
     }
 
@@ -2176,9 +2395,7 @@ impl App {
                             mode,
                             fuel,
                         } => {
-                            let was = p.health;
                             p.health = health;
-                            hud::health_changed(p, was, health);
                             p.food = food;
                             p.fuel = fuel;
                             if mode != p.mode {
@@ -2329,18 +2546,7 @@ impl App {
                                 }
                             }
                         }
-                        ServerMsg::Healed { amount } => {
-                            if amount >= 0.5 {
-                                let green = Color32::from_rgb(110, 235, 120);
-                                p.floaters
-                                    .push((Instant::now(), format!("+{amount:.0}"), green));
-                                p.combat_log.push((
-                                    Instant::now(),
-                                    format!("You are healed for {amount:.0}."),
-                                    green,
-                                ));
-                            }
-                        }
+                        ServerMsg::Healed { amount } => hud::healed(p, amount),
                         ServerMsg::Equipment(e) => {
                             p.equip = e;
                             hud::carried_changed(p);
@@ -3457,15 +3663,26 @@ impl App {
         }
 
         // UI
-        let Some(state) = self.egui_state.as_mut() else {
-            return;
-        };
-        let Some(window) = gfx.window.clone() else {
-            return;
-        };
         // the interface keeps its share of the window, whatever its size
         crate::options::apply_zoom(&self.egui_ctx, gfx.config.height as f32);
-        let raw = state.take_egui_input(&window);
+        let window = gfx.window.clone();
+        let raw = match (self.egui_state.as_mut(), &window) {
+            (Some(state), Some(window)) => state.take_egui_input(window),
+            // no window (`dyno drive`): the events the script sent
+            (None, None) => {
+                let zoom = self.egui_ctx.zoom_factor();
+                egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(
+                        Pos2::ZERO,
+                        Vec2::new(wdt / zoom, hgt / zoom),
+                    )),
+                    time: Some(self.started.elapsed().as_secs_f64()),
+                    events: std::mem::take(&mut self.drive_events),
+                    ..Default::default()
+                }
+            }
+            _ => return,
+        };
         let ctx = self.egui_ctx.clone();
         // the pack's fonts, once they arrive
         crate::theme::refresh_fonts(&ctx);
@@ -3483,7 +3700,9 @@ impl App {
                 &mut actions,
             );
         });
-        state.handle_platform_output(&window, out.platform_output.clone());
+        if let (Some(state), Some(window)) = (self.egui_state.as_mut(), &window) {
+            state.handle_platform_output(window, out.platform_output.clone());
+        }
         gfx.frame(view, &sky_now, &boxes, &lines, &ctx, out);
         for a in actions {
             self.act(a);
@@ -5403,160 +5622,32 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => self.frame(),
             WindowEvent::CursorMoved { position, .. } => {
-                self.cursor = (position.x, position.y);
+                self.input(Hand::Cursor(position.x, position.y));
             }
             WindowEvent::Focused(false) => self.set_capture(false),
             WindowEvent::KeyboardInput { event, .. } => {
                 if let PhysicalKey::Code(code) = event.physical_key {
                     let pressed = event.state == ElementState::Pressed;
-                    if code == KeyCode::Tab
-                        && let Screen::Playing(p) = &mut self.screen
-                    {
-                        if pressed {
-                            p.keys.insert(code);
-                        } else {
-                            p.keys.remove(&code);
-                        }
-                    }
-                    let wow_free = matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.chat_open && !p.menu_open)
-                        && !self.egui_ctx.wants_keyboard_input();
-                    if captured || wow_free {
-                        self.key(code, pressed, event.repeat);
-                    }
+                    self.input(Hand::Key(code, pressed, event.repeat));
                 }
             }
-            WindowEvent::MouseInput {
-                state,
-                button: button @ (MouseButton::Left | MouseButton::Right),
-                ..
-            } if matches!(&self.screen, Screen::Playing(p) if p.wow() && !p.menu_open && !p.chat_open && !p.class_pick && p.dead.is_none()) =>
-            {
-                let over_ui =
-                    self.egui_ctx.is_pointer_over_area() || self.egui_ctx.wants_pointer_input();
-                let Screen::Playing(p) = &mut self.screen else {
-                    return;
+            WindowEvent::MouseInput { state, button, .. } => {
+                self.input(Hand::Mouse(button, state == ElementState::Pressed));
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                let d = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => y,
+                    MouseScrollDelta::PixelDelta(p) => (p.y / 40.0) as f32,
                 };
-                let held = p.lmb || p.rmb;
-                if state == ElementState::Pressed {
-                    if over_ui && !held {
-                        return; // the interface has it
-                    }
-                    if !held {
-                        p.drag = 0.0;
-                    }
-                    if button == MouseButton::Right {
-                        p.rmb = true;
-                        // the character turns to where the camera looks
-                        p.player.yaw += p.cam_orbit;
-                        p.cam_orbit = 0.0;
-                    } else {
-                        p.lmb = true;
-                    }
-                    if !held {
-                        self.set_mouselook(true);
-                    }
-                } else {
-                    if !held {
-                        return;
-                    }
-                    if button == MouseButton::Right {
-                        p.rmb = false;
-                    } else {
-                        p.lmb = false;
-                    }
-                    let click = p.drag < 6.0;
-                    if !(p.lmb || p.rmb) {
-                        self.set_mouselook(false);
-                        if click {
-                            self.world_click(button);
-                        }
-                    }
-                }
-            }
-            WindowEvent::MouseInput {
-                state: ElementState::Released,
-                button: MouseButton::Left,
-                ..
-            } => {
-                if let Screen::Playing(p) = &mut self.screen {
-                    p.mouse_left = false;
-                }
-            }
-            WindowEvent::MouseInput {
-                state: ElementState::Pressed,
-                button,
-                ..
-            } => {
-                if button == MouseButton::Left
-                    && captured
-                    && let Screen::Playing(p) = &mut self.screen
-                {
-                    p.mouse_left = true;
-                }
-                let (playing_free, menu_or_chat) = match &self.screen {
-                    Screen::Playing(p) => (
-                        !p.captured,
-                        p.menu_open
-                            || p.chat_open
-                            || p.picker_open
-                            || p.panel.is_some()
-                            || p.class_pick
-                            || p.screen_tab.is_some(),
-                    ),
-                    _ => (false, true),
-                };
-                if playing_free && !menu_or_chat && button == MouseButton::Left {
-                    self.set_capture(true);
-                } else if captured {
-                    self.click(button);
-                }
-            }
-            WindowEvent::MouseWheel { delta, .. }
-                if captured
-                    || (matches!(&self.screen, Screen::Playing(p) if p.wow())
-                        && !self.egui_ctx.is_pointer_over_area()) =>
-            {
-                if let Screen::Playing(p) = &mut self.screen {
-                    let d = match delta {
-                        MouseScrollDelta::LineDelta(_, y) => y,
-                        MouseScrollDelta::PixelDelta(p) => (p.y / 40.0) as f32,
-                    };
-                    let n = 9;
-                    if p.content.world.protected && !p.creative() {
-                        // RPG: the wheel zooms the camera
-                        p.zoom = (p.zoom - d * 1.2).clamp(0.0, 12.0);
-                        if p.zoom < 1.2 && d > 0.0 {
-                            p.zoom = 0.0;
-                        }
-                    } else if d.abs() > 0.1 {
-                        p.slot = ((p.slot as i32 - d.signum() as i32).rem_euclid(n)) as usize;
-                    }
-                }
+                self.input(Hand::Wheel(d));
             }
             _ => {}
         }
     }
 
     fn device_event(&mut self, _el: &ActiveEventLoop, _id: DeviceId, event: DeviceEvent) {
-        if let DeviceEvent::MouseMotion { delta } = event
-            && let Screen::Playing(p) = &mut self.screen
-            && p.captured
-            && !p.menu_open
-            && !p.chat_open
-        {
-            let s = 0.0025 * self.settings.mouse_sensitivity;
-            if p.wow() {
-                p.drag += (delta.0.abs() + delta.1.abs()) as f32;
-                if p.rmb {
-                    p.player.yaw -= delta.0 as f32 * s;
-                } else {
-                    p.cam_orbit -= delta.0 as f32 * s;
-                }
-                p.player.pitch = (p.player.pitch - delta.1 as f32 * s).clamp(-1.4, 1.4);
-                return;
-            }
-            p.player.yaw -= delta.0 as f32 * s;
-            p.player.pitch = (p.player.pitch - delta.1 as f32 * s).clamp(-1.55, 1.55);
+        if let DeviceEvent::MouseMotion { delta } = event {
+            self.input(Hand::Motion(delta.0, delta.1));
         }
     }
 

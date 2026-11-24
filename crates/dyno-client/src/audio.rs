@@ -165,6 +165,17 @@ impl Audio {
         }
     }
 
+    /// No sound at all (a scripted client).
+    pub fn silent() -> Self {
+        Audio {
+            sink: None,
+            bank: HashMap::new(),
+            named: HashMap::new(),
+            rng: 1,
+            volume: 0.0,
+        }
+    }
+
     /// The variants of a sound, loading them from the pack the first time.
     /// Empty while the files have not arrived.
     fn variants(&mut self, sfx: Sfx) -> &[Clip] {

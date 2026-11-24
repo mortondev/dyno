@@ -52,6 +52,8 @@ pub struct HudState {
     pub bar_ready: bool,
     /// the quest log has arrived once (what it held then is not news)
     quests_known: bool,
+    /// the world map (M) is open
+    pub map_open: bool,
     /// tooltips held open for a screenshot: an item, an ability
     pinned: (Option<Stack>, Option<u16>),
 }
@@ -73,6 +75,7 @@ impl HudState {
             fired: HashSet::new(),
             bar_ready: false,
             quests_known: false,
+            map_open: false,
             pinned: (None, None),
         }
     }
@@ -343,17 +346,43 @@ fn count_loot(p: &mut Play) {
     p.ui.totals = Some(now);
 }
 
-/// My health went from `old` to `new`: a heal shows as green text.
-pub fn health_changed(p: &mut Play, old: f32, new: f32) {
-    let gain = new - old;
-    if p.dead.is_none() && old > 0.0 && gain >= 3.0 && gain >= p.max_health * 0.04 {
-        p.combat_text
-            .push((Instant::now(), None, format!("+{gain:.0}"), theme::GOOD));
-        p.combat_log.push((
-            Instant::now(),
-            tf("hud.log_heal", &[("n", &format!("{gain:.0}"))]),
-            theme::GOOD,
-        ));
+/// I was healed (the server says by how much): one green number over my
+/// head, one line in the combat log.
+pub fn healed(p: &mut Play, amount: f32) {
+    if amount < 0.5 {
+        return;
+    }
+    p.combat_text
+        .push((Instant::now(), None, format!("+{amount:.0}"), theme::GOOD));
+    p.combat_log.push((
+        Instant::now(),
+        tf("hud.log_heal", &[("n", &format!("{amount:.0}"))]),
+        theme::GOOD,
+    ));
+}
+
+/// The picture of what a bar slot holds (`id`: an ability, Recall or Eat).
+fn action_icon(painter: &egui::Painter, r: Rect, p: &Play, id: Option<u16>) {
+    match id {
+        Some(dyno_protocol::RECALL) => {
+            survival::item_icon(painter, r, &p.content, dyno_world::HEARTH as ItemId)
+        }
+        Some(BAR_EAT) => {
+            let pack = dyno_sim::inventory::Inventory {
+                slots: p.pack.clone(),
+            };
+            if let Some(food) =
+                dyno_sim::inventory::best_food(&pack, &p.content).and_then(|s| p.pack[s])
+            {
+                survival::item_icon(painter, r, &p.content, food.item);
+            }
+        }
+        Some(a) => {
+            if let Some(a) = p.content.ability(a) {
+                survival::ability_icon(painter, r, &p.content, a);
+            }
+        }
+        None => {}
     }
 }
 
@@ -541,9 +570,7 @@ pub fn frames(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, map: R
             Vec2::splat(36.0),
         );
         theme::slot_well(painter, r);
-        if let Some(item) = p.content.item_by_key(&ab.icon) {
-            survival::item_icon(painter, r.shrink(4.0), &p.content, item);
-        }
+        survival::ability_icon(painter, r.shrink(4.0), &p.content, ab);
         theme::slot_rim(painter, r, false);
         let left = until.saturating_duration_since(now).as_secs_f32();
         let txt = if left >= 60.0 {
@@ -573,7 +600,8 @@ pub fn frames(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, map: R
 /// What a bar slot holds, to draw: icon item, tint, cooldown left (0..1),
 /// usable, and whether it is the cast in progress.
 struct SlotLook {
-    icon: Option<ItemId>,
+    /// nothing is on the key
+    empty: bool,
     tint: Option<Color32>,
     cooldown: f32,
     /// seconds of its own cooldown left (shown as a number when long)
@@ -612,7 +640,7 @@ fn slot_look(p: &Play, i: usize) -> SlotLook {
                     .map(|t| (1.0 - t.elapsed().as_secs_f32() / 12.0).max(0.0))
                     .unwrap_or(0.0);
             SlotLook {
-                icon: p.content.item_by_key(&a.icon),
+                empty: false,
                 tint: Some(rgb([
                     a.color[0] * 0.47,
                     a.color[1] * 0.47,
@@ -628,7 +656,7 @@ fn slot_look(p: &Play, i: usize) -> SlotLook {
         ActionSlot::Recall => {
             let (cd, secs) = own(dyno_protocol::RECALL);
             SlotLook {
-                icon: Some(dyno_world::HEARTH as ItemId),
+                empty: false,
                 tint: Some(Color32::from_rgb(63, 35, 14)),
                 cooldown: cd,
                 seconds: secs,
@@ -645,7 +673,7 @@ fn slot_look(p: &Play, i: usize) -> SlotLook {
                 .and_then(|s| p.pack[s])
                 .map(|s| s.item);
             SlotLook {
-                icon: food,
+                empty: false,
                 tint: None,
                 cooldown: 0.0,
                 seconds: 0.0,
@@ -655,7 +683,7 @@ fn slot_look(p: &Play, i: usize) -> SlotLook {
             }
         }
         ActionSlot::Empty => SlotLook {
-            icon: None,
+            empty: true,
             tint: None,
             cooldown: 0.0,
             seconds: 0.0,
@@ -717,11 +745,12 @@ pub fn action_bar(
         let lifted = dragging == Some(screens::BarDrag::Slot(i));
         if !lifted {
             // an ability draws its own picture (from the pack); the rest their item
-            if let ActionSlot::Ability(a) = action_at(p, i) {
-                survival::ability_icon(painter, r.shrink(5.0), &p.content, a);
-            } else if let Some(item) = look.icon {
-                survival::item_icon(painter, r.shrink(5.0), &p.content, item);
-            }
+            let held = if look.empty {
+                None
+            } else {
+                p.bar.get(i).copied().flatten()
+            };
+            action_icon(painter, r.shrink(5.0), p, held);
         }
         theme::action_slot(
             painter,
@@ -729,7 +758,7 @@ pub fn action_bar(
             key,
             look.cooldown,
             look.active,
-            look.usable || look.icon.is_none(),
+            look.usable || look.empty,
         );
         if look.seconds >= 1.5 {
             theme::shadow_text(
@@ -772,6 +801,7 @@ pub fn action_bar(
                     egui::Id::new(("action-slot", i)),
                     egui::Sense::click_and_drag(),
                 );
+                crate::probe::mark(format!("bar.{i}"), r);
                 let slot = action_at(p, i);
                 let empty = matches!(slot, ActionSlot::Empty);
                 if !empty {
@@ -822,23 +852,14 @@ pub fn action_bar(
             screens::BarDrag::Slot(i) => p.bar.get(i).copied().flatten(),
             screens::BarDrag::Ability(a) => Some(a),
         };
-        let icon = match id {
-            Some(dyno_protocol::RECALL) => Some(dyno_world::HEARTH as ItemId),
-            Some(BAR_EAT) => slot_look(p, p.bar.iter().position(|s| *s == id).unwrap_or(11)).icon,
-            Some(a) => p
-                .content
-                .ability(a)
-                .and_then(|a| p.content.item_by_key(&a.icon)),
-            None => None,
-        };
-        if let Some(item) = icon {
+        if id.is_some() {
             let top = ctx.layer_painter(egui::LayerId::new(
                 egui::Order::Tooltip,
                 egui::Id::new("bar-drag"),
             ));
             let r = Rect::from_center_size(at, Vec2::splat(SLOT - 6.0));
             top.rect_filled(r, 4.0, Color32::from_black_alpha(150));
-            survival::item_icon(&top, r.shrink(3.0), &p.content, item);
+            action_icon(&top, r.shrink(3.0), p, id);
             top.rect_stroke(
                 r,
                 4.0,
@@ -1076,9 +1097,7 @@ pub fn moments(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, bar: 
             let icon = Rect::from_min_size(Pos2::new(left, row), Vec2::splat(44.0));
             if fade > 0.5 {
                 theme::slot_well(painter, icon);
-                if let Some(item) = p.content.item_by_key(&ab.icon) {
-                    survival::item_icon(painter, icon.shrink(5.0), &p.content, item);
-                }
+                survival::ability_icon(painter, icon.shrink(5.0), &p.content, ab);
                 theme::slot_rim(painter, icon, true);
             }
             theme::shadow_text(
