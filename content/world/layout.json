@@ -1479,19 +1479,19 @@
    "at": [550, -150],
    "radius": 20,
    "pad": {
-    "radius": [7, 6],
-    "blend": 12,
-    "surface": {"dirt": 2, "clay": 2, "grass": 1}
+    "radius": [11, 10],
+    "blend": 14,
+    "surface": {"dirt": 4, "clay": 1, "grass": 1}
    },
    "stamps": [
-    {"stamp": "emberford_clear_14", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "emberford_clear_20", "at": [0, 0], "fit": "float", "dy": 40},
     {"stamp": "emberford_wallow", "at": [2, 1]},
-    {"stamp": "emberford_rooted", "at": [10, 6], "fit": "ground"},
-    {"stamp": "emberford_rooted", "at": [-9, -3], "fit": "ground"},
-    {"stamp": "stumps", "at": [-11, 8], "fit": "ground"},
-    {"stamp": "fallen_log", "at": [10, -9], "fit": "ground"},
-    {"stamp": "emberford_bones", "at": [-5, -9], "fit": "ground"},
-    {"stamp": "boulders", "at": [-12, -11], "fit": "ground"}
+    {"stamp": "emberford_rooted", "at": [8, 5]},
+    {"stamp": "emberford_rooted", "at": [-7, -3]},
+    {"stamp": "stumps", "at": [-5, 4]},
+    {"stamp": "fallen_log", "at": [5, -8]},
+    {"stamp": "emberford_bones", "at": [-4, -7]},
+    {"stamp": "boulders", "at": [-13, -11], "fit": "ground"}
    ]
   },
   {
