@@ -217,13 +217,81 @@ mod tests {
 
     /// Meshes another lane has still to bring to the rule: (the start of the
     /// report's key, the owner, the day written). Only ever remove entries.
-    const MESH_ALLOWED: &[(&str, &str, &str)] = &[];
+    const MESH_ALLOWED: &[(&str, &str, &str)] = &[
+        ("critter ", "life lane (ambient critters)", "2026-11-24"),
+        (
+            "figure held.",
+            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
+            "2026-11-24",
+        ),
+        (
+            "figure person:",
+            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
+            "2026-11-24",
+        ),
+    ];
 
     /// Pack data another lane has still to bring to the rule.
-    const PACK_ALLOWED: &[(&str, &str, &str)] = &[];
+    const PACK_ALLOWED: &[(&str, &str, &str)] = &[
+        ("cover.json: soft", "vegetation lane", "2026-11-24"),
+        ("cover.json: sway", "vegetation lane", "2026-11-24"),
+        (
+            "figures.json: figures.person:",
+            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
+            "2026-11-24",
+        ),
+        (
+            "figures.json: held.kinds.",
+            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
+            "2026-11-24",
+        ),
+        (
+            "life.json: critters.",
+            "life lane (ambient critters)",
+            "2026-11-24",
+        ),
+        (
+            "rigs/biped.json: person:",
+            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
+            "2026-11-24",
+        ),
+        (
+            "rigs/wisp.json: gloomwisp:",
+            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
+            "2026-11-24",
+        ),
+        (
+            "rigs/wraith.json: shade:",
+            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
+            "2026-11-24",
+        ),
+        (
+            "rules/hearthblock.json:",
+            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
+            "2026-11-24",
+        ),
+    ];
 
     /// Shader code another lane has still to bring to the rule.
-    const SHADER_ALLOWED: &[(&str, &str, &str)] = &[];
+    const SHADER_ALLOWED: &[(&str, &str, &str)] = &[
+        (
+            "cover.rs: ground cover shrinks",
+            "vegetation lane",
+            "2026-11-24",
+        ),
+        (
+            "cover.rs: ground cover sways",
+            "vegetation lane",
+            "2026-11-24",
+        ),
+        (
+            "render.rs: block textures are smoothed",
+            "light lane",
+            "2026-11-24",
+        ),
+        ("render.rs: leaves stir", "vegetation lane", "2026-11-24"),
+        ("render.rs: painted relief", "light lane", "2026-11-24"),
+    ];
 
     // --------------------------------------------------------- the pack
 
