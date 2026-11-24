@@ -67,7 +67,7 @@ def strata(x, y, z, salt=0):
     if y <= 0:
         return pick(x, y, z, ["stone", "stone", "stone", "cobble", "stone"], salt)
     if y % 5 == 2:
-        return "cobble" if rnd(x // 2, y, z // 2, salt) % 5 else "stone"
+        return "stone" if rnd(x // 2, y, z // 2, salt) % 4 else "cobble"
     if y % 7 == 4:
         return "clay"
     return "stone"
