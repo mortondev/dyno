@@ -1010,8 +1010,7 @@
    },
    "trees": [
     {"species": "oak", "at": [14, 8]},
-    {"species": "willow", "at": [-13, -10]},
-    {"species": "willow", "at": [15, -12]}
+    {"species": "willow", "at": [-13, -10]}
    ]
   },
   {
@@ -1054,9 +1053,6 @@
    "level": "water",
    "stamps": [
     {"stamp": "emberford_watermill", "at": [7, 0], "fit": "pad"}
-   ],
-   "trees": [
-    {"species": "young_oak", "at": [-3, 9]}
    ]
   },
   {
@@ -1066,12 +1062,11 @@
    "name": "Willow Bend",
    "radius": 14,
    "stamps": [
-    {"stamp": "boulders", "at": [5, 3], "fit": "ground"},
+    {"stamp": "cairn", "at": [6, 3], "fit": "ground"},
     {"stamp": "fallen_log", "at": [-1, -7], "fit": "ground"}
    ],
    "trees": [
-    {"species": "willow", "at": [11, -5]},
-    {"species": "willow", "at": [8, 10]}
+    {"species": "willow", "at": [11, -5]}
    ]
   },
   {
@@ -1094,12 +1089,10 @@
    "name": "The Reed Shallows",
    "radius": 16,
    "stamps": [
-    {"stamp": "boulders", "at": [-14, 9], "fit": "ground"},
     {"stamp": "fallen_log", "at": [19, -4], "fit": "ground"}
    ],
    "trees": [
-    {"species": "willow", "at": [-13, -3]},
-    {"species": "willow", "at": [15, 7]}
+    {"species": "willow", "at": [-13, -3]}
    ]
   },
   {
@@ -1445,12 +1438,11 @@
    "at": [420, -80],
    "radius": 20,
    "stamps": [
-    {"stamp": "emberford_clear_10", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "emberford_clear_20", "at": [0, 0], "fit": "float", "dy": 40},
     {"stamp": "emberford_scorch", "at": [0, 0], "fit": "ground"},
     {"stamp": "campfire", "at": [0, 0], "fit": "ground"},
     {"stamp": "tent_red", "at": [-8, -10], "fit": "ground"},
     {"stamp": "emberford_loot", "at": [8, -3], "fit": "ground"},
-    {"stamp": "boulders", "at": [-10, 6], "fit": "ground"},
     {"stamp": "emberford_ash_flag", "at": [3, 9], "fit": "ground"}
    ]
   },
@@ -1475,7 +1467,7 @@
     {"stamp": "emberford_scorch", "at": [1, 1], "fit": "ground"},
     {"stamp": "campfire", "at": [1, 1], "fit": "ground"},
     {"stamp": "emberford_cart_overturned", "at": [-6, -7], "rot": 1, "fit": "ground"},
-    {"stamp": "tent_red", "at": [12, -1], "rot": 1, "fit": "ground"},
+    {"stamp": "emberford_scout_tent", "at": [10, -1], "rot": 1, "fit": "ground"},
     {"stamp": "emberford_ash_flag", "at": [-10, -12], "fit": "ground"},
     {"stamp": "emberford_spill", "at": [-3, -17], "rot": 2, "fit": "ground"},
     {"stamp": "emberford_spill", "at": [-1, -27], "fit": "ground"}
@@ -1510,8 +1502,19 @@
    "radius": 12,
    "stamps": [
     {"stamp": "emberford_beacon", "at": [0, 0], "fit": "ground"},
-    {"stamp": "boulders", "at": [9, 6], "fit": "ground"},
     {"stamp": "ruin_wall", "at": [-9, 5], "rot": 1, "fit": "ground"}
+   ]
+  },
+  {
+   "key": "emberford_felling",
+   "kind": "site",
+   "at": [548, -112],
+   "name": "The Felling",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "emberford_clear_10", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "stumps", "at": [0, 0], "fit": "ground"},
+    {"stamp": "log_pile", "at": [4, 7], "fit": "ground"}
    ]
   },
   {
@@ -1525,9 +1528,6 @@
     {"stamp": "emberford_scorch", "at": [3, 5], "fit": "ground"},
     {"stamp": "fallen_log", "at": [-6, 7], "rot": 1, "fit": "ground"},
     {"stamp": "stone_wall", "at": [2, -9], "fit": "ground"}
-   ],
-   "trees": [
-    {"species": "young_oak", "at": [-9, -6]}
    ]
   },
   {
@@ -1564,10 +1564,11 @@
   {
    "key": "emberford_north_stones",
    "kind": "site",
-   "at": [540, -195],
+   "at": [565, -190],
    "name": "The Ember Stones",
    "radius": 12,
    "stamps": [
+    {"stamp": "emberford_clear_20", "at": [0, 0], "fit": "float", "dy": 40},
     {"stamp": "standing_stones", "at": [0, 0], "fit": "ground"}
    ]
   },

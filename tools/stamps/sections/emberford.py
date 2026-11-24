@@ -121,7 +121,7 @@ def emberford_bridge_arch():
         for z in range(-4, 5):
             edge = abs(z) == 4
             # the walking surface
-            top = "terracotta" if edge else pick(x, 0, z, ["cobble", "cobble", "cobble", "stone_bricks"])
+            top = "terracotta" if edge else "flagstones"
             v.set(x, r, z, top)
             # the body under it: arches open to the water, piers to the bed,
             # abutments down into the banks
@@ -169,9 +169,9 @@ def emberford_bridge_arch():
             r = _rise(x)
             v.col(x, z, r + 1, r + 3, "stone_bricks")
             v.set(x, r + 4, z, "lantern")
-    # Ashcloak raid rags tied to the inner pillars' outer faces (flat
-    # one-wide sheets: red over black)
-    for x in (-13, 13):
+    # Ashcloak raid rags tied to the west inner pillars' outer faces, seen on
+    # the approach from the toll hut (flat one-wide sheets: red over black)
+    for x in (-13,):
         for sz in (-1, 1):
             r = _rise(x)
             v.set(x, r + 3, 5 * sz, "red")
@@ -214,7 +214,7 @@ def emberford_toll_gate():
     for x in range(-7, 8):
         v.set(x, 5, 0, "timber_beam")
     for x in range(-6, 7):
-        v.set(x, 4, 0, "red" if x % 2 == 0 else "white")
+        v.set(x, 4, 0, "terracotta" if x % 2 == 0 else "plaster")
     return v
 
 
@@ -429,7 +429,9 @@ def emberford_watermill():
     v = Vol("ruin")
     v.foundation = "cobble"
     x0, x1, z0, z1 = -4, 4, -3, 3
-    v.fill((x0, -1, z0), (x1, -1, z1), "cobble")
+    for x in range(x0, x1 + 1):
+        for z in range(z0, z1 + 1):
+            v.set(x, -1, z, "cobble")
     heights = {}
     for x in range(x0, x1 + 1):
         for z in range(z0, z1 + 1):
@@ -537,3 +539,11 @@ def emberford_hunter_camp():
     v.set(4, 3, -4, "white")
     v.set(5, 0, -2, "barrel")
     return v
+
+
+@recipe
+def emberford_scout_tent():
+    """A raider's small ridge tent in Ashcloak red and black (5 m long,
+    3 m tall): the roadside ambushers travel light."""
+    import build
+    return build.ridge_tent(5, 2, ["red", "black"])
