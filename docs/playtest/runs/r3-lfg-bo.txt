@@ -1,0 +1,325 @@
+Joined 127.0.0.1:7713 as Bo. Type 'help' for commands.
+Events:
+  You are now a Priest. Your abilities are on keys 1 to 7.
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 06:00 day | at 0,7 (from hearth; north is -z)
+Bo lv1 Priest | HP 45/45 | Mana 84/84 | XP 0/400 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: cold_hearth
+    Bram <Townsman> 10m N (1,-3)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Ilsa <Townswoman> 12m NW (-10,1)
+    Poll <Gardener> 19m N (2,-12)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> say /xp 2700
+say: done (waited) in 1 s, +2700 xp, LEVEL 4
+Events:
+  LEVEL UP: you are now level 4
+  Bo reached level 4!
+== Hearthstead (safe) lv1-1 | 06:00 day | at 0,7 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 0/2100 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: cold_hearth
+    Ilsa <Townswoman> 6m NW (-5,4)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Poll <Gardener> 17m N (4,-10)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> say /finish cold_hearth
+say: done (waited) in 1 s
+Events:
+  QUEST COMPLETE: The Cold Hearth
+  Finished cold_hearth.
+== Hearthstead (safe) lv1-1 | 06:00 day | at 0,7 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 0/2100 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: kindling
+    Ilsa <Townswoman> 6m NW (-5,4)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Poll <Gardener> 19m N (4,-11)
+  ! Captain Maren <Captain of the Watch> 22m N (3,-15) offers: thin_the_herd
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> say /finish thin_the_herd
+say: done (waited) in 1 s
+Events:
+  QUEST COMPLETE: Thinning the Herd
+  Finished thin_the_herd.
+== Hearthstead (safe) lv1-1 | 06:00 day | at 0,7 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 0/2100 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: kindling
+    Ilsa <Townswoman> 6m NW (-5,4)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Poll <Gardener> 21m N (5,-13)
+  ! Captain Maren <Captain of the Watch> 22m N (3,-15) offers: north_watch
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> say /finish north_watch
+say: done (waited) in 1 s
+Events:
+  QUEST COMPLETE: The North Watch
+  Finished north_watch.
+== Hearthstead (safe) lv1-1 | 07:00 day | at 0,7 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 0/2100 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: kindling
+    Ilsa <Townswoman> 6m NW (-5,4)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> say /finish boar_trouble
+say: done (waited) in 1 s
+Events:
+  QUEST COMPLETE: Boar Trouble
+  Finished boar_trouble.
+== Hearthstead (safe) lv1-1 | 07:00 day | at 0,7 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 0/2100 | 0c | rested 0 | bags 4/36
+Quests (0/20):
+  (none: look for NPCs marked !)
+NPCs:
+    Bram <Townsman> 1m E (1,7)
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: kindling
+    Ilsa <Townswoman> 6m NW (-5,4)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> accept old_tusk
+accept at Sergeant Holt: done (talked) in 44 s, +60 xp
+Sergeant Holt <The North Watch>: "The beacon still burns, barely. Everything past this tower belongs to the boars and the dark."
+  offers [eyes_in_the_dark] Eyes in the Dark (lv3): East of this tower the wood goes dim, and after dusk the Shades stand among the trees. They pass over the green and the weak until struck: strike first, one at a time. Destroy 5 of them.
+    objectives: kill 5 Shade | reward: 260 xp, 1s 20c, choose one: 1=Shadowweave Gloves UPGRADE 2=Smith's Gloves 3=Thornhide Boots
+  offers [watchfire] Feed the Watchfire (lv3): The watchfire eats coal. There is a seam in the Beacon Rocks, a stone's throw east of the tower: bring me 3 coal and it burns through the night.
+    objectives: collect 3 Coal | reward: 100 xp, 60c
+  offers [garricks_camp] Garrick's Camp (lv3): West of here Foreman Garrick runs the logging camp. He sent for help two days ago. Take the logging trail, past the Woodcutters' Well. Go.
+    objectives: explore Woodcutters' Well, talk to Foreman Garrick | reward: 100 xp, 50c
+  offers [tusks_and_tempers] Tusks and Tempers (lv3): Garrick's lads want thornboar tusks: proof the beasts can bleed. Take him five when you go. The boars by the logging trail will give them up, and so will mine.
+    objectives: collect 5 Boar Tusk | reward: 220 xp, 90c
+  offers [lookouts_eye] A Lookout's Eye (lv3): From the hill up the road you can see the whole of Birchrise. Climb to the lookout and count the boar packs, so I know what we're up against.
+    objectives: explore Watch Hill Lookout | reward: 100 xp, 50c
+  in progress: [old_tusk]
+Events:
+  Entered Hearthmeadow
+  Discovered: Hearthmeadow (+25 XP)
+  Entered The North Watch (safe)
+  Discovered: The North Watch (+35 XP)
+  Quest accepted: Old Tusk (Group) [old_tusk]
+== The North Watch (safe) lv2-3 | 08:00 day | at 2,-247 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 60/2100 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 154m W (-150,-270)
+      Looking for group (made for 2): nobody else here carries it yet
+NPCs:
+  ! Sergeant Holt <The North Watch> 4m N (2,-251) offers: eyes_in_the_dark, watchfire, garricks_camp, tusks_and_tempers, lookouts_eye
+    Guard Edric <North Watch> 23m NW (-10,-266)
+    Wat <Shepherd> 33m NW (-13,-276)
+Creatures within 60m (1):
+  #68 Thornboar lv2 61/61 51m W hostile
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> look
+== The North Watch (safe) lv2-3 | 08:00 day | at 2,-247 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 60/2100 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 154m W (-150,-270)
+      Looking for group (made for 2): Ana lv4 0m here (say /invite NAME or /w NAME ...)
+NPCs:
+  ! Sergeant Holt <The North Watch> 4m N (2,-251) offers: eyes_in_the_dark, watchfire, garricks_camp, tusks_and_tempers, lookouts_eye
+    Guard Edric <North Watch> 21m NW (-6,-266)
+    Wat <Shepherd> 33m NW (-13,-276)
+Creatures within 60m (1):
+  #68 Thornboar lv2 61/61 55m W hostile
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> say /w Ana Shall we take on Old Tusk together?
+say: done (waited) in 1 s
+Events:
+  [To Ana] Shall we take on Old Tusk together?
+== The North Watch (safe) lv2-3 | 08:00 day | at 2,-247 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 60/2100 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 154m W (-150,-270)
+      Looking for group (made for 2): Ana lv4 0m here (say /invite NAME or /w NAME ...)
+NPCs:
+  ! Sergeant Holt <The North Watch> 4m N (2,-251) offers: eyes_in_the_dark, watchfire, garricks_camp, tusks_and_tempers, lookouts_eye
+    Guard Edric <North Watch> 21m NW (-6,-266)
+    Wat <Shepherd> 33m NW (-13,-276)
+Creatures within 60m (2):
+  #68 Thornboar lv2 61/61 52m W hostile
+  #62 Thornboar lv3 75/75 60m SW hostile
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> say /accept
+say: done (waited) in 1 s
+Events:
+  Ana invites you to a party
+  Bo joins the party.
+== The North Watch (safe) lv2-3 | 08:00 day | at 2,-247 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 60/2100 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 154m W (-150,-270)
+NPCs:
+  ! Sergeant Holt <The North Watch> 4m N (2,-251) offers: eyes_in_the_dark, watchfire, garricks_camp, tusks_and_tempers, lookouts_eye
+    Guard Edric <North Watch> 19m NW (-6,-264)
+    Wat <Shepherd> 33m NW (-13,-276)
+Creatures within 60m (3):
+  #68 Thornboar lv2 61/61 54m W hostile
+  #62 Thornboar lv3 75/75 56m SW hostile
+  #64 Thornboar lv2 61/61 57m W hostile
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> goto Old Tusk
+goto Old Tusk camp: done (arrived) in 27 s, +35 xp
+Events:
+  Entered Hearthmeadow
+  Entered Birchrise
+  Discovered: Birchrise (+35 XP)
+== Birchrise lv2-3 | 08:00 day | at -145,-267 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 95/2100 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 6m NW (-150,-270)
+Creatures within 60m (1):
+  #70 Old Tusk lv4 394/442 8m SE hostile [quest]
+Players near: Ana 9m SE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> attack Old Tusk
+fight Old Tusk #70: FAILED (dead) after 22 s (took 139 damage, 13 casts)
+Events:
+  Ana fell to a Old Tusk.
+  Your shield absorbs 17.
+  Your shield absorbs 13.
+  Not enough mana.
+  DIED: You fell to a Old Tusk.
+  Bo fell to a Old Tusk.
+  Interrupted.
+== Birchrise lv2-3 | 09:00 day | at -145,-267 (from hearth; north is -z)
+Bo lv4 Priest | HP 0/55 | Mana 10/116 | XP 95/2100 | 0c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 1m S (-145,-266)
+Creatures within 60m (1):
+  #70 Old Tusk lv4 21/442 1m S hostile [quest]
+Players near: Ana 9m SE
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> respawn
+respawn: done (alive) in 0 s
+Events:
+  You are alive again
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 09:00 day | at 0,7 (from hearth; north is -z)
+Bo lv4 Priest | HP 36/55 | Mana 115/116 | XP 95/2100 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 315m NW (-150,-270)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: kindling
+    Ilsa <Townswoman> 6m NW (-5,4)
+    Bram <Townsman> 7m N (0,0)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x6, Berries x5 | junk worth 0c
+[ready]
+> rest
+rest: done (rested) in 0 s
+== Hearthstead (safe) lv1-1 | 09:00 day | at 0,7 (from hearth; north is -z)
+Bo lv4 Priest | HP 52/55 | Mana 115/116 | XP 95/2100 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 315m NW (-150,-270)
+NPCs:
+  ! Old Brannoc <Hearthkeeper> 3m NW (-2,5) offers: kindling
+    Ilsa <Townswoman> 6m NW (-5,4)
+    Bram <Townsman> 8m N (0,-1)
+  ! Tilda <Cook> 11m W (-11,8) offers: meat_for_the_pot [vendor]
+    Poll <Gardener> 22m N (5,-14)
+    Captain Maren <Captain of the Watch> 22m N (3,-15)
+    Marta <Innkeeper> 40m SE (36,24)
+    Carter Jeb <Carter> 40m E (40,7) [vendor]
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x5, Berries x5 | junk worth 0c
+[ready]
+> goto -120,-262
+goto -120,-262: done (arrived) in 55 s, +25 xp
+Events:
+  Entered Hearthmeadow
+  Entered North Gate Rocks
+  Discovered: North Gate Rocks (+25 XP)
+  Entered Hearthmeadow
+  Entered Birchrise
+== Birchrise lv2-3 | 10:00 day | at -119,-261 (from hearth; north is -z)
+Bo lv4 Priest | HP 55/55 | Mana 116/116 | XP 120/2100 | 0c | rested 1 | bags 4/36
+Quests (1/20):
+  [old_tusk] Old Tusk (Group): Old Tusk 0/1 -> kill Old Tusk 32m W (-150,-270)
+Creatures within 60m (3):
+  #70 Old Tusk lv4 442/442 51m W hostile [quest]
+  #69 Thornboar lv2 61/61 52m SE hostile
+  #65 Thornboar lv3 75/75 55m SE hostile
+Players near: Ana 0m here
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x5, Berries x5 | junk worth 0c
+[ready]
+> attack Old Tusk
+fight Old Tusk #70: done (it died) in 16 s, +40 xp (took 21 damage, 10 casts)
+Events:
+  Your shield absorbs 17.
+  Your shield absorbs 13.
+  You feel normal again.
+  Progress: Old Tusk (Group): Old Tusk 1/1
+  Killed Old Tusk (+40 xp)
+== Birchrise lv2-3 | 11:00 day | at -121,-261 (from hearth; north is -z)
+Bo lv4 Priest | HP 34/55 | Mana 27/116 | XP 160/2100 | 0c | rested 0 | bags 4/36
+Quests (1/20):
+  [old_tusk] READY Old Tusk (Group): Old Tusk 1/1 -> turn in to Sergeant Holt 123m E (2,-251)
+Creatures within 60m (1):
+  #65 Thornboar lv3 75/75 48m SE hostile
+Lootable corpses: Old Tusk corpse #75 1m W (yours)
+Players near: Ana 3m NW
+Bags: Wooden pickaxe, Wooden axe, Hearth Bread x5, Berries x5 | junk worth 0c
+[ready]
+> quit

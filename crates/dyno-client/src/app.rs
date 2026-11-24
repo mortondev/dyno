@@ -288,6 +288,8 @@ struct Play {
     debug: debug::DebugState,
     /// my party (empty: none)
     party: Vec<dyno_protocol::PartyMember>,
+    /// looking for group: by group quest, who else carries it, and when we heard
+    seekers: HashMap<u16, (Instant, Vec<dyno_protocol::Seeker>)>,
     /// how tall each creature stands as drawn (for name plates)
     tops: std::cell::RefCell<HashMap<u32, f32>>,
     /// how blows feel: hit-stops, the camera's shake, bursts, tells (feel.rs)
@@ -1765,6 +1767,7 @@ fn new_play(j: Joined) -> Play {
         combat_log: Vec::new(),
         debug: Default::default(),
         party: Vec::new(),
+        seekers: HashMap::new(),
         invite: None,
         tops: Default::default(),
         feel: Default::default(),
@@ -2332,6 +2335,9 @@ impl App {
                             }
                         }
                         ServerMsg::Party { members } => p.party = members,
+                        ServerMsg::Seekers { quest, players } => {
+                            p.seekers.insert(quest, (Instant::now(), players));
+                        }
                         ServerMsg::Wielding { player, item } => match item {
                             Some(i) => {
                                 p.wielding.insert(player, i);
@@ -5242,6 +5248,7 @@ fn hud(
     }
     // invitations, and the trade window
     hud::prompts(ctx, p);
+    hud::looking_for_group(ctx, p);
     hud::trade(ctx, p);
     // an open corpse
     if let Some((id, money, items)) = &p.loot {

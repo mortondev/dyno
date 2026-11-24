@@ -1680,6 +1680,11 @@ pub fn map(ctx: &egui::Context, p: &mut Play) {
         .filter(|r| p.party.iter().any(|m| m.name == r.name))
         .map(|r| (r.name.clone(), Vec3::from(r.current().pos)))
         .collect();
+    let seekers = seekers(p)
+        .into_iter()
+        .flat_map(|(_, list)| list)
+        .map(|s| (s.name, Vec3::from(s.pos)))
+        .collect();
     let open = map.window(
         ctx,
         &crate::worldmap::View {
@@ -1690,6 +1695,7 @@ pub fn map(ctx: &egui::Context, p: &mut Play) {
             discovered: &p.discovered,
             zone: &p.zone,
             party,
+            seekers,
         },
     );
     p.world_map = map;
@@ -2250,6 +2256,89 @@ fn prompt(ctx: &egui::Context, id: &str, y: f32, text: &str, yes: &str, no: &str
         theme::window_trim(&ctx.layer_painter(r.response.layer_id), r.response.rect);
     }
     answer
+}
+
+/// Looking for group: the group quests we carry that our party is too small
+/// for, each with the others here who carry it (`ServerMsg::Seekers`, heard
+/// in the last few seconds).
+fn seekers(p: &Play) -> Vec<(u16, Vec<dyno_protocol::Seeker>)> {
+    let mut out: Vec<(u16, Vec<dyno_protocol::Seeker>)> = p
+        .quest_log
+        .iter()
+        .filter_map(|q| {
+            let quest = p.content.quest(q.quest)?;
+            let (at, list) = p.seekers.get(&q.quest)?;
+            (quest.group > 1
+                && p.party.len().max(1) < quest.group as usize
+                && at.elapsed() < Duration::from_secs(4))
+            .then(|| (q.quest, list.clone()))
+        })
+        .collect();
+    out.sort_by_key(|x| x.0);
+    out
+}
+
+/// The "Looking for group" box: for a group quest we carry without a big
+/// enough party, the others who carry it, each with one click to invite or
+/// to whisper. They show on the world map too.
+pub fn looking_for_group(ctx: &egui::Context, p: &mut Play) {
+    let list = seekers(p);
+    if list.is_empty() {
+        return;
+    }
+    let me = p.player.pos;
+    let mut send: Option<String> = None;
+    let resp = egui::Window::new("looking-for-group")
+        .id(egui::Id::new("looking-for-group"))
+        .title_bar(false)
+        .resizable(false)
+        .collapsible(false)
+        .anchor(Align2::RIGHT_BOTTOM, Vec2::new(-16.0, -200.0))
+        .frame(theme::window_frame())
+        .show(ctx, |ui| {
+            for (q, others) in &list {
+                let title = p.content.quest(*q).map(|x| x.title.as_str()).unwrap_or("");
+                ui.label(
+                    RichText::new(tf("social.lfg_title", &[("quest", title)]))
+                        .font(theme::bold_font(14.0))
+                        .color(theme::GOLD),
+                );
+                if others.is_empty() {
+                    ui.label(
+                        RichText::new(t("social.lfg_none"))
+                            .font(theme::body_font(13.0))
+                            .color(theme::TEXT_DIM),
+                    );
+                }
+                for s in others.iter().take(4) {
+                    let d = format!("{:.0}", Vec3::from(s.pos).distance(me));
+                    let level = s.level.to_string();
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            RichText::new(tf(
+                                "social.lfg_who",
+                                &[("name", &s.name), ("level", &level), ("dist", &d)],
+                            ))
+                            .font(theme::body_font(13.5))
+                            .color(theme::TEXT),
+                        );
+                        if button(ui, &t("social.lfg_invite"), true).clicked() {
+                            send = Some(format!("/invite {}", s.name));
+                        }
+                        if button(ui, &t("social.lfg_whisper"), false).clicked() {
+                            let hello = tf("social.lfg_hello", &[("quest", title)]);
+                            send = Some(format!("/w {} {hello}", s.name));
+                        }
+                    });
+                }
+            }
+        });
+    if let Some(r) = resp {
+        theme::window_trim(&ctx.layer_painter(r.response.layer_id), r.response.rect);
+    }
+    if let Some(text) = send {
+        let _ = p.conn.tx.send(ClientMsg::Chat { text });
+    }
 }
 
 /// Invitations: to a party, to a trade.

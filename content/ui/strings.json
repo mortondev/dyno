@@ -647,6 +647,12 @@
  },
  "social": {
   "invite": "{name} invites you to join their party.",
+  "lfg_title": "Looking for group: {quest}",
+  "lfg_none": "Nobody else here carries it yet. When someone does, they show here and on your map.",
+  "lfg_who": "{name}, level {level}, {dist} m",
+  "lfg_invite": "Invite",
+  "lfg_whisper": "Whisper",
+  "lfg_hello": "Shall we take on {quest} together?",
   "trade_ask": "{name} wants to trade with you.",
   "accept": "Accept",
   "decline": "Decline",

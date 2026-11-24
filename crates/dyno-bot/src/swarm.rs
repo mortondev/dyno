@@ -36,6 +36,8 @@ pub struct Options {
     pub party_size: usize,
     /// chat lines every bot says once it has joined (operator commands, for staged tests)
     pub setup: Vec<String>,
+    /// the local server's rules (a rules JSON or a pack directory; None: the built-in pack)
+    pub content: Option<std::path::PathBuf>,
 }
 
 impl Default for Options {
@@ -54,6 +56,7 @@ impl Default for Options {
             port: 0,
             party_size: 2,
             setup: Vec::new(),
+            content: None,
         }
     }
 }
@@ -201,6 +204,7 @@ pub fn local_server(
     players: usize,
     port: u16,
     ops: Vec<String>,
+    content: Option<std::path::PathBuf>,
 ) -> Result<(String, dyno_server::Handle), String> {
     let dir = std::env::temp_dir().join(format!("dyno-bots-{}-{}", std::process::id(), run_id()));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -209,6 +213,7 @@ pub fn local_server(
         world_path: dir.join("world.dynw"),
         ops,
         max_players: players + 8,
+        content_path: content,
         ..Default::default()
     };
     let h = dyno_server::start(cfg).map_err(|e| e.to_string())?;
@@ -245,7 +250,7 @@ pub fn run(o: Options) -> Result<report::Report, String> {
             } else {
                 names.clone()
             };
-            let (a, h) = local_server(o.count, o.port, ops)?;
+            let (a, h) = local_server(o.count, o.port, ops, o.content.clone())?;
             eprintln!("Started a local server on {a}");
             _server = Some(h);
             a

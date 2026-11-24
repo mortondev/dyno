@@ -224,6 +224,8 @@ pub struct Scripted {
     empty_camps: Vec<([i32; 2], Instant)>,
     /// when we may next try a cart ride
     next_ride: Instant,
+    /// when we may next invite someone who looks for a group
+    next_lfg: Instant,
 }
 
 /// What a party leader is doing, for its follower to copy.
@@ -284,6 +286,7 @@ impl Scripted {
             next_invite: Instant::now() + Duration::from_secs(3),
             empty_camps: Vec::new(),
             next_ride: Instant::now(),
+            next_lfg: Instant::now(),
         }
     }
 
@@ -411,6 +414,115 @@ impl Scripted {
         false
     }
 
+    /// Looking for group, as a player would use it: someone who carries the
+    /// same group quest stands near (the server says who, `Seekers`), so
+    /// invite them, or accept their invitation. Grouped for it, the one
+    /// invited follows the leader and helps until the quest is done; then
+    /// the party breaks up. Nobody waits for a partner: it only happens
+    /// when two meet. Returns true when it set the task.
+    fn lfg_tick(&mut self, a: &mut Agent) -> bool {
+        if self.party.is_some() {
+            return false; // a party brain has its partner already
+        }
+        let now = Instant::now();
+        let b = &a.body;
+        // the group quests we carry unfinished
+        let open: Vec<u16> = b
+            .quests
+            .iter()
+            .filter(|q| {
+                b.content.quest(q.quest).is_some_and(|x| x.group > 1) && !a.quest_ready(q.quest)
+            })
+            .map(|q| q.quest)
+            .collect();
+        let me = b.pos();
+        let near_seekers: Vec<String> = open
+            .iter()
+            .filter_map(|q| b.seekers.get(q))
+            .filter(|(t, _)| t.elapsed() < Duration::from_secs(3))
+            .flat_map(|(_, list)| list.iter())
+            .filter(|s| Vec3::from(s.pos).distance(me) < 60.0)
+            .map(|s| s.name.clone())
+            .collect();
+        if b.party.is_empty() {
+            if let Some(from) = a.body.invite.clone()
+                && near_seekers.iter().any(|n| n.eq_ignore_ascii_case(&from))
+            {
+                a.body.invite = None;
+                a.body.say("/accept");
+                a.tel.note(format!("looking for group: joined {from}"));
+                return false;
+            }
+            // the one first by name asks, so two do not ask each other
+            if now >= self.next_lfg
+                && let Some(who) = near_seekers
+                    .iter()
+                    .filter(|n| n.to_lowercase() > a.body.name.to_lowercase())
+                    .min()
+            {
+                self.next_lfg = now + Duration::from_secs(15);
+                a.body.say(&format!("/invite {who}"));
+                a.tel.note(format!("looking for group: invited {who}"));
+            }
+            return false;
+        }
+        // grouped: done with the group quest, or it was never ours? part
+        if open.is_empty() {
+            if now >= self.next_lfg {
+                self.next_lfg = now + Duration::from_secs(15);
+                a.body.say("/leave");
+            }
+            return false;
+        }
+        // the leader goes about it; the other keeps beside the leader
+        let leader = a.body.party.first().cloned().unwrap_or_default();
+        if leader.eq_ignore_ascii_case(&a.body.name) {
+            return false;
+        }
+        let Some(at) = a
+            .body
+            .players
+            .values()
+            .find(|(n, _)| n.eq_ignore_ascii_case(&leader))
+            .map(|(_, p)| *p)
+        else {
+            return false;
+        };
+        if matches!(
+            a.task,
+            Some(Task::Fight { .. }) | Some(Task::Loot { .. }) | Some(Task::Rest { .. })
+        ) {
+            return false;
+        }
+        // the leader's fight: a creature beside them that was just hit
+        let help = a
+            .body
+            .creatures()
+            .filter(|e| {
+                e.pos.distance(at) < 8.0
+                    && e.hurt_at
+                        .is_some_and(|t| t.elapsed() < Duration::from_secs(3))
+            })
+            .min_by(|x, y| x.pos.distance(at).total_cmp(&y.pos.distance(at)))
+            .and_then(|e| e.creature().map(|c| Task::fight(e.id, c, e.level)));
+        if let Some(t) = help {
+            a.doing = format!("helping {leader}");
+            a.set(t);
+            return true;
+        }
+        let following = matches!(&a.task, Some(Task::Goto { why, .. }) if why == "following");
+        if a.body.dist(at) > 9.0 && !following {
+            a.doing = format!("following {leader} for a group quest");
+            a.set(Task::Goto {
+                to: Target::Pos(at),
+                range: 4.0,
+                why: "following".into(),
+            });
+            return true;
+        }
+        false
+    }
+
     /// The nearest NPC we have quest business with.
     fn wanted_npc(&self, a: &Agent) -> Option<u16> {
         let me = a.body.pos();
@@ -514,6 +626,9 @@ impl Scripted {
         if self.party_tick(a) {
             return;
         }
+        if self.lfg_tick(a) {
+            return;
+        }
         // being hit: fight back (unless already fighting)
         let attacked = a
             .body
@@ -539,6 +654,7 @@ impl Scripted {
             // social: drop what you do to help a friend in a fight
             if self.kind == Personality::Social
                 && matches!(a.task, Some(Task::Goto { .. }) | Some(Task::Wait { .. }))
+                && ready_to_pull(a)
                 && let Some(t) = self.assist_target(a)
             {
                 a.set(t);
@@ -689,12 +805,6 @@ impl Scripted {
         self.purpose = Purpose::None;
         let now = Instant::now();
         let b = &a.body;
-        let hp = b.health / b.max_health.max(1.0);
-        let mana_low = b.max_power > 0.0
-            && b.class
-                .and_then(|c| b.content.class(c))
-                .is_some_and(|c| c.resource == dyno_world::content::Resource::Mana)
-            && b.power / b.max_power < 0.3;
         // 1. loot what we killed
         let corpse = b
             .my_corpses
@@ -715,12 +825,14 @@ impl Scripted {
                 sent: None,
             });
         }
-        // 2. rest when hurt or out of mana
-        // (at 60%: a level 1 with 45 health at half does not live through
-        // another Grazer, and a person eats before the next pull)
-        if (hp < 0.6 || mana_low) && !b.in_combat() {
+        // 2. rest when hurt or out of mana, before anything else is pulled:
+        // a person eats before the next pull. The combat flag outlasts a
+        // kill by a few seconds, so rest as soon as nothing is hitting us
+        // (round 2: 28 of the grinders' 35 deaths were pulls the bot chose
+        // under 60% health while that flag was up)
+        if !ready_to_pull(a) {
             a.doing = "resting".into();
-            return Some(Task::rest(0.9));
+            return Some(Task::rest(0.85));
         }
         // 3. wear upgrades
         if !a.equip_upgrades().is_empty() {
@@ -1036,6 +1148,8 @@ impl Scripted {
                     }
                 };
                 if let Some((d, t, what)) = found {
+                    // grouped for a group quest: that first, while the party is here
+                    let d = if quest.group > 1 { d * 0.25 } else { d };
                     options.push((d, t, format!("{}: {what}", quest.key), (qp.quest, i)));
                 }
             }
@@ -1059,6 +1173,15 @@ impl Scripted {
         let b = &a.body;
         let c = b.content.creature(creature)?.clone();
         let t = b.secs();
+        if needs_group(b, creature) {
+            a.tel.blocker(
+                t,
+                quest,
+                &format!("kill {}", c.name),
+                "a group quest: waiting for a party",
+            );
+            return None;
+        }
         if c.levels[0] > b.level + 3 {
             a.tel.blocker(
                 t,
@@ -1081,11 +1204,12 @@ impl Scripted {
             .content
             .areas
             .iter()
-            .flat_map(|ar| ar.camps.iter())
-            .filter(|cp| cp.creature == creature)
-            .map(|cp| {
+            .flat_map(|ar| ar.camps.iter().map(move |cp| (ar, cp)))
+            .filter(|(ar, cp)| cp.creature == creature && camp_levels(ar, cp)[0] <= b.level + 2)
+            .map(|(ar, cp)| {
                 let p = b.rel2(cp.at);
-                let cost = p.distance(me) + if dangerous(b, p) { 400.0 } else { 0.0 };
+                let high = camp_levels(ar, cp)[1] > b.level + 1;
+                let cost = p.distance(me) + if high || dangerous(b, p) { 400.0 } else { 0.0 };
                 (cp.at, p, cost)
             })
             .collect();
@@ -1204,6 +1328,7 @@ impl Scripted {
                 !theirs
                     && e.level <= b.level + 2
                     && !e.elite
+                    && e.creature().is_none_or(|c| !needs_group(b, c))
                     && !dangerous(b, e.pos)
                     && b.dist(e.pos) < 140.0
                     && !crate::body::on_canopy(&b.world, e.pos)
@@ -1466,12 +1591,13 @@ impl Scripted {
             .areas
             .iter()
             .flat_map(|ar| ar.camps.iter().map(move |cp| (ar, cp)))
-            .filter(|(_, cp)| {
-                b.content
-                    .creature(cp.creature)
-                    .is_some_and(|c| c.levels[0] <= lvl + 1 && c.levels[1] + 2 >= lvl)
+            .filter(|(ar, cp)| {
+                // by what stands there: the camp's band, not the kind's
+                let band = camp_levels(ar, cp);
+                band[0] <= lvl + 1 && band[1] + 1 >= lvl && !needs_group(b, cp.creature)
             })
             .map(|(_, cp)| b.rel2(cp.at))
+            .filter(|p| !dangerous(b, *p))
             .filter(|p| p.distance(me) > 12.0)
             .min_by(|x, y| x.distance(me).partial_cmp(&y.distance(me)).unwrap())?;
         a.doing = "going to grind".into();
@@ -1492,7 +1618,7 @@ impl Scripted {
             .content
             .areas
             .iter()
-            .filter(|ar| !seen.contains(&ar.name) && ar.levels[0] <= lvl + 2)
+            .filter(|ar| !seen.contains(&ar.name) && ar.levels[0] <= lvl + 1)
             .filter(|ar| self.purpose != Purpose::Explore(ar.key.clone()))
             .map(|ar| (ar.name.clone(), b.rel2(ar.at), ar.radius))
             .filter(|(n, ..)| !self.blocked.contains_key(&(u16::MAX, hash_str(n))))
@@ -1516,17 +1642,66 @@ impl Scripted {
 pub fn dangerous(b: &crate::body::Body, p: Vec3) -> bool {
     b.content.areas.iter().any(|ar| {
         ar.camps.iter().any(|cp| {
-            // camps spawn at the zone's levels; a named elite's own level counts
-            let lvl = match b.content.creature(cp.creature) {
-                Some(c) if cp.rare.is_none() && c.levels[0] == c.levels[1] => {
-                    c.levels[0].max(ar.levels[1])
-                }
-                _ => ar.levels[1],
-            };
+            // what stands there: the camp's band, and a group's creature
+            // counts as too strong for one
+            let lvl = camp_levels(ar, cp)[1];
             let hostile = b.content.creature(cp.creature).is_some_and(|c| c.hostile);
-            hostile && lvl > b.level + 1 && b.rel2(cp.at).distance(p) < cp.spread + 22.0
+            hostile
+                && (lvl > b.level + 1 || needs_group(b, cp.creature))
+                && b.rel2(cp.at).distance(p) < cp.spread + 22.0
         })
     })
+}
+
+/// Health and mana at 80% or more: fit to start a fight. (Rage starts
+/// empty and energy refills in seconds, so only mana is waited for.)
+pub fn ready_to_pull(a: &Agent) -> bool {
+    let b = &a.body;
+    let mana = b
+        .class
+        .and_then(|c| b.content.class(c))
+        .is_some_and(|c| c.resource == dyno_world::content::Resource::Mana);
+    b.health / b.max_health.max(1.0) >= 0.8
+        && (!mana || b.max_power <= 0.0 || b.power / b.max_power >= 0.8)
+}
+
+/// The levels a camp's creatures come at: the camp's own band, else its
+/// area's (as the server spawns them; the creature kind's range is not used).
+pub fn camp_levels(ar: &dyno_world::content::Area, cp: &dyno_world::content::Camp) -> [u8; 2] {
+    cp.levels.unwrap_or(ar.levels)
+}
+
+/// The other members of our party standing within `r`.
+fn party_near(b: &crate::body::Body, r: f32) -> usize {
+    let me = b.pos();
+    b.party
+        .iter()
+        .filter(|m| !m.eq_ignore_ascii_case(&b.name))
+        .filter(|m| {
+            b.players
+                .values()
+                .any(|(n, p)| n.eq_ignore_ascii_case(m) && p.distance(me) < r)
+        })
+        .count()
+}
+
+/// The group quest (`Quest::group` over 1) that asks for this creature, if any.
+fn group_quest_for(b: &crate::body::Body, creature: u16) -> Option<&dyno_world::content::Quest> {
+    b.content.quests.iter().find(|q| {
+        q.group > 1
+            && q.objectives
+                .iter()
+                .any(|o| matches!(o, Objective::Kill { creature: c, .. } if *c == creature))
+    })
+}
+
+/// A creature made for a group (a group quest asks for it), and we are not
+/// in a party of that size with the others beside us, or not yet of the
+/// quest's level: leave it alone. (After round 3's counted runs: a party of
+/// two level 3s walked back to Old Tusk and died to him eight times.)
+pub fn needs_group(b: &crate::body::Body, creature: u16) -> bool {
+    group_quest_for(b, creature)
+        .is_some_and(|q| party_near(b, 40.0) + 1 < q.group as usize || b.level < q.level)
 }
 
 /// Does an open quest ask us to talk to this NPC?

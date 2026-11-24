@@ -55,6 +55,15 @@ pub struct PartyMember {
     pub leader: bool,
 }
 
+/// Another player who carries the same group quest as you (`Seekers`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Seeker {
+    pub name: String,
+    pub level: u8,
+    /// where they stand (world position)
+    pub pos: [f32; 3],
+}
+
 /// A step in trading with another player.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum TradeOp {
@@ -892,6 +901,13 @@ pub enum ServerMsg {
     /// the press is taken back. The reason follows as a `System` line.
     Refused {
         ability: u16,
+    },
+    /// Looking for group: the other players here who carry this group
+    /// quest (`Quest::group`) and are not in your party. Sent every second
+    /// while you carry it unfinished; an empty list means nobody.
+    Seekers {
+        quest: u16,
+        players: Vec<Seeker>,
     },
     /// Your body as the server has it after your step `seq` (the last one
     /// it ran): the client puts its prediction here and runs its later

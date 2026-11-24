@@ -1675,6 +1675,7 @@ impl State {
             self.tick_camps();
             self.tick_zones();
             self.tick_events();
+            self.tick_seekers();
         }
         self.tick_power(dt);
         self.tick_items(dt);

@@ -4,7 +4,7 @@ use crate::game::{State, dist};
 use dyno_protocol::{PlayerId, ServerMsg};
 use dyno_sim::character::{self, Sheet};
 use dyno_sim::inventory::Stack;
-use dyno_world::content::{EQUIP_PLACES, MAIN_HAND, OFF_HAND, RANGED, Slot};
+use dyno_world::content::{EQUIP_PLACES, RANGED};
 use std::time::{Duration, Instant};
 
 /// Melee reach for auto-attack, and the range of a bow.
@@ -61,29 +61,17 @@ impl State {
         if let Some(why) = character::cannot_equip(class, p.level, &item) {
             return self.tell(id, why);
         }
-        let places = character::places_for(g.slot);
-        // an empty matching place, else the first one
-        let place = places
-            .iter()
-            .copied()
-            .find(|i| p.equip[*i].is_none())
-            .or(places.first().copied());
-        let Some(place) = place else { return };
-        let two_hand = g.slot == Slot::TwoHand;
+        let Some((place, off)) = character::equip_place(c, &p.equip, g.slot) else {
+            return;
+        };
         let p = self.players.get_mut(&id).unwrap();
         p.pack.slots[from as usize] = None;
         let mut back: Vec<Stack> = p.equip[place].take().into_iter().collect();
         // a two-handed weapon frees the off hand; an off-hand item needs a one-handed weapon
-        if two_hand && let Some(o) = p.equip[OFF_HAND].take() {
-            back.push(o);
-        }
-        if place == OFF_HAND
-            && p.equip[MAIN_HAND]
-                .and_then(|m| self.content.item(m.item).gear)
-                .is_some_and(|m| m.slot == Slot::TwoHand)
-            && let Some(m) = p.equip[MAIN_HAND].take()
-        {
-            back.push(m);
+        for o in off {
+            if let Some(s) = p.equip[o].take() {
+                back.push(s);
+            }
         }
         p.equip[place] = Some(Stack { count: 1, ..stack });
         if stack.count > 1 {

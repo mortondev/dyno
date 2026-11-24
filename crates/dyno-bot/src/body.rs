@@ -203,6 +203,8 @@ pub struct Body {
     pub closed: Option<String>,
     pub party: Vec<String>,
     pub invite: Option<String>,
+    /// looking for group: by group quest, the others who carry it (and when we heard)
+    pub seekers: HashMap<u16, (Instant, Vec<dyno_protocol::Seeker>)>,
 
     /// events not yet taken by the brain or interface
     pub events: Vec<(Instant, Ev)>,
@@ -332,6 +334,7 @@ impl Body {
             closed: None,
             party: Vec::new(),
             invite: None,
+            seekers: HashMap::new(),
             events: Vec::new(),
             seen_items: HashSet::new(),
             pending_kill: None,
@@ -561,17 +564,14 @@ impl Body {
         if dyno_sim::character::cannot_equip(class, self.level, &view).is_some() {
             return None;
         }
-        let now = self.gear_score(&self.equip);
-        let mut best = None;
-        for place in dyno_sim::character::places_for(g.slot) {
-            let mut e = self.equip.clone();
-            e[place] = Some(Stack::new(item, 1));
-            let s = self.gear_score(&e);
-            if s > now + 0.01 && best.is_none_or(|(_, b)| s > b) {
-                best = Some((place, s));
-            }
+        // where the server will put it, and what comes off for it
+        let (place, off) = dyno_sim::character::equip_place(&self.content, &self.equip, g.slot)?;
+        let mut e = self.equip.clone();
+        for o in off {
+            e[o] = None;
         }
-        best.map(|(p, _)| p)
+        e[place] = Some(Stack::new(item, 1));
+        (self.gear_score(&e) > self.gear_score(&self.equip) + 0.01).then_some(place)
     }
 
     pub fn is_upgrade(&self, item: u16) -> bool {
@@ -1009,6 +1009,9 @@ impl Body {
             ServerMsg::Rested { pool } => self.rested = pool,
             ServerMsg::Party { members } => {
                 self.party = members.into_iter().map(|m| m.name).collect();
+            }
+            ServerMsg::Seekers { quest, players } => {
+                self.seekers.insert(quest, (Instant::now(), players));
             }
             ServerMsg::Invite { from } => {
                 self.invite = Some(from.clone());
