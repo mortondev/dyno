@@ -1,5 +1,5 @@
 {
- "version": 5,
+ "version": 6,
  "size": [2048, 256, 2048],
  "design": [2048, 256, 2048],
  "seed": 20261123,
@@ -737,9 +737,7 @@
     "at": [-45, -87],
     "radius": 14
    },
-   "trees": [
-    {"species": "birch", "at": [16, -12]}
-   ]
+   "trees": []
   },
   {
    "key": "hollow_oak",
@@ -870,9 +868,7 @@
    "trees": [
     {"species": "hero_oak", "at": [-24, -8]},
     {"species": "birch", "at": [-22, 12]},
-    {"species": "willow", "at": [-6, 22]},
-    {"species": "willow", "at": [14, -10]},
-    {"species": "willow", "at": [17, -21]}
+    {"species": "willow", "at": [-6, 22]}
    ],
    "stamps": [
     {"stamp": "fisher_hut", "at": [-9, -8]},
@@ -978,9 +974,7 @@
     "at": [62, 62],
     "radius": 16
    },
-   "trees": [
-    {"species": "oak", "at": [7, 32]}
-   ]
+   "trees": []
   },
   {
    "key": "emberford_toll_hut",
@@ -1060,9 +1054,7 @@
     "at": [129, 9],
     "radius": 14
    },
-   "trees": [
-    {"species": "pine", "at": [14, -13]}
-   ]
+   "trees": []
   },
   {
    "key": "ridge_cut",
@@ -1110,9 +1102,7 @@
     "at": [155, -17],
     "radius": 12
    },
-   "trees": [
-    {"species": "pine", "at": [1, -11]}
-   ]
+   "trees": []
   },
   {
    "key": "meadow_farm_1",
