@@ -59,6 +59,8 @@ pub struct Mob {
     pub power: f32,
     /// a rare elite's own name
     pub name: Option<String>,
+    /// what it drops on top of its kind's drops (a rare elite's prize)
+    pub extra_drops: Vec<dyno_world::content::Drop>,
     /// belongs to a camp: never despawns, the camp respawns it
     pub camp: bool,
     /// special move timers: charging until, ready again at; has it fled yet
@@ -115,6 +117,7 @@ impl Mob {
             threat: std::collections::HashMap::new(),
             power: 1.0,
             name: None,
+            extra_drops: Vec::new(),
             camp: false,
             charge_until: now,
             ability_ready: now,
@@ -974,9 +977,10 @@ impl State {
             .content
             .creature(mob.creature)
             .map(|c| (c.key.clone(), c.drops.clone()));
-        let Some((key, list)) = list else {
+        let Some((key, mut list)) = list else {
             return;
         };
+        list.extend(mob.extra_drops.iter().cloned());
         // the creature belongs to whoever hit it first, and their party
         // a tag counts while its owner keeps fighting and is still nearby
         let killer = mob

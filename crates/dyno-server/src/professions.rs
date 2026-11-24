@@ -101,7 +101,7 @@ impl State {
         }
         if self
             .depleted
-            .get(&pos)
+            .get(&(pos, id))
             .is_some_and(|t| *t > crate::game::now_secs())
         {
             return self.tell(id, "This has been gathered recently.");
@@ -187,7 +187,7 @@ impl State {
             self.set_block_as(pos, dyno_world::STONE, false);
             self.regrow.push((pos, b, until));
         } else {
-            self.depleted.insert(pos, until);
+            self.depleted.insert((pos, id), until);
         }
     }
 }

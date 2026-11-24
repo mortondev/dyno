@@ -89,7 +89,7 @@ impl Session {
             std::thread::sleep(Duration::from_secs_f32(TICK));
         }
         a.baseline();
-        let nodes = Some(Nodes::scan(&a.body.world, &a.body.content));
+        let nodes = Some(Nodes::scan(&a.body.world, &a.body.content, a.body.pos()));
         Session {
             a,
             nodes,
@@ -192,11 +192,20 @@ impl Session {
                 .find(|i| matches(b.content.item(*i).name, q));
         }
         let c = &b.content;
+        // the exact key or name first ("log" is the block, not the first
+        // item with "log" in a word of its name)
+        let key = lc(q).replace(' ', "_");
         c.items
             .iter()
-            .find(|i| matches(&i.name, q) || matches(&i.key, q))
+            .find(|i| i.key == key || lc(&i.name) == lc(q.trim()))
             .map(|i| i.id)
-            .or_else(|| dyno_world::block_by_key(&lc(q).replace(' ', "_")).map(|b| b as u16))
+            .or_else(|| dyno_world::block_by_key(&key).map(|b| b as u16))
+            .or_else(|| {
+                c.items
+                    .iter()
+                    .find(|i| matches(&i.name, q) || matches(&i.key, q))
+                    .map(|i| i.id)
+            })
     }
 
     fn find_area(&self, q: &str) -> Option<Vec3> {
@@ -1166,6 +1175,7 @@ impl Session {
                     return Some(format!("No item matches '{rest}'."));
                 };
                 let me = b.pos();
+                Nodes::fresh(&mut self.nodes, &b.world, &b.content, me);
                 let mut v: Vec<(f32, [i32; 3], i32, bool)> = Vec::new();
                 for (blk, list) in &self.nodes.as_ref()?.by_block {
                     let r = b.content.rule(*blk);
@@ -1336,9 +1346,12 @@ impl Session {
     }
 
     fn gather_node(&mut self, item: u16) -> Option<([i32; 3], [i32; 3])> {
-        if self.nodes.is_none() {
-            self.nodes = Some(Nodes::scan(&self.a.body.world, &self.a.body.content));
-        }
+        Nodes::fresh(
+            &mut self.nodes,
+            &self.a.body.world,
+            &self.a.body.content,
+            self.a.body.pos(),
+        );
         let b = &self.a.body;
         let me = b.pos();
         let mut cands: Vec<(f32, [i32; 3])> = Vec::new();

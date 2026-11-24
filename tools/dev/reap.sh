@@ -5,7 +5,7 @@
 #   3 hours; never the live server on 7400
 # - stray `dyno shot`, `dyno bots` and `dyno play` runs older than 1 hour
 # - scratch folders untouched for 12 hours
-# - shell polling loops (`until ...; do sleep`) older than 1 hour, which wait
+# - shell polling loops (`until ...; do sleep`) older than 2.5 hours, which wait
 #   for builds that never end while other builds keep starting
 #
 # Only this user's processes; each is checked through /proc before it is
@@ -36,7 +36,7 @@ for pid in $(pgrep -u "$me" -f "until .*do sleep"); do
   # only loops started from Claude's shells or task files, never anyone else's
   grep -q "claude" /proc/$pid/cmdline 2>/dev/null || continue
   a=$(age $pid); [ -z "$a" ] && continue
-  [ "$a" -gt 3600 ] && stop $pid "polling loop, $((a / 60)) min"
+  [ "$a" -gt 9000 ] && stop $pid "polling loop, $((a / 60)) min"
 done
 # scratch folders no one has written to for 12 hours (session scratchpads only;
 # concept sources, the gauntlet record and the integration tree are kept)

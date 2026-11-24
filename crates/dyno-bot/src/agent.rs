@@ -241,6 +241,9 @@ impl Agent {
     pub fn update(&mut self) -> bool {
         let alive = self.body.pump();
         self.digest();
+        if self.tel.first_party.is_none() && self.body.party.len() >= 2 {
+            self.tel.first_party = Some(self.body.secs());
+        }
         if !alive {
             if let Some(r) = self.body.closed.clone() {
                 self.tel.disconnects.push(r);
@@ -749,6 +752,8 @@ impl Agent {
 
     fn cast(&mut self, a: &Ability, target: Option<u32>) {
         let name = ability_name(a);
+        let now = self.body.secs();
+        self.tel.first_casts.entry(name.clone()).or_insert(now);
         *self.tel.abilities.entry(name).or_insert(0) += 1;
         if a.charge || a.blink > 0.0 {
             self.body.expect_teleport(1.5);
@@ -1462,6 +1467,8 @@ impl Agent {
                 used.push(place);
                 self.body.send(ClientMsg::Equip { from: i as u8 });
                 let name = self.body.content.item(item).name.to_string();
+                let now = self.body.secs();
+                self.tel.first_upgrade.get_or_insert(now);
                 out.push(name.clone());
                 self.say(format!("Equipped {name}"));
             }
