@@ -400,7 +400,7 @@ impl State {
             .map(|c| (c.id, c.spawn, c.cap))
             .collect();
         for (pid, at) in active {
-            let survival = self.players.get(&pid).is_some_and(|p| p.mode == Mode::Play);
+            let playing = self.players.get(&pid).is_some_and(|p| p.mode == Mode::Play);
             let shade_due = {
                 let p = self.players.get_mut(&pid).unwrap();
                 p.shade_timer -= dt;
@@ -412,7 +412,7 @@ impl State {
             };
             for &(cid, kind, cap) in &creatures {
                 match kind {
-                    Spawn::Dark if shade_due && survival => {
+                    Spawn::Dark if shade_due && playing => {
                         let cap = if self.day <= 1 { cap.min(2) } else { cap } as usize;
                         if self.count_near(cid, at, 40.0) >= cap {
                             continue;
@@ -455,7 +455,7 @@ impl State {
             return; // the world rests while nobody plays
         }
         let night = self.is_night();
-        // who may be hunted: alive survival players, not protected
+        // who may be hunted: living players in play, not just arrived
         let now = Instant::now();
         let prey: Vec<(PlayerId, [f32; 3], bool)> = self
             .players
