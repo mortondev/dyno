@@ -987,18 +987,113 @@
    },
    "stamps": [
     {"stamp": "old_barrow", "at": [0, 0]},
-    {"stamp": "pond_big", "at": [24, 14], "fit": "ground"},
-    {"stamp": "fallen_log", "at": [24, -4], "fit": "ground"},
-    {"stamp": "boulders", "at": [-6, -22], "rot": 1, "fit": "ground"},
-    {"stamp": "standing_stones", "at": [30, -18], "fit": "ground"}
+    {"stamp": "old_barrow_dromos", "at": [0, 0]},
+    {"stamp": "old_barrow_crown", "at": [0, 0], "dy": 8},
+    {"stamp": "pond_big", "at": [22, 26], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [34, -12], "rot": 1, "fit": "ground"},
+    {"stamp": "boulders", "at": [-16, -26], "rot": 1, "fit": "ground"},
+    {"stamp": "standing_stones", "at": [36, -30], "fit": "ground"},
+    {"stamp": "tent_white", "at": [30, 10], "rot": 3, "fit": "ground"},
+    {"stamp": "campfire", "at": [25, 11], "fit": "ground"},
+    {"stamp": "old_barrow_vigil", "at": [20, 8], "fit": "ground"},
+    {"stamp": "wayshrine", "at": [28, -9], "fit": "ground"},
+    {"stamp": "old_barrow_clear_14", "at": [34, 0], "fit": "float", "dy": 40}
    ],
    "was": {
     "at": [-128, 10],
     "radius": 18
    },
    "trees": [
-    {"species": "dark_oak", "at": [16, -3]},
-    {"species": "dark_oak", "at": [27, -2]}
+    {"species": "dark_oak", "at": [10, -20]},
+    {"species": "dark_oak", "at": [-6, 22]},
+    {"species": "snag", "at": [-14, -6]}
+   ]
+  },
+  {
+   "key": "old_barrow_barrowfield",
+   "kind": "site",
+   "at": [-500, -8],
+   "radius": 20,
+   "stamps": [
+    {"stamp": "old_barrow_mound", "at": [-4, -6], "fit": "ground"},
+    {"stamp": "old_barrow_mound", "at": [6, 10], "rot": 1, "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [2, -17], "fit": "ground"},
+    {"stamp": "cairn", "at": [-13, 5], "fit": "ground"},
+    {"stamp": "cairn", "at": [11, -3], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [-14, -13]}
+   ]
+  },
+  {
+   "key": "old_barrow_ruin_tower",
+   "kind": "site",
+   "at": [-470, -45],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "ruin_tower", "at": [0, 0], "rot": 2, "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [-9, 4], "rot": 1, "fit": "ground"},
+    {"stamp": "boulders", "at": [8, -7], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "dark_oak", "at": [7, 9]}
+   ]
+  },
+  {
+   "key": "old_barrow_stones",
+   "kind": "site",
+   "at": [-690, -95],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "standing_stones", "at": [0, 0], "fit": "ground"},
+    {"stamp": "boulders", "at": [13, -7], "fit": "ground"},
+    {"stamp": "old_barrow_clear_14", "at": [0, 0], "fit": "float", "dy": 40}
+   ],
+   "trees": [
+    {"species": "snag", "at": [-11, 10]}
+   ]
+  },
+  {
+   "key": "old_barrow_lesser_barrow",
+   "kind": "site",
+   "at": [-720, 60],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "old_barrow_mound", "at": [0, 0], "fit": "ground"},
+    {"stamp": "cairn", "at": [9, -5], "fit": "ground"},
+    {"stamp": "old_barrow_menhirs", "at": [-10, 7], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [7, 10]}
+   ]
+  },
+  {
+   "key": "old_barrow_south_ruin",
+   "kind": "site",
+   "at": [-600, 180],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [0, 0], "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [7, 7], "rot": 1, "fit": "ground"},
+    {"stamp": "old_barrow_tomb", "at": [-6, 8], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [-8, -5], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [10, -6]}
+   ]
+  },
+  {
+   "key": "old_barrow_menhir_row",
+   "kind": "site",
+   "at": [-700, 180],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "old_barrow_menhirs", "at": [0, 0], "fit": "ground"},
+    {"stamp": "cairn", "at": [8, 4], "fit": "ground"},
+    {"stamp": "boulders", "at": [-8, -6], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [5, -9]}
    ]
   },
   {
@@ -1012,9 +1107,12 @@
     "wooded": true
    },
    "stamps": [
-    {"stamp": "graves", "at": [-14, 1]},
-    {"stamp": "graves", "at": [11, 0], "rot": 1},
-    {"stamp": "ruin_wall", "at": [12, -10]}
+    {"stamp": "old_barrow_graves", "at": [-11, 1], "rot": 3},
+    {"stamp": "old_barrow_graves", "at": [11, 0], "rot": 1},
+    {"stamp": "old_barrow_tomb", "at": [-6, -8], "rot": 1},
+    {"stamp": "ruin_wall", "at": [12, -10]},
+    {"stamp": "old_barrow_gatepost", "at": [-3, 12]},
+    {"stamp": "old_barrow_gatepost", "at": [6, 12]}
    ],
    "was": {
     "at": [-107, -23],
@@ -1850,14 +1948,40 @@
   {
    "key": "barrow_webs",
    "kind": "camp",
-   "at": [-550, -130],
-   "radius": 20
+   "at": [-585, -100],
+   "radius": 20,
+   "stamps": [
+    {"stamp": "old_barrow_clear_10", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "old_barrow_web_sheet", "at": [-11, -5], "rot": 1, "fit": "ground"},
+    {"stamp": "old_barrow_web_sheet", "at": [10, 6], "fit": "ground"},
+    {"stamp": "old_barrow_web_sheet", "at": [1, -13], "fit": "ground"},
+    {"stamp": "old_barrow_cocoons", "at": [-10, 7], "fit": "ground"},
+    {"stamp": "old_barrow_cocoons", "at": [9, -8], "fit": "ground"},
+    {"stamp": "old_barrow_bones", "at": [3, 11], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [-13, 2]},
+    {"species": "snag", "at": [13, -2]},
+    {"species": "snag", "at": [-5, 13]}
+   ]
   },
   {
    "key": "barrow_boars",
    "kind": "camp",
    "at": [-525, 150],
-   "radius": 20
+   "radius": 20,
+   "pad": {
+    "radius": [9, 7],
+    "blend": 8,
+    "surface": {"dirt": 2, "clay": 2, "grass": 1},
+    "wooded": true
+   },
+   "stamps": [
+    {"stamp": "old_barrow_wallow", "at": [5, 4]},
+    {"stamp": "stumps", "at": [-9, -6], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [11, -9], "rot": 1, "fit": "ground"},
+    {"stamp": "boulders", "at": [-11, 9], "fit": "ground"}
+   ]
   },
   {
    "key": "mere_pinchers_1",
@@ -2251,7 +2375,7 @@
    "at": [-503, -56],
    "radius": 10,
    "stamps": [
-    {"stamp": "viewpoint", "at": [-8, 5], "fit": "ground"}
+    {"stamp": "viewpoint", "at": [-8, 5], "rot": 3, "fit": "ground"}
    ]
   },
   {
@@ -2306,8 +2430,13 @@
    "at": [-552, 38],
    "radius": 10,
    "stamps": [
-    {"stamp": "cairn", "at": [2, -6], "fit": "ground"},
-    {"stamp": "boulders", "at": [-5, 8], "fit": "ground"}
+    {"stamp": "old_barrow_cairn_tall", "at": [0, -6], "fit": "ground"},
+    {"stamp": "boulders", "at": [-7, 11], "fit": "ground"},
+    {"stamp": "old_barrow_clear_14", "at": [-26, 6], "fit": "float", "dy": 40}
+   ],
+   "trees": [
+    {"species": "snag", "at": [-2, -4]},
+    {"species": "snag", "at": [-2, 7]}
    ]
   },
   {
