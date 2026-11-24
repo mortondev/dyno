@@ -1728,7 +1728,7 @@
     {"stamp": "old_barrow_clear_14", "at": [-26, 6], "fit": "float", "dy": 40}
    ],
    "trees": [
-    {"species": "snag", "at": [-4, -9]},
+    {"species": "snag", "at": [-2, -4]},
     {"species": "snag", "at": [-2, 7]}
    ]
   },
