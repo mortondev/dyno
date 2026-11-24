@@ -290,19 +290,14 @@ def hearthstead_library():
     for (x, y, z), b in list(v.c.items()):
         if z == z1 and b == "timber_beam" and y >= 0:
             v.c[(x, y, z)] = "stone_bricks"
-    # tall coloured windows on the front, the glass lit by cloth behind it
+    # tall coloured windows on the front
+    # (coloured cloth panes set flat in the wall's plane, one column each)
     for x, cloth in ((-3, "blue"), (3, "red")):
-        for y in (1, 2, 5, 6):
-            v.set(x, y, z1, "glass")
-            v.set(x, y, z1 - 1, cloth)
-        v.set(x, 3, z1, "glass")
-        v.set(x, 4, z1, "glass")
-        v.set(x, 3, z1 - 1, cloth)
-        v.set(x, 4, z1 - 1, cloth)
-    # a round window in the gable
+        for y in range(1, 7):
+            v.set(x, y, z1, cloth)
+    # a cross-shaped window in the gable, yellow
     for (x, y) in ((0, 9), (-1, 10), (0, 10), (1, 10), (0, 11)):
-        v.set(x, y, z1, "glass")
-        v.set(x, y, z1 - 1, "yellow")
+        v.set(x, y, z1, "yellow")
     # the bell-cote on the gable's peak
     top = max(y for (x, y, z) in v.c if z == z1 and x == 0)
     for x in (-1, 0, 1):
