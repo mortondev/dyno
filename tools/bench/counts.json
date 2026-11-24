@@ -2,34 +2,34 @@
   "note": "The weight of the bench's still scenes, recorded by `DYNO_BLESS=1 cargo test -p dyno-client --test budget` (crates/dyno-client/tests/budget.rs): the test fails when one grows more than 15% over these. Do not edit by hand.",
   "scenes": {
     "hearthstead_plaza": {
-      "vertex_bytes": 64100064,
-      "triangles": 1127106,
-      "cover_triangles": 651968
+      "vertex_bytes": 64725864,
+      "triangles": 1139629,
+      "cover_triangles": 783882
     },
     "hollow_oak": {
-      "vertex_bytes": 103755000,
-      "triangles": 1944179,
-      "cover_triangles": 1862396
+      "vertex_bytes": 119177496,
+      "triangles": 2199599,
+      "cover_triangles": 1734080
     },
     "logging_camp": {
-      "vertex_bytes": 100444080,
-      "triangles": 2035494,
-      "cover_triangles": 1118094
+      "vertex_bytes": 94151472,
+      "triangles": 1845510,
+      "cover_triangles": 1255806
     },
     "miners_rest": {
-      "vertex_bytes": 30149856,
-      "triangles": 598098,
-      "cover_triangles": 958712
+      "vertex_bytes": 31567728,
+      "triangles": 628872,
+      "cover_triangles": 1101496
     },
     "mirrormere": {
-      "vertex_bytes": 49940736,
-      "triangles": 892974,
-      "cover_triangles": 624804
+      "vertex_bytes": 47735808,
+      "triangles": 848042,
+      "cover_triangles": 672266
     },
     "windmill_farm": {
-      "vertex_bytes": 64050960,
-      "triangles": 1204774,
-      "cover_triangles": 1119008
+      "vertex_bytes": 60455544,
+      "triangles": 1174829,
+      "cover_triangles": 1308832
     }
   }
 }
