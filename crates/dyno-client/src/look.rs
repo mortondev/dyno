@@ -72,6 +72,16 @@ pub struct Grade {
     /// highlights above this roll off instead of clipping
     pub knee: f32,
     pub rolloff: f32,
+    /// split toning: what the dark and the bright parts of the picture are
+    /// multiplied by (cool shadows, warm lights)
+    pub shadow_tint: [f32; 3],
+    pub highlight_tint: [f32; 3],
+    /// greens: how far they are warmed towards olive (0: not at all), and
+    /// what their saturation is multiplied by
+    pub green_warm: f32,
+    pub green_saturation: f32,
+    /// what the saturation is multiplied by at night
+    pub night_saturation: f32,
 }
 
 /// Water: the look where nothing else is said, named kinds of water that
@@ -234,6 +244,11 @@ impl Default for Grade {
             contrast: 1.0,
             knee: 1.0,
             rolloff: 0.0,
+            shadow_tint: [1.0; 3],
+            highlight_tint: [1.0; 3],
+            green_warm: 0.0,
+            green_saturation: 1.0,
+            night_saturation: 1.0,
         }
     }
 }
