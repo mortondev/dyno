@@ -337,6 +337,45 @@ impl Session {
         )
     }
 
+    /// Under a group quest our party is too small for: who else carries it.
+    fn looking_for_group(&self, quest: u16) -> String {
+        let b = &self.a.body;
+        let Some(q) = b.content.quest(quest) else {
+            return String::new();
+        };
+        if q.group <= 1 || b.party.len().max(1) >= q.group as usize || self.a.quest_ready(quest) {
+            return String::new();
+        }
+        let list = b
+            .seekers
+            .get(&quest)
+            .filter(|(t, _)| t.elapsed() < std::time::Duration::from_secs(4))
+            .map(|(_, l)| l.as_slice())
+            .unwrap_or(&[]);
+        if list.is_empty() {
+            return format!(
+                "      Looking for group (made for {}): nobody else here carries it yet\n",
+                q.group
+            );
+        }
+        let who: Vec<String> = list
+            .iter()
+            .map(|s| {
+                format!(
+                    "{} lv{} {}",
+                    s.name,
+                    s.level,
+                    self.a.where_is(glam::Vec3::from(s.pos))
+                )
+            })
+            .collect();
+        format!(
+            "      Looking for group (made for {}): {} (say /invite NAME or /w NAME ...)\n",
+            q.group,
+            who.join(", ")
+        )
+    }
+
     pub fn describe(&self) -> String {
         let b = &self.a.body;
         let mut s = String::new();
@@ -391,6 +430,7 @@ impl Session {
                 ""
             };
             s += &format!("  [{key}]{ready} {line}{goal}\n");
+            s += &self.looking_for_group(q.quest);
         }
         // NPCs
         let mut npcs: Vec<(f32, String)> = Vec::new();

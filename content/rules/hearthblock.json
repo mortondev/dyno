@@ -7615,7 +7615,8 @@
      "apprentice_mantle",
      1
     ]
-   ]
+   ],
+   "group": 3
   },
   {
    "key": "windmill_breadcrumb",
@@ -8278,8 +8279,8 @@
    "requires": [
     "boar_trouble"
    ],
-   "text": "The boars follow one old brute with tusks like scythes. He keeps to a hollow in the trees west of here, past the pack. He has put two of my men in their beds: do not go alone. Take two with you, and bring him down.",
-   "progress": "Old Tusk. West of the tower, past the boar pack. Three of you, not one.",
+   "text": "The boars follow one old brute with tusks like scythes. He keeps to a hollow in the trees west of here, past the pack. He has put two of my men in their beds: do not go alone. Find someone to go with you, and bring him down.",
+   "progress": "Old Tusk. West of the tower, past the boar pack. Not alone.",
    "done": "That is the herd broken. The Watch owes you, all of you.",
    "objectives": [
     {
@@ -8302,7 +8303,8 @@
      "hearthkeeper_robe",
      1
     ]
-   ]
+   ],
+   "group": 2
   }
  ],
  "classes": [

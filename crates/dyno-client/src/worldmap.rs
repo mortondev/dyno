@@ -41,6 +41,8 @@ pub struct View<'a> {
     pub zone: &'a str,
     /// party members near enough to be known: name, position
     pub party: Vec<(String, Vec3)>,
+    /// players who look for a group for a quest you carry: name, position
+    pub seekers: Vec<(String, Vec3)>,
 }
 
 /// A pin on the map: where, its glyph, its colour and what it says.
@@ -341,7 +343,14 @@ impl WorldMap {
                     }
                     near(at, 10.0, &pin.text);
                 }
-                // companions, then you: an arrow the way you face
+                // those looking for a group with you, companions, then you:
+                // an arrow the way you face
+                for (name, pos) in &v.seekers {
+                    let at = to([pos.x, pos.z]);
+                    p.circle_filled(at, 4.5, theme::OUTLINE);
+                    p.circle_filled(at, 3.2, Color32::from_rgb(120, 220, 120));
+                    near(at, 8.0, &format!("{name} (looking for group)"));
+                }
                 for (name, pos) in &v.party {
                     let at = to([pos.x, pos.z]);
                     p.circle_filled(at, 4.5, theme::OUTLINE);

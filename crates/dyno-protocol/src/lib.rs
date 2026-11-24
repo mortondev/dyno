@@ -55,6 +55,15 @@ pub struct PartyMember {
     pub leader: bool,
 }
 
+/// Another player who carries the same group quest as you (`Seekers`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Seeker {
+    pub name: String,
+    pub level: u8,
+    /// where they stand (world position)
+    pub pos: [f32; 3],
+}
+
 /// A step in trading with another player.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum TradeOp {
@@ -849,6 +858,13 @@ pub enum ServerMsg {
     /// The named places you have found, by area key (the world map names
     /// them and lights their land). Sent at a join and at each discovery.
     Discovered(Vec<String>),
+    /// Looking for group: the other players here who carry this group
+    /// quest (`Quest::group`) and are not in your party. Sent every second
+    /// while you carry it unfinished; an empty list means nobody.
+    Seekers {
+        quest: u16,
+        players: Vec<Seeker>,
+    },
 }
 
 pub fn encode<T: Serialize>(msg: &T) -> Vec<u8> {

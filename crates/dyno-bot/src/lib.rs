@@ -70,6 +70,10 @@ pub fn cli_bots(args: &[String]) -> Result<(), String> {
                 o.setup = val(i)?.split(';').map(|s| s.trim().to_string()).collect();
                 i += 1;
             }
+            "--content" => {
+                o.content = Some(val(i)?.into());
+                i += 1;
+            }
             "--quiet" => o.quiet = true,
             a if !a.starts_with("--") && o.addr.is_none() => o.addr = Some(a.to_string()),
             other => return Err(format!("unknown bots option {other}")),

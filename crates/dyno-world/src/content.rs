@@ -452,6 +452,10 @@ pub struct Quest {
     pub items: Vec<(ItemId, u8)>,
     /// pick one of these
     pub choice: Vec<(ItemId, u8)>,
+    /// a group quest: how many players it is made for (0: one). The quest
+    /// log says "Looking for group" and the server tells those who carry
+    /// it about each other (`ServerMsg::Seekers`).
+    pub group: u8,
 }
 
 impl Objective {
@@ -1001,6 +1005,8 @@ struct AQuest {
     items: Vec<(String, u8)>,
     #[serde(default)]
     choice: Vec<(String, u8)>,
+    #[serde(default)]
+    group: u8,
 }
 
 #[derive(Deserialize)]
@@ -1477,6 +1483,7 @@ impl Content {
                 money: q.money,
                 items: list(&q.items).map_err(ctx)?,
                 choice: list(&q.choice).map_err(ctx)?,
+                group: q.group,
             });
         }
         let classes: Vec<Class> = f

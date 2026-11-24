@@ -2,7 +2,7 @@
 //! (docs/design/rpg.md).
 
 use crate::game::{Entity, State, dist};
-use dyno_protocol::{EntityKind, Mode, PlayerId, QuestProgress, ServerMsg};
+use dyno_protocol::{self as proto, EntityKind, Mode, PlayerId, QuestProgress, ServerMsg};
 use dyno_sim::inventory::Stack;
 use dyno_sim::progression as prog;
 use dyno_world::content::Objective;
@@ -55,6 +55,49 @@ impl State {
             p.send(&ServerMsg::Quests {
                 log: p.quests.clone(),
                 done,
+            });
+        }
+    }
+
+    /// Looking for group: tell everyone carrying an unfinished group quest
+    /// (`Quest::group`) who else here carries it, outside their party.
+    pub fn tick_seekers(&self) {
+        let c = &self.content;
+        let carriers: Vec<(PlayerId, u16)> = self
+            .players
+            .iter()
+            .flat_map(|(id, p)| {
+                p.quests
+                    .iter()
+                    .filter(|q| {
+                        // in the log and not yet done (what you collect is in
+                        // your bags: a group quest asks for a kill)
+                        c.quest(q.quest).is_some_and(|x| {
+                            x.group > 1
+                                && x.objectives.iter().zip(&q.counts).any(|(o, n)| {
+                                    matches!(o, Objective::Collect { .. }) || *n < o.need()
+                                })
+                        })
+                    })
+                    .map(move |q| (*id, q.quest))
+            })
+            .collect();
+        for (id, quest) in &carriers {
+            let me = &self.players[id];
+            let players: Vec<proto::Seeker> = carriers
+                .iter()
+                .filter(|(o, q)| q == quest && o != id)
+                .map(|(o, _)| &self.players[o])
+                .filter(|o| !me.party.iter().any(|m| m.eq_ignore_ascii_case(&o.name)))
+                .map(|o| proto::Seeker {
+                    name: o.name.clone(),
+                    level: o.level,
+                    pos: o.pose.pos,
+                })
+                .collect();
+            me.send(&ServerMsg::Seekers {
+                quest: *quest,
+                players,
             });
         }
     }
