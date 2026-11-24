@@ -22,7 +22,7 @@ use crate::anim::{Grip, MAX_BONES, Pose, key};
 use crate::clip::{ClipSet, SkeletonSpec};
 use crate::expr::Expr;
 use crate::render::Vertex;
-use crate::voxmodel::{Cache, Ink, Mesh, Paint, Smooth, Vox, emit, key_of, view_distance};
+use crate::voxmodel::{Cache, Ink, Mesh, Paint, Vox, emit, key_of, view_distance};
 use crate::{assets, vox};
 use dyno_world::content::WeaponKind;
 use glam::{Affine3A, Mat3, Vec3};
@@ -321,7 +321,7 @@ struct RecipeSpec {
     c: [f32; 3],
     #[serde(default)]
     glow: bool,
-    /// keeps its detail when meshed smooth: pinned corners, its own colour
+    /// keeps its detail at far levels: it wins ties when voxels are halved
     /// (eyes, trim, emblems)
     #[serde(default)]
     crisp: bool,
@@ -389,9 +389,6 @@ struct FigureSpec {
     /// its rig, so rigs and clips keep their numbers
     #[serde(default = "one")]
     detail: f32,
-    /// how smooth levels of detail are meshed
-    #[serde(default)]
-    smooth: Option<SmoothSpec>,
     /// features that follow from others when a look does not set them
     /// (an old `armor` value standing for a chest piece, a robe for the
     /// clips that a cloth chest implies)
@@ -460,16 +457,9 @@ struct LodSpec {
     /// how many times the voxels are halved
     #[serde(default)]
     half: Halves,
-    /// meshed smooth (surface nets) or as blocks
-    #[serde(default)]
-    smooth: bool,
     /// drawn up to this many blocks from the camera (the last: any distance)
     #[serde(default)]
     until: Option<f32>,
-    /// a smooth level is simplified wherever that moves its surface less
-    /// than this many of its voxels
-    #[serde(default)]
-    simplify: f32,
 }
 
 impl LodsSpec {
@@ -478,9 +468,7 @@ impl LodsSpec {
             LodsSpec::List(l) if !l.is_empty() => l.clone(),
             LodsSpec::List(_) => vec![LodSpec {
                 half: Halves::All(0),
-                smooth: false,
                 until: None,
-                simplify: 0.0,
             }],
             LodsSpec::Count(n) => {
                 let until = [Some(14.0), Some(40.0), None];
@@ -488,9 +476,7 @@ impl LodsSpec {
                 (0..n)
                     .map(|i| LodSpec {
                         half: Halves::All(i as u8),
-                        smooth: false,
                         until: if i + 1 == n { None } else { until[i] },
-                        simplify: 0.0,
                     })
                     .collect()
             }
@@ -498,24 +484,6 @@ impl LodsSpec {
     }
 }
 
-/// How smooth levels of detail are meshed (see [`Smooth`]).
-#[derive(Clone, Copy, Debug, Deserialize)]
-struct SmoothSpec {
-    #[serde(default = "one")]
-    bevel: f32,
-    #[serde(default = "one")]
-    soft: f32,
-    #[serde(default = "four")]
-    relax: u8,
-    #[serde(default = "yes")]
-    blend: bool,
-    #[serde(default = "one")]
-    occlusion: f32,
-}
-
-fn four() -> u8 {
-    4
-}
 fn fine() -> f32 {
     32.0
 }
@@ -693,13 +661,6 @@ struct PartSpec {
     glow: bool,
     #[serde(default)]
     light: Option<f32>,
-    /// reshape the part: proportions are data (slimmer limbs, a waist),
-    /// which may vary by features (a build)
-    #[serde(default)]
-    shape: Option<By<ShapeSpec>>,
-    /// false: meshed as blocks even where the figure is smooth
-    #[serde(default)]
-    smooth: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -719,25 +680,6 @@ impl HeldAt {
             _ => None,
         }
     }
-}
-
-/// How a part's mesh is reshaped about its pivot, in the rig's data.
-#[derive(Clone, Copy, Debug, Deserialize)]
-struct ShapeSpec {
-    /// scale across (x), along (y) and front to back (z)
-    #[serde(default = "ones")]
-    scale: [f32; 3],
-    /// width (x and z) at the part's top and bottom, as factors: a limb that
-    /// narrows to the wrist, a torso broad at the shoulders and slim at the waist
-    #[serde(default)]
-    taper: Option<[f32; 2]>,
-    /// taper front to back too (false: only side to side)
-    #[serde(default = "yes")]
-    taper_depth: bool,
-}
-
-fn yes() -> bool {
-    true
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -796,8 +738,6 @@ struct Part {
     held: Option<String>,
     glow: bool,
     light: Option<f32>,
-    shape: Option<By<ShapeSpec>>,
-    smooth: bool,
 }
 
 struct Rig {
@@ -925,8 +865,6 @@ fn compile_rig(sk: &SkeletonSpec, spec: &RigSpec, grids: &[GridSpec]) -> Result<
             held: p.held.socket(),
             glow: p.glow,
             light: p.light,
-            shape: p.shape.clone(),
-            smooth: p.smooth.unwrap_or(true),
         });
     }
     Ok(Rig {
@@ -990,7 +928,6 @@ pub struct Figure {
     palette: Vec<Option<Recipe>>,
     lods: Vec<LodSpec>,
     per_block: f32,
-    smooth: Smooth,
     derive: Vec<DeriveSpec>,
     rig: Option<Rig>,
     clips: Option<ClipChoice>,
@@ -1150,17 +1087,6 @@ fn load_figure(spec: &FigureSpec) -> Result<Option<Figure>, String> {
         lods: spec.lods.list(),
         per_block: spec.per_block,
         derive: spec.derive.clone(),
-        smooth: spec
-            .smooth
-            .map(|s| Smooth {
-                bevel: s.bevel,
-                soft: s.soft,
-                relax: s.relax,
-                blend: s.blend,
-                occlusion: s.occlusion,
-                simplify: 0.0,
-            })
-            .unwrap_or_default(),
         rig,
         clips: spec.clips.clone(),
         sets,
@@ -1858,8 +1784,8 @@ fn build(fig: &Figure, look: &Look) -> Built {
     }
 }
 
-/// Mesh one level of detail: halve the voxels, then mesh each rig part
-/// (smooth parts together, so they meet without seams) and reshape it.
+/// Mesh one level of detail: halve the voxels, then mesh each rig part as
+/// cubes (the voxel rule: no smooth or bevelled meshes, no reshaping).
 fn mesh_level(fig: &Figure, look: &Look, full: &[Vox], lod: &LodSpec) -> Vec<Mesh> {
     let mut halved: Vec<Vox> = Vec::new();
     let grids: &[Vox] = if (0..full.len()).all(|g| lod.half.of(g) == 0) {
@@ -1875,79 +1801,49 @@ fn mesh_level(fig: &Figure, look: &Look, full: &[Vox], lod: &LodSpec) -> Vec<Mes
         }
         &halved
     };
-    let opts = Smooth {
-        simplify: lod.simplify,
-        ..fig.smooth
-    };
     let Some(rig) = &fig.rig else {
         // no rig: the first part of the first grid, about its origin
-        return vec![if lod.smooth {
-            grids[0]
-                .mesh_smooth(&[(1, [0.0; 3])], opts)
-                .pop()
-                .unwrap_or_default()
-        } else {
-            grids[0].mesh(1, [0.0; 3])
-        }];
+        return vec![grids[0].mesh(1, [0.0; 3])];
     };
     let mut out: Vec<Mesh> = rig.parts.iter().map(|_| Mesh::default()).collect();
     for (gi, grid) in grids.iter().enumerate() {
-        let smooth: Vec<usize> = (0..rig.parts.len())
-            .filter(|&i| {
-                let p = &rig.parts[i];
-                p.held.is_none() && p.grid == gi && lod.smooth && p.smooth
-            })
-            .collect();
-        if !smooth.is_empty() {
-            let asks: Vec<(u8, [f32; 3])> = smooth
-                .iter()
-                .map(|&i| (rig.parts[i].part, rig.parts[i].pivot.vec(look).into()))
-                .collect();
-            for (i, m) in smooth.iter().zip(grid.mesh_smooth(&asks, opts)) {
-                out[*i] = m;
-            }
-        }
         for (i, p) in rig.parts.iter().enumerate() {
-            if p.held.is_some() || p.grid != gi || smooth.contains(&i) {
+            if p.held.is_some() || p.grid != gi {
                 continue;
             }
             out[i] = grid.mesh(p.part, p.pivot.vec(look).into());
         }
     }
-    for (p, m) in rig.parts.iter().zip(&mut out) {
-        if let Some(s) = p.shape.as_ref().and_then(|s| s.get(look)) {
-            reshape(m, s);
-        }
-    }
     out
 }
 
-/// Apply a part's shape from the rig: scale, then a taper from top to bottom.
-fn reshape(mesh: &mut Mesh, s: ShapeSpec) {
-    let (lo, hi) = mesh.y_range();
-    let span = (hi - lo).max(1e-3);
-    let [sx, sy, sz] = s.scale;
-    let f = move |p: [f32; 3]| {
-        let (wx, wz) = match s.taper {
-            Some([top, bottom]) => {
-                let t = (hi - p[1]) / span;
-                let w = top + (bottom - top) * t;
-                (w, if s.taper_depth { w } else { 1.0 })
-            }
-            None => (1.0, 1.0),
-        };
-        [p[0] * sx * wx, p[1] * sy, p[2] * sz * wz]
-    };
-    mesh.reshape(&f);
-}
-
-fn built(name: &str, fig: &Figure, look: &Look) -> Rc<Built> {
+fn built(name: &str, fig: &Figure, look: &Look, scale: f32) -> Rc<Built> {
+    let size = size_step(scale);
     let key = key_of(&[
         name_hash(name),
         (look.key() >> 32) as u32,
         look.key() as u32,
+        size.to_bits(),
     ]);
-    BUILT.with(|c| c.get(key, || build(fig, look)))
+    BUILT.with(|c| c.get(key, || build_at(fig, look, size)))
+}
+
+/// A figure's size to the hundredth, so a creature's size picks one model.
+fn size_step(scale: f32) -> f32 {
+    ((scale * 100.0).round() / 100.0).max(0.1)
+}
+
+/// A look built `scale` times life size: its voxels re-voxelled at that
+/// size, so they stay the cubes they were modelled as (the voxel rule),
+/// and drawn with the root scaled by `scale`.
+fn build_at(fig: &Figure, look: &Look, scale: f32) -> Built {
+    let mut b = build(fig, look);
+    if scale != 1.0 {
+        for g in &mut b.grids {
+            *g = g.resample(scale);
+        }
+    }
+    b
 }
 
 /// Which level of detail to draw at `p`: full nearby, coarser far away, where
@@ -2000,7 +1896,7 @@ pub fn holding(
     look.set("glows", glows as u8);
     look.set("frame", frame);
     Some(Holding {
-        held: built(&k.figure, &fig, &look),
+        held: built(&k.figure, &fig, &look, 1.0),
         fig,
         look,
         unit: k.unit,
@@ -2040,7 +1936,9 @@ pub fn draw(
     let Some(rig) = &fig.rig else {
         return;
     };
-    let built = built(name, fig, look);
+    // the size its voxels were re-voxelled at, so its cubes come out whole
+    let scale = size_step(scale);
+    let built = built(name, fig, look, scale);
     let derived = fig.derived(look);
     let m = built.level(fig, &derived, lod_at(&fig.lods, feet));
     let mut vars = [0.0f32; N_VARS];
@@ -2082,11 +1980,11 @@ pub fn draw(
                     ))
                 }
                 Op::Scale(v) => {
-                    f * Affine3A::from_mat3(Mat3::from_diagonal(Vec3::new(
-                        v[0].eval(&vars),
-                        v[1].eval(&vars),
-                        v[2].eval(&vars),
-                    )))
+                    // the voxel rule: a part is drawn whole or not at all,
+                    // never squashed or grown off its cubes
+                    let s = [0, 1, 2].map(|a| v[a].eval(&vars));
+                    let k = if s.iter().any(|c| *c < 0.5) { 0.0 } else { 1.0 };
+                    f * Affine3A::from_mat3(Mat3::from_diagonal(Vec3::splat(k)))
                 }
             };
         }
@@ -2111,7 +2009,9 @@ pub fn draw(
             };
             if let Some(h) = h {
                 let fit = Mat3::from_rotation_y(h.carry_turn)
-                    * Mat3::from_diagonal(Vec3::splat(h.unit * fig.per_block));
+                    // (at its own size in a scaled figure's hand: its
+                    // cubes stay on the ladder)
+                    * Mat3::from_diagonal(Vec3::splat(h.unit * fig.per_block / scale));
                 emit(out, h.mesh(), &(frame * Affine3A::from_mat3(fit)), paint);
             }
             continue;
@@ -2159,8 +2059,15 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
             }
             looks.truncate(12);
         }
-        for look in &looks {
-            let b = build(&fig, look);
+        // and drawn larger and smaller than life (a creature's size in the
+        // rules), re-voxelled at that size
+        let held = name.starts_with("held.");
+        let mut todo: Vec<(&Look, f32)> = looks.iter().map(|l| (l, 1.0)).collect();
+        if !held {
+            todo.extend([0.7, 1.2, 1.6].map(|k| (&looks[0], k)));
+        }
+        for (look, size) in todo {
+            let b = build_at(&fig, look, size);
             let derived = fig.derived(look);
             for (li, lod) in fig.lods.iter().enumerate() {
                 let meshes = b.level(&fig, &derived, li);
@@ -2172,12 +2079,15 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
                     // cubes per unit of the mesh: the grid's detail, halved
                     // as the level of detail says
                     let per = fig.grids[grid].detail / (1 << lod.half.of(grid)) as f32;
+                    // (re-voxelled at `size`, its cubes are 1 / size of a
+                    // unit; the root's scale makes them whole again)
+                    let per_unit = per * size;
                     let verts: Vec<([f32; 3], Option<[f32; 3]>)> =
                         mesh.verts.iter().map(|v| (v.pos, None)).collect();
                     let mut o = crate::voxel_rule::Object::from_list(
                         format!("figure {name}"),
-                        format!("level {li}, part {pi}"),
-                        per,
+                        format!("size {size}, level {li}, part {pi}"),
+                        per_unit,
                         None,
                         &verts,
                     );
@@ -2187,9 +2097,6 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
                         Some(h) => per / h.unit,
                         None => per * fig.per_block,
                     };
-                    if mesh.smooth() {
-                        o.name += " (smooth)";
-                    }
                     out.push(o);
                 }
             }
