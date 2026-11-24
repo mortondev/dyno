@@ -2181,6 +2181,12 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
                         None,
                         &verts,
                     );
+                    // a held thing's voxels are its kind's unit (of a
+                    // block); anything else's 1 / per_block of one
+                    o.per_metre = match name.strip_prefix("held.").and_then(held_kind) {
+                        Some(h) => per / h.unit,
+                        None => per * fig.per_block,
+                    };
                     if mesh.smooth() {
                         o.name += " (smooth)";
                     }

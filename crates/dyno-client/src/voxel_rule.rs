@@ -35,6 +35,9 @@ pub(crate) struct Object {
     pub part: String,
     /// cubes per unit of its positions
     pub per_unit: f32,
+    /// cubes per metre, for the ladder (the same as `per_unit` for
+    /// something whose positions are in metres)
+    pub per_metre: f32,
     /// a corner of its grid; `None`: its first vertex is taken as one
     pub origin: Option<[f32; 3]>,
     pub tris: Vec<Tri>,
@@ -62,6 +65,7 @@ impl Object {
             name: name.into(),
             part: part.into(),
             per_unit,
+            per_metre: per_unit,
             origin,
             tris,
         }
@@ -89,6 +93,7 @@ impl Object {
             name: name.into(),
             part: part.into(),
             per_unit,
+            per_metre: per_unit,
             origin,
             tris,
         }
@@ -419,12 +424,10 @@ mod tests {
         objects.extend(crate::render::voxel_objects());
         assert!(objects.len() > 100, "{} objects", objects.len());
         for o in &objects {
-            // (shapes and figures come in their own voxels: the pack test
-            // holds those to the ladder)
-            if ladder::step_of_per_metre(o.per_unit).is_none() {
+            if ladder::step_of_per_metre(o.per_metre).is_none() {
                 report
                     .entry(format!("{}: its cubes are off the ladder", o.name))
-                    .or_insert_with(|| (0, format!("{}: {} m", o.part, 1.0 / o.per_unit)))
+                    .or_insert_with(|| (0, format!("{}: {} m", o.part, 1.0 / o.per_metre)))
                     .0 += 1;
             }
             check(o, &mut report);
@@ -549,7 +552,7 @@ mod tests {
         if ladder::step_of(num(&cover["voxel"])).is_none() {
             add("cover.json: voxel".into(), format!("{} m is off the ladder", cover["voxel"]));
         }
-        let mut sways = 0;
+        let (mut sways, mut softs) = (0, 0);
         for (name, k) in cover["kinds"].as_object().into_iter().flatten() {
             if !k["voxel"].is_null() && ladder::step_of(num(&k["voxel"])).is_none() {
                 add(format!("cover.json: kinds.{name}.voxel"), format!("{} m is off the ladder", k["voxel"]));
@@ -557,6 +560,15 @@ mod tests {
             if k["sway"].as_f64().unwrap_or(0.0) != 0.0 {
                 sways += 1;
             }
+            if k["soft"].as_f64().unwrap_or(0.0) != 0.0 {
+                softs += 1;
+            }
+        }
+        if softs > 0 {
+            add(
+                "cover.json: soft".into(),
+                format!("{softs} kinds lean their faces' normals to the sky: a side lit as a slope"),
+            );
         }
         if sways > 0 {
             add(
@@ -853,6 +865,29 @@ mod tests {
             .map(|(p, _)| (p.map(|p| [p[0] * cs + p[2] * sn, p[1], -p[0] * sn + p[2] * cs]), None));
         let t = run(Object::from_quads("a", "", 1.0, Some([0.0; 3]), turned));
         assert!(t.contains("not an axis-aligned rectangle"), "{t}");
+    }
+
+    /// Figure cost: vertices at each level of detail, summed over the looks
+    /// the mesh test meshes (`cargo test -p dyno-client --lib figure_cost
+    /// -- --ignored --nocapture`), for the figures' before and after.
+    #[test]
+    #[ignore]
+    fn figure_cost() {
+        load_pack();
+        let mut by: BTreeMap<(String, String), usize> = BTreeMap::new();
+        for o in crate::figure::voxel_objects() {
+            let level = o.part.split(',').next().unwrap_or("").to_string();
+            let who = o.name.trim_end_matches(" (smooth)").to_string();
+            let who = if who.starts_with("figure held.") {
+                "figure held.*".to_string()
+            } else {
+                who
+            };
+            *by.entry((who, level)).or_default() += o.tris.len() * 3;
+        }
+        for ((who, level), n) in by {
+            println!("{who}\t{level}\t{n}");
+        }
     }
 
     #[test]

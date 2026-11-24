@@ -1989,6 +1989,7 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
                 name: format!("shape {path}"),
                 part: name.clone(),
                 per_unit: 1.0,
+                per_metre: FINE,
                 origin: Some([0.0; 3]),
                 tris,
             });

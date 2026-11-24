@@ -109,6 +109,7 @@ fn a_second_join_with_nothing_changed_downloads_nothing() {
         assert!(Cache::at(&cache).read(f).is_some(), "{} not cached", f.path);
     }
     // they travel compressed, and a first join stays small
+    eprintln!("a first join downloads {} bytes", first.downloaded);
     assert!(first.downloaded < pack.bytes() / 2);
     assert!(
         first.downloaded < 4_000_000,
