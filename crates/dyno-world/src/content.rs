@@ -1690,7 +1690,17 @@ mod tests {
     fn default_pack_loads() {
         let c = Content::default_pack();
         assert!(c.items.len() > 20);
-        assert!(c.recipes.len() > 20);
+        assert!(c.recipes.len() > 10);
+        // a recipe names a station of the pack, and a station has blocks
+        assert!(!c.stations.is_empty());
+        assert!(c.stations.iter().all(|s| !s.blocks.is_empty()));
+        assert!(c.recipes.iter().any(|r| r.station.is_some()));
+        assert!(
+            c.recipes
+                .iter()
+                .filter_map(|r| r.station)
+                .all(|s| (s as usize) < c.stations.len())
+        );
         let pick = c.item_by_key("wooden_pickaxe").unwrap();
         assert_eq!(c.item(pick).tool.unwrap().kind, ToolKind::Pickaxe);
         assert_eq!(c.item(crate::STONE as ItemId).name, "Stone");
