@@ -1009,7 +1009,7 @@
     "radius": 10
    },
    "trees": [
-    {"species": "oak", "at": [14, 8]},
+    {"species": "willow", "at": [14, 8]},
     {"species": "willow", "at": [-13, -10]}
    ]
   },
