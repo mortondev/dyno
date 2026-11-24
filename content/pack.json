@@ -20,6 +20,8 @@
   "anims/multileg",
   "anims/quadruped",
   "anims/wisp",
-  "anims/wraith"
+  "anims/wraith",
+  "sounds/amb/",
+  "sounds/world/"
  ]
 }

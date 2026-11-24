@@ -82,7 +82,9 @@
   "tips": "Tips",
   "off": "Off",
   "on": "On",
-  "tips_again": "Show again"
+  "tips_again": "Show again",
+  "sound": "Sound",
+  "volumes": ["Master", "Music", "Effects", "Ambience", "Interface"]
  },
  "keys": {
   "rpg": [
