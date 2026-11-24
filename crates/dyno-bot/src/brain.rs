@@ -1696,9 +1696,12 @@ fn group_quest_for(b: &crate::body::Body, creature: u16) -> Option<&dyno_world::
 }
 
 /// A creature made for a group (a group quest asks for it), and we are not
-/// in a party of that size with the others beside us: leave it alone.
+/// in a party of that size with the others beside us, or not yet of the
+/// quest's level: leave it alone. (After round 3's counted runs: a party of
+/// two level 3s walked back to Old Tusk and died to him eight times.)
 pub fn needs_group(b: &crate::body::Body, creature: u16) -> bool {
-    group_quest_for(b, creature).is_some_and(|q| party_near(b, 40.0) + 1 < q.group as usize)
+    group_quest_for(b, creature)
+        .is_some_and(|q| party_near(b, 40.0) + 1 < q.group as usize || b.level < q.level)
 }
 
 /// Does an open quest ask us to talk to this NPC?

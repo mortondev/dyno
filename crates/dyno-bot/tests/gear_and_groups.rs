@@ -118,6 +118,27 @@ fn two_strangers_find_each_other_for_old_tusk() {
         bo.body.say(line);
         run_until(&mut [&mut ana, &mut bo], 0.05, |_| false);
     }
+    // every other quest done before going on (on a busy machine a line can
+    // land late): say again what is missing
+    let others = c.quests.len() - 1;
+    for _ in 0..10 {
+        if run_until(&mut [&mut ana, &mut bo], 3.0, |a| {
+            a.iter().all(|a| a.body.done.len() >= others)
+        }) {
+            break;
+        }
+        for a in [&mut ana, &mut bo] {
+            for q in c.quests.iter().filter(|q| q.key != "old_tusk") {
+                if !a.body.done.contains(&q.id) {
+                    a.body.say(&format!("/finish {}", q.key));
+                }
+            }
+        }
+    }
+    assert!(
+        [&ana, &bo].iter().all(|a| a.body.done.len() >= others),
+        "every other quest finished"
+    );
     // both walk to Holt and take it
     ana.set(Task::talk(tusk.giver, vec![Deal::Accept(tusk.id)]));
     bo.set(Task::talk(tusk.giver, vec![Deal::Accept(tusk.id)]));
