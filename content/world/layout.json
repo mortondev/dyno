@@ -1138,24 +1138,51 @@
     "radius": [26, 20]
    },
    "stamps": [
-    {"stamp": "windmill", "at": [-10, -3]},
-    {"stamp": "stone_wall", "at": [2, -21], "fit": "ground"},
-    {"stamp": "hedge", "at": [27, 4], "rot": 1, "fit": "ground"},
+    {"stamp": "south_road_windmill", "at": [-10, -3]},
     {"stamp": "farmhouse", "at": [13, -9]},
+    {"stamp": "flower_garden", "at": [6, -2]},
     {"stamp": "field", "at": [12, 9]},
-    {"stamp": "haystack", "at": [-23, 1]},
-    {"stamp": "cart", "at": [14, 22]},
-    {"stamp": "pond_big", "at": [-7, 13]},
-    {"stamp": "pond", "at": [-20, -22], "fit": "ground"},
+    {"stamp": "hedge", "at": [27, 4], "rot": 1, "fit": "ground"},
+    {"stamp": "field", "at": [36, -10], "fit": "ground"},
+    {"stamp": "field", "at": [36, -25], "fit": "ground"},
+    {"stamp": "barn", "at": [2, -32], "fit": "ground"},
+    {"stamp": "stone_wall", "at": [15, -27], "fit": "ground"},
+    {"stamp": "stone_wall", "at": [24, -19], "rot": 1, "fit": "ground"},
+    {"stamp": "well", "at": [9, -19]},
+    {"stamp": "log_pile", "at": [15, -24]},
+    {"stamp": "drying_rack", "at": [21, -17], "rot": 1},
+    {"stamp": "pond", "at": [-13, -30], "fit": "ground"},
+    {"stamp": "cart", "at": [-6, 18]},
+    {"stamp": "south_road_mill_goods", "at": [-19, 16]},
+    {"stamp": "haystack", "at": [-42, 13], "fit": "ground"},
     {"stamp": "signpost", "at": [-28, -6], "fit": "ground"}
    ],
    "trees": [
-    {"species": "hero_oak", "at": [27, -20]}
+    {"species": "hero_oak", "at": [30, -44]}
    ],
    "was": {
     "at": [18, 95],
     "radius": 20
    }
+  },
+  {
+   "key": "south_road_thieves_den",
+   "kind": "site",
+   "at": [150, 425],
+   "name": "Thieves' Den",
+   "radius": 24,
+   "stamps": [
+    {"stamp": "south_road_scorch", "at": [0, 0], "fit": "float"},
+    {"stamp": "south_road_scorch", "at": [-6, -3], "fit": "float"},
+    {"stamp": "south_road_scorch", "at": [5, 5], "fit": "float"},
+    {"stamp": "campfire", "at": [0, 0], "fit": "ground"},
+    {"stamp": "tent_red", "at": [-11, -3], "rot": 3, "fit": "ground"},
+    {"stamp": "south_road_ash_flag", "at": [10, -12], "fit": "ground"},
+    {"stamp": "south_road_ash_flag", "at": [-6, 14], "fit": "ground"},
+    {"stamp": "cart", "at": [9, 6], "fit": "ground"},
+    {"stamp": "south_road_loot", "at": [11, 10], "fit": "ground"},
+    {"stamp": "boulders", "at": [-3, -15], "fit": "float"}
+   ]
   },
   {
    "key": "fishers_landing",
@@ -2011,7 +2038,12 @@
    "key": "mere_flock",
    "kind": "camp",
    "at": [25, 440],
-   "radius": 20
+   "radius": 20,
+   "stamps": [
+    {"stamp": "south_road_broken_pen", "at": [-8, -2], "fit": "ground"},
+    {"stamp": "south_road_trough", "at": [-4, 6], "fit": "ground"},
+    {"stamp": "haystack", "at": [-15, 5], "fit": "ground"}
+   ]
   },
   {
    "key": "road_scouts_1",
@@ -2131,7 +2163,13 @@
    "at": [10, 180],
    "radius": 10,
    "stamps": [
-    {"stamp": "ruin_tower", "at": [-13, 1], "fit": "ground"}
+    {"stamp": "south_road_broken_tower", "at": [-15, 1], "fit": "ground"},
+    {"stamp": "south_road_footing", "at": [-13, 14], "rot": 1, "fit": "ground"},
+    {"stamp": "south_road_footing", "at": [-13, 26], "rot": 1, "fit": "ground"},
+    {"stamp": "south_road_footing", "at": [-6, 32], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [15, -15]}
    ]
   },
   {
@@ -2140,7 +2178,39 @@
    "at": [21, 235],
    "radius": 10,
    "stamps": [
-    {"stamp": "ruin_wall", "at": [13, -2], "fit": "ground"}
+    {"stamp": "ruin_wall", "at": [13, -2], "fit": "ground"},
+    {"stamp": "south_road_footing", "at": [7, -23], "fit": "ground"},
+    {"stamp": "south_road_footing", "at": [13, -12], "rot": 1, "fit": "ground"},
+    {"stamp": "fallen_log", "at": [9, 8], "rot": 1, "fit": "ground"}
+   ]
+  },
+  {
+   "key": "south_road_fold",
+   "kind": "site",
+   "at": [-40, 250],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "hut", "at": [0, 0], "fit": "ground"},
+    {"stamp": "stone_wall", "at": [10, -6], "fit": "ground"},
+    {"stamp": "stone_wall", "at": [18, 3], "rot": 1, "fit": "ground"},
+    {"stamp": "haystack", "at": [-7, 5], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [-10, -9]}
+   ]
+  },
+  {
+   "key": "south_road_wayside_mid",
+   "kind": "wayside",
+   "at": [36, 310],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "milestone", "at": [1, -4], "fit": "ground"},
+    {"stamp": "south_road_broken_cart", "at": [6, 2], "fit": "ground"},
+    {"stamp": "log_pile", "at": [6, 10], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "young_oak", "at": [13, -3]}
    ]
   },
   {
@@ -2149,7 +2219,29 @@
    "at": [32, 395],
    "radius": 10,
    "stamps": [
-    {"stamp": "standing_stones", "at": [-15, 1], "fit": "ground"}
+    {"stamp": "south_road_clear_14", "at": [-15, 1], "fit": "float", "dy": 40},
+    {"stamp": "south_road_clear_10", "at": [20, -10], "fit": "float", "dy": 40},
+    {"stamp": "south_road_listening_stones", "at": [-15, 1], "rot": 3, "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "hero_oak", "at": [20, -10]}
+   ]
+  },
+  {
+   "key": "south_road_pinewood",
+   "kind": "site",
+   "at": [-50, 420],
+   "radius": 14,
+   "stamps": [
+    {"stamp": "fallen_log", "at": [2, 0], "rot": 1, "fit": "ground"},
+    {"stamp": "stumps", "at": [8, 10], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "pine", "at": [-6, -5]},
+    {"species": "pine", "at": [6, -8]},
+    {"species": "pine", "at": [-3, 8]},
+    {"species": "young_pine", "at": [-11, 2]},
+    {"species": "young_pine", "at": [10, 1]}
    ]
   },
   {
@@ -2158,7 +2250,8 @@
    "at": [-10, 511],
    "radius": 10,
    "stamps": [
-    {"stamp": "wayshrine", "at": [6, 6], "fit": "ground"}
+    {"stamp": "south_road_mere_shrine", "at": [7, 7], "fit": "ground"},
+    {"stamp": "bench_lamp", "at": [10, 14], "fit": "ground"}
    ],
    "trees": [
     {"species": "oak", "at": [33, -14]}
