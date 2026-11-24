@@ -30,8 +30,25 @@ pub struct Target {
     pub place: [i32; 3],
 }
 
-/// Voxel ray cast (Amanatides and Woo).
+/// The first block a ray meets (anything but air and water).
 pub fn raycast(world: &World, origin: Vec3, dir: Vec3, max: f32) -> Option<Target> {
+    raycast_where(world, origin, dir, max, |b| b != w::AIR && b != w::WATER)
+}
+
+/// The first block a ray meets that stops a line of sight: a torch (the
+/// one block that is not a full cube) does not hide what stands behind it.
+pub fn raycast_solid(world: &World, origin: Vec3, dir: Vec3, max: f32) -> Option<Target> {
+    raycast_where(world, origin, dir, max, w::is_solid)
+}
+
+/// Voxel ray cast (Amanatides and Woo): the first block `stops` is true of.
+fn raycast_where(
+    world: &World,
+    origin: Vec3,
+    dir: Vec3,
+    max: f32,
+    stops: impl Fn(w::BlockId) -> bool,
+) -> Option<Target> {
     let mut cell = [
         origin.x.floor() as i32,
         origin.y.floor() as i32,
@@ -68,7 +85,7 @@ pub fn raycast(world: &World, origin: Vec3, dir: Vec3, max: f32) -> Option<Targe
     let mut t = 0.0;
     while t <= max {
         let b = world.get(cell[0], cell[1], cell[2]);
-        if b != w::AIR && b != w::WATER {
+        if stops(b) {
             return Some(Target {
                 block: cell,
                 place: prev,
@@ -288,5 +305,16 @@ mod tests {
         let t = raycast(&w, Vec3::new(6.5, 8.0, 6.5), Vec3::new(0.0, -1.0, 0.0), 6.0).expect("hit");
         assert_eq!(t.block, [6, 5, 6]);
         assert_eq!(t.place, [6, 6, 6]);
+    }
+
+    #[test]
+    fn a_torch_does_not_block_a_line_of_sight_but_stone_does() {
+        let mut w = platform();
+        w.set(6, 6, 6, w::TORCH);
+        assert!(!w::is_solid(w::TORCH));
+        let (o, down) = (Vec3::new(6.5, 9.0, 6.5), Vec3::new(0.0, -1.0, 0.0));
+        // a click on the block finds the torch; the line of sight goes on to the stone
+        assert_eq!(raycast(&w, o, down, 8.0).unwrap().block, [6, 6, 6]);
+        assert_eq!(raycast_solid(&w, o, down, 8.0).unwrap().block, [6, 5, 6]);
     }
 }

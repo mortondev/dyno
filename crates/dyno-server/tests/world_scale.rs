@@ -795,8 +795,10 @@ fn camps_people_and_objectives_stand_in_the_world() {
     let pack = Pack::builtin();
     let c = &pack.content;
     let h = m.built.hearth;
+    // the server's own search: feet on ground, never on a tree's crown
     let free = |x: i32, y: i32, z: i32| {
         w::is_solid(m.world.get(x, y - 1, z))
+            && !w::is_leaves(m.world.get(x, y - 1, z))
             && !w::is_solid(m.world.get(x, y, z))
             && !w::is_solid(m.world.get(x, y + 1, z))
     };
@@ -1113,8 +1115,10 @@ fn the_innkeeper_and_the_stations_can_be_walked_to() {
     let h = m.built.hearth;
     // (a free block at the middle of the town)
     let plaza = place(m, "hearthstead");
+    // the server's own search: feet on ground, never on a tree's crown
     let free = |x: i32, y: i32, z: i32| {
         w::is_solid(m.world.get(x, y - 1, z))
+            && !w::is_leaves(m.world.get(x, y - 1, z))
             && !w::is_solid(m.world.get(x, y, z))
             && !w::is_solid(m.world.get(x, y + 1, z))
     };

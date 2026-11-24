@@ -21,7 +21,7 @@ w = r["world"]
 # 3) and a client starts facing north, at the hearth. Brannoc stood beside
 # and a little behind; he now stands between you and the hearth, to the left,
 # with his "!" in the picture
-npcs["brannoc"]["at"] = [-3, 0, 5]
+npcs["brannoc"]["at"] = [-2, 0, 5]
 
 # --- 12. tags: anyone outside the tagger's party who took a tenth of a
 # creature's health off it shares the kill: quest credit, their own quest

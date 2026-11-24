@@ -77,18 +77,9 @@ impl State {
             let _ = max_before;
             self.broadcast(&ServerMsg::LevelUp { player: id, level }, None);
             self.event(format!("{name} reached level {level}!"));
-            // what the new level teaches, by name, with what it does
+            // (what the new level teaches is the client's to show: it has the
+            // abilities, and its banner names each with the key it went on)
             let class = self.players[&id].class;
-            let learned: Vec<String> = self
-                .content
-                .abilities
-                .iter()
-                .filter(|a| Some(a.class) == class && a.level > level - ups && a.level <= level)
-                .map(|a| format!("You have learned {}: {}", a.name, a.text))
-                .collect();
-            for line in learned {
-                self.tell(id, line);
-            }
             // a level-up fills your mana too (rage and energy keep their own rules)
             let max_power = self.max_power(id);
             let mana = class
@@ -135,8 +126,10 @@ impl State {
         for (nid, at, phase) in npcs {
             let (x, z) = (h[0] + at[0], h[2] + at[2]);
             let y0 = h[1] + at[1];
+            // feet on ground, never on a tree's crown
             let free = |y: i32| {
                 w::is_solid(self.world.get(x, y - 1, z))
+                    && !w::is_leaves(self.world.get(x, y - 1, z))
                     && !w::is_solid(self.world.get(x, y, z))
                     && self.world.get(x, y, z) != w::WATER
                     && !w::is_solid(self.world.get(x, y + 1, z))

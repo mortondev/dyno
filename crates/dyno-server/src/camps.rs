@@ -223,6 +223,9 @@ impl State {
                     },
                 };
                 p.send(&msg);
+                let mut places: Vec<String> = p.discovered.iter().cloned().collect();
+                places.sort();
+                p.send(&ServerMsg::Discovered(places));
                 if let Some((name, xp)) = found.filter(|f| f.1 > 0 && self.rpg()) {
                     self.tell(id, format!("Discovered: {name} (+{xp} XP)"));
                     self.reward(id, xp, 0);

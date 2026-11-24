@@ -195,11 +195,15 @@ impl Front {
     pub fn preview(&self) -> Option<Look> {
         match self.page {
             Page::Class | Page::Appearance | Page::Name => {
-                let color = self
-                    .class_info()
-                    .map(|c| c.color)
-                    .unwrap_or([0.5, 0.5, 0.6]);
-                Some(Look::from_appearance(&self.look, color))
+                let class = self.class_info();
+                let color = class.map(|c| c.color).unwrap_or([0.5, 0.5, 0.6]);
+                let mut look = Look::from_appearance(&self.look, color);
+                // in what the class starts with (the realm names the items;
+                // the pack's figures say how each is worn)
+                if let Some(c) = class {
+                    look.wear(c.starter.iter().map(String::as_str));
+                }
+                Some(look)
             }
             Page::Select => {
                 let c = self.current()?.chars.get(self.chosen)?;
