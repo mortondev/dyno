@@ -599,10 +599,8 @@ fn emit(s: &Scene, fx: &Effect, e: &Emitter, clock: f64, thin: f32, wind: Vec3, 
             [0, 1, 2].map(|c| ((cs[a][c] + (cs[b][c] - cs[a][c]) * t) * shade).clamp(0.0, 1.0));
         let lin = rgb.map(|c| c.powf(2.2));
         if fx.glow > 0.0 {
+            // its glow is the bloom's (no camera-facing halo: the voxel rule)
             cube(out.fx, s.eye, pos, size * 0.5, lin, 2.0, 1.0, 1.0);
-            if k > 0.02 {
-                halo(out.glow, pos, lin, fx.glow, fx.glow_alpha * k);
-            }
         } else {
             cube(
                 out.fx,
@@ -677,27 +675,6 @@ fn cube(
                 tex: render::NO_TEX,
             });
         }
-    }
-}
-
-/// A soft halo that faces the camera.
-fn halo(out: &mut Vec<Vertex>, pos: Vec3, rgb: [f32; 3], size: f32, alpha: f32) {
-    for (x, y) in [
-        (-1.0, -1.0),
-        (1.0, -1.0),
-        (1.0, 1.0),
-        (-1.0, -1.0),
-        (1.0, 1.0),
-        (-1.0, 1.0),
-    ] {
-        out.push(Vertex {
-            pos: pos.into(),
-            normal: [x, y, size],
-            color: [rgb[0], rgb[1], rgb[2], alpha],
-            light: 1.0,
-            sky: 1.0,
-            tex: [0.0, 0.0, render::KIND_GLOW, 0.0],
-        });
     }
 }
 
