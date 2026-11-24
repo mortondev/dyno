@@ -11,11 +11,11 @@ something on the way, and adds a way to find a second player for Old Tusk.
 
 | | Goal | Result |
 |---|---|---|
-| 1 | Teach the bots (rest to 80% health and mana before pulling; leave group quests and elites alone unless grouped to size; judge camps by what stands there; no gear-swap loop, with a test), then freeze them | **Pass.** Bot build `7a4b4de`, the same binary for all four counted runs. Chosen pulls under 80% health in the 8-minute check: 0 of 161. Grinder deaths: 10.7 an hour (round 2) to 0. Test `a_two_handed_weapon_and_a_shield_do_not_swap_for_ever` (fails on the old code). One bot rule was added after the counted runs and is not in any table (section 3) |
+| 1 | Teach the bots (rest to 80% health and mana before pulling; leave group quests and elites alone unless grouped to size; judge camps by what stands there; no gear-swap loop, with a test), then freeze them | **Pass.** Bot build `7a4b4de`, the same binary for all four counted runs. Chosen pulls under 80% health in the four counted runs: 0 of 2,302. Grinder deaths: 10.7 an hour (round 2) to 0. Test `a_two_handed_weapon_and_a_shield_do_not_swap_for_ever` (fails on the old code). One bot rule was added after the counted runs and is not in any table (section 3) |
 | 2 | Two 12-bot 30-minute mixed swarms before and two after, tick p95 under 50 ms, medians per type and class | **Pass.** Tick p95 1.00 to 1.25 ms in all four. Tables in section 2. Before: v0.11.3's rules + the `group` tag; after: the same + this round's content |
-| 3 | Deaths under 1.5 an hour for completionist, casual, explorer and social; every death attributed; my causes fixed | **Pass (small samples).** Before / after: completionist 0.8 / 0.8, casual 0 / 0 (0.2 and 0.3 bot-hours), explorer 0 / 0, social 1.0 / 0. All 25 deaths attributed. No deaths to adds, night, respawns or low pulls. Fixed: Silkmother, the Warden's distance, and (after the runs) Know the Vale's Shrine Shore. Not mine: the party pair died 18 times to Old Tusk at levels 2 and 3, a bot fault, fixed after the freeze |
-| 4 | Travel 50% or less for completionist, casual and social; talk-quest walks carry something; five longest runs before and after | **Fail.** Completionist 69% → 66%, social 61% → 58%, casual 28% → 53% (it plays about 10 minutes). Five talk quests now have a step on the way, and two quests are handed out before the walk they belong to. The Garrick talk walk went from 11.2 bot-minutes to under 4.2, but a new hand-in walk to Garrick (12.8) ate it. The five longest runs, before and after, are none of them talk walks (section 4) |
-| 5 | Questing bots: median longest gap under 2:00, worst under 3:30; every gap over 2:00 listed | **Pass, narrowly.** 2:24 → 1:59, worst 3:22 → 2:51. All 26 listed with cause (section 5) |
+| 3 | Deaths under 1.5 an hour for completionist, casual, explorer and social; every death attributed; my causes fixed | **Pass on the counted rules (small samples).** Before / after: completionist 0.8 / 0.8, casual 0 / 0 (0.2 and 0.3 bot-hours), explorer 0 / 0, social 1.0 / 0. All 25 deaths attributed. No deaths to adds, night, respawns or low pulls. Fixed: Silkmother, and (after the runs) Know the Vale's Shrine Shore. Open: the Barrow Warden death, a Shade hunt in the Old Barrow (section 3). Not mine: the party pair died 18 times to Old Tusk at levels 2 and 3, a bot fault; a bot rule changed after the freeze (own level only, unmeasured) |
+| 4 | Travel 50% or less for completionist, casual and social; talk-quest walks carry something; five longest runs before and after | **Fail.** Completionist 69% → 66%, social 61% → 58%, casual 28% → 53% (it plays about 10 minutes). Five talk quests now have a step on the way, and two quests are handed out before the walk they belong to. All travel bound for Garrick (to talk, to hand in, or to the well on his quest) was 31.3 bot-minutes before and 33.4 after: no saving, because a bot that takes both quests at Holt walks to Garrick twice. The five longest runs, before and after, are none of them talk walks (section 4) |
+| 5 | Questing bots: median longest gap under 2:00, worst under 3:30; every gap over 2:00 listed | **Pass on the counted rules, narrowly** (by one second; the hand-in also has main's F2 rules, `vale` and the bot level rule, with no swarm run on it). 2:24 → 1:59, worst 3:22 → 2:51. All 26 listed with cause (section 5) |
 | 6 | A light, data-driven way to find a group for Old Tusk, proven by two bots or two `dyno play` sessions | **Pass.** `Quest::group` in the rules; `ServerMsg::Seekers` once a second to carriers (protocol 26, appended); a Looking for group box with Invite and Whisper, and green dots on the map; the LFG line in `dyno play`. Proof: a bot test (two strangers group and kill him), two `dyno play` sessions (whisper, invite, kill in 16 s), and 6 pairs formed in the swarms, 5 of which killed him. The client box was not looked at in a running client |
 | 7 | One 30-minute hand run as a class round 2 did not play | **Done:** a hunter, level 4 at 29:04, 13 quests, 2 deaths (section 7) |
 | 8 | Gates: fmt, clippy with warnings as errors, the workspace's tests once, the client check | **Pass**, on the tree merged with main (`10b49c2`, protocol 26, with the camera lane's merge): `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings` clean, `cargo test --workspace` 292 passed and 0 failed, `check-client.sh` 9.25 MB with no content strings. An earlier full run, before that merge, lost the LFG test once: on a loaded machine, a few of its staging `/finish` lines landed late and the bots went off to other quests. The test now repeats any that are missing |
@@ -24,9 +24,9 @@ something on the way, and adds a way to find a second player for Old Tusk.
 
 - **One bot build for every counted swarm:** `7a4b4de`. The binary was
   copied before the first counted run and every counted swarm ran on that
-  copy. Since then `crates/dyno-bot/src` changed twice: `cargo fmt`
+  copy. Since then `crates/dyno-bot/src` changed in two commits (`git diff --stat 7a4b4de HEAD -- crates/dyno-bot/src`: 11 lines in `body.rs` and `brain.rs`): `cargo fmt`
   (whitespace), and one rule added after the last counted run (a bot leaves
-  a group's creature alone below the quest's level; section 2). Neither is
+  a group's creature alone below the quest's level; section 3). Neither is
   in any table below.
 - **Rules, like for like.** Every counted run uses the rules of v0.11.3
   (`bdad493`), not main's later rules (main has since merged feel F2's
@@ -70,7 +70,7 @@ something on the way, and adds a way to find a second player for Old Tusk.
 
 | What round 2 found | What the bot does now | Where |
 |---|---|---|
-| It rested only out of combat. The combat flag outlasts a kill by a few seconds, so it pulled the next creature first: 28 of the grinders' 35 deaths | Before choosing anything, it rests if health or mana is under 80%, unless something hit it in the last 2 s. It rests to 85% (at 95% the grinders spent half their time resting at level 2) | `brain.rs` `ready_to_pull`, `choose` step 2; the social bot's assist checks it too |
+| It rested only out of combat. The combat flag outlasts a kill by a few seconds, so it pulled the next creature first: 28 of the grinders' 35 deaths | Before choosing anything, it rests if health or mana is under 80%, unless something hit it in the last 2 s. It rests to 85%. The 8-minute check, resting to 95%, had the grinders resting about half their time; at 85% they still rest 51% (section 2), so the lower target did not cure that | `brain.rs` `ready_to_pull`, `choose` step 2; the social bot's assist checks it too |
 | It took every quest and walked into Old Tusk alone | A creature that a group quest asks for (`Quest::group`, new in the rules) is left alone unless at least that many of its party stand within 40 m. Its camp counts as dangerous, so the bot does not path through it. It still takes the quest: carrying it is what tells the server it is looking | `brain.rs` `needs_group`, `live_target`, `hunt`, `dangerous` |
 | It chose camps by the creature kind's level range. The server spawns a camp at the camp's band, else the area's, so a level 4 grinder walked between flocks of level 1 Grazers | Camps are judged by `camp.levels` or the area's levels, as the server spawns them. A camp whose band starts above our level + 2 is skipped, one that tops out above our level + 1 costs 400 m, and a grinder skips camps whose top is below our level − 1. Explorers visit zones whose band starts at our level + 1 at most (was + 2: an explorer died in the Ashcloak Stockade in round 2) | `brain.rs` `camp_levels`, `hunt`, `grind`, `explore`, `dangerous` |
 | A warrior with the Watch Greataxe and a buckler swapped them for ever | The bot scored each item in the place it chose, with the other hand untouched. The server puts an item in the first empty matching place, else the first, takes the off hand off for a two-handed weapon, and takes a two-handed weapon off for an off-hand item. Both now use one function, `dyno_sim::character::equip_place`. The same fault could loop on rings (two places) | `character.rs` `equip_place`; `gear.rs` `equip`; `body.rs` `upgrade_place` |
@@ -82,8 +82,7 @@ three things go on, and then nothing. On the old `upgrade_place` it fails:
 after 8 s the buckler is on and the axe is in the bags. Its waits scale by
 `DYNO_TEST_TIME_SCALE`.
 
-Checked before freezing: one 8-minute 12-bot swarm. 0 of 161 chosen pulls
-were under 80% health, no deaths, no equip loops.
+Checked before freezing with one 8-minute 12-bot swarm, at the time resting to 95%: 0 of 161 chosen pulls under 80% health, no deaths, no equip loops. On the frozen build, over the four counted runs: 0 of 2,302 chosen pulls (fights not started by a creature or a party member) under 80%.
 
 What the freeze kept in: the party brain's stalls (one of the pair idles
 for minutes in town; section 4), and a rule I added only after the counted
@@ -186,7 +185,7 @@ health: jumped; chose to pull under 60%: low pull; else one-on-one).
 | A | 04soc | social | Priest | 29:12 | 4 | Silkmother, Websnare 5 (+1) | Silkmother | night | 68% | attacked | The Hollow Oak | one-on-one (a rare elite a level up) | Mine. Silkmother, the Oak's rare, stood a level above the level 4s that Rysa sends there and hit for 2.5 times a Websnare; she killed two in round 2 as well. Now at her camp's level, 2.0 times |
 | B | 10com | completionist | Priest | 18:51 | 3 | Old Tusk 4 (+1) | Old Tusk | day | 100% | helping its LFG leader | Old Tusk's hollow | one-on-one | The bot: a level 3 priest grouped with a social priest through looking for group, and the pair lost |
 | B | 10com | completionist | Priest | 20:53 | 3 | Old Tusk 4 (+1) | Old Tusk | day | 100% | Old Tusk | Old Tusk's hollow | one-on-one | The same pair again. The bot's group rule counted heads, not levels |
-| B | 03com | completionist | Rogue | 28:23 | 4 | Barrow Warden 6 (+2) | Barrow Warden | night | 19% | attacked | The Old Barrow | over-level | Mine. Into Barrowwood asked you to stand 20 m from a level 6 elite. Now 37 m, at the barrow's far edge |
+| B | 03com | completionist | Rogue | 28:23 | 4 | Barrow Warden 6 (+2) | Barrow Warden | night | 19% | attacked | The Old Barrow | over-level | Mine, and open. Into Barrowwood was done: the bot was hunting Shades at night for Dust of Shadows in the Old Barrow (a `dark` area, levels 5 to 6) and was at 19% when the Warden came. The Warden's sight is 3 m, so Shades or the barrow's dark brought it there hurt. I also moved Into Barrowwood's place 17 m further from him, which does not touch this death. The real fix is for Dust of Shadows to send you to the Dimwood (a kill objective with a place), or for the Old Barrow not to be a Shade haunt |
 
 No deaths at all to adds, the night, respawns or low pulls.
 
@@ -197,18 +196,18 @@ No deaths at all to adds, the night, respawns or low pulls.
 | A | 03com | completionist | Rogue | 26:06 | 5 | Gloomwisp 7 (+2) | Gloomwisp | night | 87% | attacked | the Shrine Shore | over-level | Mine. Know the Vale (level 5) sends you to stand at the Shrine Shore, which is a camp of level 7 to 8 Gloomwisps |
 | B | 00com | completionist | Warrior | 25:31 | 5 | Gloomwisp 8 (+3) | Gloomwisp | day | 87% | attacked | the Shrine Shore | over-level | The same |
 | B | 10com | completionist | Priest | 25:35 | 4 | Gloomwisp 8 (+4) | none left | night | 34% | attacked | the Shrine Shore | over-level | The same |
-| A, B | 08par, 09par | party | Hunter, Rogue | 19:58 to 29:35 | 2 to 3 | Old Tusk 4 (+1, +2) | Old Tusk | day and night | 100% | Old Tusk, and helping | Old Tusk's hollow | one-on-one / over-level | The bot: 18 deaths, 9 trips of the pair, at levels 2 and 3. The leader's party of two met the head count, and it walked back after each wipe. Before, the pair never got that far; now Tusks and Tempers comes from Holt, so it reached Old Tusk's quest at level 3 (the engine offers a quest at its level − 1) |
+| A, B | 08par, 09par | party | Hunter, Rogue | 19:58 to 29:35 | 2 to 3 | Old Tusk 4 (+1, +2) | Old Tusk | day and night | 100% | Old Tusk, and helping | Old Tusk's hollow | one-on-one / over-level | The bot: 18 deaths, 9 trips of the pair, at levels 2 and 3. The leader's party of two met the head count, and it walked back after each wipe. In the before runs the leader carried Old Tusk's quest too (levels 3 and 4) and never went for him; I do not know what changed that |
 
 What was done after the counted runs (in the hand-in, in no table above):
 
 - **Rules, `vale` stage.** Know the Vale stands at Emberrun Ford (levels
   4 to 5) instead of the Shrine Shore. All three questing deaths of the
   after runs were there.
-- **Bot.** A group's creature is also left alone below the group quest's
-  level (`needs_group`). This is a bot change after the freeze. I made it
+- **Bot.** A group's creature is also left alone when the bot is below the group quest's
+  level (`needs_group`). It checks the bot's own level only: a level 4 leader with a level 2 follower still goes in. This is a bot change after the freeze. I made it
   because the party pair's loop at Old Tusk is a fault in the frozen
   build, not in the game: two level 2 and 3 characters lost to a level 4
-  elite every time they tried. It is not measured by a swarm.
+  elite every time they tried. It is changed, not measured: no swarm has run with it.
 
 So: **completionist 0.8, casual 0, explorer 0, social 0 deaths an hour
 after; 0.8, 0, 0, 1.0 before. Pass, with the sample caveat**: 0.2 to 0.3
@@ -218,7 +217,7 @@ casual bot-hours and 1 explorer and 1 social bot-hour over two runs.
   creature come back on top of someone, or to a pull under 60%. These were
   the causes round 2 named as the goal's.
 - What is left are places that sent a level 4 or 5 to stand beside a
-  level 6 to 8 creature (both fixed), and the bots' Old Tusk pairs.
+  level 6 to 8 creature (the Shrine Shore fixed; the Old Barrow's Shade hunt open), and the bots' Old Tusk pairs.
 
 
 ## 4. Travel
@@ -244,9 +243,10 @@ way to (`round2.py`, "Travel by purpose"), both runs pooled:
 
 | on the way to | before | after | |
 |---|---|---|---|
-| Garrick's Camp: talk to Garrick | 11.2 | under 4.2 | Now the Woodcutters' Well first (5.3), a discovery and a quest step 70 m out |
+| Garrick's Camp: talk to Garrick | 11.2 | below the list's last line (4.2) | Now the Woodcutters' Well first (5.3), a discovery and a quest step 70 m out |
 | Tusks and Tempers: boars for tusks | 5.8 | 4.8 | Taken from Holt; the boars at Holt and on the trail drop them |
-| Visiting Garrick to hand in Tusks and Tempers | (part of the visit for Garrick's Camp) | 12.8 | New, and it eats what was saved. A bot that takes both quests at Holt finishes Garrick's Camp first and walks back with the tusks later |
+| Visiting Garrick to hand in Tusks and Tempers | not in the list | 12.8 | A bot that takes both quests at Holt finishes Garrick's Camp first and walks back with the tusks later |
+| **All travel bound for Garrick** (any purpose naming him or his camp quest, from the 5-second trail) | **31.3** | **33.4** | No saving |
 | Word for the Hunter: talk to Rysa | 9.4 | 6.4 | Hunter's Rest on the way |
 | Bread for the Mill: talk to Ostrin | (the two longest runs of the baseline, 7:44 and 7:51) | the Listening Stones 4.3, Ostrin under 4.2 | No run to Ostrin is in the after runs' longest twelve |
 
@@ -440,7 +440,7 @@ look at where it sits beside the chat at 1080p, are for the UI lane.
 ## 7. What I played: Wrenna, a hunter, 30 minutes
 
 A new character on a fresh server of the after rules (the counted runs'
-rules, before `vale`), driven through `dyno play` command by command, no
+rules, before `vale` and the Into Barrowwood edit), driven through `dyno play` command by command, no
 operator commands. Transcript: [runs/r3-hand-wrenna.txt](runs/r3-hand-wrenna.txt).
 Round 2 played a mage and a rogue; this is the first hunter.
 
@@ -529,7 +529,7 @@ What I would tell the next designer:
 | content | Down to the Water: the Wayshrine of the Mere on the way to Wenna; Pincher Supper given by Ostrin with it, handed in to Wenna | The same walk, and the claw meat from the pinchers on that shore |
 | content | Word for the Hunter: Hunter's Rest on the way to Rysa | 300 m for a hello (5.2 bot-minutes of baseline A's travel) |
 | content | Silkmother: her camp's level (was +1) and 2.0 times a Websnare (was 2.5) | 2 of round 2's 13 deaths and baseline A's one questing death |
-| content | Into Barrowwood: stand at the barrow's far edge, 37 m from the Warden (was 20 m) | Baseline B lost a level 4 to him there |
+| content | Into Barrowwood: stand at the barrow's far edge, 37 m from the Warden (was 20 m) | Meant for baseline B's death to him; that death turned out to be a Shade hunt in the barrow (section 3), so this does not address it |
 | vale (after the counted runs) | Know the Vale: Emberrun Ford (levels 4 to 5) instead of the Shrine Shore, which is a gloomwisp camp of levels 7 to 8 | After run A lost a level 5 there |
 
 ### Engine (small, general)
