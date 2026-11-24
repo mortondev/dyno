@@ -1075,7 +1075,7 @@
    "stamps": [
     {"stamp": "ridge_rock_cut", "at": [0, 0], "fit": "float"},
     {"stamp": "ridge_lookout", "at": [-8, -4], "fit": "ground"},
-    {"stamp": "cairn", "at": [-12, 1], "fit": "ground"},
+    {"stamp": "cairn", "at": [-14, -6], "fit": "ground"},
     {"stamp": "signpost", "at": [-6, 16], "fit": "ground"},
     {"stamp": "lamp_post", "at": [-2, 9], "fit": "ground"},
     {"stamp": "lamp_post", "at": [7, -6], "fit": "ground"}
@@ -1100,7 +1100,7 @@
     {"stamp": "ridge_cliff_face", "at": [12, -3]},
     {"stamp": "hollow_mines", "at": [11, -3]},
     {"stamp": "mine_portal", "at": [12, -3]},
-    {"stamp": "ridge_mine_head", "at": [16, 19], "rot": 3, "dy": 11},
+    {"stamp": "ridge_mine_head", "at": [6, 25], "rot": 3, "dy": 11},
     {"stamp": "ridge_adit_brazier", "at": [11, -10]},
     {"stamp": "ridge_adit_brazier", "at": [11, 4]},
     {"stamp": "rail_track", "at": [-6, -3]},
@@ -1128,7 +1128,7 @@
    "at": [700, -50],
    "radius": 10,
    "stamps": [
-    {"stamp": "ridge_cart_wreck", "at": [-6, 2], "fit": "ground"},
+    {"stamp": "ridge_cart_wreck", "at": [-7, 1], "rot": 2, "fit": "ground"},
     {"stamp": "ridge_rail_spur", "at": [-5, -8], "rot": 1, "fit": "ground"},
     {"stamp": "ridge_rail_spur", "at": [9, 12], "rot": 1, "fit": "ground"},
     {"stamp": "ridge_rail_spur", "at": [12, -4], "rot": 1, "fit": "ground"},

@@ -390,7 +390,7 @@ def ridge_mine_head():
 CLIFF_ANCHOR = (12, -3)
 CLIFF_FRONT = [(0, 0), (1.5, 5), (3, 8), (1e9, 11)]
 PORTAL_FRONT = [(0, 0), (1, 9), (1e9, 11)]
-HEAD_AT = (16, 19)               # the headframe's plateau (place)
+HEAD_AT = (6, 25)                # the headframe's plateau (place)
 
 
 def cliff_height(x, z):
@@ -407,7 +407,7 @@ def cliff_height(x, z):
                 tier(b, BACK[:-1] + [(1e9, 11)]))
         best = max(best, h)
     # the plateau round the headframe is flat at 11
-    if math.hypot(x - HEAD_AT[0], z - HEAD_AT[1]) <= 7 and best > 0:
+    if math.hypot(x - HEAD_AT[0], z - HEAD_AT[1]) <= 13 and -40 <= th <= 110 and r >= 18.5:
         best = 11
     return best
 
@@ -421,20 +421,19 @@ def ridge_cliff_face():
     the hollow_mines dig and the mine_portal so they cut the adit back
     through it."""
     ax, az = CLIFF_ANCHOR
-    v = massif(CLIFF_ANCHOR, ((-8, 36), (-14, 34)), cliff_height, 62)
+    v = massif(CLIFF_ANCHOR, ((-10, 36), (-14, 40)), cliff_height, 62)
     # carve the hill above the plateau so the headframe stands clear
     hx, hz = HEAD_AT
-    for z in range(hz - 8, hz + 13):
-        for x in range(hx - 8, hx + 13):
-            if math.hypot(x - hx, (z - hz) * 0.8) <= 10.5 and cliff_height(x, z) >= 11:
+    for z in range(hz - 14, hz + 15):
+        for x in range(hx - 14, hx + 15):
+            if math.hypot(x - hx, z - hz) <= 13 and cliff_height(x, z) >= 11:
                 for y in range(11, 26):
                     v.set(x - ax, y, z - az, "air")
     # the fence along the plateau's west and north edges
-    for z in range(hz - 7, hz + 8):
-        for x in range(hx - 8, hx + 8):
-            if cliff_height(x, z) == 11 and (cliff_height(x - 1, z) < 11 or cliff_height(x, z - 1) < 11
-                                             or cliff_height(x + 1, z) < 11):
-                if math.hypot(x - hx, z - hz) <= 8:
+    for z in range(hz - 10, hz + 10):
+        for x in range(hx - 10, hx + 10):
+            if cliff_height(x, z) == 11 and (cliff_height(x - 1, z) < 11 or cliff_height(x, z - 1) < 11):
+                if math.hypot(x - hx, z - hz) <= 9:
                     v.set(x - ax, 11, z - az, "timber_beam")
     v.points["plateau"] = (hx - ax, 11, hz - az)
     return v
