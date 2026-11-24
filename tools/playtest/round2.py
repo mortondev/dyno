@@ -3,6 +3,7 @@ and tags, from `dyno bots` reports (docs/playtest/first-30-minutes-round2.md).
 
     python3 tools/playtest/round2.py REPORT.json [REPORT.json ...]     every table, the runs pooled
     python3 tools/playtest/round2.py --xp                              quest XP against the levels, from the rules
+    python3 tools/playtest/round2.py --tags REPORT.json [...]          a crowd at one camp: one row per report
 
 The bots record facts (who was near, health at the pull, the time of day);
 this script decides what they mean, from the rules and the layout, so a
@@ -16,10 +17,12 @@ Definitions:
 - engaged: the pull's target, plus every creature within 6 m at the death that
   is hostile by its rules or that the bot had hit in the last 10 s.
 - a death's cause, the first that fits: over-level (killer 2+ levels above),
-  night (a Shade), adds (2+ engaged), low pull (under 60% health at the last
-  pull: the bot's own choice), else one-on-one (the class lane's).
+  night (a Shade), adds (2+ engaged), jumped (under 60% health when a creature
+  attacked it: the last "pull" was a defence), low pull (under 60% health at a
+  pull the bot chose: the brain's), else one-on-one (the class lane's).
+- a night death: any death while it is night; "to the night" is a death to a Shade.
 """
-import json, math, os, statistics, sys
+import gzip, json, math, os, statistics, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -30,6 +33,12 @@ RULES = json.load(open(os.path.join(ROOT, "content", "rules", "hearthblock.json"
 LAYOUT = json.load(open(os.path.join(ROOT, "content", "world", "layout.json")))
 PLACES = {p["key"]: p for p in LAYOUT["places"]}
 BRAINS = ["completionist", "casual", "explorer", "social", "party", "grinder"]
+
+
+def read(path):
+    """A report, plain or gzipped (the 30-minute runs are kept as .json.gz)."""
+    with (gzip.open(path, "rt") if path.endswith(".gz") else open(path)) as f:
+        return json.load(f)
 
 
 def place_at(key, at=None):
@@ -128,7 +137,7 @@ def med(xs):
 def load(paths):
     reps = []
     for i, p in enumerate(paths):
-        r = json.load(open(p))
+        r = read(p)
         for t in r["telemetry"]:
             t["run"] = chr(ord("A") + i)
         reps.append(r)
@@ -229,6 +238,8 @@ def death_rows(tels):
                 why = "night"
             elif len(engaged) >= 2:
                 why = "adds"
+            elif hp is not None and hp < 0.6 and pull["doing"].startswith("defending"):
+                why = "jumped"
             elif hp is not None and hp < 0.6:
                 why = "low pull"
             else:
@@ -238,7 +249,8 @@ def death_rows(tels):
                 "level": d["level"], "killer": killer, "klevel": klevel, "gap": gap,
                 "engaged": ", ".join(f"{n}×{c}" if c > 1 else n for n, c in names.items()) or "none in reach",
                 "n": len(engaged), "night": d.get("night", False), "hp": hp,
-                "pull": f"{pull['creature']} {pull['level']}" if pull else "no pull in the last minute",
+                "pull": (f"{pull['creature']} {pull['level']}" + (" (attacked)" if pull["doing"].startswith("defending") else ""))
+                if pull else "no pull in the last minute",
                 "padds": pull["adds"] if pull else None,
                 "where": nearest_place(p), "zone": d["zone"], "qa": qa, "road": road, "why": why,
                 "doing": d.get("doing", ""), "players": d.get("players_near", 0), "at": p,
@@ -256,9 +268,9 @@ def deaths(tels):
         print(f"| {r['run']} | {r['bot']} | {r['brain']} | {r['class']} | {mmss(r['t'])} | {r['level']} | {r['killer']} {r['klevel'] or '?'} ({gap}) | {r['engaged']} | {'night' if r['night'] else 'day'} | {hp} | {r['pull']} | {r['where']} | {r['qa'] or 'outside'} | {'yes' if r['road'] else 'no'} | {r['why']} |")
     print()
     # by brain and cause
-    causes = ["over-level", "night", "adds", "low pull", "one-on-one"]
-    print("| brain | bot-hours | deaths | per hour | " + " | ".join(causes) + " | night deaths at level 1-4 on a road or in a quest area |")
-    print("|---|---|---|---|" + "---|" * len(causes) + "---|")
+    causes = ["over-level", "night", "adds", "jumped", "low pull", "one-on-one"]
+    print("| brain | bot-hours | deaths | per hour | " + " | ".join(causes) + " | deaths at night at level 1-4 on a road or in a quest area | of those, to a Shade |")
+    print("|---|---|---|---|" + "---|" * len(causes) + "---|---|")
     for b in BRAINS + ["all"]:
         g = [t for t in tels if b == "all" or t["brain"] == b]
         if not g:
@@ -266,7 +278,7 @@ def deaths(tels):
         hours = sum(active_secs(t) for t in g) / 3600
         rs = [r for r in rows if b == "all" or r["brain"] == b]
         bad = [r for r in rs if r["night"] and r["level"] <= 4 and (r["road"] or r["qa"])]
-        print(f"| {b} | {hours:.2f} | {len(rs)} | {len(rs) / hours:.1f} | " + " | ".join(str(sum(r['why'] == c for r in rs)) for c in causes) + f" | {len(bad)} |")
+        print(f"| {b} | {hours:.2f} | {len(rs)} | {len(rs) / hours:.1f} | " + " | ".join(str(sum(r['why'] == c for r in rs)) for c in causes) + f" | {len(bad)} | {sum(r['killer'] == 'Shade' for r in bad)} |")
     print()
     one = [r for r in rows if r["why"] == "one-on-one"]
     if one:
@@ -347,7 +359,11 @@ def purpose(doing):
     if ":" in d:
         return d
     w = d.split()
-    return " ".join(w[:2]) if w[0] in ("exploring", "following", "taking", "helping", "waiting", "with") else d
+    if w[0] in ("following", "helping", "waiting", "with"):
+        return w[0] + " a party member"
+    if w[0] == "taking" and len(w) > 1 and w[1].startswith("Bot"):
+        return "taking a party member to an NPC"
+    return d
 
 
 def gaps(tels, limit=120):
@@ -447,8 +463,45 @@ def xp_table():
     print(f"Finding a place pays {disc[0]} + {disc[1]} a level; there are {places} to find.")
 
 
+def tags(paths):
+    """A crowd in one area: who got the kills they fought for."""
+    cols = ["bots", "tick p95", "kills with credit", "kills lost to another's tag", "lost", "bots with no first kill by 2:00",
+            "first kill", "Meat for the Pot done", "Thinning the Herd done", "Wool for Winter done", "level 2", "level 3",
+            "XP an hour", "waiting for spawns", "travel", "deaths"]
+    print("| run | " + " | ".join(cols) + " |")
+    print("|---|" + "---|" * len(cols))
+    for p in paths:
+        r = read(p)
+        tels = r["telemetry"]
+        m = (r.get("machine") or {}).get("tick")
+        kills = sum(t["kills"] for t in tels)
+        lost = sum(t["kills_no_credit"] - t.get("kills_no_credit_alone", 0) for t in tels)
+        secs = sum(t["secs"] for t in tels)
+
+        def done(key):
+            ts = [q["done"] for t in tels for q in t["quests"] if q["key"] == key and q["done"] is not None]
+            return f"{mmss(med(ts))} ({len(ts)} of {len(tels)})"
+
+        def level(l):
+            ts = [next((x for x, lv, _ in t["xp_curve"] if lv >= l), None) for t in tels]
+            got = [x for x in ts if x is not None]
+            return f"{mmss(med(got))} ({len(got)} of {len(tels)})"
+        share = lambda k: f"{100 * sum(t['time'].get(k, 0) for t in tels) / secs:.0f}%"
+        vals = [str(len(tels)), f"{m['p95_ms']:.2f} ms" if m else "?", str(kills), str(lost),
+                f"{100 * lost / max(1, kills + lost):.0f}%",
+                str(sum(1 for t in tels if t["first_kill"] is None or t["first_kill"] > 120)),
+                mmss(med([t["first_kill"] for t in tels])), done("meat_for_the_pot"), done("thin_the_herd"),
+                done("wool_for_winter"), level(2), level(3),
+                f"{med([t['xp_total'] / t['secs'] * 3600 for t in tels]):.0f}", share("wait_spawn"), share("travel"),
+                str(sum(len(t["deaths"]) for t in tels))]
+        print(f"| {os.path.basename(p)[:-5]} | " + " | ".join(vals) + " |")
+
+
 def main():
     args = sys.argv[1:]
+    if args and args[0] == "--tags":
+        tags(args[1:])
+        return
     if args and args[0] == "--xp":
         xp_table()
         return

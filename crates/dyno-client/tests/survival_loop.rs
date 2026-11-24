@@ -108,10 +108,24 @@ fn pose(j: &Joined, pos: [f32; 3]) {
 fn night_brings_shades() {
     let dir = std::env::temp_dir().join(format!("dyno-test-night-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
+    // the pack keeps the dark to its haunts (`dark_in_areas`), and the
+    // nearest is outside this small world: here the dark rises anywhere, as
+    // it does in a world without that rule (the haunts have their own test,
+    // dyno-bot's night_haunts)
+    std::fs::create_dir_all(&dir).unwrap();
+    let rules = dir.join("rules.json");
+    let json = dyno_world::content::DEFAULT_JSON;
+    assert!(json.contains("\"dark_in_areas\": true"));
+    std::fs::write(
+        &rules,
+        json.replace("\"dark_in_areas\": true", "\"dark_in_areas\": false"),
+    )
+    .unwrap();
     let cfg = dyno_server::Config {
         bind: "127.0.0.1:0".parse().unwrap(),
         world_path: dir.join("world.dynw"),
         world_size: [192, 48, 192],
+        content_path: Some(rules),
         trust_movement: true,
         ..Default::default()
     };

@@ -319,6 +319,10 @@ pub struct Creature {
     /// sight range for hostile creatures (0: the default)
     #[serde(default)]
     pub aggro: f32,
+    /// a hostile creature that leaves players below this level alone until
+    /// they hit it (0: it attacks anyone on sight)
+    #[serde(default)]
+    pub spares_below: u8,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -622,8 +626,7 @@ pub struct CrowdRespawn {
     pub radius: f32,
     pub per_player: f32,
     pub least: f32,
-    /// how close a player may stand to a point that respawns, when two or
-    /// more are waiting at the camp (alone: 12 m, so nothing appears on you)
+    /// how close a player may stand to a point that respawns (none: 12 m)
     #[serde(default)]
     pub near: Option<f32>,
 }
@@ -1087,6 +1090,8 @@ struct ACreature {
     ability: Option<CreatureAbility>,
     #[serde(default)]
     aggro: f32,
+    #[serde(default)]
+    spares_below: u8,
 }
 
 fn level_one() -> [u8; 2] {
@@ -1266,6 +1271,7 @@ impl Content {
                 attack_speed: c.attack_speed,
                 ability: c.ability,
                 aggro: c.aggro,
+                spares_below: c.spares_below,
             });
         }
         let phase_of = |v: &Option<String>| -> Result<Option<(u8, bool)>, String> {

@@ -648,6 +648,8 @@ impl State {
                         return None;
                     }
                     prey.iter()
+                        // some creatures leave new characters alone (`spares_below`)
+                        .filter(|(pid, ..)| levels.get(pid).copied().unwrap_or(1) >= c.spares_below)
                         .filter(|(pid, p, away)| {
                             let lvl = levels.get(pid).copied().unwrap_or(1) as f32;
                             let r = if rpg {
@@ -663,6 +665,13 @@ impl State {
                         .copied()
                 });
                 mob.target = target.map(|t| t.0);
+                // nobody left of those who fought it (dead, or gone): a camp's
+                // creature goes home and heals, so the player it killed does
+                // not walk back to finish a half-dead elite
+                if rpg && mob.camp && provoked && target.is_none() {
+                    mob.evade();
+                    heal_info.push(id);
+                }
                 if let Some((pid, p, _)) = target {
                     let dx = p[0] - e.pos[0];
                     let dz = p[2] - e.pos[2];

@@ -6,7 +6,7 @@
 One line per bot per fight with the creature: won or lost, how long, the
 damage taken, the health at the pull, and whether the bot died to it.
 """
-import json, os, sys
+import gzip, json, os, sys
 
 
 def main():
@@ -14,7 +14,7 @@ def main():
     print("| run | bot | class | level | brain | fights | won | lost | longest fight | damage taken (most) | deaths to it | quest done |")
     print("|---|---|---|---|---|---|---|---|---|---|---|---|")
     for p in paths:
-        r = json.load(open(p))
+        r = json.load(gzip.open(p, "rt") if p.endswith(".gz") else open(p))
         for t in r["telemetry"]:
             fs = [f for f in t["fights"] if f["creature"] == name]
             won = sum(1 for f in fs if f["won"])

@@ -116,20 +116,14 @@ impl State {
             if sp.ready_at > now || !(watched || players.iter().any(|p| dist(*p, sp.pos) < WAKE)) {
                 continue;
             }
-            // never spawn on top of someone; where players crowd a camp they
-            // stand on most of its points, so there it may come back nearer
-            let keep = match self.content.world.crowd_respawn {
-                Some(c)
-                    if players
-                        .iter()
-                        .filter(|p| dist(**p, sp.pos) < c.radius)
-                        .count()
-                        > 1 =>
-                {
-                    c.near.unwrap_or(12.0)
-                }
-                _ => 12.0,
-            };
+            // never spawn on top of someone (how near is a rule: at 12 m one
+            // player waiting in a one-creature camp keeps it empty for ever)
+            let keep = self
+                .content
+                .world
+                .crowd_respawn
+                .and_then(|c| c.near)
+                .unwrap_or(12.0);
             if players.iter().any(|p| dist(*p, sp.pos) < keep) {
                 continue;
             }
