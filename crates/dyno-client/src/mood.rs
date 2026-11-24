@@ -45,6 +45,9 @@ pub struct Mood {
     /// is the server's.
     pub time: Option<f32>,
     pub time_pull: Option<f32>,
+    /// where the moon hangs here: its bearing (degrees from north, turning
+    /// east) and its height (degrees). Its light falls from there too.
+    pub moon: Option<[f32; 2]>,
 }
 
 #[derive(Deserialize, Clone, Debug, PartialEq)]
@@ -95,6 +98,9 @@ pub struct Blend {
     pub clouds: f32,
     /// added to the time of day
     pub time_shift: f32,
+    /// where the moon hangs (bearing, height), and how much that counts
+    pub moon: [f32; 2],
+    pub moon_mix: f32,
 }
 
 fn mix(a: f32, b: f32, t: f32) -> f32 {
@@ -125,6 +131,8 @@ impl Blend {
             fog_lift: 0.0,
             clouds: s.dome.clouds.cover,
             time_shift: 0.0,
+            moon: [0.0, 30.0],
+            moon_mix: 0.0,
         }
     }
 
@@ -169,6 +177,10 @@ impl Blend {
         f(&mut self.fog, m.fog);
         f(&mut self.fog_lift, m.fog_lift);
         f(&mut self.clouds, m.clouds);
+        if let Some(at) = m.moon {
+            self.moon = at;
+            self.moon_mix = mix(self.moon_mix, 1.0, w);
+        }
         if let Some(hour) = m.time {
             // the short way round the clock
             let mut d = (hour - t).rem_euclid(1.0);

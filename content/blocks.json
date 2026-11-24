@@ -102,7 +102,8 @@
     {"id":62,"key":"anvil","textures":{"bottom":"textures/anvil_bottom.png","side":"textures/anvil_side.png","top":"textures/anvil_top.png"},"tags":["prop","on_paving","chamfer"],"shape":{"rules":"anvil","vox":"shapes/anvil.vox"}},
     {"id":63,"key":"brazier","textures":{"bottom":"textures/brazier_bottom.png","side":"textures/brazier_side.png","top":"textures/brazier_top.png"},"tags":["prop","on_paving"],"shape":{"rules":"brazier","vox":"shapes/brazier.vox"}},
     {"id":64,"key":"flower_bed","textures":{"bottom":"textures/dirt.png","side":"textures/flower_bed_side.png","top":"textures/flower_bed_top.png"},"tags":["prop","on_paving","chamfer"],"shape":{"rules":"flower_bed","vox":"shapes/flower_bed.vox"}},
-    {"id":65,"key":"rail","textures":{"bottom":"textures/rail.png","side":"textures/rail.png","top":"textures/rail.png"},"tags":["prop","on_paving"],"shape":{"rules":"rail","vox":"shapes/rail.vox"}}
+    {"id":65,"key":"rail","textures":{"bottom":"textures/rail.png","side":"textures/rail.png","top":"textures/rail.png"},"tags":["prop","on_paving"],"shape":{"rules":"rail","vox":"shapes/rail.vox"}},
+    {"id":66,"key":"blossom_leaves","textures":{"bottom":"textures/blossom_leaves.png","side":"textures/blossom_leaves.png","top":"textures/blossom_leaves.png"},"tags":["leaves"]}
   ],
   "shape_rules": {
     "rail": {

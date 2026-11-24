@@ -883,46 +883,83 @@ def blob(v, cx, cy, cz, rx, ry, block, salt=0, only_air=True):
 
 @recipe
 def hollow_oak():
-    """The Hollow Oak: a giant of the old wood, 26 m tall, its trunk
-    rotted open and hung with webs."""
+    """The Hollow Oak: a giant of the old wood, 29 m tall and as wide as a
+    house at the foot, its trunk rotted open into a doorway and a room, on
+    great roots, under a crown of many leaf clumps on heavy limbs."""
     v = Vol("landmark")
     H = 29
-    for y in range(0, H - 6):
-        r = 3.4 if y < 3 else 2.9 if y < 12 else 2.3
-        for x in range(-4, 5):
-            for z in range(-4, 5):
+
+    def girth(y):
+        # flares at the foot, a waist, swells again where the limbs leave
+        if y < 2:
+            return 6.6 - y * 0.5
+        if y < 6:
+            return 5.6 - (y - 2) * 0.3
+        if y < 14:
+            return 4.4
+        return max(2.2, 4.4 - (y - 14) * 0.33)
+
+    for y in range(0, H - 5):
+        r = girth(y)
+        ri = int(r) + 2
+        for x in range(-ri, ri + 1):
+            for z in range(-ri, ri + 1):
+                # a gnarled outline: the bark bulges and folds
+                bump = 0.5 * math.sin(math.atan2(z, x) * 5 + y * 0.2)
                 d = math.hypot(x, z)
-                if d <= r and (d > r - 1.6 or y > 11):
-                    v.set(x, y, z, "log")
-                elif d <= r and y <= 11:
-                    v.set(x, y, z, "air")
-    # roots
-    for i, (dx, dz) in enumerate(((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1))):
-        n = 5 if i < 4 else 4
-        for k in range(3, n + 1):
-            v.col(dx * k if abs(dx) else 0, dz * k if abs(dz) else 0, 0, max(0, 2 - (k - 3)), "log")
-    # the rotted doorway, south
+                if d <= r + bump:
+                    hollow = y <= 5 and d <= min(r - 2.5, 3.2)
+                    v.set(x, y, z, "air" if hollow else "log")
+    # great roots, running out and down
+    for i in range(8):
+        ang = i * math.tau / 8 + 0.2
+        length = 9 + rnd(i, 0, 0, 5) % 5
+        for k in range(5, length + 1):
+            x, z = round(math.cos(ang) * k), round(math.sin(ang) * k)
+            top = max(0, 4 - (k - 5))
+            for w in ((0, 0), (1, 0)) if k < length - 2 else ((0, 0),):
+                v.col(x + w[0], z + w[1], 0, top, "log")
+    # the rotted doorway, south: three wide, five high, arched, into the hollow
     for x in (-1, 0, 1):
-        v.col(x, 3, 0, 3 if x == 0 else 2, "air")
-        v.col(x, 2, 0, 3 if x == 0 else 2, "air")
+        for z in range(2, 9):
+            v.col(x, z, 0, 4 if x == 0 else 3, "air")
+    for x in (-2, 2):
+        for z in range(4, 9):
+            v.col(x, z, 0, 1, "air")
     v.points["hollow"] = (0, 0, 0)
-    v.points["door"] = (0, 0, 5)
-    v.fill((-1, -1, -1), (1, -1, 1), "dirt")
-    # limbs and the crown
-    limbs = [(1, 0.3), (-1, 0.5), (0.4, -1), (-0.5, 1), (0.9, 0.9), (-0.9, -0.8)]
-    for i, (dx, dz) in enumerate(limbs):
+    v.points["door"] = (0, 0, 9)
+    v.fill((-3, -1, -3), (3, -1, 3), "dirt")
+    v.set(-2, 0, -2, "lantern")
+    v.set(2, 0, -1, "glowshroom")
+    # heavy limbs, each carrying clumps of leaves in layers
+    limbs = [(1, 0.25, 14), (-1, 0.45, 15), (0.35, -1, 16), (-0.45, 1, 14), (0.85, 0.9, 17), (-0.9, -0.8, 17),
+             (0.9, -0.7, 19), (-0.6, 0.95, 20)]
+    for i, (dx, dz, y0) in enumerate(limbs):
         n = math.hypot(dx, dz)
-        y0 = 13 + (i % 3) * 2
-        for s in range(2, 8):
-            v.set(round(dx / n * s), y0 + s // 2, round(dz / n * s), "log")
-        blob(v, dx / n * 6.5, y0 + 5, dz / n * 6.5, 3.6, 2.8, "leaves", i)
-    blob(v, 0, H - 4, 0, 6.5, 3.6, "leaves", 9)
-    blob(v, 0, H - 8, 0, 8.4, 3.0, "leaves", 10)
-    # webs in the hollow and under the limbs
-    for (x, z) in ((5, 3), (-5, -2), (3, -5), (-4, 5), (6, -3), (-6, 2), (2, 6)):
-        v.set(x, 0, z, "glowshroom")
-    for (x, y, z) in ((1, 6, 1), (-1, 8, 0), (0, 10, -1), (1, 9, -1), (-3, 12, 3), (4, 13, -2), (-4, 14, -3), (2, 4, 4), (-2, 3, 4), (3, 12, 4)):
-        v.set(x, y, z, "white")
+        dx, dz = dx / n, dz / n
+        reach = 9 + (i % 3) * 2
+        for s in range(3, reach + 1):
+            x, z, y = round(dx * s), round(dz * s), y0 + s // 3
+            v.set(x, y, z, "log")
+            if s < reach - 3:
+                v.set(x, y - 1, z, "log")
+        ex, ez, ey = dx * reach, dz * reach, y0 + reach // 3
+        blob(v, ex, ey + 2, ez, 4.2, 2.6, "leaves", i)
+        if i % 2 == 0:
+            blob(v, ex * 0.6 + dz * 3, ey + 4, ez * 0.6 - dx * 3, 3.4, 2.2, "leaves", 20 + i)
+        else:
+            blob(v, ex * 1.15 - dz * 2, ey, ez * 1.15 + dx * 2, 3.0, 2.0, "leaves", 40 + i)
+    for i in range(5):
+        ang = i * math.tau / 5
+        blob(v, math.cos(ang) * 5, H - 4 - (i % 2) * 2, math.sin(ang) * 5, 4.0, 2.6, "leaves", 60 + i)
+    blob(v, 0, H - 2, 0, 5.0, 2.8, "leaves", 70)
+    # mushrooms at the roots, webs in the doorway and under the limbs
+    for (x, z) in ((8, 5), (-8, -3), (5, -8), (-6, 8), (9, -5), (-9, 4), (4, 10), (-3, 10)):
+        if v.get(x, 0, z) is None:
+            v.set(x, 0, z, "glowshroom")
+    for (x, y, z) in ((1, 4, 7), (-1, 4, 6), (0, 5, 7), (1, 9, 1), (-1, 9, 0), (-5, 13, 5), (6, 14, -3), (-6, 15, -4), (3, 13, 6)):
+        if v.get(x, y, z) is None:
+            v.set(x, y, z, "white")
     return v
 
 

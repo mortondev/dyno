@@ -375,9 +375,9 @@ impl Ambience {
             self.beds = vec![0.0; d.beds.len()];
             self.emitters = vec![(false, 1.0); d.emitters.len()];
             self.scatter = Vec::new();
-            for i in 0..d.scatter.len() {
+            for sc in &d.scatter {
                 // (not all at once when you arrive)
-                let first = self.random() * d.scatter[i].every[1];
+                let first = self.random() * sc.every[1];
                 self.scatter.push(first);
             }
             self.made_for = Some(d.clone());

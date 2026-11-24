@@ -146,10 +146,10 @@
     "crown": {
      "shape": "round",
      "width": [9, 12],
-     "clumps": [5, 7],
-     "core": 0.5,
-     "lump": [0.34, 0.46],
-     "rise": [0.1, 0.85],
+     "clumps": [6, 8],
+     "core": 0.46,
+     "lump": [0.3, 0.42],
+     "rise": [0.05, 0.95],
      "gaps": 0.12
     },
     "skirt": 0.42,
@@ -161,17 +161,18 @@
     "trunk": "birch_log",
     "leaves": "birch_leaves",
     "height": [11, 15],
-    "girth": [1, 1],
+    "girth": [1, 2],
     "crown": {
      "shape": "tall",
      "width": [8, 9],
-     "clumps": [4, 6],
+     "clumps": [5, 7],
      "core": 0.55,
-     "lump": [0.55, 0.75],
-     "gaps": 0.0
+     "lump": [0.45, 0.62],
+     "gaps": 0.08
     },
     "skirt": 0.4,
-    "limbs": 6
+    "limbs": 6,
+    "roots": true
    },
    "willow": {
     "trunk": "log",
@@ -181,9 +182,9 @@
     "crown": {
      "shape": "weeping",
      "width": [10, 12],
-     "clumps": [4, 6],
+     "clumps": [6, 8],
      "core": 0.6,
-     "lump": [0.38, 0.5],
+     "lump": [0.32, 0.44],
      "rise": [0.4, 0.8],
      "droop": [3, 6]
     },
@@ -211,7 +212,7 @@
     "girth": [2, 2],
     "crown": {
      "shape": "round",
-     "width": [9, 12],
+     "width": [9, 11],
      "clumps": [4, 6],
      "core": 0.5,
      "lump": [0.36, 0.5],
@@ -245,13 +246,77 @@
      "clumps": [7, 9],
      "core": 0.5,
      "lump": [0.3, 0.42],
-     "rise": [0.1, 0.9],
+     "rise": [0.05, 0.95],
      "gaps": 0.1
     },
     "skirt": 0.42,
     "limbs": 7,
     "roots": true,
     "flare": true
+   },
+   "young_oak": {
+    "trunk": "log",
+    "leaves": "leaves",
+    "height": [7, 10],
+    "girth": [1, 1],
+    "crown": {
+     "shape": "round",
+     "width": [5, 7],
+     "clumps": [4, 6],
+     "core": 0.5,
+     "lump": [0.34, 0.46],
+     "rise": [0.1, 0.9],
+     "gaps": 0.12
+    },
+    "skirt": 0.45,
+    "limbs": 3,
+    "roots": true
+   },
+   "blossom": {
+    "trunk": "log",
+    "leaves": "blossom_leaves",
+    "height": [7, 10],
+    "girth": [1, 1],
+    "crown": {
+     "shape": "round",
+     "width": [7, 9],
+     "clumps": [6, 8],
+     "core": 0.45,
+     "lump": [0.3, 0.42],
+     "rise": [0.1, 0.9],
+     "gaps": 0.14
+    },
+    "skirt": 0.4,
+    "limbs": 4,
+    "roots": true
+   },
+   "young_birch": {
+    "trunk": "birch_log",
+    "leaves": "birch_leaves",
+    "height": [7, 10],
+    "girth": [1, 1],
+    "crown": {
+     "shape": "tall",
+     "width": [4, 6],
+     "clumps": [3, 5],
+     "core": 0.55,
+     "lump": [0.5, 0.7],
+     "gaps": 0.05
+    },
+    "skirt": 0.4,
+    "limbs": 3
+   },
+   "young_pine": {
+    "trunk": "log",
+    "leaves": "pine_leaves",
+    "height": [8, 12],
+    "girth": [1, 1],
+    "crown": {
+     "shape": "cone",
+     "width": [5, 6],
+     "gaps": 0.6
+    },
+    "skirt": 0.2
    }
   },
   "mixes": {
@@ -259,7 +324,7 @@
     "cover": 0.24,
     "clump": 52,
     "spacing": 10,
-    "trees": {"oak": 10, "birch": 4, "hero_oak": 1},
+    "trees": {"oak": 10, "birch": 4, "hero_oak": 1, "young_oak": 4, "blossom": 3, "young_birch": 1},
     "lone": 3.5,
     "ground": [
      {"block": "leaves", "per_ha": 120, "on": "wood"},
@@ -279,7 +344,7 @@
     "cover": 0.58,
     "clump": 70,
     "spacing": 8,
-    "trees": {"birch": 12, "oak": 2, "hero_oak": 1},
+    "trees": {"birch": 12, "oak": 2, "hero_oak": 1, "young_birch": 4, "young_oak": 1},
     "lone": 4,
     "ground": [
      {"block": "birch_leaves", "per_ha": 160, "on": "wood"},
@@ -319,7 +384,7 @@
     "cover": 0.3,
     "clump": 48,
     "spacing": 10,
-    "trees": {"oak": 4, "birch": 4, "willow": 6, "hero_oak": 1},
+    "trees": {"oak": 4, "birch": 4, "willow": 6, "hero_oak": 1, "blossom": 3, "young_oak": 2, "young_birch": 1},
     "lone": 4,
     "ground": [
      {"block": "leaves", "per_ha": 110, "on": "wood"},
@@ -337,7 +402,7 @@
     "cover": 0.34,
     "clump": 60,
     "spacing": 10,
-    "trees": {"oak": 8, "birch": 2, "pine": 2, "hero_oak": 1},
+    "trees": {"oak": 8, "birch": 2, "pine": 2, "hero_oak": 1, "young_oak": 3, "blossom": 2, "young_pine": 1},
     "lone": 3.5,
     "ground": [
      {"block": "leaves", "per_ha": 120, "on": "wood"},
@@ -356,7 +421,7 @@
     "cover": 0.4,
     "clump": 55,
     "spacing": 9,
-    "trees": {"pine": 5, "dark_oak": 1},
+    "trees": {"pine": 5, "dark_oak": 1, "young_pine": 2},
     "lone": 4,
     "ground": [
      {"block": "pine_leaves", "per_ha": 90, "on": "wood"}
@@ -373,7 +438,7 @@
     "cover": 0.5,
     "clump": 80,
     "spacing": 9,
-    "trees": {"oak": 6, "birch": 4, "pine": 6, "hero_oak": 1},
+    "trees": {"oak": 6, "birch": 4, "pine": 6, "hero_oak": 1, "young_oak": 3, "young_pine": 3, "young_birch": 2, "blossom": 1},
     "lone": 4,
     "ground": [
      {"block": "leaves", "per_ha": 130, "on": "wood"},
@@ -579,7 +644,11 @@
     {"species": "oak", "at": [-30, 62]},
     {"species": "oak", "at": [60, -52]},
     {"species": "birch", "at": [-8, -30]},
-    {"species": "oak", "at": [-40, 6]}
+    {"species": "oak", "at": [-40, 6]},
+    {"species": "oak", "at": [-2, 12]},
+    {"species": "oak", "at": [9, -24]},
+    {"species": "oak", "at": [46, 7]},
+    {"species": "oak", "at": [12, 24]}
    ],
    "was": {
     "at": [0, 0],
@@ -613,7 +682,8 @@
     {"stamp": "log_pile", "at": [12, 8]}
    ],
    "trees": [
-    {"species": "hero_oak", "at": [-22, 2]}
+    {"species": "hero_oak", "at": [-22, 2]},
+    {"species": "oak", "at": [-23, -27]}
    ],
    "was": {
     "at": [0, -54],
@@ -666,7 +736,10 @@
    "was": {
     "at": [-45, -87],
     "radius": 14
-   }
+   },
+   "trees": [
+    {"species": "birch", "at": [16, -12]}
+   ]
   },
   {
    "key": "hollow_oak",
@@ -718,7 +791,11 @@
    "was": {
     "at": [-128, 10],
     "radius": 18
-   }
+   },
+   "trees": [
+    {"species": "dark_oak", "at": [16, -3]},
+    {"species": "dark_oak", "at": [27, -2]}
+   ]
   },
   {
    "key": "barrowwood_graves",
@@ -793,7 +870,9 @@
    "trees": [
     {"species": "hero_oak", "at": [-24, -8]},
     {"species": "birch", "at": [-22, 12]},
-    {"species": "willow", "at": [-6, 22]}
+    {"species": "willow", "at": [-6, 22]},
+    {"species": "willow", "at": [14, -10]},
+    {"species": "willow", "at": [17, -21]}
    ],
    "stamps": [
     {"stamp": "fisher_hut", "at": [-9, -8]},
@@ -846,7 +925,10 @@
    "was": {
     "at": [8, 159],
     "radius": 6
-   }
+   },
+   "trees": [
+    {"species": "willow", "at": [7, -12]}
+   ]
   },
   {
    "key": "east_road",
@@ -869,7 +951,10 @@
    "was": {
     "at": [50, -11],
     "radius": 8
-   }
+   },
+   "trees": [
+    {"species": "oak", "at": [13, -2]}
+   ]
   },
   {
    "key": "ashcloak_stockade",
@@ -892,7 +977,10 @@
    "was": {
     "at": [62, 62],
     "radius": 16
-   }
+   },
+   "trees": [
+    {"species": "oak", "at": [7, 32]}
+   ]
   },
   {
    "key": "emberford_toll_hut",
@@ -921,7 +1009,10 @@
    "was": {
     "at": [95, 0],
     "radius": 10
-   }
+   },
+   "trees": [
+    {"species": "oak", "at": [14, 8]}
+   ]
   },
   {
    "key": "emberrun_ford",
@@ -968,7 +1059,10 @@
    "was": {
     "at": [129, 9],
     "radius": 14
-   }
+   },
+   "trees": [
+    {"species": "pine", "at": [14, -13]}
+   ]
   },
   {
    "key": "ridge_cut",
@@ -1015,7 +1109,10 @@
    "was": {
     "at": [155, -17],
     "radius": 12
-   }
+   },
+   "trees": [
+    {"species": "pine", "at": [1, -11]}
+   ]
   },
   {
    "key": "meadow_farm_1",
@@ -1363,6 +1460,9 @@
    "radius": 10,
    "stamps": [
     {"stamp": "wayshrine", "at": [6, 6], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "oak", "at": [33, -14]}
    ]
   },
   {
@@ -1444,7 +1544,8 @@
     {"stamp": "flower_garden", "at": [8, 4], "fit": "ground"}
    ],
    "trees": [
-    {"species": "hero_oak", "at": [-12, -6]}
+    {"species": "hero_oak", "at": [-12, -6]},
+    {"species": "dark_oak", "at": [5, -23]}
    ]
   },
   {

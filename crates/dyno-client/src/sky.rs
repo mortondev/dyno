@@ -282,6 +282,10 @@ fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
     let l = &s.light;
     let moon_dir = Vec3::new(-sun.x, (-sun.y).max(0.0) * l.moon_arc + l.moon_lift, -sun.z)
         .normalize_or(Vec3::Y);
+    // a place may hang the moon where it likes it (mood.rs)
+    let (az, el) = (m.moon[0].to_radians(), m.moon[1].to_radians());
+    let hung = Vec3::new(az.sin() * el.cos(), el.sin(), -az.cos() * el.cos());
+    let moon_dir = moon_dir.lerp(hung, m.moon_mix).normalize_or(Vec3::Y);
     let step = |a: f32, b: f32, x: f32| {
         let t = ((x - a) / (b - a)).clamp(0.0, 1.0);
         t * t * (3.0 - 2.0 * t)
@@ -313,9 +317,14 @@ fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
         moon: d.moon,
         moon_bright: d.moon_bright,
         moon_size: d.moon_size,
-        moon_dir: Vec3::new(moon_dir.x, moon_dir.y * d.moon_height, moon_dir.z)
-            .normalize_or(Vec3::Y)
-            .into(),
+        // (a moon a place has hung is drawn where it hangs)
+        moon_dir: Vec3::new(
+            moon_dir.x,
+            moon_dir.y * (d.moon_height + (1.0 - d.moon_height) * m.moon_mix),
+            moon_dir.z,
+        )
+        .normalize_or(Vec3::Y)
+        .into(),
         moon_shown: 1.0 - k,
         cloud_lit: mul(cloud_lit, m.sky_tint),
         cloud_shade: mul(cloud_shade, m.sky_tint),
@@ -347,7 +356,8 @@ fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
         point: l.point,
         point_reach: l.point_reach,
         haze: lerp(haze, m.haze_color, m.haze_color_mix),
-        haze_follow: a_.haze_follow * (1.0 - m.haze_color_mix),
+        haze_follow: (a_.haze_follow_night + (a_.haze_follow - a_.haze_follow_night) * k)
+            * (1.0 - m.haze_color_mix),
         haze_density: a_.haze_density * m.haze,
         haze_start: a_.haze_start,
         haze_max: a_.haze_max,
@@ -361,7 +371,9 @@ fn frame_sky(s: &RenderSettings, m: &mood::Blend, t: f32) -> Sky {
         dome,
         exposure: s.post.exposure * m.exposure,
         tint: mul(g_.tint, m.tint),
-        saturation: g_.saturation * m.saturation,
+        saturation: g_.saturation
+            * m.saturation
+            * (g_.night_saturation + (1.0 - g_.night_saturation) * k),
         contrast: g_.contrast * m.contrast,
     };
     Sky {
@@ -447,7 +459,7 @@ fn cloud_row(az: f32, el: f32, base: f32, cs: f32, seed: f32, thr: f32) -> vec2<
   // clouds: rows of heaped cells, the far rows low, small and hazed, the
   // near rows higher and larger, each drifting at its own pace
   let cover = clamp(env.cloud_lit.w + u.sky_top.w * 0.7, 0.0, 1.0);
-  if (h > 0.02 && h < 0.7 && cover > 0.0) {
+  if (h > 0.02 && h < 0.6 && cover > 0.0) {
     let az = atan2(dir.x, dir.z);
     let el = asin(h);
     let cs = env.cloud_shade.w;
