@@ -1528,7 +1528,7 @@
     {"stamp": "meadow_west_log_cart", "at": [-17, 7], "fit": "ground"}
    ],
    "trees": [
-    {"species": "oak", "at": [-14, -19]},
+    {"species": "oak", "at": [-4, -22]},
     {"species": "young_oak", "at": [9, -19]}
    ]
   },
