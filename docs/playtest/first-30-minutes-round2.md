@@ -13,10 +13,10 @@ what it left, attributes every death, and changes what the tables asked for.
 | 1 | A like-for-like baseline on main: one bot build, two 12-bot 30-minute mixed swarms, tick p95 under 50 ms, medians per player type and class | **Pass.** Bot build `2b98591`, runs A and B on main `60a0d69`, tick p95 1.00 and 1.25 ms at load 6.6 and 8.3 on 16 cores. Tables below |
 | 2 | Every death attributed; completionist, casual, explorer and social under 1.5 deaths an hour each; no night deaths at levels 1 to 4 on roads or in quest areas | **Attributed: pass. Rates: fail.** Deaths an hour, completionist / casual / explorer / social: 2.5 / 3.0 / 2.0 / 2.0 before; 1.8 / 0 / 4.0 / 2.0 after with the bots kept off the group elite; on the rules as shipped the bots walk into Old Tusk alone and completionists die 11.5 times an hour (15 of 23 deaths). Deaths to Shades at levels 1 to 4 on a road or in a quest area: 5 before, all at the town gate; 1 after, a level 4 explorer who attacked a Shade in the Forgotten Graves at 9% health. Any death at night there: 6 before, 4 after. Grinders: the bot brain (28 of 35 deaths are pulls at under 60% health, no adds) |
 | 3 | Completionist, casual and social travel 50% of their time or less; the five longest runs fixed by moving content | **Fail.** Completionist 68% to 66%, casual 65% to 60%, social 68% to 74% (elite hidden). Four of the five longest runs were the 650 m walk to Anwen and are gone; a completionist's travel per quest fell from 1.35 to 1.11 minutes and it finishes 18.5 quests, not 15; but what the bots save they spend walking to the next hub |
-| 4 | Longest reward gap: median under 2:00, worst under 3:30; every gap over 2:00 listed with its cause | **Fail.** Median longest gap 2:46 to 2:25 (questing bots alone: 2:52 to 2:04); gaps over 2:00, 35 to 23. The worst went from 7:30 (waiting for Old Tusk, fixed) to 15:48: a warrior bot swapping a two-handed axe and a buckler for ever, a bot fault that main's build shows too; the next worst among the questing bots is 3:12 |
-| 5 | Old Tusk falls to three and not to one level 4; all five cart drop-offs ridden; two 30-minute hand runs on the final build | **Pass, with one caveat.** Old Tusk, after changing him: on main a geared level 4 warrior or priest killed him alone. Now 0 of 9 solo attempts, a three in 10 s, a pair in 17 s. Five drop-offs ridden. Two 30-minute hand runs (mage, rogue), no deaths; they ran on `ca3d71f`, which is this branch merged with main but before its last merge and the thieves' creature |
+| 4 | Longest reward gap: median under 2:00, worst under 3:30; every gap over 2:00 listed with its cause | **Fail.** With the elite hidden from the bots: median longest gap 2:46 to 2:25 (questing bots alone 2:52 to 2:04), gaps over 2:00 35 to 23, worst 7:30 to 15:48 (a warrior bot swapping a two-handed axe and a buckler for ever, a bot fault that main's build shows too; next worst among the questing bots 3:12). On the rules as shipped, one swarm on the merged build: median 7:07, worst 13:47, because four bots stood in Old Tusk's hollow for 11 to 14 minutes and kept him from coming back. The rule that should end that was added after that swarm and checked by hand, not by a swarm |
+| 5 | Old Tusk falls to three and not to one level 4; all five cart drop-offs ridden; two 30-minute hand runs on the final build | **Pass, with one caveat.** Old Tusk, after changing him: on main a geared level 4 warrior or priest killed him alone. Now 0 of 9 solo attempts, a three in 10 s, a pair in 17 s. Five drop-offs ridden (on main's build). Two 30-minute hand runs (mage, rogue), no deaths; they ran on `ca3d71f`, which is this branch merged with main but before its last merge and the thieves' creature |
 | 6 | Shared tags: a crowd at one camp no longer starves | **Pass.** Kills lost to another player's tag, 12 bots on the gate flocks: 26% to 0% (17% to 2% in the mixed swarms). Meat for the Pot done at 2:21, was 3:39 |
-| 7 | Enough quest content to reach level 5 by 30 minutes without grinding | **Yes.** Level 5 needs 4,800 XP; quests of level 5 and under that need neither night nor a group pay 7,320, their kills about 1,750 more. 5 of 8 completionist bots reached level 5 by minute 30 after the changes (1 of 8 before), and they fight only what a quest asks for |
+| 7 | Enough quest content to reach level 5 by 30 minutes without grinding | **Yes.** Level 5 needs 4,800 XP; quests of level 5 and under that need neither night nor a group pay 7,320, their kills about 1,750 more. With the elite hidden, 5 of 8 completionist bots reached level 5 by minute 30 (1 of 8 before); in the one swarm on the rules as shipped, 2 of 4. They fight only what a quest asks for |
 
 Also asked for during the round: a new character wakes facing the hearth
 and the first quest giver with his "!" in view. **Done**, on top of world
@@ -320,10 +320,9 @@ compiling beside it (load 31 mean, 74 at most). Report and analysis:
   four of them there one was nearly always within 5 m of his one spawn
   point (he returned in the last seconds of the run). The 5 m rule was not
   enough. Changed after this swarm: a point that has been due for 30 s
-  fills whoever stands on it (`crowd_respawn.patience`). By hand on the hand-in build he was back about 110 s after dying, with a player waiting in the hollow; I could not find his exact point to stand on it, so the 30 s rule itself has not been seen to fire in play.
+  fills whoever stands on it (`crowd_respawn.patience`). Checked by hand on the hand-in build, with the distance set to 40 m in a scratch copy of the rules so that anywhere in the hollow blocks him: absent 97 s and 118 s after he died, back at 131 s. No swarm has run with it.
 - An explorer died in the Ashcloak Stockade to six level 5 and 6 bandits:
-  it walks into any named place on the map. The explorer's 4 deaths an
-  hour, here and above, are mostly this habit.
+  it walks into any named place on the map, whatever its level.
 
 
 ## 3. Travel
@@ -417,6 +416,7 @@ end of the session counts.
 |---|---|---|
 | Longest gap per bot, median (24 bots) | 2:46 | 2:25 |
 | Worst | 7:30, a rogue waiting in Old Tusk's hollow | 15:48, a warrior bot standing by Brannoc (a bot fault, below) |
+| The one swarm on the merged build, rules as shipped: median / worst | | 7:07 / 13:47: four bots waiting in Old Tusk's hollow (section 2, the last part) |
 | Gaps over 2:00 | 35 | 23 |
 | Questing bots only (completionist, casual, explorer, social; 14 bots): median / worst / gaps over 2:00 | 2:52 / 7:30 / 20 | 2:04 / 15:48, then 3:12 / 10 |
 
@@ -428,7 +428,7 @@ All 35, one by one: [runs/r2-before-analysis.md](runs/r2-before-analysis.md).
 
 | Cause | Gaps | Longest | Whose | What was done |
 |---|---|---|---|---|
-| Waiting in Old Tusk's hollow for him to come back (he could not, with a player within 12 m of his spawn point) | 10 | 7:30 | mine | A creature may come back 5 m from a player; he returns in 100 s, not 150 |
+| Waiting in Old Tusk's hollow for him to come back (he could not, with a player within 12 m of his spawn point) | 10 | 7:30 | mine | A creature may come back 5 m from a player, and 30 s overdue wherever they stand; he returns in 100 s, not 150. Not shown fixed by a swarm: with him visible and only the 5 m rule, four bots still held him off for 11 to 14 minutes |
 | The walk to Anwen at the Old Barrow and back to Holt (4 of them by the party pair) | 10 | 3:03 | mine | Her quest follows Garrick's |
 | Party bots: the follower idle, or the leader walking the follower to an NPC | 6 | 5:05 | the bot | None (bot build) |
 | Grinders walking between flocks of creatures too low for them | 4 | 6:19 | the bot | None (bot build) |
@@ -478,6 +478,10 @@ longest stretch without a reward in the baseline, 7:30, is a rogue standing
 in his hollow. A creature may now come back 5 m from a player, and a
 creature 30 s overdue comes back wherever players stand: the swarm on the
 merged build showed four bots in the hollow still holding him off at 5 m.
+The 30 s rule is checked by hand (he came back 131 s after dying with a
+player inside the blocking distance), and the heal by hand too (he killed
+my level 6 from 60 health of 442 and was whole when I walked back); no
+swarm has run with the 30 s rule.
 
 His quest text said "take a friend"; a pair wins, sometimes with one of
 them on the floor. It now says "do not go alone. Take two with you".
@@ -488,7 +492,8 @@ the half hour.
 
 ### The five cart drop-offs
 
-Ridden by hand, one character
+Ridden by hand, one character, on main's build before any change (the
+carts are not touched by this round)
 ([runs/r2-cart-rides-transcript.txt](runs/r2-cart-rides-transcript.txt)):
 
 | To | From | Price | Set down at |
