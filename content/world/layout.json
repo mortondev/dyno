@@ -678,15 +678,15 @@
     {"stamp": "north_watch", "at": [13, -5], "rot": 1},
     {"stamp": "boulders", "at": [24, 8], "fit": "ground"},
     {"stamp": "campfire", "at": [-5, 5]},
-    {"stamp": "tent_white", "at": [-17, 6], "rot": 3},
-    {"stamp": "signpost", "at": [-7, 1]},
+    {"stamp": "tent_white", "at": [-17, 6], "rot": 3, "fit": "ground"},
+    {"stamp": "signpost", "at": [-8, 2]},
     {"stamp": "lamp_post", "at": [-7, -12]},
     {"stamp": "log_pile", "at": [12, 8]},
-    {"stamp": "banner_pole", "at": [-6, 14]},
-    {"stamp": "banner_pole", "at": [7, 14]},
-    {"stamp": "stone_wall", "at": [14, -16]},
+    {"stamp": "banner_pole", "at": [-6, 13]},
+    {"stamp": "banner_pole", "at": [7, 13]},
+    {"stamp": "stone_wall", "at": [14, -16], "fit": "ground"},
     {"stamp": "stone_wall", "at": [-27, 5], "rot": 1, "fit": "ground"},
-    {"stamp": "cart", "at": [19, 13]},
+    {"stamp": "cart", "at": [19, 13], "fit": "ground"},
     {"stamp": "ruin_wall", "at": [26, -9], "rot": 1, "fit": "ground"},
     {"stamp": "meadow_north_clear_14", "at": [0, 15], "fit": "float", "dy": 40}
    ],
@@ -1233,7 +1233,7 @@
     {"stamp": "hut", "at": [-15, -2], "rot": 1},
     {"stamp": "haystack", "at": [13, 2]},
     {"stamp": "cart", "at": [13, -7]},
-    {"stamp": "log_pile", "at": [-15, 8], "rot": 1}
+    {"stamp": "log_pile", "at": [-15, 8], "rot": 1, "fit": "ground"}
    ],
    "trees": [
     {"species": "oak", "at": [16, 12]}
@@ -1269,8 +1269,7 @@
     {"stamp": "fence_run", "at": [10, 17], "fit": "ground"},
     {"stamp": "fence_run", "at": [18, 9], "rot": 1, "fit": "ground"},
     {"stamp": "haystack", "at": [-15, 10], "fit": "ground"},
-    {"stamp": "meadow_north_shepherd_rack", "at": [-10, -15], "fit": "ground"},
-    {"stamp": "lamp_post", "at": [-17, -10], "fit": "ground"}
+    {"stamp": "meadow_north_shepherd_rack", "at": [-10, -15], "fit": "ground"}
    ]
   },
   {
@@ -1395,7 +1394,7 @@
    "radius": 10,
    "stamps": [
     {"stamp": "flower_garden", "at": [10, 0], "fit": "ground"},
-    {"stamp": "signpost", "at": [-6, -4], "fit": "ground"},
+    {"stamp": "signpost", "at": [-8, -7], "fit": "ground"},
     {"stamp": "meadow_north_clear_14", "at": [4, 15], "fit": "float", "dy": 40},
     {"stamp": "meadow_north_clear_14", "at": [4, -10], "fit": "float", "dy": 40},
     {"stamp": "meadow_north_clear_14", "at": [4, -35], "fit": "float", "dy": 40}
@@ -1666,7 +1665,9 @@
    "name": "The Old Quarry",
    "radius": 22,
    "stamps": [
-    {"stamp": "meadow_north_clear_20", "at": [-10, 0], "fit": "float", "dy": 40},
+    {"stamp": "meadow_north_clear_14", "at": [-12, -2], "fit": "float", "dy": 40},
+    {"stamp": "meadow_north_clear_10", "at": [6, -1], "fit": "float", "dy": 40},
+    {"stamp": "meadow_north_clear_10", "at": [22, -1], "fit": "float", "dy": 40},
     {"stamp": "meadow_north_quarry_pit", "at": [-15, 0], "fit": "ground"},
     {"stamp": "ore_pile", "at": [-8, -19], "fit": "ground"},
     {"stamp": "ore_pile", "at": [-25, -18], "rot": 2, "fit": "ground"},

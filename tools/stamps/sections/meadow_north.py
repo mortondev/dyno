@@ -96,6 +96,31 @@ def meadow_north_quarry_pit():
                 if d == 0:
                     # the lip: worked stone and rubble, not lawn
                     v.set(x, -1, z, pick(x, 0, z, ["cobble", "stone", "dirt"], 8))
+    # the highwall: on the west and north the cut goes on up into a rock
+    # spur 3 m above the meadow, stepping down outward in 1 m courses, so
+    # the faces read from the trail and the road, not only from the lip
+    for x in range(-18, 8):
+        for z in range(-15, 13):
+            if _quarry_depth(x, z) > 0:
+                continue
+            if not (x <= -10 or z <= -7):
+                continue
+            n = min(
+                (max(abs(x - a), abs(z - b)) for a in range(-15, 16) for b in range(-12, 13)
+                 if _quarry_depth(a, b) > 0),
+                default=9,
+            )
+            h = 4 - n
+            # the spur fades out toward the open south and east ends
+            if z >= 9 or x >= 4:
+                h -= 1
+            if z >= 11 or x >= 6:
+                h -= 1
+            for y in range(-1, h):
+                v.set(x, y, z, _quarry_rock(x, y - 3, z))
+    for (x, y, z, b) in ((-14, 0, -3, "coal_ore"), (-14, 1, 2, "coal_ore"), (-14, 0, 5, "iron_ore"),
+                         (-4, 0, -11, "coal_ore"), (-8, 1, -11, "coal_ore")):
+        v.set(x, y, z, b)
     # seams on the faces at walking height: coal on the lower west and
     # north faces, iron on the upper west face (gathering spots)
     for (x, y, z, b) in (
