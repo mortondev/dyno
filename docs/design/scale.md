@@ -32,7 +32,7 @@ land**:
 | Hero tree (one per glade or landmark) | 10–15 H tall | 18–27 m, trunk 2–3 m thick, crown 14–18 m wide | 18–27 m, trunk 2–3 m, crown 14–18 m (`hero_oak`), planted at landmarks and glades; the Hollow Oak is 26 m |
 | Common oak or birch | 6–9 H tall | 11–16 m, trunk 1–2 m thick, crown 8–12 m wide | 11–16 m, trunks 1–2 m, crowns 8–12 m of several leaf clumps |
 | Pine | 8–12 H tall | 15–21 m | 15–21 m |
-| Main road | 3.5–4.5 H wide | 6–8 m | 7 m, kerbed |
+| Main road | 3–4 H wide | 5–7 m | 6 m, kerbed (narrowed from 6–8 m after judge round 2: the concepts' roads are 4–6 m) |
 | Trail | 1–1.5 H wide | 2–3 m | 3 m |
 | Town plaza | 15–25 H across | 25–45 m | 38 m |
 | Rolling hills | rise of 8–20 H | 15–35 m | 16–35 m |
