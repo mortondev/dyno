@@ -304,17 +304,10 @@ pub fn ring_cells(radius: f32, cube: f32) -> Vec<[f32; 2]> {
 
 // ------------------------------------------------------------- impacts
 
-/// The cube sizes the voxel rule allows (docs/art/voxel-rule.md), largest
-/// first.
-pub const LADDER: [f32; 6] = [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125];
-
-/// The ladder step nearest `edge` (a bit's cube is always one of them).
+/// The ladder step nearest `edge` (a bit's cube is always one of them:
+/// `ladder.rs`); the finest step for anything smaller.
 pub fn on_ladder(edge: f32) -> f32 {
-    LADDER
-        .iter()
-        .copied()
-        .min_by(|a, b| (a - edge).abs().total_cmp(&(b - edge).abs()))
-        .unwrap_or(0.0625)
+    crate::ladder::snap(edge).unwrap_or(crate::ladder::FINEST)
 }
 
 /// A burst of small cubes thrown out from a point: where a blow lands, a
@@ -618,6 +611,88 @@ pub fn ring_boxes(at: Vec3, radius: f32, cube: f32) -> Vec<(Vec3, Vec3)> {
             (lo, lo + Vec3::splat(cube))
         })
         .collect()
+}
+
+/// What F2 draws, for the voxel rule's mesh test (`voxel_rule.rs`): every
+/// burst's cube at both its sizes (its step and the one below), the
+/// tell's rings at every size they take, the daze's stars, a kill's pop and
+/// loot's sparkle, as `Bits` and `ring_boxes` make them.
+#[cfg(test)]
+pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
+    use crate::voxel_rule::Object;
+    let life = crate::life::data().expect("life.json");
+    let feel = data();
+    let im = &life.impacts;
+    let list = |boxes: &[(Vec3, Vec3)]| {
+        let mut v = Vec::new();
+        for (lo, hi) in boxes {
+            crate::render::push_box(&mut v, *lo, *hi, [1.0; 3], 1.0);
+        }
+        v.iter()
+            .map(|v| (v.pos, None))
+            .collect::<Vec<([f32; 3], Option<[f32; 3]>)>>()
+    };
+    let mut out = Vec::new();
+    let mut bursts: Vec<(String, &Burst)> = Vec::new();
+    for (k, b) in &im.materials {
+        bursts.push((format!("material {k:?}"), b));
+    }
+    for (k, b) in &im.schools {
+        bursts.push((format!("school {k}"), b));
+    }
+    bursts.push(("kill".into(), &im.kill));
+    bursts.push(("loot".into(), &im.loot));
+    for (name, b) in bursts {
+        // a burst in flight, at its start and late in its life
+        let mut bits = Bits::default();
+        bits.burst(b, Vec3::new(9.3, 61.7, -4.1), Vec3::X, im.crit.max(1.0));
+        for age in [0.0, b.life[0] * 0.9] {
+            for bit in &mut bits.list {
+                bit.age = age;
+                let e = bit.edge();
+                let lo = bit.pos - Vec3::splat(e * 0.5);
+                let v = list(&[(lo, lo + Vec3::splat(e))]);
+                out.push(Object::from_list(
+                    format!("feel {name}"),
+                    format!("a cube of {e} m"),
+                    1.0 / e,
+                    Some(lo.to_array()),
+                    &v,
+                ));
+            }
+        }
+    }
+    // the tell: the ring at the reach and the closing ring, on one grid
+    let cube = on_ladder(feel.tell.cube);
+    let at = Vec3::new(13.37, 60.02, -7.9);
+    for reach in [feel.tell.reach, 2.6] {
+        for k in 2..(reach / cube) as i32 {
+            let boxes = ring_boxes(at, k as f32 * cube, cube);
+            let origin = (at - Vec3::new(cube * 0.5, 0.0, cube * 0.5)).to_array();
+            out.push(Object::from_list(
+                "feel tell ring",
+                format!("{} m out", k as f32 * cube),
+                1.0 / cube,
+                Some(origin),
+                &list(&boxes),
+            ));
+        }
+    }
+    // the daze: each star a whole cube
+    let z = &im.daze;
+    let e = on_ladder(z.cube);
+    for k in 0..z.cubes.max(1) {
+        let q = Vec3::new(2.0 + k as f32 * 0.37, 62.1, 5.3);
+        let lo = q - Vec3::splat(e * 0.5);
+        out.push(Object::from_list(
+            "feel daze",
+            format!("a cube of {e} m"),
+            1.0 / e,
+            Some(lo.to_array()),
+            &list(&[(lo, lo + Vec3::splat(e))]),
+        ));
+    }
+    out
 }
 
 #[cfg(test)]
