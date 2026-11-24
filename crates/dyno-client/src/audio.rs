@@ -203,6 +203,13 @@ impl AudioData {
 
 /// The data in the pack now, parsed again only when the file changes.
 pub fn data() -> Option<Arc<AudioData>> {
+    // (a test's own description, for its own thread: the tests of this
+    // crate run side by side and share one asset store, where another
+    // may load the real pack at any moment)
+    #[cfg(test)]
+    if let Some(d) = TEST_DATA.with(|d| d.borrow().clone()) {
+        return Some(d);
+    }
     type Cache = Option<(Arc<[u8]>, Arc<AudioData>)>;
     static CACHE: Mutex<Cache> = Mutex::new(None);
     let bytes = assets::get(AUDIO_JSON)?;
@@ -232,6 +239,12 @@ pub fn event(key: &str) -> Option<Event> {
         return Some(e);
     }
     crate::ambience::data().and_then(|d| d.events.get(key).cloned())
+}
+
+#[cfg(test)]
+thread_local! {
+    static TEST_DATA: std::cell::RefCell<Option<Arc<AudioData>>> =
+        const { std::cell::RefCell::new(None) };
 }
 
 // ---- events from code with no `Audio` to hand ----
@@ -1337,10 +1350,12 @@ mod tests {
         assert_eq!(m.playing(), 0);
     }
 
-    /// A pack of this test's own in the shared store (other tests use it
-    /// too, so the names here are used nowhere else).
+    /// A description of this test's own, seen by its thread alone. Its
+    /// sample files do go in the shared store, under names used nowhere
+    /// else.
     fn test_pack() -> std::sync::MutexGuard<'static, ()> {
-        // (one at a time: they share the queue of emitted events)
+        // (one at a time: they share the queue of emitted events and the
+        // sample files under sounds/test/)
         static LOCK: Mutex<()> = Mutex::new(());
         let guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let json = r#"{ "reach": 20, "events": {
@@ -1348,7 +1363,9 @@ mod tests {
             "test.placed": { "file": "sounds/test/placed", "variants": 1, "once": true, "gap": 0 }
         }, "footsteps": { "default": "test.placed", "blocks": { "grass": "test.streamed" } },
            "named": { "file": "sounds/test/named/", "variants": 3, "gain": 0.5, "gap": 0 } }"#;
-        assets::insert(AUDIO_JSON, json.as_bytes().to_vec());
+        // (for this test's thread only, and not in the shared store, which
+        // another test may fill with the real pack while this one runs)
+        TEST_DATA.with(|d| *d.borrow_mut() = Some(Arc::new(AudioData::parse(json).unwrap())));
         guard
     }
 
