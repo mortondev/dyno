@@ -814,6 +814,15 @@ fn push_life(
     };
     let clock = p.anims.now() as f64 + 600.0;
     if settle {
+        // DYNO_LIFE_JOIN: how long smoke and fires take to turn up after a join
+        if std::env::var_os("DYNO_LIFE_JOIN").is_some()
+            && let Some((frames, found)) = p.life.join_frames(&scene, clock, quality)
+        {
+            eprintln!(
+                "life: after a join, all {found} block emitters round the camera are found in {frames} frames ({:.2} s at 60 frames a second)",
+                frames as f32 / 60.0
+            );
+        }
         p.life.settle(&scene, clock, quality);
     }
     let mut out = crate::life::Out {

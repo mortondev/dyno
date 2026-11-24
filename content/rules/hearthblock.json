@@ -5893,9 +5893,9 @@
    ],
    "place": "logging_camp",
    "at": [
-    -5,
+    4,
     0,
-    -2
+    -11
    ],
    "greeting": "Birch splits clean. Oak fights back. I respect oak.",
    "routine": [
@@ -5905,17 +5905,15 @@
       0
      ],
      "secs": [
-      14,
-      22
+      24,
+      36
      ],
-     "near": "log",
-     "within": 10,
      "anim": "Chop"
     },
     {
      "at": [
-      3,
-      2
+      2,
+      -2
      ],
      "secs": [
       4,
@@ -5924,19 +5922,6 @@
      "emotes": [
       "Cheer"
      ]
-    },
-    {
-     "at": [
-      0,
-      0
-     ],
-     "secs": [
-      12,
-      20
-     ],
-     "near": "birch_log",
-     "within": 12,
-     "anim": "Chop"
     }
    ]
   },
@@ -5951,9 +5936,9 @@
    ],
    "place": "logging_camp",
    "at": [
-    7,
+    10,
     0,
-    -5
+    -14
    ],
    "greeting": "Garrick says axes down. Garrick isn't the one behind on his cords.",
    "routine": [
@@ -5963,36 +5948,21 @@
       0
      ],
      "secs": [
-      14,
-      22
+      24,
+      36
      ],
-     "near": "birch_log",
-     "within": 12,
      "anim": "Chop"
     },
     {
      "at": [
-      2,
-      3
+      -2,
+      2
      ],
      "secs": [
-      10,
-      16
+      8,
+      12
      ],
      "anim": "Sit"
-    },
-    {
-     "at": [
-      -3,
-      4
-     ],
-     "secs": [
-      12,
-      20
-     ],
-     "near": "log",
-     "within": 8,
-     "anim": "Chop"
     }
    ]
   },
@@ -6069,9 +6039,9 @@
    ],
    "place": "windmill_farm",
    "at": [
-    -30,
+    -38,
     0,
-    -25
+    10
    ],
    "greeting": "Ostrin says the mill grinds, the hands rake. So I rake.",
    "routine": [
@@ -6170,9 +6140,9 @@
    ],
    "place": "miners_rest",
    "at": [
-    -7,
+    1,
     0,
-    3
+    -12
    ],
    "greeting": "Coal's shallow here. Iron's deep. Candlekin are deeper. Guess which I dig.",
    "routine": [
@@ -6182,36 +6152,23 @@
       0
      ],
      "secs": [
-      14,
-      22
+      24,
+      36
      ],
-     "near": "coal_ore",
-     "within": 14,
      "anim": "Chop"
     },
     {
      "at": [
-      -2,
-      3
+      2,
+      2
      ],
      "secs": [
-      8,
-      14
+      6,
+      10
      ],
-     "anim": "Sit"
-    },
-    {
-     "at": [
-      0,
-      0
-     ],
-     "secs": [
-      12,
-      18
-     ],
-     "near": "iron_ore",
-     "within": 14,
-     "anim": "Chop"
+     "emotes": [
+      "Wave"
+     ]
     }
    ]
   },
@@ -6470,9 +6427,9 @@
    ],
    "place": "old_barrow",
    "at": [
-    11,
+    3,
     0,
-    7
+    5
    ],
    "greeting": "A light at the door, every night. It's all that keeps them in.",
    "routine": [
@@ -6570,7 +6527,7 @@
    "at": [
     3,
     0,
-    21
+    8
    ],
    "greeting": "They built it to stand in the water. I like to think they knew why.",
    "routine": [
@@ -6615,9 +6572,9 @@
    ],
    "place": "ashcloak_stockade",
    "at": [
-    11,
+    4,
     0,
-    0
+    24
    ],
    "greeting": "Six by the fire, two on the gate. Stay behind my light.",
    "routine": [
@@ -6627,8 +6584,8 @@
       0
      ],
      "secs": [
-      14,
-      24
+      24,
+      36
      ],
      "emotes": [
       "Point"
@@ -6636,7 +6593,7 @@
     },
     {
      "at": [
-      3,
+      2,
       -2
      ],
      "secs": [
@@ -6658,9 +6615,9 @@
    ],
    "place": "hollow_mines",
    "at": [
-    1,
+    3,
     0,
-    3
+    -3
    ],
    "greeting": "Shaft's sound enough. It's what moved in that isn't.",
    "routine": [
@@ -6716,9 +6673,9 @@
    ],
    "place": "hollow_mines",
    "at": [
-    -3,
+    10,
     0,
-    -4
+    -3
    ],
    "greeting": "Sit. Breathe. The dust settles if you let it.",
    "routine": [

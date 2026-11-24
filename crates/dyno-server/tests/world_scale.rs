@@ -795,8 +795,10 @@ fn camps_people_and_objectives_stand_in_the_world() {
     let pack = Pack::builtin();
     let c = &pack.content;
     let h = m.built.hearth;
+    // the server's own search: feet on ground, never on a tree's crown
     let free = |x: i32, y: i32, z: i32| {
         w::is_solid(m.world.get(x, y - 1, z))
+            && !w::is_leaves(m.world.get(x, y - 1, z))
             && !w::is_solid(m.world.get(x, y, z))
             && !w::is_solid(m.world.get(x, y + 1, z))
     };
@@ -824,27 +826,62 @@ fn camps_people_and_objectives_stand_in_the_world() {
             a.key
         );
     }
-    // people: where the server will put them (the same search it makes)
+    // people: where the server will put them (the same search it makes),
+    // and every stop of their rounds. Each stands on a floor: on the
+    // ground of its column, or under a roof; never on a tree, a lamp post
+    // or a pillar
+    let check = |who: &str, what: &str, x: i32, y: i32, z: i32| {
+        let under = m.world.get(x, y - 1, z);
+        assert!(
+            free(x, y, z) && !w::is_leaves(under) && under != w::LOG && under != w::BIRCH_LOG,
+            "{who} {what}: no footing at {:?} (on {})",
+            [x, y, z],
+            w::block_key(under)
+        );
+        let ground = m.world.ground(x, z) + 1;
+        let roofed = (y + 2..y + 24).any(|yy| w::is_solid(m.world.get(x, yy, z)));
+        assert!(
+            (y - ground).abs() <= 1 || roofed,
+            "{who} {what}: at {:?}, {} blocks over the ground and under no roof",
+            [x, y, z],
+            y - ground
+        );
+        let steps_off = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+            .into_iter()
+            .filter(|(dx, dz)| (-1..=1).any(|dy| free(x + dx, y + dy, z + dz)))
+            .count();
+        assert!(
+            steps_off >= 2,
+            "{who} {what}: perched at {:?} (on {})",
+            [x, y, z],
+            w::block_key(under)
+        );
+    };
     for n in &c.npcs {
         let (x, z) = (h[0] + n.at[0], h[2] + n.at[2]);
         let y0 = h[1] + n.at[1];
-        let y = (0..12)
-            .flat_map(|d| [y0 + d, y0 - d])
-            .find(|y| free(x, *y, z));
         assert!(
-            m.world.in_bounds([x, 1, z]) && y.is_some(),
-            "{} has nowhere to stand at {:?}",
-            n.key,
-            [x, y0, z]
+            m.world.in_bounds([x, 1, z]),
+            "{} is outside the world",
+            n.key
         );
-        // and not shut in: on the ground floor of the world, not on a roof
-        let y = y.unwrap();
-        assert!(
-            y - m.world.ground(x, z) <= 1 || !w::is_solid(m.world.get(x, y + 2, z)),
-            "{} is boxed in at {:?}",
-            n.key,
-            [x, y, z]
-        );
+        let Some([x, y, z]) = dyno_server::routines::footing(&m.world, x, y0, z) else {
+            panic!("{} has nowhere to stand at {:?}", n.key, [x, y0, z]);
+        };
+        check(&n.key, "at home", x, y, z);
+        let home = [x as f32 + 0.5, y as f32, z as f32 + 0.5];
+        for (i, p) in dyno_server::routines::stops(&m.world, home, &n.routine)
+            .iter()
+            .enumerate()
+        {
+            check(
+                &n.key,
+                &format!("at a stop of the round ({i})"),
+                p[0].floor() as i32,
+                p[1] as i32,
+                p[2].floor() as i32,
+            );
+        }
     }
     // explore objectives: a spot to reach, on the surface
     for q in &c.quests {
@@ -1113,8 +1150,10 @@ fn the_innkeeper_and_the_stations_can_be_walked_to() {
     let h = m.built.hearth;
     // (a free block at the middle of the town)
     let plaza = place(m, "hearthstead");
+    // the server's own search: feet on ground, never on a tree's crown
     let free = |x: i32, y: i32, z: i32| {
         w::is_solid(m.world.get(x, y - 1, z))
+            && !w::is_leaves(m.world.get(x, y - 1, z))
             && !w::is_solid(m.world.get(x, y, z))
             && !w::is_solid(m.world.get(x, y + 1, z))
     };

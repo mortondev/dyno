@@ -64,18 +64,16 @@ TOWNSFOLK = [
      None,
      [stop((25, 45), anim='Sit'),
       stop((6, 10), at=(-5, -3), emotes=['Wave', 'Cheer'])]),
-    ('tam', 'Tam', 'Lumberjack', [0.6, 0.3, 0.2], ('logging_camp', [-5, 0, -2]),
+    ('tam', 'Tam', 'Lumberjack', [0.6, 0.3, 0.2], ('logging_camp', [4, 0, -11]),
      "Birch splits clean. Oak fights back. I respect oak.",
      ('hatchet', [0.62, 0.64, 0.7]),
-     [stop((14, 22), near='log', within=10, anim='Chop'),
-      stop((4, 7), at=(3, 2), emotes=['Cheer']),
-      stop((12, 20), near='birch_log', within=12, anim='Chop')]),
-    ('wyn', 'Wyn', 'Lumberjack', [0.3, 0.45, 0.3], ('logging_camp', [7, 0, -5]),
+     [stop((24, 36), anim='Chop'),
+      stop((4, 7), at=(2, -2), emotes=['Cheer'])]),
+    ('wyn', 'Wyn', 'Lumberjack', [0.3, 0.45, 0.3], ('logging_camp', [10, 0, -14]),
      "Garrick says axes down. Garrick isn't the one behind on his cords.",
      ('hatchet', [0.62, 0.64, 0.7]),
-     [stop((14, 22), near='birch_log', within=12, anim='Chop'),
-      stop((10, 16), at=(2, 3), anim='Sit'),
-      stop((12, 20), at=(-3, 4), near='log', within=8, anim='Chop')]),
+     [stop((24, 36), anim='Chop'),
+      stop((8, 12), at=(-2, 2), anim='Sit')]),
     ('edric', 'Guard Edric', 'North Watch', [0.25, 0.35, 0.6], ('north_watch', [-12, 0, -11]),
      "Quiet night. I don't trust quiet nights.",
      None,
@@ -83,7 +81,7 @@ TOWNSFOLK = [
       stop((4, 8), at=(6, 6), emotes=['Point']),
       stop((4, 8), at=(-4, 6)),
       stop((4, 8), at=(-4, 0))]),
-    ('jory', 'Jory', 'Farmhand', [0.7, 0.6, 0.3], ('windmill_farm', [-30, 0, -25]),
+    ('jory', 'Jory', 'Farmhand', [0.7, 0.6, 0.3], ('windmill_farm', [-38, 0, 10]),
      "Ostrin says the mill grinds, the hands rake. So I rake.",
      ('hoe', [0.55, 0.55, 0.6]),
      [stop((12, 18), near='hay_bale', within=12, anim='Sweep'),
@@ -94,12 +92,11 @@ TOWNSFOLK = [
      ('rod', [0.55, 0.38, 0.22]),
      [stop((45, 90), near='water', within=12, anim='Fish'),
       stop((5, 8), at=(1, 1), emotes=['Wave'])]),
-    ('dag', 'Dag', 'Miner', [0.45, 0.4, 0.35], ('miners_rest', [-7, 0, 3]),
+    ('dag', 'Dag', 'Miner', [0.45, 0.4, 0.35], ('miners_rest', [1, 0, -12]),
      "Coal's shallow here. Iron's deep. Candlekin are deeper. Guess which I dig.",
      ('pickaxe', [0.6, 0.6, 0.66]),
-     [stop((14, 22), near='coal_ore', within=14, anim='Chop'),
-      stop((8, 14), at=(-2, 3), anim='Sit'),
-      stop((12, 18), near='iron_ore', within=14, anim='Chop')]),
+     [stop((24, 36), anim='Chop'),
+      stop((6, 10), at=(2, 2), emotes=['Wave'])]),
     ('sela', 'Sela', 'Wayfarer', [0.5, 0.3, 0.55], ('emberford_bridge', [4, 0, -1]),
      "East road's no place to walk alone. So I walk it quickly.",
      None,
@@ -127,7 +124,7 @@ TOWNSFOLK = [
      None,
      [stop((12, 20), near='mossy_cobble', within=8, anim='Kneel'),
       stop((6, 10), at=(2, 2), emotes=['Point', 'Bow'])]),
-    ('calder', 'Brother Calder', 'Lamplighter', [0.6, 0.5, 0.3], ('old_barrow', [11, 0, 7]),
+    ('calder', 'Brother Calder', 'Lamplighter', [0.6, 0.5, 0.3], ('old_barrow', [3, 0, 5]),
      "A light at the door, every night. It's all that keeps them in.",
      ('torch', [1.0, 0.75, 0.35]),
      [stop((10, 18), emotes=['Point']),
@@ -138,22 +135,22 @@ TOWNSFOLK = [
      ('rod', [0.55, 0.38, 0.22]),
      [stop((45, 90), near='water', within=12, anim='Fish'),
       stop((5, 8), at=(2, -2), emotes=['Wave'])]),
-    ('oswin', 'Oswin', 'Pilgrim', [0.75, 0.72, 0.6], ('sunken_shrine', [3, 0, 21]),
+    ('oswin', 'Oswin', 'Pilgrim', [0.75, 0.72, 0.6], ('sunken_shrine', [3, 0, 8]),
      "They built it to stand in the water. I like to think they knew why.",
      None,
      [stop((14, 24), anim='Kneel', emotes=['Bow']),
       stop((6, 10), at=(-3, 3), emotes=['Bow', 'Point'])]),
-    ('mira', 'Mira', 'Night Watch', [0.25, 0.3, 0.45], ('ashcloak_stockade', [11, 0, 0]),
+    ('mira', 'Mira', 'Night Watch', [0.25, 0.3, 0.45], ('ashcloak_stockade', [4, 0, 24]),
      "Six by the fire, two on the gate. Stay behind my light.",
      ('torch', [1.0, 0.75, 0.35]),
-     [stop((14, 24), emotes=['Point']),
-      stop((6, 10), at=(3, -2), anim='Kneel')]),
-    ('pell', 'Pell', 'Surveyor', [0.5, 0.45, 0.3], ('hollow_mines', [1, 0, 3]),
+     [stop((24, 36), emotes=['Point']),
+      stop((6, 10), at=(2, -2), anim='Kneel')]),
+    ('pell', 'Pell', 'Surveyor', [0.5, 0.45, 0.3], ('hollow_mines', [3, 0, -3]),
      "Shaft's sound enough. It's what moved in that isn't.",
      ('pickaxe', [0.6, 0.6, 0.66]),
      [stop((12, 18), near='coal_ore', within=10, anim='Chop'),
       stop((8, 14), emotes=['Point']),
-      stop((12, 18), near='iron_ore', within=10, anim='Chop')]),    ('ruk', 'Ruk', 'Miner', [0.4, 0.35, 0.3], ('hollow_mines', [-3, 0, -4]),
+      stop((12, 18), near='iron_ore', within=10, anim='Chop')]),    ('ruk', 'Ruk', 'Miner', [0.4, 0.35, 0.3], ('hollow_mines', [10, 0, -3]),
      "Sit. Breathe. The dust settles if you let it.",
      ('pickaxe', [0.6, 0.6, 0.66]),
      [stop((20, 36), anim='Sit', emotes=['Wave']),
@@ -181,35 +178,44 @@ TOWNSFOLK = [
 def rules():
     path = os.path.join(ROOT, 'rules', 'hearthblock.json')
     data = json.load(open(path))
-    keys = [t[0] for t in TOWNSFOLK]
-    data['npcs'] = [n for n in data['npcs'] if n['key'] not in keys]
     for n in data['npcs']:
         if n['key'] in NAMED:
             n['routine'] = NAMED[n['key']]
     for key, name, title, color, (place, at), greeting, _, routine in TOWNSFOLK:
         npc = {'key': key, 'name': name, 'title': title, 'color': color, 'place': place, 'at': at,
                'greeting': greeting, 'routine': routine}
-        data['npcs'].append(npc)
+        # in place when they are there already: the order of NPCs is kept
+        for i, old in enumerate(data['npcs']):
+            if old['key'] == key:
+                data['npcs'][i] = npc
+                break
+        else:
+            data['npcs'].append(npc)
     open(path, 'w').write(json.dumps(data, indent=1))
 
 
 def figures():
+    """What each holds: `hold` in the NPC's entry of figures.json. An entry
+    that is already there (the character work dresses most townsfolk) is
+    left as it is and only checked; a missing one is added as one line."""
     path = os.path.join(ROOT, 'figures.json')
     text = open(path).read()
-    # take out what an earlier run wrote
-    text = re.sub(r'\n    "\w+": \{"hold": .*', '', text)
-    text = re.sub(r'\n      "hold": \["mace".*', '', text)
-    head = '\n  "npcs": {'
-    assert text.count(head) == 1
-    lines = ''.join('\n    "%s": {"hold": %s},' % (t[0], json.dumps(list(t[6])))
-                    for t in TOWNSFOLK if t[6])
-    text = text.replace(head, head + lines)
-    # the smith's hammer
-    smith = '\n    "hollis": {'
-    assert text.count(smith) == 1
-    text = text.replace(smith, smith + '\n      "hold": ["mace", [0.42, 0.42, 0.46]],')
-    json.loads(text)
-    open(path, 'w').write(text)
+    have = json.loads(text)['npcs']
+    want = {t[0]: list(t[6]) for t in TOWNSFOLK if t[6]}
+    want['hollis'] = ['mace', [0.42, 0.42, 0.46]]
+    new = ''
+    for key, hold in want.items():
+        if key not in have:
+            new += '\n    "%s": {"hold": %s},' % (key, json.dumps(hold))
+        elif have[key].get('hold', [None])[0] != hold[0]:
+            print('figures.json: %s holds %s, the table says %s: edit the entry by hand'
+                  % (key, have[key].get('hold'), hold[0]))
+    if new:
+        head = '\n  "npcs": {'
+        assert text.count(head) == 1
+        text = text.replace(head, head + new)
+        json.loads(text)
+        open(path, 'w').write(text)
 
 
 if __name__ == '__main__':

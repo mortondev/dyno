@@ -50,6 +50,7 @@ pub struct Routine {
 /// Whether someone can stand with their feet in this cell.
 fn free(world: &World, x: i32, y: i32, z: i32) -> bool {
     w::is_solid(world.get(x, y - 1, z))
+        && !w::is_leaves(world.get(x, y - 1, z))
         && !w::is_solid(world.get(x, y, z))
         && world.get(x, y, z) != w::WATER
         && !w::is_solid(world.get(x, y + 1, z))
@@ -60,6 +61,52 @@ fn stand(world: &World, x: i32, y: i32, z: i32, reach: i32) -> Option<i32> {
     (0..=reach)
         .flat_map(|d| [y + d, y - d])
         .find(|y| free(world, x, *y, z))
+}
+
+/// Whether a standing cell is part of a floor: someone could step off it to
+/// a neighbouring cell at most a block up or down. The top of a lamp post,
+/// a pillar or a fence post is not.
+fn on_a_floor(world: &World, x: i32, y: i32, z: i32) -> bool {
+    [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        .into_iter()
+        .filter(|(dx, dz)| (-1..=1).any(|dy| free(world, x + dx, y + dy, z + dz)))
+        .count()
+        >= 2
+}
+
+/// Where someone meant to be at (x, z), about height `y`, stands: the
+/// nearest cell of a floor, within three columns and six blocks up or
+/// down, preferring the right height to the exact column. A spot written
+/// where a lamp post, a pillar or a wall turned out to stand moves beside
+/// it instead of on top of it.
+pub fn footing(world: &World, x: i32, y: i32, z: i32) -> Option<[i32; 3]> {
+    let mut best: Option<(i32, [i32; 3])> = None;
+    for dz in -3..=3i32 {
+        for dx in -3..=3i32 {
+            for dy in -6..=6i32 {
+                let c = [x + dx, y + dy, z + dz];
+                // a block of height counts as much as two columns away
+                let cost = 2 * dy.abs() * 2 + (dx * dx + dz * dz);
+                if best.is_some_and(|(b, _)| cost >= b) {
+                    continue;
+                }
+                if free(world, c[0], c[1], c[2]) && on_a_floor(world, c[0], c[1], c[2]) {
+                    best = Some((cost, c));
+                }
+            }
+        }
+    }
+    best.map(|(_, c)| c)
+}
+
+/// Where each stop of a routine is in this world, for an NPC standing at
+/// `home` (for tests: every stop must be on a floor).
+pub fn stops(world: &World, home: [f32; 3], steps: &[RoutineStep]) -> Vec<[f32; 3]> {
+    steps
+        .iter()
+        .filter_map(|s| resolve(world, home, s))
+        .map(|s| s.pos)
+        .collect()
 }
 
 fn yaw_to(from: [f32; 3], to: [f32; 3]) -> f32 {
@@ -100,7 +147,9 @@ fn resolve(world: &World, home: [f32; 3], st: &RoutineStep) -> Option<Spot> {
                 .into_iter()
                 .filter_map(|(dx, dz)| {
                     let (x, z) = (b[0] + dx, b[2] + dz);
-                    stand(world, x, b[1], z, 2).map(|y| [x, y, z])
+                    stand(world, x, b[1], z, 2)
+                        .filter(|y| on_a_floor(world, x, *y, z))
+                        .map(|y| [x, y, z])
                 })
                 .min_by_key(|c| (c[0] - hx).pow(2) + (c[2] - hz).pow(2))?;
             let pos = [
@@ -114,7 +163,7 @@ fn resolve(world: &World, home: [f32; 3], st: &RoutineStep) -> Option<Spot> {
             )));
             beside
         }
-        None => [bx, stand(world, bx, hy, bz, 6)?, bz],
+        None => footing(world, bx, hy, bz)?,
     };
     let index = |n: &String| proto::anim_index(n);
     Some(Spot {
