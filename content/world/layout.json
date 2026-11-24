@@ -1072,9 +1072,9 @@
    "radius": 20,
    "stamps": [
     {"stamp": "ashcloak_ford_stones", "at": [0, 0], "fit": "float"},
-    {"stamp": "signpost", "at": [-20, 1], "rot": 1, "fit": "ground"},
+    {"stamp": "signpost", "at": [-13, -2], "rot": 1, "fit": "ground"},
     {"stamp": "bench_lamp", "at": [-21, 13], "fit": "ground"},
-    {"stamp": "cairn", "at": [20, -6], "fit": "ground"}
+    {"stamp": "cairn", "at": [26, -7], "fit": "ground"}
    ],
    "was": {
     "at": [66, 86],
