@@ -170,7 +170,7 @@ two rounds, what was built for each, how each was checked, and the result.
 | 4 | Hit-stop | **pass** | timings in `feel.json`: hit 60 ms, crit 100 ms, kill 140 ms. `feel::tests::the_pack_keeps_to_the_design` holds the hit to 40–80 ms and crit < kill. `anim::tests::a_hit_stop_holds_the_pose_and_loses_no_animation` holds the pose and loses no animation. Movement and input are untouched by construction (only `Animator`'s clock stops) |
 | 5 | Camera shake | **pass** | directional, capped at 1.6° (`feel::tests::the_shake_is_thrown_the_way_of_the_blow_capped_and_soon_over`); Options toggle "Camera shake" |
 | 6 | Impact particles | **pass** | bursts by material and school from `Damage` and `Effect`, data in `life.json` `impacts`; visible in every after strip |
-| 7 | Enemy tells | SWARM | wind-up pose, ring and closing ring in `checks/tell.jpg` (0.8 s); server unit test `a_heavy_blow_is_wound_up_and_can_be_stepped_away_from_or_stunned`; swarm below |
+| 7 | Enemy tells | **pass** | wind-up pose, ring and closing ring in `checks/tell.jpg` (0.8 s); server unit test `a_heavy_blow_is_wound_up_and_can_be_stepped_away_from_or_stunned`; swarm below |
 | 8 | Stagger and daze | **pass** | crit stagger on the Keen Dummy in the after strips; daze stars on the Onrush-stunned dummy in `checks/daze.jpg` |
 | 9 | Kill moment | **pass** | the kill rows of the after strips: death fall, a pop of cubes; the fallen figure covers any frames before the body comes. The loot sparkle is in the code and data but not in a picture: the yard's dummies drop nothing, and the yard was left as the before clips had it |
 | 10 | Instant press | **pass** | `checks/press.jpg`, top to bottom: Onrush's key lit on the frame of the press; Heroic Blow pressed straight after, refused (no pulse, error sound); Heroic Blow pressed in the last moment of the global cooldown, queued (gold frame) |
@@ -180,7 +180,29 @@ two rounds, what was built for each, how each was checked, and the result.
 
 ### Swarm (goal 7)
 
-SWARM_RESULTS
+Two swarms, run one after the other on the same build (`9fbfac0`). Each used a fresh world and
+`dyno bots 127.0.0.1:PORT --count 12 --minutes 15`, with the server on
+`DYNO_TICK_STATS=1`. The only difference between the two packs is the two
+creatures' `heavy` entries: the control pack has them removed.
+
+| | bot-minutes | fights | deaths | deaths an hour | deaths a fight | by cause |
+|---|---|---|---|---|---|---|
+| without heavy blows | 173 | 450 | 14 | 4.85 | 0.031 | Grazer 7, Thornboar 4, Old Tusk 3 |
+| with heavy blows | 179 | 456 | 14 | 4.70 | 0.031 | Grazer 7, Thornboar 5, Old Tusk 2 |
+
+- **Deaths an hour did not rise** (4.85 to 4.70; the same 14 deaths).
+- **The heavy blows were real:** 24 were wound up and 21 landed. None
+  missed, because the bots never step away, and none were broken off. The
+  other 3 ended with their target gone. A bot stands in every one: this is
+  the worst case.
+- **Why this does not raise deaths:** a heavy blow is 1.6 times an ordinary
+  one, but it replaces a blow and is 0.8–0.9 s late. Over a round of three
+  blows a creature deals about 4% more than before, and a player who steps
+  out of the ring takes nothing.
+- **The server's tick** was the same in both (p95 0.75–1.25 ms).
+- **Deaths an hour fail the fun check in both arms** (it was failing
+  before F2). The deaths are Grazers and Old Tusk, which have no heavy
+  blow.
 
 ### Gates (goal 12)
 
