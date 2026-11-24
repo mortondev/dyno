@@ -6462,6 +6462,9 @@ pub fn shot_with_ui(
     gfx.fx = fx.clone();
     gfx.fx_glow = fx_glow.clone();
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
+    // the passing moments again, so the frame kept shows them whatever the
+    // first frame took to draw
+    hud::shot_state(&mut p, ui);
     let second = ctx.run(raw(), |ctx| {
         if !stand {
             hud(ctx, &mut p, &mut host, Some(vp), &mut actions)

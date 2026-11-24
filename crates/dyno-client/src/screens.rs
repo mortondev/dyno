@@ -456,7 +456,7 @@ fn stat(ui: &mut egui::Ui, key: &str, value: String) {
     let r = ui
         .scope(|ui| theme::stat_row(ui, &t(&format!("sheet.{key}.name")), &value, Color32::WHITE))
         .response;
-    let text = t(&format!("sheet.{key}.text"));
+    let text = crate::uitext::opt(&format!("sheet.{key}.text"));
     if !text.is_empty() {
         r.on_hover_ui(|ui| {
             ui.set_max_width(260.0);

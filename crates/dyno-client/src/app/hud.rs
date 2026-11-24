@@ -1130,7 +1130,11 @@ pub fn moments(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, bar: 
     // quest steps and the like: plain bright lines, upper middle
     p.ui.notices
         .retain(|(at, _, _)| at.elapsed() < Duration::from_millis(5200));
-    let top = screen.top() + screen.height() * 0.15 + p.toasts.len() as f32 * 38.0;
+    // (under the level banner and what it lists, while that shows)
+    let top = match &p.ui.level_up {
+        Some(l) => screen.top() + screen.height() * 0.22 + 128.0 + l.learned.len() as f32 * 58.0,
+        None => screen.top() + screen.height() * 0.15 + p.toasts.len() as f32 * 38.0,
+    };
     for (k, (at, text, colour)) in p.ui.notices.iter().enumerate() {
         let s = at.elapsed().as_secs_f32();
         let fade = (s / 0.2).min(1.0) * (1.0 - (s - 4.0).max(0.0) / 1.2).clamp(0.0, 1.0);
@@ -1569,7 +1573,7 @@ pub fn tips(
     let hint = if p.captured {
         String::new()
     } else {
-        t("tips.dismiss")
+        crate::uitext::opt("tips.dismiss")
     };
     p.ui.tips
         .show(ctx, |name| anchors.get(name).copied(), quiet, &hint);
@@ -1611,6 +1615,13 @@ fn pinned(ctx: &egui::Context, p: &Play) {
 /// character really has. `tip:EVENT` shows the tip for an event.
 pub fn shot_state(p: &mut Play, ui: &str) {
     let past = |ms: u64| Instant::now() - Duration::from_millis(ms);
+    // (called again before the frame that is kept: start clean)
+    p.ui.notices.clear();
+    p.ui.loots.clear();
+    p.ui.level_up = None;
+    p.combat_text.clear();
+    p.floaters.clear();
+    p.auras.clear();
     // tips only when asked for: a shot shows one thing
     let tip = ui.strip_prefix("tip:");
     crate::options::change_interface(|o| {
@@ -1719,8 +1730,13 @@ pub fn shot_state(p: &mut Play, ui: &str) {
             });
             level_up(p, level);
             if let Some(l) = &mut p.ui.level_up {
-                l.at = past(1300);
+                l.at = past(600);
                 l.health_before = p.max_health - 5.0;
+            }
+            // most levels come with a quest handed in: its line shows too
+            if let Some(q) = p.content.quests.first() {
+                let line = tf("hud.quest_done", &[("quest", &q.title)]);
+                p.ui.notices.push((past(700), line, theme::GOLD_BRIGHT));
             }
         }
         "menu" | "menu-options" | "menu-controls" => {

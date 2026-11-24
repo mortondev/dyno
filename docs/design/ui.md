@@ -9,7 +9,7 @@ and 9 of `quality-bar.md`; the table at the end reports against them.
 | Part | Where | What it is |
 |---|---|---|
 | Theme | `dyno-client/src/theme.rs` | The palette, the three fonts (title, body, bold) and painter pieces: windows, tabs, parchment, leather, slots, bars, the action-bar frame, tooltips. Everything is drawn with shapes; there are no interface images. |
-| Words | `content/ui/strings.json`, read by `uitext.rs` | Every word the HUD and panels show. `uitext::t("hud.recall")` reads a dotted key; `uitext::f(key, &[("n", "3")])` fills `{n}` places. The file is parsed once and again when the pack changes. A missing key is empty text. |
+| Words | `content/ui/strings.json`, read by `uitext.rs` | Every word the HUD and panels show. `uitext::t("hud.recall")` reads a dotted key; `uitext::f(key, &[("n", "3")])` fills `{n}` places. The file is parsed once and again when the pack changes. A pack without a key (an older or custom one) gets a word made from the key's last part (`death.release` reads "Release"), so no button is ever blank; `uitext::opt` reads as empty instead, for lines a pack may leave out. |
 | HUD | `app/hud.rs` (a child of `app.rs`, so it sees the play state) | Unit frames, action bar, cast bar, the moments (level gained, quest step, loot), the death screen, the game menu, and the tips' events. |
 | Panels | `screens.rs`, `rpg_ui.rs` | Character, bags, spellbook, skills (one window with tabs); quest dialogue, quest log, tracker, merchant, loot. |
 | Tips | `tips.rs` | The tutorial layer (below). |
@@ -207,11 +207,17 @@ the older names (`hud`, `talk`, `log`, `char`, `bags`, `spells`, `skills`,
 
 | Line | State |
 |---|---|
+| 1 Download under 4 MB, start under 10 s | Not this lane's to measure. The strings file grew from 1 KB to 16 KB before compression; the client is 9.06 MB against the 10 MB ceiling |
 | 1 Title looks finished, no debug text | Met (unchanged; now sized for the screen) |
+| 1 Graphics tier picked for the machine | Met already (`options.rs`, unchanged) |
+| 1 No crash or hang in 30 minutes | Not measured here: the interface was checked with headless shots and tests, not a 30-minute hand run |
+| 2 Under 60 s from title to in-world | Not measured; creation is still three pages (class, appearance, name) |
 | 2 Class cards: fantasy line, role, difficulty | Met. Roles and difficulty are still a table in `front.rs` keyed by class: they need to come in `ClassInfo` |
 | 2 Portrait and preview in the starter kit | Not met: the preview wears a tunic in the class colour. Needs the starter items in `ClassInfo` |
-| 2 Names: random button, clear rule, no profanity | Met on the client (`names.blocked`); the server should refuse the same list |
-| 3 Tip on moving, talking and the gold ! | Met (`move`, `talk`) |
+| 2 Names: random button, clear rule, no profanity | Partly: the rule is shown as you type, and names with a word from the pack's `names.blocked` are refused, but only once a pack is cached (not on a first install). The server must refuse the same list |
+| 3 Spawn faces the hearth and a quest giver with a gold ! | Not met, and not the interface's: a new character faces north and the first giver stands about 5 m behind and to the left, out of view. The `talk` tip and the intro toast both point at a gold ! the player cannot see yet. For the flow lane |
+| 3 Tip on moving, talking and the gold ! | Met (`move`, then `talk`) |
+| 3 First quest accepted within 30 s | Not measured here; the tips and the intro toast lead to it, the spawn facing works against it |
 | 8 Unit frames: health, resource, level, name | Met for player and target; party frames have health only (the party message has no resource) |
 | 8 Buffs with timers | Met for the player. Target debuffs need the server to send a creature's auras |
 | 8 Action bar: keys, drag and drop, new abilities placed | Met |

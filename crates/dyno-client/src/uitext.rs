@@ -1,6 +1,8 @@
 //! The interface's words. They are data: `ui/strings.json` in the pack
-//! (docs/design/ui.md). A key is a dotted path, `"hud.release"`; a missing
-//! key reads as empty text, so a pack can leave a line out.
+//! (docs/design/ui.md). A key is a dotted path, `"death.release"`. A pack
+//! without a key (an older or a custom one) still gets a word on its
+//! buttons: the key's last part, "Release". `opt` reads as empty instead,
+//! for lines a pack may leave out.
 //!
 //! The file is parsed once and again only when the asset store changes.
 
@@ -47,7 +49,7 @@ pub fn value(key: &str) -> Option<Value> {
 }
 
 /// A line of text; empty when the pack has none.
-pub fn t(key: &str) -> String {
+pub fn opt(key: &str) -> String {
     let all = all();
     let mut v: &Value = &all;
     for part in key.split('.') {
@@ -57,6 +59,22 @@ pub fn t(key: &str) -> String {
         }
     }
     v.as_str().unwrap_or_default().to_string()
+}
+
+/// A line of text; when the pack has none, a word made from the key.
+pub fn t(key: &str) -> String {
+    let s = opt(key);
+    if s.is_empty() { stand_in(key) } else { s }
+}
+
+/// "death.release" reads "Release", "menu.back_to_game" "Back to game".
+fn stand_in(key: &str) -> String {
+    let last = key.rsplit('.').next().unwrap_or(key).replace('_', " ");
+    let mut c = last.chars();
+    match c.next() {
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        None => String::new(),
+    }
 }
 
 /// A line with `{name}` places filled in.
@@ -97,5 +115,11 @@ mod tests {
             "Level 3: done"
         );
         assert_eq!(fill("plain", &[("n", "3")]), "plain");
+    }
+
+    #[test]
+    fn a_missing_key_still_gives_a_word() {
+        assert_eq!(stand_in("death.release"), "Release");
+        assert_eq!(stand_in("menu.back_to_game"), "Back to game");
     }
 }
