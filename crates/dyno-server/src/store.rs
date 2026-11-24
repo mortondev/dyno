@@ -15,7 +15,7 @@ pub type SavedStack = (String, u8, u16);
 pub struct PlayerData {
     #[serde(default)]
     pub token: u64,
-    #[serde(default = "survival")]
+    #[serde(default)]
     pub mode: Mode,
     pub health: f32,
     pub food: f32,
@@ -104,10 +104,6 @@ pub fn load_meta(path: &Path) -> Meta {
 
 pub fn save_meta(path: &Path, m: &Meta) -> std::io::Result<()> {
     write_atomic(path, &serde_json::to_vec_pretty(m).unwrap_or_default())
-}
-
-fn survival() -> Mode {
-    Mode::Survival
 }
 
 impl PlayerData {

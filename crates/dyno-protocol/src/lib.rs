@@ -12,12 +12,15 @@ pub mod wire;
 pub use dyno_sim::Stack;
 pub use dyno_world::content::{Content, ItemId};
 
-/// Survival or creative.
+/// How a character is in the world: playing, or (operators) building.
+/// Saves hold these by the names the variants had first.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum Mode {
     #[default]
-    Survival,
-    Creative,
+    #[serde(rename = "Survival")]
+    Play,
+    #[serde(rename = "Creative")]
+    Build,
 }
 
 /// A slot in the player's pack or in an open container.

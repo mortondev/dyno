@@ -240,7 +240,7 @@ fn bags_falls_death_and_names() {
     let server = start_server(&dir);
     let addr = format!("127.0.0.1:{}", server.local_addr.port());
     let j = net::connect(&addr, "tester", 111, false, Duration::from_secs(5)).expect("join");
-    assert_eq!(j.mode, Mode::Survival);
+    assert_eq!(j.mode, Mode::Play);
     let c = j.content.clone();
     let id = |k: &str| c.item_by_key(k).unwrap();
     let mut pack = vec![None; 36];
@@ -549,7 +549,7 @@ fn building_and_shortcuts_are_for_operators() {
         _ => None,
     });
     assert!(hp > 0.0);
-    assert_eq!(mode, Mode::Survival);
+    assert_eq!(mode, Mode::Play);
 
     // a tree: nobody digs it in play, by timing it or not
     let spawn = op.spawn;
@@ -594,7 +594,7 @@ fn building_and_shortcuts_are_for_operators() {
         ServerMsg::Status { mode, .. } => Some(*mode),
         _ => None,
     });
-    assert_eq!(mode, Mode::Creative);
+    assert_eq!(mode, Mode::Build);
     send(&op, ClientMsg::Dig { pos: tree });
     let now = wait(&op, &mut pack, 3.0, |m, _| match m {
         ServerMsg::Block { pos, block } if *pos == tree => Some(*block),

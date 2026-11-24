@@ -332,7 +332,7 @@ impl Play {
         self.held().and_then(|s| self.content.item(s.item).block)
     }
     fn creative(&self) -> bool {
-        self.mode == Mode::Creative
+        self.mode == Mode::Build
     }
     /// WoW-style controls: free cursor, hold a button to steer (RPG worlds, not creative).
     fn wow(&self) -> bool {
@@ -2231,10 +2231,10 @@ impl App {
                             p.fuel = fuel;
                             if mode != p.mode {
                                 p.mode = mode;
-                                if mode == Mode::Survival {
+                                if mode == Mode::Play {
                                     p.player.flying = false;
                                 }
-                                p.toast(if mode == Mode::Creative {
+                                p.toast(if mode == Mode::Build {
                                     "Build mode"
                                 } else {
                                     "Play mode"

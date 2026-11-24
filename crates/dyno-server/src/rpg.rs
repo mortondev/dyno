@@ -520,7 +520,7 @@ impl State {
         let Some(p) = self.players.get_mut(&id) else {
             return false;
         };
-        if p.mode == Mode::Creative {
+        if p.mode == Mode::Build {
             return true;
         }
         if p.hint_at.elapsed() > Duration::from_secs(4) {

@@ -1099,7 +1099,7 @@ impl State {
                 if block >= w::BLOCK_COUNT {
                     return Err(format!("unknown block {block}"));
                 }
-                if self.players[&id].mode == Mode::Creative
+                if self.players[&id].mode == Mode::Build
                     && self.within(id, pos, REACH + 4.0)
                     && self.world.in_bounds(pos)
                 {
@@ -1112,7 +1112,7 @@ impl State {
             ClientMsg::CreativeSet { slot, item } => {
                 let c = &self.content;
                 let p = self.players.get_mut(&id).unwrap();
-                if p.mode == Mode::Creative && (slot as usize) < p.pack.slots.len() {
+                if p.mode == Mode::Build && (slot as usize) < p.pack.slots.len() {
                     p.pack.slots[slot as usize] = if item == 0 {
                         None
                     } else {
@@ -1303,7 +1303,7 @@ impl State {
         if block >= w::BLOCK_COUNT {
             return Err(format!("unknown block {block}"));
         }
-        if self.players[&id].mode != Mode::Creative {
+        if self.players[&id].mode != Mode::Build {
             self.tell(id, "Fill works in build mode only.");
             return Ok(());
         }
@@ -1459,7 +1459,7 @@ impl State {
         let Some(p) = self.players.get_mut(&id) else {
             return;
         };
-        if p.mode == Mode::Creative || p.dead || amount <= 0.0 {
+        if p.mode == Mode::Build || p.dead || amount <= 0.0 {
             return;
         }
         let ward: f32 = p
@@ -1766,7 +1766,7 @@ impl State {
             .collect();
         let mut quest_checks = Vec::new();
         for (id, p) in self.players.iter_mut() {
-            if p.mode == Mode::Creative || p.dead || p.away() {
+            if p.mode == Mode::Build || p.dead || p.away() {
                 continue;
             }
             // out of combat, health returns at 2% a second

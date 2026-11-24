@@ -400,10 +400,7 @@ impl State {
             .map(|c| (c.id, c.spawn, c.cap))
             .collect();
         for (pid, at) in active {
-            let survival = self
-                .players
-                .get(&pid)
-                .is_some_and(|p| p.mode == Mode::Survival);
+            let survival = self.players.get(&pid).is_some_and(|p| p.mode == Mode::Play);
             let shade_due = {
                 let p = self.players.get_mut(&pid).unwrap();
                 p.shade_timer -= dt;
@@ -463,7 +460,7 @@ impl State {
         let prey: Vec<(PlayerId, [f32; 3], bool)> = self
             .players
             .iter()
-            .filter(|(_, p)| !p.dead && p.mode == Mode::Survival && p.safe_until <= now)
+            .filter(|(_, p)| !p.dead && p.mode == Mode::Play && p.safe_until <= now)
             .map(|(id, p)| (*id, p.pose.pos, p.away()))
             .collect();
         let ids: Vec<u32> = self

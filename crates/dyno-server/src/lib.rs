@@ -1469,7 +1469,7 @@ impl Server {
                         .iter()
                         .map(|(i, p)| st.player_info(*i, p))
                         .collect(),
-                    mode: Mode::Creative,
+                    mode: Mode::Build,
                     manifest: self.manifest(),
                     hearth: st.spawn_hearth,
                     view: st.stream.view,
@@ -1960,14 +1960,14 @@ impl Server {
                     return st.tell(id, "Only server operators can change game mode.");
                 }
                 let mode = match args.first().copied() {
-                    Some("build") | Some("b") | Some("1") => Mode::Creative,
-                    Some("play") | Some("p") | Some("0") => Mode::Survival,
+                    Some("build") | Some("b") | Some("1") => Mode::Build,
+                    Some("play") | Some("p") | Some("0") => Mode::Play,
                     _ => return st.tell(id, "Usage: /gamemode play|build"),
                 };
                 let p = st.players.get_mut(&id).unwrap();
                 p.mode = mode;
                 let _ = p.tx.send(Arc::new(proto::encode(&ServerMsg::Status { health: p.health, food: p.food, mode, fuel: p.fuel })));
-                st.broadcast(&ServerMsg::System { text: format!("{me} is now in {} mode", if mode == Mode::Creative { "build" } else { "play" }) }, None);
+                st.broadcast(&ServerMsg::System { text: format!("{me} is now in {} mode", if mode == Mode::Build { "build" } else { "play" }) }, None);
             }
             "/give" => {
                 if !op {

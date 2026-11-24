@@ -436,7 +436,7 @@ fn side_panel(
     // the list has a fixed height, so the window is the right size from its first frame
     let list_height = 300.0;
     ui.set_min_height(list_height + 92.0);
-    if v.mode == Mode::Creative {
+    if v.mode == Mode::Build {
         theme::heading(ui, "Build", theme::GOLD);
         ui.label(
             RichText::new("Click any item to put it in the selected belt slot.")
