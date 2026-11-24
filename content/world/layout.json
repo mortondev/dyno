@@ -783,7 +783,7 @@
     {"stamp": "old_barrow", "at": [0, 0]},
     {"stamp": "old_barrow_dromos", "at": [0, 0]},
     {"stamp": "old_barrow_crown", "at": [0, 0], "dy": 8},
-    {"stamp": "pond_big", "at": [32, 22], "fit": "ground"},
+    {"stamp": "pond_big", "at": [22, 26], "fit": "ground"},
     {"stamp": "fallen_log", "at": [34, -12], "rot": 1, "fit": "ground"},
     {"stamp": "boulders", "at": [-16, -26], "rot": 1, "fit": "ground"},
     {"stamp": "standing_stones", "at": [36, -30], "fit": "ground"},
@@ -840,7 +840,8 @@
    "radius": 14,
    "stamps": [
     {"stamp": "standing_stones", "at": [0, 0], "fit": "ground"},
-    {"stamp": "boulders", "at": [13, -7], "fit": "ground"}
+    {"stamp": "boulders", "at": [13, -7], "fit": "ground"},
+    {"stamp": "old_barrow_clear_14", "at": [0, 0], "fit": "float", "dy": 40}
    ],
    "trees": [
     {"species": "snag", "at": [-11, 10]}
