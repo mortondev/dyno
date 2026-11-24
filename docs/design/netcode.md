@@ -10,7 +10,7 @@ their pass lines (written before measuring), and the results.
 | **Who moves you** | The client moved itself and sent its pose 20 times a second; the server checked it (a speed budget, a hang timer) and snapped you back with `Teleport` when a check failed. | The client sends **steps**: how long (whole ms, 1–50), the movement keys, and the facing (`ClientMsg::Steps`, numbered). The server runs them with the same `dyno_sim::movement` code and is the authority (`dyno-server/src/movement.rs`). |
 | **Cheats** | Caught by checks with slack for lag (8.5 m/s, 14 m bursts, 1.6 s of hang). | Impossible by construction: a position never comes from the client. Steps spend a real-time budget, so sending them faster only queues them (and drops them beyond 2 s). Holding jump is a jump. |
 | **Your own movement** | Moved at once, at the frame rate. | Predicted at once with the same steps (`dyno-client/src/predict.rs`). The server's answer (`ServerMsg::Moved`: the body after step `seq`) is taken as the truth: the client puts its body there and runs its unanswered steps again. A difference is eased away over about 120 ms; over 2 m it snaps. |
-| **Others** | Drawn between the last two poses received, by arrival time. | Drawn from a buffer of positions stamped with the mover's own clock, 100 ms behind, carried on at most 150 ms past the newest (`dyno-client/src/interp.rs`). |
+| **Others** | Drawn between the last two poses received, by arrival time. | Drawn from a buffer of positions stamped with the mover's own clock, 100 ms behind on a clean line (more, up to 200 ms, on one that keeps stalling), carried on at most 150 ms past the newest (`dyno-client/src/interp.rs`). |
 | **Knockback** | The client added the push to its own velocity. | The server adds it to the body it runs; the client sees it in the next `Moved`. |
 | **Teleports** (recall, rides, blink, charge, respawn, `/tp`, `/feel`) | `Teleport`. | `Teleport` still, through one door on the server (`Player::put`). The client counts them in its steps (`teleports`): steps sent before the latest one are answered but never run, so a teleport is never followed by a correction. |
 
@@ -31,13 +31,31 @@ the live server never does.
 ### The server's side
 
 Each tick (50 ms), before the creatures move, every player's queued steps
-run while their real-time budget lasts (`State::tick_moves`). The budget
-banks up to 1 s while no steps come, so a burst of late steps after a stall
-runs at once and the client's prediction stays right. Past that bank a
-silent client (a stall over a second, a minimised window) is stood still
-by the server: its body falls and takes knockback like everyone's. At the
-end of the tick each player whose body changed gets `Moved` (so knockback
-dealt during the tick is in it).
+run while their real-time budget lasts (`State::tick_moves`):
+
+- **The budget** grows with real time and is spent by the steps' time. It
+  banks up to 1 s, so a burst of late steps after a stall (a lost packet
+  holds a TCP line for a quarter of a second) runs at once and the client's
+  prediction stays right. It starts fresh (200 ms) at a player's first
+  steps, so time spent joining is not banked.
+- **The queue** holds at most 2 s of steps; older ones beyond that are
+  dropped (answered, never run). Only a client sending faster than real
+  time fills it.
+- **A silent client** (no steps for over a second: a long stall, a
+  minimised window) is stood still by the server from then on, a tick at a
+  time: its body falls and takes knockback like everyone's. When it comes
+  back with the steps of that time in one burst (a client catches up on up
+  to 2 s), what the bank cannot run at once, up to the time it was stood
+  still, is answered unrun, so the queue never lags real time afterwards.
+- **After a teleport, a death, build mode or a trusted pose** the queue,
+  the budget and the silence start over.
+
+At the end of the tick each player whose body changed gets `Moved` (so
+knockback dealt during the tick is in it).
+
+**The one allowance:** a player who has stood silent for a second can then
+run a second of steps at once, as a stalled line's late steps must. That is
+about 6 m in one tick, once; the average never beats running.
 
 ### The client's side
 
@@ -51,7 +69,10 @@ streamed in, the steps are idle (the server would otherwise walk you where
 you cannot see).
 
 The F3 overlay shows the corrections: snapped, eased (over 5 cm) and the
-last one's size, and the teleports apart from them.
+last one's size, and the teleports apart from them. `DYNO_PREDICT_LOG=1`
+prints each correction (client, bots); `DYNO_MOVE_LOG=1` logs what the
+server does that is not plain running (steps dropped, a silent player
+stood still, steps answered unrun).
 
 ### Remote smoothing
 
@@ -59,12 +80,32 @@ last one's size, and the teleports apart from them.
 milliseconds of steps the server has run for them. So a player's position
 is stamped with *when they made that move*, not when the server happened
 to run it (steps arrive at the server in bursts on a poor line). Creatures
-are stamped with the server's clock (`EntityMoves`). A `Clock` maps the
-sender's time to ours by the quickest arrival of the last 2 s, moving that
-mapping no faster than 2% (so time on screen never jumps); a `Track` draws
-100 ms behind that, between two positions, or carried on at most 150 ms
-past the newest. A creature that stops is held, not carried on: the next
-batch comes without it.
+are stamped with the server's clock (`EntityMoves`, now every tick, 20 Hz,
+and sent empty too, so an entity missing from it is known to stand still).
+
+- **The clock** (`interp::Clock`, one per remote player and one for the
+  creatures) is the time drawn, on the sender's clock. It aims 100 ms
+  behind the newest position as positions usually arrive (the median
+  arrival of the last 2 s). It gets there by running at most 3% fast or
+  slow, never by a jump (except to start, or when it is more than 0.6 s
+  off: a new shard, a long stall). When positions stop coming it eases to
+  a stop before it is 150 ms past the newest, and catches up when they come.
+- **Earned delay:** while it is drawing past the newest position the clock
+  earns more delay, up to 100 ms more, and gives it back at 10 ms a second
+  once the line is clean. On a clean line others are drawn 100 ms behind;
+  on a TCP line losing 2% of its packets, a lost packet holds everything for
+  about 270 ms, more than 100 ms of buffer and 150 ms of carrying on can
+  cover, and the delay settles near 170–200 ms.
+- **The track** (`interp::Track`, one per mover) draws between the two
+  positions around that time, or past the newest at the last speed for at
+  most 150 ms. A creature that stopped is held, not carried on; one that
+  sets off after a rest is drawn setting off when the last batch without
+  it came, not sliding from where it stopped. A jump of over 8 m is a
+  teleport: drawn there at once.
+
+The brief asked for "about 100 ms behind": that is what a clean line gets.
+The earned delay is a deviation, taken because on this transport (TCP) a
+lost packet's stall is longer than the brief's buffer and cap together.
 
 ### The network conditioner
 
@@ -74,7 +115,8 @@ receives:
 
 - `lat` is the round trip added: half each way;
 - `jitter` is up to that much more each way, at random;
-- `loss` is the share of packets lost each way.
+- `loss` is the share of packets lost each way;
+- `seed` (optional) makes the same packets late and lost each run.
 
 The game runs over TCP (WebSocket), so a lost packet is never missing: it
 comes again after a retransmission timeout, and everything behind it waits

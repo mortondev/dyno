@@ -261,7 +261,7 @@ fn runner_input(c: &Course, x: f32, dir: f32, t: f32, lap: u32) -> Input {
             2 => i.sprint = true,
             _ => {}
         }
-        i.jump = (t * 1.7).fract() < 0.12 && lap % 3 != 0;
+        i.jump = (t * 1.7).fract() < 0.12 && !lap.is_multiple_of(3);
         if lap % 4 == 3 && (t * 0.4).fract() < 0.15 {
             i.forward = 0.0;
         }
@@ -425,9 +425,12 @@ fn watch(
     while !stop.load(Ordering::Relaxed) {
         while let Ok(ev) = j.conn.rx.try_recv() {
             match &ev {
-                NetEvent::Msg(ServerMsg::EntitySpawn { id, kind, pos, yaw })
-                    if matches!(kind, EntityKind::Creature(_) | EntityKind::Npc(_)) =>
-                {
+                NetEvent::Msg(ServerMsg::EntitySpawn {
+                    id,
+                    kind: EntityKind::Creature(_) | EntityKind::Npc(_),
+                    pos,
+                    yaw,
+                }) => {
                     let p = Vec3::from(*pos);
                     walkers.insert(
                         *id,

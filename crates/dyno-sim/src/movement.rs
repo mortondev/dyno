@@ -76,9 +76,14 @@ impl Step {
             ms: ms.clamp(1, MAX_STEP_MS),
             forward: axis(input.forward),
             right: axis(input.right),
-            keys: (input.jump as u8) * Step::JUMP
-                | (input.down as u8) * Step::DOWN
-                | (input.sprint as u8) * Step::SPRINT,
+            keys: [
+                (input.jump, Step::JUMP),
+                (input.down, Step::DOWN),
+                (input.sprint, Step::SPRINT),
+            ]
+            .iter()
+            .filter(|(on, _)| *on)
+            .fold(0, |k, (_, bit)| k | bit),
             yaw: ((turn * 65536.0).round() as u32 & 0xffff) as u16,
         }
     }

@@ -202,6 +202,79 @@ fn a_player_relayed_through_one_instance_plays_on_another_and_moves() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Movement is the server's (docs/design/netcode.md): a player who keeps
+/// running while moved to another instance goes on predicting, the new host
+/// takes up the steps, and the correction across the move is no snap.
+#[test]
+fn running_through_a_move_between_instances_is_not_snapped() {
+    use dyno_client::game::{Input, Player, apply_rules};
+    use dyno_client::predict::Predictor;
+    let root = std::env::temp_dir().join(format!("dyno-cl-run-{}", std::process::id()));
+    let nodes = three(&root);
+    let (a, c) = (&nodes[0], &nodes[2]);
+    let mut ada =
+        net::connect(&a.addr, "ada", 41, false, Duration::from_secs(10)).expect("ada joins");
+    let mut body = Player::new(ada.spawn);
+    apply_rules(&mut body, ada.content.world.protected, false);
+    let mut pred = Predictor::new();
+    let (mut last, start) = (Instant::now(), Instant::now());
+    let (mut moved_at, mut shard, mut acks_after) = (None, false, 0);
+    let mut worst_after = 0.0f32;
+    while start.elapsed() < Duration::from_secs(8) {
+        if moved_at.is_none() && start.elapsed() > Duration::from_secs(2) {
+            say(&ada, &format!("/instance {}", id_of(c)));
+            moved_at = Some(Instant::now());
+        }
+        // round and round in a small circle, running
+        let now = Instant::now();
+        let yaw = start.elapsed().as_secs_f32() * 1.2;
+        let run = Input {
+            forward: 1.0,
+            ..Default::default()
+        };
+        pred.advance(&mut body, &ada.world, run, yaw, (now - last).as_secs_f32());
+        last = now;
+        if let Some(m) = pred.flush(0.0) {
+            let _ = ada.conn.tx.send(m);
+        }
+        while let Ok(ev) = ada.conn.rx.try_recv() {
+            let NetEvent::Msg(m) = ev else { continue };
+            match m {
+                ServerMsg::Moved {
+                    seq,
+                    pos,
+                    vel,
+                    ground,
+                } => {
+                    let e = pred.ack(&mut body, &ada.world, seq, pos, vel, ground);
+                    if shard {
+                        acks_after += 1;
+                        worst_after = worst_after.max(e);
+                    }
+                }
+                ServerMsg::Teleport { pos } => pred.teleport(&mut body, pos),
+                ServerMsg::Shard { .. } => shard = true,
+                m => {
+                    net::apply_world(&mut ada.world, &m);
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_millis(16));
+    }
+    assert!(shard, "moved to c");
+    assert!(wait_for(5.0, || hosted_here(c) == 1));
+    assert!(acks_after > 20, "c runs her steps: {acks_after} answers");
+    assert_eq!(pred.stats.snaps, 0, "no snap across the move");
+    eprintln!(
+        "MOVE: worst correction after the move {worst_after:.2} m, {} eased in all",
+        pred.stats.eased
+    );
+    for n in &nodes {
+        n.handle.kill();
+    }
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 #[test]
 fn killing_the_leader_mid_move_loses_and_duplicates_nothing() {
     let root = std::env::temp_dir().join(format!("dyno-cl-kill-{}", std::process::id()));

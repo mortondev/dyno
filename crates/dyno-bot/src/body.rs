@@ -1269,8 +1269,14 @@ impl Body {
         let protected = self.content.world.protected;
         dyno_sim::movement::apply_rules(&mut self.player, protected, false);
         let yaw = self.player.yaw;
-        self.pred
-            .advance(&mut self.player, &self.world, self.input, yaw, elapsed);
+        // in slices of 25 ms at most, like a client at 40 fps
+        let mut t = elapsed;
+        while t > 1e-4 {
+            let dt = t.min(0.025);
+            self.pred
+                .advance(&mut self.player, &self.world, self.input, yaw, dt);
+            t -= dt;
+        }
         let moved = self.player.pos - before;
         self.distance += (moved.x * moved.x + moved.z * moved.z).sqrt().min(2.0);
         // falls and drowning are measured by the client and reported
