@@ -470,22 +470,22 @@
   {
    "key": "north_road",
    "way": "road",
-   "path": ["hearthstead", "north_road_glade_1", "north_watch", "north_road_view_2", [-20, -420], "north_road_milestone_3", [-60, -600], "north_road_hay_4", "north_pass"]
+   "path": ["hearthstead", "north_road_glade_1", "north_watch", "north_road_view_2", [-20, -420], "north_road_milestone_3", [-60, -600], "north_road_hay_4", "north_pass", [-70, -840]]
   },
   {
    "key": "east_road",
    "way": "road",
-   "path": ["hearthstead", "east_road_wood_5", "east_road_glade_6", "wrecked_caravan", [345, -35], "emberford_toll_hut", [432, 0], "emberford_bridge", [518, 0], [570, 22], "miners_rest"]
+   "path": ["hearthstead", [100, 0], "east_road_wood_5", "east_road_glade_6", "wrecked_caravan", [345, -35], "emberford_toll_hut", [432, 0], "emberford_bridge", [518, 0], [570, 22], "miners_rest"]
   },
   {
    "key": "south_road",
    "way": "road",
-   "path": ["hearthstead", "south_road_tower_7", "south_road_ruin_8", [30, 320], "south_road_stones_9", [38, 470], "south_road_wayshrine_10", [-50, 560], [-125, 620], "fishers_landing"]
+   "path": ["hearthstead", [0, 100], "south_road_tower_7", "south_road_ruin_8", [30, 320], "south_road_stones_9", [38, 470], "south_road_wayshrine_10", [-50, 560], [-125, 620], "fishers_landing"]
   },
   {
    "key": "west_trail",
    "way": "trail",
-   "path": ["hearthstead", "west_trail_camp_11", "west_trail_wood_12", [-300, -20], "west_trail_glade_13", [-470, 10], "west_trail_cairn", [-604, 50]]
+   "path": [[-82, 0], "west_trail_camp_11", "west_trail_wood_12", [-300, -20], "west_trail_glade_13", [-470, 10], "west_trail_cairn", [-604, 50]]
   },
   {
    "key": "logging_trail",
@@ -515,7 +515,32 @@
   {
    "key": "shore_trail",
    "way": "trail",
-   "path": ["fishers_landing", [-115, 755], "shore_trail_well_24", [-40, 797], "shrine_shore"]
+   "path": ["fishers_landing", [-115, 755], "shore_trail_well_24", [-40, 797], "shrine_shore", [120, 780], [185, 700], [170, 590], [96, 505]]
+  },
+  {
+   "key": "west_street",
+   "way": "road",
+   "path": ["hearthstead", [-82, 0]]
+  },
+  {
+   "key": "quarry_trail",
+   "way": "trail",
+   "path": ["north_road_glade_1", [-60, -170], [-110, -160], "old_quarry"]
+  },
+  {
+   "key": "westfold_lane",
+   "way": "trail",
+   "path": [[-262, -12], [-266, 90], "meadow_farm_1"]
+  },
+  {
+   "key": "southfold_lane",
+   "way": "trail",
+   "path": ["meadow_farm_3", [-60, 312], [30, 320]]
+  },
+  {
+   "key": "eastfold_trail",
+   "way": "trail",
+   "path": [[232, -45], [250, -100], "meadow_farm_2"]
   }
  ],
  "places": [
