@@ -595,6 +595,11 @@
       "kinds": ["boulder_small", "rock", "rock", "rock_small"],
       "on": ["grass"],
       "per_block": 0.45,
+      "areas": {
+        "hearthstead": {
+          "density": 0.05
+        }
+      },
       "patch": {
         "scale": 5,
         "from": 0.8,

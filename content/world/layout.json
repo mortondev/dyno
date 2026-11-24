@@ -327,12 +327,11 @@
     "trees": {"oak": 10, "birch": 4, "hero_oak": 1, "young_oak": 4, "blossom": 3, "young_birch": 1},
     "lone": 3.5,
     "ground": [
-     {"block": "leaves", "per_ha": 120, "on": "wood"},
-     {"block": "berry_bush", "per_ha": 8, "on": "wood"},
-     {"block": "leaves", "per_ha": 14, "on": "open"}
+     {"block": "leaves", "per_ha": 30, "on": "wood"},
+     {"block": "berry_bush", "per_ha": 8, "on": "wood"}
     ],
     "scatter": [
-     {"stamp": "boulders", "per_ha": 1.6, "on": "open"},
+     {"stamp": "boulders", "per_ha": 1.0, "on": "open"},
      {"stamp": "fallen_log", "per_ha": 1.4, "on": "wood"},
      {"stamp": "outcrop", "per_ha": 0.35, "on": "any"},
      {"stamp": "stumps", "per_ha": 0.5, "on": "wood"},
@@ -347,9 +346,8 @@
     "trees": {"birch": 12, "oak": 2, "hero_oak": 1, "young_birch": 4, "young_oak": 1},
     "lone": 4,
     "ground": [
-     {"block": "birch_leaves", "per_ha": 160, "on": "wood"},
-     {"block": "berry_bush", "per_ha": 14, "on": "wood"},
-     {"block": "birch_leaves", "per_ha": 20, "on": "open"}
+     {"block": "birch_leaves", "per_ha": 30, "on": "wood"},
+     {"block": "berry_bush", "per_ha": 14, "on": "wood"}
     ],
     "scatter": [
      {"stamp": "boulders", "per_ha": 1.5, "on": "any"},
@@ -367,10 +365,10 @@
     "lone": 5,
     "ground": [
      {"block": "mossy_cobble", "per_ha": 14, "on": "any"},
-     {"block": "pine_leaves", "per_ha": 110, "on": "wood"},
+     {"block": "pine_leaves", "per_ha": 30, "on": "wood"},
      {"block": "glowshroom", "per_ha": 5, "on": "wood"}
     ],
-    "patches": {"block": "dirt", "share": 0.3, "scale": 9},
+    "patches": {"block": "dirt", "share": 0.15, "scale": 5},
     "scatter": [
      {"stamp": "boulders", "per_ha": 2.0, "on": "any"},
      {"stamp": "fallen_log", "per_ha": 2.5, "on": "any"},
@@ -387,9 +385,8 @@
     "trees": {"oak": 4, "birch": 4, "willow": 6, "hero_oak": 1, "blossom": 3, "young_oak": 2, "young_birch": 1},
     "lone": 4,
     "ground": [
-     {"block": "leaves", "per_ha": 110, "on": "wood"},
-     {"block": "berry_bush", "per_ha": 8, "on": "wood"},
-     {"block": "leaves", "per_ha": 16, "on": "open"}
+     {"block": "leaves", "per_ha": 30, "on": "wood"},
+     {"block": "berry_bush", "per_ha": 8, "on": "wood"}
     ],
     "scatter": [
      {"stamp": "boulders", "per_ha": 1.8, "on": "any"},
@@ -405,9 +402,8 @@
     "trees": {"oak": 8, "birch": 2, "pine": 2, "hero_oak": 1, "young_oak": 3, "blossom": 2, "young_pine": 1},
     "lone": 3.5,
     "ground": [
-     {"block": "leaves", "per_ha": 120, "on": "wood"},
-     {"block": "berry_bush", "per_ha": 8, "on": "wood"},
-     {"block": "leaves", "per_ha": 12, "on": "open"}
+     {"block": "leaves", "per_ha": 30, "on": "wood"},
+     {"block": "berry_bush", "per_ha": 8, "on": "wood"}
     ],
     "scatter": [
      {"stamp": "boulders", "per_ha": 2.0, "on": "any"},
@@ -422,11 +418,11 @@
     "clump": 55,
     "spacing": 9,
     "trees": {"pine": 5, "dark_oak": 1, "young_pine": 2},
-    "lone": 4,
+    "lone": 7,
     "ground": [
      {"block": "pine_leaves", "per_ha": 90, "on": "wood"}
     ],
-    "patches": {"block": "stone", "share": 0.32, "scale": 8},
+    "patches": {"block": "stone", "share": 0.18, "scale": 12},
     "scatter": [
      {"stamp": "boulders", "per_ha": 3.0, "on": "any"},
      {"stamp": "outcrop", "per_ha": 1.4, "on": "any"},
@@ -441,9 +437,8 @@
     "trees": {"oak": 6, "birch": 4, "pine": 6, "hero_oak": 1, "young_oak": 3, "young_pine": 3, "young_birch": 2, "blossom": 1},
     "lone": 4,
     "ground": [
-     {"block": "leaves", "per_ha": 130, "on": "wood"},
-     {"block": "berry_bush", "per_ha": 10, "on": "wood"},
-     {"block": "leaves", "per_ha": 12, "on": "open"}
+     {"block": "leaves", "per_ha": 30, "on": "wood"},
+     {"block": "berry_bush", "per_ha": 10, "on": "wood"}
     ],
     "scatter": [
      {"stamp": "boulders", "per_ha": 2.0, "on": "any"},
