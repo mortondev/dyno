@@ -476,6 +476,7 @@ mod tests {
         objects.extend(crate::farview::voxel_objects());
         objects.extend(crate::figure::voxel_objects());
         objects.extend(crate::render::voxel_objects());
+        objects.extend(crate::app::voxel_objects());
         assert!(objects.len() > 100, "{} objects", objects.len());
         for o in &objects {
             if ladder::step_of_per_metre(o.per_metre).is_none() {
