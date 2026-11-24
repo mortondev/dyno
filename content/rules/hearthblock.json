@@ -5893,9 +5893,9 @@
    ],
    "place": "logging_camp",
    "at": [
-    7,
+    4,
     0,
-    9
+    -11
    ],
    "greeting": "Birch splits clean. Oak fights back. I respect oak.",
    "routine": [
@@ -5938,7 +5938,7 @@
    "at": [
     10,
     0,
-    2
+    -14
    ],
    "greeting": "Garrick says axes down. Garrick isn't the one behind on his cords.",
    "routine": [
@@ -6039,9 +6039,9 @@
    ],
    "place": "windmill_farm",
    "at": [
-    -30,
+    -38,
     0,
-    -25
+    10
    ],
    "greeting": "Ostrin says the mill grinds, the hands rake. So I rake.",
    "routine": [
@@ -6140,7 +6140,7 @@
    ],
    "place": "miners_rest",
    "at": [
-    0,
+    1,
     0,
     -12
    ],
@@ -6427,9 +6427,9 @@
    ],
    "place": "old_barrow",
    "at": [
-    11,
+    3,
     0,
-    7
+    5
    ],
    "greeting": "A light at the door, every night. It's all that keeps them in.",
    "routine": [
@@ -6527,7 +6527,7 @@
    "at": [
     3,
     0,
-    21
+    8
    ],
    "greeting": "They built it to stand in the water. I like to think they knew why.",
    "routine": [
@@ -6572,9 +6572,9 @@
    ],
    "place": "ashcloak_stockade",
    "at": [
-    9,
+    4,
     0,
-    9
+    24
    ],
    "greeting": "Six by the fire, two on the gate. Stay behind my light.",
    "routine": [
@@ -6615,9 +6615,9 @@
    ],
    "place": "hollow_mines",
    "at": [
-    1,
+    3,
     0,
-    3
+    -3
    ],
    "greeting": "Shaft's sound enough. It's what moved in that isn't.",
    "routine": [
@@ -6673,9 +6673,9 @@
    ],
    "place": "hollow_mines",
    "at": [
-    -3,
+    10,
     0,
-    -4
+    -3
    ],
    "greeting": "Sit. Breathe. The dust settles if you let it.",
    "routine": [
