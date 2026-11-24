@@ -53,9 +53,9 @@ The six traditional classes, chosen when you first enter the world (`/class <nam
 
 | Class | Resource | Armour | Weapons | Abilities to level 10 (level learned) |
 |---|---|---|---|---|
-| Warrior | Rage (from hitting and being hit; fades out of combat) | Mail, shield | Sword, axe, mace, polearm | Heroic Blow (1), Onrush (1, charge), Second Wind (2, heal), Rending Cut (3, bleed), Ground Slam (4, area and slow), Battle Cry (6), Last Stand (10) |
-| Paladin | Mana | Mail, shield | Mace, sword | Judging Blow (1), Holy Mend (1), Seal of Dawn (1, weapon seal), Valour (2), Rebuke (3, stun), Devout Ward (5), Hallowed Ground (10) |
-| Hunter | Mana | Leather | Bow, axe, sword, dagger | Auto-shot, Quick Shot (1), Barbed Arrow (1, bleed), Marked Shot (2, opener), Hamstring (3, melee slow), Snare Trap (4, root), Hawk's Eye (8), Volley (10) |
+| Warrior | Rage (from hitting and being hit; fades out of combat) | Plate, shield | Sword, axe, mace, polearm | Heroic Blow (1), Onrush (1, charge), Second Wind (2, heal), Rending Cut (3, bleed), Ground Slam (4, area and slow), Battle Cry (6), Last Stand (10) |
+| Paladin | Mana | Plate, shield | Mace, sword | Judging Blow (1), Holy Mend (1), Seal of Dawn (1, weapon seal), Valour (2), Rebuke (3, stun), Devout Ward (5), Hallowed Ground (10) |
+| Hunter | Mana | Mail | Bow, axe, sword, dagger | Auto-shot, Quick Shot (1), Barbed Arrow (1, bleed), Marked Shot (2, opener), Hamstring (3, melee slow), Snare Trap (4, root), Hawk's Eye (8), Volley (10) |
 | Rogue | Energy (10 a second), 5 combo points | Leather | Dagger, sword | Vicious Strike (1), Finishing Cut (1), Ambush (2, opener), Low Blow (3, stun), Slip Away (4), Sneak (5, stealth), Flurry (6), Open Vein (8) |
 | Priest | Mana | Cloth | Mace, staff, wand | Smite (1), Mend (1), Withering Word (2), Ward of Light (3, shield), Renewal (5), Fortify (8), Radiance (10) |
 | Mage | Mana | Cloth | Staff, dagger, wand | Fireball (1), Frostbolt (1, slow), Fire Blast (2), Ice Ring (4, root), Scholar's Focus (5), Blink (8), Flame Nova (10) |

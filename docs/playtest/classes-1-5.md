@@ -127,7 +127,7 @@ moved down from later levels or retuned.
 | 1 | Finishing Cut | 25 energy | - | instant | melee | A finisher: damage for each combo point spent. |
 | 2 | Ambush (new) | 45 energy | 10 s | instant | melee | A strike from the blind side: 40% more damage against a foe that is not yet fighting you. Adds 2 combo points. |
 | 3 | Low Blow | 25 energy | 12 s | instant | melee | Stun your target for 4 seconds. Adds a combo point. |
-| 4 | Slip Away | - | 90 s | instant | self | Twist away from every blow: take 50% less damage for 8 seconds. |
+| 4 | Slip Away | - | 60 s | instant | self | Twist away from every blow: take 60% less damage for 8 seconds. |
 | 5 | Sneak (new) | 20 energy | 6 s | instant | self | Slip into the shadows for 30 seconds: creatures notice you from much less far. Ends when you strike or are struck. |
 | 6 | Flurry | 25 energy | - | instant | self | A finisher: attack 30% faster for 6 seconds, plus 3 per combo point. |
 
@@ -203,16 +203,16 @@ AFTER_TABLE
 |---|---|---|
 | Warrior | 8.3 / 42% / 62% → 4.7 / 15% / 0% | 7.8 / 43% / 21% → 7.3 / 36% / 15% |
 | Paladin | 8.8 / 24% / 62% → 5.3 / 8% / 37% | 9.4 / 34% / 66% → 6.4 / 20% / 39% |
-| Hunter | 11.5 / 25% / 61% → 6.4 / 0% / 23% | 13.4 / 48% / 65% → 7.6 / 0% / 18% |
-| Rogue | 5.1 / 10% / 38% → 5.2 / 9% / 24% | 5.1 / 13% / 38% → 6.5 / 15% / 34% |
-| Priest | 6.4 / 12% / 0% → 6.4 / 12% / 0% | 6.7 / 19% / 0% → 6.5 / 16% / 0% |
+| Hunter | 11.5 / 25% / 61% → 6.2 / 0% / 23% | 13.4 / 48% / 65% → 7.6 / 0% / 18% |
+| Rogue | 5.1 / 10% / 38% → 5.5 / 10% / 27% | 5.1 / 13% / 38% → 6.9 / 17% / 35% |
+| Priest | 6.4 / 12% / 0% → 6.3 / 12% / 0% | 6.7 / 19% / 0% → 6.3 / 16% / 0% |
 | Mage | 4.2 / 0% / 0% → 6.6 / 0% / 0% | 4.2 / 0% / 0% → 6.7 / 0% / 0% |
-| Spread of kill time about the mean | -43% to +56% → -18% to +14% | -45% to +72% → -7% to +12% |
+| Spread of kill time about the mean | -43% to +56% → -19% to +14% | -45% to +72% → -8% to +11% |
 
 Level 3 is against a Thornboar, level 5 against an Ashcloak Bandit. "Idle
 cooldowns" is the share of global cooldowns with nothing worth pressing. At
 levels 1 and 2 a Grazer dies in 2 to 5 seconds whatever the class; the
-spread there is wide in percent (rogue -33%, mage +37% at level 1) and
+spread there is wide in percent (warrior -28%, mage +36% at level 1) and
 about a second and a half in fact.
 
 ### Two creatures of your level at once (duel model)
@@ -221,14 +221,14 @@ about a second and a half in fact.
 |---|---|---|---|
 | Warrior | 31% / 1% → 100% / 57% | 37% / 2% → 100% / 59% | 3% → 100% / 44% |
 | Paladin | 100% / 42% → 100% / 88% | 93% / 18% → 100% / 60% | 94% / 42% → 100% / 59% |
-| Hunter | 14% / 1% → 100% / 70% | 0% → 100% / 51% | 0% → 100% / 33% |
-| Rogue | 100% / 16% → 100% / 16% | 6% → 96% / 15% | 0% → 82% / 2% |
-| Priest | 100% / 38% → 100% / 75% | 100% / 55% → 100% / 74% | 100% / 77% → 100% / 90% |
+| Hunter | 14% / 1% → 100% / 72% | 0% → 100% / 51% | 0% → 100% / 36% |
+| Rogue | 100% / 16% → 100% / 14% | 6% → 98% / 17% | 0% → 91% / 5% |
+| Priest | 100% / 38% → 100% / 75% | 100% / 55% → 100% / 74% | 100% / 77% → 100% / 86% |
 | Mage | 100% / 82% → 100% / 60% | 100% / 100% → 100% / 75% | 100% / 73% → 100% / 45% |
 
 Two creatures are now dangerous and winnable for everyone. The rogue is
 the one that must play well: it wins with a sliver of health, and loses
-about one pull in five at level 5.
+about one pull in ten at level 5.
 
 ## Per class: before, after and how it played
 
@@ -291,7 +291,7 @@ class felt helpless.
 |---|---|---|
 | Buttons by level 5 | Quick Shot (6 s cooldown), Barbed Arrow (2) | Quick Shot (3 s), Barbed Arrow (1), Marked Shot (2), Hamstring (3), Snare Trap (4) |
 | Idle cooldowns at level 5 (model) | 65% | 18% |
-| Kill time against the mean, level 5 (model) | +72% | +12% |
+| Kill time against the mean, level 5 (model) | +72% | +11% |
 | Most-pressed button's share (swarm) | Quick Shot 57% | HUNTER_SHARE |
 
 At level 5 from 22 blocks: Marked Shot took a level 5 Mirepincher from 117
@@ -309,7 +309,7 @@ pet, and the "trap" is a shot.
 | | Before | After |
 |---|---|---|
 | Buttons by level 5 | Vicious Strike, Finishing Cut, Low Blow (3; 1 damage for 40 energy) | Vicious Strike, Finishing Cut, Ambush (2), Low Blow (3; 25 energy, 4 s stun), Slip Away (4), Sneak (5) |
-| Two level 5 bandits (model) | 0% won | 82% won |
+| Two level 5 bandits (model) | 0% won | 91% won |
 | Most-pressed button's share (swarm) | Vicious Strike 79% | ROGUE_SHARE |
 
 At level 5 on a level 5 Mirepincher: Ambush (117 to 85, two combo points),
@@ -319,8 +319,11 @@ rotation of the six, and the energy bar is the pacing: after that burst I
 could not have pressed anything for three seconds. That first hand run was
 about 45% quicker than the hunter's and warrior's kills, so Ambush's bonus
 (60% to 40%), Vicious Strike and Finishing Cut were turned down afterwards;
-the model now has the rogue within 5% of the mean at level 5. I did not
-replay the fight after that change.
+the model now has the rogue at the mean at level 5. I did not replay the
+fight after that change. The last swarm showed rogues still the quickest at
+levels 1 and 2, so Vicious Strike and Ambush now use 85% of the weapon
+swing, and Slip Away went from 50% for 90 seconds' cooldown to 60% for 60
+to keep the two-creature pull winnable.
 
 Sneak cast, cost its energy and showed its effect, and it refuses in
 combat. I did not test it properly: summoned bandits attack at once, so I
@@ -370,7 +373,7 @@ weaker and opens the fight.
 | Feel: responsive cooldown, hits that land | Partly met | The ability queue and heal numbers are new. Swing animation, impact effect, floating damage and the yellow crit number were there already. Not checked in a window: I worked headless, so I have not seen or heard any of it. |
 | Resources matter | Met by hand play | Rage climbs through a fight and Second Wind spends it on health; a rogue ends an opener at 16 energy; a hunter spends half its mana on one level 5 kill; a priest 45% on a fight with shield, shadow and renewal. Paladin and mage mana barely move in one fight. |
 | A single same-level creature is safe | Met in the model | 100% wins for every class and level; the warrior still loses 36% of its health to a level 5 bandit. |
-| Two are dangerous but winnable | Met in the model | See the table; rogue 82% at level 5. |
+| Two are dangerous but winnable | Met in the model | See the table; rogue 91% at level 5. |
 | Deaths under 1.5 an hour | Not shown | DEATHS_LINE |
 | Classes within 20% in kill time and deaths | Kill time: met at levels 3 to 5 in the model, KILLSPREAD_LINE Deaths: cannot be told from these runs. |
 | Party tagging, loot and XP | Not touched | |

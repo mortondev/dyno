@@ -114,23 +114,23 @@ paladin   3 thornboar 3    100   5.3      8      92       69    37  judging_blow
 paladin   4 mirepinch 4    100   6.4     18      82       72    39  judging_blow:66 rebuke:33
 paladin   5 ashcloak 5     100   6.4     20      80       75    39  judging_blow:66 rebuke:33
 
-hunter    1 grazer 1       100   4.4      0     100       66    27  quick_shot:64 barbed_arrow:35
-hunter    2 grazer 2       100   3.9      0     100       67    16  marked_shot:44 quick_shot:44 barbed_arrow:11
-hunter    3 thornboar 3    100   6.4      0     100       53    23  quick_shot:49 marked_shot:25 barbed_arrow:25
-hunter    4 mirepinch 4    100   8.5      0     100       37    18  quick_shot:39 marked_shot:20 snare_shot:20 barbed_arrow:20
+hunter    1 grazer 1       100   4.3      0     100       66    26  quick_shot:64 barbed_arrow:35
+hunter    2 grazer 2       100   3.7      0     100       66    14  marked_shot:44 quick_shot:44 barbed_arrow:11
+hunter    3 thornboar 3    100   6.2      0     100       53    23  quick_shot:49 marked_shot:25 barbed_arrow:25
+hunter    4 mirepinch 4    100   8.2      0     100       37    18  quick_shot:39 marked_shot:20 snare_shot:20 barbed_arrow:20
 hunter    5 ashcloak 5     100   7.6      0     100       46    18  quick_shot:38 marked_shot:20 snare_shot:20 barbed_arrow:20
 
-rogue     1 grazer 1       100   2.5      7      93       11    12  vicious_strike:68 finishing_cut:31
-rogue     2 grazer 2       100   3.5     11      89       14    26  vicious_strike:68 finishing_cut:25 ambush:6
-rogue     3 thornboar 3    100   5.2      9      91        7    24  finishing_cut:31 low_blow:23 ambush:22 vicious_strike:22
-rogue     4 mirepinch 4    100   7.7     18      82       14    37  finishing_cut:38 vicious_strike:21 low_blow:20 ambush:19
-rogue     5 ashcloak 5     100   6.5     15      85        5    34  finishing_cut:37 vicious_strike:21 low_blow:20 ambush:20
+rogue     1 grazer 1       100   2.9      8      92       14    24  vicious_strike:67 finishing_cut:32
+rogue     2 grazer 2       100   4.0     13      87       12    28  vicious_strike:74 finishing_cut:19 ambush:6
+rogue     3 thornboar 3    100   5.5     10      90        7    27  finishing_cut:33 low_blow:22 ambush:21 vicious_strike:21
+rogue     4 mirepinch 4    100   8.2     21      79       18    40  finishing_cut:38 vicious_strike:21 low_blow:20 ambush:19
+rogue     5 ashcloak 5     100   6.9     17      83        7    35  finishing_cut:37 vicious_strike:21 low_blow:20 ambush:19
 
-priest    1 grazer 1       100   4.7      0     100       70     0  smite:100
-priest    2 grazer 2       100   5.8      0     100       70     0  smite:73 withering_word:26
-priest    3 thornboar 3    100   6.4     12      88       64     0  smite:75 withering_word:24
-priest    4 mirepinch 4    100   7.8      0     100       63     0  smite:79 withering_word:20
-priest    5 ashcloak 5     100   6.5     16      84       71     0  smite:74 withering_word:24 ward_of_light:1
+priest    1 grazer 1       100   4.5      0     100       71     0  smite:100
+priest    2 grazer 2       100   4.7      0     100       70     0  smite:66 withering_word:33
+priest    3 thornboar 3    100   6.3     12      88       65     0  smite:75 withering_word:25
+priest    4 mirepinch 4    100   6.8      0     100       67     0  smite:76 withering_word:23
+priest    5 ashcloak 5     100   6.3     16      84       72     0  smite:75 withering_word:25
 
 mage      1 grazer 1       100   5.1      0     100       71     0  fireball:62 frostbolt:37
 mage      2 grazer 2       100   3.7      0     100       73     0  frostbolt:36 fireball:36 fire_blast:26
@@ -138,11 +138,11 @@ mage      3 thornboar 3    100   6.6      0     100       67     0  fireball:47 
 mage      4 mirepinch 4    100   7.2      0     100       67     0  fireball:49 frostbolt:25 fire_blast:25
 mage      5 ashcloak 5     100   6.7      0     100       72     0  fireball:47 frostbolt:26 fire_blast:26
 
-lv1: mean ttk 3.7  spread -28% -19% +17% -33% +25% +37%   taken 3 8 0 7 0 0
-lv2: mean ttk 3.8  spread -21% -21% +2% -9% +52% -2%   taken 4 9 0 11 0 0
-lv3: mean ttk 5.7  spread -18% -9% +11% -9% +11% +14%   taken 15 8 0 9 12 0
-lv4: mean ttk 7.6  spread +7% -16% +11% +1% +2% -5%   taken 33 18 0 18 0 0
-lv5: mean ttk 6.9  spread +7% -7% +12% -5% -5% -2%   taken 36 20 0 15 16 0
+lv1: mean ttk 3.8  spread -28% -20% +15% -23% +20% +36%   taken 3 8 0 8 0 0
+lv2: mean ttk 3.7  spread -18% -18% -1% +7% +29% +1%   taken 4 9 0 13 0 0
+lv3: mean ttk 5.8  spread -19% -9% +8% -4% +10% +14%   taken 15 8 0 10 12 0
+lv4: mean ttk 7.5  spread +9% -14% +9% +10% -9% -4%   taken 33 18 0 21 0 0
+lv5: mean ttk 6.9  spread +6% -7% +11% +0% -8% -2%   taken 36 20 0 17 16 0
 ```
 
 ## After, two creatures at once
@@ -161,23 +161,23 @@ paladin   3 thornboar 3    100  13.6     74      88       33    40  judging_blow
 paladin   4 mirepinch 4    100  16.7    108      60       31    42  judging_blow:68 rebuke:15 holy_mend:15
 paladin   5 ashcloak 5     100  18.0    125      59       22    38  judging_blow:56 holy_mend:15 rebuke:14 devout_ward:14
 
-hunter    1 grazer 1       100  10.0      0     100       40    25  quick_shot:60 barbed_arrow:40
-hunter    2 grazer 2       100   9.4      0     100       31    23  quick_shot:57 barbed_arrow:23 marked_shot:19
-hunter    3 thornboar 3    100  14.2     30      70       10    22  quick_shot:49 barbed_arrow:25 marked_shot:12 hamstring:12
-hunter    4 mirepinch 4    100  20.9     49      51        6    41  quick_shot:37 barbed_arrow:24 marked_shot:12 snare_shot:12 hamstring:12
-hunter    5 ashcloak 5     100  17.2     67      33        9    23  quick_shot:43 barbed_arrow:22 hamstring:11 marked_shot:11 snare_shot:11
+hunter    1 grazer 1       100   9.9      0     100       40    25  quick_shot:59 barbed_arrow:40
+hunter    2 grazer 2       100   9.1      0     100       31    22  quick_shot:57 barbed_arrow:23 marked_shot:19
+hunter    3 thornboar 3    100  13.8     28      72       10    21  quick_shot:49 barbed_arrow:25 marked_shot:12 hamstring:12
+hunter    4 mirepinch 4    100  20.8     49      51        6    41  quick_shot:37 barbed_arrow:24 marked_shot:12 snare_shot:12 hamstring:12
+hunter    5 ashcloak 5     100  16.9     64      36        9    22  quick_shot:43 barbed_arrow:22 hamstring:11 marked_shot:11 snare_shot:11
 
-rogue     1 grazer 1       100   9.8     36      64       15    51  vicious_strike:62 finishing_cut:37
-rogue     2 grazer 2       100  11.4     50      50       18    56  vicious_strike:64 finishing_cut:28 ambush:6
-rogue     3 thornboar 3    100  17.1     84      16       21    57  finishing_cut:31 vicious_strike:29 low_blow:25 ambush:13
-rogue     4 mirepinch 4     96  20.5     85      15        6    54  finishing_cut:29 vicious_strike:24 low_blow:20 ambush:15 slip_away:10
-rogue     5 ashcloak 5      82  19.9     99       2        8    54  finishing_cut:28 vicious_strike:27 low_blow:20 ambush:12 slip_away:10
+rogue     1 grazer 1       100  10.4     40      60       19    53  vicious_strike:62 finishing_cut:37
+rogue     2 grazer 2       100  11.8     54      46       17    57  vicious_strike:67 finishing_cut:27 ambush:5
+rogue     3 thornboar 3    100  17.6     86      14       20    57  finishing_cut:32 vicious_strike:29 low_blow:25 ambush:12
+rogue     4 mirepinch 4     98  21.0     83      17        8    54  finishing_cut:29 vicious_strike:23 low_blow:20 ambush:16 slip_away:10
+rogue     5 ashcloak 5      91  20.0     96       5        5    54  finishing_cut:28 vicious_strike:26 low_blow:20 ambush:13 slip_away:10
 
-priest    1 grazer 1       100   9.3      0     100       42     0  smite:100
-priest    2 grazer 2       100  10.9      0     100       40     0  smite:71 withering_word:28
-priest    3 thornboar 3    100  14.0     25      75       17     0  smite:66 withering_word:22 ward_of_light:11
-priest    4 mirepinch 4    100  15.4     26      74       22     0  smite:69 withering_word:20 ward_of_light:10
-priest    5 ashcloak 5     100  15.5     53      90       21     0  smite:59 withering_word:20 ward_of_light:10 renewal:10
+priest    1 grazer 1       100   9.0      0     100       43     0  smite:100
+priest    2 grazer 2       100   9.4      0     100       39     0  smite:66 withering_word:33
+priest    3 thornboar 3    100  13.7     25      75       23     0  smite:65 withering_word:22 ward_of_light:11
+priest    4 mirepinch 4    100  14.3     26      74       26     0  smite:67 withering_word:21 ward_of_light:10
+priest    5 ashcloak 5     100  15.4     51      86       24     0  smite:59 withering_word:20 ward_of_light:10 renewal:10
 
 mage      1 grazer 1       100  10.1      0     100       43     0  fireball:62 frostbolt:37
 mage      2 grazer 2       100   9.9      0     100       46     0  fireball:45 frostbolt:36 fire_blast:18
@@ -185,9 +185,9 @@ mage      3 thornboar 3    100  12.3     40      60       42     0  fireball:65 
 mage      4 mirepinch 4    100  13.0     25      75       42     0  fireball:56 frostbolt:28 fire_blast:15
 mage      5 ashcloak 5     100  12.8     55      45       50     0  fireball:67 frostbolt:17 fire_blast:14
 
-lv1: mean ttk 9.1  spread -14% -14% +9% +7% +1% +10%   taken 9 31 0 36 0 0
-lv2: mean ttk 9.7  spread -12% -18% -3% +18% +12% +2%   taken 13 34 0 50 0 0
-lv3: mean ttk 14.0  spread -8% -3% +1% +22% -0% -12%   taken 61 74 30 84 25 40
-lv4: mean ttk 17.1  spread -5% -3% +22% +20% -10% -24%   taken 81 108 49 85 26 25
-lv5: mean ttk 16.4  spread -9% +10% +5% +21% -6% -22%   taken 97 125 67 99 53 55
+lv1: mean ttk 9.2  spread -14% -14% +8% +13% -2% +10%   taken 9 31 0 40 0 0
+lv2: mean ttk 9.5  spread -10% -16% -4% +25% -0% +5%   taken 13 34 0 54 0 0
+lv3: mean ttk 14.0  spread -8% -2% -2% +26% -2% -12%   taken 61 74 28 86 25 40
+lv4: mean ttk 17.0  spread -5% -2% +22% +23% -16% -24%   taken 81 108 49 83 26 25
+lv5: mean ttk 16.4  spread -8% +10% +3% +23% -6% -22%   taken 97 125 64 96 51 55
 ```

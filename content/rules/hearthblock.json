@@ -8003,7 +8003,7 @@
     0.61,
     0.43
    ],
-   "armor": "mail",
+   "armor": "plate",
    "weapons": [
     "sword",
     "axe",
@@ -8011,7 +8011,7 @@
     "polearm",
     "shield"
    ],
-   "blurb": "A master of arms in mail. Builds rage by fighting; stands at the front and takes the blows.",
+   "blurb": "A master of arms in plate and mail. Builds rage by fighting; stands at the front and takes the blows.",
    "starter": [
     [
      "worn_shortsword",
@@ -8062,13 +8062,13 @@
     0.55,
     0.73
    ],
-   "armor": "mail",
+   "armor": "plate",
    "weapons": [
     "mace",
     "sword",
     "shield"
    ],
-   "blurb": "A holy warrior in mail: fights up close, heals, and is a bane to Shades.",
+   "blurb": "A holy warrior in plate and mail: fights up close, heals, and is a bane to Shades.",
    "starter": [
     [
      "rough_maul",
@@ -8115,14 +8115,14 @@
     0.83,
     0.45
    ],
-   "armor": "leather",
+   "armor": "mail",
    "weapons": [
     "bow",
     "axe",
     "sword",
     "dagger"
    ],
-   "blurb": "A tracker and archer in leather who strikes from afar and pins foes in place.",
+   "blurb": "A tracker and archer in leather and mail who strikes from afar and pins foes in place.",
    "starter": [
     [
      "hunting_bow",
@@ -8310,7 +8310,7 @@
    "base": {
     "str": 2,
     "agi": 3,
-    "sta": 5,
+    "sta": 6,
     "int": 10,
     "spi": 7
    },
@@ -8606,7 +8606,7 @@
    "cooldown": 3,
    "range": 30,
    "damage": [
-    6,
+    7,
     2.5
    ],
    "sound": "shot",
@@ -8716,7 +8716,7 @@
    ],
    "cost": 45,
    "range": 4.5,
-   "weapon": 1.0,
+   "weapon": 0.85,
    "damage": [
     1,
     0.6
@@ -8822,17 +8822,17 @@
    "name": "Slip Away",
    "class": "rogue",
    "level": 4,
-   "text": "Twist away from every blow: take 50% less damage for 8 seconds.",
+   "text": "Twist away from every blow: take 60% less damage for 8 seconds.",
    "icon": "shade_dust",
    "color": [
     0.6,
     0.6,
     0.7
    ],
-   "cooldown": 90,
+   "cooldown": 60,
    "buff": {
     "kind": "ward",
-    "amount": 50,
+    "amount": 60,
     "secs": 8
    },
    "sound": "sneak",
@@ -8854,8 +8854,8 @@
    "cast": 1.5,
    "range": 25,
    "damage": [
-    9,
-    3
+    11,
+    3.5
    ],
    "shade_bonus": 2.0,
    "sound": "holy_bolt",
@@ -9182,7 +9182,7 @@
    "cost": 45,
    "cooldown": 10,
    "range": 4.5,
-   "weapon": 1.0,
+   "weapon": 0.85,
    "damage": [
     3,
     1.5
