@@ -1193,7 +1193,7 @@
    "level": "water",
    "pad": {
     "radius": [17, 19],
-    "blend": 14
+    "blend": 24
    },
    "plaza": {"radius": 9, "surface": {"sand": 5, "cobble": 1}},
    "trees": [
@@ -1204,21 +1204,28 @@
    "stamps": [
     {"stamp": "fisher_hut", "at": [-9, -8]},
     {"stamp": "fisher_hut", "at": [-24, 16], "rot": 3, "fit": "ground"},
-    {"stamp": "dock", "at": [9, 0], "rot": 3},
-    {"stamp": "dock", "at": [7, 15], "rot": 3},
-    {"stamp": "boat", "at": [13, -8], "dy": -1},
-    {"stamp": "boat", "at": [25, 8], "rot": 1, "dy": -1},
-    {"stamp": "drying_rack", "at": [-15, 0], "rot": 1},
-    {"stamp": "drying_rack", "at": [-3, 16]},
+    {"stamp": "dock", "at": [28, 0], "rot": 3},
+    {"stamp": "dock", "at": [26, 15], "rot": 3},
+    {"stamp": "boat", "at": [36, -7], "rot": 1, "dy": -1},
+    {"stamp": "boat", "at": [44, 8], "dy": -1},
+    {"stamp": "boat", "at": [43, 21], "rot": 1, "dy": -1},
+    {"stamp": "mirrormere_drying_rack", "at": [-15, 0], "rot": 1},
+    {"stamp": "mirrormere_drying_rack", "at": [-12, 24], "rot": 1, "fit": "ground"},
     {"stamp": "fisher_hut", "at": [-12, -18], "rot": 1},
     {"stamp": "banner_pole", "at": [4, -9]},
     {"stamp": "inn_sign", "at": [-4, -3]},
     {"stamp": "fence_run", "at": [-18, 14], "rot": 1},
-    {"stamp": "boat", "at": [16, 9], "dy": -1},
-    {"stamp": "drying_rack", "at": [0, -13]},
+    {"stamp": "mirrormere_drying_rack", "at": [19, -9]},
     {"stamp": "campfire", "at": [-5, 6]},
-    {"stamp": "drying_rack", "at": [2, 12], "rot": 1},
-    {"stamp": "lamp_post", "at": [6, -4]}
+    {"stamp": "mirrormere_drying_rack", "at": [2, 12], "rot": 1},
+    {"stamp": "lamp_post", "at": [6, -4]},
+    {"stamp": "mirrormere_fish_stall", "at": [9, 3], "rot": 1},
+    {"stamp": "mirrormere_pier_goods", "at": [23, -3]},
+    {"stamp": "mirrormere_pier_goods", "at": [21, 12], "rot": 2},
+    {"stamp": "mirrormere_fish_table", "at": [18, 6], "rot": 1},
+    {"stamp": "mirrormere_lantern_string", "at": [-2, -12], "rot": 1},
+    {"stamp": "signpost", "at": [29, -52], "fit": "ground"},
+    {"stamp": "signpost", "at": [16, 26], "rot": 1, "fit": "ground"}
    ],
    "was": {
     "at": [-29, 136],
@@ -1233,7 +1240,14 @@
    "radius": 30,
    "level": "water",
    "stamps": [
-    {"stamp": "sunken_shrine", "at": [0, 0], "dy": -1, "fit": "pad"}
+    {"stamp": "sunken_shrine", "at": [0, 0], "dy": -1, "fit": "pad"},
+    {"stamp": "mirrormere_shrine_heart", "at": [0, 0], "dy": -1, "fit": "pad"},
+    {"stamp": "mirrormere_causeway", "at": [3, 10], "dy": -1, "fit": "pad"},
+    {"stamp": "boulders", "at": [-11, 4], "fit": "float"},
+    {"stamp": "boulders", "at": [12, 8], "rot": 1, "fit": "float"}
+   ],
+   "trees": [
+    {"species": "willow", "at": [-36, 14]}
    ],
    "was": {
     "at": [20, 155],
@@ -1244,10 +1258,17 @@
    "key": "shrine_shore",
    "kind": "view",
    "at": [30, 790],
-   "radius": 14,
+   "radius": 22,
    "stamps": [
     {"stamp": "wayshrine", "at": [-6, -2], "fit": "ground"},
-    {"stamp": "ruin_wall", "at": [8, -3], "fit": "ground"}
+    {"stamp": "ruin_wall", "at": [8, -3], "fit": "ground"},
+    {"stamp": "mirrormere_step_slab", "at": [0, -4], "dy": -1, "fit": "float"},
+    {"stamp": "mirrormere_step_slab", "at": [1, -7], "dy": -1, "fit": "float"},
+    {"stamp": "mirrormere_step_slab", "at": [2, -10], "dy": -1, "fit": "float"},
+    {"stamp": "mirrormere_step_slab", "at": [3, -13], "dy": -1, "fit": "float"},
+    {"stamp": "mirrormere_causeway_posts", "at": [4, -15], "fit": "float"},
+    {"stamp": "mirrormere_clear_14", "at": [-36, -2], "dy": 40, "fit": "float"},
+    {"stamp": "mirrormere_clear_10", "at": [-17, -6], "dy": 40, "fit": "float"}
    ],
    "was": {
     "at": [8, 159],
@@ -1255,6 +1276,27 @@
    },
    "trees": [
     {"species": "willow", "at": [7, -12]}
+   ]
+  },
+  {
+   "key": "mirrormere_isle",
+   "kind": "site",
+   "at": [40, 650],
+   "radius": 12,
+   "level": "water",
+   "pad": {
+    "radius": [9, 7],
+    "blend": 4,
+    "surface": {"grass": 3, "sand": 2}
+   },
+   "stamps": [
+    {"stamp": "mirrormere_isle_rocks", "at": [-1, 0]},
+    {"stamp": "mirrormere_shoal_rocks", "at": [-13, 6], "dy": -1},
+    {"stamp": "mirrormere_shoal_rocks", "at": [12, -8], "rot": 1, "dy": -1},
+    {"stamp": "mirrormere_shoal_rocks", "at": [5, 11], "rot": 2, "dy": -1}
+   ],
+   "trees": [
+    {"species": "willow", "at": [3, 2]}
    ]
   },
   {
@@ -2014,19 +2056,80 @@
    "key": "mere_pinchers_1",
    "kind": "camp",
    "at": [-110, 590],
-   "radius": 20
+   "radius": 20,
+   "pad": {
+    "radius": [7, 6],
+    "surface": {"sand": 3, "clay": 1, "dirt": 1}
+   },
+   "stamps": [
+    {"stamp": "mirrormere_shells", "at": [-6, -8], "fit": "float"},
+    {"stamp": "mirrormere_shells", "at": [10, -2], "rot": 1, "fit": "float"},
+    {"stamp": "mirrormere_net_torn", "at": [-12, 4], "rot": 1, "fit": "float"},
+    {"stamp": "boulders", "at": [13, -9], "fit": "float"},
+    {"stamp": "mirrormere_boat_capsized", "at": [-2, 6], "rot": 1, "fit": "float"}
+   ]
+  },
+  {
+   "key": "mirrormere_wayside",
+   "kind": "wayside",
+   "at": [-62, 558],
+   "radius": 8,
+   "stamps": [
+    {"stamp": "mirrormere_boat_trestle", "at": [0, 0], "rot": 1, "fit": "ground"},
+    {"stamp": "mirrormere_drying_rack", "at": [-7, -2], "fit": "ground"},
+    {"stamp": "mirrormere_pier_goods", "at": [6, -3], "fit": "float"}
+   ]
   },
   {
    "key": "mere_pinchers_2",
    "kind": "camp",
-   "at": [140, 690],
-   "radius": 20
+   "at": [150, 702],
+   "radius": 20,
+   "pad": {
+    "radius": [7, 6],
+    "surface": {"sand": 3, "clay": 1}
+   },
+   "stamps": [
+    {"stamp": "mirrormere_wreck", "at": [-17, 3], "rot": 1, "fit": "float"},
+    {"stamp": "mirrormere_net_torn", "at": [-8, -10], "fit": "float"},
+    {"stamp": "mirrormere_shells", "at": [-7, 7], "fit": "float"},
+    {"stamp": "mirrormere_shells", "at": [9, -5], "rot": 2, "fit": "float"},
+    {"stamp": "boulders", "at": [-13, -7], "fit": "float"}
+   ]
+  },
+  {
+   "key": "mirrormere_boathouse",
+   "kind": "site",
+   "at": [163, 640],
+   "name": "The Old Boathouse",
+   "radius": 14,
+   "level": "water",
+   "stamps": [
+    {"stamp": "mirrormere_boathouse", "at": [0, 0], "fit": "pad"},
+    {"stamp": "mirrormere_boat_capsized", "at": [7, 3], "rot": 1, "fit": "float"},
+    {"stamp": "mirrormere_pier_goods", "at": [-6, 6], "fit": "float"}
+   ],
+   "trees": [
+    {"species": "willow", "at": [10, -4]}
+   ]
   },
   {
    "key": "mere_pinchers_3",
    "kind": "camp",
-   "at": [-200, 750],
-   "radius": 20
+   "at": [-106, 721],
+   "radius": 20,
+   "pad": {
+    "radius": [7, 6],
+    "surface": {"sand": 3, "clay": 1}
+   },
+   "stamps": [
+    {"stamp": "mirrormere_clear_14", "at": [0, 0], "dy": 40, "fit": "float"},
+    {"stamp": "mirrormere_wreck", "at": [22, 1], "rot": 3, "fit": "float"},
+    {"stamp": "mirrormere_net_torn", "at": [6, -9], "fit": "float"},
+    {"stamp": "mirrormere_shells", "at": [-6, 5], "fit": "float"},
+    {"stamp": "mirrormere_shells", "at": [11, 8], "rot": 1, "fit": "float"},
+    {"stamp": "boulders", "at": [15, -6], "fit": "float"}
+   ]
   },
   {
    "key": "mere_ashcloaks",
@@ -2513,8 +2616,79 @@
    "at": [-80, 778],
    "radius": 10,
    "stamps": [
+    {"stamp": "mirrormere_paving", "at": [1, -6], "fit": "float"},
     {"stamp": "well", "at": [-1, -7], "fit": "ground"},
-    {"stamp": "bench_lamp", "at": [8, 6], "fit": "ground"}
+    {"stamp": "bench_lamp", "at": [3, -9], "fit": "ground"},
+    {"stamp": "signpost", "at": [-6, -9], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "mirrormere_croft",
+   "kind": "site",
+   "at": [-270, 640],
+   "name": "Reedmoor Croft",
+   "radius": 16,
+   "pad": {
+    "radius": [9, 8],
+    "surface": {"dirt": 4, "grass": 1}
+   },
+   "stamps": [
+    {"stamp": "hut", "at": [-1, -2]},
+    {"stamp": "field", "at": [16, 4], "fit": "ground"},
+    {"stamp": "fence_run", "at": [-2, 9], "fit": "ground"},
+    {"stamp": "haystack", "at": [6, -5]},
+    {"stamp": "mirrormere_drying_rack", "at": [-8, 4], "rot": 1}
+   ],
+   "trees": [
+    {"species": "young_oak", "at": [-12, -10]}
+   ]
+  },
+  {
+   "key": "mirrormere_old_cottage",
+   "kind": "site",
+   "at": [-240, 780],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [0, 0], "fit": "ground"},
+    {"stamp": "ruin_wall", "at": [-5, 5], "rot": 1, "fit": "ground"},
+    {"stamp": "fallen_log", "at": [6, 7], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "blossom", "at": [-8, -7]}
+   ]
+  },
+  {
+   "key": "mirrormere_net_menders",
+   "kind": "wayside",
+   "at": [120, 768],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "mirrormere_drying_rack", "at": [-6, 0], "fit": "ground"},
+    {"stamp": "mirrormere_boat_trestle", "at": [3, -3], "rot": 1, "fit": "ground"},
+    {"stamp": "campfire", "at": [1, 4], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "mirrormere_smokehouse",
+   "kind": "site",
+   "at": [-60, 840],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "hut", "at": [0, 0], "rot": 2, "fit": "ground"},
+    {"stamp": "mirrormere_drying_rack", "at": [8, 1], "rot": 1, "fit": "ground"},
+    {"stamp": "campfire", "at": [-1, -7], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "mirrormere_stones",
+   "kind": "view",
+   "at": [220, 780],
+   "name": "The Mere Stones",
+   "radius": 14,
+   "stamps": [
+    {"stamp": "mirrormere_clear_14", "at": [0, 0], "dy": 40, "fit": "float"},
+    {"stamp": "standing_stones", "at": [0, 0], "fit": "ground"},
+    {"stamp": "boulders", "at": [13, 7], "fit": "ground"}
    ]
   },
   {
