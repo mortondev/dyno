@@ -46,7 +46,7 @@ Classic MMO controls: the cursor is free, and you hold a mouse button to steer.
 | Esc | Close windows, then clear your target, then the menu |
 | T or Enter, / | Chat and commands (`/help`) |
 
-Operators building the world use `/gamemode creative`, which switches back to free-flying build controls.
+Operators working on the world use `/gamemode build`, which switches to free-flying build controls (`/gamemode play` to return).
 
 ### Hearthblock Online in short
 
@@ -87,7 +87,6 @@ dyno shot <address> [--pos x,y,z] [--look yaw,pitch] [--time 0-1] [--size WxH] [
 dyno shot <address> --stand x,z --face x,y,z [--from-hearth] [--zoom 9] [--pitch 15]
                          The view of a player standing there: a figure on the ground, the play camera behind it
 dyno scout <address>     Choose the stand of each landmark's shot (tools/concepts/landmarks.json to cameras.json)
-dyno fill <address> x,y,z x,y,z <block>   Fill a box with a block (Air clears it)
 dyno bot <address> [name] [seconds]      A bot that walks in a circle (demos, tests)
 dyno update              Check for a new release and install it
 dyno version             Print the version

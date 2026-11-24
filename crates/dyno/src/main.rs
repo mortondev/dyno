@@ -6,14 +6,14 @@ mod bench;
 mod sculpt;
 
 const HELP: &str = "\
-dyno - live multiplayer block world (bootstrap build)
+dyno - the Hearthblock Online server and tools
 
 USAGE:
   dyno                         Open the game (connect screen)
   dyno connect <address>       Open the game with the server address filled in
   dyno connect <address>       Open the game with the server address filled in
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
-                               [--creative] [--content PACK_DIR|RULES.json] [--op NAME]...
+                               [--content PACK_DIR|RULES.json] [--op NAME]...
                                [--asset-rate 256] [--join-asset-rate 2048] (KB/s of pack files per player, in play / loading)
                                [--world-size 384x96x384] (a new world's size)
                                [--view 160] [--aoi 100] [--far 800] (metres: the world streamed round each player; what they hear of; the far view)
@@ -25,7 +25,7 @@ USAGE:
                                Run a dedicated game server
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
-                               [--ui hud|pack|dig|dead|talk|log|char|bags|spells|skills] [--as NAME]
+                               [--ui hud|pack|dead|talk|log|char|bags|spells|skills] [--as NAME]
                                Join, render one frame off-screen to an image, leave
   dyno shot <address> --stand x,z|x,y,z --face x,y,z [--from-hearth] [--hero CLASS] [--zoom 9] [--pitch 15] [--time 0-1] [--size WxH] [--out f.ppm]
                                The view of a player standing there and facing that point: a stand-in figure on
@@ -49,8 +49,6 @@ USAGE:
                                Playtest with a swarm of headless AI players; writes a fun report (JSON + .md)
   dyno play <address> --as NAME [--class KEY] [--script FILE]
                                Play headless through a text interface (one command per line; 'help')
-  dyno fill <address> x,y,z x,y,z <block>
-                               Fill a box with a block (Air clears it)
   dyno bake-stage [PACK_DIR]   Bake the title-screen stage into the pack (default content/)
   dyno shot --outfit-sheet OUT.png
                                Render the showcase item sets in figures.json (no server needed)
@@ -410,76 +408,6 @@ fn main() {
                 std::thread::sleep(Duration::from_millis(50));
             }
         }
-        "fill" => {
-            // dyno fill <address> x,y,z x,y,z <block name or id>
-            let (Some(addr), Some(a), Some(b), Some(blk)) =
-                (args.get(1), args.get(2), args.get(3), args.get(4))
-            else {
-                eprintln!("usage: dyno fill <address> x,y,z x,y,z <block name or id>");
-                std::process::exit(2);
-            };
-            let p3 = |v: &str| -> [i32; 3] {
-                let n: Vec<i32> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
-                n.try_into().unwrap_or_else(|_| fail("corners are x,y,z"))
-            };
-            let block = blk.parse::<u8>().ok().or_else(|| {
-                dyno_world::BLOCKS
-                    .iter()
-                    .position(|d| d.name.eq_ignore_ascii_case(blk))
-                    .map(|i| i as u8)
-            });
-            let Some(block) = block else {
-                fail("unknown block")
-            };
-            let (a, b) = (p3(a), p3(b));
-            let j = dyno_client::net::connect(
-                addr,
-                "builder",
-                dyno_client::settings::tool_token("builder"),
-                false,
-                Duration::from_secs(10),
-            )
-            .unwrap_or_else(|e| fail(&e));
-            // stand next to the box so the server accepts the reach check
-            let c = [
-                (a[0] + b[0]) as f32 * 0.5,
-                (a[1].max(b[1]) + 2) as f32,
-                (a[2] + b[2]) as f32 * 0.5,
-            ];
-            let _ = j
-                .conn
-                .tx
-                .send(dyno_protocol::ClientMsg::Pose(dyno_protocol::Pose {
-                    pos: c,
-                    yaw: 0.0,
-                    pitch: 0.0,
-                }));
-            std::thread::sleep(Duration::from_millis(150));
-            let _ = j
-                .conn
-                .tx
-                .send(dyno_protocol::ClientMsg::Fill { a, b, block });
-            let until = std::time::Instant::now() + Duration::from_millis(1500);
-            while std::time::Instant::now() < until {
-                match j.conn.rx.recv_timeout(Duration::from_millis(100)) {
-                    Ok(dyno_client::net::NetEvent::Msg(dyno_protocol::ServerMsg::Fill {
-                        a,
-                        b,
-                        block,
-                    })) => {
-                        println!(
-                            "filled {a:?} to {b:?} with {}",
-                            dyno_world::block(block).name
-                        );
-                        break;
-                    }
-                    Ok(dyno_client::net::NetEvent::Msg(dyno_protocol::ServerMsg::System {
-                        text,
-                    })) => println!("{text}"),
-                    _ => {}
-                }
-            }
-        }
         "bake-figure" => {
             let pack = args.get(1).cloned().unwrap_or_else(|| "content".into());
             match sculpt::person::bake(std::path::Path::new(&pack)) {
@@ -690,7 +618,6 @@ fn run_server(args: &[String]) {
                 i += 1;
             }
             "--auto-update" => auto_update = true,
-            "--creative" => cfg.default_mode = dyno_protocol::Mode::Creative,
             "--content" => {
                 cfg.content_path = Some(val().into());
                 i += 1;

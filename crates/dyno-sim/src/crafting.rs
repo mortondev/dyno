@@ -1,22 +1,53 @@
-//! Crafting from a recipe list. Stations must be near; furnace recipes use fuel.
+//! Crafting from a recipe list. A recipe's station must be near; some use fuel.
 
 use crate::inventory::{Inventory, Stack};
-use dyno_world::content::{Content, Recipe, Station};
+use dyno_world::World;
+use dyno_world::content::{Content, Recipe};
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Stations {
-    pub table: bool,
-    pub furnace: bool,
-}
+/// The stations within reach: one bit for each of the content's stations.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Stations(pub u32);
 
 impl Stations {
-    pub fn has(&self, s: Station) -> bool {
+    /// Every station (tests).
+    pub const ALL: Stations = Stations(u32::MAX);
+
+    pub fn has(&self, s: Option<u8>) -> bool {
         match s {
-            Station::None => true,
-            Station::Table => self.table,
-            Station::Furnace => self.furnace,
+            None => true,
+            Some(i) => self.0 & (1 << i.min(31)) != 0,
         }
     }
+}
+
+/// The crafting stations within reach of a position: the server's rule,
+/// and what the client shows.
+pub fn stations_near(c: &Content, world: &World, pos: [f32; 3]) -> Stations {
+    let mut st = Stations::default();
+    if c.stations.is_empty() {
+        return st;
+    }
+    let (bx, by, bz) = (
+        pos[0].floor() as i32,
+        pos[1].floor() as i32,
+        pos[2].floor() as i32,
+    );
+    for y in by - 3..=by + 4 {
+        for z in bz - 5..=bz + 5 {
+            for x in bx - 5..=bx + 5 {
+                let b = world.get(x, y, z);
+                if b == dyno_world::AIR {
+                    continue;
+                }
+                for (i, s) in c.stations.iter().enumerate() {
+                    if s.blocks.contains(&b) {
+                        st.0 |= 1 << i.min(31);
+                    }
+                }
+            }
+        }
+    }
+    st
 }
 
 /// Why a recipe cannot be made now, or Ok.
@@ -28,11 +59,11 @@ pub fn check(
     fuel_bank: u16,
 ) -> Result<(), String> {
     if !st.has(r.station) {
-        return Err(match r.station {
-            Station::Table => "Needs a crafting table nearby".into(),
-            Station::Furnace => "Needs a furnace nearby".into(),
-            Station::None => unreachable!(),
-        });
+        let name = r
+            .station
+            .and_then(|i| c.stations.get(i as usize))
+            .map_or("station", |s| s.name.as_str());
+        return Err(format!("Needs a {name} nearby"));
     }
     let mut scratch = inv.clone();
     for ing in &r.inputs {

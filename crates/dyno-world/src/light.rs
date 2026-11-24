@@ -594,7 +594,7 @@ mod tests {
     #[test]
     #[ignore]
     fn light_speed() {
-        let world = World::generate([384, 96, 384], 20261122);
+        let world = World::test_terrain([384, 96, 384], 20261122);
         let mut c = World::sparse(world.size);
         for s in world.held_list() {
             c.put_section(s, &world.encode_section(s)).unwrap();
@@ -719,7 +719,7 @@ mod tests {
     /// glowing block just under the open sky and one alone in it.
     #[test]
     fn the_open_sky_is_lit_as_if_worked_out() {
-        let mut world = World::generate([64, 128, 64], 11);
+        let mut world = World::test_terrain([64, 128, 64], 11);
         let top = (0..64)
             .flat_map(|z| (0..64).map(move |x| (x, z)))
             .filter_map(|(x, z)| world.column_top(x, z))
@@ -791,7 +791,7 @@ mod tests {
 
     #[test]
     fn streamed_sections_light_like_the_whole_world() {
-        let world = World::generate([64, 48, 64], 7);
+        let world = World::test_terrain([64, 48, 64], 7);
         let whole = Light::new(&world);
         let mut c = World::sparse(world.size);
         let mut l = Light::new(&c);

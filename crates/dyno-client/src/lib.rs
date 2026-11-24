@@ -1,5 +1,6 @@
 //! Dyno game client (bootstrap).
 
+pub mod ambience;
 pub mod anim;
 pub mod app;
 pub mod assets;
@@ -16,6 +17,7 @@ pub mod figure;
 pub mod foliage;
 pub mod front;
 pub mod game;
+pub mod item_ui;
 pub mod life;
 pub mod look;
 pub mod minimap;
@@ -23,6 +25,7 @@ pub use dyno_world::light;
 pub(crate) mod fine;
 pub mod models;
 pub mod mood;
+pub mod music;
 pub mod net;
 pub mod options;
 pub mod pack;
@@ -38,10 +41,12 @@ pub(crate) mod shapes;
 pub mod sheet;
 pub mod shot;
 pub mod sky;
-pub mod survival;
 pub mod terrain_mesh;
 pub mod textures;
 pub mod theme;
+pub mod tips;
+pub mod tracker;
+pub mod uitext;
 pub mod vox;
 pub mod voxmodel;
 pub mod water;

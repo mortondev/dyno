@@ -66,7 +66,7 @@ impl State {
         let Some(p) = self.players.get(&id) else {
             return false;
         };
-        if p.mode == Mode::Creative || self.trust_movement {
+        if p.mode == Mode::Build || self.trust_movement {
             return true;
         }
         let now = Instant::now();

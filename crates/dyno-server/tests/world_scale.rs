@@ -911,7 +911,7 @@ fn a_rebuild_moves_everyone_to_their_place_and_keeps_what_they_have() {
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("world.dynw");
     // the old world: 384 wide, its hearth off-centre as the live one's is
-    let old = World::generate([384, 96, 384], 7);
+    let old = World::test_terrain([384, 96, 384], 7);
     old.save(&path).unwrap();
     let hearth = [195, old.surface(195, 193) + 1, 193];
     let at = |dx: f64, dz: f64| {
@@ -1030,4 +1030,262 @@ fn a_rebuild_moves_everyone_to_their_place_and_keeps_what_they_have() {
     migrate::rebuild(&path, &old, &meta, &m.world, &m.built, &m.layout).unwrap();
     assert_eq!(std::fs::read(&backup).unwrap(), kept);
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A world already built from a layout is rebuilt for a new version of it:
+/// nobody is moved to a "place", everyone stays where they stand.
+#[test]
+fn a_rebuild_of_a_layout_world_leaves_everyone_where_they_stand() {
+    use dyno_server::{migrate, store};
+    use serde_json::{Value, json};
+    let m = made();
+    let dir = std::env::temp_dir().join(format!("dyno-rebuild2-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("world.dynw");
+    let h = m.built.hearth;
+    // in town, south of the hearth; and deep in the mine
+    let town = [h[0] as f64 + 0.5, h[1] as f64 + 0.01, h[2] as f64 + 22.5];
+    let (_, name, at, rot) = m
+        .built
+        .stamps
+        .iter()
+        .find(|s| s.1 == "hollow_mines")
+        .unwrap();
+    let seam = m
+        .stamps
+        .get(name)
+        .unwrap()
+        .point("deep_seam", *at, *rot)
+        .unwrap();
+    let deep = (0..4)
+        .map(|d| [seam[0], seam[1] - d, seam[2]])
+        .find(|p| {
+            w::is_solid(m.world.get(p[0], p[1] - 1, p[2]))
+                && !w::is_solid(m.world.get(p[0], p[1], p[2]))
+        })
+        .expect("the deep seam has a floor");
+    let mine = [
+        deep[0] as f64 + 0.5,
+        deep[1] as f64 + 0.01,
+        deep[2] as f64 + 0.5,
+    ];
+    let players = json!({
+        "in_town": {"pos": town, "spawn": null, "level": 4},
+        "in_the_mine": {"pos": mine, "spawn": null, "level": 9},
+    });
+    std::fs::write(
+        dir.join("players.json"),
+        serde_json::to_vec(&players).unwrap(),
+    )
+    .unwrap();
+    let meta = store::Meta {
+        spawn_hearth: Some(h),
+        world_layout: Some(m.layout.version.saturating_sub(1)),
+        ..Default::default()
+    };
+    store::save_meta(&store::meta_path(&path), &meta).unwrap();
+    m.world.save(&path).unwrap();
+    migrate::rebuild(&path, &m.world, &meta, &m.world, &m.built, &m.layout).unwrap();
+    let after: Value =
+        serde_json::from_slice(&std::fs::read(dir.join("players.json")).unwrap()).unwrap();
+    for (name, want) in [("in_town", town), ("in_the_mine", mine)] {
+        let a = after[name]["pos"].as_array().unwrap();
+        for i in 0..3 {
+            assert!(
+                (a[i].as_f64().unwrap() - want[i]).abs() < 0.05,
+                "{name} moved: {a:?} from {want:?}"
+            );
+        }
+    }
+    assert_eq!(after["in_the_mine"]["level"], json!(9));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Home and crafting are reached on foot, not only stood beside: from the
+/// plaza a player can walk to the innkeeper (talking makes the inn home)
+/// and to a block of every crafting station.
+#[test]
+fn the_innkeeper_and_the_stations_can_be_walked_to() {
+    let m = made();
+    let pack = Pack::builtin();
+    let c = &pack.content;
+    let h = m.built.hearth;
+    // (a free block at the middle of the town)
+    let plaza = place(m, "hearthstead");
+    let free = |x: i32, y: i32, z: i32| {
+        w::is_solid(m.world.get(x, y - 1, z))
+            && !w::is_solid(m.world.get(x, y, z))
+            && !w::is_solid(m.world.get(x, y + 1, z))
+    };
+    let keepers: Vec<_> = c.npcs.iter().filter(|n| n.innkeeper).collect();
+    assert!(!keepers.is_empty(), "the pack has an innkeeper");
+    for n in keepers {
+        // where the server puts them (the search of `spawn_npcs`)
+        let (x, z) = (h[0] + n.at[0], h[2] + n.at[2]);
+        let y0 = h[1] + n.at[1];
+        let y = (0..12)
+            .flat_map(|d| [y0 + d, y0 - d])
+            .find(|y| free(x, *y, z))
+            .unwrap_or_else(|| panic!("{} has nowhere to stand", n.key));
+        // `walkable` ends within 3 blocks; talking reaches 6
+        assert!(
+            walkable(&m.world, plaza, [x, y, z]),
+            "no way on foot from the plaza to {} at {:?}",
+            n.name,
+            [x, y, z]
+        );
+    }
+    for st in &c.stations {
+        // within 3 blocks of one of its blocks; a station serves 5 blocks round
+        let reached = st
+            .blocks
+            .iter()
+            .flat_map(|b| m.world.positions_of(*b))
+            .filter(|p| (p[0] - h[0]).abs() <= 150 && (p[2] - h[2]).abs() <= 150)
+            .any(|p| walkable(&m.world, plaza, p));
+        assert!(reached, "no {} within a walk of the plaza", st.name);
+    }
+}
+
+/// Profession crafting works in the live world: every recipe of the pack
+/// can be made by a player there. Its station stands in the built world;
+/// each ingredient can be had (from a resource node that is in the world
+/// and can be gathered with a tool that can be had, from a creature, a
+/// merchant, a quest, a starter kit or another recipe); and the skill it
+/// asks for can be reached by using what asks for less.
+#[test]
+fn every_recipe_can_be_made_in_the_live_world() {
+    use std::collections::{BTreeMap, HashSet};
+    let m = made();
+    let pack = Pack::builtin();
+    let c = &pack.content;
+    assert!(!c.recipes.is_empty(), "the pack has recipes");
+
+    // 1. stations: each one a recipe names has a block standing in the world
+    let mut standing = HashSet::new();
+    for (i, st) in c.stations.iter().enumerate() {
+        if st
+            .blocks
+            .iter()
+            .any(|b| !m.world.positions_of(*b).is_empty())
+        {
+            standing.insert(i as u8);
+        }
+    }
+    for r in &c.recipes {
+        if let Some(s) = r.station {
+            assert!(
+                standing.contains(&s),
+                "{}: no {} ({}) stands in the world",
+                c.item(r.output).name,
+                c.stations[s as usize].name,
+                c.stations[s as usize].key
+            );
+        }
+    }
+
+    // 2. what a player can come by, grown until nothing more is added
+    let mut have: HashSet<u16> = HashSet::new();
+    let key = |k: &str| c.item_by_key(k).unwrap_or_else(|| panic!("no item {k}"));
+    for (k, _) in &c.world.starter {
+        have.insert(key(k));
+    }
+    for class in &c.classes {
+        for (k, _) in &class.starter {
+            have.insert(key(k));
+        }
+    }
+    for cr in &c.creatures {
+        have.extend(cr.drops.iter().map(|d| d.item));
+    }
+    for n in &c.npcs {
+        have.extend(n.sells.iter().map(|(i, _)| *i));
+    }
+    for q in &c.quests {
+        have.extend(q.items.iter().chain(&q.choice).map(|(i, _)| *i));
+    }
+    // resource nodes that are in the world
+    let nodes: Vec<u8> = (0..w::BLOCK_COUNT)
+        .filter(|b| c.rule(*b).respawn > 0 && !m.world.positions_of(*b).is_empty())
+        .collect();
+    loop {
+        let before = have.len();
+        for b in &nodes {
+            let rule = c.rule(*b);
+            // the tool the node asks for can be had
+            let tool_ok = rule.tier == 0
+                || have.iter().any(|i| {
+                    c.item(*i)
+                        .tool
+                        .is_some_and(|t| Some(t.kind) == rule.tool && t.tier >= rule.tier)
+                });
+            if tool_ok {
+                have.extend(rule.drops.iter().map(|d| d.item));
+            }
+        }
+        for r in &c.recipes {
+            if r.inputs
+                .iter()
+                .all(|i| i.any.iter().any(|a| have.contains(a)))
+            {
+                have.insert(r.output);
+            }
+        }
+        if have.len() == before {
+            break;
+        }
+    }
+    for r in &c.recipes {
+        for i in &r.inputs {
+            assert!(
+                i.any.iter().any(|a| have.contains(a)),
+                "{}: nothing in the live world gives {}",
+                c.item(r.output).name,
+                i.any
+                    .iter()
+                    .map(|a| c.item(*a).name)
+                    .collect::<Vec<_>>()
+                    .join(" or ")
+            );
+        }
+    }
+
+    // 3. skills: each step of a profession is within reach of the one below
+    //    (using something raises a skill until it is 75 over what it asks)
+    let mut ladders: BTreeMap<&str, Vec<u16>> = BTreeMap::new();
+    for r in &c.recipes {
+        if let Some((p, n)) = &r.skill {
+            ladders.entry(p).or_default().push(*n);
+        }
+    }
+    for b in &nodes {
+        if let Some((p, n)) = &c.rule(*b).skill {
+            ladders.entry(p).or_default().push(*n);
+        }
+    }
+    for (prof, mut needs) in ladders {
+        assert!(
+            c.professions.iter().any(|p| p.key == prof),
+            "no profession {prof}"
+        );
+        needs.sort();
+        let mut reach = 1u16; // learned at 1 by using something that asks for 1
+        assert!(
+            needs[0] <= 1,
+            "{prof}: nothing teaches it (lowest need {})",
+            needs[0]
+        );
+        for n in needs {
+            assert!(
+                n <= reach,
+                "{prof}: skill {n} cannot be reached (what asks for less stops at {reach})"
+            );
+            assert!(
+                n <= dyno_sim::progression::skill_cap(dyno_sim::progression::MAX_LEVEL),
+                "{prof}: skill {n} is over the cap of the highest level"
+            );
+            reach = reach.max(n + 74);
+        }
+    }
 }

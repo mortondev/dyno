@@ -17,10 +17,11 @@ creatures = {c["key"]: c for c in r["creatures"]}
 npcs = {n["key"]: n for n in r["npcs"]}
 w = r["world"]
 
-# --- 3. arrival: wake south of the hearth, facing it (a client starts facing
-# north), with Brannoc and his "!" beside it in the picture
-w["spawn_at"] = [0, 10]
-npcs["brannoc"]["at"] = [-3, 0, 6]
+# --- 3. arrival: a new character wakes 7 m south of the hearth (world round
+# 3) and a client starts facing north, at the hearth. Brannoc stood beside
+# and a little behind; he now stands between you and the hearth, to the left,
+# with his "!" in the picture
+npcs["brannoc"]["at"] = [-3, 0, 5]
 
 # --- 12. tags: anyone outside the tagger's party who took a tenth of a
 # creature's health off it shares the kill: quest credit, their own quest
@@ -52,18 +53,24 @@ quests["dust_of_shadows"]["text"] = (
 # --- Holt's boars stood on the logging trail, and Old Tusk beside it: both
 # killed travellers to Garrick's camp. The pack moves south-west of the
 # tower, a second stands east of it, and Old Tusk's hollow is 80 m off the trail.
+moved = 0
 for c in areas["birchrise"]["camps"]:
     if c["creature"] == "thornboar" and c.get("place") == "north_watch":
         c.update({"at": [-60, 30], "count": 5, "respawn": 60})
+        moved += 1
     if c["creature"] == "old_tusk":
         c.update({"at": [-150, -15], "respawn": 100})
+        moved += 1
+assert moved == 2, "Holt's boar pack and Old Tusk's camp are where round 1 put them"
 areas["birchrise"]["camps"].append(
     {"creature": "thornboar", "count": 4, "place": "north_watch", "at": [70, 45], "spread": 16, "respawn": 60})
 quests["boar_trouble"]["text"] = ("Thornboars charge anything on the north road. There is a pack either side of "
                                   "this tower: five fewer would make it walkable again.")
 quests["old_tusk"]["text"] = ("The boars follow one old brute with tusks like scythes. He keeps to a hollow in the "
-                              "trees west of here, past the pack. He has put two of my men in their beds: take a "
-                              "friend, and bring him down.")
+                              "trees west of here, past the pack. He has put two of my men in their beds: do not "
+                              "go alone. Take two with you, and bring him down.")
+quests["old_tusk"]["progress"] = "Old Tusk. West of the tower, past the boar pack. Three of you, not one."
+quests["old_tusk"]["done"] = "That is the herd broken. The Watch owes you, all of you."
 
 # --- the Barrow Warden (level 6, under the barrow) saw through its roof: he
 # killed three level 4 visitors to Anwen, who stands 9 m from him above ground
@@ -87,9 +94,12 @@ q["progress"] = "Quarry, then the camp."
 q["xp"] = 200
 # Thieves in the Fields: the only Ashcloaks were 160 m from Ostrin, five in
 # a knot (two came at once). A camp stands in his east field, spread out.
+spread = 0
 for c in areas["mirrormere"]["camps"]:
     if c["creature"] == "ashcloak":
         c["spread"] = 24
+        spread += 1
+assert spread == 1, "one Ashcloak camp by the mere"
 areas["mirrormere"]["camps"].append(
     {"creature": "ashcloak", "count": 5, "place": "windmill_farm", "at": [80, -55], "spread": 24, "respawn": 75})
 quests["thieves_in_fields"]["text"] = ("Ashcloak bandits raid my east field at all hours. Drive five of them off for good.")

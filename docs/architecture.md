@@ -84,7 +84,7 @@ flowchart TD
 |---|---|
 | `dyno-world` | The block grid (`World`, 1 m blocks in 16³ sections: all-one-block sections free, others palette-packed, shared copy-on-write between shards; clients hold only the streamed sections), the far view's heightmap tiles (`far.rs`), lighting (stored the same way), the content schema and parser, and building a world from data: the layout (`layout.rs`), stamps (`stamp.rs`) and the generator that shapes land, lays roads, places stamps and scatters vegetation (`worldgen.rs`). |
 | `dyno-sim` | Rules shared by client and server: the XP curve and mob scaling (`progression.rs`), the character sheet and armour maths (`character.rs`), inventory and stacks. |
-| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 23). A version mismatch is refused with a clear reason. |
+| `dyno-protocol` | Every message between client and server (postcard over WebSocket), the pack `Manifest`, `PROTOCOL_VERSION` (now 24). A version mismatch is refused with a clear reason. |
 | `dyno-server` | The game: shards, world streaming and area of interest (`stream.rs`), players, creatures and their AI, abilities and auras, quests, loot, merchants, rested XP, professions, camps, events, phasing, parties, persistence, migration. The content pack (`pack.rs`: loading, hashing, the built-in pack embedded from `content/`, each session's asset outbox). |
 | `dyno-client` | Rendering (wgpu), the UI (egui, themed), input (classic MMO controls), audio, the front end (title, character select and creation), the minimap, headless screenshots. The asset store (`assets.rs`) and the cache of pack files (`cache.rs`). Local hosting only with the `host` feature. |
 | `dyno-update` | Checks GitHub Releases, verifies the signed manifest, picks the artifact named like its own executable (`dyno` or `hearthblock`), swaps the binary. Used by clients and by servers (`--auto-update`). |
@@ -413,7 +413,7 @@ flowchart LR
 | Kind | What |
 |---|---|
 | Unit tests | Per crate: content parsing, progression, parties, rested XP, migration, terrain mesh, minimap… |
-| Protocol tests | `crates/dyno-client/tests/survival_loop.rs`: real server, real client networking: the survival loop, quests and classes, Nightfall, characters, loot and merchants, phasing, shards and parties, area crowding. |
+| Protocol tests | `crates/dyno-client/tests/protocol.rs`: real server, real client networking: bags, crafting at stations, the inn, operator commands, night Shades, quests and classes, Nightfall, characters, loot and merchants, phasing, shards and parties, area crowding. |
 | Screenshots | `dyno shot` against a test server; front-end pages; animation contact sheets. |
 | Playtests | Headless bot swarms with a "fun" report (reward cadence, droughts, time to first kill/level, deaths, stuck spots) and a text interface for AI playtesters (in progress). |
 

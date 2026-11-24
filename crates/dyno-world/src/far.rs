@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn a_tower_stands_out_in_the_far_view() {
-        let mut w = World::generate([128, 64, 128], 7);
+        let mut w = World::test_terrain([128, 64, 128], 7);
         let (x, z) = (70, 70);
         let g = w.surface(x, z);
         for y in g + 1..g + 21 {
@@ -306,7 +306,7 @@ mod tests {
     /// takes the block most of the cell's top is made of.
     #[test]
     fn a_cell_of_bare_land_is_what_most_of_it_is() {
-        let mut w = World::generate([128, 64, 128], 7);
+        let mut w = World::test_terrain([128, 64, 128], 7);
         let (x0, z0) = (80, 80);
         // a grass cell with one stone a block above the rest
         let top = (0..CELL)

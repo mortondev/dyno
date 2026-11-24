@@ -516,7 +516,7 @@ mod tests {
     #[test]
     #[ignore]
     fn mass_join_tick_time() {
-        let world = World::generate([384, 96, 384], 20261122);
+        let world = World::test_terrain([384, 96, 384], 20261122);
         let cfg = StreamConfig::default();
         let mut views: Vec<(View, [f32; 3])> = (0..40)
             .map(|i| {
@@ -559,7 +559,7 @@ mod tests {
 
     #[test]
     fn far_tiles_follow_the_near_view_and_are_sent_again_when_changed() {
-        let mut world = World::generate([256, 48, 256], 3);
+        let mut world = World::test_terrain([256, 48, 256], 3);
         world.log_changes(true);
         let cfg = StreamConfig {
             view: 32.0,
@@ -627,7 +627,7 @@ mod tests {
     /// view, and the play rate applies once it is whole; a teleport bursts again.
     #[test]
     fn the_first_far_view_comes_at_the_join_rate() {
-        let world = World::generate([256, 48, 256], 3);
+        let world = World::test_terrain([256, 48, 256], 3);
         let cfg = StreamConfig {
             view: 32.0,
             far: 200.0,
@@ -679,7 +679,7 @@ mod tests {
 
     #[test]
     fn a_view_streams_nearest_first_within_budget_and_drops_far_sections() {
-        let world = World::generate([256, 48, 256], 3);
+        let world = World::test_terrain([256, 48, 256], 3);
         let cfg = StreamConfig {
             view: 48.0,
             keep: 16.0,
