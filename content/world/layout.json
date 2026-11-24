@@ -868,19 +868,17 @@
    "at": [150, 425],
    "name": "Thieves' Den",
    "radius": 24,
-   "pad": {
-    "radius": [12, 12],
-    "blend": 10,
-    "surface": {"dirt": 3, "basalt": 1}
-   },
    "stamps": [
-    {"stamp": "campfire", "at": [0, 0]},
-    {"stamp": "tent_red", "at": [-11, -3], "rot": 3},
+    {"stamp": "south_road_scorch", "at": [0, 0], "fit": "float"},
+    {"stamp": "south_road_scorch", "at": [-6, -3], "fit": "float"},
+    {"stamp": "south_road_scorch", "at": [5, 5], "fit": "float"},
+    {"stamp": "campfire", "at": [0, 0], "fit": "ground"},
+    {"stamp": "tent_red", "at": [-11, -3], "rot": 3, "fit": "ground"},
     {"stamp": "south_road_ash_flag", "at": [10, -12], "fit": "ground"},
     {"stamp": "south_road_ash_flag", "at": [-6, 14], "fit": "ground"},
-    {"stamp": "cart", "at": [9, 6]},
+    {"stamp": "cart", "at": [9, 6], "fit": "ground"},
     {"stamp": "south_road_loot", "at": [11, 10], "fit": "ground"},
-    {"stamp": "boulders", "at": [-13, 12], "fit": "ground"}
+    {"stamp": "boulders", "at": [-3, -15], "fit": "float"}
    ]
   },
   {

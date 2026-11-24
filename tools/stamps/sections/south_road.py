@@ -408,3 +408,19 @@ def south_road_mill_goods():
         v.set(x, y, z, b)
     lamp_post(v, -2, 0, 0, 4)
     return v
+
+
+@recipe
+def south_road_scorch():
+    """A patch of scorched ground (the 'scorched' mix, dirt 3 : basalt 1)
+    for a hostile camp on a slope, where a pad would cut the hill: a stepped
+    disc of radius 4 laid into the turf, two cells deep. Place with fit
+    float, several overlapping, so it follows the ground."""
+    v = Vol("prop")
+    for x in range(-4, 5):
+        for z in range(-4, 5):
+            if x * x + z * z <= 18:
+                b = "basalt" if rnd(x, 0, z, 51) % 4 == 0 else "dirt"
+                v.set(x, -1, z, b)
+                v.set(x, -2, z, "dirt")
+    return v
