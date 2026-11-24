@@ -27,6 +27,9 @@ pub(crate) struct Tri {
     pub n: Option<[[f32; 3]; 3]>,
 }
 
+/// A rectangle's four corners, and the normals stored with them.
+pub(crate) type Rect4 = ([[f32; 3]; 4], Option<[[f32; 3]; 4]>);
+
 /// Something drawn, in its own frame.
 pub(crate) struct Object {
     /// what the report and the allowlist call it
@@ -50,7 +53,7 @@ impl Object {
         part: impl Into<String>,
         per_unit: f32,
         origin: Option<[f32; 3]>,
-        quads: impl IntoIterator<Item = ([[f32; 3]; 4], Option<[[f32; 3]; 4]>)>,
+        quads: impl IntoIterator<Item = Rect4>,
     ) -> Object {
         let mut tris = Vec::new();
         for (p, n) in quads {
@@ -80,7 +83,9 @@ impl Object {
         verts: &[([f32; 3], Option<[f32; 3]>)],
     ) -> Object {
         let tris = verts
-            .chunks_exact(3)
+            .as_chunks::<3>()
+            .0
+            .iter()
             .map(|t| Tri {
                 p: [t[0].0, t[1].0, t[2].0],
                 n: match (t[0].1, t[1].1, t[2].1) {
@@ -123,7 +128,8 @@ pub(crate) fn check(o: &Object, report: &mut Report) {
     };
     // half rectangles waiting for their other half: (the long side's ends,
     // the corner the other half turns on) -> how many
-    let mut halves: HashMap<([i64; 3], [i64; 3], [i64; 3]), (i32, [f32; 3])> = HashMap::new();
+    type Edge = ([i64; 3], [i64; 3], [i64; 3]);
+    let mut halves: HashMap<Edge, (i32, [f32; 3])> = HashMap::new();
     for t in &o.tris {
         let k = t.p.map(q);
         if k[0] == k[1] || k[1] == k[2] || k[0] == k[2] {
@@ -435,7 +441,7 @@ mod tests {
                             let focus = if i == 0 { None } else { far };
                             let geo = terrain_mesh::mesh_at(&held, &light, s, focus, None, lod);
                             let part = format!("{name}, section {s:?}");
-                            let quads = geo.ground.chunks_exact(4).map(|q| {
+                            let quads = geo.ground.as_chunks::<4>().0.iter().map(|q| {
                                 (
                                     [q[0].pos, q[1].pos, q[2].pos, q[3].pos],
                                     Some([q[0].normal, q[1].normal, q[2].normal, q[3].normal]),
@@ -453,7 +459,7 @@ mod tests {
                             );
                             let (mut leaves, mut blocks, mut other) =
                                 (Vec::new(), Vec::new(), Vec::new());
-                            for t in geo.opaque.chunks_exact(3) {
+                            for t in geo.opaque.as_chunks::<3>().0 {
                                 let k = t[0].tex[2];
                                 if (KIND_FOLIAGE..KIND_WATER).contains(&k) {
                                     leaves.extend_from_slice(t);
@@ -465,7 +471,7 @@ mod tests {
                                 }
                             }
                             let (mut water, mut clear) = (Vec::new(), Vec::new());
-                            for t in geo.trans.chunks_exact(3) {
+                            for t in geo.trans.as_chunks::<3>().0 {
                                 if t[0].tex[2] >= KIND_WATER {
                                     water.extend_from_slice(t);
                                 } else {
@@ -940,7 +946,7 @@ mod tests {
 
     // ------------------------------------------------------ the checker
 
-    fn cube(lo: [f32; 3], size: f32) -> Vec<([[f32; 3]; 4], Option<[[f32; 3]; 4]>)> {
+    fn cube(lo: [f32; 3], size: f32) -> Vec<Rect4> {
         let mut out = Vec::new();
         for axis in 0..3 {
             for sign in [-1.0f32, 1.0] {
