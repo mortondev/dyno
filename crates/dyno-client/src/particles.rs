@@ -262,6 +262,11 @@ impl Particles {
         }
     }
 
+    /// How many block emitters have been found round the camera so far.
+    pub fn found(&self) -> usize {
+        self.sections.values().map(Vec::len).sum()
+    }
+
     /// The emitters of one section of the world.
     fn scan(&self, s: &Scene, sec: [i32; 3]) -> Vec<Emitter> {
         let mut out = Vec::new();
