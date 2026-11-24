@@ -15,6 +15,15 @@ const QUEUE: Duration = Duration::from_millis(400);
 /// Ticks of damage and healing over time come every this many seconds.
 pub const TICK: f32 = 3.0;
 
+/// What a player's absorb shields will still soak up.
+pub fn shield_left(auras: &[Aura]) -> f32 {
+    auras
+        .iter()
+        .filter(|a| a.buff.is_some_and(|b| b.kind == BuffKind::Absorb))
+        .map(|a| a.amount.max(0.0))
+        .sum()
+}
+
 /// A timed effect on a player.
 #[derive(Clone, Debug)]
 pub struct Aura {
@@ -510,6 +519,19 @@ impl State {
                 }
             }
         }
+        // what it leaves on them, for their frames: the longest of its
+        // stun, root and slow
+        let held = a.stun.max(a.root).max(a.slow[1]);
+        if held > 0.0 {
+            let on: Vec<u32> = if slowed.is_empty() {
+                target.into_iter().collect()
+            } else {
+                slowed.clone()
+            };
+            for t in on {
+                self.mark_mob(t, a.id, held);
+            }
+        }
         // combo points: builders add one to the target
         if a.combo > 0
             && let Some(t) = target
@@ -545,6 +567,7 @@ impl State {
                     next: now + Duration::from_secs_f32(TICK),
                 });
             }
+            self.mark_mob(t, a.id, ticks as f32 * TICK);
             self.hurt_mob(id, t, 0.0, 0.0, 0.0);
         }
         // heal over time, and buffs
@@ -784,9 +807,28 @@ impl State {
         }
     }
 
+    /// Show a timed effect on a creature's frame: `ability` for `secs`.
+    pub fn mark_mob(&mut self, id: u32, ability: u16, secs: f32) {
+        let now = Instant::now();
+        let Some(m) = self.entities.get_mut(&id).and_then(|e| e.mob.as_mut()) else {
+            return;
+        };
+        m.marks.retain(|(a, until)| *a != ability && *until > now);
+        m.marks.push((ability, now + Duration::from_secs_f32(secs)));
+        let list = m
+            .marks
+            .iter()
+            .map(|(a, until)| (*a, (*until - now).as_secs_f32()))
+            .collect();
+        self.broadcast(&ServerMsg::EntityAuras { id, list }, None);
+    }
+
     pub fn send_auras(&self, id: PlayerId) {
         let now = Instant::now();
         if let Some(p) = self.players.get(&id) {
+            p.send(&ServerMsg::Shield {
+                left: shield_left(&p.auras),
+            });
             let list = p
                 .auras
                 .iter()

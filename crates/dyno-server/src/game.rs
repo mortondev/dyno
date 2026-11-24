@@ -414,6 +414,7 @@ impl State {
                     .take(4)
                     .map(|a| a.name.clone())
                     .collect(),
+                starter: k.starter.iter().map(|(key, _)| key.clone()).collect(),
             })
             .collect();
         let online: Vec<&Player> = self.players.values().filter(|p| p.token == token).collect();
@@ -1851,6 +1852,9 @@ impl State {
             auras_changed |= p.auras.len() != n;
             p.send(&ServerMsg::System {
                 text: format!("Your shield absorbs {soaked:.0}."),
+            });
+            p.send(&ServerMsg::Shield {
+                left: crate::abilities::shield_left(&p.auras),
             });
             p.combat_until = Instant::now() + Duration::from_secs(6);
         }

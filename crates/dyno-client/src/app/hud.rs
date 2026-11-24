@@ -425,6 +425,39 @@ pub fn frames(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, map: R
     );
     let mine = Rect::from_min_size(at, Vec2::new(230.0, 54.0));
     p.ui.anchors.insert("frame", mine);
+    // an absorb shield: a pale band over the health bar for its share of
+    // your health, and what it will still take beside your name
+    if p.shield.0 > 0.5 {
+        let (x0, x1) = (at.x + 59.0, at.x + 222.0);
+        let y = at.y + if resource.is_some() { 22.0 } else { 26.0 };
+        let share = (p.shield.0 / p.max_health.max(1.0)).clamp(0.04, 1.0);
+        let band = Rect::from_min_max(
+            Pos2::new(x1 - (x1 - x0) * share, y - 1.0),
+            Pos2::new(x1, y + 4.0),
+        );
+        let pale = Color32::from_rgb(236, 226, 170);
+        painter.rect_filled(band.expand(1.0), 2.0, theme::OUTLINE);
+        theme::gradient_rect(painter, band, Color32::WHITE, pale);
+        let text = tf("hud.shield", &[("n", &format!("{:.0}", p.shield.0))]);
+        let r = theme::shadow_text(
+            painter,
+            Pos2::new(x1 - 2.0, at.y + if resource.is_some() { 6.0 } else { 8.0 }),
+            Align2::RIGHT_TOP,
+            &text,
+            theme::bold_font(12.0),
+            pale,
+        );
+        theme::diamond(
+            painter,
+            Pos2::new(r.left() - 7.0, r.center().y),
+            4.0,
+            pale,
+            Stroke::new(1.0_f32, theme::OUTLINE),
+        );
+        hover_tip(ctx, "shield", mine, |ui| {
+            ui.label(RichText::new(t("hud.shield_text")).color(theme::TEXT));
+        });
+    }
     // the target, beside it
     let target_at = at + Vec2::new(250.0, 0.0);
     let picked = p.focus.or(p.target_entity);
@@ -467,6 +500,45 @@ pub fn frames(ctx: &egui::Context, painter: &egui::Painter, p: &mut Play, map: R
                 "target",
                 Rect::from_min_size(target_at, Vec2::new(230.0, 54.0)),
             );
+            // what players have put on it: each effect's picture and the
+            // seconds it has left, under the frame
+            let now = Instant::now();
+            let row = target_at + Vec2::new(59.0, if sub.is_some() { 76.0 } else { 58.0 });
+            let auras = picked.and_then(|id| p.entity_auras.get(&id));
+            for (k, (a, until)) in auras
+                .into_iter()
+                .flatten()
+                .filter(|(_, until)| *until > now)
+                .take(6)
+                .enumerate()
+            {
+                let Some(ab) = p.content.ability(*a) else {
+                    continue;
+                };
+                let r =
+                    Rect::from_min_size(row + Vec2::new(k as f32 * 30.0, 0.0), Vec2::splat(26.0));
+                theme::slot_well(painter, r);
+                survival::ability_icon(painter, r.shrink(3.0), &p.content, ab);
+                painter.rect_stroke(
+                    r,
+                    3.0,
+                    Stroke::new(1.5_f32, Color32::from_rgb(190, 60, 48)),
+                    egui::StrokeKind::Inside,
+                );
+                let left = until.saturating_duration_since(now).as_secs_f32();
+                theme::shadow_text(
+                    painter,
+                    r.center_bottom() + Vec2::new(0.0, 1.0),
+                    Align2::CENTER_TOP,
+                    &format!("{left:.0}"),
+                    theme::bold_font(11.0),
+                    theme::TEXT,
+                );
+                hover_tip(ctx, "debuff", r, |ui| {
+                    theme::tooltip_title(ui, &ab.name, Color32::from_rgb(255, 150, 130));
+                    ui.label(RichText::new(&ab.text).color(theme::TEXT));
+                });
+            }
         }
     }
     if !has_target {
@@ -1599,8 +1671,30 @@ pub fn tips(
     } else {
         crate::uitext::opt("tips.dismiss")
     };
-    p.ui.tips
-        .show(ctx, |name| anchors.get(name).copied(), quiet, &hint);
+    // a tip does not lie over an open window: where its place beside a HUD
+    // part is taken, it goes to the middle (above the action bar) instead
+    let windows: Vec<Rect> = [
+        "screens",
+        "npc-dialog",
+        "npc-vendor",
+        "quest-log",
+        "trade",
+        "world-map",
+    ]
+    .iter()
+    .filter_map(|id| ctx.memory(|m| m.area_rect(egui::Id::new(*id))))
+    .collect();
+    let open = p.screen_tab.is_some() || p.panel.is_some() || p.trade.is_some() || p.ui.map_open;
+    p.ui.tips.show(
+        ctx,
+        |name| {
+            let r = anchors.get(name).copied()?;
+            let zone = r.expand2(Vec2::new(380.0, 60.0));
+            (!open || !windows.iter().any(|w| w.intersects(zone))).then_some(r)
+        },
+        quiet,
+        &hint,
+    );
     if let Some(seen) = p.ui.tips.take_seen()
         && crate::options::change_interface(|o| o.tips_seen = seen)
     {
@@ -1723,6 +1817,20 @@ pub fn shot_state(p: &mut Play, ui: &str) {
             }
             p.health = p.max_health * 0.7;
             p.power = p.power_max * 0.45;
+            // a shield on me; what I have put on it
+            p.shield = (p.max_health * 0.3, p.max_health * 0.4);
+            if let Some(t) = target {
+                let now = Instant::now();
+                p.entity_auras.insert(
+                    t,
+                    known
+                        .iter()
+                        .take(2)
+                        .enumerate()
+                        .map(|(k, a)| (*a, now + Duration::from_secs(5 + 7 * k as u64)))
+                        .collect(),
+                );
+            }
             p.combo = (3, target);
             if let Some(a) = known.first() {
                 p.my_cast = Some((*a, past(700), 1.5));

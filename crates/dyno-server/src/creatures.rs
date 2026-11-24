@@ -50,6 +50,10 @@ pub struct Mob {
     /// caught unawares: until then, openers still count as a first blow
     pub surprised_until: Instant,
     pub dots: Vec<crate::abilities::Dot>,
+    /// what players see on its frame: the ability each timed effect on it
+    /// came from, and when that ends (shown only; the effects themselves are
+    /// the fields above)
+    pub marks: Vec<(u16, Instant)>,
     /// where it was spawned; pulled too far away it returns here
     pub home: [f32; 3],
     pub evading: bool,
@@ -112,6 +116,7 @@ impl Mob {
             engaged: false,
             surprised_until: now,
             dots: Vec::new(),
+            marks: Vec::new(),
             home: pos,
             evading: false,
             threat: std::collections::HashMap::new(),
@@ -137,6 +142,7 @@ impl Mob {
         self.engaged = false;
         self.target = None;
         self.dots.clear();
+        self.marks.clear();
         self.stuck = 0.0;
     }
 

@@ -233,6 +233,10 @@ struct Play {
     skills: Vec<(String, u16, u16)>,
     /// buffs: ability and when they end
     auras: Vec<(u16, Instant)>,
+    /// what my absorb shields will still soak up, and the most they held
+    shield: (f32, f32),
+    /// the timed effects on creatures: ability and when it ends
+    entity_auras: HashMap<u32, Vec<(u16, Instant)>>,
     combo: (u8, Option<u32>),
     /// the named place you are in
     zone: String,
@@ -1659,6 +1663,8 @@ fn new_play(j: Joined) -> Play {
         tops: Default::default(),
         wielding: HashMap::new(),
         wearing: HashMap::new(),
+        shield: (0.0, 0.0),
+        entity_auras: HashMap::new(),
         remote_dead: Default::default(),
         remote_hold: HashMap::new(),
         trade_ask: None,
@@ -2451,6 +2457,7 @@ impl App {
                             }
                         }
                         ServerMsg::EntityGone { id, picked_by } => {
+                            p.entity_auras.remove(&id);
                             if let Some(e) = p.entities.get(&id)
                                 && let EntityKind::Creature(_) = e.kind
                             {
@@ -2593,6 +2600,22 @@ impl App {
                         ServerMsg::Skills(s) => p.skills = s,
                         ServerMsg::Attacking(t) => p.attacking = t,
                         ServerMsg::Combo { points, target } => p.combo = (points, target),
+                        ServerMsg::Shield { left } => {
+                            p.shield = if left <= 0.0 {
+                                (0.0, 0.0)
+                            } else {
+                                (left, p.shield.1.max(left))
+                            };
+                        }
+                        ServerMsg::EntityAuras { id, list } => {
+                            let now = Instant::now();
+                            p.entity_auras.insert(
+                                id,
+                                list.into_iter()
+                                    .map(|(a, s)| (a, now + Duration::from_secs_f32(s)))
+                                    .collect(),
+                            );
+                        }
                         ServerMsg::Auras(list) => {
                             let now = Instant::now();
                             p.auras = list

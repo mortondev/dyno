@@ -81,6 +81,8 @@ pub fn quality_color(q: u8) -> Color32 {
     theme::quality_color(q)
 }
 
+/// Abilities that reach no further than this are melee.
+const MELEE: f32 = 6.0;
 const BAD: Color32 = Color32::from_rgb(255, 84, 72);
 const BETTER: Color32 = Color32::from_rgb(64, 224, 80);
 
@@ -308,7 +310,10 @@ pub fn ability_tooltip(ui: &mut egui::Ui, c: &Content, a: &Ability, known: bool)
     } else {
         String::new()
     };
-    let reach = if a.range > 0.0 {
+    // (a weapon's reach reads as "Melee range", as players expect)
+    let reach = if a.range > 0.0 && a.range <= MELEE {
+        t("ability.melee")
+    } else if a.range > 0.0 {
         tf("ability.range", &[("n", &format!("{:.0}", a.range))])
     } else if a.radius > 0.0 {
         tf("ability.radius", &[("n", &format!("{:.0}", a.radius))])

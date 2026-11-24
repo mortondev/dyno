@@ -53,7 +53,9 @@
   "eat": "Eat",
   "eat_text": "Eat the best food in your bags. Out of combat, food restores health quickly.",
   "gathering": "Gathering",
-  "log_heal": "You are healed for {n}."
+  "log_heal": "You are healed for {n}.",
+  "shield": "+{n}",
+  "shield_text": "A shield: it soaks up this much damage before your health is touched."
  },
  "death": {
   "title": "You have died",
@@ -517,7 +519,8 @@
   "instant": "Instant",
   "cooldown_sec": "{n} sec cooldown",
   "cooldown_min": "{n} min cooldown",
-  "learn": "Learned at level {n}"
+  "learn": "Learned at level {n}",
+  "melee": "Melee range"
  },
  "sheet": {
   "attributes": "Attributes",
@@ -602,7 +605,6 @@
    "bitch",
    "nigg",
    "fagg",
-  
    "nazi",
    "hitler",
    "penis",
