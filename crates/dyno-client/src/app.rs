@@ -34,11 +34,14 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 
+mod hud;
+
 const ACCENT: Color32 = Color32::from_rgb(240, 138, 60);
 
 pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
     let event_loop = EventLoop::new().map_err(|e| format!("cannot open a window: {e}"))?;
     let mut settings = Settings::load();
+    crate::options::set_interface(crate::options::Interface::of(&settings));
     if let Some(a) = prefill {
         settings.last_server = a;
     }
@@ -309,6 +312,8 @@ struct Play {
     /// fill selection corners
     sel: (Option<[i32; 3]>, Option<[i32; 3]>),
     minimap: crate::minimap::Minimap,
+    /// what the RPG HUD remembers: tips, banners, toasts (app/hud.rs)
+    ui: hud::HudState,
 }
 
 struct ClientEntity {
@@ -513,93 +518,6 @@ fn use_action(p: &mut Play, i: usize) {
     let _ = p.conn.tx.send(msg);
 }
 
-/// One action-bar slot: icon, cooldown sweep, hotkey.
-fn draw_action(painter: &egui::Painter, r: Rect, p: &Play, i: usize) {
-    let now = Instant::now();
-    painter.rect_filled(r, 5.0, Color32::from_black_alpha(150));
-    let (icon, cd, usable): (Option<dyno_world::content::ItemId>, f32, bool) = match action_at(p, i)
-    {
-        ActionSlot::Ability(a) => {
-            let item = p.content.item_by_key(&a.icon);
-            let own = p
-                .cooldowns
-                .get(&a.id)
-                .map(|(t, total)| t.saturating_duration_since(now).as_secs_f32() / total.max(0.01))
-                .unwrap_or(0.0);
-            let g = p.gcd.0.saturating_duration_since(now).as_secs_f32() / p.gcd.1.max(0.01);
-            let tint = Color32::from_rgb(
-                (a.color[0] * 120.0) as u8,
-                (a.color[1] * 120.0) as u8,
-                (a.color[2] * 120.0) as u8,
-            );
-            painter.rect_filled(r.shrink(2.0), 4.0, tint.gamma_multiply(0.6));
-            (item, own.max(g), p.power + 0.01 >= a.cost)
-        }
-        ActionSlot::Recall => {
-            let own = p
-                .cooldowns
-                .get(&dyno_protocol::RECALL)
-                .map(|(t, total)| t.saturating_duration_since(now).as_secs_f32() / total.max(0.01))
-                .unwrap_or(0.0);
-            painter.rect_filled(
-                r.shrink(2.0),
-                4.0,
-                Color32::from_rgb(90, 50, 20).gamma_multiply(0.7),
-            );
-            (
-                Some(dyno_world::HEARTH as dyno_world::content::ItemId),
-                own,
-                true,
-            )
-        }
-        ActionSlot::Eat => {
-            let pack = dyno_sim::inventory::Inventory {
-                slots: p.pack.clone(),
-            };
-            let food = dyno_sim::inventory::best_food(&pack, &p.content)
-                .and_then(|s| p.pack[s])
-                .map(|s| s.item);
-            (food, 0.0, food.is_some())
-        }
-        ActionSlot::Empty => (None, 0.0, false),
-    };
-    if let Some(item) = icon {
-        survival::item_icon(painter, r.shrink(5.0), &p.content, item);
-    }
-    if !usable && icon.is_some() {
-        painter.rect_filled(r, 5.0, Color32::from_rgba_unmultiplied(120, 20, 20, 90));
-    }
-    if cd > 0.0 {
-        let h = r.height() * cd.clamp(0.0, 1.0);
-        painter.rect_filled(
-            Rect::from_min_max(Pos2::new(r.left(), r.bottom() - h), r.max),
-            5.0,
-            Color32::from_black_alpha(170),
-        );
-    }
-    let active = p
-        .my_cast
-        .as_ref()
-        .is_some_and(|(a, _, _)| match action_at(p, i) {
-            ActionSlot::Ability(x) => x.id == *a,
-            ActionSlot::Recall => *a == dyno_protocol::RECALL,
-            _ => false,
-        });
-    let stroke = if active {
-        Stroke::new(2.5_f32, Color32::from_rgb(255, 210, 80))
-    } else {
-        Stroke::new(1.0_f32, Color32::from_rgb(150, 120, 60))
-    };
-    painter.rect_stroke(r, 5.0, stroke, egui::StrokeKind::Inside);
-    painter.text(
-        r.left_top() + Vec2::new(4.0, 2.0),
-        Align2::LEFT_TOP,
-        BAR_KEYS[i],
-        FontId::monospace(11.0),
-        Color32::from_white_alpha(200),
-    );
-}
-
 /// A spell bolt: a short trail of sparks from `a` to `b`.
 fn spawn_bolt(out: &mut Vec<Particle>, a: Vec3, b: Vec3, color: [f32; 3]) {
     let n = ((b - a).length() * 3.0) as usize + 4;
@@ -693,6 +611,8 @@ fn push_creatures(boxes: &mut Vec<Vertex>, p: &Play, book: &mut Anims, clock: f3
         done: &p.quests_done,
         pos: p.player.pos.into(),
         hearth: p.hearth,
+        equip: &p.equip,
+        class: p.class.and_then(|c| p.content.class(c)),
     };
     for (id, e) in &p.entities {
         let pos = p.ground.feet(&p.world, e.pos());
@@ -1672,6 +1592,7 @@ fn new_play(j: Joined) -> Play {
         undo: Vec::new(),
         sel: (None, None),
         minimap: crate::minimap::Minimap::new(),
+        ui: hud::HudState::new(),
         content: j.content,
         mode: j.mode,
         pack: vec![None; dyno_sim::SLOTS],
@@ -2245,14 +2166,19 @@ impl App {
                             p.fall_from = None;
                             p.dead = None;
                         }
-                        ServerMsg::Pack(slots) => p.pack = slots,
+                        ServerMsg::Pack(slots) => {
+                            p.pack = slots;
+                            hud::carried_changed(p);
+                        }
                         ServerMsg::Status {
                             health,
                             food,
                             mode,
                             fuel,
                         } => {
+                            let was = p.health;
                             p.health = health;
+                            hud::health_changed(p, was, health);
                             p.food = food;
                             p.fuel = fuel;
                             if mode != p.mode {
@@ -2389,7 +2315,10 @@ impl App {
                                 self.audio.play(Sfx::Hit, 0.4);
                             }
                         }
-                        ServerMsg::Equipment(e) => p.equip = e,
+                        ServerMsg::Equipment(e) => {
+                            p.equip = e;
+                            hud::carried_changed(p);
+                        }
                         ServerMsg::EntityName { id, name, .. } => {
                             if let Some(e) = p.entities.get_mut(&id) {
                                 e.name = Some(name);
@@ -2535,6 +2464,7 @@ impl App {
                                 ));
                             }
                             if xp > 0 {
+                                p.ui.tips.fire("xp");
                                 p.floaters.push((
                                     Instant::now(),
                                     format!("+{xp} XP"),
@@ -2552,7 +2482,7 @@ impl App {
                         ServerMsg::LevelUp { player, level } => {
                             if player == p.my_id {
                                 self.audio.play(Sfx::Chime, 1.0);
-                                p.title = Some((Instant::now(), format!("Level {level}!")));
+                                hud::level_up(p, level);
                             }
                         }
                         ServerMsg::EntityInfo {
@@ -2572,26 +2502,12 @@ impl App {
                             }
                         }
                         ServerMsg::Quests { log, done } => {
-                            let before: Vec<bool> =
-                                log.iter().map(|q| quest_finished(&p.content, q)).collect();
-                            let was: HashMap<u16, bool> = p
-                                .quest_log
-                                .iter()
-                                .map(|q| (q.quest, quest_finished(&p.content, q)))
-                                .collect();
-                            for (q, now) in log.iter().zip(before) {
-                                if now && was.get(&q.quest) == Some(&false) {
-                                    let t = p
-                                        .content
-                                        .quest(q.quest)
-                                        .map(|q| q.title.clone())
-                                        .unwrap_or_default();
-                                    p.toast(format!("{t}: complete! Return to hand it in."));
-                                    self.audio.play(Sfx::Join, 0.7);
-                                }
+                            let old = std::mem::replace(&mut p.quest_log, log);
+                            let old_done =
+                                std::mem::replace(&mut p.quests_done, done.into_iter().collect());
+                            if hud::quests_changed(p, &old, &old_done) {
+                                self.audio.play(Sfx::Join, 0.7);
                             }
-                            p.quest_log = log;
-                            p.quests_done = done.into_iter().collect();
                         }
                         ServerMsg::Rested { pool } => p.rested = pool,
                         ServerMsg::Loot { id, money, items } => {
@@ -3521,6 +3437,8 @@ impl App {
         let Some(window) = gfx.window.clone() else {
             return;
         };
+        // the interface keeps its share of the window, whatever its size
+        crate::options::apply_zoom(&self.egui_ctx, gfx.config.height as f32);
         let raw = state.take_egui_input(&window);
         let ctx = self.egui_ctx.clone();
         // the pack's fonts, once they arrive
@@ -3550,6 +3468,7 @@ impl App {
         match a {
             Action::Screens(cmds) => {
                 let mut close = false;
+                let mut save_interface = false;
                 if let Screen::Playing(p) = &mut self.screen {
                     for c in cmds {
                         match c {
@@ -3574,8 +3493,8 @@ impl App {
                                 let _ = p.conn.tx.send(ClientMsg::Sell { from: i });
                             }
                             screens::ScreenCmd::Bind(a, k) => {
-                                if p.bar.is_empty() {
-                                    p.bar = default_bar(p);
+                                if !p.ui.bar_ready {
+                                    hud::load_bar(p);
                                 }
                                 for b in p.bar.iter_mut() {
                                     if *b == Some(a) {
@@ -3583,6 +3502,28 @@ impl App {
                                     }
                                 }
                                 p.bar[k as usize] = Some(a);
+                                let mut acts = Vec::new();
+                                hud::save_bar(p, &mut acts);
+                                save_interface = !acts.is_empty();
+                            }
+                            screens::ScreenCmd::Sort => {
+                                for (from, to) in screens::sort_moves(&p.content, &p.pack) {
+                                    let _ = p.conn.tx.send(ClientMsg::Move {
+                                        from: SlotRef::Pack(from),
+                                        to: SlotRef::Pack(to),
+                                        count: 0,
+                                    });
+                                }
+                                self.audio.play(Sfx::Click, 0.6);
+                            }
+                            screens::ScreenCmd::SellJunk => {
+                                for (i, s) in p.pack.iter().enumerate() {
+                                    if s.is_some_and(|s| screens::is_junk(&p.content.item(s.item)))
+                                    {
+                                        let _ = p.conn.tx.send(ClientMsg::Sell { from: i as u8 });
+                                    }
+                                }
+                                self.audio.play(Sfx::Click, 0.6);
                             }
                             screens::ScreenCmd::Switch(t) => p.screen_tab = Some(t),
                             screens::ScreenCmd::Close => {
@@ -3591,6 +3532,9 @@ impl App {
                             }
                         }
                     }
+                }
+                if save_interface {
+                    self.act(Action::Interface);
                 }
                 if close {
                     self.set_capture(true);
@@ -3716,8 +3660,14 @@ impl App {
                 }
             }
             Action::CancelJoin => self.screen = Screen::Menu,
+            Action::Interface => {
+                // what the interface remembers (tips seen, action bars): save
+                crate::options::interface().into(&mut self.settings);
+                let _ = self.settings.save();
+            }
             Action::Graphics => {
                 // the options panel changed something: apply and save
+                crate::options::interface().into(&mut self.settings);
                 if let Some(o) = crate::options::get() {
                     o.into(&mut self.settings);
                     let _ = self.settings.save();
@@ -3947,8 +3897,8 @@ impl App {
                 ];
                 if let Some(i) = digits.iter().position(|d| *d == code) {
                     if p.content.world.protected && !p.creative() {
-                        if p.bar.is_empty() {
-                            p.bar = default_bar(p);
+                        if !p.ui.bar_ready {
+                            hud::load_bar(p);
                         }
                         use_action(p, i);
                         p.swing = 1.0;
@@ -4093,6 +4043,8 @@ impl App {
 }
 
 enum Action {
+    /// the interface's own memory changed: save the settings
+    Interface,
     Pack(Vec<PackCmd>),
     Rpg(Vec<rpg_ui::RpgCmd>),
     ChooseClass(u16),
@@ -4392,6 +4344,8 @@ fn hud(
         done: &p.quests_done,
         pos: p.player.pos.into(),
         hearth: p.hearth,
+        equip: &p.equip,
+        class: p.class.and_then(|c| p.content.class(c)),
     };
     if let Some(vp) = vp {
         let eye = p.player.eye();
@@ -4520,59 +4474,8 @@ fn hud(
     let event_top = map.bottom() + 10.0;
     let tracker_top = event_top + if p.world_event.is_some() { 68.0 } else { 0.0 };
     if p.content.world.protected {
-        // player frame, target frame, quest tracker, XP bar
-        rpg_ui::unit_frame(
-            &painter,
-            screen.left_top() + Vec2::new(12.0, 52.0),
-            &p.my_name,
-            p.level,
-            Color32::from_rgb(255, 210, 80),
-            p.health,
-            p.max_health,
-            Some(&dyno_sim::progression::money_text(p.money)),
-            None,
-        );
-        if let Some(t) = p
-            .focus
-            .or(p.target_entity)
-            .and_then(|id| p.entities.get(&id))
-        {
-            let (name, lvl, h, m) = match t.kind {
-                EntityKind::Creature(c) => {
-                    let (l, h, m) = t.info.unwrap_or((1, 1.0, 1.0));
-                    (
-                        p.content
-                            .creature(c)
-                            .map(|c| c.name.clone())
-                            .unwrap_or_default(),
-                        l,
-                        h,
-                        m,
-                    )
-                }
-                EntityKind::Npc(n) => (
-                    p.content.npc(n).map(|n| n.name.clone()).unwrap_or_default(),
-                    p.level,
-                    1.0,
-                    1.0,
-                ),
-                _ => (String::new(), 0, 0.0, 0.0),
-            };
-            if !name.is_empty() {
-                rpg_ui::unit_frame(
-                    &painter,
-                    Pos2::new(c.x - 115.0, screen.top() + 12.0),
-                    &name,
-                    lvl,
-                    rpg_ui::level_color(p.level, lvl),
-                    h,
-                    m,
-                    None,
-                    None,
-                );
-            }
-        }
         rpg_ui::tracker(&painter, screen, &me, tracker_top);
+        hud::frames(ctx, &painter, p, map);
     }
     // a world event in progress: an orange tracker box at the right
     if let Some((title, text, prog)) = &p.world_event {
@@ -4612,21 +4515,6 @@ fn hud(
             Color32::from_rgb(230, 140, 40),
         );
     }
-    // floating XP and money
-    p.floaters
-        .retain(|(t, _, _)| t.elapsed() < Duration::from_millis(1800));
-    for (k, (t, text, colour)) in p.floaters.iter().enumerate() {
-        let a = t.elapsed().as_secs_f32();
-        let at = Pos2::new(c.x + 40.0, c.y - 30.0 - a * 40.0 - k as f32 * 18.0);
-        let fade = (1.0 - a / 1.8).clamp(0.0, 1.0);
-        painter.text(
-            at,
-            Align2::LEFT_CENTER,
-            text,
-            FontId::proportional(18.0),
-            colour.gamma_multiply(fade),
-        );
-    }
     // top-left info: always in the builder modes, on F3 in the RPG
     let pos = p.player.pos;
     let show_info = !p.content.world.protected || p.show_info;
@@ -4642,8 +4530,14 @@ fn hud(
         if p.player.flying { "  · flying" } else { "" }
     );
     let info = if show_info { info } else { String::new() };
+    // (under the unit frames in the RPG)
+    let info_y = if p.content.world.protected {
+        170.0
+    } else {
+        10.0
+    };
     painter.text(
-        screen.left_top() + Vec2::new(12.0, 10.0),
+        screen.left_top() + Vec2::new(12.0, info_y),
         Align2::LEFT_TOP,
         info,
         FontId::monospace(13.0),
@@ -4651,7 +4545,7 @@ fn hud(
     );
     if p.server_version != env!("CARGO_PKG_VERSION") {
         painter.text(
-            screen.left_top() + Vec2::new(12.0, 48.0),
+            screen.left_top() + Vec2::new(12.0, info_y + 38.0),
             Align2::LEFT_TOP,
             format!("server runs dyno {}", p.server_version),
             FontId::monospace(12.0),
@@ -4660,30 +4554,29 @@ fn hud(
     }
     // hotbar from the pack, or the 12-slot action bar
     let rpg_bar = p.content.world.protected && !p.creative();
-    if rpg_bar && p.bar.is_empty() && p.class.is_some() {
-        p.bar = default_bar(p);
-    }
     let slots = if rpg_bar { 12 } else { 9 };
-    let slot = if rpg_bar { 44.0 } else { 46.0 };
+    let slot = 46.0;
     let total = slots as f32 * (slot + 4.0);
-    let start = Pos2::new(c.x - total / 2.0, screen.bottom() - slot - 14.0);
-    painter.rect_filled(
-        Rect::from_min_size(
+    let start = Pos2::new(
+        c.x - total / 2.0,
+        screen.bottom() - slot - if rpg_bar { 16.0 } else { 14.0 },
+    );
+    // the whole bar, for what stacks above it
+    let bar_rect = if rpg_bar {
+        hud::action_bar(ctx, &painter, p, actions)
+    } else {
+        let r = Rect::from_min_size(
             start - Vec2::splat(6.0),
             Vec2::new(total + 8.0, slot + 12.0),
-        ),
-        8.0,
-        Color32::from_black_alpha(130),
-    );
-    for i in 0..slots {
+        );
+        painter.rect_filled(r, 8.0, Color32::from_black_alpha(130));
+        r
+    };
+    for i in 0..if rpg_bar { 0 } else { slots } {
         let r = Rect::from_min_size(
             start + Vec2::new(i as f32 * (slot + 4.0), 0.0),
             Vec2::splat(slot),
         );
-        if rpg_bar {
-            draw_action(&painter, r, p, i);
-            continue;
-        }
         if let Some(s) = p.pack.get(i).copied().flatten() {
             survival::stack_icon(&painter, r, &p.content, &s);
         }
@@ -4712,7 +4605,7 @@ fn hud(
     if p.content.world.protected {
         rpg_ui::xp_bar(
             &painter,
-            Pos2::new(c.x, start.y - 10.0),
+            Pos2::new(c.x, bar_rect.top() - 9.0),
             total,
             p.xp,
             p.xp_next,
@@ -4855,47 +4748,8 @@ fn hud(
             );
         }
     }
-    // big title: "Day 3", "Dusk is coming"
-    if let Some((at, text)) = &p.title {
-        let t = at.elapsed().as_secs_f32();
-        let fade = (t / 0.6).min(1.0) * (1.0 - (t - 3.2).max(0.0) / 1.3).clamp(0.0, 1.0);
-        let pos = Pos2::new(c.x, screen.top() + screen.height() * 0.28);
-        let galley = painter.layout_no_wrap(
-            text.clone(),
-            FontId::proportional(46.0),
-            Color32::from_rgb(255, 236, 200).gamma_multiply(fade),
-        );
-        let r = Rect::from_center_size(pos, galley.size());
-        painter.galley(
-            r.min + Vec2::new(2.0, 3.0),
-            painter.layout_no_wrap(
-                text.clone(),
-                FontId::proportional(46.0),
-                Color32::from_black_alpha((160.0 * fade) as u8),
-            ),
-            Color32::BLACK,
-        );
-        painter.galley(r.min, galley, Color32::WHITE);
-    }
-    // milestone and mode toasts
-    for (k, (at, text)) in p.toasts.iter().enumerate() {
-        let fade = (1.0 - (at.elapsed().as_secs_f32() - 3.5).max(0.0) / 1.5).clamp(0.0, 1.0);
-        let pos = Pos2::new(c.x, screen.top() + 70.0 + k as f32 * 34.0);
-        let galley = painter.layout_no_wrap(
-            text.clone(),
-            FontId::proportional(18.0),
-            Color32::WHITE.gamma_multiply(fade),
-        );
-        let r = Rect::from_center_size(pos, galley.size() + Vec2::new(24.0, 12.0));
-        painter.rect_filled(r, 8.0, Color32::from_black_alpha((170.0 * fade) as u8));
-        painter.rect_stroke(
-            r,
-            8.0,
-            Stroke::new(1.5_f32, ACCENT.gamma_multiply(fade)),
-            egui::StrokeKind::Inside,
-        );
-        painter.galley(r.min + Vec2::new(12.0, 6.0), galley, Color32::WHITE);
-    }
+    // the big title, the level gained, toasts, quest steps, loot
+    hud::moments(ctx, &painter, p, bar_rect);
     // chat
     let chat_bottom = label_y - 46.0;
     let visible: Vec<&Chat> = p
@@ -5105,6 +4959,7 @@ fn hud(
                 Some(rpg_ui::Panel::Dialog { .. } | rpg_ui::Panel::Vendor { .. })
             ),
             bar: &p.bar,
+            keys: &BAR_KEYS,
             skills: &lines,
             extra,
         };
@@ -5113,101 +4968,9 @@ fn hud(
             actions.push(Action::Screens(cmds));
         }
     }
-    // buffs, top right
-    {
-        let now = Instant::now();
-        p.auras.retain(|(_, t)| *t > now);
-        for (k, (a, t)) in p.auras.iter().enumerate() {
-            let Some(ab) = p.content.ability(*a) else {
-                continue;
-            };
-            let r = Rect::from_min_size(
-                Pos2::new(map.left() - 44.0 - k as f32 * 40.0, screen.top() + 12.0),
-                Vec2::splat(34.0),
-            );
-            painter.rect_filled(r, 4.0, Color32::from_black_alpha(160));
-            if let Some(item) = p.content.item_by_key(&ab.icon) {
-                survival::item_icon(&painter, r.shrink(3.0), &p.content, item);
-            }
-            painter.rect_stroke(
-                r,
-                4.0,
-                Stroke::new(1.0_f32, Color32::from_rgb(200, 170, 90)),
-                egui::StrokeKind::Inside,
-            );
-            let left = t.saturating_duration_since(now).as_secs_f32();
-            let txt = if left >= 60.0 {
-                format!("{:.0}m", left / 60.0)
-            } else {
-                format!("{left:.0}s")
-            };
-            painter.text(
-                r.center_bottom() + Vec2::new(0.0, 2.0),
-                Align2::CENTER_TOP,
-                txt,
-                FontId::proportional(11.0),
-                Color32::WHITE,
-            );
-        }
-    }
-    // combo points under the target frame
-    if p.combo.0 > 0 && p.combo.1.is_some() && p.combo.1 == p.focus.or(p.target_entity) {
-        for k in 0..5u8 {
-            let at = Pos2::new(c.x - 40.0 + k as f32 * 20.0, screen.top() + 80.0);
-            let on = k < p.combo.0;
-            painter.circle_filled(
-                at,
-                7.0,
-                if on {
-                    Color32::from_rgb(230, 60, 40)
-                } else {
-                    Color32::from_black_alpha(150)
-                },
-            );
-            painter.circle_stroke(
-                at,
-                7.0,
-                Stroke::new(1.0_f32, Color32::from_rgb(200, 170, 90)),
-            );
-        }
-    }
     // floating combat text, rising from the creature (or from you)
-    p.combat_text
-        .retain(|(t, _, _, _)| t.elapsed() < Duration::from_millis(1400));
     if let Some(vp) = vp {
-        for (k, (t, ent, text, col)) in p.combat_text.iter().enumerate() {
-            let a = t.elapsed().as_secs_f32();
-            let world = match ent {
-                Some(id) => p.entities.get(id).map(|e| e.pos() + glam::Vec3::Y * 2.2),
-                None => Some(p.player.pos + glam::Vec3::Y * 2.0),
-            };
-            let Some(wp) = world else { continue };
-            let clip = vp * (wp + glam::Vec3::Y * a * 0.8).extend(1.0);
-            if clip.w <= 0.1 {
-                continue;
-            }
-            let ndc = clip.truncate() / clip.w;
-            let at = Pos2::new(
-                screen.left() + (ndc.x * 0.5 + 0.5) * screen.width() + (k % 3) as f32 * 10.0,
-                screen.top() + (0.5 - ndc.y * 0.5) * screen.height(),
-            );
-            let fade = (1.0 - a / 1.4).clamp(0.0, 1.0);
-            let size = if text.ends_with('!') { 26.0 } else { 19.0 };
-            painter.text(
-                at + Vec2::new(1.5, 1.5),
-                Align2::CENTER_CENTER,
-                text,
-                FontId::proportional(size),
-                Color32::from_black_alpha((220.0 * fade) as u8),
-            );
-            painter.text(
-                at,
-                Align2::CENTER_CENTER,
-                text,
-                FontId::proportional(size),
-                col.gamma_multiply(fade),
-            );
-        }
+        hud::combat_text(&painter, p, screen, vp);
     }
     // class picker
     if p.class_pick {
@@ -5258,78 +5021,7 @@ fn hud(
             actions.push(Action::ChooseClass(c));
         }
     }
-    // my cast bar
-    if let Some((a, start, secs)) = p.my_cast {
-        let name = if a == dyno_protocol::RECALL {
-            "Recall".to_string()
-        } else if a == dyno_protocol::GATHER {
-            "Gathering".to_string()
-        } else {
-            p.content
-                .ability(a)
-                .map(|a| a.name.clone())
-                .unwrap_or_default()
-        };
-        let f = (start.elapsed().as_secs_f32() / secs.max(0.01)).min(1.0);
-        let r = Rect::from_center_size(
-            Pos2::new(c.x, screen.bottom() - 150.0),
-            Vec2::new(260.0, 18.0),
-        );
-        painter.rect_filled(r.expand(2.0), 4.0, Color32::from_black_alpha(200));
-        painter.rect_filled(
-            Rect::from_min_size(r.min, Vec2::new(r.width() * f, r.height())),
-            3.0,
-            Color32::from_rgb(230, 180, 60),
-        );
-        painter.rect_stroke(
-            r.expand(2.0),
-            4.0,
-            Stroke::new(1.5_f32, Color32::from_rgb(200, 160, 80)),
-            egui::StrokeKind::Outside,
-        );
-        painter.text(
-            r.center(),
-            Align2::CENTER_CENTER,
-            name,
-            FontId::proportional(13.0),
-            Color32::WHITE,
-        );
-    }
-    // rage or mana under the player frame
-    if p.content.world.protected && p.power_max > 0.0 {
-        let rage = p
-            .class
-            .and_then(|c| p.content.class(c))
-            .is_some_and(|c| c.resource == dyno_world::content::Resource::Rage);
-        let r = Rect::from_min_size(
-            screen.left_top() + Vec2::new(22.0, 108.0),
-            Vec2::new(210.0, 10.0),
-        );
-        painter.rect_filled(r, 3.0, Color32::from_rgb(20, 20, 40));
-        let col = if rage {
-            Color32::from_rgb(200, 40, 40)
-        } else {
-            Color32::from_rgb(50, 110, 230)
-        };
-        painter.rect_filled(
-            Rect::from_min_size(
-                r.min,
-                Vec2::new(
-                    r.width() * (p.power / p.power_max).clamp(0.0, 1.0),
-                    r.height(),
-                ),
-            ),
-            3.0,
-            col,
-        );
-        painter.text(
-            r.center(),
-            Align2::CENTER_CENTER,
-            format!("{} / {}", p.power.floor() as i32, p.power_max as i32),
-            FontId::proportional(10.0),
-            Color32::WHITE,
-        );
-    }
+    hud::cast_bar(&painter, p, bar_rect);
     // RPG windows
     if let Some(mut panel) = p.panel.clone() {
         let me = rpg_ui::Me {
@@ -5340,6 +5032,8 @@ fn hud(
             done: &p.quests_done,
             pos: p.player.pos.into(),
             hearth: p.hearth,
+            equip: &p.equip,
+            class: p.class.and_then(|c| p.content.class(c)),
         };
         let cmds = match panel {
             rpg_ui::Panel::Dialog { .. } => rpg_ui::dialog_window(ctx, &me, &mut panel),
@@ -5350,62 +5044,6 @@ fn hud(
         if !cmds.is_empty() {
             actions.push(Action::Rpg(cmds));
         }
-    }
-    // party frames, under my own
-    let others: Vec<&dyno_protocol::PartyMember> =
-        p.party.iter().filter(|m| m.name != p.my_name).collect();
-    for (i, m) in others.iter().enumerate() {
-        let r = Rect::from_min_size(
-            Pos2::new(screen.left() + 14.0, screen.top() + 96.0 + i as f32 * 40.0),
-            Vec2::new(170.0, 34.0),
-        );
-        painter.rect_filled(r, 4.0, Color32::from_rgba_unmultiplied(20, 14, 10, 200));
-        painter.rect_stroke(
-            r,
-            4.0,
-            Stroke::new(1.0_f32, crate::theme::GOLD_DARK),
-            egui::StrokeKind::Inside,
-        );
-        let col = m
-            .class
-            .and_then(|c| p.content.class(c))
-            .map(|c| {
-                Color32::from_rgb(
-                    (c.color[0] * 255.0) as u8,
-                    (c.color[1] * 255.0) as u8,
-                    (c.color[2] * 255.0) as u8,
-                )
-            })
-            .unwrap_or(crate::theme::TEXT);
-        let label = if m.online {
-            format!(
-                "{}{}  {}",
-                if m.leader { "* " } else { "" },
-                m.name,
-                m.level
-            )
-        } else {
-            format!("{} (offline)", m.name)
-        };
-        painter.text(
-            r.left_top() + Vec2::new(8.0, 3.0),
-            Align2::LEFT_TOP,
-            label,
-            crate::theme::body_font(13.0),
-            if m.online {
-                col
-            } else {
-                Color32::from_gray(130)
-            },
-        );
-        let bar = Rect::from_min_size(r.left_top() + Vec2::new(8.0, 21.0), Vec2::new(154.0, 7.0));
-        painter.rect_filled(bar, 2.0, Color32::from_black_alpha(200));
-        let f = (m.health / m.max.max(1.0)).clamp(0.0, 1.0);
-        painter.rect_filled(
-            Rect::from_min_size(bar.min, Vec2::new(bar.width() * f, bar.height())),
-            2.0,
-            Color32::from_rgb(60, 180, 70),
-        );
     }
     // a party invitation
     if let Some(from) = p.invite.clone() {
@@ -5576,7 +5214,18 @@ fn hud(
         let cmds = if gone {
             vec![rpg_ui::RpgCmd::CloseLoot]
         } else {
-            rpg_ui::loot_window(ctx, &p.content, *id, *money, items)
+            let me = rpg_ui::Me {
+                content: &p.content,
+                money: p.money,
+                level: p.level,
+                log: &p.quest_log,
+                done: &p.quests_done,
+                pos: p.player.pos.into(),
+                hearth: p.hearth,
+                equip: &p.equip,
+                class: p.class.and_then(|c| p.content.class(c)),
+            };
+            rpg_ui::loot_window(ctx, &me, *id, *money, items)
         };
         if !cmds.is_empty() {
             actions.push(Action::Rpg(cmds));
@@ -5600,49 +5249,9 @@ fn hud(
             actions.push(Action::Pack(cmds));
         }
     }
-    // death screen
-    if let Some(msg) = &p.dead {
-        painter.rect_filled(
-            screen,
-            0.0,
-            Color32::from_rgba_unmultiplied(90, 10, 10, 110),
-        );
-        egui::Area::new(egui::Id::new("dead"))
-            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
-            .show(ctx, |ui| {
-                egui::Frame::window(ui.style())
-                    .inner_margin(20.0)
-                    .show(ui, |ui| {
-                        ui.vertical_centered(|ui| {
-                            ui.label(
-                                RichText::new("You died")
-                                    .size(30.0)
-                                    .strong()
-                                    .color(Color32::from_rgb(240, 110, 100)),
-                            );
-                            ui.label(msg);
-                            ui.label(
-                                RichText::new(
-                                    "Your items are where you fell. Friends can pick them up too.",
-                                )
-                                .weak(),
-                            );
-                            ui.add_space(8.0);
-                            if ui
-                                .add_sized(
-                                    [200.0, 34.0],
-                                    egui::Button::new(RichText::new("Respawn").strong()),
-                                )
-                                .clicked()
-                            {
-                                actions.push(Action::Respawn);
-                            }
-                        });
-                    });
-            });
-    }
+    hud::death(ctx, &painter, p, actions);
     // player list on Tab
-    if p.keys.contains(&KeyCode::Tab) {
+    if p.keys.contains(&KeyCode::Tab) && !p.wow() {
         egui::Area::new(egui::Id::new("players"))
             .anchor(Align2::CENTER_TOP, Vec2::new(0.0, 60.0))
             .show(ctx, |ui| {
@@ -5655,31 +5264,9 @@ fn hud(
                 });
             });
     }
-    // pause menu
+    // the game menu
     if p.menu_open {
-        egui::Window::new("Menu").frame(crate::theme::window_frame()).collapsible(false).resizable(false).anchor(Align2::CENTER_CENTER, Vec2::ZERO).show(ctx, |ui| {
-            ui.set_width(380.0);
-            if ui.add_sized([ui.available_width(), 32.0], egui::Button::new("Back to game")).clicked() || ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-                actions.push(Action::Resume);
-            }
-            ui.add_space(6.0);
-            if crate::options::panel(ui) {
-                actions.push(Action::Graphics);
-            }
-            ui.add_space(6.0);
-            host_panel(ui, host, actions);
-            ui.add_space(6.0);
-            ui.label(RichText::new(format!("Connected to {}", p.url)).small().weak());
-            let controls = if p.wow() {
-                "Controls: hold right mouse to steer · hold left mouse to look around · both to run · W S move · A D turn · Q E strafe · R autorun · wheel zoom · left click select · right click attack, talk or gather · Tab target · 1-0 - = abilities · C B P K L windows · T chat"
-            } else {
-                "Controls: WASD move · Space jump · Shift down when flying · Ctrl or R sprint · F fly · left click break · right click place · middle click pick · 1-9 or wheel blocks · E all blocks · G corner, V fill, X clear · Ctrl+Z undo · T chat · Tab players"
-            };
-            ui.label(RichText::new(controls).small().weak());
-            if ui.button("Leave server").clicked() {
-                actions.push(Action::Disconnect);
-            }
-        });
+        hud::menu(ctx, p, host, actions);
     } else if !p.wow()
         && !p.captured
         && !p.chat_open
@@ -5696,6 +5283,14 @@ fn hud(
                         .color(Color32::WHITE),
                 );
             });
+    }
+    // the tutorial tips, pointing at parts of the HUD
+    if p.content.world.protected {
+        let tracker = Rect::from_min_size(
+            Pos2::new(screen.right() - 272.0, tracker_top),
+            Vec2::new(264.0, 120.0),
+        );
+        hud::tips(ctx, p, map, tracker, actions);
     }
 }
 
@@ -6046,10 +5641,14 @@ pub fn shot_front(
     let ctx = crate::theme::new_context();
     crate::theme::apply(&ctx);
     ctx.style_mut(|s| s.animation_time = 0.0);
+    // the interface at the size the game gives it for this picture
+    let zoom = crate::options::zoom_for(hgt, 1.0);
+    // (set directly: `set_zoom_factor` would rescale a screen size not yet known)
+    ctx.options_mut(|o| o.zoom_factor = zoom);
     let raw = || egui::RawInput {
         screen_rect: Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
-            egui::vec2(wdt, hgt),
+            egui::vec2(wdt / zoom, hgt / zoom),
         )),
         ..Default::default()
     };
@@ -6655,6 +6254,7 @@ pub fn shot_with_ui(
     if ui == "dead" {
         p.dead = Some("You fell from a high place.".into());
     }
+    hud::shot_state(&mut p, ui);
     let t = time.unwrap_or(p.time);
     p.time = t;
     let sky_now = weathered(
@@ -6840,8 +6440,15 @@ pub fn shot_with_ui(
         s.visuals.selection.bg_fill = ACCENT.gamma_multiply(0.6);
         s.animation_time = 0.0;
     });
+    // the interface at the size the game gives it for this picture
+    let zoom = crate::options::zoom_for(hgt, 1.0);
+    // (set directly: `set_zoom_factor` would rescale a screen size not yet known)
+    ctx.options_mut(|o| o.zoom_factor = zoom);
     let raw = || egui::RawInput {
-        screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(wdt, hgt))),
+        screen_rect: Some(Rect::from_min_size(
+            Pos2::ZERO,
+            Vec2::new(wdt / zoom, hgt / zoom),
+        )),
         ..Default::default()
     };
     let mut host = None;
@@ -6855,6 +6462,9 @@ pub fn shot_with_ui(
     gfx.fx = fx.clone();
     gfx.fx_glow = fx_glow.clone();
     gfx.frame(Some((vp, eye, far)), &sky_now, &boxes, &lines, &ctx, first);
+    // the passing moments again, so the frame kept shows them whatever the
+    // first frame took to draw
+    hud::shot_state(&mut p, ui);
     let second = ctx.run(raw(), |ctx| {
         if !stand {
             hud(ctx, &mut p, &mut host, Some(vp), &mut actions)

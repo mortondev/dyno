@@ -262,9 +262,20 @@ pub fn name_problem(n: &str) -> Option<&'static str> {
         Some("At most 16 letters")
     } else if !n.chars().all(|c| c.is_alphabetic()) {
         Some("Letters only")
+    } else if name_blocked(n, &crate::uitext::lines("names.blocked")) {
+        Some("That name is not allowed")
     } else {
         None
     }
+}
+
+/// A name with a word in it that the pack does not allow in names
+/// (`names.blocked` in its strings; the server has the last word).
+fn name_blocked(n: &str, blocked: &[String]) -> bool {
+    let n = n.to_lowercase();
+    blocked
+        .iter()
+        .any(|w| !w.is_empty() && n.contains(&w.to_lowercase()))
 }
 
 fn gold_button(ui: &mut egui::Ui, text: &str, w: f32, h: f32) -> egui::Response {
@@ -1390,4 +1401,17 @@ fn hair_thumbs(ui: &mut egui::Ui, look: &mut Appearance) {
         }
     });
     ui.add_space(4.0);
+}
+
+#[cfg(test)]
+mod name_tests {
+    use super::*;
+
+    #[test]
+    fn names_with_a_blocked_word_are_refused_whatever_the_case() {
+        let blocked = vec!["admin".to_string(), String::new()];
+        assert!(name_blocked("SirAdmin", &blocked));
+        assert!(!name_blocked("Selald", &blocked));
+        assert!(!name_blocked("Selald", &[]));
+    }
 }

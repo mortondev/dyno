@@ -89,6 +89,84 @@ pub fn get() -> Option<Graphics> {
     *CURRENT.lock().unwrap()
 }
 
+/// What a player can change about the interface, and what it remembers
+/// for them: its size, the tutorial tips, each character's action bar.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Interface {
+    /// beside the natural size for the window (see [`zoom_for`])
+    pub scale: f32,
+    pub tips: bool,
+    pub tips_seen: Vec<String>,
+    pub bars: std::collections::BTreeMap<String, Vec<String>>,
+}
+
+impl Default for Interface {
+    fn default() -> Self {
+        Interface::of(&Settings::default())
+    }
+}
+
+impl Interface {
+    pub fn of(s: &Settings) -> Interface {
+        Interface {
+            scale: s.ui_scale.clamp(0.7, 1.5),
+            tips: s.tips,
+            tips_seen: s.tips_seen.clone(),
+            bars: s.bars.clone(),
+        }
+    }
+
+    pub fn into(self, s: &mut Settings) {
+        s.ui_scale = self.scale;
+        s.tips = self.tips;
+        s.tips_seen = self.tips_seen;
+        s.bars = self.bars;
+    }
+}
+
+static INTERFACE: Mutex<Option<Interface>> = Mutex::new(None);
+
+pub fn set_interface(i: Interface) {
+    *INTERFACE.lock().unwrap() = Some(i);
+}
+
+/// The interface options (before the app has set them: the defaults).
+pub fn interface() -> Interface {
+    INTERFACE.lock().unwrap().clone().unwrap_or_default()
+}
+
+/// Change the interface options; true when something changed (the caller
+/// then asks the app to save: `Action::Graphics`).
+pub fn change_interface(f: impl FnOnce(&mut Interface)) -> bool {
+    let mut lock = INTERFACE.lock().unwrap();
+    let mut i = lock.clone().unwrap_or_default();
+    let was = i.clone();
+    f(&mut i);
+    let changed = i != was;
+    *lock = Some(i);
+    changed
+}
+
+/// The interface is laid out for a window 1000 points tall, so it takes
+/// the same share of a 1080p and a 1440p screen; the player's scale goes
+/// on top. This is egui's zoom factor for a window `height_px` tall.
+pub fn zoom_for(height_px: f32, native_pixels_per_point: f32) -> f32 {
+    let natural = (height_px / 1000.0).clamp(0.75, 2.6);
+    natural * interface().scale / native_pixels_per_point.max(0.1)
+}
+
+/// Set the interface's size for this frame (before `Context::run`).
+pub fn apply_zoom(ctx: &egui::Context, height_px: f32) {
+    let native = ctx.native_pixels_per_point().unwrap_or(1.0);
+    let zoom = zoom_for(height_px, native);
+    if (ctx.zoom_factor() - zoom).abs() > 0.001 {
+        ctx.set_zoom_factor(zoom);
+    }
+}
+
+/// The steps the interface size row offers.
+const SCALES: [f32; 5] = [0.8, 0.9, 1.0, 1.15, 1.3];
+
 /// One choice in a row: a dark button, gold when it is the one chosen.
 fn choice(ui: &mut egui::Ui, chosen: bool, text: &str) -> bool {
     let (ink, fill, edge) = if chosen {
@@ -172,11 +250,49 @@ pub fn panel(ui: &mut egui::Ui) -> bool {
     if let Some(i) = row(ui, "Wildlife", Some(g.life as usize), &life) {
         g.life = i as u8;
     }
-    if g != was {
+    let mut changed = g != was;
+    if changed {
         set(g);
-        return true;
     }
-    false
+    // the interface: its size and the tutorial tips (words from the pack;
+    // the rows are left out until it has arrived)
+    let t = crate::uitext::t;
+    let scales = crate::uitext::lines("options.scales");
+    if scales.len() == SCALES.len() {
+        ui.add_space(8.0);
+        ui.label(
+            egui::RichText::new(t("options.interface"))
+                .font(theme::title_font(14.0))
+                .color(theme::GOLD),
+        );
+        let now = interface();
+        let names: Vec<&str> = scales.iter().map(String::as_str).collect();
+        if let Some(i) = row(
+            ui,
+            &t("options.size"),
+            Some(step(&SCALES, now.scale)),
+            &names,
+        ) {
+            changed |= change_interface(|o| o.scale = SCALES[i]);
+        }
+        let (off, on, again) = (t("options.off"), t("options.on"), t("options.tips_again"));
+        if let Some(i) = row(
+            ui,
+            &t("options.tips"),
+            Some(now.tips as usize),
+            &[&off, &on, &again],
+        ) {
+            changed |= change_interface(|o| match i {
+                0 => o.tips = false,
+                1 => o.tips = true,
+                _ => {
+                    o.tips = true;
+                    o.tips_seen.clear();
+                }
+            });
+        }
+    }
+    changed
 }
 
 #[cfg(test)]
@@ -192,5 +308,15 @@ mod tests {
         assert_eq!(s.water_quality, 0);
         assert_eq!(step(&COVER, 1.1), 2);
         assert_eq!(step(&LEAVES, 4.0), 3);
+    }
+
+    #[test]
+    fn the_interface_is_the_same_share_of_any_screen() {
+        // 1080p and 1440p: the same number of points down the window
+        let a = 1080.0 / zoom_for(1080.0, 1.0);
+        let b = 1440.0 / zoom_for(1440.0, 1.0);
+        assert!((a - b).abs() < 0.5, "{a} {b}");
+        // a HiDPI window's own factor is not applied twice
+        assert!((zoom_for(2160.0, 2.0) - 1.08).abs() < 0.01);
     }
 }

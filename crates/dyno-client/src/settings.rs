@@ -40,6 +40,14 @@ pub struct Settings {
     pub ground_shading: u8,
     /// random ID of this install; servers bind your name to it
     pub token: u64,
+    /// the interface's size beside its natural size for the window (1.0)
+    pub ui_scale: f32,
+    /// show the tutorial tips (tips.rs)
+    pub tips: bool,
+    /// the tips this player has seen, by id
+    pub tips_seen: Vec<String>,
+    /// each character's action bar: ability keys in its 12 slots ("" empty)
+    pub bars: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 impl Default for Settings {
@@ -60,6 +68,10 @@ impl Default for Settings {
             water_quality: 2,
             ground_shading: 2,
             token: 0,
+            ui_scale: 1.0,
+            tips: true,
+            tips_seen: Vec::new(),
+            bars: Default::default(),
         }
     }
 }
