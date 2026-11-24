@@ -241,8 +241,10 @@ pub type Link = std::sync::Arc<std::sync::Mutex<LeaderView>>;
 #[derive(Clone, Debug)]
 pub struct PartyRole {
     pub leader: bool,
-    /// the other member's name
+    /// the other member's name (for a follower, the leader)
     pub mate: String,
+    /// a leader's further members
+    pub others: Vec<String>,
     pub link: Link,
 }
 
@@ -338,6 +340,16 @@ impl Scripted {
             if !grouped && now >= self.next_invite && self.mate_pos(a).is_some() {
                 self.next_invite = now + Duration::from_secs(15);
                 a.body.say(&format!("/invite {}", role.mate));
+            } else if grouped && now >= self.next_invite {
+                // a party of three or more: one invitation at a time
+                let missing = role
+                    .others
+                    .iter()
+                    .find(|m| !a.body.party.iter().any(|p| p.eq_ignore_ascii_case(m)));
+                if let Some(m) = missing {
+                    self.next_invite = now + Duration::from_secs(8);
+                    a.body.say(&format!("/invite {m}"));
+                }
             }
             // publish what we do
             let mut v = role.link.lock().unwrap();

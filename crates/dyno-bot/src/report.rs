@@ -152,7 +152,32 @@ pub struct Report {
     /// casts per ability, by class (how many buttons a class really presses)
     #[serde(default)]
     pub abilities_by_class: BTreeMap<String, BTreeMap<String, u32>>,
+    /// the machine's load during the run and, for a local server, its tick cost
+    #[serde(default)]
+    pub machine: Option<Machine>,
     pub telemetry: Vec<Telemetry>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Machine {
+    /// one-minute load averages, read each minute
+    pub load_start: f64,
+    pub load_mean: f64,
+    pub load_max: f64,
+    pub cores: usize,
+    pub tick: Option<Tick>,
+}
+
+/// What the server's ticks cost over the run (budget: 50 ms).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Tick {
+    pub mean_ms: f64,
+    pub p95_ms: f64,
+    pub p99_ms: f64,
+    pub worst_ms: f64,
+    pub ticks: u32,
+    /// the worst minute's p95
+    pub worst_minute_p95_ms: f64,
 }
 
 pub fn median(v: &[f64]) -> Option<f64> {
@@ -818,6 +843,7 @@ pub fn build(title: &str, server: &str, ts: Vec<Telemetry>) -> Report {
             })
             .take(40)
             .collect(),
+        machine: None,
         telemetry: ts,
     }
 }
@@ -846,6 +872,21 @@ pub fn markdown(r: &Report) -> String {
         "{} bots on `{}`, {:.1} bot-minutes (longest session {:.1} min). Thresholds: docs/playtest/fun-metrics.md.\n",
         a.bots, r.server, a.bot_minutes, r.minutes
     );
+    if let Some(m) = &r.machine {
+        let _ = write!(
+            s,
+            "Machine: load average {:.1} at the start, {:.1} mean, {:.1} at most, on {} cores.",
+            m.load_start, m.load_mean, m.load_max, m.cores
+        );
+        if let Some(t) = &m.tick {
+            let _ = write!(
+                s,
+                " Server tick: mean {:.2} ms, p95 {:.2} ms, p99 {:.2} ms, worst {:.0} ms over {} ticks; the worst minute's p95 was {:.2} ms (budget 50 ms).",
+                t.mean_ms, t.p95_ms, t.p99_ms, t.worst_ms, t.ticks, t.worst_minute_p95_ms
+            );
+        }
+        let _ = writeln!(s, "\n");
+    }
     let fails = r.checks.iter().filter(|c| c.status == "fail").count();
     let warns = r.checks.iter().filter(|c| c.status == "warn").count();
     let _ = writeln!(s, "## Fun checks: {fails} fail, {warns} warn\n");

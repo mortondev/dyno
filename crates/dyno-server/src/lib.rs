@@ -168,6 +168,8 @@ pub struct Server {
     next_shard: AtomicU32,
     /// the latest view of every player, for the balancer and party frames
     snaps: Mutex<Vec<shard::Snap>>,
+    /// what every tick since the start has cost
+    ticks: Mutex<TickCost>,
     /// when each player last spoke in a world channel (one line a second)
     channel_at: Mutex<HashMap<PlayerId, Instant>>,
     rpg: bool,
@@ -199,6 +201,71 @@ pub struct Server {
 }
 
 /// A running server. Dropping it does not stop it; call `stop`.
+/// What the server's ticks have cost: a count per quarter millisecond (the
+/// last bucket holds everything of 250 ms and over), the sum and the worst.
+#[derive(Clone, Debug)]
+pub struct TickCost {
+    buckets: Vec<u32>,
+    pub ticks: u32,
+    pub sum: Duration,
+    pub worst: Duration,
+}
+
+impl Default for TickCost {
+    fn default() -> Self {
+        TickCost {
+            buckets: vec![0; 1001],
+            ticks: 0,
+            sum: Duration::ZERO,
+            worst: Duration::ZERO,
+        }
+    }
+}
+
+impl TickCost {
+    fn add(&mut self, d: Duration) {
+        let i = ((d.as_secs_f64() * 4000.0) as usize).min(self.buckets.len() - 1);
+        self.buckets[i] += 1;
+        self.ticks += 1;
+        self.sum += d;
+        self.worst = self.worst.max(d);
+    }
+
+    /// The ticks since an earlier reading.
+    pub fn since(&self, old: &TickCost) -> TickCost {
+        TickCost {
+            buckets: self
+                .buckets
+                .iter()
+                .zip(&old.buckets)
+                .map(|(a, b)| a - b)
+                .collect(),
+            ticks: self.ticks - old.ticks,
+            sum: self.sum - old.sum,
+            // the worst of a part is not known: the worst so far
+            worst: self.worst,
+        }
+    }
+
+    pub fn mean_ms(&self) -> f64 {
+        self.sum.as_secs_f64() * 1e3 / self.ticks.max(1) as f64
+    }
+
+    /// The cost in milliseconds that share `p` of the ticks stayed under
+    /// (to the quarter millisecond; 250 for anything over).
+    pub fn percentile_ms(&self, p: f64) -> f64 {
+        let want = (self.ticks as f64 * p).ceil().max(1.0) as u32;
+        let mut seen = 0;
+        for (i, n) in self.buckets.iter().enumerate() {
+            seen += n;
+            if seen >= want {
+                return (i + 1) as f64 * 0.25;
+            }
+        }
+        0.0
+    }
+}
+
 pub struct Handle {
     pub server: Arc<Server>,
     pub local_addr: SocketAddr,
@@ -222,6 +289,11 @@ impl Handle {
             c.stop();
         }
         let _ = TcpStream::connect_timeout(&self.local_addr, Duration::from_millis(200));
+    }
+
+    /// What the ticks have cost since the start (for load tests).
+    pub fn tick_cost(&self) -> TickCost {
+        self.server.ticks.lock().unwrap().clone()
     }
 
     /// The cluster this instance belongs to, if any.
@@ -571,6 +643,7 @@ pub fn start(cfg: Config) -> std::io::Result<Handle> {
         base_far,
         next_shard: AtomicU32::new(1),
         snaps: Mutex::new(Vec::new()),
+        ticks: Mutex::new(TickCost::default()),
         channel_at: Mutex::new(HashMap::new()),
         rpg,
         cluster: cluster.clone(),
@@ -1313,6 +1386,7 @@ impl Server {
         // DYNO_TICK_STATS: what a whole tick costs (sum, worst, ticks), once a minute
         let tick_stats = std::env::var_os("DYNO_TICK_STATS").is_some();
         let mut cost = (Duration::ZERO, Duration::ZERO, 0u32);
+        let mut cost_at = TickCost::default();
         while !self.stop.load(Ordering::SeqCst) {
             std::thread::sleep(Duration::from_millis(50));
             n += 1;
@@ -1324,12 +1398,15 @@ impl Server {
                     .iter()
                     .map(|sh| sh.state.lock().unwrap().players.len())
                     .sum();
+                let all = self.ticks.lock().unwrap().clone();
                 log(format!(
-                    "tick: mean {:.2} ms, worst {:.1} ms over {} ticks, {players} players",
+                    "tick: mean {:.2} ms, p95 {:.2} ms, worst {:.1} ms over {} ticks, {players} players",
                     cost.0.as_secs_f64() * 1e3 / cost.2 as f64,
+                    all.since(&cost_at).percentile_ms(0.95),
                     cost.1.as_secs_f64() * 1e3,
                     cost.2
                 ));
+                cost_at = all;
                 cost = (Duration::ZERO, Duration::ZERO, 0);
             }
             let mut snaps = Vec::new();
@@ -1385,6 +1462,7 @@ impl Server {
             // the save is not part of the tick's cost: it runs every 10 s
             let spent = last_tick.elapsed();
             cost = (cost.0 + spent, cost.1.max(spent), cost.2 + 1);
+            self.ticks.lock().unwrap().add(spent);
             if last_save.elapsed() > Duration::from_secs(10) {
                 last_save = Instant::now();
                 self.save();
@@ -1874,7 +1952,7 @@ impl Server {
         log(format!("{me} ran {line}"));
         let op = st.may_op(&me);
         match cmd.as_str() {
-            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /reload"),
+            "/help" => st.tell(id, "Chat: /1 General, /2 Trade, /p party, /w name whisper. Party: /invite name, /accept, /decline, /leave. Trade: /trade name. Commands: /who, /tp <player>, /spawn, /time <day|noon|sunset|night|midnight|0-1>, /who, /kill, /gamemode <survival|creative>, /give <item> [count], /summon <creature>, /slay, /money <copper>, /xp <amount>, /reload"),
             "/who" => {
                 let names: Vec<String> = st.players.values().map(|p| format!("{}{}", p.name, if p.away() { " (away)" } else { "" })).collect();
                 st.tell(id, format!("{} online: {}", names.len(), names.join(", ")));
@@ -2024,6 +2102,15 @@ impl Server {
                         st.send_character(id);
                     }
                     Err(_) => st.tell(id, "Usage: /money <copper>"),
+                }
+            }
+            "/xp" => {
+                if !op {
+                    return st.tell(id, "Only the world's owner can grant experience.");
+                }
+                match arg.trim().parse::<u32>() {
+                    Ok(n) => st.reward(id, n, 0),
+                    Err(_) => st.tell(id, "Usage: /xp <amount>"),
                 }
             }
             "/time" => {

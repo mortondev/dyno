@@ -85,6 +85,76 @@ pub struct Death {
     /// hearth-relative position
     pub at: [i32; 3],
     pub zone: String,
+    /// the facts round a death, for attributing it (classified by
+    /// tools/playtest/round2.py, not here)
+    #[serde(default)]
+    pub killer: String,
+    #[serde(default)]
+    pub killer_level: u8,
+    #[serde(default)]
+    pub night: bool,
+    #[serde(default)]
+    pub clock: f32,
+    /// what the bot was doing, and the quests in its log
+    #[serde(default)]
+    pub doing: String,
+    #[serde(default)]
+    pub quests: Vec<String>,
+    /// the creatures within 12 blocks when it died
+    #[serde(default)]
+    pub near: Vec<Near>,
+    /// other players within 20 blocks
+    #[serde(default)]
+    pub players_near: u32,
+    /// the last pull before the death (index into `pulls`), if within a minute
+    #[serde(default)]
+    pub pull: Option<usize>,
+}
+
+/// A creature near the bot at a pull or a death.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Near {
+    pub name: String,
+    pub level: u8,
+    pub dist: f32,
+    /// hostile by its rules (attacks on sight)
+    pub hostile: bool,
+    /// the bot hit it in the last 10 s
+    pub mine: bool,
+    /// anyone hurt it in the last 6 s
+    pub hurt: bool,
+}
+
+/// The start of a fight: what the bot walked into.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Pull {
+    pub t: f64,
+    pub creature: String,
+    pub level: u8,
+    pub my_level: u8,
+    /// health as a share of the maximum when the fight began
+    pub hp: f32,
+    pub night: bool,
+    pub at: [i32; 3],
+    pub doing: String,
+    /// the other creatures within 12 blocks at the pull
+    pub near: Vec<Near>,
+    /// the most other creatures within 6 blocks at once during the fight that
+    /// were hostile or that the bot had hit (adds)
+    pub adds: u32,
+}
+
+/// A stretch of nothing but travelling (20 s or more).
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct Run {
+    pub t: f64,
+    pub secs: f64,
+    /// hearth-relative x, z
+    pub from: [i32; 2],
+    pub to: [i32; 2],
+    /// what the bot was doing when it set off and when it arrived
+    pub start: String,
+    pub end: String,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -163,6 +233,14 @@ pub struct Telemetry {
     pub canopy: Vec<String>,
     /// (t, x, z, what the bot was doing) hearth-relative, every 10 s
     pub track: Vec<(f64, i32, i32, String)>,
+    /// (t, x, z, activity, what the bot was doing) every 5 s
+    #[serde(default)]
+    pub trail: Vec<(f64, i32, i32, String, String)>,
+    /// every fight's start, and every stretch of travel of 20 s or more
+    #[serde(default)]
+    pub pulls: Vec<Pull>,
+    #[serde(default)]
+    pub runs: Vec<Run>,
     /// the first-session beats: when the first gear upgrade was put on,
     /// when each ability was first used, when the bot was first in a party
     #[serde(default)]

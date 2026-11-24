@@ -37,7 +37,7 @@ def row(tels):
     out["first loot"] = med([first(t["rewards"], "loot") for t in tels])
     out["first quest"] = med([t["first_quest"] for t in tels])
     out["out of town"] = med([
-        next((s for s, x, z, _ in t["track"] if math.hypot(x - t["track"][0][1], z - t["track"][0][2]) > 80), None)
+        next((s for s, x, z, *_ in t["track"] if math.hypot(x - t["track"][0][1], z - t["track"][0][2]) > 80), None)
         if t["track"] else None for t in tels])
     out["first discovery"] = med([first(t["rewards"], "new_area") for t in tels])
     out["first upgrade"] = med([t.get("first_upgrade") for t in tels])
@@ -65,6 +65,7 @@ def row(tels):
         gaps.append(statistics.median(g))
         longest.append(max(g))
     out["reward gap"] = med(gaps)
+    out["median gap"] = out["reward gap"]
     out["longest gap"] = med(longest)
     out["worst gap"] = max(longest)
     secs = sum(t["secs"] for t in tels)
@@ -86,41 +87,47 @@ COLS = ["first kill", "first loot", "out of town", "first discovery", "gear rewa
 TIMES = {"gear reward", "first kill", "first loot", "out of town", "first discovery", "first upgrade", "second ability",
          "level 2", "level 3", "level 4", "level 5", "longest gap", "worst gap", "party at"}
 
-print("| run | " + " | ".join(COLS) + " |")
-print("|---|" + "---|" * len(COLS))
-args = sys.argv[1:]
-by = None
-if args and args[0] == "--by":
-    by, args = args[1], args[2:]
-groups = []
-for p in args:
-    name = p.split("/")[-1][:-5]
-    try:
-        tels = json.load(open(p))["telemetry"]
-    except Exception as e:  # a run that did not finish
-        print(f"| {name} | (no report: {e}) |")
-        continue
-    if by:
-        for k in sorted({t[by] for t in tels}):
-            groups.append((k, [t for t in tels if t[by] == k]))
-        groups.append(("all", tels))
-    else:
-        groups.append((name, tels))
-for name, tels in groups:
-    r = row(tels)
-    cells = []
-    for c in COLS:
-        v = r[c]
-        if c in TIMES:
-            cells.append(mmss(v))
-        elif v is None:
-            cells.append("-")
-        elif c in ("reward gap",):
-            cells.append(f"{v:.0f} s")
-        elif c in ("deaths/h",):
-            cells.append(f"{v:.1f}")
-        elif c == "travel %":
-            cells.append(f"{v:.0f}%")
+
+def main():
+    print("| run | " + " | ".join(COLS) + " |")
+    print("|---|" + "---|" * len(COLS))
+    args = sys.argv[1:]
+    by = None
+    if args and args[0] == "--by":
+        by, args = args[1], args[2:]
+    groups = []
+    for p in args:
+        name = p.split("/")[-1][:-5]
+        try:
+            tels = json.load(open(p))["telemetry"]
+        except Exception as e:  # a run that did not finish
+            print(f"| {name} | (no report: {e}) |")
+            continue
+        if by:
+            for k in sorted({t[by] for t in tels}):
+                groups.append((k, [t for t in tels if t[by] == k]))
+            groups.append(("all", tels))
         else:
-            cells.append(f"{v:g}")
-    print(f"| {name} ({r['bots']}) | " + " | ".join(cells) + " |")
+            groups.append((name, tels))
+    for name, tels in groups:
+        r = row(tels)
+        cells = []
+        for c in COLS:
+            v = r[c]
+            if c in TIMES:
+                cells.append(mmss(v))
+            elif v is None:
+                cells.append("-")
+            elif c in ("reward gap",):
+                cells.append(f"{v:.0f} s")
+            elif c in ("deaths/h",):
+                cells.append(f"{v:.1f}")
+            elif c == "travel %":
+                cells.append(f"{v:.0f}%")
+            else:
+                cells.append(f"{v:g}")
+        print(f"| {name} ({r['bots']}) | " + " | ".join(cells) + " |")
+
+
+if __name__ == "__main__":
+    main()

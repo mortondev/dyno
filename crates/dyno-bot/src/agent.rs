@@ -3,7 +3,7 @@
 //! choose the tasks; the agent carries them out tick by tick.
 
 use crate::body::{Body, Ev, NavState, compass};
-use crate::telemetry::{Activity, Death, Fight, Reward, StuckAt, Telemetry};
+use crate::telemetry::{Activity, Death, Fight, Near, Pull, Reward, Run, StuckAt, Telemetry};
 use dyno_protocol::{ClientMsg, EntityKind, RECALL};
 use dyno_world::content::{Ability, BuffKind, Objective, Resource, WeaponKind};
 use glam::Vec3;
@@ -158,6 +158,11 @@ pub struct Agent {
     pub last_fight: Option<u32>,
     last_activity: Instant,
     last_track: f64,
+    last_trail: f64,
+    /// the fight being measured: its target and its place in `tel.pulls`
+    pull: Option<(u32, usize)>,
+    /// the stretch of travel being measured: start, from, what for, last travelling
+    run: Option<(f64, [i32; 2], String, f64)>,
     seen_stuck: usize,
     last_level: u8,
     xp_seen: (u8, u32),
@@ -196,6 +201,9 @@ impl Agent {
             last_fight: None,
             last_activity: Instant::now(),
             last_track: -100.0,
+            last_trail: -100.0,
+            pull: None,
+            run: None,
             seen_stuck: 0,
             last_level: lvl,
             doing: String::new(),
@@ -311,6 +319,8 @@ impl Agent {
         };
         self.tel.add_time(act, dt);
         let t = b.secs();
+        self.measure(act, t);
+        let b = &self.body;
         self.tel.secs = t;
         self.tel.distance = b.distance as f64;
         self.tel.money = b.money;
@@ -356,6 +366,102 @@ impl Agent {
                 why: s.why,
                 doing: self.doing.clone(),
             });
+        }
+    }
+
+    /// The creatures within `r` blocks, nearest first (not `skip`).
+    fn near(&self, r: f32, skip: Option<u32>) -> Vec<Near> {
+        let b = &self.body;
+        let mut out: Vec<Near> = b
+            .creatures()
+            .filter(|e| Some(e.id) != skip && e.health > 0.0 && b.dist3(e.pos) < r)
+            .map(|e| Near {
+                name: e
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| self.cname(e.creature().unwrap_or(0))),
+                level: e.level,
+                dist: b.dist3(e.pos),
+                hostile: e
+                    .creature()
+                    .and_then(|c| b.content.creature(c))
+                    .is_some_and(|c| c.hostile),
+                mine: e.my_hit.is_some_and(|t| t.elapsed().as_secs_f32() < 10.0),
+                hurt: e.hurt_at.is_some_and(|t| t.elapsed().as_secs_f32() < 6.0),
+            })
+            .collect();
+        out.sort_by(|a, c| a.dist.total_cmp(&c.dist));
+        out.truncate(8);
+        out
+    }
+
+    /// Measurements only (nothing here changes what the bot does): each
+    /// fight's start, each long stretch of travel, and a trail every 5 s.
+    fn measure(&mut self, act: Activity, t: f64) {
+        let at = self.rel(self.body.player.pos);
+        // pulls
+        match &self.task {
+            Some(Task::Fight {
+                target,
+                creature,
+                level,
+                ..
+            }) => {
+                let (target, creature, level) = (*target, *creature, *level);
+                if self.pull.is_none_or(|(id, _)| id != target) {
+                    let b = &self.body;
+                    self.tel.pulls.push(Pull {
+                        t,
+                        creature: self.cname(creature),
+                        level,
+                        my_level: b.level,
+                        hp: b.health / b.max_health.max(1.0),
+                        night: b.is_night(),
+                        at,
+                        doing: self.doing.clone(),
+                        near: self.near(12.0, Some(target)),
+                        adds: 0,
+                    });
+                    self.pull = Some((target, self.tel.pulls.len() - 1));
+                } else if let Some((_, i)) = self.pull {
+                    let adds = self
+                        .near(6.0, Some(target))
+                        .iter()
+                        .filter(|n| n.hostile || n.mine)
+                        .count() as u32;
+                    let p = &mut self.tel.pulls[i];
+                    p.adds = p.adds.max(adds);
+                }
+            }
+            _ => self.pull = None,
+        }
+        // runs: travel with breaks of under 3 s
+        let pos = [at[0], at[2]];
+        if act == Activity::Travel {
+            match &mut self.run {
+                Some(r) => r.3 = t,
+                None => self.run = Some((t, pos, self.doing.clone(), t)),
+            }
+        } else if let Some((start, from, why, last)) = self.run.clone()
+            && t - last > 3.0
+        {
+            self.run = None;
+            if last - start >= 20.0 {
+                self.tel.runs.push(Run {
+                    t: start,
+                    secs: last - start,
+                    from,
+                    to: pos,
+                    start: why,
+                    end: self.doing.clone(),
+                });
+            }
+        }
+        if t - self.last_trail >= 5.0 {
+            self.last_trail = t;
+            self.tel
+                .trail
+                .push((t, at[0], at[2], act.key().to_string(), self.doing.clone()));
         }
     }
 
@@ -452,12 +558,51 @@ impl Agent {
                 Ev::ItemLost { .. } => {}
                 Ev::Died(m) => {
                     let at = self.rel(self.body.player.pos);
+                    let near = self.near(12.0, None);
+                    // "You fell to a Grazer.": the nearest creature of that name
+                    let killer = m
+                        .trim_end_matches('.')
+                        .rsplit_once(" to a ")
+                        .or_else(|| m.trim_end_matches('.').rsplit_once(" to "))
+                        .map(|(_, n)| n.to_string())
+                        .unwrap_or_default();
+                    let killer_level = near
+                        .iter()
+                        .find(|n| n.name == killer)
+                        .map(|n| n.level)
+                        .unwrap_or(0);
+                    let me = self.body.pos();
+                    let pull = self
+                        .tel
+                        .pulls
+                        .len()
+                        .checked_sub(1)
+                        .filter(|i| t - self.tel.pulls[*i].t < 60.0);
                     self.tel.deaths.push(Death {
                         t,
                         cause: m.clone(),
                         level: self.body.level,
                         at,
                         zone: self.body.zone.0.clone(),
+                        killer,
+                        killer_level,
+                        night: self.body.is_night(),
+                        clock: self.body.clock(),
+                        doing: self.doing.clone(),
+                        quests: self
+                            .body
+                            .quests
+                            .iter()
+                            .map(|q| self.qkey(q.quest))
+                            .collect(),
+                        near,
+                        players_near: self
+                            .body
+                            .players
+                            .values()
+                            .filter(|(_, p)| p.distance(me) < 20.0)
+                            .count() as u32,
+                        pull,
                     });
                     self.say(format!("DIED: {m}"));
                 }
