@@ -89,6 +89,8 @@ pub struct Atmosphere {
     pub haze_night: [f32; 3],
     /// how far the haze colour follows the horizon colour (sunsets, weather)
     pub haze_follow: f32,
+    /// the same at night and dusk, when the air takes the sky's colour
+    pub haze_follow_night: f32,
     /// fog below this height (world y), thinning upwards by `fog_falloff` a metre
     pub fog_height: f32,
     pub fog_falloff: f32,
@@ -114,6 +116,7 @@ impl Default for Atmosphere {
             haze_day: [0.7; 3],
             haze_night: [0.1; 3],
             haze_follow: 1.0,
+            haze_follow_night: 1.0,
             fog_height: 0.0,
             fog_falloff: 0.2,
             fog_density: 0.0,

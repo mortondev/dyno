@@ -174,12 +174,16 @@ struct Params {
     bloom: [f32; 4],
     /// rgb: tint; w: saturation
     grade_tint: [f32; 4],
+    /// rgb: what shadows are multiplied by; w: how far greens are warmed
+    shadow_tint: [f32; 4],
+    /// rgb: what highlights are multiplied by; w: saturation of greens
+    highlight_tint: [f32; 4],
     /// contrast, knee, rolloff, exposure
     grade: [f32; 4],
 }
 
 const SHADER: &str = r#"
-struct P { inv_view_proj: mat4x4<f32>, cam: vec4<f32>, size: vec4<f32>, ao: vec4<f32>, bloom: vec4<f32>, grade_tint: vec4<f32>, grade: vec4<f32> };
+struct P { inv_view_proj: mat4x4<f32>, cam: vec4<f32>, size: vec4<f32>, ao: vec4<f32>, bloom: vec4<f32>, grade_tint: vec4<f32>, shadow_tint: vec4<f32>, highlight_tint: vec4<f32>, grade: vec4<f32> };
 @group(0) @binding(0) var<uniform> p: P;
 @group(0) @binding(1) var a_tex: texture_2d<f32>;
 @group(0) @binding(2) var samp: sampler;
@@ -306,6 +310,15 @@ fn box4(uv: vec2<f32>, texel: vec2<f32>) -> vec3<f32> {
 // and a soft roll-off of highlights instead of clipping.
 fn grade(c0: vec3<f32>) -> vec3<f32> {
   var c = c0 * p.grade.w * p.grade_tint.rgb;
+  // greens: warmed towards olive and calmed, so grass is not neon
+  let top = max(c.r, max(c.g, c.b));
+  let green = clamp((c.g - max(c.r, c.b)) / max(top, 0.0001) * 2.5, 0.0, 1.0);
+  c.r += (c.g - c.r) * green * p.shadow_tint.w;
+  let lg = dot(c, vec3<f32>(0.2126, 0.7152, 0.0722));
+  c = mix(vec3<f32>(lg), c, mix(1.0, p.highlight_tint.w, green));
+  // split toning: cool shadows, warm lights
+  c *= mix(p.shadow_tint.rgb, vec3<f32>(1.0), smoothstep(0.0, 0.42, lg));
+  c *= mix(vec3<f32>(1.0), p.highlight_tint.rgb, smoothstep(0.35, 1.0, lg));
   let l = dot(c, vec3<f32>(0.2126, 0.7152, 0.0722));
   c = mix(vec3<f32>(l), c, p.grade_tint.w);
   c = (c - 0.18) * p.grade.x + 0.18;
@@ -746,6 +759,18 @@ impl Post {
                 0.0,
             ],
             grade_tint: [env.tint[0], env.tint[1], env.tint[2], env.saturation],
+            shadow_tint: [
+                g.shadow_tint[0],
+                g.shadow_tint[1],
+                g.shadow_tint[2],
+                g.green_warm,
+            ],
+            highlight_tint: [
+                g.highlight_tint[0],
+                g.highlight_tint[1],
+                g.highlight_tint[2],
+                g.green_saturation,
+            ],
             grade: [env.contrast, g.knee, g.rolloff, env.exposure],
         };
         queue.write_buffer(&self.ubuf, 0, bytemuck::bytes_of(&params));
