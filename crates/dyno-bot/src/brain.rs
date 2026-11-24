@@ -488,7 +488,10 @@ impl Scripted {
         else {
             return false;
         };
-        if matches!(a.task, Some(Task::Fight { .. }) | Some(Task::Loot { .. }) | Some(Task::Rest { .. })) {
+        if matches!(
+            a.task,
+            Some(Task::Fight { .. }) | Some(Task::Loot { .. }) | Some(Task::Rest { .. })
+        ) {
             return false;
         }
         // the leader's fight: a creature beside them that was just hit
@@ -1591,9 +1594,7 @@ impl Scripted {
             .filter(|(ar, cp)| {
                 // by what stands there: the camp's band, not the kind's
                 let band = camp_levels(ar, cp);
-                band[0] <= lvl + 1
-                    && band[1] + 1 >= lvl
-                    && !needs_group(b, cp.creature)
+                band[0] <= lvl + 1 && band[1] + 1 >= lvl && !needs_group(b, cp.creature)
             })
             .map(|(_, cp)| b.rel2(cp.at))
             .filter(|p| !dangerous(b, *p))

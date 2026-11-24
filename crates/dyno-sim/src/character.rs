@@ -155,7 +155,11 @@ pub fn places_for(slot: Slot) -> Vec<usize> {
 /// weapon. The server equips by this and a bot judges upgrades by it, so
 /// the two agree (a bot that scored a buckler beside a two-handed axe
 /// swapped them for ever).
-pub fn equip_place(c: &Content, equip: &[Option<Stack>], slot: Slot) -> Option<(usize, Vec<usize>)> {
+pub fn equip_place(
+    c: &Content,
+    equip: &[Option<Stack>],
+    slot: Slot,
+) -> Option<(usize, Vec<usize>)> {
     let places = places_for(slot);
     let place = places
         .iter()

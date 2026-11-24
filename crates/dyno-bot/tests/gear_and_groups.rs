@@ -122,9 +122,11 @@ fn two_strangers_find_each_other_for_old_tusk() {
     ana.set(Task::talk(tusk.giver, vec![Deal::Accept(tusk.id)]));
     bo.set(Task::talk(tusk.giver, vec![Deal::Accept(tusk.id)]));
     assert!(
-        run_until(&mut [&mut ana, &mut bo], 150.0, |a| a
+        run_until(&mut [&mut ana, &mut bo], 150.0, |a| a.iter().all(|a| a
+            .body
+            .quests
             .iter()
-            .all(|a| a.body.quests.iter().any(|q| q.quest == tusk.id))),
+            .any(|q| q.quest == tusk.id))),
         "both take Old Tusk"
     );
     // the server tells each about the other
@@ -147,9 +149,7 @@ fn two_strangers_find_each_other_for_old_tusk() {
         bb.think(&mut bo);
         tick(&mut [&mut ana, &mut bo]);
         grouped |= ana.body.party.len() == 2;
-        let has_kill = |a: &Agent| {
-            a.quest_ready(tusk.id) || a.body.done.contains(&tusk.id)
-        };
+        let has_kill = |a: &Agent| a.quest_ready(tusk.id) || a.body.done.contains(&tusk.id);
         if has_kill(&ana) && has_kill(&bo) {
             killed = true;
             break;

@@ -564,8 +564,7 @@ impl Body {
             return None;
         }
         // where the server will put it, and what comes off for it
-        let (place, off) =
-            dyno_sim::character::equip_place(&self.content, &self.equip, g.slot)?;
+        let (place, off) = dyno_sim::character::equip_place(&self.content, &self.equip, g.slot)?;
         let mut e = self.equip.clone();
         for o in off {
             e[o] = None;
