@@ -1,0 +1,40 @@
+# The play camera's run (F5, docs/design/camera.md): through a door, under
+# a tree's crown, up stairs and along a cliff's edge, with the camera at its
+# default 9 m. Every frame's camera is logged; `camera check` fails on a pop
+# (a frame that moved it faster than the limit) or an eye in a wall.
+# Run by tools/drive/camera.sh on a fresh world whose operator is this
+# character (`yard` builds the course round it).
+
+yard
+camera record
+wait 1
+
+# --- 1. through the house: in at its south door, out at its north door ------
+walk-path 1 -4 1 -12 1 -19
+# --- 2. under the tree's crown, past its trunk ------------------------------
+walk-path 1 -24 0 -29
+# --- 3. up the stairs onto the cliff ----------------------------------------
+walk-path 1 -31 1 -40
+# --- 4. along the cliff's east edge -----------------------------------------
+walk-path 2.5 -42 3.2 -45 3.2 -57
+wait 0.5
+# --- 5. the camera swung out over the edge and back, looking up and down ----
+swing 100 20
+wait 0.5
+swing -200 -10
+wait 0.5
+swing 100 -10
+# --- 6. back along the edge, down the stairs, back through the door ---------
+walk-path 0 -55 1 -41 1 -31 1 -20 1 -12 1 -2
+shot camera-end
+# --- 7. along the house's east wall, a shoulder's width from it -------------
+walk-path 6.6 -5 6.6 -13
+wait 1
+
+camera check 60
+
+# --- 8. (set-up) back to the wall: the camera is squeezed to the head and
+# the character fades out of its way
+turn -90
+wait 1
+shot camera-fade

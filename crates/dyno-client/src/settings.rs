@@ -56,6 +56,12 @@ pub struct Settings {
     pub tips_seen: Vec<String>,
     /// each character's action bar: ability keys in its 12 slots ("" empty)
     pub bars: std::collections::BTreeMap<String, Vec<String>>,
+    /// how far behind the character the play camera sits, metres (0 first
+    /// person); a file from before it was saved reads the default
+    pub camera_zoom: f32,
+    /// auto-follow: moving swings the camera back behind the character
+    /// once the player has left it alone a few seconds (camera.rs)
+    pub camera_follow: bool,
 }
 
 impl Default for Settings {
@@ -85,6 +91,8 @@ impl Default for Settings {
             camera_shake: true,
             tips_seen: Vec::new(),
             bars: Default::default(),
+            camera_zoom: crate::camera::DEFAULT_ZOOM,
+            camera_follow: false,
         }
     }
 }

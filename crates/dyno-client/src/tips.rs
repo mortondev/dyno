@@ -436,6 +436,7 @@ mod pack_tests {
             "death.release",
             "menu.resume",
             "options.tips_again",
+            "options.camera_follow",
             "panels.sell_junk",
             "item.compare",
             "item.slot.mainhand",

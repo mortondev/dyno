@@ -8,6 +8,7 @@ pub mod atmos;
 pub mod audio;
 pub mod bench;
 pub mod cache;
+pub mod camera;
 pub mod clip;
 pub mod cover;
 pub mod critters;
