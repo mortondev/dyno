@@ -400,6 +400,42 @@ impl Life {
         self.counts.critters_ms = t1.elapsed().as_secs_f32() * 1e3;
     }
 
+    /// How long the block emitters round the camera take to turn up after
+    /// joining: frames of the ordinary little-by-little look until all
+    /// those a full look finds are found, and how many there are. (A
+    /// measurement for `dyno shot`; the state is left as after a join.)
+    pub fn join_frames(&mut self, s: &Scene, clock: f64, quality: u8) -> Option<(usize, usize)> {
+        if quality == 0 {
+            return None;
+        }
+        let data = data()?;
+        let mut sink = (Vec::new(), Vec::new(), Vec::new());
+        let mut run = |life: &mut Life, all: bool, t: f64| {
+            let mut out = Out {
+                boxes: &mut sink.0,
+                fx: &mut sink.1,
+                glow: &mut sink.2,
+            };
+            life.particles.scan_all = all;
+            life.frame(s, t, 0.016, quality, &mut out);
+            sink.0.clear();
+            sink.1.clear();
+            sink.2.clear();
+        };
+        // everything there is to find
+        run(self, false, clock);
+        run(self, true, clock);
+        let all = self.particles.found();
+        // and again from nothing, a frame at a time
+        self.particles = Particles::new(&data);
+        let mut frames = 0;
+        while self.particles.found() < all && frames < 6000 {
+            frames += 1;
+            run(self, false, clock + frames as f64 * 0.016);
+        }
+        Some((frames, all))
+    }
+
     /// Look at the whole neighbourhood now instead of a little each frame,
     /// and let the critters settle (for a still picture).
     pub fn settle(&mut self, s: &Scene, clock: f64, quality: u8) {

@@ -126,8 +126,10 @@ impl State {
         for (nid, at, phase) in npcs {
             let (x, z) = (h[0] + at[0], h[2] + at[2]);
             let y0 = h[1] + at[1];
+            // feet on ground, never on a tree's crown
             let free = |y: i32| {
                 w::is_solid(self.world.get(x, y - 1, z))
+                    && !w::is_leaves(self.world.get(x, y - 1, z))
                     && !w::is_solid(self.world.get(x, y, z))
                     && self.world.get(x, y, z) != w::WATER
                     && !w::is_solid(self.world.get(x, y + 1, z))
