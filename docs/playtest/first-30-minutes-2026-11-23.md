@@ -31,11 +31,72 @@ type, and what was changed for them.
 
 ## Before and after, per class
 
-BEATS_CLASS
+| class (bots) | | first kill | out of town | gear reward | second ability | level 2 | level 3 | level 4 | level at end | quests | longest gap | deaths/h | travel % | money |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Hunter (2) | before | 2:48 | 0:35 | 17:09 | n/m | 6:05 | 18:17 | - | 3.5 | 9 | 2:22 | 2.0 | 86% | 595.5 |
+|  | after | 1:23 | 1:30 | 3:56 | 2:57 | 2:32 | 10:39 | 20:38 | 4 | 13.5 | 3:40 | 4.0 | 78% | 1091.5 |
+|  | after, walled town | 2:22 | 1:05 | 6:34 | 4:37 | 3:54 | 11:15 | - | 3 | 8 | 9:20 | 1.0 | 76% | 603.5 |
+| Mage (2) | before | 3:51 | 0:25 | 16:21 | n/m | 8:31 | - | - | 2.5 | 2 | 2:39 | 4.6 | 84% | 155 |
+|  | after | 1:09 | 1:10 | 3:18 | 2:49 | 2:38 | 8:04 | - | 3.5 | 5 | 1:11 | 15.0 | 29% | 469 |
+|  | after, walled town | 1:39 | 1:30 | 4:25 | 4:13 | 3:41 | - | - | 3 | 3.5 | 1:00 | 6.3 | 18% | 268.5 |
+| Paladin (2) | before | 3:26 | 0:20 | 14:32 | n/m | 9:14 | 15:41 | - | 3 | 2 | 3:43 | 17.0 | 78% | 143.5 |
+|  | after | 0:22 | 0:25 | 2:18 | 1:15 | 1:58 | 7:42 | 18:22 | 4 | 2 | 2:56 | 23.0 | 22% | 210.5 |
+|  | after, walled town | 0:38 | 0:35 | 3:33 | 2:39 | 3:00 | 8:29 | 19:45 | 4 | 2 | 1:44 | 13.0 | 12% | 173 |
+| Priest (2) | before | 4:56 | 0:30 | 19:37 | n/m | 7:20 | 19:37 | 29:19 | 4 | 10.5 | 3:29 | 0.0 | 85% | 749.5 |
+|  | after | 1:32 | 1:00 | 4:56 | 3:44 | 3:17 | 8:55 | 15:09 | 4.5 | 17 | 2:26 | 3.0 | 66% | 1810 |
+|  | after, walled town | 1:24 | 1:10 | 5:30 | 3:29 | 3:08 | 9:21 | 22:30 | 4 | 14.5 | 4:13 | 3.0 | 77% | 1632.5 |
+| Rogue (2) | before | 2:08 | 0:35 | 14:02 | n/m | 4:13 | 14:05 | 29:31 | 4 | 11.5 | 2:57 | 0.0 | 88% | 794 |
+|  | after | 1:14 | 1:10 | 3:32 | 6:04 | 2:32 | 9:17 | 22:51 | 4.5 | 13 | 2:30 | 1.0 | 71% | 1412 |
+|  | after, walled town | 1:23 | 1:10 | 4:05 | 1:33 | 2:48 | 10:10 | - | 3.5 | 12.5 | 7:57 | 1.0 | 64% | 1207 |
+| Warrior (2) | before | 1:21 | 0:45 | 12:53 | n/m | 2:56 | 12:53 | 21:36 | 4 | 12.5 | 3:06 | 5.0 | 81% | 1155 |
+|  | after | 1:04 | 1:00 | 4:49 | 2:52 | 2:14 | 8:15 | 20:20 | 4 | 14 | 5:13 | 1.0 | 71% | 1721 |
+|  | after, walled town | 1:14 | 1:10 | 4:28 | 3:38 | 3:00 | 9:44 | 20:15 | 4 | 13.5 | 2:50 | 3.0 | 71% | 1695.5 |
+| all (12) | before | 2:25 | 0:30 | 15:34 | n/m | 5:32 | 15:52 | 29:26 | 4 | 10 | 3:27 | 4.8 | 84% | 660.5 |
+|  | after | 1:10 | 1:00 | 3:53 | 2:43 | 2:25 | 8:28 | 16:51 | 4 | 12.5 | 2:54 | 7.4 | 58% | 1091.5 |
+|  | after, walled town | 1:14 | 1:10 | 4:15 | 3:38 | 3:04 | 9:47 | 18:31 | 4 | 8.5 | 3:24 | 4.4 | 55% | 620 |
 
 ## Before and after, per player type
 
-BEATS_BRAIN
+| brain (bots) | | first kill | out of town | gear reward | second ability | level 2 | level 3 | level 4 | level at end | quests | longest gap | deaths/h | travel % | money |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| casual (1) | before | 2:27 | 0:30 | - | n/m | 5:43 | - | - | 2 | 2 | 1:36 | 0.0 | 75% | 60 |
+|  | after | 1:55 | 1:50 | 4:33 | 3:25 | 3:14 | 9:34 | - | 3 | 8 | 0:58 | 0.0 | 52% | 593 |
+|  | after, walled town | 2:31 | 2:20 | 5:04 | 4:23 | 3:35 | - | - | 2 | 5 | 0:59 | 0.0 | 32% | 367 |
+| completionist (4) | before | 2:19 | 0:30 | 14:54 | n/m | 4:22 | 14:54 | 25:56 | 4 | 10.5 | 2:52 | 2.5 | 84% | 906 |
+|  | after | 1:08 | 1:00 | 4:49 | 2:52 | 2:22 | 8:15 | 17:09 | 4.5 | 15.5 | 2:54 | 2.0 | 73% | 1858.5 |
+|  | after, walled town | 1:25 | 1:10 | 4:28 | 3:38 | 3:00 | 10:03 | 20:15 | 4 | 14 | 3:29 | 3.5 | 75% | 1695.5 |
+| explorer (1) | before | 4:22 | 0:40 | 22:02 | n/m | 8:21 | 20:41 | - | 3 | 8 | 2:11 | 4.0 | 85% | 563 |
+|  | after | 1:34 | 1:50 | 3:58 | 3:27 | 2:47 | 9:34 | 16:23 | 4 | 16 | 1:56 | 4.0 | 78% | 1340 |
+|  | after, walled town | 3:32 | 1:00 | 9:04 | 6:44 | 5:38 | 12:28 | - | 3 | 8 | 4:13 | 2.0 | 83% | 543 |
+| grinder (3) | before | 4:29 | 0:20 | 15:34 | n/m | 11:01 | 16:37 | - | 3 | 2 | 3:41 | 13.3 | 81% | 167 |
+|  | after | 0:22 | 0:30 | 2:03 | 1:38 | 2:02 | 7:35 | 16:51 | 4 | 2 | 2:22 | 22.0 | 22% | 272 |
+|  | after, walled town | 0:47 | 0:40 | 3:33 | 4:02 | 3:33 | 8:39 | 18:41 | 4 | 2 | 1:02 | 11.3 | 13% | 170 |
+| party (2) | before | 1:12 | 0:35 | 12:16 | n/m | 3:48 | 14:06 | 29:44 | 4 | 11.5 | 3:12 | 0.0 | 88% | 699 |
+|  | after | 1:14 | 1:10 | 3:53 | 6:32 | 2:35 | 11:21 | 27:25 | 4 | 10 | 4:25 | 2.0 | 72% | 736 |
+|  | after, walled town | 1:14 | 1:10 | 4:01 | 1:53 | 2:34 | 10:01 | - | 3 | 8.5 | 13:30 | 0.0 | 60% | 620 |
+| social (1) | before | 1:11 | 0:30 | 19:15 | n/m | 5:20 | 19:15 | 29:29 | 4 | 11 | 3:27 | 0.0 | 83% | 806 |
+|  | after | 1:08 | 1:00 | 3:46 | 2:59 | 2:47 | 8:10 | 15:14 | 4 | 15 | 3:26 | 2.0 | 59% | 1635 |
+|  | after, walled town | 1:14 | 1:10 | 6:00 | 2:56 | 2:33 | 8:23 | 17:51 | 4 | 16 | 3:27 | 0.0 | 76% | 1646 |
+| all (12) | before | 2:25 | 0:30 | 15:34 | n/m | 5:32 | 15:52 | 29:26 | 4 | 10 | 3:27 | 4.8 | 84% | 660.5 |
+|  | after | 1:10 | 1:00 | 3:53 | 2:43 | 2:25 | 8:28 | 16:51 | 4 | 12.5 | 2:54 | 7.4 | 58% | 1091.5 |
+|  | after, walled town | 1:14 | 1:10 | 4:15 | 3:38 | 3:04 | 9:47 | 18:31 | 4 | 8.5 | 3:24 | 4.4 | 55% | 620 |
+
+"Before" and "after" are on the same world (the 2 km world before the
+town wall), so the difference is this branch. "After, walled town" is the
+branch after merging world round 2 (layout v3: a wall round Hearthstead with
+gates north, south and east, 78 m from the hearth), one run. It was made
+while the test suite was compiling on the same machine, and one party bot
+stood idle for 13 minutes in it, so read it as "the walled town did not
+break the opening", not as a third measurement. "n/m": the before run's bot
+build did not record ability times. Deaths are dominated by the three
+grinder bots, which never stop pulling (13, 22 and 11 an hour against 2 to
+3.5 for completionists); kill time and deaths per class are the class-combat
+lane's to balance.
+
+Server tick with 12 bots (`DYNO_TICK_STATS=1`): 0.8 ms mean on the world
+before the wall. On the walled world it read 5.6 ms mean with a worst tick
+of 1.2 s, with the test suite compiling beside it: that needs measuring
+again on a quiet machine before anything is concluded.
 
 Targets: first kill within 1:00, level 2 at about 5:00, level 3 at about
 12:00, level 4 to 5 at 30:00, a gear upgrade by about 10:00, something
