@@ -146,14 +146,36 @@ section.
 
 | # | Goal | Pass line | Result |
 |---|---|---|---|
-| 1 | Server-authoritative movement | Inputs with sequence numbers; the server simulates with `dyno_sim::movement`; a pose from a player in play is ignored; steps sent 10× faster than real time move no faster than running; holding jump never rises more than a jump; the existing movement tests adapted and green; tick cost with 40 players well inside 50 ms | |
-| 2 | Prediction and reconciliation | 150 ms latency, 30 ms jitter, 2% loss: zero snaps in a 10-minute scripted session (walk, run, sprint, jump, stairs, a ledge, a doorway, the /feel yard) | |
-| 3 | Remote smoothing | Same line: the watched runner's drawn speed on a straight run is within 0.5 m/s RMS of its true speed (before: measured), with no frame off by more than 2 m/s outside loss stalls | |
-| 4 | Pose rate | Bandwidth per player with 40 in one area measured before and after; under 64 KB/s received | |
-| 5 | Everything that moves players | Shard moves, cluster relays (cluster tests green), rides, knockback, recall and teleports, anti-cheat rubber-band, bots (their tests, including the real-time ones), `dyno drive` (`tools/drive/run.sh`) | |
-| 6 | Protocol | Still 26; a copy of the live world's saves loads unchanged | |
-| 7 | Gates | fmt, clippy `-D warnings`, `cargo test --workspace`, `check-client.sh` | |
+| 1 | Server-authoritative movement | Inputs with sequence numbers; the server simulates with `dyno_sim::movement`; a pose from a player in play is ignored; steps sent 10× faster than real time move no faster than running; holding jump never rises more than a jump; the existing movement tests adapted and green; tick cost with 40 players well inside 50 ms | **Pass.** `cheating_movement_is_impossible` (the old test, adapted) and 8 server unit tests green. 40 in one area: tick mean 0.46 ms, p95 0.75 ms, worst 4.6 ms (before 0.38 / 0.75 / 4.6); a 40-bot swarm: mean 1.0 ms, p95 2.5 ms, worst 19.7 ms. Allowance: one 1 s burst after a 1 s silence (see above). |
+| 2 | Prediction and reconciliation | 150 ms latency, 30 ms jitter, 2% loss: zero snaps in a 10-minute scripted session (walk, run, sprint, jump, stairs, a ledge, a doorway, the /feel yard) | **Pass.** Real client, `tools/netcode/session.sh`, 14 laps in 632 s: 0 snapped, 0 eased, worst correction 0.00 m, 10,331 answers, 28 teleports. Harness, 600 s, 32 laps: 0 snapped, 0 eased. Also 0 at a 300 ms round trip. |
+| 3 | Remote smoothing | Same line: the watched runner's drawn speed on a straight run is within 0.5 m/s RMS of its true speed (before: measured), with no frame off by more than 2 m/s outside loss stalls | **Pass on the RMS line; the second clause holds but for one frame.** 600 s: 0.477 m/s RMS over every frame (before 7.17); 0.118 on frames drawn from the buffer, of which 1 in 8,151 was off by over 2 m/s (5.7 m/s, at the end of a long stall). Walking creatures and townsfolk: 0.126 m/s RMS against their stamped speed; frame-to-frame change 0.19 m/s (before 0.43). Clean line (no loss): 0.033 m/s (before 3.38). Deviation: the delay grows past 100 ms on a stalling line. |
+| 4 | Pose rate | Bandwidth per player with 40 in one area measured before and after; under 64 KB/s received | **Pass, at 20 Hz** (30 Hz not needed: 0.033 m/s on a clean line). Received 20.8 KB/s a player (before 17.2: stamps, 20 Hz creature moves, `Moved`); sent 0.6 KB/s (before 0.33). |
+| 5 | Everything that moves players | Shard moves, cluster relays (cluster tests green), rides, knockback, recall and teleports, anti-cheat rubber-band, bots (their tests, including the real-time ones), `dyno drive` (`tools/drive/run.sh`) | **Pass.** Cluster tests green, with a new one running through a move between instances (no snap); the shard and crowding protocol tests green; rides (bots' `discovery_pays_once_and_rides_need_it`), `/feel`, `/spawn` (28 teleports in the session); `knockback_moves_the_body_on_the_server`; every `dyno-bot` test; a 40-bot swarm; `tools/drive/run.sh` PASS (0 snaps). |
+| 6 | Protocol | Still 26; a copy of the live world's saves loads unchanged | **Pass.** 26. A copy of `~/dyno-world` loaded without a rebuild (layout v6), a stepping bot moved on it and was saved; the live folder untouched. |
+| 7 | Gates | fmt, clippy `-D warnings`, `cargo test --workspace`, `check-client.sh` | See the hand-in. |
 
 ## Measurements
 
-(filled in as measured)
+**The line** is the conditioner at `lat=150,jitter=30,loss=2` (150 ms round
+trip). The brief's "150 ms of latency" could mean one way; at
+`lat=300` (120 s): prediction still 0 corrections; the runner 0.90 m/s RMS
+(before 10.8); creatures' frame-to-frame change 0.91 m/s against 0.69 as
+before: on that line a lost packet holds the line for 420 ms, longer than
+the earned delay covers, and they ease and catch up visibly.
+
+**Before** is the old path run in the same harness (`DYNO_NETCODE_MODE=pose`:
+poses 20 times a second, trusted, drawn between the last two by arrival).
+
+| Measure | Before | After |
+|---|---|---|
+| Snaps, 10 minutes on the line (real client) | (corrections were teleports from failed checks) | 0 (0 eased) |
+| Runner drawn speed, RMS error, every frame | 7.17 m/s (worst 64) | 0.477 m/s (worst 6.1) |
+| Runner, frames drawn from the buffer | | 0.118 m/s |
+| Runner, clean line (150/30/0) | 3.38 m/s | 0.033 m/s |
+| Creatures and townsfolk, frame-to-frame speed change | 0.43 m/s | 0.19 m/s |
+| Received a player, 40 in one area | 17.2 KB/s | 20.8 KB/s |
+| Sent a player | 0.33 KB/s | 0.61 KB/s |
+| Tick, 40 in one area (mean / p95 / worst) | 0.38 / 0.75 / 4.6 ms | 0.46 / 0.75 / 4.6 ms |
+
+Received after, by kind (40 in one area): Poses 18.3 KB/s, EntityMoves
+1.9 KB/s (20 Hz, was 10 Hz), Moved 0.55 KB/s.
