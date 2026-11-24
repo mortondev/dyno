@@ -28,6 +28,117 @@ use tungstenite::{Message, WebSocket};
 
 type Ws = WebSocket<MaybeTlsStream<TcpStream>>;
 
+/// A network conditioner for testing movement (docs/design/netcode.md): it
+/// holds back what this client sends and receives as a slow, jittery,
+/// lossy line would. Set by `DYNO_NET_SIM`, e.g. `lat=150,jitter=30,loss=2`
+/// (or [`JoinOptions::net_sim`]).
+///
+/// The game runs over TCP (WebSocket), so nothing is lost and nothing
+/// overtakes: a lost packet is sent again after a retransmission timeout,
+/// and everything behind it waits ([`NetSim::RETRY_MS`]).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct NetSim {
+    /// round trip added (ms): half each way
+    pub latency_ms: f32,
+    /// up to this much more each way (ms), at random
+    pub jitter_ms: f32,
+    /// the share of packets lost each way (0 to 1)
+    pub loss: f32,
+}
+
+impl NetSim {
+    /// A lost packet comes again after this (ms) at the least: Linux's
+    /// smallest retransmission timeout. Longer on a slow line: the round
+    /// trip and four times its jitter, as TCP reckons it.
+    pub const RETRY_MS: f32 = 200.0;
+
+    /// `lat=150,jitter=30,loss=2` (milliseconds, milliseconds, percent).
+    pub fn parse(s: &str) -> Option<NetSim> {
+        let mut n = NetSim::default();
+        for part in s.split(',').map(str::trim).filter(|p| !p.is_empty()) {
+            let (k, v) = part.split_once('=')?;
+            let v: f32 = v.trim().trim_end_matches(['%', 's', 'm']).parse().ok()?;
+            match k.trim() {
+                "lat" | "latency" => n.latency_ms = v.max(0.0),
+                "jitter" => n.jitter_ms = v.max(0.0),
+                "loss" => n.loss = (v / 100.0).clamp(0.0, 1.0),
+                _ => return None,
+            }
+        }
+        Some(n)
+    }
+
+    pub fn from_env() -> Option<NetSim> {
+        let v = std::env::var("DYNO_NET_SIM").ok()?;
+        let n = NetSim::parse(&v);
+        if n.is_none() {
+            eprintln!("DYNO_NET_SIM: expected lat=MS,jitter=MS,loss=PERCENT, not '{v}'");
+        }
+        n
+    }
+
+    fn retry_ms(&self) -> f32 {
+        (self.latency_ms + 4.0 * self.jitter_ms).max(Self::RETRY_MS)
+    }
+}
+
+/// One direction of a conditioned line: what was sent, and when it arrives.
+struct Lane<T> {
+    sim: NetSim,
+    queue: std::collections::VecDeque<(Instant, T)>,
+    /// when the last packet arrives (later ones never overtake it)
+    last_due: Instant,
+    /// when the last packet left: what leaves within a few milliseconds
+    /// travels in the same packet
+    last_sent: Instant,
+    rng: u64,
+}
+
+impl<T> Lane<T> {
+    fn new(sim: NetSim, seed: u64) -> Lane<T> {
+        let now = Instant::now();
+        Lane {
+            sim,
+            queue: Default::default(),
+            last_due: now,
+            last_sent: now - Duration::from_secs(1),
+            rng: seed | 1,
+        }
+    }
+
+    fn random(&mut self) -> f32 {
+        // xorshift64*
+        self.rng ^= self.rng >> 12;
+        self.rng ^= self.rng << 25;
+        self.rng ^= self.rng >> 27;
+        (self.rng.wrapping_mul(0x2545_f491_4f6c_dd1d) >> 40) as f32 / (1u64 << 24) as f32
+    }
+
+    fn push(&mut self, now: Instant, item: T) {
+        let same_packet = now.duration_since(self.last_sent) < Duration::from_millis(3);
+        self.last_sent = now;
+        let due = if same_packet {
+            self.last_due
+        } else {
+            let mut ms = self.sim.latency_ms * 0.5 + self.random() * self.sim.jitter_ms;
+            if self.random() < self.sim.loss {
+                ms += self.sim.retry_ms();
+            }
+            (now + Duration::from_secs_f32(ms / 1000.0)).max(self.last_due)
+        };
+        self.last_due = due;
+        self.queue.push_back((due, item));
+    }
+
+    fn pop(&mut self, now: Instant) -> Option<T> {
+        if self.queue.front().is_some_and(|(due, _)| *due <= now) {
+            self.queue.pop_front().map(|(_, t)| t)
+        } else {
+            None
+        }
+    }
+}
+
 pub enum NetEvent {
     Msg(ServerMsg),
     /// Sections that arrived, decoded and packed on the network thread
@@ -165,6 +276,8 @@ pub struct JoinOptions {
     /// stream the world around this point (default: the spawn): tools
     /// (`dyno shot`), for an observer or a player looking from elsewhere
     pub view_at: Option<[f32; 3]>,
+    /// hold play's messages back like a poor line (default: `DYNO_NET_SIM`)
+    pub net_sim: Option<NetSim>,
 }
 
 /// Pack files on their way from the server: assembles chunks, checks
@@ -476,7 +589,9 @@ pub fn connect_with(
         progress,
         view_at,
         prepare_sections,
+        net_sim,
     } = opts;
+    let net_sim = net_sim.or_else(NetSim::from_env);
     let mut fetch = Fetch::new(cache.unwrap_or_default(), progress.unwrap_or_default());
     let _ = rustls::crypto::ring::default_provider().install_default();
     let url = proto::server_url(input)?;
@@ -659,7 +774,11 @@ pub fn connect_with(
     fetch.rules_changed = false;
     fetch.cache.save_manifest(&manifest);
     let downloaded = fetch.progress.downloaded.load(Ordering::Relaxed);
-    set_timeout(&mut ws, Duration::from_millis(10));
+    // (a conditioned line wakes often, so what it holds back leaves on time)
+    set_timeout(
+        &mut ws,
+        Duration::from_millis(if net_sim.is_some() { 1 } else { 10 }),
+    );
     let (tx, out_rx) = channel::<ClientMsg>();
     let (in_tx, rx) = channel::<NetEvent>();
     for m in backlog {
@@ -668,7 +787,14 @@ pub fn connect_with(
     std::thread::Builder::new()
         .name("net".into())
         .spawn(move || {
-            let reason = pump(&mut ws, out_rx, &in_tx, &mut fetch, prepare_sections);
+            let reason = pump(
+                &mut ws,
+                out_rx,
+                &in_tx,
+                &mut fetch,
+                prepare_sections,
+                net_sim,
+            );
             let _ = ws.close(None);
             let _ = ws.flush();
             let _ = in_tx.send(NetEvent::Closed(reason));
@@ -700,9 +826,15 @@ fn pump(
     in_tx: &Sender<NetEvent>,
     fetch: &mut Fetch,
     prepare: bool,
+    sim: Option<NetSim>,
 ) -> String {
     // Keepalive: a minimised window stops drawing and sends nothing, so ping the server.
     let mut last_ping = Instant::now();
+    let seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(1, |d| d.as_nanos() as u64);
+    let mut sim_out: Option<Lane<ClientMsg>> = sim.map(|s| Lane::new(s, seed ^ 0x9e37_79b9));
+    let mut sim_in: Option<Lane<NetEvent>> = sim.map(|s| Lane::new(s, seed ^ 0x7f4a_7c15));
     loop {
         if last_ping.elapsed() >= Duration::from_secs(5) {
             last_ping = Instant::now();
@@ -722,6 +854,15 @@ fn pump(
                 Ok(m) => out.push(m),
                 Err(std::sync::mpsc::TryRecvError::Empty) => break,
                 Err(std::sync::mpsc::TryRecvError::Disconnected) => return "left the game".into(),
+            }
+        }
+        if let Some(lane) = sim_out.as_mut() {
+            let now = Instant::now();
+            for m in out.drain(..) {
+                lane.push(now, m);
+            }
+            while let Some(m) = lane.pop(now) {
+                out.push(m);
             }
         }
         for m in out {
@@ -771,10 +912,23 @@ fn pump(
             }
             Err(e) => return format!("Connection lost: {e}"),
         };
-        if let Some(ev) = event
-            && in_tx.send(ev).is_err()
-        {
-            return "left the game".into();
+        let mut arrived = Vec::new();
+        match sim_in.as_mut() {
+            Some(lane) => {
+                let now = Instant::now();
+                if let Some(ev) = event {
+                    lane.push(now, ev);
+                }
+                while let Some(ev) = lane.pop(now) {
+                    arrived.push(ev);
+                }
+            }
+            None => arrived.extend(event),
+        }
+        for ev in arrived {
+            if in_tx.send(ev).is_err() {
+                return "left the game".into();
+            }
         }
     }
 }
