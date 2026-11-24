@@ -87,16 +87,28 @@ _named(f"{KEY}_cocoons", _cocoons)
 # Section helpers
 
 
+def curtain(v, cells, top, drops):
+    """Silk hung from a solid run above (a rail or a limb): for each (x, z)
+    cell, a column of cloth `drops[i]` long under `top`. Every cloth cell has
+    a solid block straight above it, so the cloth rule draws flat cubes and
+    never a slanted ribbon; the ragged lengths and gaps read as torn web."""
+    for (x, z), n in zip(cells, drops):
+        for k in range(1, n + 1):
+            if v.get(x, top - k, z) is None:
+                v.set(x, top - k, z, "white")
+            else:
+                break
+
+
 def _root_web():
-    """The web sheet cut down to sit low between two roots: the same
-    orthogonal lattice (full columns, full rows, one plane), 7 x 4 x 1."""
+    """A web strung across the gap between two roots: two dead posts, a rail,
+    and torn silk hanging from it to the ground. 7 x 4 x 1."""
     v = Vol("prop")
     for x in (-3, 3):
         v.col(x, 0, 0, 3, "log")
     for x in range(-2, 3):
-        for y in range(0, 4):
-            if x % 2 == 0 or y % 2 == 1:
-                v.set(x, y, 0, "white")
+        v.set(x, 3, 0, "log")
+    curtain(v, [(x, 0) for x in range(-2, 3)], 3, [2, 0, 3, 1, 2])
     return v
 
 
@@ -176,6 +188,12 @@ def hollow_oak_tree():
                     hollow = y <= 5 and d <= min(r - 2.4, 3.2)
                     v.set(x + ox, y, z + oz, "air" if hollow else "log")
 
+    # moss on every exposed step of the flared foot: a log with open sky
+    # above draws as a sawn post, so the steps carry a mossy cap
+    for (x, y, z), b in list(v.c.items()):
+        if b == "log" and y < 10 and (x, y + 1, z) not in v.c:
+            v.set(x, y + 1, z, "leaves")
+
     # great roots: straight axis-aligned runs (one turns a corner) so every
     # log lies as a beam with bark on top. A log never stands on a log (that
     # draws a sawn post); near the trunk the root carries a cap of moss, two
@@ -183,7 +201,7 @@ def hollow_oak_tree():
     roots = [
         ([(5, 4), (5, 14)], (1, 0)),               # SE, flanks the door
         ([(-5, 4), (-5, 14)], (-1, 0)),            # SW, flanks the door
-        ([(5, 3), (11, 3), (11, 11)], (0, 1)),     # E, turning south
+        ([(5, 3), (11, 3)], (0, 1)),               # E, south (clear of the trail)
         ([(-5, 3), (-11, 3), (-11, 12)], (0, 1)),  # W, turning south
         ([(5, -4), (16, -4)], (0, -1)),            # E, north
         ([(-5, -4), (-15, -4)], (0, -1)),          # W, north
@@ -224,10 +242,10 @@ def hollow_oak_tree():
 
     # web nests: the shared web sheet (an orthogonal lattice in one plane)
     # strung across each gap between a root pair, its posts on the roots
-    for (x, z, rot) in ((9, 8, 0), (-9, 8, 0), (10, -1, 1), (-10, -1, 1), (0, -10, 0)):
+    for (x, z, rot) in ((-9, 8, 0), (10, -1, 1), (-10, -1, 1), (0, -10, 0)):
         v.merge(_root_web(), at=(x, 0, z), rot=rot)
     # cocoons and bones at the nests
-    for (x, z) in ((10, 1), (8, 10), (9, 11), (-8, 10), (-10, -1), (12, 0), (0, -11), (2, -12)):
+    for (x, z) in ((-8, 10), (-12, 0), (11, 1), (12, -2), (0, -12), (2, -13)):
         if v.get(x, 0, z) is None:
             v.set(x, -1, z, "dirt")
             v.col(x, z, 0, 1 if (x + z) % 2 else 0, "white")
@@ -259,15 +277,10 @@ def hollow_oak_tree():
         blob(v, ex, ey + 1, ez, 3.6, 2.0, "leaves", salt)
         mx, my, mz = cells[len(cells) // 2 + 1]
         blob(v, mx, my + 2, mz, 2.4, 1.4, "leaves", salt + 10)
-    # silk hung under the low limbs: the web sheet's lattice in the limb's
-    # own plane, from the trunk out (full columns and rows, no steps)
-    for cells in (east, west):
-        y0 = cells[0][1]
-        for i, (x, _, z) in enumerate(cells[:7]):
-            for j in range(1, 5):
-                y = y0 - 5 + j
-                if (i % 2 == 0 or j % 2 == 0) and v.get(x, y, z) is None:
-                    v.set(x, y, z, "white")
+    # silk hung under the low limbs: torn curtains from the limb itself
+    for cells, drops in ((east, [0, 0, 3, 1, 4, 2, 0, 3]), (west, [0, 0, 2, 4, 1, 3, 2])):
+        for (x, y, z), n in zip(cells, drops):
+            curtain(v, [(x, z)], y, [n])
 
     # upper limbs (4-connected, one log thick), each with leaf clumps
     limbs = [(1, 0.25, 13), (-1, 0.45, 14), (0.35, -1, 15), (-0.45, 1, 14), (0.85, 0.9, 16), (-0.9, -0.8, 16),
