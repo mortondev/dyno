@@ -1030,25 +1030,35 @@
    "name": "Miner's Rest",
    "radius": 26,
    "pad": {
-    "radius": [26, 26]
+    "radius": [26, 26],
+    "blend": 12
    },
+   "plaza": {"radius": 16, "surface": {"cobble": 2, "dirt": 3, "stone": 2}},
    "stamps": [
+    {"stamp": "ridge_crag_wall", "at": [27, -2]},
+    {"stamp": "ridge_falls", "at": [22, 9]},
+    {"stamp": "ridge_ore_chute", "at": [23, -3]},
+    {"stamp": "ridge_winch_tower", "at": [28, -13], "dy": 13},
     {"stamp": "miners_lodge", "at": [-11, -15]},
     {"stamp": "hut", "at": [-15, 5]},
     {"stamp": "tent_white", "at": [11, 6], "rot": 2},
-    {"stamp": "ore_cart", "at": [14, -6]},
-    {"stamp": "falls", "at": [16, 22], "rot": 2},
-    {"stamp": "rail_track", "at": [14, 5]},
+    {"stamp": "rail_track", "at": [13, -3]},
+    {"stamp": "ore_cart", "at": [15, -8]},
     {"stamp": "ore_cart", "at": [-4, -6]},
     {"stamp": "brook", "at": [-8, 15]},
-    {"stamp": "mine_head", "at": [19, -14]},
     {"stamp": "banner_pole_red", "at": [-3, 9]},
     {"stamp": "campfire", "at": [2, 7]},
     {"stamp": "fence_run", "at": [-18, 20]},
     {"stamp": "inn_sign", "at": [-3, -9]},
     {"stamp": "signpost", "at": [-6, 5]},
     {"stamp": "lamp_post", "at": [6, 3]},
-    {"stamp": "log_pile", "at": [16, -4], "rot": 1}
+    {"stamp": "well", "at": [0, 11]},
+    {"stamp": "stall_yellow", "at": [3, -18]},
+    {"stamp": "cart", "at": [6, -22]},
+    {"stamp": "log_pile", "at": [-22, 6], "rot": 1},
+    {"stamp": "ridge_rail_spur", "at": [25, -22], "rot": 1, "fit": "ground"},
+    {"stamp": "ridge_rail_spur", "at": [34, -34], "rot": 1, "fit": "ground"},
+    {"stamp": "ridge_rail_spur", "at": [43, -46], "rot": 1, "fit": "ground"}
    ],
    "was": {
     "at": [129, 9],
@@ -1063,8 +1073,12 @@
    "name": "The Ridge Cut",
    "radius": 12,
    "stamps": [
-    {"stamp": "signpost", "at": [5, 6], "fit": "ground"},
-    {"stamp": "ore_outcrop", "at": [-7, -7], "fit": "ground"}
+    {"stamp": "ridge_rock_cut", "at": [0, 0], "fit": "float"},
+    {"stamp": "ridge_lookout", "at": [-8, -4], "fit": "ground"},
+    {"stamp": "cairn", "at": [-12, 1], "fit": "ground"},
+    {"stamp": "signpost", "at": [-6, 16], "fit": "ground"},
+    {"stamp": "lamp_post", "at": [-2, 9], "fit": "ground"},
+    {"stamp": "lamp_post", "at": [7, -6], "fit": "ground"}
    ],
    "was": {
     "at": [145, -5],
@@ -1083,18 +1097,22 @@
     "surface": {"cobble": 2, "dirt": 3, "stone": 2}
    },
    "stamps": [
+    {"stamp": "ridge_cliff_face", "at": [12, -3]},
     {"stamp": "hollow_mines", "at": [11, -3]},
     {"stamp": "mine_portal", "at": [12, -3]},
+    {"stamp": "ridge_mine_head", "at": [16, 19], "rot": 3, "dy": 11},
+    {"stamp": "ridge_adit_brazier", "at": [11, -10]},
+    {"stamp": "ridge_adit_brazier", "at": [11, 4]},
     {"stamp": "rail_track", "at": [-6, -3]},
-    {"stamp": "mine_head", "at": [1, 10]},
     {"stamp": "miners_hut", "at": [-10, -13]},
-    {"stamp": "miners_hut", "at": [12, 13], "rot": 3},
-    {"stamp": "ore_pile", "at": [0, -10]},
-    {"stamp": "ore_pile", "at": [-13, 0], "rot": 1},
-    {"stamp": "banner_pole_red", "at": [9, -9]},
-    {"stamp": "banner_pole_red", "at": [9, 3]},
-    {"stamp": "ore_cart", "at": [-4, 3]},
-    {"stamp": "lamp_post", "at": [6, 1]},
+    {"stamp": "miners_hut", "at": [-22, -4], "rot": 3},
+    {"stamp": "ridge_ore_pile", "at": [-2, -12]},
+    {"stamp": "ridge_ore_pile", "at": [-4, 13], "rot": 1},
+    {"stamp": "ridge_cart_wreck", "at": [-6, 9], "rot": 1},
+    {"stamp": "ridge_barricade", "at": [0, 1]},
+    {"stamp": "ridge_intruders_camp", "at": [-11, 18]},
+    {"stamp": "banner_pole_red", "at": [5, 11]},
+    {"stamp": "ore_cart", "at": [-8, -8]},
     {"stamp": "lamp_post", "at": [-6, -7]},
     {"stamp": "lamp_post", "at": [-9, 9]}
    ],
@@ -1103,6 +1121,101 @@
     "radius": 12
    },
    "trees": []
+  },
+  {
+   "key": "ridge_wreck",
+   "kind": "wayside",
+   "at": [700, -50],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ridge_cart_wreck", "at": [-6, 2], "fit": "ground"},
+    {"stamp": "ridge_rail_spur", "at": [-5, -8], "rot": 1, "fit": "ground"},
+    {"stamp": "ridge_rail_spur", "at": [9, 12], "rot": 1, "fit": "ground"},
+    {"stamp": "ridge_rail_spur", "at": [12, -4], "rot": 1, "fit": "ground"},
+    {"stamp": "ridge_rail_spur", "at": [17, -19], "rot": 1, "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ridge_upper_adit",
+   "kind": "site",
+   "at": [775, -150],
+   "name": "The Old Upper Adit",
+   "radius": 12,
+   "pad": {
+    "radius": [9, 9],
+    "blend": 6,
+    "surface": {"dirt": 3, "stone": 2, "cobble": 1}
+   },
+   "stamps": [
+    {"stamp": "ridge_boarded_adit", "at": [5, 0]},
+    {"stamp": "ridge_ore_pile", "at": [-3, -5]},
+    {"stamp": "ridge_cart_wreck", "at": [-3, 4], "rot": 3},
+    {"stamp": "ridge_rail_spur", "at": [-2, 0]}
+   ]
+  },
+  {
+   "key": "ridge_prospectors",
+   "kind": "site",
+   "at": [705, -205],
+   "name": "The Prospectors' Camp",
+   "radius": 12,
+   "pad": {
+    "radius": [10, 10],
+    "blend": 6,
+    "surface": {"dirt": 4, "grass": 1}
+   },
+   "stamps": [
+    {"stamp": "tent_white", "at": [-2, -7]},
+    {"stamp": "campfire", "at": [-1, 1]},
+    {"stamp": "ridge_prospect", "at": [5, 4]},
+    {"stamp": "iron_vein", "at": [12, -5], "fit": "ground"},
+    {"stamp": "coal_seam", "at": [-12, 7], "fit": "ground"},
+    {"stamp": "cart", "at": [-7, -2], "rot": 1},
+    {"stamp": "lamp_post", "at": [3, -3]}
+   ]
+  },
+  {
+   "key": "ridge_crest",
+   "kind": "site",
+   "at": [790, -90],
+   "name": "Beacon Crag",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ridge_beacon", "at": [0, 0], "fit": "ground"},
+    {"stamp": "cairn", "at": [-4, 5], "fit": "ground"},
+    {"stamp": "boulders", "at": [5, 6], "fit": "ground"}
+   ]
+  },
+  {
+   "key": "ridge_graves",
+   "kind": "site",
+   "at": [760, 60],
+   "name": "The Miners' Graves",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "graves", "at": [0, 0], "fit": "ground"},
+    {"stamp": "cairn", "at": [-8, -2], "fit": "ground"},
+    {"stamp": "lamp_post", "at": [-7, 3], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "pine", "at": [7, -6]}
+   ]
+  },
+  {
+   "key": "ridge_old_workings",
+   "kind": "site",
+   "at": [680, 150],
+   "name": "The Old Workings",
+   "radius": 10,
+   "stamps": [
+    {"stamp": "ridge_trial_shaft", "at": [0, 0], "fit": "ground"},
+    {"stamp": "ridge_rail_spur", "at": [-6, -4], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [5, 6], "fit": "ground"},
+    {"stamp": "stumps", "at": [-6, 5], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "young_pine", "at": [8, -5]}
+   ]
   },
   {
    "key": "meadow_farm_1",
