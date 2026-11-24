@@ -219,3 +219,33 @@ before this work, with 30 more layers in it).
 Not done: the character creator still previews the bare look (the class
 list sent before joining does not carry the starter kit); a carried light
 lights the figure only, not the ground round it (the lighting lane's).
+
+## 10. The voxel rule (2026-11-24)
+
+The voxel rule (`docs/art/voxel-rule.md`) puts every figure on the cube
+ladder. What changed for the person (`dyno bake-figure`, `sculpt/`):
+
+- **3.125 cm cubes.** Both grids are sculpted at `detail` 32 / 34.63 voxels
+  a rig unit, so with `per_block` 34.63 a cube is exactly 1/32 of a block.
+  Rig units are unchanged, so every bone, pivot, socket and clip number
+  stays as it was and people stay 1.78 m (`people_are_life_size`). The
+  levels of detail are 32 a block to 8 blocks away, then the body at 16
+  (head 32) to 40, then 8 and 16.
+- **No reshaping.** The rig's per-part `scale` (builds, the 1.14 head) and
+  the taper are gone, and so is the shaped (surface-net, bevel, soft
+  normal) mesher. A build is sculpted: every main-grid layer is baked once
+  per build, widened about the body's axis (`BUILDS`), and the joints move
+  out with it (`by_build` pivots). The head is sculpted 1.14 times larger
+  about each body's neck (`HEAD`). Shells, sheets and trim bands are at
+  least a voxel thick so nothing shows through at the coarser grid.
+- **Held items** are re-voxelled at 1/32 of a block at their old size
+  (`tools/figures/relevel.py`).
+- **Sizes.** A figure drawn larger or smaller than life (a creature's
+  `scale` in the rules) is re-voxelled at that size when its look is built
+  (`figure.rs` `build_at`), so its cubes stay 3.125 cm; what it holds is
+  drawn at its own size. A bone's `scale` op draws its part whole or not at
+  all.
+
+The cost is lower at every level (`docs/art/voxel-audit.md`), and
+`person.vox` is a third of the size on the wire. Before and after sheets:
+`docs/art/voxel-rule/figures/`.

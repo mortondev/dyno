@@ -11,8 +11,11 @@ use glam::{Vec3, vec3};
 /// Within `off` outside the body and `depth` inside it.
 pub fn shell(b: &Body, p: Vec3, off: f32, depth: f32) -> bool {
     let d = b.body(p);
-    // the body covers whatever lies deeper
-    d < off && d > -depth.min(0.55)
+    // the body covers whatever lies deeper; a shell is at least a voxel
+    // thick (3.125 cm, `person::DETAIL`), so no skin shows through it
+    let depth = depth.min(0.6);
+    let off = off.max(1.0 / super::person::DETAIL - depth);
+    d < off && d > -depth
 }
 
 /// Where along the upper arm (0 shoulder, 1 elbow) or forearm (0 elbow,
@@ -95,7 +98,7 @@ pub fn all(main: &mut Grid, head: &mut Grid, bodies: &[Body; 2], ink: &Inks, pal
                     }
                     let (rx, rf, rb, _) = super::gear::robe_skirt(p.y, female);
                     let d = skirt_ring(p, rx + 0.55, rf + 0.55, rb, 0.0);
-                    if d.abs() > 0.35 {
+                    if d.abs() > 0.6 {
                         return None;
                     }
                     let c = if p.y < 16.8 {
@@ -273,7 +276,7 @@ pub fn flaps(
         } else {
             ("flap.b", bz)
         };
-        if (p.z - z0).abs() > 0.42 {
+        if (p.z - z0).abs() > 0.6 {
             return None;
         }
         let c = if p.y < bottom + 0.9 || p.x.abs() > w - 0.5 {
@@ -350,7 +353,7 @@ fn apron(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
                 return None;
             }
             let fz = 5.5 + (top - p.y) * 0.13 - 0.03 * p.x * p.x + if female { 0.2 } else { 0.0 };
-            if (p.z - fz).abs() > 0.4 {
+            if (p.z - fz).abs() > 0.6 {
                 return None;
             }
             let c = if p.y < 16.8 {
@@ -434,7 +437,7 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
         // round the shoulders at the top, hang straight below
         let zc = c0.z - 0.4 - drop * 0.06 - smooth(8.0, 24.0, drop) * 1.3 - fold
             + (p.x / w).powi(2) * 1.8 * smooth(6.0, 0.0, drop);
-        if (p.z - zc).abs() > 0.5 {
+        if (p.z - zc).abs() > 0.6 {
             return None;
         }
         let seg = if drop < 13.0 {
@@ -473,7 +476,7 @@ fn cape(g: &Grid, b: &Body, bi: usize, ink: &Inks) -> Vec<Layer> {
                 let fold = 0.38 * (p.x * 1.05 + drop * 0.05).sin() * smooth(0.0, 8.0, drop);
                 let zc = c0.z - 0.4 - drop * 0.06 - smooth(8.0, 24.0, drop) * 1.3 - fold
                     + (p.x / w).powi(2) * 1.8 * smooth(6.0, 0.0, drop);
-                if (p.z - zc).abs() > 0.5 {
+                if (p.z - zc).abs() > 0.6 {
                     return None;
                 }
                 // bigger than on a tabard, hung below the shoulders
@@ -624,7 +627,7 @@ fn mood(g: &Grid, b: &Body, bi: usize, ink: &Inks, mood: u8) -> Vec<Layer> {
             }
             let y0 = b.hy(54.05) + curve * (m.x / w).powi(2);
             let d = b.skull(p);
-            if d > 0.05 || d < -0.4 || (p.y - y0).abs() > 0.19 {
+            if d > 0.05 || d < -0.4 || (p.y - y0).abs() > 0.55 {
                 return None;
             }
             Some((1, Mode::Dye, ink.mouth))
@@ -780,7 +783,7 @@ fn hair(g: &Grid, b: &Body, bi: usize, ink: &Inks, style: u8) -> Layer {
             if style == 4 {
                 let bun = sphere(p, vec3(0.0, y(59.5), -4.4), 1.75);
                 if bun < 0.0 {
-                    let tie = (p.z + 3.0).abs() < 0.3;
+                    let tie = (p.z + 3.0).abs() < 0.55;
                     return Some((
                         1,
                         Mode::Set,
