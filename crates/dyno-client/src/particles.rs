@@ -715,7 +715,16 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
                 };
                 let mut verts = Vec::new();
                 let c = Vec3::splat(size * 0.5);
-                cube(&mut verts, Vec3::new(9.0, 7.0, -5.0), c, size * 0.5, [1.0; 3], 1.0, 1.0, 1.0);
+                cube(
+                    &mut verts,
+                    Vec3::new(9.0, 7.0, -5.0),
+                    c,
+                    size * 0.5,
+                    [1.0; 3],
+                    1.0,
+                    1.0,
+                    1.0,
+                );
                 let list: Vec<([f32; 3], Option<[f32; 3]>)> =
                     verts.iter().map(|v| (v.pos, None)).collect();
                 out.push(crate::voxel_rule::Object::from_list(

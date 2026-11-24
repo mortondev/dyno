@@ -380,7 +380,7 @@ fn sheet(
         let c = at(nx, y - k, nz);
         if g.fl[c] & F_WATER != 0 {
             // into the pool below, a little under its surface
-            foot = (g.o[1] + y - k + 1) as f32 - WATER_DROP - 0.06;
+            foot = (g.o[1] + y - k + 1) as f32 - WATER_DROP - 0.0625;
             break;
         }
         if g.fl[c] & F_OPAQUE != 0 {
@@ -537,7 +537,7 @@ pub(crate) fn bank(
 // ------------------------------------------------------------- the shader
 
 /// Follows the head of the world shader (the uniforms, the look, the sun's
-/// shadow, the grade, the noise and the swell).
+/// shadow, the grade and the noise).
 const SHADER: &str = r#"
 struct WKind { deep: vec4<f32>, shallow: vec4<f32>, foam: vec4<f32>, fog: vec4<f32>, surf: vec4<f32>, life: vec4<f32> };
 struct WaterU {
@@ -603,8 +603,8 @@ struct WOut {
     o.clip = vec4<f32>(2.0, 2.0, 2.0, 1.0);
     return o;
   }
-  var pos = v.pos;
-  pos.y = pos.y + swell(pos.xz, u.cam.w);
+  // the surface stays a flat cube face (the voxel rule): no swell
+  let pos = v.pos;
   // the nearest stretch of a course: which way it runs, and its kind
   var best = 1e9;
   var kind = 0.0;

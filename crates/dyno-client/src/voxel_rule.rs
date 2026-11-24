@@ -164,7 +164,10 @@ pub(crate) fn check(o: &Object, report: &mut Report) {
                 // (a face seen from both sides may store either way)
                 let d = (c[0] * n[0] + c[1] * n[1] + c[2] * n[2]) / (len * nl.max(1e-12));
                 if nl < 0.5 || d.abs() < 0.9995 {
-                    note(report, o, "a stored normal is not the face's own", t.p[0]);
+                    let e = report
+                        .entry(format!("{}: a stored normal is not the face's own", o.name))
+                        .or_insert_with(|| (0, format!("{} at {:?}, normal {n:?}", o.part, t.p)));
+                    e.0 += 1;
                     break;
                 }
             }
@@ -258,7 +261,13 @@ mod tests {
 
     // -------------------------------------------------------- mesh test
 
-    fn world_tris(name: &str, part: &str, per_metre: f32, verts: &[Vertex], normals: bool) -> Object {
+    fn world_tris(
+        name: &str,
+        part: &str,
+        per_metre: f32,
+        verts: &[Vertex],
+        normals: bool,
+    ) -> Object {
         let list: Vec<([f32; 3], Option<[f32; 3]>)> = verts
             .iter()
             .map(|v| (v.pos, normals.then_some(v.normal)))
@@ -344,7 +353,12 @@ mod tests {
                                 per_metre: *per_metre,
                                 // a coarser neighbour on two sides
                                 skirt: if i == 0 && inner {
-                                    [0, levels[levels.len() - 1], 0, levels[1.min(levels.len() - 1)]]
+                                    [
+                                        0,
+                                        levels[levels.len() - 1],
+                                        0,
+                                        levels[1.min(levels.len() - 1)],
+                                    ]
                                 } else {
                                     [0; 4]
                                 },
@@ -369,7 +383,8 @@ mod tests {
                                 ),
                                 report,
                             );
-                            let (mut leaves, mut blocks, mut other) = (Vec::new(), Vec::new(), Vec::new());
+                            let (mut leaves, mut blocks, mut other) =
+                                (Vec::new(), Vec::new(), Vec::new());
                             for t in geo.opaque.chunks_exact(3) {
                                 let k = t[0].tex[2];
                                 if (KIND_FOLIAGE..KIND_WATER).contains(&k) {
@@ -397,7 +412,12 @@ mod tests {
                                 // (water's vertices carry the shore, the depth
                                 // and the white water where others carry a normal)
                                 ("world: water", fine, &water, false),
-                                ("world: glass and other translucent blocks", fine, &clear, true),
+                                (
+                                    "world: glass and other translucent blocks",
+                                    fine,
+                                    &clear,
+                                    true,
+                                ),
                             ] {
                                 check(&world_tris(what, &part, per, verts, normals), report);
                             }
@@ -462,7 +482,10 @@ mod tests {
             ("colour_per_metre", &t["colour_per_metre"]),
         ] {
             if ladder::step_of_per_metre(num(v)).is_none() {
-                add(format!("blocks.json: terrain.{what}"), format!("{v} a metre is off the ladder"));
+                add(
+                    format!("blocks.json: terrain.{what}"),
+                    format!("{v} a metre is off the ladder"),
+                );
             }
         }
         for l in t["lod"].as_array().into_iter().flatten() {
@@ -493,7 +516,10 @@ mod tests {
             let tags = b["tags"].as_array().into_iter().flatten();
             if tags.into_iter().any(|t| t == "chamfer") {
                 add(
-                    format!("blocks.json: block {}: tag chamfer", b["key"].as_str().unwrap_or("?")),
+                    format!(
+                        "blocks.json: block {}: tag chamfer",
+                        b["key"].as_str().unwrap_or("?")
+                    ),
                     "cubes have no chamfers".into(),
                 );
             }
@@ -503,15 +529,24 @@ mod tests {
                 let cname = class["class"].as_str().unwrap_or("?");
                 let at = format!("blocks.json: shape_rules.{set}.{cname}");
                 if class["jitter"].as_f64().unwrap_or(0.0) != 0.0 {
-                    add(format!("{at}: jitter"), "a shape turns by quarter turns only".into());
+                    add(
+                        format!("{at}: jitter"),
+                        "a shape turns by quarter turns only".into(),
+                    );
                 }
-                if !class["spin"].is_null() {
-                    add(format!("{at}: spin"), "a shape turns by quarter turns only".into());
+                if !class["spin"].is_null() && !class["spin"]["step"].is_null() {
+                    add(
+                        format!("{at}: spin"),
+                        "a shape turns by quarter turns only".into(),
+                    );
                 }
                 for part in class["parts"].as_array().into_iter().flatten() {
                     let pname = part["name"].as_str().unwrap_or("?");
                     if !part["round"].is_null() {
-                        add(format!("{at}.{pname}: round"), "no solids of revolution".into());
+                        add(
+                            format!("{at}.{pname}: round"),
+                            "no solids of revolution".into(),
+                        );
                     }
                     let lift = &part["lift"];
                     if !lift.is_null() && num(&lift["step"]).fract() != 0.0 {
@@ -535,7 +570,10 @@ mod tests {
             let file = &blocks["shape_files"][f];
             let step = file["step"].as_u64();
             if !step.is_some_and(|s| (1..=6).contains(&s)) {
-                add(format!("blocks.json: shape_files.{f}: step"), "names no ladder step (1 to 6)".into());
+                add(
+                    format!("blocks.json: shape_files.{f}: step"),
+                    "names no ladder step (1 to 6)".into(),
+                );
             }
             for (k, m) in file["palette"].as_object().into_iter().flatten() {
                 if !m["slope"].is_null() {
@@ -550,12 +588,18 @@ mod tests {
         // cover.json and foliage.json
         let cover = pack_file("cover.json");
         if ladder::step_of(num(&cover["voxel"])).is_none() {
-            add("cover.json: voxel".into(), format!("{} m is off the ladder", cover["voxel"]));
+            add(
+                "cover.json: voxel".into(),
+                format!("{} m is off the ladder", cover["voxel"]),
+            );
         }
         let (mut sways, mut softs) = (0, 0);
         for (name, k) in cover["kinds"].as_object().into_iter().flatten() {
             if !k["voxel"].is_null() && ladder::step_of(num(&k["voxel"])).is_none() {
-                add(format!("cover.json: kinds.{name}.voxel"), format!("{} m is off the ladder", k["voxel"]));
+                add(
+                    format!("cover.json: kinds.{name}.voxel"),
+                    format!("{} m is off the ladder", k["voxel"]),
+                );
             }
             if k["sway"].as_f64().unwrap_or(0.0) != 0.0 {
                 sways += 1;
@@ -567,7 +611,9 @@ mod tests {
         if softs > 0 {
             add(
                 "cover.json: soft".into(),
-                format!("{softs} kinds lean their faces' normals to the sky: a side lit as a slope"),
+                format!(
+                    "{softs} kinds lean their faces' normals to the sky: a side lit as a slope"
+                ),
             );
         }
         if sways > 0 {
@@ -581,12 +627,17 @@ mod tests {
         if ladder::step_of_per_metre(cells).is_none() {
             add(
                 "foliage.json: cells".into(),
-                format!("{cells} cubes a side of a leaf block is off the ladder (0: smooth canopies)"),
+                format!(
+                    "{cells} cubes a side of a leaf block is off the ladder (0: smooth canopies)"
+                ),
             );
         }
         let grain = cells * num(&foliage["grain"]);
         if grain != 0.0 && ladder::step_of_per_metre(grain).is_none() {
-            add("foliage.json: grain".into(), format!("squares of {grain} a metre are off the ladder"));
+            add(
+                "foliage.json: grain".into(),
+                format!("squares of {grain} a metre are off the ladder"),
+            );
         }
 
         // life.json: critters (particles are snapped to the ladder as drawn)
@@ -594,7 +645,10 @@ mod tests {
         for (name, k) in life["critters"].as_object().into_iter().flatten() {
             let unit = k["unit"].as_f64().map(|v| v as f32).unwrap_or(0.06);
             if ladder::step_of(unit).is_none() {
-                add(format!("life.json: critters.{name}.unit"), format!("voxels of {unit} m are off the ladder"));
+                add(
+                    format!("life.json: critters.{name}.unit"),
+                    format!("voxels of {unit} m are off the ladder"),
+                );
             }
         }
 
@@ -607,17 +661,26 @@ mod tests {
                 let per = (per_block * g["detail"].as_f64().unwrap_or(detail)) as f32;
                 if !name.starts_with("held.") && ladder::step_of_per_metre(per).is_none() {
                     add(
-                        format!("figures.json: figures.{name}: grid {}", g["name"].as_str().unwrap_or("?")),
+                        format!(
+                            "figures.json: figures.{name}: grid {}",
+                            g["name"].as_str().unwrap_or("?")
+                        ),
                         format!("{per} voxels a block is off the ladder"),
                     );
                 }
             }
             if !f["smooth"].is_null() {
-                add(format!("figures.json: figures.{name}.smooth"), "no bevels or smooth meshes".into());
+                add(
+                    format!("figures.json: figures.{name}.smooth"),
+                    "no bevels or smooth meshes".into(),
+                );
             }
             for l in f["lods"].as_array().into_iter().flatten() {
                 if l["smooth"].as_bool() == Some(true) {
-                    add(format!("figures.json: figures.{name}.lods: smooth"), "no smooth meshes".into());
+                    add(
+                        format!("figures.json: figures.{name}.lods: smooth"),
+                        "no smooth meshes".into(),
+                    );
                 }
             }
         }
@@ -645,7 +708,9 @@ mod tests {
                     let part = p["part"].as_str().or(p["name"].as_str()).unwrap_or("?");
                     let shapes: Vec<&Value> = match &p["shape"] {
                         Value::Null => Vec::new(),
-                        s if s["values"].is_array() => s["values"].as_array().unwrap().iter().collect(),
+                        s if s["values"].is_array() => {
+                            s["values"].as_array().unwrap().iter().collect()
+                        }
                         s => vec![s],
                     };
                     for s in shapes {
@@ -653,7 +718,8 @@ mod tests {
                             add(format!("{at}: part {part}: taper"), "no tapers".into());
                         }
                         let sc = &s["scale"];
-                        if !sc.is_null() && sc.as_array().is_none_or(|a| a.iter().any(|v| v != 1.0)) {
+                        if !sc.is_null() && sc.as_array().is_none_or(|a| a.iter().any(|v| v != 1.0))
+                        {
                             add(
                                 format!("{at}: part {part}: scale"),
                                 format!("a part scaled by {sc} leaves the ladder"),
@@ -661,7 +727,10 @@ mod tests {
                         }
                     }
                     if p["smooth"].as_bool() == Some(true) {
-                        add(format!("{at}: part {part}: smooth"), "no smooth meshes".into());
+                        add(
+                            format!("{at}: part {part}: smooth"),
+                            "no smooth meshes".into(),
+                        );
                     }
                 }
                 for b in r["bones"].as_array().into_iter().flatten() {
@@ -669,7 +738,10 @@ mod tests {
                         if !op["scale"].is_null() {
                             add(
                                 format!("{at}: bone {}: scale", b["name"].as_str().unwrap_or("?")),
-                                format!("a part scaled as it moves ({}) leaves the ladder", op["scale"]),
+                                format!(
+                                    "a part scaled as it moves ({}) leaves the ladder",
+                                    op["scale"]
+                                ),
                             );
                         }
                     }
@@ -682,7 +754,9 @@ mod tests {
         fn scales(v: &Value, out: &mut Vec<(String, f64)>) {
             match v {
                 Value::Object(m) => {
-                    if let (Some(s), Some(k)) = (m.get("scale").and_then(|s| s.as_f64()), m.get("key")) {
+                    if let (Some(s), Some(k)) =
+                        (m.get("scale").and_then(|s| s.as_f64()), m.get("key"))
+                    {
                         out.push((k.as_str().unwrap_or("?").to_string(), s));
                     }
                     for c in m.values() {
@@ -786,7 +860,10 @@ mod tests {
             let p = Path::new(env!("CARGO_MANIFEST_DIR")).join("src").join(file);
             let text = std::fs::read_to_string(&p).unwrap();
             if text.contains(mark) {
-                bad.insert(format!("{file}: {what}"), mark.lines().next().unwrap_or("").to_string());
+                bad.insert(
+                    format!("{file}: {what}"),
+                    mark.lines().next().unwrap_or("").to_string(),
+                );
             }
         }
         let (left, stale) = sift(bad.iter().map(|(k, v)| (k, v.clone())), SHADER_ALLOWED);
@@ -810,7 +887,12 @@ mod tests {
                     p
                 };
                 out.push((
-                    [corner(0.0, 0.0), corner(1.0, 0.0), corner(1.0, 1.0), corner(0.0, 1.0)],
+                    [
+                        corner(0.0, 0.0),
+                        corner(1.0, 0.0),
+                        corner(1.0, 1.0),
+                        corner(0.0, 1.0),
+                    ],
                     Some([n; 4]),
                 ));
             }
@@ -826,16 +908,48 @@ mod tests {
             r.keys().cloned().collect::<Vec<_>>().join("; ")
         };
         // a cube on its grid
-        assert_eq!(run(Object::from_quads("a", "", 16.0, Some([0.0; 3]), cube([1.0, 2.0, 3.0], 0.0625))), "");
+        assert_eq!(
+            run(Object::from_quads(
+                "a",
+                "",
+                16.0,
+                Some([0.0; 3]),
+                cube([1.0, 2.0, 3.0], 0.0625)
+            )),
+            ""
+        );
         // off the grid
-        let off = run(Object::from_quads("a", "", 16.0, Some([0.0; 3]), cube([1.01, 2.0, 3.0], 0.0625)));
+        let off = run(Object::from_quads(
+            "a",
+            "",
+            16.0,
+            Some([0.0; 3]),
+            cube([1.01, 2.0, 3.0], 0.0625),
+        ));
         assert!(off.contains("off the grid"), "{off}");
         // a cube of a size off the ladder
-        let size = run(Object::from_quads("a", "", 16.0, None, cube([0.0; 3], 0.07)));
+        let size = run(Object::from_quads(
+            "a",
+            "",
+            16.0,
+            None,
+            cube([0.0; 3], 0.07),
+        ));
         assert!(size.contains("off the grid"), "{size}");
         // a slope: one quad over a stair
-        let slope = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 1.0], [0.0, 1.0, 1.0]];
-        let s = run(Object::from_quads("a", "", 1.0, Some([0.0; 3]), [(slope, None)]));
+        let slope = [
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0],
+        ];
+        let s = run(Object::from_quads(
+            "a",
+            "",
+            1.0,
+            Some([0.0; 3]),
+            [(slope, None)],
+        ));
         assert!(s.contains("not an axis-aligned rectangle"), "{s}");
         // a flat triangle with a slanted side (a gable end drawn as one polygon)
         let gable = Object::from_list(
@@ -860,9 +974,12 @@ mod tests {
         assert!(b.contains("stored normal"), "{b}");
         // a cube turned a few degrees
         let (sn, cs) = 0.1f32.sin_cos();
-        let turned = cube([0.0; 3], 1.0)
-            .into_iter()
-            .map(|(p, _)| (p.map(|p| [p[0] * cs + p[2] * sn, p[1], -p[0] * sn + p[2] * cs]), None));
+        let turned = cube([0.0; 3], 1.0).into_iter().map(|(p, _)| {
+            (
+                p.map(|p| [p[0] * cs + p[2] * sn, p[1], -p[0] * sn + p[2] * cs]),
+                None,
+            )
+        });
         let t = run(Object::from_quads("a", "", 1.0, Some([0.0; 3]), turned));
         assert!(t.contains("not an axis-aligned rectangle"), "{t}");
     }
@@ -892,10 +1009,16 @@ mod tests {
 
     #[test]
     fn allowlists_only_shrink() {
-        let found = [("a: x".to_string(), String::new()), ("b: y".to_string(), String::new())];
+        let found = [
+            ("a: x".to_string(), String::new()),
+            ("b: y".to_string(), String::new()),
+        ];
         let (left, stale) = sift(
             found.iter().map(|(k, v)| (k, v.clone())),
-            &[("a:", "someone", "2026-11-24"), ("c:", "someone", "2026-11-24")],
+            &[
+                ("a:", "someone", "2026-11-24"),
+                ("c:", "someone", "2026-11-24"),
+            ],
         );
         assert_eq!(left, vec!["b: y ()".to_string()]);
         assert_eq!(stale.len(), 1);

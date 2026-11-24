@@ -30,7 +30,7 @@ const N: i32 = SECTION;
 #[derive(Deserialize, Clone, Debug, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 struct FoliageFile {
-    /// cubes along the side of a leaf block (0: smooth canopies)
+    /// cubes along the side of a leaf block: 1, 2 or 4 (the cube ladder)
     cells: u8,
     /// how much of a crown's outside is worn away, 0 to 1
     erode: f32,
@@ -65,7 +65,7 @@ struct FoliageFile {
 impl Default for FoliageFile {
     fn default() -> Self {
         FoliageFile {
-            cells: 0,
+            cells: 1,
             erode: 0.4,
             crease: 0.6,
             under: 0.7,
@@ -175,7 +175,7 @@ impl Foliage {
             })
             .collect();
         Ok(Foliage {
-            cells: (f.cells as i32).min(4),
+            cells: (f.cells as i32).clamp(1, 4),
             erode: f.erode.clamp(0.0, 1.0),
             crease: f.crease.clamp(0.0, 1.0),
             under: f.under.clamp(0.0, 1.0),
@@ -190,11 +190,6 @@ impl Foliage {
             trunks,
             areas,
         })
-    }
-
-    /// Whether leaves are drawn as cubes (else the smooth canopy).
-    pub fn voxels(&self) -> bool {
-        self.cells > 0
     }
 
     /// Cubes a metre the crowns are drawn in.
@@ -248,6 +243,14 @@ fn detail() -> f32 {
 }
 
 /// The foliage in the pack now, read again only when the file changes.
+/// The leaves of a pack with no `foliage.json`: whole blocks of cubes.
+pub fn plain() -> Arc<Foliage> {
+    static PLAIN: std::sync::OnceLock<Arc<Foliage>> = std::sync::OnceLock::new();
+    PLAIN
+        .get_or_init(|| Arc::new(Foliage::load("{}").expect("the plain leaves")))
+        .clone()
+}
+
 pub fn current() -> Option<Arc<Foliage>> {
     type Cache = Option<(Arc<[u8]>, Arc<Foliage>)>;
     static CACHE: Mutex<Cache> = Mutex::new(None);
@@ -563,7 +566,7 @@ mod tests {
                 assert!(w::block_by_key(b).is_some_and(w::is_leaves), "{key}: {b}");
             }
         }
-        assert!(pack().voxels());
+        assert!(pack().cells_per_metre() >= 1.0);
     }
 
     /// Neighbouring sections draw the same cubes where they meet: no face

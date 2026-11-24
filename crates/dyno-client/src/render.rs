@@ -198,10 +198,6 @@ fn world_tone(p: vec2<f32>) -> f32 {
   return vnoise(p * 0.06) * 0.6 + vnoise(p * 0.23 + vec2<f32>(13.7, 5.1)) * 0.4;
 }
 
-// Height of the water's swell at a place and time.
-fn swell(p: vec2<f32>, t: f32) -> f32 {
-  return sin(p.x * 0.9 + t * 1.3) * 0.03 + sin(p.y * 1.3 - t * 1.1) * 0.025 + sin((p.x + p.y) * 0.45 + t * 0.7) * 0.03;
-}
 
 "#;
 
@@ -241,7 +237,7 @@ fn world_vertex(v: Plain) -> VOut {
   if (kz >= K_VOXEL) {
     tone = world_tone(pos.xz);
   } else if (kz >= K_WATER) {
-    pos.y = pos.y + swell(pos.xz, t);
+    // a flat cube face: its ripples are drawn on it in squares (water.rs)
   } else if (kz >= K_FOLIAGE) {
     tone = vnoise(pos.xz * 0.35 + pos.y * 0.21);
     // leaves stir in the wind
@@ -745,8 +741,9 @@ pub fn push_post_oriented(
     b: BlockId,
     light: f32,
 ) {
-    let half = Vec3::new(1.5 / 16.0, 11.0 / 32.0, 1.5 / 16.0) * scale;
-    let (u0, u1) = (6.5 / 16.0, 9.5 / 16.0);
+    // two of the 6.25 cm cubes across, eleven high: on the ladder
+    let half = Vec3::new(1.0 / 16.0, 11.0 / 32.0, 1.0 / 16.0) * scale;
+    let (u0, u1) = (7.0 / 16.0, 9.0 / 16.0);
     for (n, u, v, _) in FACES {
         let pick = |a: [i32; 3]| {
             axes[0] * (a[0] as f32 * half.x)
@@ -773,7 +770,7 @@ pub fn push_post_oriented(
             };
             out.push(Vertex {
                 pos: (fc + uf * su + vf * sv).into(),
-                normal: [0.0; 3],
+                normal: nf.normalize_or_zero().into(),
                 color: [1.0, 1.0, 1.0, 2.0],
                 light,
                 sky: 1.0,
@@ -814,7 +811,7 @@ pub fn push_block_cube(
             };
             out.push(Vertex {
                 pos: (fc + uf * su + vf * sv).into(),
-                normal: [0.0; 3],
+                normal: nf.normalize_or_zero().into(),
                 color: [1.0, 1.0, 1.0, if glow { 2.0 } else { shade }],
                 light,
                 sky: 1.0,
@@ -1075,6 +1072,9 @@ pub fn push_ground_ring_on(
     });
 }
 
+/// The ring as a stepped circle of 6.25 cm cells on a grid round the
+/// target's feet (the voxel rule: no curves), a bright core between darker
+/// edges. Each run of cells along a row at one height is one rectangle.
 fn ring(
     out: &mut Vec<Vertex>,
     center: Vec3,
@@ -1082,48 +1082,51 @@ fn ring(
     color: [f32; 3],
     ground: impl Fn(f32, f32) -> f32,
 ) {
-    const SEGMENTS: usize = 40;
+    const CELL: f32 = 1.0 / 16.0;
     let c = srgb(color);
-    let lift = |k: f32| {
-        [
-            c[0] + (1.0 - c[0]) * k,
-            c[1] + (1.0 - c[1]) * k,
-            c[2] + (1.0 - c[2]) * k,
-        ]
-    };
-    // three bands: a soft outer edge, a bright core, a soft inner edge
+    let core = c.map(|v| v + (1.0 - v) * 0.22);
+    let edge = c.map(|v| v * 0.75);
     let width = (radius * 0.2).clamp(0.07, 0.16);
-    let (edge, core) = (c.map(|v| v * 0.75), lift(0.22));
-    let bands = [
-        (radius + width * 0.5, radius + width * 0.15, edge, core),
-        (radius + width * 0.15, radius - width * 0.15, core, core),
-        (radius - width * 0.15, radius - width * 0.5, core, edge),
-    ];
-    // one height per spoke, so the bands stay joined
-    let spokes: Vec<(f32, f32, f32)> = (0..=SEGMENTS)
-        .map(|i| {
-            let a = i as f32 / SEGMENTS as f32 * std::f32::consts::TAU;
-            let (dx, dz) = (a.cos(), a.sin());
-            let y = ground(center.x + dx * radius, center.z + dz * radius) + 0.06;
-            (dx, dz, y)
-        })
-        .collect();
-    let at = |i: usize, r: f32| {
-        let (dx, dz, y) = spokes[i];
-        [center.x + dx * r, y, center.z + dz * r]
+    let n = ((radius + width * 0.5) / CELL).ceil() as i32 + 1;
+    // which band a cell is in: 0 none, 1 an edge, 2 the core
+    let band = |i: i32, j: i32| {
+        let (x, z) = ((i as f32 + 0.5) * CELL, (j as f32 + 0.5) * CELL);
+        let d = ((x * x + z * z).sqrt() - radius).abs();
+        if d <= width * 0.15 {
+            2u8
+        } else if d <= width * 0.5 {
+            1
+        } else {
+            0
+        }
     };
-    for i in 0..SEGMENTS {
-        for (r0, r1, c0, c1) in bands {
-            let quad = [
-                (at(i, r0), c0),
-                (at(i + 1, r0), c0),
-                (at(i + 1, r1), c1),
-                (at(i, r1), c1),
-            ];
-            for k in [0, 1, 2, 0, 2, 3] {
-                let (pos, rgb) = quad[k];
+    let height = |i: i32, j: i32| {
+        let (x, z) = (
+            center.x + (i as f32 + 0.5) * CELL,
+            center.z + (j as f32 + 0.5) * CELL,
+        );
+        ground(x, z) + 0.0625
+    };
+    for j in -n..n {
+        let mut i = -n;
+        while i < n {
+            let k = band(i, j);
+            if k == 0 {
+                i += 1;
+                continue;
+            }
+            let y = height(i, j);
+            let mut e = i + 1;
+            while e < n && band(e, j) == k && height(e, j) == y {
+                e += 1;
+            }
+            let rgb = if k == 2 { core } else { edge };
+            let (x0, x1) = (center.x + i as f32 * CELL, center.x + e as f32 * CELL);
+            let (z0, z1) = (center.z + j as f32 * CELL, center.z + (j + 1) as f32 * CELL);
+            let quad = [[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]];
+            for q in [0, 1, 2, 0, 2, 3] {
                 out.push(Vertex {
-                    pos,
+                    pos: quad[q],
                     normal: [0.0; 3],
                     // 2.0: glows, whatever the light
                     color: [rgb[0], rgb[1], rgb[2], 2.0],
@@ -1132,6 +1135,7 @@ fn ring(
                     tex: [0.0, 0.0, KIND_DECAL, 0.0],
                 });
             }
+            i = e;
         }
     }
 }
@@ -2955,7 +2959,10 @@ impl Gfx {
 #[cfg(test)]
 pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
     let mut out = Vec::new();
-    for (centre, radius) in [(Vec3::new(10.3, 4.0, -7.8), 0.6), (Vec3::new(0.0, 12.0, 0.0), 1.7)] {
+    for (centre, radius) in [
+        (Vec3::new(10.3, 4.0, -7.8), 0.6),
+        (Vec3::new(0.0, 12.0, 0.0), 1.7),
+    ] {
         let mut verts = Vec::new();
         push_ground_ring(&mut verts, centre, radius, [1.0, 0.2, 0.1]);
         let list: Vec<([f32; 3], Option<[f32; 3]>)> = verts.iter().map(|v| (v.pos, None)).collect();
@@ -2963,7 +2970,7 @@ pub(crate) fn voxel_objects() -> Vec<crate::voxel_rule::Object> {
             "the ring round a target",
             format!("radius {radius}"),
             16.0,
-            Some([0.0; 3]),
+            Some([centre.x, centre.y + 0.0625, centre.z]),
             &list,
         ));
     }

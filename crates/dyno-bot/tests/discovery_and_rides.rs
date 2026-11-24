@@ -95,10 +95,7 @@ fn discovery_pays_once_and_rides_need_it() {
             range: 3.0,
             why: "home".into(),
         });
-        assert!(
-            run_until(&mut a, walk, |a| a.task.is_none()),
-            "walked home"
-        );
+        assert!(run_until(&mut a, walk, |a| a.task.is_none()), "walked home");
     }
     drop(server);
     let _ = std::fs::remove_dir_all(&dir);
