@@ -5901,8 +5901,8 @@
     },
     {
      "at": [
-      -6,
-      -4
+      -11,
+      -2
      ],
      "secs": [
       6,
@@ -6417,9 +6417,9 @@
    ],
    "place": "hollow_oak",
    "at": [
-    -8,
+    16,
     0,
-    36
+    22
    ],
    "greeting": "Webs between the roots, thick as rope. Don't touch them.",
    "routine": [
@@ -6470,9 +6470,9 @@
    ],
    "place": "old_barrow",
    "at": [
-    6,
+    27,
     0,
-    -2
+    6
    ],
    "greeting": "The stones are older than the hearth. Whatever sleeps under them is older still.",
    "routine": [
@@ -6486,7 +6486,7 @@
       20
      ],
      "near": "mossy_cobble",
-     "within": 8,
+     "within": 14,
      "anim": "Kneel"
     },
     {
@@ -6516,9 +6516,9 @@
    ],
    "place": "old_barrow",
    "at": [
-    3,
+    24,
     0,
-    5
+    -4
    ],
    "greeting": "A light at the door, every night. It's all that keeps them in.",
    "routine": [
@@ -6808,9 +6808,9 @@
    ],
    "place": "hollow_oak",
    "at": [
-    -15,
+    12,
     0,
-    29
+    30
    ],
    "greeting": "Red caps for stew, pale caps for sleep. Don't mix them up. I did once.",
    "routine": [
