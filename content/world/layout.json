@@ -939,15 +939,28 @@
    "name": "The Hollow Oak",
    "radius": 70,
    "pad": {
-    "radius": [42, 42],
+    "radius": [32, 40],
     "blend": 16
    },
    "stamps": [
-    {"stamp": "hollow_oak", "at": [0, 0]},
+    {"stamp": "hollow_oak_tree", "at": [0, 0]},
     {"stamp": "outcrop", "at": [-18, -12]},
     {"stamp": "fallen_log", "at": [10, -14], "rot": 1},
     {"stamp": "pond_big", "at": [-14, 34]},
-    {"stamp": "boulders", "at": [15, 16]}
+    {"stamp": "boulders", "at": [-6, -26]},
+    {"stamp": "hollow_oak_hunters", "at": [14, 26]},
+    {"stamp": "hollow_oak_handcart", "at": [14, -30], "rot": 1},
+    {"stamp": "hollow_oak_capring", "at": [-15, 8]},
+    {"stamp": "hollow_oak_capring", "at": [-26, -2]},
+    {"stamp": "hollow_oak_limb", "at": [-22, -26], "rot": 1},
+    {"stamp": "hollow_oak_limb", "at": [18, -21]},
+    {"stamp": "hollow_oak_cocoons", "at": [-12, -16]}
+   ],
+   "trees": [
+    {"species": "dark_oak", "at": [-30, -20]},
+    {"species": "snag", "at": [28, -26]},
+    {"species": "dark_oak", "at": [-34, 10]},
+    {"species": "snag", "at": [30, 8]}
    ],
    "was": {
     "at": [-95, -54],
@@ -1819,8 +1832,20 @@
   {
    "key": "oak_webs",
    "kind": "camp",
-   "at": [-490, -185],
-   "radius": 20
+   "at": [-530, -210],
+   "radius": 20,
+   "stamps": [
+    {"stamp": "hollow_oak_clear_10", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "hollow_oak_web_sheet", "at": [6, -5], "rot": 1, "fit": "ground"},
+    {"stamp": "hollow_oak_web_sheet", "at": [-5, 5], "fit": "ground"},
+    {"stamp": "hollow_oak_cocoons", "at": [2, 4], "fit": "ground"},
+    {"stamp": "hollow_oak_cocoons", "at": [-4, -5], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [-10, -7]},
+    {"species": "snag", "at": [9, 8]},
+    {"species": "snag", "at": [-6, 11]}
+   ]
   },
   {
    "key": "barrow_webs",
@@ -2148,7 +2173,18 @@
    "radius": 10,
    "stamps": [
     {"stamp": "log_pile", "at": [-6, -6], "fit": "ground"},
-    {"stamp": "stumps", "at": [3, 13], "fit": "ground"}
+    {"stamp": "stumps", "at": [3, 13], "fit": "ground"},
+    {"stamp": "hollow_oak_woodcut", "at": [11, 4], "fit": "ground"},
+    {"stamp": "signpost", "at": [6, 6], "fit": "ground"},
+    {"stamp": "hollow_oak_clear_6", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "hollow_oak_clear_6", "at": [-5, 9], "fit": "float", "dy": 40},
+    {"stamp": "hollow_oak_clear_14", "at": [19, -36], "fit": "float", "dy": 40},
+    {"stamp": "hollow_oak_clear_14", "at": [-6, -15], "fit": "float", "dy": 40},
+    {"stamp": "hollow_oak_clear_14", "at": [-31, 5], "fit": "float", "dy": 40},
+    {"stamp": "hollow_oak_clear_14", "at": [-51, 22], "fit": "float", "dy": 40}
+   ],
+   "trees": [
+    {"species": "snag", "at": [-13, 3]}
    ]
   },
   {
@@ -2162,6 +2198,51 @@
    "trees": [
     {"species": "hero_oak", "at": [-12, -6]},
     {"species": "dark_oak", "at": [5, -23]}
+   ]
+  },
+  {
+   "key": "hollow_oak_threshold",
+   "kind": "site",
+   "at": [-515, -160],
+   "radius": 10,
+   "stamps": [
+    {"stamp": "cairn", "at": [10, 6], "fit": "ground"},
+    {"stamp": "cairn", "at": [-10, -6], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [6, 4]},
+    {"species": "snag", "at": [-6, -4]},
+    {"species": "snag", "at": [11, -1]},
+    {"species": "snag", "at": [-4, -11]}
+   ]
+  },
+  {
+   "key": "hollow_oak_capglade",
+   "kind": "site",
+   "at": [-360, -250],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "hollow_oak_clear_10", "at": [0, 0], "fit": "float", "dy": 40},
+    {"stamp": "hollow_oak_capring", "at": [0, 0], "fit": "ground"},
+    {"stamp": "hollow_oak_limb", "at": [6, -4], "fit": "ground"},
+    {"stamp": "fallen_log", "at": [-6, 5], "rot": 1, "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "dark_oak", "at": [-7, -8]}
+   ]
+  },
+  {
+   "key": "hollow_oak_boundary",
+   "kind": "site",
+   "at": [-340, -170],
+   "radius": 12,
+   "stamps": [
+    {"stamp": "ruin_wall", "at": [0, 0], "fit": "ground"},
+    {"stamp": "cairn", "at": [7, 5], "fit": "ground"},
+    {"stamp": "boulders", "at": [-8, 4], "fit": "ground"}
+   ],
+   "trees": [
+    {"species": "snag", "at": [5, -6]}
    ]
   },
   {
