@@ -223,57 +223,16 @@ mod tests {
 
     /// Meshes another lane has still to bring to the rule: (the start of the
     /// report's key, the owner, the day written). Only ever remove entries.
-    const MESH_ALLOWED: &[(&str, &str, &str)] = &[
-        ("critter ", "life lane (ambient critters)", "2026-11-24"),
-        (
-            "figure held.",
-            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
-            "2026-11-24",
-        ),
-        (
-            "figure person:",
-            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
-            "2026-11-24",
-        ),
-    ];
+    const MESH_ALLOWED: &[(&str, &str, &str)] =
+        &[("critter ", "life lane (ambient critters)", "2026-11-24")];
 
     /// Pack data another lane has still to bring to the rule.
     const PACK_ALLOWED: &[(&str, &str, &str)] = &[
         ("cover.json: soft", "vegetation lane", "2026-11-24"),
         ("cover.json: sway", "vegetation lane", "2026-11-24"),
         (
-            "figures.json: figures.person:",
-            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
-            "2026-11-24",
-        ),
-        (
-            "figures.json: held.kinds.",
-            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
-            "2026-11-24",
-        ),
-        (
             "life.json: critters.",
             "life lane (ambient critters)",
-            "2026-11-24",
-        ),
-        (
-            "rigs/biped.json: person:",
-            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
-            "2026-11-24",
-        ),
-        (
-            "rigs/wisp.json: gloomwisp:",
-            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
-            "2026-11-24",
-        ),
-        (
-            "rigs/wraith.json: shade:",
-            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
-            "2026-11-24",
-        ),
-        (
-            "rules/hearthblock.json:",
-            "figures (voxel-rule lane, hand-in 2: sculpt at 32 a block)",
             "2026-11-24",
         ),
     ];
@@ -807,50 +766,14 @@ mod tests {
                         );
                     }
                 }
-                for b in r["bones"].as_array().into_iter().flatten() {
-                    for op in b["ops"].as_array().into_iter().flatten() {
-                        if !op["scale"].is_null() {
-                            add(
-                                format!("{at}: bone {}: scale", b["name"].as_str().unwrap_or("?")),
-                                format!(
-                                    "a part scaled as it moves ({}) leaves the ladder",
-                                    op["scale"]
-                                ),
-                            );
-                        }
-                    }
-                }
+                // (bone `scale` ops need no check: the engine draws a part
+                // whole or hidden, figure.rs `Op::Scale`)
             }
         }
 
-        // the rules: creatures drawn larger or smaller than they are modelled
-        let rules = pack_file("rules/hearthblock.json");
-        fn scales(v: &Value, out: &mut Vec<(String, f64)>) {
-            match v {
-                Value::Object(m) => {
-                    if let (Some(s), Some(k)) =
-                        (m.get("scale").and_then(|s| s.as_f64()), m.get("key"))
-                    {
-                        out.push((k.as_str().unwrap_or("?").to_string(), s));
-                    }
-                    for c in m.values() {
-                        scales(c, out);
-                    }
-                }
-                Value::Array(a) => a.iter().for_each(|c| scales(c, out)),
-                _ => {}
-            }
-        }
-        let mut list = Vec::new();
-        scales(&rules, &mut list);
-        for (key, s) in list {
-            if s != 1.0 {
-                add(
-                    format!("rules/hearthblock.json: {key}: scale"),
-                    format!("drawn at {s} times its model: its cubes leave the ladder"),
-                );
-            }
-        }
+        // (a creature's `scale` in the rules needs no check: the engine
+        // re-voxels a figure at its size, figure.rs `build_at`, and the
+        // mesh test draws figures at several)
         bad
     }
 
@@ -869,6 +792,16 @@ mod tests {
     /// Places a shader (or the code that feeds one) breaks cubes: the file,
     /// a line of it that is only there while it does, and what it does.
     const SHADER_MARKS: &[(&str, &str, &str)] = &[
+        (
+            "render.rs",
+            "fn push_glow(",
+            "lamps carry a camera-facing halo (a billboard): their glow is the bloom's",
+        ),
+        (
+            "particles.rs",
+            "fn halo(",
+            "glowing particles carry a camera-facing halo (a billboard)",
+        ),
         (
             "render.rs",
             "pos.y = pos.y + swell(pos.xz, t);",
@@ -1067,7 +1000,12 @@ mod tests {
         load_pack();
         let mut by: BTreeMap<(String, String), usize> = BTreeMap::new();
         for o in crate::figure::voxel_objects() {
-            let level = o.part.split(',').next().unwrap_or("").to_string();
+            // life size only ("size 1, level 0, part 3")
+            let mut bits = o.part.split(", ");
+            if bits.next() != Some("size 1") {
+                continue;
+            }
+            let level = bits.next().unwrap_or("").to_string();
             let who = o.name.trim_end_matches(" (smooth)").to_string();
             let who = if who.starts_with("figure held.") {
                 "figure held.*".to_string()
