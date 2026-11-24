@@ -59,14 +59,14 @@ def birchrise_tent():
 @recipe
 def birchrise_yard():
     """A trodden dirt yard, about 22 x 16 m, flush with the ground: dirt
-    with a scatter of clay and gravel and a ragged edge into the grass."""
+    with a little gravel and a ragged edge into the grass."""
     v = Vol("prop")
     for x in range(-12, 13):
         for z in range(-9, 10):
             d = (x / 11.0) ** 2 + (z / 8.0) ** 2
             j = (rnd(x, 0, z, 41) % 100) / 100
             if d <= 0.75 + 0.35 * j:
-                v.set(x, -1, z, pick(x, 0, z, ["dirt", "dirt", "dirt", "dirt", "clay", "cobble"], 42))
+                v.set(x, -1, z, pick(x, 0, z, ["dirt", "dirt", "dirt", "dirt", "dirt", "dirt", "cobble"], 42))
     return v
 
 
@@ -113,7 +113,7 @@ def birchrise_cut():
         for z in range(-7, 8):
             d = (x / 8.0) ** 2 + (z / 7.0) ** 2
             if d <= 0.6 + 0.4 * (rnd(x, 0, z, 51) % 100) / 100 and rnd(x, 0, z, 52) % 3:
-                v.set(x, -1, z, pick(x, 0, z, ["dirt", "dirt", "clay"], 53))
+                v.set(x, -1, z, pick(x, 0, z, ["dirt", "dirt", "dirt", "basalt"], 53))
     for (x, z) in ((-5, -4), (-1, -6), (4, -3), (6, 2), (-6, 3), (1, 1), (-2, 5), (3, 6)):
         v.set(x, 0, z, "birch_log")     # stumps
     v.set(1, 1, 1, "timber_beam")       # a wedge left standing in one
@@ -127,7 +127,7 @@ def birchrise_cut():
 
 @recipe
 def birchrise_wallow():
-    """A boar wallow: a muddy pool a metre deep in churned clay and dirt,
+    """A boar wallow: a muddy pool a metre deep in churned dark mud and dirt,
     about 13 x 11 m, flush with the ground (walkable, never a pit)."""
     v = Vol("prop")
     for x in range(-7, 8):
@@ -136,9 +136,9 @@ def birchrise_wallow():
             j = (rnd(x, 0, z, 61) % 100) / 100
             if d <= 0.32 + 0.1 * j:
                 v.set(x, -1, z, "water")
-                v.set(x, -2, z, "clay")
+                v.set(x, -2, z, "dirt")
             elif d <= 0.85 + 0.3 * j:
-                v.set(x, -1, z, pick(x, 0, z, ["dirt", "clay", "dirt", "clay", "dirt"], 62))
+                v.set(x, -1, z, pick(x, 0, z, ["dirt", "dirt", "basalt", "dirt", "dirt"], 62))
             elif d <= 1.35 and rnd(x, 0, z, 63) % 3 == 0:
                 v.set(x, -1, z, "dirt")
     return v
@@ -174,7 +174,7 @@ def birchrise_den():
     for x in range(-3, 4):
         for z in range(-2, 4):
             if (x, 0, z) not in v.c:
-                v.set(x, -1, z, pick(x, 0, z, ["dirt", "dirt", "clay"], 81))
+                v.set(x, -1, z, pick(x, 0, z, ["dirt", "dirt", "dirt", "basalt"], 81))
     v.set(-1, 0, 1, "marble")
     v.set(0, 0, 1, "marble")
     v.set(1, 0, 2, "log")
