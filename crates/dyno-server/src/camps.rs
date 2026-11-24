@@ -116,15 +116,15 @@ impl State {
             if sp.ready_at > now || !(watched || players.iter().any(|p| dist(*p, sp.pos) < WAKE)) {
                 continue;
             }
-            // never spawn on top of someone (how near is a rule: at 12 m one
-            // player waiting in a one-creature camp keeps it empty for ever)
-            let keep = self
-                .content
-                .world
-                .crowd_respawn
-                .and_then(|c| c.near)
-                .unwrap_or(12.0);
-            if players.iter().any(|p| dist(*p, sp.pos) < keep) {
+            // not on top of someone (how near, and for how long a due point
+            // waits for them to step away, are rules: at 12 m and for ever,
+            // players waiting where an elite stands keep it from returning)
+            let rule = self.content.world.crowd_respawn;
+            let keep = rule.and_then(|c| c.near).unwrap_or(12.0);
+            let waited_out = rule
+                .and_then(|c| c.patience)
+                .is_some_and(|secs| now.duration_since(sp.ready_at).as_secs_f32() >= secs);
+            if !waited_out && players.iter().any(|p| dist(*p, sp.pos) < keep) {
                 continue;
             }
             let area = &self.content.areas[sp.area];

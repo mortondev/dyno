@@ -32,7 +32,9 @@ w["shared_tags"] = {"damage": 0.1, "xp": 0.7}
 # where players crowd a camp it comes back sooner (to 40% of its time with
 # five or more there), and a creature may come back 5 m from a player, not
 # 12: one player waiting in Old Tusk's hollow kept him from coming back at all
-w["crowd_respawn"] = {"radius": 45, "per_player": 0.8, "least": 0.4, "near": 5}
+# and a point that has been due for 30 s fills whoever stands on it (four
+# bots waiting for Old Tusk on the hand-in build still kept him away)
+w["crowd_respawn"] = {"radius": 45, "per_player": 0.8, "least": 0.4, "near": 5, "patience": 30}
 
 # --- the night: Shades rise in the dark's haunts, not round every player on
 # every road, and leave characters under level 5 alone until struck

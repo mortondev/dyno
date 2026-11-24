@@ -5315,7 +5315,8 @@
    "radius": 45,
    "per_player": 0.8,
    "least": 0.4,
-   "near": 5
+   "near": 5,
+   "patience": 30
   },
   "dark_in_areas": true
  },

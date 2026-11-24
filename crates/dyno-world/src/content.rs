@@ -656,6 +656,11 @@ pub struct CrowdRespawn {
     /// how close a player may stand to a point that respawns (none: 12 m)
     #[serde(default)]
     pub near: Option<f32>,
+    /// seconds a point that is due waits for players to step away; after
+    /// that its creature comes back whoever stands there (none: it waits
+    /// for ever, and a crowd on an elite's one spawn point keeps it empty)
+    #[serde(default)]
+    pub patience: Option<f32>,
 }
 
 impl CrowdRespawn {
@@ -1775,6 +1780,7 @@ mod tests {
             per_player: 0.8,
             least: 0.4,
             near: None,
+            patience: None,
         };
         assert!((c.factor(0) - 1.0).abs() < 1e-6);
         assert!(
