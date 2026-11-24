@@ -178,12 +178,12 @@ impl Server {
             return Ok(());
         };
         self.cluster_ready()?;
-        let (mode, spawn) = {
+        let spawn = {
             let st = self.main_shard();
             let st = st.state.lock().unwrap();
-            (st.default_mode, st.spawn_point())
+            st.spawn_point()
         };
-        let mut fresh = crate::store::PlayerData::new(mode, spawn);
+        let mut fresh = crate::store::PlayerData::new(spawn);
         fresh.token = token;
         let key = name.to_lowercase();
         match c.propose(

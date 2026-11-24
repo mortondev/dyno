@@ -318,7 +318,6 @@ impl Machine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dyno_protocol::Mode;
 
     fn member(id: NodeId) -> Cmd {
         Cmd::Member(Member {
@@ -333,7 +332,7 @@ mod tests {
     }
 
     fn data(token: u64, money: u32) -> Box<PlayerData> {
-        let mut d = PlayerData::new(Mode::Survival, [0.0; 3]);
+        let mut d = PlayerData::new([0.0; 3]);
         d.token = token;
         d.money = money;
         Box::new(d)

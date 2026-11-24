@@ -241,6 +241,9 @@ impl Agent {
     pub fn update(&mut self) -> bool {
         let alive = self.body.pump();
         self.digest();
+        if self.tel.first_party.is_none() && self.body.party.len() >= 2 {
+            self.tel.first_party = Some(self.body.secs());
+        }
         if !alive {
             if let Some(r) = self.body.closed.clone() {
                 self.tel.disconnects.push(r);
@@ -749,6 +752,8 @@ impl Agent {
 
     fn cast(&mut self, a: &Ability, target: Option<u32>) {
         let name = ability_name(a);
+        let now = self.body.secs();
+        self.tel.first_casts.entry(name.clone()).or_insert(now);
         *self.tel.abilities.entry(name).or_insert(0) += 1;
         if a.charge || a.blink > 0.0 {
             self.body.expect_teleport(1.5);
@@ -769,6 +774,15 @@ impl Agent {
                 (t, a.id),
                 Instant::now() + Duration::from_secs_f32(a.dot[2].max(6.0)),
             );
+        }
+        // control: remember how long it holds, so we do not waste another
+        let hold = a.stun.max(a.root).max(a.slow[1]);
+        if hold > 0.0
+            && a.dot[0] <= 0.0
+            && let Some(t) = target
+        {
+            self.dots
+                .insert((t, a.id), Instant::now() + Duration::from_secs_f32(hold));
         }
     }
 
@@ -815,8 +829,17 @@ impl Agent {
         let aura = |a: &Ability| b.auras.get(&a.id).is_some_and(|t| *t > now);
         let in_range = |a: &Ability| dist <= a.range + 0.8;
         let mut pick: Option<(Ability, Option<u32>)> = None;
-        // 1. survive
-        if hp < 0.35 {
+        let pressed = te.is_some() && dist < 5.0;
+        // 1. survive: a shield as soon as something is on us
+        if hp < 0.9 && pressed {
+            pick = known
+                .iter()
+                .find(|a| {
+                    usable(a) && a.buff.is_some_and(|x| x.kind == BuffKind::Absorb) && !aura(a)
+                })
+                .map(|a| (a.clone(), None));
+        }
+        if pick.is_none() && (hp < 0.35 || (hp < 0.6 && near_foes >= 2)) {
             pick = known
                 .iter()
                 .find(|a| usable(a) && a.buff.is_some_and(|x| x.kind == BuffKind::Ward) && !aura(a))
@@ -843,7 +866,12 @@ impl Agent {
                     usable(a)
                         && a.combo >= 0
                         && a.damage[0] == 0.0
-                        && a.buff.is_some_and(|x| x.kind != BuffKind::Ward)
+                        && a.buff.is_some_and(|x| {
+                            !matches!(
+                                x.kind,
+                                BuffKind::Ward | BuffKind::Absorb | BuffKind::Stealth
+                            )
+                        })
                         && !aura(a)
                 })
                 .map(|a| (a.clone(), None));
@@ -852,11 +880,29 @@ impl Agent {
             && te.is_some()
             && pick.is_none()
         {
-            // 3. charge in from afar
-            pick = known
-                .iter()
-                .find(|a| a.charge && usable(a) && dist > 8.0 && in_range(a))
-                .map(|a| (a.clone(), Some(t)));
+            let held = |a: &Ability| self.dots.get(&(t, a.id)).is_some_and(|u| *u > now);
+            // 3. sneak up on a foe that has not seen us, and charge in from afar
+            if thp >= 0.999 && dist > 6.0 && dist < 30.0 {
+                pick = known
+                    .iter()
+                    .find(|a| {
+                        usable(a) && a.buff.is_some_and(|x| x.kind == BuffKind::Stealth) && !aura(a)
+                    })
+                    .map(|a| (a.clone(), None));
+            }
+            if pick.is_none() {
+                pick = known
+                    .iter()
+                    .find(|a| a.charge && usable(a) && dist > 8.0 && in_range(a))
+                    .map(|a| (a.clone(), Some(t)));
+            }
+            // an opener on a foe we have not touched
+            if pick.is_none() && thp >= 0.9 {
+                pick = known
+                    .iter()
+                    .find(|a| a.opener > 1.0 && usable(a) && in_range(a))
+                    .map(|a| (a.clone(), Some(t)));
+            }
             // 4. finishers on enough combo points
             let combo = if b.combo.1 == Some(t) { b.combo.0 } else { 0 };
             if pick.is_none() && (combo >= 3 || (combo >= 1 && thp < 0.25)) {
@@ -864,6 +910,26 @@ impl Agent {
                     .iter()
                     .filter(|a| a.combo < 0 && usable(a) && (a.range == 0.0 || in_range(a)))
                     .max_by(|x, y| x.damage[0].partial_cmp(&y.damage[0]).unwrap())
+                    .map(|a| (a.clone(), if a.range > 0.0 { Some(t) } else { None }));
+            }
+            // control: stun what is on us; pin or slow what is still coming;
+            // freeze the ground when surrounded or hurt
+            if pick.is_none() && thp > 0.3 {
+                pick = known
+                    .iter()
+                    .find(|a| {
+                        let ctl = a.stun > 0.0 || a.root > 0.0 || a.slow[1] > 0.0;
+                        if !ctl || a.combo < 0 || a.charge || !usable(a) || held(a) {
+                            return false;
+                        }
+                        if a.range == 0.0 {
+                            a.radius > 0.0 && dist <= a.radius && (near_foes >= 2 || hp < 0.6)
+                        } else if a.range > 6.0 {
+                            in_range(a) && (a.stun > 0.0 || dist > 5.0)
+                        } else {
+                            in_range(a) && a.stun > 0.0
+                        }
+                    })
                     .map(|a| (a.clone(), if a.range > 0.0 { Some(t) } else { None }));
             }
             // 5. damage over time not yet on it (not on nearly dead foes)
@@ -898,10 +964,13 @@ impl Agent {
                 pick = known
                     .iter()
                     .filter(|a| {
-                        a.damage[0] > 1.0
+                        (a.damage[0] > 1.0 || a.weapon > 0.0)
                             && a.range > 0.0
                             && a.combo >= 0
                             && !a.charge
+                            && a.stun <= 0.0
+                            && a.root <= 0.0
+                            && (a.opener <= 1.0 || thp >= 0.9)
                             && usable(a)
                             && in_range(a)
                     })
@@ -1398,6 +1467,8 @@ impl Agent {
                 used.push(place);
                 self.body.send(ClientMsg::Equip { from: i as u8 });
                 let name = self.body.content.item(item).name.to_string();
+                let now = self.body.secs();
+                self.tel.first_upgrade.get_or_insert(now);
                 out.push(name.clone());
                 self.say(format!("Equipped {name}"));
             }

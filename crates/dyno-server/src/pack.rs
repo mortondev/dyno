@@ -269,6 +269,13 @@ impl Pack {
             .collect()
     }
 
+    /// The built-in pack as it is authored: every file of `content/`, with
+    /// the world's layout and stamps (which clients are never sent). What a
+    /// pack directory holds; tests write it out to make packs of their own.
+    pub fn builtin_source() -> BTreeMap<String, Vec<u8>> {
+        Self::builtin_files()
+    }
+
     /// The pack built into this program (the workspace's `content/`).
     pub fn builtin() -> Pack {
         Pack::from_files(Self::builtin_files()).expect("the built-in pack is valid")

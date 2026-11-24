@@ -30,7 +30,7 @@ impl State {
             return false;
         };
         let now = Instant::now();
-        if p.dead || p.casting.is_some() || p.combat_until > now || p.sleeping.is_some() {
+        if p.dead || p.casting.is_some() || p.combat_until > now {
             return false;
         }
         // nothing is after them
@@ -74,7 +74,6 @@ impl State {
         }
         p.auto_target = None;
         p.casting = None;
-        p.container = None;
         p.combo_on = None;
         Some(p)
     }
@@ -131,7 +130,6 @@ pub struct ForkSeed {
     containers: crate::game::Chests,
     clock: f32,
     day: u32,
-    default_mode: dyno_protocol::Mode,
     ops: Vec<String>,
     trust_movement: bool,
     owner: Option<String>,
@@ -151,7 +149,6 @@ impl State {
             containers: self.containers.clone(),
             clock: self.clock,
             day: self.day,
-            default_mode: self.default_mode,
             ops: self.ops.clone(),
             trust_movement: self.trust_movement,
             owner: self.owner.clone(),
@@ -171,6 +168,7 @@ impl State {
         shard: u32,
         world: dyno_world::World,
         light: dyno_world::light::Light,
+        far_encoded: dyno_world::far::Encoded,
     ) -> State {
         let mut world = world;
         world.log_changes(true);
@@ -189,7 +187,6 @@ impl State {
             rng: dyno_sim::rng::Rng::new(seed.seed ^ (shard as u64) << 32),
             clock: seed.clock,
             day: seed.day,
-            default_mode: seed.default_mode,
             ops: seed.ops,
             trust_movement: seed.trust_movement,
             owner: seed.owner,
@@ -215,7 +212,7 @@ impl State {
             encoded: Default::default(),
             routines: Default::default(),
             routine_cost: Default::default(),
-            far_encoded: Default::default(),
+            far_encoded,
         };
         st.spawn_points = crate::camps::plan_spawn_points(&st.world, &st.content, st.spawn_hearth);
         st.spawn_npcs();

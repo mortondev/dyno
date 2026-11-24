@@ -417,8 +417,8 @@
     "slot": "main_hand",
     "weapon": {
      "kind": "sword",
-     "min": 3,
-     "max": 5,
+     "min": 4,
+     "max": 6,
      "speed": 2.0
     },
     "stats": {}
@@ -446,7 +446,7 @@
      "max": 0,
      "speed": 1.0
     },
-    "armor": 12,
+    "armor": 16,
     "stats": {}
    }
   },
@@ -3627,7 +3627,7 @@
    "gear": {
     "slot": "chest",
     "armor_type": "cloth",
-    "armor": 3,
+    "armor": 12,
     "stats": {}
    }
   },
@@ -3648,7 +3648,7 @@
    "gear": {
     "slot": "shoulders",
     "armor_type": "cloth",
-    "armor": 1,
+    "armor": 6,
     "stats": {}
    }
   },
@@ -3669,7 +3669,7 @@
    "gear": {
     "slot": "chest",
     "armor_type": "cloth",
-    "armor": 3,
+    "armor": 10,
     "stats": {}
    }
   },
@@ -3690,7 +3690,7 @@
    "gear": {
     "slot": "shoulders",
     "armor_type": "cloth",
-    "armor": 1,
+    "armor": 5,
     "stats": {}
    }
   },
@@ -3711,7 +3711,7 @@
    "gear": {
     "slot": "chest",
     "armor_type": "cloth",
-    "armor": 3,
+    "armor": 6,
     "stats": {}
    }
   },
@@ -3732,7 +3732,7 @@
    "gear": {
     "slot": "head",
     "armor_type": "cloth",
-    "armor": 1,
+    "armor": 3,
     "stats": {}
    }
   },
@@ -3753,7 +3753,7 @@
    "gear": {
     "slot": "chest",
     "armor_type": "cloth",
-    "armor": 3,
+    "armor": 7,
     "stats": {}
    }
   },
@@ -3774,7 +3774,7 @@
    "gear": {
     "slot": "head",
     "armor_type": "cloth",
-    "armor": 1,
+    "armor": 3,
     "stats": {}
    }
   },
@@ -3861,6 +3861,111 @@
     "armor": 1,
     "stats": {}
    }
+  },
+  {
+   "key": "ride_hearthstead",
+   "name": "Cart ride to Hearthstead",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "hearthstead",
+    "at": [
+     40,
+     4
+    ],
+    "area": "hearthstead"
+   },
+   "image": "icons/grain_sack.png"
+  },
+  {
+   "key": "ride_logging_camp",
+   "name": "Cart ride to Garrick's Camp",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "logging_camp",
+    "at": [
+     8,
+     13
+    ],
+    "area": "logging_camp"
+   },
+   "image": "icons/grain_sack.png"
+  },
+  {
+   "key": "ride_windmill",
+   "name": "Cart ride to Ostrin's Farm",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "windmill_farm",
+    "at": [
+     -10,
+     14
+    ],
+    "area": "windmill"
+   },
+   "image": "icons/grain_sack.png"
+  },
+  {
+   "key": "ride_fishers_landing",
+   "name": "Cart ride to Fisher's Landing",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "fishers_landing",
+    "at": [
+     2,
+     -4
+    ],
+    "area": "fishers_landing"
+   },
+   "image": "icons/grain_sack.png"
+  },
+  {
+   "key": "ride_miners_rest",
+   "name": "Cart ride to Miner's Rest",
+   "color": [
+    0.62,
+    0.45,
+    0.25
+   ],
+   "icon": "lump",
+   "stack": 1,
+   "quality": 1,
+   "ride": {
+    "place": "miners_rest",
+    "at": [
+     8,
+     -4
+    ],
+    "area": "miners_rest"
+   },
+   "image": "icons/grain_sack.png"
   }
  ],
  "blocks": {
@@ -3947,7 +4052,7 @@
      "chance": 1.0
     }
    ],
-   "respawn": 240,
+   "respawn": 120,
    "skill": [
     "mining",
     1
@@ -4198,50 +4303,6 @@
    "group": "Basics"
   },
   {
-   "out": "crafting_table",
-   "in": [
-    [
-     "planks|birch_planks|dark_planks",
-     4
-    ]
-   ],
-   "group": "Basics"
-  },
-  {
-   "out": "torch",
-   "count": 4,
-   "in": [
-    [
-     "stick",
-     1
-    ],
-    [
-     "coal",
-     1
-    ]
-   ],
-   "group": "Basics"
-  },
-  {
-   "out": "hearth",
-   "in": [
-    [
-     "cobble",
-     8
-    ],
-    [
-     "log|birch_log",
-     4
-    ],
-    [
-     "coal",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Stations"
-  },
-  {
    "out": "wooden_pickaxe",
    "in": [
     [
@@ -4315,82 +4376,6 @@
    "skill": [
     "blacksmithing",
     1
-   ]
-  },
-  {
-   "out": "stone_pickaxe",
-   "in": [
-    [
-     "cobble|mossy_cobble",
-     3
-    ],
-    [
-     "stick",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Tools",
-   "skill": [
-    "blacksmithing",
-    10
-   ]
-  },
-  {
-   "out": "stone_axe",
-   "in": [
-    [
-     "cobble|mossy_cobble",
-     3
-    ],
-    [
-     "stick",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Tools",
-   "skill": [
-    "blacksmithing",
-    10
-   ]
-  },
-  {
-   "out": "stone_shovel",
-   "in": [
-    [
-     "cobble|mossy_cobble",
-     1
-    ],
-    [
-     "stick",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Tools",
-   "skill": [
-    "blacksmithing",
-    10
-   ]
-  },
-  {
-   "out": "stone_sword",
-   "in": [
-    [
-     "cobble|mossy_cobble",
-     2
-    ],
-    [
-     "stick",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Tools",
-   "skill": [
-    "blacksmithing",
-    10
    ]
   },
   {
@@ -4562,75 +4547,6 @@
    ]
   },
   {
-   "out": "furnace",
-   "in": [
-    [
-     "cobble",
-     8
-    ]
-   ],
-   "station": "table",
-   "group": "Stations"
-  },
-  {
-   "out": "chest",
-   "in": [
-    [
-     "planks|birch_planks|dark_planks",
-     8
-    ]
-   ],
-   "station": "table",
-   "group": "Stations"
-  },
-  {
-   "out": "bed",
-   "in": [
-    [
-     "planks|birch_planks|dark_planks",
-     3
-    ],
-    [
-     "white",
-     2
-    ]
-   ],
-   "station": "table",
-   "group": "Stations"
-  },
-  {
-   "out": "lantern",
-   "in": [
-    [
-     "iron_ingot",
-     1
-    ],
-    [
-     "torch",
-     1
-    ],
-    [
-     "shade_dust",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Light",
-   "count": 2
-  },
-  {
-   "out": "glass",
-   "in": [
-    [
-     "sand",
-     1
-    ]
-   ],
-   "station": "furnace",
-   "fuel": 1,
-   "group": "Smelting"
-  },
-  {
    "out": "iron_ingot",
    "in": [
     [
@@ -4663,30 +4579,6 @@
    ]
   },
   {
-   "out": "stone",
-   "in": [
-    [
-     "cobble",
-     1
-    ]
-   ],
-   "station": "furnace",
-   "fuel": 1,
-   "group": "Smelting"
-  },
-  {
-   "out": "brick",
-   "in": [
-    [
-     "clay",
-     1
-    ]
-   ],
-   "station": "furnace",
-   "fuel": 1,
-   "group": "Smelting"
-  },
-  {
    "out": "coal",
    "in": [
     [
@@ -4697,224 +4589,24 @@
    "station": "furnace",
    "fuel": 1,
    "group": "Smelting"
+  }
+ ],
+ "stations": [
+  {
+   "key": "table",
+   "name": "Workbench",
+   "blocks": [
+    "crafting_table",
+    "anvil",
+    "furnace"
+   ]
   },
   {
-   "out": "terracotta",
-   "in": [
-    [
-     "dirt",
-     2
-    ],
-    [
-     "clay",
-     1
-    ]
-   ],
-   "station": "furnace",
-   "fuel": 1,
-   "group": "Smelting"
-  },
-  {
-   "out": "mossy_cobble",
-   "in": [
-    [
-     "cobble",
-     1
-    ],
-    [
-     "leaves|pine_leaves|birch_leaves",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Building"
-  },
-  {
-   "out": "dark_planks",
-   "count": 2,
-   "in": [
-    [
-     "planks|birch_planks|dark_planks",
-     2
-    ],
-    [
-     "coal",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Building"
-  },
-  {
-   "out": "marble",
-   "count": 2,
-   "in": [
-    [
-     "stone",
-     2
-    ],
-    [
-     "snow",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Building"
-  },
-  {
-   "out": "basalt",
-   "count": 2,
-   "in": [
-    [
-     "stone",
-     2
-    ],
-    [
-     "coal",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Building"
-  },
-  {
-   "out": "red",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "berries",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "black",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "coal",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "yellow",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "sand",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "lime",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "leaves",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "blue",
-   "in": [
-    [
-     "white",
-     1
-    ],
-    [
-     "glowshroom",
-     1
-    ]
-   ],
-   "station": "table",
-   "group": "Colours"
-  },
-  {
-   "out": "orange",
-   "in": [
-    [
-     "red",
-     1
-    ],
-    [
-     "yellow",
-     1
-    ]
-   ],
-   "station": "table",
-   "count": 2,
-   "group": "Colours"
-  },
-  {
-   "out": "pink",
-   "in": [
-    [
-     "red",
-     1
-    ],
-    [
-     "white",
-     1
-    ]
-   ],
-   "station": "table",
-   "count": 2,
-   "group": "Colours"
-  },
-  {
-   "out": "purple",
-   "in": [
-    [
-     "red",
-     1
-    ],
-    [
-     "blue",
-     1
-    ]
-   ],
-   "station": "table",
-   "count": 2,
-   "group": "Colours"
-  },
-  {
-   "out": "cyan",
-   "in": [
-    [
-     "blue",
-     1
-    ],
-    [
-     "lime",
-     1
-    ]
-   ],
-   "station": "table",
-   "count": 2,
-   "group": "Colours"
+   "key": "furnace",
+   "name": "Forge",
+   "blocks": [
+    "furnace"
+   ]
   }
  ],
  "creatures": [
@@ -4960,7 +4652,7 @@
    "model": "quadruped",
    "spawn": "meadow",
    "cap": 8,
-   "damage": 3,
+   "damage": 2.5,
    "levels": [
     1,
     2
@@ -4970,10 +4662,10 @@
   {
    "key": "shade",
    "name": "Shade",
-   "health": 44,
+   "health": 40,
    "speed": 3.8,
    "hostile": true,
-   "damage": 4,
+   "damage": 3,
    "drops": [
     {
      "item": "shade_dust",
@@ -5220,6 +4912,22 @@
      "min": 1,
      "max": 1,
      "chance": 0.05
+    },
+    {
+     "item": "ironbound_girdle",
+     "chance": 0.02
+    },
+    {
+     "item": "wildstalker_belt",
+     "chance": 0.02
+    },
+    {
+     "item": "nightstalker_belt",
+     "chance": 0.02
+    },
+    {
+     "item": "apprentice_sash",
+     "chance": 0.02
     }
    ],
    "hostile": true,
@@ -5258,6 +4966,10 @@
      "min": 2,
      "max": 3,
      "chance": 1.0
+    },
+    {
+     "item": "ashcloak_hatchet",
+     "chance": 0.5
     }
    ],
    "hostile": true,
@@ -5308,6 +5020,22 @@
      "min": 1,
      "max": 1,
      "chance": 0.012
+    },
+    {
+     "item": "ironbound_girdle",
+     "chance": 0.012
+    },
+    {
+     "item": "wildstalker_belt",
+     "chance": 0.012
+    },
+    {
+     "item": "nightstalker_belt",
+     "chance": 0.012
+    },
+    {
+     "item": "apprentice_sash",
+     "chance": 0.012
     }
    ],
    "hostile": true,
@@ -5347,6 +5075,22 @@
      "min": 1,
      "max": 1,
      "chance": 0.4
+    },
+    {
+     "item": "ironbound_girdle",
+     "chance": 0.02
+    },
+    {
+     "item": "wildstalker_belt",
+     "chance": 0.02
+    },
+    {
+     "item": "nightstalker_belt",
+     "chance": 0.02
+    },
+    {
+     "item": "apprentice_sash",
+     "chance": 0.02
     }
    ],
    "hostile": true,
@@ -5438,104 +5182,52 @@
    "cap": 0,
    "attack_speed": 1.8,
    "burns_in_daylight": false
-  }
- ],
- "milestones": [
-  {
-   "key": "wood",
-   "title": "Punch a tree",
-   "hint": "Hold left click on a log to break it.",
-   "trigger": "collect:log"
   },
   {
-   "key": "table",
-   "title": "Workbench",
-   "hint": "Open your pack (E) and craft a crafting table from planks.",
-   "trigger": "craft:crafting_table"
-  },
-  {
-   "key": "pick",
-   "title": "Getting tools",
-   "hint": "Near a crafting table, make a wooden pickaxe.",
-   "trigger": "craft:wooden_pickaxe"
-  },
-  {
-   "key": "stone",
-   "title": "Stone age",
-   "hint": "Mine stone and make a stone pickaxe.",
-   "trigger": "craft:stone_pickaxe"
-  },
-  {
-   "key": "furnace",
-   "title": "First fire",
-   "hint": "Craft a furnace from 8 cobble, then smelt a log into coal for torches.",
-   "trigger": "craft:furnace"
-  },
-  {
-   "key": "charcoal",
-   "title": "Charcoal",
-   "hint": "Smelt a log in the furnace to make coal. One log makes four torches.",
-   "trigger": "craft:coal"
-  },
-  {
-   "key": "torch",
-   "title": "Light the dark",
-   "hint": "Light the dark: place a torch. Shades cannot rise in the light.",
-   "trigger": "place:torch"
-  },
-  {
-   "key": "night",
-   "title": "First night",
-   "hint": "Survive until morning.",
-   "trigger": "night"
-  },
-  {
-   "key": "iron",
-   "title": "Iron age",
-   "hint": "Smelt raw iron in a furnace.",
-   "trigger": "craft:iron_ingot"
-  },
-  {
-   "key": "shade",
-   "title": "Shade hunter",
-   "hint": "Defeat a Shade.",
-   "trigger": "kill:shade"
-  },
-  {
-   "key": "ember",
-   "title": "Ember",
-   "hint": "Mine emberstone deep underground with an iron pickaxe.",
-   "trigger": "collect:ember_shard"
-  },
-  {
-   "key": "home",
-   "title": "Home",
-   "hint": "Craft a bed. Right click it to make it your spawn point.",
-   "trigger": "craft:bed"
-  },
-  {
-   "key": "chest",
-   "title": "Storage",
-   "hint": "Craft a chest to share items with friends.",
-   "trigger": "craft:chest"
-  },
-  {
-   "key": "cook",
-   "title": "Hot meal",
-   "hint": "Cook raw meat in a furnace.",
-   "trigger": "craft:cooked_meat"
-  },
-  {
-   "key": "ironpick",
-   "title": "Deep digger",
-   "hint": "Make an iron pickaxe to mine emberstone.",
-   "trigger": "craft:iron_pickaxe"
-  },
-  {
-   "key": "hearth",
-   "title": "Safe ground",
-   "hint": "Craft and place a hearth: no Shade can come within 16 blocks of it.",
-   "trigger": "place:hearth"
+   "key": "old_tusk",
+   "name": "Old Tusk",
+   "model": "quadruped",
+   "variant": 1,
+   "health": 150,
+   "damage": 9,
+   "levels": [
+    4,
+    4
+   ],
+   "color": [
+    0.38,
+    0.24,
+    0.16
+   ],
+   "drops": [
+    {
+     "item": "old_tusk_mantle",
+     "chance": 1.0
+    },
+    {
+     "item": "boar_tusk",
+     "min": 2,
+     "max": 3,
+     "chance": 1.0
+    },
+    {
+     "item": "thornhide_boots",
+     "chance": 0.5
+    }
+   ],
+   "hostile": true,
+   "scale": 1.5,
+   "speed": 3.2,
+   "spawn": "meadow",
+   "cap": 0,
+   "attack_speed": 1.8,
+   "burns_in_daylight": false,
+   "ability": {
+    "charge": {
+     "range": 10
+    }
+   },
+   "aggro": 4
   }
  ],
  "world": {
@@ -5550,11 +5242,20 @@
     1
    ],
    [
+    "hearth_bread",
+    6
+   ],
+   [
     "berries",
     5
    ]
   ],
-  "group_bonus": 0.7
+  "group_bonus": 0.7,
+  "discovery_xp": [
+   15,
+   10
+  ],
+  "kill_xp": 0.7
  },
  "npcs": [
   {
@@ -5878,7 +5579,11 @@
     "miners_stew",
     "woolen_cloak",
     "grazer_hide_leggings",
-    "iron_pickaxe:150"
+    "iron_pickaxe:150",
+    "ironbound_girdle",
+    "wildstalker_belt",
+    "nightstalker_belt",
+    "apprentice_sash"
    ],
    "routine": [
     {
@@ -7152,6 +6857,219 @@
      "anim": "Sit"
     }
    ]
+  },
+  {
+   "key": "jeb",
+   "name": "Carter Jeb",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "hearthstead",
+   "at": [
+    40,
+    0,
+    7
+   ],
+   "greeting": "Legs tired? I drive to anywhere you've already walked to. I don't go looking for new places.",
+   "sells": [
+    "ride_logging_camp:30",
+    "ride_windmill:30",
+    "ride_fishers_landing:40",
+    "ride_miners_rest:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "nan",
+   "name": "Carter Nan",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "logging_camp",
+   "at": [
+    8,
+    0,
+    15
+   ],
+   "greeting": "Timber goes out, people come back. Been somewhere on foot? Then I can take you.",
+   "sells": [
+    "ride_hearthstead:15",
+    "ride_windmill:30",
+    "ride_fishers_landing:40",
+    "ride_miners_rest:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "pip",
+   "name": "Carter Pip",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "windmill_farm",
+   "at": [
+    -12,
+    0,
+    16
+   ],
+   "greeting": "Flour to town twice a day. There's room on the sacks, if you know where you're going.",
+   "sells": [
+    "ride_hearthstead:15",
+    "ride_logging_camp:30",
+    "ride_fishers_landing:40",
+    "ride_miners_rest:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "corwin",
+   "name": "Ferryman Corwin",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "fishers_landing",
+   "at": [
+    3,
+    0,
+    -6
+   ],
+   "greeting": "Boat's laid up, but the cart still runs. Anywhere you've been, for a few coppers.",
+   "sells": [
+    "ride_hearthstead:15",
+    "ride_logging_camp:30",
+    "ride_windmill:30",
+    "ride_miners_rest:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "ada",
+   "name": "Carter Ada",
+   "title": "Carter",
+   "color": [
+    0.58,
+    0.44,
+    0.26
+   ],
+   "place": "miners_rest",
+   "at": [
+    8,
+    0,
+    -6
+   ],
+   "greeting": "Ore went west, once. Now it's just people who've had enough. Where to?",
+   "sells": [
+    "ride_hearthstead:15",
+    "ride_logging_camp:30",
+    "ride_windmill:30",
+    "ride_fishers_landing:40"
+   ],
+   "routine": [
+    {
+     "at": [
+      0,
+      0
+     ],
+     "secs": [
+      20,
+      40
+     ],
+     "emotes": [
+      "Wave",
+      "Point"
+     ]
+    }
+   ]
+  },
+  {
+   "key": "innkeeper",
+   "name": "Marta",
+   "title": "Innkeeper",
+   "color": [
+    0.62,
+    0.36,
+    0.3
+   ],
+   "place": "hearthstead",
+   "at": [
+    36,
+    0,
+    24
+   ],
+   "greeting": "There's a bed and a fire here whenever you need them. Consider this your home.",
+   "innkeeper": true
   }
  ],
  "quests": [
@@ -7168,7 +7086,7 @@
      "talk": "maren"
     }
    ],
-   "xp": 60,
+   "xp": 30,
    "money": 10,
    "requires": []
   },
@@ -7194,7 +7112,7 @@
     ]
    ],
    "requires": [],
-   "xp": 200
+   "xp": 110
   },
   {
    "key": "thin_the_herd",
@@ -7204,12 +7122,12 @@
    "requires": [
     "cold_hearth"
    ],
-   "text": "The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 10 of them should do.",
+   "text": "The Grazers have grown bold without the Watch to drive them off, and they trample our gardens. Thin the herd: 8 of them should do. The nearest flocks graze just outside the gates.",
    "done": "That's better. Take one of these. You've earned it.",
    "objectives": [
     {
      "kill": "grazer",
-     "count": 10
+     "count": 8
     }
    ],
    "money": 60,
@@ -7231,7 +7149,7 @@
      1
     ]
    ],
-   "xp": 220
+   "xp": 130
   },
   {
    "key": "kindling",
@@ -7241,12 +7159,12 @@
    "requires": [
     "cold_hearth"
    ],
-   "text": "If we are ever to relight the Great Hearth we will need wood. Bring me 10 logs from the woods. Trees grow back here, faster than you'd think.",
+   "text": "If we are ever to relight the Great Hearth we will need wood. Bring me 8 logs from the woods. Trees grow back here, faster than you'd think.",
    "done": "Good, dry wood. Take this pick. The stone will need breaking too.",
    "objectives": [
     {
      "collect": "log",
-     "count": 10
+     "count": 8
     }
    ],
    "money": 50,
@@ -7256,7 +7174,7 @@
      1
     ]
    ],
-   "xp": 200
+   "xp": 100
   },
   {
    "key": "wool_for_winter",
@@ -7285,7 +7203,7 @@
      5
     ]
    ],
-   "xp": 200
+   "xp": 80
   },
   {
    "key": "coal_for_the_watch",
@@ -7295,7 +7213,7 @@
    "requires": [
     "kindling"
    ],
-   "text": "Light keeps the Shades back. Torches need coal. Look for black-flecked stone in the hillsides and cave mouths and bring me 6 coal.",
+   "text": "Light keeps the Shades back, and torches need coal. There is a seam in the rocks outside the north gate, on the left, and more at the Old Quarry north-west of the town. Bring me 6 coal. Your wooden pick will do.",
    "done": "Torches for the Watch, and some for you. Shades cannot rise in good light.",
    "objectives": [
     {
@@ -7310,7 +7228,7 @@
      16
     ]
    ],
-   "xp": 220
+   "xp": 170
   },
   {
    "key": "north_watch",
@@ -7320,9 +7238,9 @@
    "requires": [
     "thin_the_herd"
    ],
-   "text": "Before the dark came, we kept a beacon north of here. Go and find it. Its lantern may still burn. Follow the tracker north.",
-   "progress": "Have you found the beacon?",
-   "done": "Still burning? Then not all is lost.",
+   "text": "Before the dark came, we kept a beacon north of here. Follow the north road to it, and if Sergeant Holt still holds the watch there, give him my orders and do what he asks.",
+   "progress": "The Captain sent you? Find the beacon first: it is right behind me.",
+   "done": "Still burning, and so are we. Maren's orders, is it? Then there's work for you here.",
    "objectives": [
     {
      "explore": "the North Watch beacon",
@@ -7336,17 +7254,18 @@
     }
    ],
    "money": 80,
-   "xp": 120
+   "xp": 120,
+   "ender": "holt"
   },
   {
    "key": "eyes_in_the_dark",
    "title": "Eyes in the Dark",
    "level": 3,
-   "giver": "maren",
+   "giver": "holt",
    "requires": [
     "north_watch"
    ],
-   "text": "Shades rise when the sun goes down, and in deep caves at any hour. They cannot cross into a hearth's light. Fight from the light if you can. Destroy 5 of them.",
+   "text": "Shades rise when the sun goes down, and in deep caves at any hour. They cannot cross into a hearth's light: fight from the fire here if you can. Destroy 5 of them.",
    "progress": "Wait for dusk, or go below. They'll come.",
    "done": "Five fewer pairs of eyes. You fight like a Watchman.",
    "objectives": [
@@ -7358,15 +7277,15 @@
    "money": 120,
    "choice": [
     [
-     "watchman_vest",
+     "shadowweave_gloves",
      1
     ],
     [
-     "ranger_jerkin",
+     "smith_gloves",
      1
     ],
     [
-     "hearthkeeper_robe",
+     "thornhide_boots",
      1
     ]
    ],
@@ -7380,7 +7299,7 @@
    "requires": [
     "coal_for_the_watch"
    ],
-   "text": "The iron seams run deeper than coal: rust-red flecks in cave walls and cut hillsides. You'll want a stone pickaxe (Old Brannoc gives one for kindling, or I sell them) and a little practice: dig coal until your Mining reaches 5. Bring me 6 raw iron and I'll show you what a forge can do.",
+   "text": "The Old Quarry has iron beside the coal. You need a stone pickaxe (Brannoc gives one for kindling) and Mining 5: dig coal until you have it. Bring me 6 raw iron.",
    "done": "Good ore. Here, a proper pick, from my own anvil.",
    "objectives": [
     {
@@ -7398,7 +7317,8 @@
      "smith_gloves",
      1
     ]
-   ]
+   ],
+   "xp": 320
   },
   {
    "key": "dust_of_shadows",
@@ -7466,30 +7386,11 @@
    "money": 500
   },
   {
-   "key": "report_to_holt",
-   "title": "Report to the Watch",
-   "level": 3,
-   "giver": "maren",
-   "text": "Sergeant Holt keeps the North Watch. Take him my orders and do what he asks.",
-   "objectives": [
-    {
-     "talk": "holt"
-    }
-   ],
-   "requires": [
-    "north_watch"
-   ],
-   "money": 30,
-   "ender": "holt",
-   "done": "Maren's orders? Then you're with me now.",
-   "xp": 40
-  },
-  {
    "key": "watchfire",
    "title": "Feed the Watchfire",
    "level": 3,
    "giver": "holt",
-   "text": "The beacon needs coal or it dies by midnight. Three lumps will see us through the week.",
+   "text": "The watchfire eats coal. There is a seam in the Beacon Rocks, a stone's throw east of the tower: bring me 3 coal and it burns through the night.",
    "objectives": [
     {
      "collect": "coal",
@@ -7497,40 +7398,44 @@
     }
    ],
    "requires": [
-    "report_to_holt"
+    "north_watch"
    ],
    "money": 60,
    "done": "Hear that crackle? That's the sound of the dark backing off.",
-   "xp": 120
+   "xp": 100
   },
   {
    "key": "boar_trouble",
    "title": "Boar Trouble",
    "level": 3,
    "giver": "holt",
-   "text": "Thornboars charge anything on the north road. Six fewer would make it walkable again.",
+   "text": "Thornboars charge anything on the north road. Five fewer would make it walkable again.",
    "objectives": [
     {
      "kill": "thornboar",
-     "count": 6
+     "count": 5
     }
    ],
    "requires": [
-    "report_to_holt"
+    "north_watch"
    ],
    "money": 80,
    "done": "Road's clearer already. Take your pick from the armoury.",
    "choice": [
     [
-     "thornhide_boots",
+     "watchman_vest",
      1
     ],
     [
-     "woolen_cloak",
+     "ranger_jerkin",
+     1
+    ],
+    [
+     "hearthkeeper_robe",
      1
     ]
    ],
-   "xp": 240
+   "xp": 220
   },
   {
    "key": "garricks_camp",
@@ -7544,11 +7449,11 @@
     }
    ],
    "requires": [
-    "report_to_holt"
+    "north_watch"
    ],
-   "money": 20,
+   "money": 50,
    "ender": "garrick",
-   "xp": 40
+   "xp": 100
   },
   {
    "key": "tusks_and_tempers",
@@ -7567,7 +7472,7 @@
    ],
    "money": 90,
    "done": "Ha! Look at the size of that one.",
-   "xp": 240
+   "xp": 220
   },
   {
    "key": "silk_for_sails",
@@ -7614,7 +7519,7 @@
   },
   {
    "key": "barrow_warden",
-   "title": "The Barrow Warden",
+   "title": "The Barrow Warden (Group)",
    "level": 6,
    "giver": "garrick",
    "text": "Whatever rose from that barrow wears the old warden's helm. End it. Take friends.",
@@ -7629,12 +7534,30 @@
    ],
    "money": 300,
    "done": "Then the barrow sleeps again. For now.",
-   "xp": 1400
+   "xp": 1400,
+   "choice": [
+    [
+     "ironbound_pauldrons",
+     1
+    ],
+    [
+     "wildstalker_mantle",
+     1
+    ],
+    [
+     "nightstalker_spaulders",
+     1
+    ],
+    [
+     "apprentice_mantle",
+     1
+    ]
+   ]
   },
   {
    "key": "windmill_breadcrumb",
    "title": "Bread for the Mill",
-   "level": 3,
+   "level": 4,
    "giver": "tilda",
    "text": "Farmer Ostrin owes me flour. Walk south to his farm and see what's keeping him.",
    "objectives": [
@@ -7645,9 +7568,9 @@
    "requires": [
     "wool_for_winter"
    ],
-   "money": 20,
+   "money": 50,
    "ender": "ostrin",
-   "xp": 40
+   "xp": 120
   },
   {
    "key": "thieves_in_fields",
@@ -7672,11 +7595,11 @@
    "title": "Stolen Grain",
    "level": 4,
    "giver": "ostrin",
-   "text": "They carried off my grain in sacks. Bring back six and Tilda gets her flour.",
+   "text": "They carried off my grain in sacks. Bring back four and Tilda gets her flour.",
    "objectives": [
     {
      "collect": "grain_sack",
-     "count": 6
+     "count": 4
     }
    ],
    "requires": [
@@ -7709,9 +7632,9 @@
    "requires": [
     "windmill_breadcrumb"
    ],
-   "money": 20,
+   "money": 50,
    "ender": "wenna",
-   "xp": 40
+   "xp": 100
   },
   {
    "key": "pincher_supper",
@@ -7799,12 +7722,30 @@
     "drowned_light"
    ],
    "money": 200,
-   "done": "The water's dark again. Good dark."
+   "done": "The water's dark again. Good dark.",
+   "choice": [
+    [
+     "ironbound_helm",
+     1
+    ],
+    [
+     "wildstalker_hood",
+     1
+    ],
+    [
+     "nightstalker_cowl",
+     1
+    ],
+    [
+     "apprentice_circlet",
+     1
+    ]
+   ]
   },
   {
    "key": "word_from_east",
    "title": "Word from the East",
-   "level": 4,
+   "level": 5,
    "giver": "hollis",
    "text": "My ore came from Miner's Rest, east past the bridge. No shipment in a week. Find Quartermaster Bree and ask why. Mind the caravan on the road.",
    "objectives": [
@@ -7815,9 +7756,9 @@
    "requires": [
     "iron_for_hollis"
    ],
-   "money": 30,
+   "money": 50,
    "ender": "bree",
-   "xp": 40
+   "xp": 120
   },
   {
    "key": "ambush_east_road",
@@ -7866,7 +7807,7 @@
    "title": "Rook Varn",
    "level": 6,
    "giver": "bree",
-   "text": "Their leader, Rook Varn, wears a red sash and fights like ten men. End him and the band breaks.",
+   "text": "Their leader, Rook Varn, wears a red sash and fights like ten men. End him and the band breaks. He keeps two Cutthroats at his side: bring a friend, or pull them one at a time.",
    "objectives": [
     {
      "kill": "rook_varn",
@@ -7885,6 +7826,10 @@
     ],
     [
      "candlelight_wand",
+     1
+    ],
+    [
+     "wildstalker_quiver",
      1
     ]
    ],
@@ -7906,7 +7851,25 @@
     "word_from_east"
    ],
    "money": 180,
-   "done": "Wax everywhere. Disgusting little things."
+   "done": "Wax everywhere. Disgusting little things.",
+   "choice": [
+    [
+     "ironbound_gauntlets",
+     1
+    ],
+    [
+     "wildstalker_gauntlets",
+     1
+    ],
+    [
+     "nightstalker_gloves",
+     1
+    ],
+    [
+     "apprentice_wraps",
+     1
+    ]
+   ]
   },
   {
    "key": "wax_and_ore",
@@ -7928,11 +7891,29 @@
     "candles_in_dark"
    ],
    "money": 220,
-   "done": "Good iron, and wax to light the next shift."
+   "done": "Good iron, and wax to light the next shift.",
+   "choice": [
+    [
+     "ironbound_sabatons",
+     1
+    ],
+    [
+     "wildstalker_boots",
+     1
+    ],
+    [
+     "nightstalker_boots",
+     1
+    ],
+    [
+     "apprentice_slippers",
+     1
+    ]
+   ]
   },
   {
    "key": "hollow_foreman",
-   "title": "The Hollow Foreman",
+   "title": "The Hollow Foreman (Group)",
    "level": 10,
    "giver": "dunmore",
    "text": "Something wears the old foreman's coat in the Deep Seam and gives the Candlekin their orders. Gather a party of three and finish it.",
@@ -7947,7 +7928,326 @@
    ],
    "money": 800,
    "done": "The Hollow is ours. Hearthstead will hear of this.",
-   "xp": 3000
+   "xp": 3000,
+   "choice": [
+    [
+     "ironbound_cuirass",
+     1
+    ],
+    [
+     "wildstalker_hauberk",
+     1
+    ],
+    [
+     "nightstalker_jerkin",
+     1
+    ],
+    [
+     "apprentice_robe",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "broken_tower",
+   "title": "The Broken Tower",
+   "level": 2,
+   "giver": "tolan",
+   "requires": [
+    "cold_hearth"
+   ],
+   "text": "There's an old watchtower on the south road, three minutes out. Something has been moving in it after dark. Walk down, look it over and tell me what you see.",
+   "progress": "South gate, then follow the road. You can't miss it.",
+   "done": "Empty? Good. Empty is the best news I've had this week.",
+   "objectives": [
+    {
+     "explore": "the Broken Tower",
+     "place": "south_road_tower_7",
+     "at": [
+      7,
+      0,
+      3
+     ],
+     "radius": 14
+    }
+   ],
+   "xp": 90,
+   "money": 40
+  },
+  {
+   "key": "lay_of_the_land",
+   "title": "The Lay of the Land",
+   "level": 2,
+   "giver": "tolan",
+   "requires": [
+    "broken_tower"
+   ],
+   "text": "If you're to be any use to the Watch, learn the meadow. Go and stand in three places: the Old Quarry north-west, the Trapper's Camp on the west trail, and the wreck of Hobb's wagon on the east road.",
+   "progress": "Quarry, camp, caravan.",
+   "done": "Now you know the ground better than half my men. Take these: you've walked enough to need them.",
+   "objectives": [
+    {
+     "explore": "the Old Quarry",
+     "place": "old_quarry",
+     "at": [
+      -8,
+      0,
+      -10
+     ],
+     "radius": 16
+    },
+    {
+     "explore": "the Trapper's Camp",
+     "place": "west_trail_camp_11",
+     "at": [
+      3,
+      0,
+      8
+     ],
+     "radius": 14
+    },
+    {
+     "explore": "the Wrecked Caravan",
+     "place": "wrecked_caravan",
+     "at": [
+      0,
+      0,
+      9
+     ],
+     "radius": 14
+    }
+   ],
+   "xp": 260,
+   "money": 90,
+   "choice": [
+    [
+     "thornhide_boots",
+     1
+    ],
+    [
+     "mudcaked_boots",
+     1
+    ],
+    [
+     "woolen_cloak",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "lookouts_eye",
+   "title": "A Lookout's Eye",
+   "level": 3,
+   "giver": "holt",
+   "requires": [
+    "north_watch"
+   ],
+   "text": "From the hill up the road you can see the whole of Birchrise. Climb to the lookout and count the boar packs, so I know what we're up against.",
+   "progress": "Up the north road. The viewpoint is on the left.",
+   "done": "That many? Then the boars are your next job.",
+   "objectives": [
+    {
+     "explore": "Watch Hill Lookout",
+     "place": "north_road_view_2",
+     "at": [
+      8,
+      0,
+      2
+     ],
+     "radius": 14
+    }
+   ],
+   "xp": 100,
+   "money": 50
+  },
+  {
+   "key": "word_for_rysa",
+   "title": "Word for the Hunter",
+   "level": 4,
+   "giver": "garrick",
+   "ender": "rysa",
+   "requires": [
+    "garricks_camp"
+   ],
+   "text": "Rysa hunts out by the Hollow Oak, west along the trail. Tell her the camp will pay for every Websnare she clears. And mind the webs.",
+   "done": "Garrick pays now? Then stay: there's more here than I can shoot.",
+   "objectives": [
+    {
+     "talk": "rysa"
+    }
+   ],
+   "xp": 120,
+   "money": 50
+  },
+  {
+   "key": "webs_between_roots",
+   "title": "Webs Between the Roots",
+   "level": 4,
+   "giver": "rysa",
+   "requires": [
+    "word_for_rysa"
+   ],
+   "text": "They nest under the Hollow Oak and come out along the roots. Kill 8 Websnares. If a big pale one comes down the trunk, that's the Silkmother: don't fight her alone.",
+   "progress": "Eight. I'm counting.",
+   "done": "The wood's quieter already. Take your pick.",
+   "objectives": [
+    {
+     "kill": "websnare",
+     "count": 8
+    }
+   ],
+   "xp": 320,
+   "money": 120,
+   "choice": [
+    [
+     "webspun_cloak",
+     1
+    ],
+    [
+     "shadowweave_gloves",
+     1
+    ],
+    [
+     "smith_gloves",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "forgotten_graves",
+   "title": "The Forgotten Graves",
+   "level": 5,
+   "giver": "anwen",
+   "ender": "calder",
+   "requires": [],
+   "text": "The graves north of here are older than the Barrow. Calder lights a lamp there every night. Find the graves, then find him, and ask what he has seen.",
+   "progress": "Have you stood among the graves?",
+   "done": "Seen? The Warden walks, that's what I've seen. Somebody ought to put him back.",
+   "objectives": [
+    {
+     "explore": "the Forgotten Graves",
+     "place": "barrowwood_graves",
+     "at": [
+      0,
+      0,
+      8
+     ],
+     "radius": 14
+    },
+    {
+     "talk": "calder"
+    }
+   ],
+   "xp": 300,
+   "money": 100
+  },
+  {
+   "key": "know_the_vale",
+   "title": "Know the Vale",
+   "level": 5,
+   "giver": "brannoc",
+   "requires": [
+    "coal_for_the_watch"
+   ],
+   "text": "The Great Hearth once lit the whole vale. Before we relight it, see what it will shine on. Stand at the North Pass, the Barrow Overlook, the Shrine Shore and the Ridge Cut. It is a long road: take a friend past the bridge.",
+   "progress": "North, west, south, east. The vale is bigger than it looks from here.",
+   "done": "Pass to shore, and back alive. Then wear something worthy of it.",
+   "objectives": [
+    {
+     "explore": "the North Pass",
+     "place": "north_pass",
+     "at": [
+      8,
+      0,
+      6
+     ],
+     "radius": 16
+    },
+    {
+     "explore": "the Barrow Overlook",
+     "place": "oak_trail_view_19",
+     "at": [
+      7,
+      0,
+      -4
+     ],
+     "radius": 14
+    },
+    {
+     "explore": "the Shrine Shore",
+     "place": "shrine_shore",
+     "at": [
+      0,
+      0,
+      0
+     ],
+     "radius": 14
+    },
+    {
+     "explore": "the Ridge Cut",
+     "place": "ridge_cut",
+     "at": [
+      -6,
+      0,
+      6
+     ],
+     "radius": 14
+    }
+   ],
+   "xp": 1500,
+   "money": 400,
+   "choice": [
+    [
+     "ironbound_legplates",
+     1
+    ],
+    [
+     "wildstalker_leggings",
+     1
+    ],
+    [
+     "nightstalker_breeches",
+     1
+    ],
+    [
+     "apprentice_trousers",
+     1
+    ]
+   ]
+  },
+  {
+   "key": "old_tusk",
+   "title": "Old Tusk (Group)",
+   "level": 4,
+   "giver": "holt",
+   "requires": [
+    "boar_trouble"
+   ],
+   "text": "The boars follow one old brute with tusks like scythes. He keeps to a hollow west of here. He has put two of my men in their beds: take a friend, and bring him down.",
+   "progress": "Old Tusk. West of the tower, past the first boar pack. Not alone.",
+   "done": "That is the herd broken. The Watch owes you, both of you.",
+   "objectives": [
+    {
+     "kill": "old_tusk",
+     "count": 1
+    }
+   ],
+   "xp": 500,
+   "money": 200,
+   "choice": [
+    [
+     "watchman_vest",
+     1
+    ],
+    [
+     "ranger_jerkin",
+     1
+    ],
+    [
+     "hearthkeeper_robe",
+     1
+    ]
+   ]
   }
  ],
  "classes": [
@@ -7960,7 +8260,7 @@
     0.61,
     0.43
    ],
-   "armor": "mail",
+   "armor": "plate",
    "weapons": [
     "sword",
     "axe",
@@ -7968,7 +8268,7 @@
     "polearm",
     "shield"
    ],
-   "blurb": "A master of arms in mail. Builds rage by fighting; stands at the front and takes the blows.",
+   "blurb": "A master of arms in plate and mail. Builds rage by fighting; stands at the front and takes the blows.",
    "starter": [
     [
      "worn_shortsword",
@@ -8005,7 +8305,7 @@
    "growth": {
     "str": 15,
     "agi": 7,
-    "sta": 14,
+    "sta": 16,
     "int": 1,
     "spi": 3
    }
@@ -8019,13 +8319,13 @@
     0.55,
     0.73
    ],
-   "armor": "mail",
+   "armor": "plate",
    "weapons": [
     "mace",
     "sword",
     "shield"
    ],
-   "blurb": "A holy warrior in mail: fights up close, heals, and is a bane to Shades.",
+   "blurb": "A holy warrior in plate and mail: fights up close, heals, and is a bane to Shades.",
    "starter": [
     [
      "rough_maul",
@@ -8072,14 +8372,14 @@
     0.83,
     0.45
    ],
-   "armor": "leather",
+   "armor": "mail",
    "weapons": [
     "bow",
     "axe",
     "sword",
     "dagger"
    ],
-   "blurb": "A tracker and archer in leather who strikes from afar and pins foes in place.",
+   "blurb": "A tracker and archer in leather and mail who strikes from afar and pins foes in place.",
    "starter": [
     [
      "hunting_bow",
@@ -8168,7 +8468,7 @@
    "growth": {
     "str": 7,
     "agi": 16,
-    "sta": 10,
+    "sta": 12,
     "int": 1,
     "spi": 3
    }
@@ -8267,7 +8567,7 @@
    "base": {
     "str": 2,
     "agi": 3,
-    "sta": 5,
+    "sta": 6,
     "int": 10,
     "spi": 7
    },
@@ -8286,7 +8586,7 @@
    "name": "Heroic Blow",
    "class": "warrior",
    "level": 1,
-   "text": "A mighty strike: weapon damage plus a little more.",
+   "text": "A mighty blow: weapon damage plus more.",
    "icon": "worn_shortsword",
    "color": [
     0.9,
@@ -8297,53 +8597,59 @@
    "range": 4.5,
    "weapon": 1.0,
    "damage": [
-    10,
-    1
-   ]
+    8,
+    3
+   ],
+   "sound": "slash",
+   "image": "icons/abilities/heroic_blow.png"
   },
   {
    "key": "battle_cry",
    "name": "Battle Cry",
    "class": "warrior",
-   "level": 2,
+   "level": 6,
    "text": "Your cry steels you: 10% more damage for 2 minutes.",
    "icon": "rough_maul",
    "color": [
-    1.0,
-    0.5,
-    0.3
+    0.9,
+    0.35,
+    0.2
    ],
    "cost": 10,
    "buff": {
     "kind": "damage",
     "amount": 10,
     "secs": 120
-   }
+   },
+   "sound": "shout",
+   "image": "icons/abilities/battle_cry.png"
   },
   {
    "key": "onrush",
    "name": "Onrush",
    "class": "warrior",
-   "level": 4,
-   "text": "Rush to your target, stun it for 1 second and gain 10 rage.",
+   "level": 1,
+   "text": "Rush to your target, stun it for 1.5 seconds and gain 20 rage.",
    "icon": "watch_greataxe",
    "color": [
-    0.9,
-    0.6,
-    0.4
+    0.85,
+    0.5,
+    0.25
    ],
-   "cooldown": 15,
+   "cooldown": 12,
    "range": 25,
    "charge": true,
-   "stun": 1,
-   "gives": 10
+   "stun": 1.5,
+   "gives": 20,
+   "sound": "charge",
+   "image": "icons/abilities/onrush.png"
   },
   {
    "key": "rending_cut",
    "name": "Rending Cut",
    "class": "warrior",
    "level": 3,
-   "text": "Open a wound that bleeds for 15 seconds.",
+   "text": "Open a wound that bleeds for 12 seconds.",
    "icon": "watch_longsword",
    "color": [
     0.8,
@@ -8353,30 +8659,38 @@
    "cost": 10,
    "range": 4.5,
    "dot": [
-    25,
-    10,
-    15
-   ]
+    18,
+    6,
+    12
+   ],
+   "sound": "slash",
+   "image": "icons/abilities/rending_cut.png"
   },
   {
    "key": "ground_slam",
    "name": "Ground Slam",
    "class": "warrior",
-   "level": 8,
-   "text": "Slam the earth, hurting every foe within 5 yards.",
+   "level": 4,
+   "text": "Slam the earth: every foe within 5 yards is hurt and slowed by 40% for 4 seconds.",
    "icon": "rough_maul",
    "color": [
-    0.7,
     0.6,
-    0.4
+    0.5,
+    0.35
    ],
    "cost": 20,
-   "cooldown": 6,
+   "cooldown": 8,
    "radius": 5,
    "damage": [
-    8,
-    3
-   ]
+    7,
+    2.5
+   ],
+   "slow": [
+    40,
+    4
+   ],
+   "sound": "thud",
+   "image": "icons/abilities/ground_slam.png"
   },
   {
    "key": "last_stand",
@@ -8386,16 +8700,18 @@
    "text": "Take 30% less damage for 10 seconds.",
    "icon": "battered_buckler",
    "color": [
-    0.7,
-    0.7,
-    0.8
+    0.55,
+    0.6,
+    0.75
    ],
    "cooldown": 60,
    "buff": {
     "kind": "ward",
     "amount": 30,
     "secs": 10
-   }
+   },
+   "sound": "shield",
+   "image": "icons/abilities/last_stand.png"
   },
   {
    "key": "judging_blow",
@@ -8405,98 +8721,108 @@
    "text": "Strike with holy might: weapon damage plus more. Shades take 50% more.",
    "icon": "rough_maul",
    "color": [
-    1.0,
-    0.9,
-    0.5
+    0.8,
+    0.62,
+    0.25
    ],
-   "cost": 12,
-   "cooldown": 8,
+   "cost": 7,
+   "cooldown": 4,
    "range": 4.5,
-   "weapon": 1.0,
+   "weapon": 0.6,
    "damage": [
-    8,
+    2,
     1
    ],
-   "shade_bonus": 1.5
+   "shade_bonus": 1.5,
+   "sound": "holy_strike",
+   "image": "icons/abilities/judging_blow.png"
   },
   {
    "key": "holy_mend",
    "name": "Holy Mend",
    "class": "paladin",
    "level": 1,
-   "text": "Heal your wounds.",
+   "text": "Call on the light to heal your wounds.",
    "icon": "lantern",
    "color": [
-    1.0,
-    0.95,
+    0.55,
+    0.9,
     0.6
    ],
-   "cost": 20,
-   "cast": 2.5,
+   "cost": 18,
+   "cast": 2.0,
    "heal": [
-    28,
-    9
-   ]
+    24,
+    8
+   ],
+   "sound": "heal",
+   "image": "icons/abilities/holy_mend.png"
   },
   {
    "key": "valour",
    "name": "Valour",
    "class": "paladin",
-   "level": 4,
+   "level": 2,
    "text": "Fight with valour: 10% more damage for 5 minutes.",
    "icon": "watch_longsword",
    "color": [
-    1.0,
     0.85,
-    0.4
+    0.3,
+    0.25
    ],
    "cost": 20,
    "buff": {
     "kind": "damage",
     "amount": 10,
     "secs": 300
-   }
+   },
+   "sound": "shout",
+   "image": "icons/abilities/valour.png"
   },
   {
    "key": "rebuke",
    "name": "Rebuke",
    "class": "paladin",
    "level": 3,
-   "text": "Stun your target for 4 seconds.",
+   "text": "A stern blow that stuns your target for 3 seconds.",
    "icon": "shadowbane_mace",
    "color": [
-    1.0,
     0.9,
-    0.6
+    0.55,
+    0.25
    ],
-   "cost": 15,
-   "cooldown": 45,
+   "cost": 10,
+   "cooldown": 30,
    "range": 4.5,
    "damage": [
-    2,
-    0
+    4,
+    1
    ],
-   "stun": 4
+   "stun": 3,
+   "sound": "thud",
+   "image": "icons/abilities/rebuke.png"
   },
   {
    "key": "devout_ward",
    "name": "Devout Ward",
    "class": "paladin",
-   "level": 8,
+   "level": 5,
    "text": "Take 30% less damage for 10 seconds.",
    "icon": "battered_buckler",
    "color": [
-    1.0,
-    0.95,
-    0.7
+    0.55,
+    0.68,
+    0.95
    ],
-   "cost": 20,
+   "cost": 15,
    "cooldown": 60,
    "buff": {
     "kind": "ward",
     "amount": 30,
     "secs": 10
-   }
+   },
+   "sound": "shield",
+   "image": "icons/abilities/devout_ward.png"
   },
   {
    "key": "hallowed_ground",
@@ -8517,7 +8843,9 @@
     16,
     6
    ],
-   "shade_bonus": 2.0
+   "shade_bonus": 2.0,
+   "sound": "holy_burst",
+   "image": "icons/abilities/hallowed_ground.png"
   },
   {
    "key": "quick_shot",
@@ -8531,54 +8859,60 @@
     0.8,
     0.6
    ],
-   "cost": 10,
-   "cooldown": 6,
+   "cost": 6,
+   "cooldown": 3,
    "range": 30,
    "damage": [
-    8,
-    3
-   ]
+    7,
+    2.5
+   ],
+   "sound": "shot",
+   "image": "icons/abilities/quick_shot.png"
   },
   {
    "key": "barbed_arrow",
    "name": "Barbed Arrow",
    "class": "hunter",
-   "level": 2,
-   "text": "An arrow that keeps cutting for 15 seconds.",
+   "level": 1,
+   "text": "A barbed arrow that keeps cutting for 12 seconds.",
    "icon": "ashwood_longbow",
    "color": [
     0.8,
     0.2,
     0.2
    ],
-   "cost": 12,
+   "cost": 8,
    "range": 30,
    "dot": [
-    20,
-    7.5,
-    15
-   ]
+    16,
+    5,
+    12
+   ],
+   "sound": "shot",
+   "image": "icons/abilities/barbed_arrow.png"
   },
   {
    "key": "snare_shot",
-   "name": "Snare Shot",
+   "name": "Snare Trap",
    "class": "hunter",
-   "level": 6,
-   "text": "Pin your target in place for 4 seconds.",
+   "level": 4,
+   "text": "Loose a snare at your target's feet: it is held in place for 5 seconds.",
    "icon": "hunting_bow",
    "color": [
     0.6,
     0.8,
     0.5
    ],
-   "cost": 12,
-   "cooldown": 12,
+   "cost": 10,
+   "cooldown": 15,
    "range": 30,
    "damage": [
     2,
     0
    ],
-   "root": 4
+   "root": 5,
+   "sound": "snare",
+   "image": "icons/abilities/snare_shot.png"
   },
   {
    "key": "hawks_eye",
@@ -8597,7 +8931,9 @@
     "kind": "damage",
     "amount": 15,
     "secs": 1800
-   }
+   },
+   "sound": "seal",
+   "image": "icons/abilities/hawks_eye.png"
   },
   {
    "key": "volley",
@@ -8607,9 +8943,9 @@
    "text": "Rain arrows on every foe within 5 yards of your target.",
    "icon": "ashwood_longbow",
    "color": [
-    0.85,
-    0.75,
-    0.55
+    0.5,
+    0.65,
+    0.4
    ],
    "cost": 30,
    "cooldown": 10,
@@ -8619,7 +8955,9 @@
    "damage": [
     10,
     3
-   ]
+   ],
+   "sound": "shot_heavy",
+   "image": "icons/abilities/volley.png"
   },
   {
    "key": "vicious_strike",
@@ -8633,56 +8971,62 @@
     0.9,
     0.4
    ],
-   "cost": 40,
+   "cost": 45,
    "range": 4.5,
-   "weapon": 1.0,
+   "weapon": 0.85,
    "damage": [
-    6,
-    1
+    1,
+    0.6
    ],
-   "combo": 1
+   "combo": 1,
+   "sound": "stab",
+   "image": "icons/abilities/vicious_strike.png"
   },
   {
    "key": "finishing_cut",
    "name": "Finishing Cut",
    "class": "rogue",
    "level": 1,
-   "text": "A finisher: damage for each combo point.",
+   "text": "A finisher: damage for each combo point spent.",
    "icon": "keen_dagger",
    "color": [
-    1.0,
-    0.85,
-    0.3
+    0.9,
+    0.45,
+    0.2
    ],
-   "cost": 30,
+   "cost": 25,
    "range": 4.5,
    "damage": [
-    6,
-    2
+    2,
+    0.8
    ],
-   "combo": -1
+   "combo": -1,
+   "sound": "slash",
+   "image": "icons/abilities/finishing_cut.png"
   },
   {
    "key": "low_blow",
    "name": "Low Blow",
    "class": "rogue",
    "level": 3,
-   "text": "Stun your target for 3 seconds. Adds a combo point.",
+   "text": "Stun your target for 4 seconds. Adds a combo point.",
    "icon": "rusty_dagger",
    "color": [
-    0.8,
-    0.8,
-    0.5
+    0.6,
+    0.5,
+    0.35
    ],
-   "cost": 40,
-   "cooldown": 10,
+   "cost": 25,
+   "cooldown": 12,
    "range": 4.5,
    "damage": [
-    1,
-    0
+    3,
+    1
    ],
-   "stun": 3,
-   "combo": 1
+   "stun": 4,
+   "combo": 1,
+   "sound": "thud",
+   "image": "icons/abilities/low_blow.png"
   },
   {
    "key": "flurry",
@@ -8692,9 +9036,9 @@
    "text": "A finisher: attack 30% faster for 6 seconds, plus 3 per combo point.",
    "icon": "keen_dagger",
    "color": [
-    1.0,
-    1.0,
-    0.5
+    0.4,
+    0.72,
+    0.78
    ],
    "cost": 25,
    "combo": -1,
@@ -8703,7 +9047,9 @@
     "amount": 30,
     "secs": 6,
     "per_combo": 3
-   }
+   },
+   "sound": "slash",
+   "image": "icons/abilities/flurry.png"
   },
   {
    "key": "open_vein",
@@ -8724,26 +9070,30 @@
     12,
     4,
     12
-   ]
+   ],
+   "sound": "stab",
+   "image": "icons/abilities/open_vein.png"
   },
   {
    "key": "slip_away",
    "name": "Slip Away",
    "class": "rogue",
-   "level": 10,
-   "text": "Take 50% less damage for 8 seconds.",
+   "level": 4,
+   "text": "Twist away from every blow: take 60% less damage for 8 seconds.",
    "icon": "shade_dust",
    "color": [
     0.6,
     0.6,
     0.7
    ],
-   "cooldown": 180,
+   "cooldown": 60,
    "buff": {
     "kind": "ward",
-    "amount": 50,
+    "amount": 60,
     "secs": 8
-   }
+   },
+   "sound": "sneak",
+   "image": "icons/abilities/slip_away.png"
   },
   {
    "key": "smite",
@@ -8757,14 +9107,16 @@
     0.92,
     0.55
    ],
-   "cost": 10,
+   "cost": 9,
    "cast": 1.5,
    "range": 25,
    "damage": [
-    12,
-    4
+    11,
+    3.5
    ],
-   "shade_bonus": 2.0
+   "shade_bonus": 2.0,
+   "sound": "holy_bolt",
+   "image": "icons/abilities/smite.png"
   },
   {
    "key": "mend",
@@ -8774,55 +9126,61 @@
    "text": "Close your wounds.",
    "icon": "berries",
    "color": [
-    0.6,
-    1.0,
-    0.6
+    0.45,
+    0.85,
+    0.5
    ],
    "cost": 15,
    "cast": 2,
    "heal": [
-    25,
-    9
-   ]
+    22,
+    8
+   ],
+   "sound": "heal",
+   "image": "icons/abilities/mend.png"
   },
   {
    "key": "withering_word",
    "name": "Withering Word",
    "class": "priest",
    "level": 2,
-   "text": "Shadow eats at your target for 18 seconds.",
+   "text": "A word of shadow eats at your target for 12 seconds.",
    "icon": "shade_dust",
    "color": [
     0.55,
     0.3,
     0.7
    ],
-   "cost": 15,
+   "cost": 12,
    "range": 25,
    "dot": [
-    24,
-    9,
-    18
-   ]
+    18,
+    6,
+    12
+   ],
+   "sound": "shadow",
+   "image": "icons/abilities/withering_word.png"
   },
   {
    "key": "renewal",
    "name": "Renewal",
    "class": "priest",
-   "level": 6,
+   "level": 5,
    "text": "Heal yourself over 15 seconds.",
    "icon": "berries",
    "color": [
-    0.5,
-    1.0,
-    0.5
+    0.3,
+    0.7,
+    0.45
    ],
-   "cost": 18,
+   "cost": 16,
    "hot": [
-    25,
-    10,
+    22,
+    8,
     15
-   ]
+   ],
+   "sound": "heal",
+   "image": "icons/abilities/renewal.png"
   },
   {
    "key": "fortify",
@@ -8832,16 +9190,18 @@
    "text": "+5 Stamina for 30 minutes.",
    "icon": "acolyte_rod",
    "color": [
-    0.9,
-    0.9,
-    1.0
+    0.7,
+    0.72,
+    0.85
    ],
    "cost": 25,
    "buff": {
     "kind": "stamina",
     "amount": 5,
     "secs": 1800
-   }
+   },
+   "sound": "seal",
+   "image": "icons/abilities/fortify.png"
   },
   {
    "key": "radiance",
@@ -8866,7 +9226,9 @@
    "heal": [
     10,
     3
-   ]
+   ],
+   "sound": "holy_burst",
+   "image": "icons/abilities/radiance.png"
   },
   {
    "key": "fireball",
@@ -8882,17 +9244,19 @@
    ],
    "cost": 14,
    "cast": 2,
-   "range": 30,
+   "range": 25,
    "damage": [
-    16,
-    5
-   ]
+    13,
+    4.5
+   ],
+   "sound": "fire",
+   "image": "icons/abilities/fireball.png"
   },
   {
    "key": "scholars_focus",
    "name": "Scholar's Focus",
    "class": "mage",
-   "level": 2,
+   "level": 5,
    "text": "+5 Intellect for 30 minutes.",
    "icon": "apprentice_staff",
    "color": [
@@ -8905,7 +9269,9 @@
     "kind": "intellect",
     "amount": 5,
     "secs": 1800
-   }
+   },
+   "sound": "seal",
+   "image": "icons/abilities/scholars_focus.png"
   },
   {
    "key": "fire_blast",
@@ -8921,32 +9287,36 @@
    ],
    "cost": 12,
    "cooldown": 8,
-   "range": 25,
+   "range": 20,
    "damage": [
-    12,
-    4
-   ]
+    9,
+    3
+   ],
+   "sound": "fire_blast",
+   "image": "icons/abilities/fire_blast.png"
   },
   {
    "key": "ice_ring",
    "name": "Ice Ring",
    "class": "mage",
-   "level": 6,
-   "text": "Frost holds every foe within 6 yards in place for 6 seconds.",
+   "level": 4,
+   "text": "Frost holds every foe within 6 yards in place for 5 seconds.",
    "icon": "glass",
    "color": [
     0.6,
     0.85,
     1.0
    ],
-   "cost": 20,
+   "cost": 18,
    "cooldown": 25,
    "radius": 6,
    "damage": [
-    2,
-    0
+    3,
+    1
    ],
-   "root": 6
+   "root": 5,
+   "sound": "frost_burst",
+   "image": "icons/abilities/ice_ring.png"
   },
   {
    "key": "blink",
@@ -8962,7 +9332,9 @@
    ],
    "cost": 15,
    "cooldown": 15,
-   "blink": 10
+   "blink": 10,
+   "sound": "blink",
+   "image": "icons/abilities/blink.png"
   },
   {
    "key": "flame_nova",
@@ -8982,7 +9354,199 @@
    "damage": [
     12,
     4
-   ]
+   ],
+   "sound": "fire_blast",
+   "image": "icons/abilities/flame_nova.png"
+  },
+  {
+   "key": "second_wind",
+   "name": "Second Wind",
+   "class": "warrior",
+   "level": 2,
+   "icon": "hearth_bread",
+   "color": [
+    0.9,
+    0.45,
+    0.3
+   ],
+   "cost": 15,
+   "cooldown": 20,
+   "heal": [
+    14,
+    5
+   ],
+   "sound": "shout",
+   "text": "Turn your rage into resolve: heal your wounds.",
+   "image": "icons/abilities/second_wind.png"
+  },
+  {
+   "key": "seal_of_dawn",
+   "name": "Seal of Dawn",
+   "class": "paladin",
+   "level": 1,
+   "icon": "lantern",
+   "color": [
+    1.0,
+    0.8,
+    0.35
+   ],
+   "cost": 10,
+   "buff": {
+    "kind": "strike",
+    "amount": 3,
+    "secs": 60,
+    "per_level": 1.0
+   },
+   "sound": "seal",
+   "text": "Seal your weapon with dawnlight for 60 seconds: every swing burns for extra holy damage.",
+   "image": "icons/abilities/seal_of_dawn.png"
+  },
+  {
+   "key": "marked_shot",
+   "name": "Marked Shot",
+   "class": "hunter",
+   "level": 2,
+   "icon": "ashwood_longbow",
+   "color": [
+    0.95,
+    0.9,
+    0.55
+   ],
+   "cost": 10,
+   "cooldown": 10,
+   "cast": 1.5,
+   "range": 30,
+   "damage": [
+    8,
+    3
+   ],
+   "opener": 1.5,
+   "sound": "shot_heavy",
+   "text": "Take careful aim for a heavy shot. 50% more against a foe that is not yet fighting you.",
+   "image": "icons/abilities/marked_shot.png"
+  },
+  {
+   "key": "ambush",
+   "name": "Ambush",
+   "class": "rogue",
+   "level": 2,
+   "icon": "keen_dagger",
+   "color": [
+    0.75,
+    0.2,
+    0.25
+   ],
+   "cost": 45,
+   "cooldown": 10,
+   "range": 4.5,
+   "weapon": 0.85,
+   "damage": [
+    3,
+    1.5
+   ],
+   "opener": 1.4,
+   "combo": 2,
+   "sound": "stab_heavy",
+   "text": "A strike from the blind side: 40% more damage against a foe that is not yet fighting you. Adds 2 combo points.",
+   "image": "icons/abilities/ambush.png"
+  },
+  {
+   "key": "sneak",
+   "name": "Sneak",
+   "class": "rogue",
+   "level": 5,
+   "icon": "shade_dust",
+   "color": [
+    0.45,
+    0.4,
+    0.6
+   ],
+   "cost": 20,
+   "cooldown": 6,
+   "buff": {
+    "kind": "stealth",
+    "amount": 70,
+    "secs": 30
+   },
+   "sound": "sneak",
+   "text": "Slip into the shadows for 30 seconds: creatures notice you from much less far. Ends when you strike or are struck.",
+   "image": "icons/abilities/sneak.png"
+  },
+  {
+   "key": "ward_of_light",
+   "name": "Ward of Light",
+   "class": "priest",
+   "level": 3,
+   "icon": "glowshroom",
+   "color": [
+    0.6,
+    0.8,
+    1.0
+   ],
+   "cost": 14,
+   "cooldown": 15,
+   "buff": {
+    "kind": "absorb",
+    "amount": 12,
+    "secs": 15,
+    "per_level": 4
+   },
+   "sound": "shield",
+   "text": "A shield of light soaks up damage for 15 seconds, then breaks.",
+   "image": "icons/abilities/ward_of_light.png"
+  },
+  {
+   "key": "frostbolt",
+   "name": "Frostbolt",
+   "class": "mage",
+   "level": 1,
+   "icon": "glass",
+   "color": [
+    0.55,
+    0.8,
+    1.0
+   ],
+   "cost": 10,
+   "cast": 1.5,
+   "range": 25,
+   "damage": [
+    7,
+    2.5
+   ],
+   "slow": [
+    50,
+    6
+   ],
+   "sound": "frost",
+   "text": "A bolt of ice that slows your target by 50% for 6 seconds.",
+   "image": "icons/abilities/frostbolt.png"
+  },
+  {
+   "key": "hamstring",
+   "name": "Hamstring",
+   "class": "hunter",
+   "level": 3,
+   "icon": "woodsman_hatchet",
+   "color": [
+    0.7,
+    0.45,
+    0.3
+   ],
+   "cost": 8,
+   "cooldown": 8,
+   "range": 4.5,
+   "weapon": 1.0,
+   "damage": [
+    2,
+    1
+   ],
+   "slow": [
+    50,
+    6
+   ],
+   "sound": "slash",
+   "text": "A low cut with your hatchet: weapon damage, and the target is slowed by 50% for 6 seconds.",
+   "image": "icons/abilities/hamstring.png"
   }
  ],
  "professions": [
@@ -9036,45 +9600,226 @@
    "camps": [
     {
      "creature": "grazer",
-     "count": 4,
+     "count": 5,
      "place": "meadow_flock_1",
-     "spread": 18,
-     "respawn": 90
+     "spread": 20,
+     "respawn": 75
     },
     {
      "creature": "grazer",
-     "count": 4,
+     "count": 5,
      "place": "meadow_flock_2",
-     "spread": 18,
-     "respawn": 90
+     "spread": 20,
+     "respawn": 75
     },
     {
      "creature": "grazer",
-     "count": 3,
+     "count": 5,
      "place": "meadow_flock_3",
-     "spread": 16,
-     "respawn": 90
+     "spread": 20,
+     "respawn": 75
     },
     {
      "creature": "grazer",
-     "count": 4,
+     "count": 5,
      "place": "meadow_flock_4",
-     "spread": 18,
-     "respawn": 90
+     "spread": 20,
+     "respawn": 75
     },
     {
      "creature": "grazer",
-     "count": 3,
+     "count": 5,
      "place": "meadow_flock_5",
+     "spread": 20,
+     "respawn": 75
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "meadow_flock_6",
+     "spread": 20,
+     "respawn": 75
+    },
+    {
+     "creature": "grazer",
+     "count": 6,
+     "place": "hearthstead",
+     "at": [
+      80,
+      -80
+     ],
+     "spread": 17,
+     "respawn": 50
+    },
+    {
+     "creature": "grazer",
+     "count": 6,
+     "place": "hearthstead",
+     "at": [
+      80,
+      80
+     ],
+     "spread": 17,
+     "respawn": 50,
+     "rare": {
+      "name": "Greatfleece",
+      "chance": 0.03,
+      "power": 1.5,
+      "levels": 0,
+      "drops": [
+       {
+        "item": "grazer_hide_leggings",
+        "chance": 0.5
+       },
+       {
+        "item": "woolen_cloak",
+        "chance": 0.35
+       }
+      ]
+     }
+    },
+    {
+     "creature": "grazer",
+     "count": 6,
+     "place": "hearthstead",
+     "at": [
+      -80,
+      80
+     ],
+     "spread": 17,
+     "respawn": 50
+    },
+    {
+     "creature": "grazer",
+     "count": 6,
+     "place": "hearthstead",
+     "at": [
+      -80,
+      -80
+     ],
+     "spread": 17,
+     "respawn": 50
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      185,
+      60
+     ],
+     "spread": 20,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      -190,
+      -70
+     ],
+     "spread": 20,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      60,
+      -165
+     ],
+     "spread": 20,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      -70,
+      190
+     ],
+     "spread": 20,
+     "respawn": 60
+    },
+    {
+     "creature": "thornboar",
+     "count": 2,
+     "place": "hearthstead",
+     "at": [
+      -150,
+      40
+     ],
+     "spread": 16,
+     "respawn": 90
+    },
+    {
+     "creature": "thornboar",
+     "count": 2,
+     "place": "hearthstead",
+     "at": [
+      55,
+      255
+     ],
+     "spread": 16,
+     "respawn": 90
+    },
+    {
+     "creature": "thornboar",
+     "count": 2,
+     "place": "hearthstead",
+     "at": [
+      150,
+      -120
+     ],
      "spread": 16,
      "respawn": 90
     },
     {
      "creature": "grazer",
-     "count": 3,
-     "place": "meadow_flock_6",
-     "spread": 16,
-     "respawn": 90
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      135,
+      20
+     ],
+     "spread": 18,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      -130,
+      -25
+     ],
+     "spread": 18,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      -30,
+      135
+     ],
+     "spread": 18,
+     "respawn": 60
+    },
+    {
+     "creature": "grazer",
+     "count": 5,
+     "place": "hearthstead",
+     "at": [
+      30,
+      -130
+     ],
+     "spread": 18,
+     "respawn": 60
     }
    ]
   },
@@ -9111,13 +9856,7 @@
      "count": 3,
      "place": "birchrise_boars_2",
      "spread": 16,
-     "respawn": 120,
-     "rare": {
-      "name": "Old Tusk",
-      "chance": 0.12,
-      "power": 2.2,
-      "levels": 1
-     }
+     "respawn": 120
     },
     {
      "creature": "thornboar",
@@ -9128,10 +9867,36 @@
     },
     {
      "creature": "grazer",
-     "count": 3,
+     "count": 4,
      "place": "birchrise_flock",
      "spread": 14,
      "respawn": 90
+    },
+    {
+     "creature": "thornboar",
+     "count": 4,
+     "place": "north_watch",
+     "at": [
+      -70,
+      -40
+     ],
+     "spread": 16,
+     "respawn": 75
+    },
+    {
+     "creature": "old_tusk",
+     "count": 1,
+     "place": "north_watch",
+     "at": [
+      -135,
+      -70
+     ],
+     "spread": 14,
+     "respawn": 150,
+     "levels": [
+      4,
+      4
+     ]
     }
    ]
   },
@@ -9170,7 +9935,13 @@
       "name": "Silkmother",
       "chance": 0.12,
       "power": 2.5,
-      "levels": 1
+      "levels": 1,
+      "drops": [
+       {
+        "item": "silkmother_gloves",
+        "chance": 0.5
+       }
+      ]
      }
     },
     {
@@ -9217,7 +9988,11 @@
      "spread": 2,
      "respawn": 600,
      "below": 4,
-     "phase": "!warden_rests"
+     "phase": "!warden_rests",
+     "levels": [
+      6,
+      6
+     ]
     }
    ]
   },
@@ -9243,7 +10018,25 @@
      "count": 4,
      "place": "mere_pinchers_2",
      "spread": 18,
-     "respawn": 100
+     "respawn": 100,
+     "rare": {
+      "name": "Old Snapper",
+      "chance": 0.12,
+      "power": 2.2,
+      "levels": 1,
+      "drops": [
+       {
+        "item": "mireshell_buckler",
+        "chance": 0.5
+       },
+       {
+        "item": "pincher_shell",
+        "min": 2,
+        "max": 3,
+        "chance": 0.35
+       }
+      ]
+     }
     },
     {
      "creature": "mirepincher",
@@ -9254,16 +10047,38 @@
     },
     {
      "creature": "ashcloak",
-     "count": 3,
+     "count": 5,
      "place": "mere_ashcloaks",
      "spread": 14,
-     "respawn": 120
+     "respawn": 90
     },
     {
      "creature": "grazer",
      "count": 3,
      "place": "mere_flock",
      "spread": 14,
+     "respawn": 90
+    },
+    {
+     "creature": "mirepincher",
+     "count": 3,
+     "place": "windmill_farm",
+     "at": [
+      -70,
+      60
+     ],
+     "spread": 14,
+     "respawn": 120
+    },
+    {
+     "creature": "grazer",
+     "count": 4,
+     "place": "windmill_farm",
+     "at": [
+      -60,
+      -70
+     ],
+     "spread": 18,
      "respawn": 90
     }
    ]
@@ -9310,7 +10125,13 @@
       "name": "The Drowned Lamp",
       "chance": 0.15,
       "power": 2.5,
-      "levels": 1
+      "levels": 1,
+      "drops": [
+       {
+        "item": "drowned_lamp_staff",
+        "chance": 0.5
+       }
+      ]
      }
     }
    ]
@@ -9319,7 +10140,7 @@
    "key": "east_road",
    "name": "The East Road",
    "place": "east_road",
-   "radius": "place",
+   "radius": 190,
    "levels": [
     4,
     5
@@ -9327,10 +10148,28 @@
    "camps": [
     {
      "creature": "ashcloak",
-     "count": 2,
+     "count": 3,
      "place": "road_scouts_1",
      "spread": 9,
-     "respawn": 120
+     "respawn": 120,
+     "rare": {
+      "name": "Quick Fenna",
+      "chance": 0.12,
+      "power": 2.2,
+      "levels": 1,
+      "drops": [
+       {
+        "item": "ashcloak_hatchet",
+        "chance": 0.5
+       },
+       {
+        "item": "coin_purse",
+        "min": 2,
+        "max": 3,
+        "chance": 0.35
+       }
+      ]
+     }
     },
     {
      "creature": "ashcloak",
@@ -9342,7 +10181,11 @@
      ],
      "spread": 9,
      "respawn": 120,
-     "phase": "!stockade_taken"
+     "phase": "!stockade_taken",
+     "levels": [
+      5,
+      6
+     ]
     },
     {
      "creature": "ashcloak_leader",
@@ -9354,7 +10197,11 @@
      ],
      "spread": 4,
      "respawn": 240,
-     "phase": "!stockade_taken"
+     "phase": "!stockade_taken",
+     "levels": [
+      5,
+      6
+     ]
     },
     {
      "creature": "rook_varn",
@@ -9366,11 +10213,15 @@
      ],
      "spread": 1,
      "respawn": 600,
-     "phase": "!stockade_taken"
+     "phase": "!stockade_taken",
+     "levels": [
+      6,
+      6
+     ]
     },
     {
      "creature": "ashcloak",
-     "count": 2,
+     "count": 3,
      "place": "road_scouts_2",
      "spread": 9,
      "respawn": 120
@@ -9419,7 +10270,11 @@
      ],
      "spread": 10,
      "respawn": 120,
-     "below": 7
+     "below": 7,
+     "levels": [
+      5,
+      6
+     ]
     },
     {
      "creature": "candlekin",
@@ -9431,7 +10286,11 @@
      ],
      "spread": 8,
      "respawn": 120,
-     "below": 10
+     "below": 10,
+     "levels": [
+      6,
+      7
+     ]
     },
     {
      "creature": "gloomwisp",
@@ -9443,7 +10302,11 @@
      ],
      "spread": 8,
      "respawn": 150,
-     "below": 15
+     "below": 15,
+     "levels": [
+      7,
+      8
+     ]
     },
     {
      "creature": "hollow_foreman",
@@ -9454,10 +10317,244 @@
       -89
      ],
      "spread": 1,
-     "respawn": 1200,
+     "respawn": 600,
      "below": 23,
-     "phase": "!foreman_slain"
+     "phase": "!foreman_slain",
+     "levels": [
+      10,
+      10
+     ]
     }
+   ]
+  },
+  {
+   "key": "old_quarry",
+   "name": "The Old Quarry",
+   "place": "old_quarry",
+   "radius": 30,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "beacon_rocks",
+   "name": "Beacon Rocks",
+   "place": "beacon_rocks",
+   "radius": 22,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "broken_tower",
+   "name": "The Broken Tower",
+   "place": "south_road_tower_7",
+   "radius": 26,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "trappers_camp",
+   "name": "Trapper's Camp",
+   "place": "west_trail_camp_11",
+   "radius": 26,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "westfold_farm",
+   "name": "Westfold Farm",
+   "place": "meadow_farm_1",
+   "radius": 32,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "eastfold_farm",
+   "name": "Eastfold Farm",
+   "place": "meadow_farm_2",
+   "radius": 32,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "southfold_farm",
+   "name": "Southfold Farm",
+   "place": "meadow_farm_3",
+   "radius": 32,
+   "levels": [
+    1,
+    2
+   ]
+  },
+  {
+   "key": "wrecked_caravan",
+   "name": "The Wrecked Caravan",
+   "place": "wrecked_caravan",
+   "radius": 28,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "watch_hill",
+   "name": "Watch Hill Lookout",
+   "place": "north_road_view_2",
+   "radius": 26,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "woodcutters_well",
+   "name": "Woodcutters' Well",
+   "place": "logging_trail_well_14",
+   "radius": 24,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "hunters_rest",
+   "name": "Hunter's Rest",
+   "place": "oak_trail_camp_16",
+   "radius": 26,
+   "levels": [
+    2,
+    3
+   ]
+  },
+  {
+   "key": "north_pass",
+   "name": "The North Pass",
+   "place": "north_pass",
+   "radius": 40,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "barrow_overlook",
+   "name": "Barrow Overlook",
+   "place": "oak_trail_view_19",
+   "radius": 26,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "forgotten_graves",
+   "name": "The Forgotten Graves",
+   "place": "barrowwood_graves",
+   "radius": 30,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "old_barrow",
+   "name": "The Old Barrow",
+   "place": "old_barrow",
+   "radius": 42,
+   "levels": [
+    5,
+    6
+   ]
+  },
+  {
+   "key": "bluebell_glade",
+   "name": "Bluebell Glade",
+   "place": "west_trail_glade_13",
+   "radius": 26,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "listening_stones",
+   "name": "The Listening Stones",
+   "place": "south_road_stones_9",
+   "radius": 26,
+   "levels": [
+    3,
+    4
+   ]
+  },
+  {
+   "key": "mere_wayshrine",
+   "name": "Wayshrine of the Mere",
+   "place": "south_road_wayshrine_10",
+   "radius": 26,
+   "levels": [
+    3,
+    4
+   ]
+  },
+  {
+   "key": "emberford_bridge",
+   "name": "Emberford Bridge",
+   "place": "emberford_bridge",
+   "radius": 30,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "emberrun_ford",
+   "name": "Emberrun Ford",
+   "place": "emberrun_ford",
+   "radius": 28,
+   "levels": [
+    4,
+    5
+   ]
+  },
+  {
+   "key": "ashcloak_stockade",
+   "name": "The Ashcloak Stockade",
+   "place": "ashcloak_stockade",
+   "radius": 46,
+   "levels": [
+    5,
+    6
+   ]
+  },
+  {
+   "key": "ridge_cut",
+   "name": "The Ridge Cut",
+   "place": "ridge_cut",
+   "radius": 24,
+   "levels": [
+    5,
+    6
+   ]
+  },
+  {
+   "key": "gate_rocks",
+   "name": "North Gate Rocks",
+   "place": "gate_rocks",
+   "radius": 20,
+   "levels": [
+    1,
+    2
    ]
   }
  ],

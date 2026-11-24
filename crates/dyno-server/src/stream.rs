@@ -77,6 +77,10 @@ pub struct View {
     tokens: f64,
     /// the first view is complete (the play rate applies from then on)
     pub filled: bool,
+    /// the far view round the spot the near view was filled at is complete
+    /// too: until then it comes at the join rate, so the horizon is there
+    /// as soon as the land is
+    pub far_filled: bool,
     /// far tiles sent, with the tile's revision then
     pub far_held: HashMap<TilePos, u64>,
     /// far tiles to send, farthest first
@@ -93,6 +97,7 @@ impl View {
         View {
             held: held.into_iter().collect(),
             filled: true,
+            far_filled: true,
             ..Default::default()
         }
     }
@@ -125,6 +130,7 @@ impl View {
         // the land round it at the join rate, as at a join
         if (0..d[1]).any(|y| !self.held.contains(&[col[0], y, col[1]])) {
             self.filled = false;
+            self.far_filled = false;
         }
         let dist = |s: [i32; 2]| -> f32 {
             let cx = (s[0] * SECTION + SECTION / 2) as f32;
@@ -185,7 +191,11 @@ impl View {
         encode: &mut dyn FnMut(SectionPos) -> Vec<u8>,
     ) -> (Option<ServerMsg>, Option<ServerMsg>) {
         let gone = self.replan(world, at, cfg);
-        let rate = if self.filled { cfg.rate } else { cfg.join_rate } as f64;
+        let rate = if self.filled && (self.far_filled || cfg.far <= 0.0) {
+            cfg.rate
+        } else {
+            cfg.join_rate
+        } as f64;
         // a tick's worth, and at most a tenth of a second banked
         self.tokens = (self.tokens + rate * dt as f64).min(rate * 0.1);
         let mut batch = Vec::new();
@@ -286,6 +296,9 @@ impl View {
         }
         if !batch.is_empty() {
             out.push(ServerMsg::Far(batch));
+        }
+        if self.far_want.is_empty() {
+            self.far_filled = true;
         }
         out
     }
@@ -503,7 +516,7 @@ mod tests {
     #[test]
     #[ignore]
     fn mass_join_tick_time() {
-        let world = World::generate([384, 96, 384], 20261122);
+        let world = World::test_terrain([384, 96, 384], 20261122);
         let cfg = StreamConfig::default();
         let mut views: Vec<(View, [f32; 3])> = (0..40)
             .map(|i| {
@@ -546,7 +559,7 @@ mod tests {
 
     #[test]
     fn far_tiles_follow_the_near_view_and_are_sent_again_when_changed() {
-        let mut world = World::generate([256, 48, 256], 3);
+        let mut world = World::test_terrain([256, 48, 256], 3);
         world.log_changes(true);
         let cfg = StreamConfig {
             view: 32.0,
@@ -610,9 +623,63 @@ mod tests {
         assert_eq!(again, vec![[0, 0]], "sent again, and only it");
     }
 
+    /// The first far view comes at the join rate, straight after the near
+    /// view, and the play rate applies once it is whole; a teleport bursts again.
+    #[test]
+    fn the_first_far_view_comes_at_the_join_rate() {
+        let world = World::test_terrain([256, 48, 256], 3);
+        let cfg = StreamConfig {
+            view: 32.0,
+            far: 200.0,
+            rate: 2 * 1024,
+            join_rate: 256 * 1024,
+            ..Default::default()
+        };
+        let mut tile = |t: TilePos| {
+            (
+                far::tile_rev(&world, t),
+                far::FarTile::build(&world, t).encode(),
+            )
+        };
+        let mut v = View::default();
+        let mut far_bytes = 0;
+        let mut at = [128.0, 30.0, 128.0];
+        let (mut near_tick, mut far_tick) = (None, None);
+        for tick in 0..400 {
+            v.pump(&world, at, 0.05, &cfg);
+            for m in v.pump_far(&world, at, &cfg, &mut tile) {
+                if let ServerMsg::Far(l) = m {
+                    far_bytes += l.iter().map(|(_, d)| d.len()).sum::<usize>();
+                }
+            }
+            if v.filled && near_tick.is_none() {
+                near_tick = Some(tick);
+            }
+            if v.far_filled {
+                far_tick = Some(tick);
+                break;
+            }
+        }
+        let (near_tick, far_tick) = (near_tick.unwrap(), far_tick.expect("the far view filled"));
+        // at the play rate this would take seconds (a hundred ticks and more)
+        assert!(far_bytes > 4 * 1024, "{far_bytes} bytes of far view");
+        assert!(
+            far_tick - near_tick <= 4,
+            "{far_bytes} bytes of far view took {} ticks after the near view",
+            far_tick - near_tick
+        );
+        // then the play rate: a tick banks no more than a tenth of a second of it
+        v.pump(&world, at, 0.05, &cfg);
+        assert!(v.tokens <= cfg.rate as f64 * 0.1);
+        // somewhere new: both views burst again
+        at = [30.0, 30.0, 30.0];
+        v.pump(&world, at, 0.05, &cfg);
+        assert!(!v.filled && !v.far_filled);
+    }
+
     #[test]
     fn a_view_streams_nearest_first_within_budget_and_drops_far_sections() {
-        let world = World::generate([256, 48, 256], 3);
+        let world = World::test_terrain([256, 48, 256], 3);
         let cfg = StreamConfig {
             view: 48.0,
             keep: 16.0,

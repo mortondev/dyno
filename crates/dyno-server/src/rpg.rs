@@ -77,6 +77,27 @@ impl State {
             let _ = max_before;
             self.broadcast(&ServerMsg::LevelUp { player: id, level }, None);
             self.event(format!("{name} reached level {level}!"));
+            // what the new level teaches, by name, with what it does
+            let class = self.players[&id].class;
+            let learned: Vec<String> = self
+                .content
+                .abilities
+                .iter()
+                .filter(|a| Some(a.class) == class && a.level > level - ups && a.level <= level)
+                .map(|a| format!("You have learned {}: {}", a.name, a.text))
+                .collect();
+            for line in learned {
+                self.tell(id, line);
+            }
+            // a level-up fills your mana too (rage and energy keep their own rules)
+            let max_power = self.max_power(id);
+            let mana = class
+                .and_then(|c| self.content.class(c))
+                .is_some_and(|c| c.resource == dyno_world::content::Resource::Mana);
+            if mana && let Some(p) = self.players.get_mut(&id) {
+                p.power = max_power;
+            }
+            self.send_power(id);
             let p = &self.players[&id];
             p.send(&p.status());
         }
@@ -198,9 +219,36 @@ impl State {
             }
             p.send(&ServerMsg::Dialog { entity, npc });
         }
+        if self
+            .content
+            .npcs
+            .get(npc as usize)
+            .is_some_and(|n| n.innkeeper)
+        {
+            self.make_home(id, entity);
+        }
         if changed {
             self.send_quests(id);
         }
+    }
+
+    /// Make the spot by an innkeeper this player's home: where they wake
+    /// after dying and where recall takes them.
+    fn make_home(&mut self, id: PlayerId, innkeeper: u32) {
+        let Some(inn) = self.entities.get(&innkeeper).map(|e| e.pos) else {
+            return;
+        };
+        let Some(p) = self.players.get_mut(&id) else {
+            return;
+        };
+        // already at home here (they stand within talking range)
+        if p.spawn.is_some_and(|s| dist(s, inn) <= TALK_RANGE + 1.0) {
+            return;
+        }
+        p.spawn = Some(p.pose.pos);
+        p.send(&ServerMsg::System {
+            text: "This is now your home.".into(),
+        });
     }
 
     // ---------------- quests ----------------
@@ -361,7 +409,8 @@ impl State {
         let Some(p) = self.players.get_mut(&id) else {
             return;
         };
-        let base = (prog::kill_xp(p.level, level) as f32 * share).round() as u32;
+        let scale = self.content.world.kill_xp.unwrap_or(1.0).max(0.0);
+        let base = (prog::kill_xp(p.level, level) as f32 * share * scale).round() as u32;
         // rested: the same again, out of the bank
         let bonus = base.min(p.rested);
         p.rested -= bonus;
@@ -487,15 +536,13 @@ impl State {
         }
     }
 
-    /// May this player break this block? (Protected worlds allow only nodes.)
-    pub fn may_harvest(&mut self, id: PlayerId, b: u8) -> bool {
-        if !self.rpg() {
-            return true;
-        }
+    /// May this player break and place blocks? Only in build mode: the
+    /// land is not dug or built on in play.
+    pub fn may_build(&mut self, id: PlayerId) -> bool {
         let Some(p) = self.players.get_mut(&id) else {
             return false;
         };
-        if p.mode == Mode::Creative || self.content.rule(b).respawn > 0 {
+        if p.mode == Mode::Build {
             return true;
         }
         if p.hint_at.elapsed() > Duration::from_secs(4) {
@@ -507,36 +554,4 @@ impl State {
         }
         false
     }
-}
-
-/// Build a beacon (a stone pillar with a lantern) at every explore objective
-/// that does not have one, so players can see what they are looking for.
-/// Returns true if the world changed.
-pub fn build_landmarks(
-    world: &mut dyno_world::World,
-    c: &dyno_world::content::Content,
-    hearth: [i32; 3],
-) -> bool {
-    let mut changed = false;
-    for q in &c.quests {
-        for o in &q.objectives {
-            let Objective::Explore { at, .. } = o else {
-                continue;
-            };
-            let (x, z) = (hearth[0] + at[0], hearth[2] + at[2]);
-            if !world.in_bounds([x, 1, z]) || world.find_near(w::LANTERN, x, z, 1).is_some() {
-                continue;
-            }
-            let y = world.surface(x, z);
-            for (dx, dz) in [(0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)] {
-                world.set(x + dx, y, z + dz, 19);
-            }
-            for k in 1..=4 {
-                world.set(x, y + k, z, if k == 4 { 19 } else { w::COBBLE });
-            }
-            world.set(x, y + 5, z, w::LANTERN);
-            changed = true;
-        }
-    }
-    changed
 }

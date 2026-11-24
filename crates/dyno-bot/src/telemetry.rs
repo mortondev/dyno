@@ -163,6 +163,14 @@ pub struct Telemetry {
     pub canopy: Vec<String>,
     /// (t, x, z, what the bot was doing) hearth-relative, every 10 s
     pub track: Vec<(f64, i32, i32, String)>,
+    /// the first-session beats: when the first gear upgrade was put on,
+    /// when each ability was first used, when the bot was first in a party
+    #[serde(default)]
+    pub first_upgrade: Option<f64>,
+    #[serde(default)]
+    pub first_casts: BTreeMap<String, f64>,
+    #[serde(default)]
+    pub first_party: Option<f64>,
 }
 
 impl Telemetry {

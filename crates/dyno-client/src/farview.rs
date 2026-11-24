@@ -147,7 +147,8 @@ fn quad(out: &mut Vec<FarVertex>, p: [[f32; 3]; 4], n: [f32; 3], rgb: [f32; 3], 
     }
 }
 
-/// A box's top and the sides of it that show above each neighbour's height.
+/// A box's top and the sides of it that show above each neighbour's height
+/// (down to `bottom` where the neighbour is not known).
 #[allow(clippy::too_many_arguments)]
 fn column(
     out: &mut Vec<FarVertex>,
@@ -169,8 +170,11 @@ fn column(
     );
     let dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)];
     for (k, (dx, dz)) in dirs.into_iter().enumerate() {
-        // an unknown neighbour (not here yet): down to the bottom, so no gap shows
-        let nh = neighbours[k].unwrap_or(bottom).max(bottom);
+        // down to the neighbour's height, however far below (a cliff, a tree
+        // or tower over flat land: cut off short, the side hung in the air
+        // with the sky showing under it); an unknown neighbour (not here
+        // yet): down to the bottom
+        let nh = neighbours[k].unwrap_or(bottom);
         if nh >= y {
             continue;
         }
@@ -196,9 +200,21 @@ fn column(
     }
 }
 
+/// The height a cell is drawn at where only the tops are drawn: what stands
+/// on it, or its ground.
+fn surface(c: Cell) -> f32 {
+    if c.2 > c.0 + 0.5 { c.2 } else { c.0 - 0.5 }
+}
+
+/// An 8 m block of cells too steep to draw as one: its four cells differ
+/// by more than this (a mountainside drawn in 8 m boxes is a wall of big
+/// flat faces, each lit as one).
+const STEEP: f32 = 4.0;
+
 /// The mesh of one tile, as seen from `centre` (x, z): the ground beyond
 /// `GROUND_FROM`, and what stands on it beyond `cut` (faded in over
-/// `FADE`). Past the fade, one layer: the tops, with no ground under them.
+/// `FADE`). Past the fade, one layer: the tops, with no ground under them;
+/// beyond `COARSE`, in 8 m cells where the land is gentle enough.
 pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> Vec<FarVertex> {
     let mut out = Vec::new();
     if !tiles.contains_key(&at) {
@@ -209,75 +225,177 @@ pub fn mesh_tile(tiles: &FarTiles, at: TilePos, centre: [f32; 2], cut: f32) -> V
         at[0] as f32 * tile + tile * 0.5,
         at[1] as f32 * tile + tile * 0.5,
     ];
-    let step = if (tc[0] - centre[0]).hypot(tc[1] - centre[1]) > COARSE {
-        2
-    } else {
-        1
-    };
-    let w = (CELL * step) as f32;
-    let standing = Kind::Standing(cut);
+    let coarse = (tc[0] - centre[0]).hypot(tc[1] - centre[1]) > COARSE;
+    let step = if coarse { 2 } else { 1 };
     for lz in (0..TILE_CELLS).step_by(step as usize) {
         for lx in (0..TILE_CELLS).step_by(step as usize) {
             let (gx, gz) = (at[0] * TILE_CELLS + lx, at[1] * TILE_CELLS + lz);
-            let Some((g, gb, h, hb)) = cell_at(tiles, gx, gz, step) else {
-                continue;
-            };
-            let (x0, z0) = (gx as f32 * CELL as f32, gz as f32 * CELL as f32);
-            let dist = (x0 + w * 0.5 - centre[0]).hypot(z0 + w * 0.5 - centre[1]);
-            let near = [(step, 0), (-step, 0), (0, step), (0, -step)]
-                .map(|(dx, dz)| cell_at(tiles, gx + dx, gz + dz, step));
-            let stands = h > g + 0.5;
-            if dist >= cut + FADE {
-                // out here a heightmap of the tops is all there is to see
-                let (top, b) = if stands { (h, hb) } else { (g - 0.5, gb) };
-                column(
-                    &mut out,
-                    (x0, z0, w),
-                    top - 8.0,
-                    top,
-                    near.map(|c| c.map(|c| if c.2 > c.0 + 0.5 { c.2 } else { c.0 - 0.5 })),
-                    (face_colour(b, 0), face_colour(b, 1)),
-                    if stands { standing } else { Kind::Ground },
-                );
+            if !coarse {
+                mesh_cell(&mut out, tiles, gx, gz, 1, centre, cut);
                 continue;
             }
-            // the ground: hidden under the near land, carrying on past it
-            if dist >= GROUND_FROM && g > 0.0 {
-                let y = g - 0.5;
-                column(
-                    &mut out,
-                    (x0, z0, w),
-                    y - 8.0,
-                    y,
-                    near.map(|c| c.map(|c| c.0 - 0.5)),
-                    (face_colour(gb, 0), face_colour(gb, 1)),
-                    Kind::Ground,
-                );
-            }
-            // what stands on it: beyond the near view only, faded in
-            if dist >= cut && stands {
-                column(
-                    &mut out,
-                    (x0, z0, w),
-                    g - 0.5,
-                    h,
-                    near.map(|c| c.map(|c| c.2)),
-                    (face_colour(hb, 0), face_colour(hb, 1)),
-                    standing,
-                );
+            let fine: Vec<f32> = [(0, 0), (1, 0), (0, 1), (1, 1)]
+                .iter()
+                .filter_map(|(dx, dz)| cell_at(tiles, gx + dx, gz + dz, 1))
+                .map(surface)
+                .collect();
+            let relief = fine.iter().copied().fold(f32::MIN, f32::max)
+                - fine.iter().copied().fold(f32::MAX, f32::min);
+            if fine.len() == 4 && relief > STEEP {
+                for (dx, dz) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                    mesh_cell(&mut out, tiles, gx + dx, gz + dz, 1, centre, cut);
+                }
+            } else {
+                mesh_cell(&mut out, tiles, gx, gz, 2, centre, cut);
             }
         }
     }
     out
 }
 
+/// One cell (or 8 m block of cells, `step` 2) of the far view.
+fn mesh_cell(
+    out: &mut Vec<FarVertex>,
+    tiles: &FarTiles,
+    gx: i32,
+    gz: i32,
+    step: i32,
+    centre: [f32; 2],
+    cut: f32,
+) {
+    let Some((g, gb, h, hb)) = cell_at(tiles, gx, gz, step) else {
+        return;
+    };
+    let w = (CELL * step) as f32;
+    let standing = Kind::Standing(cut);
+    let (x0, z0) = (gx as f32 * CELL as f32, gz as f32 * CELL as f32);
+    let dist = (x0 + w * 0.5 - centre[0]).hypot(z0 + w * 0.5 - centre[1]);
+    let near = [(step, 0), (-step, 0), (0, step), (0, -step)]
+        .map(|(dx, dz)| cell_at(tiles, gx + dx, gz + dz, step));
+    let stands = h > g + 0.5;
+    if dist >= cut + FADE {
+        // out here a heightmap of the tops is all there is to see; an 8 m
+        // block's sides go down to the lowest cell along each edge, as
+        // its neighbours may be drawn in 4 m cells
+        let sides = if step == 1 {
+            near.map(|c| c.map(surface))
+        } else {
+            [
+                [(2, 0), (2, 1)],
+                [(-1, 0), (-1, 1)],
+                [(0, 2), (1, 2)],
+                [(0, -1), (1, -1)],
+            ]
+            .map(|edge| {
+                edge.iter()
+                    .filter_map(|(dx, dz)| cell_at(tiles, gx + dx, gz + dz, 1))
+                    .map(surface)
+                    .reduce(f32::min)
+            })
+        };
+        let (top, b) = if stands { (h, hb) } else { (g - 0.5, gb) };
+        column(
+            out,
+            (x0, z0, w),
+            top - 8.0,
+            top,
+            sides,
+            (face_colour(b, 0), face_colour(b, 1)),
+            if stands { standing } else { Kind::Ground },
+        );
+        return;
+    }
+    // the ground: hidden under the near land, carrying on past it
+    if dist >= GROUND_FROM && g > 0.0 {
+        let y = g - 0.5;
+        column(
+            out,
+            (x0, z0, w),
+            y - 8.0,
+            y,
+            near.map(|c| c.map(|c| c.0 - 0.5)),
+            (face_colour(gb, 0), face_colour(gb, 1)),
+            Kind::Ground,
+        );
+    }
+    // what stands on it: beyond the near view only, faded in
+    if dist >= cut && stands {
+        column(
+            out,
+            (x0, z0, w),
+            g - 0.5,
+            h,
+            near.map(|c| c.map(|c| c.2)),
+            (face_colour(hb, 0), face_colour(hb, 1)),
+            standing,
+        );
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// What stands well above the land round it (a tower, a cliff) is drawn
+    /// down to that land, with no sky showing under it, out where only the
+    /// tops are drawn and inside the fade.
+    #[test]
+    fn far_columns_stand_on_the_land() {
+        let mut world = dyno_world::World::test_terrain([128, 96, 128], 7);
+        // a stone tower 30 m over the land, filling the 4 × 4 m cell at (40, 40)
+        let g = (40..44)
+            .flat_map(|z| (40..44).map(move |x| (x, z)))
+            .map(|(x, z)| world.surface(x, z))
+            .max()
+            .unwrap();
+        let top = g + 30;
+        assert!(top < 96, "{top}");
+        for z in 40..44 {
+            for x in 40..44 {
+                for y in world.surface(x, z)..=top {
+                    world.set(x, y, z, dyno_world::STONE);
+                }
+            }
+        }
+        let mut tiles = FarTiles::new();
+        for tz in 0..2 {
+            for tx in 0..2 {
+                tiles.insert([tx, tz], FarTile::build(&world, [tx, tz]));
+            }
+        }
+        // the lowest point of the tower's sides (the side quads that reach its top)
+        let low = |mesh: &[FarVertex]| {
+            mesh.chunks(6)
+                .filter(|q| q[0].normal[1] == 0)
+                .filter(|q| q.iter().any(|v| v.pos[1] >= top as f32))
+                .filter(|q| {
+                    q.iter().all(|v| {
+                        (40.0..=44.0).contains(&v.pos[0]) && (40.0..=44.0).contains(&v.pos[2])
+                    })
+                })
+                .flat_map(|q| q.iter().map(|v| v.pos[1]))
+                .fold(f32::MAX, f32::min)
+        };
+        // only tops, far away (and past `COARSE`, where the tower keeps its
+        // 4 m cell: too steep for an 8 m one); and within the fade
+        for (centre, cut) in [
+            ([-300.0, 40.0], 0.0),
+            ([-500.0, 40.0], 0.0),
+            ([-30.0, 40.0], 60.0),
+        ] {
+            let mesh = mesh_tile(&tiles, [0, 0], centre, cut);
+            let bottom = low(&mesh);
+            assert!(
+                bottom <= g as f32 + 1.0,
+                "the tower's sides stop at {bottom}, its top at {}, the land at {g}",
+                top + 1
+            );
+        }
+    }
+
     #[test]
     fn far_tiles_mesh_in_two_layers_round_the_cut() {
-        let world = dyno_world::World::generate([128, 64, 128], 7);
+        let world = dyno_world::World::test_terrain([128, 64, 128], 7);
         let mut tiles = FarTiles::new();
         for tz in 0..2 {
             for tx in 0..2 {
@@ -295,10 +413,10 @@ mod tests {
             cut.iter()
                 .all(|v| (v.pos[0] - 32.0).hypot(v.pos[2] - 32.0) >= GROUND_FROM - 6.0)
         );
-        // far off: 8 m cells, a quarter of the tops
+        // far off: 8 m cells where the land is gentle, far fewer vertices
         let coarse = mesh_tile(&tiles, [0, 0], far_away, 0.0);
         assert!(
-            coarse.len() < all.len() / 2,
+            coarse.len() < all.len() * 3 / 4,
             "{} against {}",
             coarse.len(),
             all.len()

@@ -20,7 +20,7 @@ Any host that runs containers and proxies HTTPS with WebSocket works (for exampl
 
 ## Owner and operators
 
-The first player to join a new world owns it. The owner can use `/gamemode`, `/time`, `/give`, `/summon` and `/reload`. To choose operators yourself, start the server with `--op NAME` (repeat it for more names); then there is no automatic owner.
+The first player to join a new world owns it. The owner can use `/gamemode` (`build` or `play`), `/time`, `/give`, `/summon`, `/tp`, `/spawn`, `/kill` and `/reload`. Other players have chat, parties, trade and `/who`. To choose operators yourself, start the server with `--op NAME` (repeat it for more names); then there is no automatic owner.
 
 ## Discord
 

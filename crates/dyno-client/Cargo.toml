@@ -40,5 +40,11 @@ sha2 = "0.11.1"
 winit = "0.30.13"
 tungstenite = { version = "0.30.0", features = ["rustls-tls-webpki-roots"] }
 
+# a thread's own processor time, for measurements (bench.rs)
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
+# the seeded test terrain (World::test_terrain)
+dyno-world = { path = "../dyno-world", features = ["test-fixtures"] }
 dyno-server = { path = "../dyno-server" }

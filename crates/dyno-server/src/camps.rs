@@ -113,8 +113,15 @@ impl State {
             }
             let area = &self.content.areas[sp.area];
             let camp = &area.camps[sp.camp];
-            let (creature, levels, rare) = (camp.creature, area.levels, camp.rare.clone());
-            let level = levels[0] + self.rng.range(0, (levels[1] - levels[0]) as u32) as u8;
+            let (creature, levels, rare) = (
+                camp.creature,
+                camp.levels.unwrap_or(area.levels),
+                camp.rare.clone(),
+            );
+            let level = levels[0]
+                + self
+                    .rng
+                    .range(0, levels[1].saturating_sub(levels[0]) as u32) as u8;
             let rare = rare.filter(|r| self.rng.f32() < r.chance);
             self.next_phase = camp.phase;
             let id = self.spawn_creature(creature, sp.pos);
@@ -132,6 +139,7 @@ impl State {
             m.max_health = base * hs * power;
             m.health = m.max_health;
             m.power = power;
+            m.extra_drops = rare.as_ref().map(|r| r.drops.clone()).unwrap_or_default();
             m.home = sp.pos;
             m.camp = true;
             let info = ServerMsg::EntityInfo {
@@ -179,6 +187,13 @@ impl State {
             let p = self.players.get_mut(&id).unwrap();
             if p.area != here {
                 p.area = here;
+                // the first time here: remember it, and pay for the walk
+                // (not for where a new character wakes up)
+                let found = here.map(|i| &self.content.areas[i]).and_then(|a| {
+                    let first = p.discovered.is_empty();
+                    (p.discovered.insert(a.key.clone()) && !first)
+                        .then(|| (a.name.clone(), self.content.world.discovery(a.levels[0])))
+                });
                 let msg = match here.map(|i| &self.content.areas[i]) {
                     Some(a) => ServerMsg::Zone {
                         name: a.name.clone(),
@@ -192,6 +207,10 @@ impl State {
                     },
                 };
                 p.send(&msg);
+                if let Some((name, xp)) = found.filter(|f| f.1 > 0 && self.rpg()) {
+                    self.tell(id, format!("Discovered: {name} (+{xp} XP)"));
+                    self.reward(id, xp, 0);
+                }
             }
         }
     }

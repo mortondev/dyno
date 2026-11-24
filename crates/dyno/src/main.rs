@@ -2,17 +2,18 @@
 
 use std::time::Duration;
 
+mod bench;
 mod sculpt;
 
 const HELP: &str = "\
-dyno - live multiplayer block world (bootstrap build)
+dyno - the Hearthblock Online server and tools
 
 USAGE:
   dyno                         Open the game (connect screen)
   dyno connect <address>       Open the game with the server address filled in
   dyno connect <address>       Open the game with the server address filled in
   dyno server [--port 7400] [--bind 0.0.0.0] [--world PATH] [--auto-update]
-                               [--creative] [--content PACK_DIR|RULES.json] [--op NAME]...
+                               [--content PACK_DIR|RULES.json] [--op NAME]...
                                [--asset-rate 256] [--join-asset-rate 2048] (KB/s of pack files per player, in play / loading)
                                [--world-size 384x96x384] (a new world's size)
                                [--view 160] [--aoi 100] [--far 800] (metres: the world streamed round each player; what they hear of; the far view)
@@ -24,7 +25,7 @@ USAGE:
                                Run a dedicated game server
   dyno say <address> <text>    Join, send chat or a /command, print replies, leave
   dyno shot <address> [--pos x,y,z] [--look yaw,pitch in degrees] [--time 0-1] [--size WxH] [--out f.ppm]
-                               [--ui hud|pack|dig|dead|talk|log|char|bags|spells|skills] [--as NAME]
+                               [--ui hud|pack|dead|talk|log|char|bags|spells|skills] [--as NAME]
                                Join, render one frame off-screen to an image, leave
   dyno shot <address> --stand x,z|x,y,z --face x,y,z [--from-hearth] [--hero CLASS] [--zoom 9] [--pitch 15] [--time 0-1] [--size WxH] [--out f.ppm]
                                The view of a player standing there and facing that point: a stand-in figure on
@@ -35,6 +36,12 @@ USAGE:
                                Choose where the stand shot of each landmark stands; write the camera data
   dyno shot --anim-sheet <out.ppm|out.png>
                                Render animation contact sheets (no server needed)
+  dyno bench --diff DIR_A DIR_B [--out DIR]
+                               Compare the still pictures of two bench runs, pixel by pixel
+  dyno bench <address>|--local [--tier low|medium|high|ultra|all] [--out DIR] [--check REPORT.json]
+                               Measure the fixed scenes of the performance budget (tools/bench/scenes.json)
+                               at each graphics tier; write report.json, report.md and the pictures.
+                               --check fails when vertex memory or triangles grew over 15% (--tolerance)
   dyno bot <address> [name] [seconds]
                                Join as a bot that walks in a circle (demos, tests)
   dyno bots <address>|--local [--count N] [--minutes M] [--brain mix|completionist|grinder|explorer|social|casual]
@@ -42,8 +49,6 @@ USAGE:
                                Playtest with a swarm of headless AI players; writes a fun report (JSON + .md)
   dyno play <address> --as NAME [--class KEY] [--script FILE]
                                Play headless through a text interface (one command per line; 'help')
-  dyno fill <address> x,y,z x,y,z <block>
-                               Fill a box with a block (Air clears it)
   dyno bake-stage [PACK_DIR]   Bake the title-screen stage into the pack (default content/)
   dyno shot --outfit-sheet OUT.png
                                Render the showcase item sets in figures.json (no server needed)
@@ -151,6 +156,74 @@ fn main() {
                 .cloned()
                 .unwrap_or_else(|| "anim-sheet.ppm".into());
             match dyno_client::sheet::anim_sheet(std::path::Path::new(&out)) {
+                Ok(msg) => println!("{msg}"),
+                Err(e) => {
+                    eprintln!("FAILED: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        "bench" => {
+            // dyno bench --diff A B [--out DIR]: compare two runs' pictures
+            if args.get(1).is_some_and(|a| a == "--diff") {
+                let (Some(a), Some(b)) = (args.get(2), args.get(3)) else {
+                    fail("usage: dyno bench --diff DIR_A DIR_B [--out DIR]");
+                };
+                let out = (args.get(4).is_some_and(|a| a == "--out"))
+                    .then(|| args.get(5).map(std::path::PathBuf::from))
+                    .flatten();
+                match bench::diff(a.as_ref(), b.as_ref(), out.as_deref()) {
+                    Ok(table) => print!("{table}"),
+                    Err(e) => {
+                        eprintln!("FAILED: {e}");
+                        std::process::exit(1);
+                    }
+                }
+                return;
+            }
+            let mut o = bench::Options::default();
+            let mut i = 1;
+            while i < args.len() {
+                let v = args.get(i + 1).cloned().unwrap_or_default();
+                let size = |v: &str| -> Option<[u32; 2]> {
+                    let mut it = v.split('x').filter_map(|x| x.parse().ok());
+                    Some([it.next()?, it.next()?])
+                };
+                match args[i].as_str() {
+                    "--local" => {
+                        o.local = true;
+                        i += 1;
+                        continue;
+                    }
+                    "--no-flight" => {
+                        o.flight = false;
+                        i += 1;
+                        continue;
+                    }
+                    "--port" => o.port = v.parse().unwrap_or(o.port),
+                    "--scenes" => o.scenes = v.into(),
+                    "--cameras" => o.cameras = v.into(),
+                    "--tier" => o.tier = v,
+                    "--only" => o.only = Some(v),
+                    "--frames" => o.frames = v.parse().ok(),
+                    "--size" => o.size = size(&v),
+                    "--out" => o.out = v.into(),
+                    "--label" => o.label = v,
+                    "--check" => o.check = Some(v.into()),
+                    "--tolerance" => o.tolerance = v.parse().unwrap_or(o.tolerance),
+                    a if !a.starts_with("--") && o.addr.is_none() => {
+                        o.addr = Some(a.to_string());
+                        i += 1;
+                        continue;
+                    }
+                    other => fail(&format!("unknown bench option {other}\n{}", bench::USAGE)),
+                }
+                i += 2;
+            }
+            if o.addr.is_none() && !o.local {
+                fail(bench::USAGE);
+            }
+            match bench::run(o) {
                 Ok(msg) => println!("{msg}"),
                 Err(e) => {
                     eprintln!("FAILED: {e}");
@@ -333,76 +406,6 @@ fn main() {
                 }
                 while j.conn.rx.try_recv().is_ok() {}
                 std::thread::sleep(Duration::from_millis(50));
-            }
-        }
-        "fill" => {
-            // dyno fill <address> x,y,z x,y,z <block name or id>
-            let (Some(addr), Some(a), Some(b), Some(blk)) =
-                (args.get(1), args.get(2), args.get(3), args.get(4))
-            else {
-                eprintln!("usage: dyno fill <address> x,y,z x,y,z <block name or id>");
-                std::process::exit(2);
-            };
-            let p3 = |v: &str| -> [i32; 3] {
-                let n: Vec<i32> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
-                n.try_into().unwrap_or_else(|_| fail("corners are x,y,z"))
-            };
-            let block = blk.parse::<u8>().ok().or_else(|| {
-                dyno_world::BLOCKS
-                    .iter()
-                    .position(|d| d.name.eq_ignore_ascii_case(blk))
-                    .map(|i| i as u8)
-            });
-            let Some(block) = block else {
-                fail("unknown block")
-            };
-            let (a, b) = (p3(a), p3(b));
-            let j = dyno_client::net::connect(
-                addr,
-                "builder",
-                dyno_client::settings::tool_token("builder"),
-                false,
-                Duration::from_secs(10),
-            )
-            .unwrap_or_else(|e| fail(&e));
-            // stand next to the box so the server accepts the reach check
-            let c = [
-                (a[0] + b[0]) as f32 * 0.5,
-                (a[1].max(b[1]) + 2) as f32,
-                (a[2] + b[2]) as f32 * 0.5,
-            ];
-            let _ = j
-                .conn
-                .tx
-                .send(dyno_protocol::ClientMsg::Pose(dyno_protocol::Pose {
-                    pos: c,
-                    yaw: 0.0,
-                    pitch: 0.0,
-                }));
-            std::thread::sleep(Duration::from_millis(150));
-            let _ = j
-                .conn
-                .tx
-                .send(dyno_protocol::ClientMsg::Fill { a, b, block });
-            let until = std::time::Instant::now() + Duration::from_millis(1500);
-            while std::time::Instant::now() < until {
-                match j.conn.rx.recv_timeout(Duration::from_millis(100)) {
-                    Ok(dyno_client::net::NetEvent::Msg(dyno_protocol::ServerMsg::Fill {
-                        a,
-                        b,
-                        block,
-                    })) => {
-                        println!(
-                            "filled {a:?} to {b:?} with {}",
-                            dyno_world::block(block).name
-                        );
-                        break;
-                    }
-                    Ok(dyno_client::net::NetEvent::Msg(dyno_protocol::ServerMsg::System {
-                        text,
-                    })) => println!("{text}"),
-                    _ => {}
-                }
             }
         }
         "bake-figure" => {
@@ -615,7 +618,6 @@ fn run_server(args: &[String]) {
                 i += 1;
             }
             "--auto-update" => auto_update = true,
-            "--creative" => cfg.default_mode = dyno_protocol::Mode::Creative,
             "--content" => {
                 cfg.content_path = Some(val().into());
                 i += 1;

@@ -1,4 +1,4 @@
-//! Game content as data: items, recipes, block rules, creatures and milestones.
+//! Game content as data: items, recipes, stations, block rules and creatures.
 //!
 //! Content is written as JSON with readable keys (see `content/rules/hearthblock.json`)
 //! and resolved into compact numeric IDs. The server loads it and sends the
@@ -60,7 +60,7 @@ pub struct Item {
     pub icon: Icon,
     pub stack: u8,
     pub tool: Option<Tool>,
-    /// hunger points restored when eaten
+    /// how much eating it heals: 5% of full health for each point
     pub food: u8,
     /// furnace fuel units
     pub fuel: u8,
@@ -83,6 +83,21 @@ pub struct Item {
     /// a block show the block instead
     #[serde(default)]
     pub image: Option<String>,
+    /// a ride: buying it from a merchant takes you there instead of going
+    /// into your bags
+    #[serde(default)]
+    pub ride: Option<Ride>,
+}
+
+/// Where a ride item takes its buyer.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Ride {
+    /// where you get off (x, z), relative to the spawn hearth
+    pub at: [i32; 2],
+    /// the key of the area you must have found on foot first (none: anyone
+    /// may ride)
+    #[serde(default)]
+    pub area: Option<String>,
 }
 
 /// Where a piece of gear is worn. The paper doll has one place per slot,
@@ -224,12 +239,14 @@ pub struct BlockRule {
     pub skill: Option<(String, u16)>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum Station {
-    None,
-    Table,
-    Furnace,
+/// A crafting station: the blocks that serve as it. A recipe names the
+/// station it needs by key.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Station {
+    pub key: String,
+    /// as players read it: "Needs a Forge nearby"
+    pub name: String,
+    pub blocks: Vec<BlockId>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -245,8 +262,10 @@ pub struct Recipe {
     pub output: ItemId,
     pub count: u8,
     pub inputs: Vec<Ingredient>,
-    pub station: Station,
-    /// furnace fuel units used
+    /// the station it is made at: an index into `Content::stations`
+    #[serde(default)]
+    pub station: Option<u8>,
+    /// fuel units used
     pub fuel: u8,
     pub group: String,
     /// profession and skill needed to make it
@@ -346,6 +365,9 @@ pub struct Npc {
     /// they stand where they are)
     #[serde(default)]
     pub routine: Vec<RoutineStep>,
+    /// talking to them makes this your home: where you wake and recall to
+    #[serde(default)]
+    pub innkeeper: bool,
 }
 
 /// One stop on an NPC's round: where, what they do there and for how long.
@@ -519,6 +541,22 @@ pub struct Ability {
     pub charge: bool,
     /// rage or energy given (Onrush)
     pub gives: f32,
+    /// damage multiplier against a creature that is not yet fighting you
+    /// (an ambush, an aimed first shot); 0 or 1: none
+    #[serde(default)]
+    pub opener: f32,
+    /// slows the target: percent of its speed taken, and seconds
+    #[serde(default)]
+    pub slow: [f32; 2],
+    /// its picture in the pack ("icons/abilities/onrush.png"); without one
+    /// the `icon` item's sprite is shown
+    #[serde(default)]
+    pub image: Option<String>,
+    /// the pack sound it makes when it goes off
+    /// ("sounds/abilities/<name>_<n>.wav");
+    /// empty: the plain bolt or burst sound
+    #[serde(default)]
+    pub sound: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -534,6 +572,13 @@ pub enum BuffKind {
     Agility,
     Intellect,
     Stamina,
+    /// a shield that soaks up this much damage, then breaks
+    Absorb,
+    /// each auto-attack does this much more damage (a seal on the weapon)
+    Strike,
+    /// creatures notice you from this percent less far; ends when you deal
+    /// or take damage
+    Stealth,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -544,14 +589,16 @@ pub struct Buff {
     /// extra seconds per combo point spent
     #[serde(default)]
     pub per_combo: f32,
+    /// extra amount per level above 1 (absorb and strike)
+    #[serde(default)]
+    pub per_level: f32,
 }
 
 /// World rules.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct WorldRules {
-    /// RPG rules: players in survival may only harvest blocks marked as
-    /// resource nodes, cannot place blocks, keep their items on death, and
-    /// do not get hungry
+    /// the land cannot be dug or built on: players gather from resource
+    /// nodes. The game is always played this way; the key is still read
     #[serde(default)]
     pub protected: bool,
     /// item keys and counts a new character starts with
@@ -562,6 +609,15 @@ pub struct WorldRules {
     /// (default 0.15)
     #[serde(default)]
     pub group_bonus: Option<f32>,
+    /// XP for walking into a named area for the first time: a base, plus
+    /// this much for each level of the area's lowest level (none: no XP)
+    #[serde(default)]
+    pub discovery_xp: Option<[u32; 2]>,
+    /// kill XP as a share of the design formula (none: all of it). Where
+    /// creatures stand close to the quest givers, kills come faster than
+    /// the formula assumed.
+    #[serde(default)]
+    pub kill_xp: Option<f32>,
 }
 
 impl WorldRules {
@@ -570,15 +626,12 @@ impl WorldRules {
         let n = n.max(1) as f32;
         (1.0 + self.group_bonus.unwrap_or(0.15).max(0.0) * (n - 1.0)) / n
     }
-}
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct Milestone {
-    pub key: String,
-    pub title: String,
-    pub hint: String,
-    /// "collect:<item>", "craft:<item>", "place:<block>", "kill:<creature>", "night"
-    pub trigger: String,
+    /// The XP for finding an area whose creatures start at `level`.
+    pub fn discovery(&self, level: u8) -> u32 {
+        self.discovery_xp
+            .map_or(0, |[base, per]| base + per * level as u32)
+    }
 }
 
 /// Resolved content, ready to use and to send.
@@ -592,7 +645,9 @@ pub struct Content {
     pub blocks: Vec<BlockRule>,
     pub recipes: Vec<Recipe>,
     pub creatures: Vec<Creature>,
-    pub milestones: Vec<Milestone>,
+    /// crafting stations, by the index recipes hold
+    #[serde(default)]
+    pub stations: Vec<Station>,
     #[serde(default)]
     pub npcs: Vec<Npc>,
     #[serde(default)]
@@ -648,6 +703,10 @@ pub struct Camp {
     /// underground: spawn near this height relative to the hearth, not on the surface
     #[serde(default)]
     pub y: Option<i32>,
+    /// the camp's own level band (none: the area's): a boss keeps its
+    /// level in an area with a wide band
+    #[serde(default)]
+    pub levels: Option<[u8; 2]>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -658,6 +717,19 @@ pub struct Rare {
     pub power: f32,
     /// extra levels
     pub levels: u8,
+    /// what the rare drops on top of its kind's drops
+    #[serde(default)]
+    pub drops: Vec<Drop>,
+}
+
+#[derive(Deserialize)]
+struct ARare {
+    name: String,
+    chance: f32,
+    power: f32,
+    levels: u8,
+    #[serde(default)]
+    drops: Vec<ADrop>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -681,7 +753,7 @@ struct AFile {
     #[serde(default)]
     creatures: Vec<ACreature>,
     #[serde(default)]
-    milestones: Vec<Milestone>,
+    stations: Vec<AStation>,
     #[serde(default)]
     npcs: Vec<ANpc>,
     #[serde(default)]
@@ -729,11 +801,13 @@ struct ACamp {
     #[serde(default = "five_min")]
     respawn: u16,
     #[serde(default)]
-    rare: Option<Rare>,
+    rare: Option<ARare>,
     #[serde(default)]
     y: Option<i32>,
     #[serde(default)]
     phase: Option<String>,
+    #[serde(default)]
+    levels: Option<[u8; 2]>,
 }
 
 fn five_min() -> u16 {
@@ -793,6 +867,10 @@ struct AAbility {
     combo: i8,
     charge: bool,
     gives: f32,
+    opener: f32,
+    slow: [f32; 2],
+    image: Option<String>,
+    sound: String,
 }
 
 #[derive(Deserialize)]
@@ -813,6 +891,8 @@ struct ANpc {
     phase: Option<String>,
     #[serde(default)]
     routine: Vec<RoutineStep>,
+    #[serde(default)]
+    innkeeper: bool,
 }
 
 #[derive(Deserialize)]
@@ -892,6 +972,8 @@ struct AItem {
     gear: Option<Gear>,
     #[serde(default)]
     image: Option<String>,
+    #[serde(default)]
+    ride: Option<Ride>,
 }
 
 #[derive(Deserialize)]
@@ -936,8 +1018,9 @@ struct ARecipe {
     /// [["log|birch_log", 1], ...]
     #[serde(rename = "in")]
     inputs: Vec<(String, u8)>,
-    #[serde(default = "no_station")]
-    station: Station,
+    /// the key of a station in `stations`; absent: made anywhere
+    #[serde(default)]
+    station: Option<String>,
     #[serde(default)]
     fuel: u8,
     #[serde(default)]
@@ -946,8 +1029,12 @@ struct ARecipe {
     skill: Option<(String, u16)>,
 }
 
-fn no_station() -> Station {
-    Station::None
+#[derive(Deserialize)]
+struct AStation {
+    key: String,
+    name: String,
+    /// block keys
+    blocks: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -1064,6 +1151,7 @@ impl Content {
                 level: a.level,
                 gear: a.gear.clone(),
                 image: a.image.clone(),
+                ride: a.ride.clone(),
             });
         }
         let mut blocks = Vec::new();
@@ -1111,6 +1199,22 @@ impl Content {
                 return Err(format!("unknown block '{k}' in blocks"));
             }
         }
+        let mut stations = Vec::new();
+        for st in &f.stations {
+            let blocks = st
+                .blocks
+                .iter()
+                .map(|k| {
+                    block_by_key(k)
+                        .ok_or_else(|| format!("unknown block '{k}' in station '{}'", st.key))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            stations.push(Station {
+                key: st.key.clone(),
+                name: st.name.clone(),
+                blocks,
+            });
+        }
         let mut recipes = Vec::new();
         for (i, r) in f.recipes.iter().enumerate() {
             let mut inputs = Vec::new();
@@ -1126,7 +1230,14 @@ impl Content {
                 output: item(&r.out)?,
                 count: r.count.max(1),
                 inputs,
-                station: r.station,
+                station: match &r.station {
+                    None => None,
+                    Some(k) => {
+                        Some(stations.iter().position(|s| s.key == *k).ok_or_else(|| {
+                            format!("unknown station '{k}' for recipe '{}'", r.out)
+                        })? as u8)
+                    }
+                },
                 fuel: r.fuel,
                 group: if r.group.is_empty() {
                     "other".into()
@@ -1206,6 +1317,7 @@ impl Content {
                 sells,
                 phase: phase_of(&n.phase)?,
                 routine: n.routine.clone(),
+                innkeeper: n.innkeeper,
             });
             for st in &n.routine {
                 if let Some(b) = &st.near
@@ -1365,6 +1477,10 @@ impl Content {
                 combo: a.combo,
                 charge: a.charge,
                 gives: a.gives,
+                opener: a.opener,
+                slow: a.slow,
+                image: a.image.clone(),
+                sound: a.sound.clone(),
             });
         }
         let mut areas = Vec::new();
@@ -1385,8 +1501,19 @@ impl Content {
                     at: c.at,
                     spread: c.spread,
                     respawn: c.respawn,
-                    rare: c.rare.clone(),
+                    rare: match &c.rare {
+                        Some(r) => Some(Rare {
+                            name: r.name.clone(),
+                            chance: r.chance,
+                            power: r.power,
+                            levels: r.levels,
+                            drops: drops(&r.drops)
+                                .map_err(|e| format!("area '{}', {}: {e}", a.key, r.name))?,
+                        }),
+                        None => None,
+                    },
                     y: c.y,
+                    levels: c.levels,
                 });
             }
             areas.push(Area {
@@ -1423,7 +1550,7 @@ impl Content {
             blocks,
             recipes,
             creatures,
-            milestones: f.milestones,
+            stations,
             npcs,
             quests,
             world: f.world,
@@ -1515,6 +1642,11 @@ impl Content {
         }
     }
 
+    /// Is this block a crafting station?
+    pub fn is_station(&self, b: BlockId) -> bool {
+        self.stations.iter().any(|s| s.blocks.contains(&b))
+    }
+
     pub fn rule(&self, b: BlockId) -> &BlockRule {
         &self.blocks[(b as usize).min(self.blocks.len() - 1)]
     }
@@ -1592,7 +1724,17 @@ mod tests {
     fn default_pack_loads() {
         let c = Content::default_pack();
         assert!(c.items.len() > 20);
-        assert!(c.recipes.len() > 20);
+        assert!(c.recipes.len() > 10);
+        // a recipe names a station of the pack, and a station has blocks
+        assert!(!c.stations.is_empty());
+        assert!(c.stations.iter().all(|s| !s.blocks.is_empty()));
+        assert!(c.recipes.iter().any(|r| r.station.is_some()));
+        assert!(
+            c.recipes
+                .iter()
+                .filter_map(|r| r.station)
+                .all(|s| (s as usize) < c.stations.len())
+        );
         let pick = c.item_by_key("wooden_pickaxe").unwrap();
         assert_eq!(c.item(pick).tool.unwrap().kind, ToolKind::Pickaxe);
         assert_eq!(c.item(crate::STONE as ItemId).name, "Stone");
@@ -1601,6 +1743,80 @@ mod tests {
         assert_eq!(r.tier, 1);
         assert_eq!(r.drops[0].item, crate::COBBLE as ItemId);
         assert!(c.rule(crate::BEDROCK).hardness < 0.0);
+    }
+
+    /// The first five levels of every class (docs/design/quality-bar.md,
+    /// section 6): at least three abilities by level 5, something new at
+    /// level 2 or 3 and again at 4 or 5, and a second button from the start.
+    #[test]
+    fn every_class_has_a_kit_by_level_five() {
+        let c = Content::default_pack();
+        for class in &c.classes {
+            let at = |lo: u8, hi: u8| {
+                c.abilities
+                    .iter()
+                    .filter(|a| a.class == class.id && a.level >= lo && a.level <= hi)
+                    .count()
+            };
+            assert!(at(1, 1) >= 2, "{}: two buttons at level 1", class.key);
+            assert!(at(2, 3) >= 1, "{}: a new ability at 2 or 3", class.key);
+            assert!(at(4, 5) >= 1, "{}: a new ability at 4 or 5", class.key);
+            assert!(at(1, 5) >= 4, "{}: a kit by level 5", class.key);
+        }
+    }
+
+    /// Ability presentation (quality bar, section 7): each has its own icon
+    /// and a sound in the pack, and the seconds its tooltip promises are the
+    /// seconds in its data.
+    #[test]
+    fn abilities_have_icons_sounds_and_honest_tooltips() {
+        let c = Content::default_pack();
+        let pack = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../content");
+        let mut icons = std::collections::HashSet::new();
+        for a in &c.abilities {
+            let image = a
+                .image
+                .as_deref()
+                .unwrap_or_else(|| panic!("{}: no icon", a.key));
+            assert!(pack.join(image).is_file(), "{}: {image} is missing", a.key);
+            assert!(icons.insert(image), "{}: shares its icon", a.key);
+            assert!(!a.sound.is_empty(), "{}: no sound", a.key);
+            assert!(
+                pack.join(format!("sounds/abilities/{}_0.wav", a.sound))
+                    .is_file(),
+                "{}: sound '{}' is not in the pack",
+                a.key,
+                a.sound
+            );
+            assert!(a.text.ends_with('.'), "{}: tooltip text", a.key);
+            // every "N seconds" / "N minutes" in the text is a number the data holds
+            let secs = [
+                a.stun,
+                a.root,
+                a.slow[1],
+                a.dot[2],
+                a.hot[2],
+                a.cooldown,
+                a.cast,
+                a.buff.map_or(0.0, |b| b.secs),
+            ];
+            let words: Vec<&str> = a.text.split_whitespace().collect();
+            for w in words.windows(2) {
+                let unit = w[1].trim_matches(|ch: char| !ch.is_alphabetic());
+                let scale = match unit {
+                    "second" | "seconds" => 1.0,
+                    "minute" | "minutes" => 60.0,
+                    _ => continue,
+                };
+                let Ok(n) = w[0].parse::<f32>() else { continue };
+                assert!(
+                    secs.iter().any(|s| (s - n * scale).abs() < 0.01),
+                    "{}: the text says {} {unit}, the data does not",
+                    a.key,
+                    w[0]
+                );
+            }
+        }
     }
 
     #[test]

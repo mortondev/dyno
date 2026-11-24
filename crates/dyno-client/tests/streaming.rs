@@ -35,9 +35,10 @@ fn start(dir: &Path, content: Option<PathBuf>, rate: usize) -> (dyno_server::Han
     (h, addr)
 }
 
-/// The built-in pack written out as a directory.
+/// The built-in pack written out as a directory, as it is authored (with
+/// the world's layout: a server builds its world from it).
 fn write_pack(dir: &Path) {
-    for (path, bytes) in Pack::builtin().files() {
+    for (path, bytes) in Pack::builtin_source() {
         let p = dir.join(&path);
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(p, &bytes[..]).unwrap();
@@ -239,6 +240,70 @@ fn streamed_files_arrive_during_play_without_holding_it_up() {
         worst < Duration::from_millis(500),
         "play never waits behind the download ({worst:?})"
     );
+    drop(j);
+    server.stop();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn a_streamed_sound_is_fetched_when_first_played() {
+    use dyno_client::audio::{AUDIO_JSON, Audio};
+    let dir = temp("sound");
+    let packdir = dir.join("pack");
+    write_pack(&packdir);
+    // an event of this test's own: three variants under a streamed prefix
+    // (the names are used nowhere else: the tests here share one asset
+    // store and one queue of requests)
+    let paths: Vec<String> = (0..3)
+        .map(|v| format!("sounds/world/onlyhere_{v}.wav"))
+        .collect();
+    for (v, path) in paths.iter().enumerate() {
+        let mut wav =
+            std::fs::read(packdir.join(format!("sounds/world/break_wood_{v}.wav"))).unwrap();
+        // (a file of its own, not break_wood under another name)
+        let last = wav.len() - 1;
+        wav[last] ^= 1;
+        std::fs::write(packdir.join(path), wav).unwrap();
+    }
+    let json = std::fs::read(packdir.join(AUDIO_JSON)).unwrap();
+    let mut json: serde_json::Value = serde_json::from_slice(&json).unwrap();
+    json["events"]["test.onlyhere"] = serde_json::json!({
+        "file": "sounds/world/onlyhere", "variants": 3
+    });
+    let json = serde_json::to_vec(&json).unwrap();
+    std::fs::write(packdir.join(AUDIO_JSON), &json).unwrap();
+    let (server, addr) = start(&dir, Some(packdir), 4 * 1024 * 1024);
+    let pack = server.server.pack();
+    let cache = dir.join("cache");
+    let (j, _) = join(&addr, "ada", 1, &cache);
+    for path in &paths {
+        assert!(!pack.manifest.preload(path), "{path} streams");
+        let f = pack.manifest.file(path).unwrap();
+        assert!(
+            Cache::at(&cache).read(f).is_none(),
+            "{path} came with the join"
+        );
+        assert!(dyno_client::assets::get(path).is_none());
+    }
+    // the game plays the event: silent this once, and its files are asked
+    // for; a moment later every variant is there to play
+    let mut audio = Audio::silent();
+    let until = Instant::now() + Duration::from_secs(10);
+    let mut ready = 0;
+    while Instant::now() < until && ready < 3 {
+        // (another test's join may have put its own audio.json in the store)
+        dyno_client::assets::insert(AUDIO_JSON, json.clone());
+        audio.play("test.onlyhere", 1.0);
+        ready = audio.want("test.onlyhere");
+        // keep the connection's messages moving, as the game does
+        while j.conn.rx.try_recv().is_ok() {}
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    assert_eq!(ready, 3, "every variant arrived after the first play");
+    for path in &paths {
+        let f = pack.manifest.file(path).unwrap();
+        assert!(Cache::at(&cache).read(f).is_some(), "{path} is cached");
+    }
     drop(j);
     server.stop();
     let _ = std::fs::remove_dir_all(&dir);
