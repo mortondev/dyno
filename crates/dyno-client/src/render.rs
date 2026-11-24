@@ -13,20 +13,20 @@ use std::sync::Arc;
 
 pub const SECTION: i32 = 16;
 
-/// A vertex of the far view (farview.rs): a third the size of `Vertex`,
-/// since there may be a million of them and they need only a place, a
-/// colour, a normal and where they fade in.
+/// A vertex of the far view (farview.rs), 16 bytes, since there may be a
+/// million of them: far columns are boxes of whole metres (the voxel rule,
+/// docs/art/voxel-rule.md), so a place is whole metres too.
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable, Debug)]
 pub struct FarVertex {
-    pub pos: [f32; 3],
+    /// x, y, z in whole metres; w: the distance from the camera (metres)
+    /// where a standing column starts to show
+    pub pos: [i16; 4],
     /// linear colour, 0-255
     pub color: [u8; 4],
-    /// the normal (-127..127); w: 1 for what stands on the ground (faded in
-    /// past `fade`), 0 for the ground
+    /// the normal (-127..127, one of the six axis directions); w: 1 for
+    /// what stands on the ground (faded in past `pos.w`), 0 for the ground
     pub normal: [i8; 4],
-    /// distance from the camera where a standing column starts to show
-    pub fade: f32,
 }
 
 #[repr(C)]
@@ -284,22 +284,22 @@ fn world_vertex(v: Plain) -> VOut {
 // shader as the land; the ground on the ground's path (-2), what stands on
 // it dithered in from `fade` over 32 m (farview::FADE) (-5)
 struct FarIn {
-  @location(0) pos: vec3<f32>,
+  @location(0) pos: vec4<i32>,
   @location(1) color: vec4<f32>,
   @location(2) normal: vec4<f32>,
-  @location(3) fade: f32,
 };
 
 @vertex fn vs_far(v: FarIn) -> VOut {
   var o: VOut;
-  o.clip = u.view_proj * vec4<f32>(v.pos, 1.0);
-  o.wpos = v.pos;
+  let pos = vec3<f32>(v.pos.xyz);
+  o.clip = u.view_proj * vec4<f32>(pos, 1.0);
+  o.wpos = pos;
   o.normal = normalize(v.normal.xyz);
   o.color = vec4<f32>(v.color.rgb, 1.0);
   o.light = 0.0;
   o.sky = 1.0;
-  o.tex = vec4<f32>(v.fade, 32.0, select(-2.0, -5.0, v.normal.w > 0.5), 0.0);
-  o.tone = world_tone(v.pos.xz);
+  o.tex = vec4<f32>(f32(v.pos.w), 32.0, select(-2.0, -5.0, v.normal.w > 0.5), 0.0);
+  o.tone = world_tone(pos.xz);
   return o;
 }
 
@@ -1670,7 +1670,7 @@ impl Gfx {
         let far_layout = wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<FarVertex>() as u64,
             step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Unorm8x4, 2 => Snorm8x4, 3 => Float32],
+            attributes: &wgpu::vertex_attr_array![0 => Sint16x4, 1 => Unorm8x4, 2 => Snorm8x4],
         };
         let far_pipe = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("far"),
@@ -2233,7 +2233,9 @@ impl Gfx {
     }
 
     /// Store (upload) a far tile's mesh (an empty mesh removes it).
+    /// `verts` are quads, four vertices each, drawn with the shared quad index.
     pub fn put_far(&mut self, at: [i32; 2], verts: &[FarVertex]) {
+        self.ensure_quad_index(verts.len() as u32 / 4);
         match self.upload_far(verts) {
             Some(b) => {
                 self.far.insert(at, b);
@@ -2632,11 +2634,12 @@ impl Gfx {
                 }
                 // the far view, round and beyond the near
                 rp.set_pipeline(&self.far_pipe);
+                rp.set_index_buffer(self.quad_index.slice(..), wgpu::IndexFormat::Uint32);
                 for (at, (b, n)) in &self.far {
                     if self.far_visible(*at, vp, dist) {
                         rp.set_vertex_buffer(0, b.slice(..));
-                        rp.draw(0..*n, 0..1);
-                        st.draw(bn::WORLD, *n as u64 / 3);
+                        rp.draw_indexed(0..*n / 4 * 6, 0, 0..1);
+                        st.draw(bn::WORLD, *n as u64 / 2);
                     }
                 }
                 let (draws, instances, tris) = self.cover.draw(&mut rp, &planes);

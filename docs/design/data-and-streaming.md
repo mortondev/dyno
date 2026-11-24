@@ -530,7 +530,10 @@ For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
   (`World::log_changes`) and each tick the shard resends the tiles they
   fall in to those who hold them. The client draws it so the seam with
   the near view does not show:
-  - the ground layer from 64 m out, half a metre low: never above the
+  - every far box is a stack of whole 1 m cubes (the voxel rule,
+    docs/art/voxel-rule.md): axis faces only, every corner on the metre
+    grid (`far_faces_are_cube_faces`);
+  - the ground layer from 64 m out, a metre low: never above the
     near land (it is each cell's lowest ground), so the near land hides it,
     and where the near view ends, however raggedly, it carries on with no
     gap;
@@ -540,9 +543,18 @@ For a starting zone of about 2048 × 256 × 2048 (docs/design/scale.md):
   - colours are the mean of each block's own texture (water: the render
     settings' water colours), toned, lit and fogged by the land's own
     shader, so the far land matches the near; the fog ends at 900 m;
-  - cells beyond 400 m are drawn 8 m wide;
-  - its own compact vertices (24 bytes: place, colour, normal, fade) and
-    pipeline (`vs_far`), a third the size of the land's.
+  - each cell's colour varies a little (a few per cent, cell by cell), so
+    the land does not read as flat slabs;
+  - a wood reads as a wood: its crowns step up and down a metre or two
+    cell by cell, vary in shade (and are a little darker than the open
+    land, so a wood is a band in front of the hills), and carry a clump
+    (a cube half a cell wide on a corner of the crown); inside the fade a
+    tree is its crown over the ground layer, not a pillar of leaves down
+    to the ground (`far_woods_are_stepped_crowns`);
+  - cells beyond 400 m are drawn 8 m wide, but where the land is steep
+    (an 8 m block's cells differ by more than 4 m) in 4 m cells;
+  - its own compact vertices (16 bytes: place in whole metres and the
+    fade distance, colour, normal) and pipeline (`vs_far`).
   A tower, a windmill, a headframe or a hero tree wins its cell, so
   landmarks stand out. Measured on the 2 km world from 46 m up: 490 tiles,
   813,870 vertices, 18.6 MB on the GPU (86 MB before compact vertices and
