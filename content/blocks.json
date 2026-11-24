@@ -101,9 +101,16 @@
     {"id":61,"key":"bookshelf","textures":{"bottom":"textures/bookshelf_end.png","side":"textures/bookshelf_side.png","top":"textures/bookshelf_end.png"},"tags":["wall","chamfer"]},
     {"id":62,"key":"anvil","textures":{"bottom":"textures/anvil_bottom.png","side":"textures/anvil_side.png","top":"textures/anvil_top.png"},"tags":["prop","on_paving","chamfer"],"shape":{"rules":"anvil","vox":"shapes/anvil.vox"}},
     {"id":63,"key":"brazier","textures":{"bottom":"textures/brazier_bottom.png","side":"textures/brazier_side.png","top":"textures/brazier_top.png"},"tags":["prop","on_paving"],"shape":{"rules":"brazier","vox":"shapes/brazier.vox"}},
-    {"id":64,"key":"flower_bed","textures":{"bottom":"textures/dirt.png","side":"textures/flower_bed_side.png","top":"textures/flower_bed_top.png"},"tags":["prop","on_paving","chamfer"],"shape":{"rules":"flower_bed","vox":"shapes/flower_bed.vox"}}
+    {"id":64,"key":"flower_bed","textures":{"bottom":"textures/dirt.png","side":"textures/flower_bed_side.png","top":"textures/flower_bed_top.png"},"tags":["prop","on_paving","chamfer"],"shape":{"rules":"flower_bed","vox":"shapes/flower_bed.vox"}},
+    {"id":65,"key":"rail","textures":{"bottom":"textures/rail.png","side":"textures/rail.png","top":"textures/rail.png"},"tags":["prop","on_paving"],"shape":{"rules":"rail","vox":"shapes/rail.vox"}}
   ],
   "shape_rules": {
+    "rail": {
+      "models": ["track.body.0"],
+      "classes": [
+        {"class":"track","fills":false,"min":-100.0,"pick":"best","turns":[0,1],"score":[[1.0,{"at":[1,0,0],"is":"self"}],[1.0,{"at":[-1,0,0],"is":"self"}]],"parts":[{"features":[],"name":"body","table":{"":{"model":"track.body.0"}},"joins":true}]}
+      ]
+    },
     "anvil": {
       "models": ["prop.body.0"],
       "classes": [
@@ -208,6 +215,7 @@
     }
   },
   "shape_files": {
+    "shapes/rail.vox": {"palette":{"1":{"block":"self","faces":[0,0,0],"tint":[1.0,1.0,1.0]},"2":{"block":"dark_planks","faces":[0,0,0],"tint":[0.8,0.8,0.8]}}},
     "shapes/anvil.vox": {"palette":{"1":{"block":"log","faces":[0,1,1],"tint":[1.0,1.0,1.0]},"2":{"block":"self","faces":[0,1,2],"tint":[1.0,1.0,1.0],"uv":"fit"}}},
     "shapes/banner.vox": {"palette":{"1":{"block":"self","faces":[1,1,1],"tint":[1.0,1.0,1.0]},"2":{"block":"self","faces":[1,1,1],"tint":[0.8,0.8,0.8]},"3":{"block":"dark_planks","faces":[0,0,0],"tint":[1.0,1.0,1.0]},"4":{"block":"lantern","faces":[0,0,0],"tint":[1.0,0.85,0.45]}}},
     "shapes/barrel.vox": {"palette":{"1":{"block":"self","faces":[1,1,1],"tint":[1.0,1.0,1.0]},"2":{"block":"self","faces":[1,1,1],"tint":[0.8,0.8,0.8]}}},

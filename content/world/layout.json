@@ -1,5 +1,5 @@
 {
- "version": 3,
+ "version": 4,
  "size": [2048, 256, 2048],
  "design": [2048, 256, 2048],
  "seed": 20261123,
@@ -661,7 +661,7 @@
    "name": "The Hollow Oak",
    "radius": 70,
    "pad": {
-    "radius": [30, 30],
+    "radius": [42, 42],
     "blend": 16
    },
    "stamps": [
@@ -980,12 +980,18 @@
    "stamps": [
     {"stamp": "hollow_mines", "at": [11, -3]},
     {"stamp": "mine_portal", "at": [12, -3]},
-    {"stamp": "rail_track", "at": [0, -3]},
+    {"stamp": "rail_track", "at": [-6, -3]},
     {"stamp": "mine_head", "at": [1, 10]},
-    {"stamp": "banner_pole_red", "at": [-8, -10]},
-    {"stamp": "ore_cart", "at": [-3, 5]},
-    {"stamp": "ore_outcrop", "at": [-6, -6]},
-    {"stamp": "lamp_post", "at": [6, 4]}
+    {"stamp": "miners_hut", "at": [-10, -13]},
+    {"stamp": "miners_hut", "at": [12, 13], "rot": 3},
+    {"stamp": "ore_pile", "at": [0, -10]},
+    {"stamp": "ore_pile", "at": [-13, 0], "rot": 1},
+    {"stamp": "banner_pole_red", "at": [9, -9]},
+    {"stamp": "banner_pole_red", "at": [9, 3]},
+    {"stamp": "ore_cart", "at": [-4, 3]},
+    {"stamp": "lamp_post", "at": [6, 1]},
+    {"stamp": "lamp_post", "at": [-6, -7]},
+    {"stamp": "lamp_post", "at": [-9, 9]}
    ],
    "was": {
     "at": [155, -17],
