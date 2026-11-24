@@ -405,28 +405,29 @@ def anvil(r, v):
     return reverb(mix((strike(1.0), 0, 1.0), (strike(0.25), r.uniform(0.11, 0.15), 1.0)), 0.25, tail=0.4)
 
 
-# (name, variants, recipe, peak, loop)
+# (name, variants, recipe, peak, loop): for a loop, the last is the
+# frequency below which it is cut (a bed must not rumble); 0 is not a loop
 SOUNDS = [
-    ("air", 1, bed_air, 0.5, True),
-    ("night", 1, bed_night, 0.5, True),
-    ("leaves", 1, bed_leaves, 0.5, True),
-    ("eerie", 1, bed_eerie, 0.6, True),
-    ("town", 1, bed_town, 0.5, True),
-    ("mine", 1, bed_mine, 0.6, True),
-    ("wind", 1, bed_wind, 0.6, True),
-    ("rain", 1, bed_rain, 0.5, True),
-    ("fire", 1, loop_fire, 0.6, True),
-    ("river", 1, loop_river, 0.5, True),
-    ("lap", 1, loop_lap, 0.5, True),
-    ("bird", 6, bird, 0.5, False),
-    ("owl", 3, owl, 0.5, False),
-    ("cricket", 3, cricket, 0.4, False),
-    ("frog", 3, frog, 0.5, False),
-    ("crow", 3, crow, 0.5, False),
-    ("gull", 3, gull, 0.5, False),
-    ("drip", 4, drip, 0.5, False),
-    ("gust", 3, gust, 0.5, False),
-    ("anvil", 4, anvil, 0.6, False),
+    ("air", 1, bed_air, 0.5, 90),
+    ("night", 1, bed_night, 0.5, 120),
+    ("leaves", 1, bed_leaves, 0.5, 120),
+    ("eerie", 1, bed_eerie, 0.6, 40),
+    ("town", 1, bed_town, 0.5, 110),
+    ("mine", 1, bed_mine, 0.6, 30),
+    ("wind", 1, bed_wind, 0.6, 90),
+    ("rain", 1, bed_rain, 0.5, 120),
+    ("fire", 1, loop_fire, 0.6, 60),
+    ("river", 1, loop_river, 0.5, 110),
+    ("lap", 1, loop_lap, 0.5, 90),
+    ("bird", 6, bird, 0.5, 0),
+    ("owl", 3, owl, 0.5, 0),
+    ("cricket", 3, cricket, 0.4, 0),
+    ("frog", 3, frog, 0.5, 0),
+    ("crow", 3, crow, 0.5, 0),
+    ("gull", 3, gull, 0.5, 0),
+    ("drip", 4, drip, 0.5, 0),
+    ("gust", 3, gust, 0.5, 0),
+    ("anvil", 4, anvil, 0.6, 0),
 ]
 
 
@@ -448,8 +449,11 @@ def main():
         for v in range(variants):
             r = rng_for(f"amb/{name}_{v}")
             x = recipe(r, v)
-            # (a loop keeps its ends, which meet; the rest are trimmed and faded)
-            x = norm(x, peak) if loop else norm(fade(trim(hp(x, 30.0)), 0.002, 0.02), peak)
+            if loop:
+                # (filtered twice round, keeping the second: its ends still meet)
+                x = norm(hp(hp(x + x, loop), loop)[len(x) :], peak)
+            else:
+                x = norm(fade(trim(hp(x, 30.0)), 0.002, 0.02), peak)
             total += write_wav(os.path.join(out, f"{name}_{v}.wav"), x)
             print(f"amb/{name}_{v}.wav  {len(x) / SR:.2f} s")
     print(f"{total} bytes")

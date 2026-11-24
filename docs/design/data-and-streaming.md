@@ -48,6 +48,8 @@ content/
   anims/*.json         # clips per skeleton
   shapes/*.vox         # detail shapes for blocks (fine voxels)
   audio.json           # sound events: files, bus, level (docs/design/audio.md)
+  music/*.json         # songs as patterns of notes, and which place has which theme
+  music/inst/*.wav     # the instruments the songs are played on
   sounds/*/*.wav
   fonts/*.ttf
   stamps/*.dstamp      # block volumes for buildings and sites (§5)
@@ -276,8 +278,9 @@ when one of them is replaced.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
   **Built:** `audio.json` names every sound event and its variant files;
   steps, interface and combat sounds come with the join, and
-  `sounds/world/` and `sounds/amb/` stream when an event first needs them
-  (docs/design/audio.md).
+  `sounds/world/`, `sounds/amb/` (with the rules for the sound of each
+  place) and `music/` (songs as tracker data and their instrument
+  samples) stream when first needed (docs/design/audio.md).
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.
 - **Water** (`render.json`, `water`; drawn by `water.rs`):
