@@ -81,6 +81,22 @@ pub struct Mob {
     pub winding: Option<(Instant, PlayerId)>,
 }
 
+/// Heavy blows since the server started: wound up, landed, missed (the
+/// target stepped away), broken off (a stun). For the tick log
+/// (`DYNO_TICK_STATS`).
+static HEAVY: [std::sync::atomic::AtomicU64; 4] =
+    [const { std::sync::atomic::AtomicU64::new(0) }; 4];
+
+pub fn heavy_counts() -> [u64; 4] {
+    HEAVY
+        .each_ref()
+        .map(|c| c.load(std::sync::atomic::Ordering::Relaxed))
+}
+
+fn count_heavy(i: usize) {
+    HEAVY[i].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+
 /// What a creature's blow does this tick (`Mob::strike`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Blow {
@@ -193,6 +209,7 @@ impl Mob {
         if let Some((at, on)) = self.winding {
             if self.stunned_until > now || on != target {
                 self.winding = None;
+                count_heavy(3);
                 return Blow::Broken;
             }
             if now < at {
@@ -200,6 +217,7 @@ impl Mob {
             }
             self.winding = None;
             let landed = heavy.filter(|h| d < h.reach && dy < 2.0);
+            count_heavy(if landed.is_some() { 1 } else { 2 });
             return Blow::Heavy(landed.map_or(0.0, |h| h.damage));
         }
         if d >= 1.7 || dy >= 2.0 || self.attack_cd > 0.0 || self.stunned_until > now {
@@ -212,6 +230,7 @@ impl Mob {
                 let secs = h.windup.clamp(0.1, 3.0);
                 self.winding = Some((now + Duration::from_secs_f32(secs), target));
                 self.attack_cd = attack_speed + secs;
+                count_heavy(0);
                 Blow::WindUp(secs)
             }
             _ => {
@@ -923,6 +942,7 @@ impl State {
                 .is_some_and(|(_, on)| mob.evading || mob.target != Some(on))
             {
                 mob.winding = None;
+                count_heavy(3);
                 broken.push(id);
             }
             if mob.stunned_until > now || mob.rooted_until > now || c.anchored {

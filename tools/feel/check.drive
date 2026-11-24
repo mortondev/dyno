@@ -21,16 +21,23 @@ wait 1
 shot yard-west
 orbit 0
 
-# --- the press: lit at once; a press too early is refused; one late is queued
-walk-to creature training_dummy 2.2
+# --- the press and a stun: Onrush (key 2: rush in, stun 1.5 s, 20 rage) lights
+# its key at once; Heroic Blow (key 1) pressed at once after is refused (the
+# global cooldown has most of its time to run); pressed in its last moment it
+# is queued, its key beating until it goes off; the stunned dummy is dazed
+walk-to creature training_dummy 9
 look-at creature training_dummy
 click right creature training_dummy
-key 1
+key 2
 shot press-lit
-wait 0.15
 key 1
 shot press-refused
-wait 1.0
+orbit 40
+shot daze-1
+wait 0.3
+shot daze-2
+orbit 0
+wait 0.55
 key 1
 shot press-queued
 wait 1.5
@@ -44,14 +51,3 @@ clip-start tell
 wait 8.0
 clip-end
 orbit 0
-
-# --- a stun's daze: Onrush (key 3) stuns for 1.5 s ---------------------------
-walk-to creature training_dummy 9
-look-at creature training_dummy
-wait 1.0
-key 3
-wait 0.5
-orbit 40
-shot daze-1
-wait 0.4
-shot daze-2

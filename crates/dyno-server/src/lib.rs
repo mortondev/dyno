@@ -1334,6 +1334,12 @@ impl Server {
                     cost.1.as_secs_f64() * 1e3,
                     cost.2
                 ));
+                let [wound, landed, missed, broken] = creatures::heavy_counts();
+                if wound > 0 {
+                    log(format!(
+                        "heavy blows so far: {wound} wound up, {landed} landed, {missed} missed, {broken} broken off"
+                    ));
+                }
                 cost_at = all;
                 cost = (Duration::ZERO, Duration::ZERO, 0);
             }
