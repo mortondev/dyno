@@ -160,32 +160,32 @@ fn a_cut_off_instance_is_marked_down_and_its_characters_released() {
     let victim = all.iter().find(|x| !x.is_leader()).unwrap().clone();
     assert!(matches!(claim(&victim, "ada"), Outcome::Claimed { .. }));
     victim.link.cut.store(true, Ordering::SeqCst);
-    // it fences long before the others release her
-    assert!(wait_for(7.0, || !victim.in_contact()));
+    let cut_at = Instant::now();
     let others: Vec<_> = all
         .iter()
         .filter(|x| x.id() != victim.id())
         .cloned()
         .collect();
+    let held = |x: &Arc<Cluster>| x.shared.machine.read().unwrap().locks.contains_key("ada");
+    // it fences long before the others release her: by the rule, not by
+    // how fast this machine happens to be (a slow CI runner can take a
+    // while to see the fence)
+    assert!(wait_for(7.0, || !victim.in_contact()));
+    let fenced = cut_at.elapsed();
     assert!(
-        others[0]
-            .shared
-            .machine
-            .read()
-            .unwrap()
-            .locks
-            .contains_key("ada"),
-        "still held while the down timer runs"
+        fenced < DOWN_AFTER,
+        "fenced after {fenced:?}, before the down timer"
     );
     assert!(
-        wait_for(20.0, || !others[0]
-            .shared
-            .machine
-            .read()
-            .unwrap()
-            .locks
-            .contains_key("ada")),
+        wait_for(30.0, || !held(&others[0])),
         "released after the down timer"
+    );
+    // never released before the down timer ran out (it counts from her
+    // instance's last word, a heartbeat or so before the cut)
+    assert!(
+        cut_at.elapsed() + Duration::from_secs(1) >= DOWN_AFTER,
+        "released {:?} after the cut, before the down timer ({DOWN_AFTER:?})",
+        cut_at.elapsed()
     );
     // she can now play elsewhere, exactly once
     assert!(matches!(claim(&others[0], "ada"), Outcome::Claimed { .. }));
