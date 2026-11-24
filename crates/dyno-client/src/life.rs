@@ -39,6 +39,9 @@ pub struct LifeData {
     pub critters: BTreeMap<String, critters::Kind>,
     /// where critters live
     pub wildlife: Vec<critters::Spawn>,
+    /// what a blow throws up where it lands, a kill's pop, loot's sparkle,
+    /// a stun's daze (feel.rs)
+    pub impacts: crate::feel::Impacts,
 }
 
 impl LifeData {

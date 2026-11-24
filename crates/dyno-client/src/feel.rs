@@ -42,6 +42,9 @@ pub struct HitStop {
     /// the share of these a target gets from a shot or a spell (the caster
     /// does not freeze)
     pub ranged: f32,
+    /// seconds from the start of a swing to where the weapon meets the
+    /// target: the stop, the burst and the stagger wait for it
+    pub contact: f32,
 }
 
 /// A kick of the camera: how far it turns at most (degrees) and how long
@@ -133,16 +136,33 @@ pub struct Kill {
     pub sparkle_after: f32,
 }
 
+/// How hard a blow of yours landed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Blow {
+    Hit,
+    Crit,
+    Kill,
+}
+
 impl FeelData {
     pub fn parse(text: &str) -> Result<FeelData, String> {
         serde_json::from_str(text).map_err(|e| format!("{FEEL_JSON}: {e}"))
     }
 
     /// How long a blow of yours stops the animation: of the target, and of
-    /// you (none for a shot or a spell).
+    /// you (none for a shot or a spell). A killing blow is the longest.
     pub fn stop_for(&self, melee: bool, crit: bool) -> (f32, f32) {
+        self.stop_of(melee, if crit { Blow::Crit } else { Blow::Hit })
+    }
+
+    /// The same, for a hit, a crit or a kill.
+    pub fn stop_of(&self, melee: bool, blow: Blow) -> (f32, f32) {
         let h = &self.hit_stop;
-        let secs = if crit { h.crit } else { h.hit };
+        let secs = match blow {
+            Blow::Hit => h.hit,
+            Blow::Crit => h.crit,
+            Blow::Kill => h.kill,
+        };
         if melee {
             (secs, secs)
         } else {
@@ -282,6 +302,322 @@ pub fn ring_cells(radius: f32, cube: f32) -> Vec<[f32; 2]> {
     out
 }
 
+// ------------------------------------------------------------- impacts
+
+/// The cube sizes the voxel rule allows (docs/art/voxel-rule.md), largest
+/// first.
+pub const LADDER: [f32; 6] = [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125];
+
+/// The ladder step nearest `edge` (a bit's cube is always one of them).
+pub fn on_ladder(edge: f32) -> f32 {
+    LADDER
+        .iter()
+        .copied()
+        .min_by(|a, b| (a - edge).abs().total_cmp(&(b - edge).abs()))
+        .unwrap_or(0.0625)
+}
+
+/// A burst of small cubes thrown out from a point: where a blow lands, a
+/// creature falls, a corpse holds loot. `life.json`, `impacts`.
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Burst {
+    pub cubes: u32,
+    /// edge of a cube (a step of the ladder); late in its life a cube drops
+    /// to the step below, never to a size between
+    pub cube: f32,
+    /// metres a second, thrown out (least, most)
+    pub speed: [f32; 2],
+    /// metres a second added upward
+    pub up: f32,
+    /// how far the throw follows the blow (0: all round, 1: on along it)
+    pub follow: f32,
+    pub gravity: f32,
+    /// seconds (least, most)
+    pub life: [f32; 2],
+    pub colors: Vec<[f32; 3]>,
+    /// drawn bright, as light (sparks, magic)
+    pub glow: bool,
+}
+
+impl Default for Burst {
+    fn default() -> Self {
+        Burst {
+            cubes: 0,
+            cube: 0.0625,
+            speed: [1.5, 3.0],
+            up: 1.0,
+            follow: 0.5,
+            gravity: 9.0,
+            life: [0.25, 0.5],
+            colors: vec![[0.8, 0.8, 0.8]],
+            glow: false,
+        }
+    }
+}
+
+/// Stars of cubes going round the head of a stunned creature.
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Daze {
+    pub cubes: u32,
+    pub cube: f32,
+    /// metres from the middle of the head
+    pub radius: f32,
+    /// turns a second
+    pub turns: f32,
+    pub color: [f32; 3],
+}
+
+impl Default for Daze {
+    fn default() -> Self {
+        Daze {
+            cubes: 0,
+            cube: 0.0625,
+            radius: 0.35,
+            turns: 0.8,
+            color: [1.0, 0.9, 0.4],
+        }
+    }
+}
+
+/// `life.json`'s `impacts`: what a blow throws up where it lands, by what
+/// the target is made of (a creature's `material`) and, for a spell, by its
+/// school (an ability's `school`); the pop of a kill, the sparkle of loot
+/// and the daze of a stun.
+#[derive(Deserialize, Default, Debug, Clone, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Impacts {
+    /// by material; "" is the one for a creature that names none
+    pub materials: std::collections::BTreeMap<String, Burst>,
+    /// by school of magic
+    pub schools: std::collections::BTreeMap<String, Burst>,
+    /// a critical blow throws this many times the cubes, this much faster
+    pub crit: f32,
+    pub kill: Burst,
+    pub loot: Burst,
+    pub daze: Daze,
+}
+
+impl Impacts {
+    /// The burst where a blow lands: the target's material, or the plain one.
+    pub fn material(&self, key: &str) -> Option<&Burst> {
+        self.materials.get(key).or_else(|| self.materials.get(""))
+    }
+}
+
+/// One cube of a burst in flight.
+#[derive(Clone, Debug)]
+pub struct Bit {
+    pub pos: Vec3,
+    vel: Vec3,
+    color: [f32; 3],
+    age: f32,
+    life: f32,
+    cube: f32,
+    gravity: f32,
+    glow: bool,
+}
+
+impl Bit {
+    /// Its edge now: its step of the ladder, then the step below for the
+    /// last part of its life.
+    pub fn edge(&self) -> f32 {
+        if self.age < self.life * 0.6 {
+            self.cube
+        } else {
+            on_ladder(self.cube * 0.5)
+        }
+    }
+}
+
+/// The cubes of the bursts in flight.
+#[derive(Default)]
+pub struct Bits {
+    pub list: Vec<Bit>,
+    seed: u32,
+}
+
+/// The most bits in flight (a crowd's fight stays cheap).
+const MOST_BITS: usize = 600;
+
+impl Bits {
+    fn rnd(&mut self) -> f32 {
+        self.seed = self
+            .seed
+            .wrapping_mul(1_664_525)
+            .wrapping_add(1_013_904_223);
+        (self.seed >> 8) as f32 / (1u32 << 24) as f32
+    }
+
+    /// Throw a burst out from `at`; `along` is the way the blow went (zero:
+    /// all round); `more` scales the count and the speed (a crit).
+    pub fn burst(&mut self, b: &Burst, at: Vec3, along: Vec3, more: f32) {
+        let n = ((b.cubes as f32) * more.max(0.0)).round() as usize;
+        let along = along.normalize_or_zero();
+        for _ in 0..n.min(MOST_BITS.saturating_sub(self.list.len())) {
+            let dir = Vec3::new(
+                self.rnd() * 2.0 - 1.0,
+                self.rnd() * 2.0 - 1.0,
+                self.rnd() * 2.0 - 1.0,
+            )
+            .normalize_or_zero();
+            let dir = (dir + along * b.follow * 1.5).normalize_or_zero();
+            let speed = b.speed[0] + (b.speed[1] - b.speed[0]) * self.rnd();
+            let life = b.life[0] + (b.life[1] - b.life[0]) * self.rnd();
+            let color = if b.colors.is_empty() {
+                [0.8; 3]
+            } else {
+                b.colors[(self.rnd() * b.colors.len() as f32) as usize % b.colors.len()]
+            };
+            self.list.push(Bit {
+                pos: at,
+                vel: dir * speed * more.sqrt().max(1.0) + Vec3::Y * b.up,
+                color,
+                age: 0.0,
+                life,
+                cube: on_ladder(b.cube),
+                gravity: b.gravity,
+                glow: b.glow,
+            });
+        }
+    }
+
+    /// Move the bits on by `dt` and draw each as an upright cube (a cube of
+    /// its own step, whole: never stretched, turned or shrunk smoothly).
+    pub fn frame(
+        &mut self,
+        dt: f32,
+        out: &mut Vec<crate::render::Vertex>,
+        light: impl Fn(Vec3) -> f32,
+    ) {
+        for b in &mut self.list {
+            b.age += dt;
+            b.vel.y -= b.gravity * dt;
+            b.pos += b.vel * dt;
+            let h = b.edge() * 0.5;
+            let l = if b.glow { 1.0 } else { light(b.pos) };
+            crate::render::push_box(
+                out,
+                b.pos - Vec3::splat(h),
+                b.pos + Vec3::splat(h),
+                b.color,
+                l,
+            );
+        }
+        self.list.retain(|b| b.age < b.life);
+    }
+}
+
+// --------------------------------------------------------------- state
+
+/// A blow of yours that has landed and whose contact is still to come (a
+/// swing meets its target a moment after it begins).
+#[derive(Clone, Debug)]
+pub struct Landing {
+    /// on the animation clock
+    pub at: f32,
+    pub entity: u32,
+    pub creature: u16,
+    /// where the creature stood (if it is gone by then)
+    pub pos: Vec3,
+    /// the way the blow went
+    pub along: Vec3,
+    pub blow: Blow,
+    pub melee: bool,
+    /// a bleed's or a burn's tick: a small burst, no stop
+    pub tick: bool,
+    /// the spell's school (empty: a weapon)
+    pub school: String,
+}
+
+/// A creature that fell and left no body yet: its figure stays and falls.
+pub struct Fallen {
+    pub creature: u16,
+    pub pos: Vec3,
+    pub yaw: f32,
+    pub since: f32,
+    pub anim: crate::anim::Animator,
+}
+
+/// A pressed action-bar key, lit on its button.
+#[derive(Clone, Copy, Debug)]
+pub struct Pressed {
+    pub slot: usize,
+    pub ability: u16,
+    pub at: Instant,
+    /// pressed in the last moment of the global cooldown: kept by the
+    /// server for when it ends
+    pub queued: bool,
+    /// the animation it began (to take back on a refusal)
+    pub animated: bool,
+}
+
+/// What the feel of combat keeps between frames.
+#[derive(Default)]
+pub struct State {
+    pub camera: Camera,
+    pub bits: Bits,
+    pub landings: Vec<Landing>,
+    /// creatures knocked back by a crit: since when (animation clock), and
+    /// which way
+    pub stagger: std::collections::HashMap<u32, (f32, Vec3)>,
+    /// creatures winding up a heavy blow: since when, for how long
+    pub windups: std::collections::HashMap<u32, (f32, f32)>,
+    pub fallen: Vec<Fallen>,
+    pub pressed: Option<Pressed>,
+    /// creatures I struck lately, when (animation clock): a kill is mine
+    pub struck: std::collections::HashMap<u32, f32>,
+    /// the last spell of mine that went off: its school, where it went and
+    /// when (Instant)
+    pub spell: Option<(String, Vec3, Instant)>,
+    /// a heavy blow came down near me just now: when, and from where
+    pub heavy: Option<(Instant, Vec3)>,
+    /// corpses whose loot has sparkled
+    pub sparkled: std::collections::HashSet<u32>,
+}
+
+impl State {
+    /// How far through its wind-up a creature is (0 to 1), if it is in one.
+    pub fn winding(&self, id: u32, now: f32) -> Option<f32> {
+        self.windups
+            .get(&id)
+            .filter(|(at, secs)| now - at < secs + 0.1)
+            .map(|(at, secs)| ((now - at) / secs.max(0.01)).clamp(0.0, 1.0))
+    }
+
+    /// How far a staggered creature is pushed from its place now.
+    pub fn stagger_offset(&self, d: &Stagger, id: u32, now: f32) -> Vec3 {
+        self.stagger
+            .get(&id)
+            .map(|(at, dir)| *dir * stagger_at(d, now - at))
+            .unwrap_or(Vec3::ZERO)
+    }
+
+    /// Forget what is over.
+    pub fn prune(&mut self, now: f32, d: &FeelData) {
+        self.stagger
+            .retain(|_, (at, _)| now - *at < d.stagger.secs.max(0.0));
+        self.windups.retain(|_, (at, secs)| now - *at < *secs + 0.5);
+        self.struck.retain(|_, at| now - *at < 3.0);
+        self.fallen
+            .retain(|f| now - f.since < d.kill.linger.max(0.0));
+    }
+}
+
+/// The cubes of a ring on the ground round `at`, `radius` out, edge `cube`:
+/// world positions of each cube's lowest corner, on the grid of the cube
+/// laid from `at`.
+pub fn ring_boxes(at: Vec3, radius: f32, cube: f32) -> Vec<(Vec3, Vec3)> {
+    ring_cells(radius, cube)
+        .into_iter()
+        .map(|[x, z]| {
+            let lo = at + Vec3::new(x - cube * 0.5, 0.0, z - cube * 0.5);
+            (lo, lo + Vec3::splat(cube))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -299,15 +635,28 @@ mod tests {
         let d = pack();
         let h = &d.hit_stop;
         assert!((0.04..=0.08).contains(&h.hit), "a hit stops 40 to 80 ms");
-        assert!(h.crit > h.hit && h.kill > h.crit, "longer on crits and kills");
+        assert!(
+            h.crit > h.hit && h.kill > h.crit,
+            "longer on crits and kills"
+        );
         assert!(h.kill <= 0.2, "a kill's stop is still a moment");
-        assert!(d.shake.most > 0.0 && d.shake.most <= 2.0, "the shake is capped");
-        assert!(d.shake.crit.secs <= 0.3 && d.shake.heavy.secs <= 0.4, "short");
+        assert!(
+            d.shake.most > 0.0 && d.shake.most <= 2.0,
+            "the shake is capped"
+        );
+        assert!(
+            d.shake.crit.secs <= 0.3 && d.shake.heavy.secs <= 0.4,
+            "short"
+        );
         assert!(d.shake.crit.degrees <= d.shake.most);
         assert!(d.press.pulse > 0.0 && d.press.queue > 0.0);
         // the voxel rule: a marker's cubes are a step of the ladder
         let ladder = [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125];
-        assert!(ladder.contains(&d.tell.cube), "the tell's cubes: {}", d.tell.cube);
+        assert!(
+            ladder.contains(&d.tell.cube),
+            "the tell's cubes: {}",
+            d.tell.cube
+        );
     }
 
     #[test]
@@ -341,7 +690,11 @@ mod tests {
         }
         let [x, y] = cam.offset_at(&d, t0);
         assert!(x > 0.0 && y == 0.0, "to the right first");
-        assert!(x.to_degrees() <= d.most + 1e-4, "{} degrees", x.to_degrees());
+        assert!(
+            x.to_degrees() <= d.most + 1e-4,
+            "{} degrees",
+            x.to_degrees()
+        );
         // and it is over when its time is
         let after = t0 + Duration::from_secs_f32(d.heavy.secs + 0.01);
         assert_eq!(cam.offset_at(&d, after), [0.0, 0.0]);

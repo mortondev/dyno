@@ -13,6 +13,7 @@ pub mod cover;
 pub mod critters;
 pub mod expr;
 pub mod farview;
+pub mod feel;
 pub mod figure;
 pub mod foliage;
 pub mod front;

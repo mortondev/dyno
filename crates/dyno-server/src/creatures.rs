@@ -75,6 +75,26 @@ pub struct Mob {
     pub event: bool,
     /// seconds it has wanted to move and could not (a wall, a ledge, a tree)
     pub stuck: f32,
+    /// blows struck since its last heavy one (`Creature::heavy`)
+    pub blows: u8,
+    /// winding up a heavy blow: it lands then, on that player if in reach
+    pub winding: Option<(Instant, PlayerId)>,
+}
+
+/// What a creature's blow does this tick (`Mob::strike`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Blow {
+    None,
+    Plain,
+    /// a heavy blow is wound up: it lands in this many seconds
+    WindUp(f32),
+    /// still winding up
+    Winding,
+    /// the heavy blow comes down: this many times an ordinary one (0: it
+    /// missed, its target stepped out of reach)
+    Heavy(f32),
+    /// the wind-up was broken off (a stun)
+    Broken,
 }
 
 /// An evading creature that cannot walk home gives up and appears there.
@@ -128,6 +148,8 @@ impl Mob {
             ability_ready: now,
             fled: false,
             event: false,
+            blows: 0,
+            winding: None,
             stuck: 0.0,
         }
     }
@@ -152,6 +174,51 @@ impl Mob {
         self.health = self.max_health;
         self.tag = None;
         self.stuck = 0.0;
+    }
+
+    /// Its blow this tick at `target`, `d` metres away across and `dy` up or
+    /// down: an ordinary one when its attack is ready and it is in reach;
+    /// every `heavy.every`th one is wound up first (`Blow::WindUp`) and
+    /// lands `heavy.windup` seconds later on its target if still within
+    /// `heavy.reach` (else it misses); a stun breaks a wind-up off.
+    pub fn strike(
+        &mut self,
+        heavy: Option<dyno_world::content::Heavy>,
+        attack_speed: f32,
+        target: PlayerId,
+        d: f32,
+        dy: f32,
+        now: Instant,
+    ) -> Blow {
+        if let Some((at, on)) = self.winding {
+            if self.stunned_until > now || on != target {
+                self.winding = None;
+                return Blow::Broken;
+            }
+            if now < at {
+                return Blow::Winding;
+            }
+            self.winding = None;
+            let landed = heavy.filter(|h| d < h.reach && dy < 2.0);
+            return Blow::Heavy(landed.map_or(0.0, |h| h.damage));
+        }
+        if d >= 1.7 || dy >= 2.0 || self.attack_cd > 0.0 || self.stunned_until > now {
+            return Blow::None;
+        }
+        self.attack_cd = attack_speed;
+        match heavy {
+            Some(h) if h.every > 0 && self.blows.saturating_add(1) >= h.every => {
+                self.blows = 0;
+                let secs = h.windup.clamp(0.1, 3.0);
+                self.winding = Some((now + Duration::from_secs_f32(secs), target));
+                self.attack_cd = attack_speed + secs;
+                Blow::WindUp(secs)
+            }
+            _ => {
+                self.blows = self.blows.saturating_add(1);
+                Blow::Plain
+            }
+        }
     }
 
     /// Count the time it wanted to move but did not get anywhere.
@@ -529,6 +596,10 @@ impl State {
         let mut gone: Vec<(u32, bool)> = Vec::new();
         // creatures that struck this tick (everyone nearby sees the blow)
         let mut swings: Vec<u32> = Vec::new();
+        // heavy blows: wound up (with the seconds to come), landed, broken off
+        let mut windups: Vec<(u32, f32)> = Vec::new();
+        let mut heavies: Vec<u32> = Vec::new();
+        let mut broken: Vec<u32> = Vec::new();
         let mut hurt: Vec<u32> = Vec::new();
         for id in ids {
             let e = self.entities.get_mut(&id).unwrap();
@@ -741,26 +812,41 @@ impl State {
                     if mob.charge_until > now {
                         speed *= 3.0;
                     }
-                    if d < 1.7
-                        && (p[1] - e.pos[1]).abs() < 2.0
-                        && mob.attack_cd <= 0.0
-                        && mob.stunned_until <= now
-                    {
-                        mob.attack_cd = c.attack_speed;
-                        let dmg = mob.power
-                            * c.damage
-                            * if rpg {
-                                dyno_sim::progression::mob_scale(mob.level).1
-                            } else {
-                                1.0
-                            };
-                        let push = if rpg {
-                            [0.0; 3]
+                    let dmg = mob.power
+                        * c.damage
+                        * if rpg {
+                            dyno_sim::progression::mob_scale(mob.level).1
                         } else {
-                            [dx / d * 6.0, 4.5, dz / d * 6.0]
+                            1.0
                         };
-                        attacks.push((pid, dmg, push, c.id));
-                        swings.push(id);
+                    let dy = (p[1] - e.pos[1]).abs();
+                    match mob.strike(c.heavy, c.attack_speed, pid, d, dy, now) {
+                        Blow::None => {}
+                        Blow::Winding => {
+                            // it stands and gathers itself, facing its mark
+                            want = [0.0, 0.0];
+                            e.yaw = (-dx).atan2(-dz);
+                        }
+                        Blow::Plain => {
+                            let push = if rpg {
+                                [0.0; 3]
+                            } else {
+                                [dx / d * 6.0, 4.5, dz / d * 6.0]
+                            };
+                            attacks.push((pid, dmg, push, c.id));
+                            swings.push(id);
+                        }
+                        Blow::WindUp(secs) => {
+                            want = [0.0, 0.0];
+                            windups.push((id, secs));
+                        }
+                        Blow::Heavy(times) => {
+                            heavies.push(id);
+                            if times > 0.0 {
+                                attacks.push((pid, dmg * times, [0.0; 3], c.id));
+                            }
+                        }
+                        Blow::Broken => broken.push(id),
                     }
                 }
             } else if mob.flee > 0.0 {
@@ -831,6 +917,14 @@ impl State {
                     mob.think = 0.0;
                 }
             }
+            // a wind-up whose target is gone, or that it gave up, is broken off
+            if mob
+                .winding
+                .is_some_and(|(_, on)| mob.evading || mob.target != Some(on))
+            {
+                mob.winding = None;
+                broken.push(id);
+            }
             if mob.stunned_until > now || mob.rooted_until > now || c.anchored {
                 want = [0.0, 0.0];
             }
@@ -888,6 +982,28 @@ impl State {
                 &ServerMsg::Act {
                     actor: dyno_protocol::Actor::Entity(id),
                     act: dyno_protocol::Act::Swing,
+                },
+                None,
+            );
+        }
+        let acts = windups
+            .into_iter()
+            .map(|(id, time)| (id, dyno_protocol::Act::WindUp { time }))
+            .chain(
+                heavies
+                    .into_iter()
+                    .map(|id| (id, dyno_protocol::Act::Special)),
+            )
+            .chain(
+                broken
+                    .into_iter()
+                    .map(|id| (id, dyno_protocol::Act::CastEnd { done: false })),
+            );
+        for (id, act) in acts {
+            self.broadcast(
+                &ServerMsg::Act {
+                    actor: dyno_protocol::Actor::Entity(id),
+                    act,
                 },
                 None,
             );
@@ -1118,6 +1234,59 @@ mod tests {
         m.evade();
         m.arrive_home();
         assert!(!m.engaged);
+    }
+
+    /// Every third blow of a creature with a heavy one is wound up first,
+    /// and lands only on a target still in reach; a stun breaks it off.
+    #[test]
+    fn a_heavy_blow_is_wound_up_and_can_be_stepped_away_from_or_stunned() {
+        let h = dyno_world::content::Heavy {
+            every: 3,
+            windup: 0.8,
+            damage: 1.6,
+            reach: 2.6,
+        };
+        let mut m = Mob::new(0, 40.0, 3, [0.0; 3]);
+        let t0 = Instant::now();
+        let at = |s: f32| t0 + Duration::from_secs_f32(s);
+        let strike = |m: &mut Mob, t: f32, d: f32| {
+            m.attack_cd = m.attack_cd.min(0.0);
+            m.strike(Some(h), 1.8, 7, d, 0.0, at(t))
+        };
+        assert_eq!(strike(&mut m, 0.0, 1.5), Blow::Plain);
+        assert_eq!(strike(&mut m, 2.0, 1.5), Blow::Plain);
+        assert_eq!(strike(&mut m, 4.0, 1.5), Blow::WindUp(0.8));
+        assert!(m.attack_cd > 1.8, "its next blow waits for the wind-up too");
+        assert_eq!(m.strike(Some(h), 1.8, 7, 1.5, 0.0, at(4.5)), Blow::Winding);
+        // the target stood still: it lands, heavy
+        assert_eq!(
+            m.strike(Some(h), 1.8, 7, 1.5, 0.0, at(4.85)),
+            Blow::Heavy(1.6)
+        );
+        // the next round: the target steps out of reach before it lands
+        assert_eq!(strike(&mut m, 7.0, 1.5), Blow::Plain);
+        assert_eq!(strike(&mut m, 9.0, 1.5), Blow::Plain);
+        assert_eq!(strike(&mut m, 11.0, 1.5), Blow::WindUp(0.8));
+        assert_eq!(
+            m.strike(Some(h), 1.8, 7, 3.0, 0.0, at(11.9)),
+            Blow::Heavy(0.0)
+        );
+        // and the round after: a stun breaks it off
+        strike(&mut m, 14.0, 1.5);
+        strike(&mut m, 16.0, 1.5);
+        assert_eq!(strike(&mut m, 18.0, 1.5), Blow::WindUp(0.8));
+        m.stunned_until = at(20.0);
+        assert_eq!(m.strike(Some(h), 1.8, 7, 1.5, 0.0, at(18.3)), Blow::Broken);
+        assert!(m.winding.is_none());
+        // a creature without one only ever strikes plainly
+        let mut m = Mob::new(0, 40.0, 3, [0.0; 3]);
+        for i in 0..6 {
+            m.attack_cd = 0.0;
+            assert_eq!(
+                m.strike(None, 1.8, 7, 1.0, 0.0, at(30.0 + i as f32)),
+                Blow::Plain
+            );
+        }
     }
 
     #[test]

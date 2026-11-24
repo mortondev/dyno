@@ -141,6 +141,17 @@ impl State {
         self.tell(id, why);
     }
 
+    /// A press of `ability` is refused: the client takes back what it began
+    /// to show for it, and `why` (if anything) is said.
+    fn refuse(&self, id: PlayerId, ability: u16, why: &str) {
+        if let Some(p) = self.players.get(&id) {
+            p.send(&ServerMsg::Refused { ability });
+        }
+        if !why.is_empty() {
+            self.fail(id, why);
+        }
+    }
+
     /// Start using an ability (or the recall).
     pub fn cast(&mut self, id: PlayerId, ability: u16, target: Option<u32>) {
         let now = Instant::now();
@@ -165,14 +176,17 @@ impl State {
             if let Some(p) = self.players.get_mut(&id) {
                 p.queued = queue.then_some((ability, target));
             }
+            if !queue {
+                self.refuse(id, ability, "");
+            }
             return;
         }
         if ability == RECALL {
             if p.cooldowns.get(&RECALL).is_some_and(|t| *t > now) {
-                return self.fail(id, "Recall is not ready yet.");
+                return self.refuse(id, ability, "Recall is not ready yet.");
             }
             if p.combat_until > now {
-                return self.fail(id, "You cannot recall while in combat.");
+                return self.refuse(id, ability, "You cannot recall while in combat.");
             }
             let from = p.pose.pos;
             let p = self.players.get_mut(&id).unwrap();
@@ -198,18 +212,19 @@ impl State {
             return;
         };
         if Some(a.class) != p.class || a.level > p.level {
-            return;
+            return self.refuse(id, ability, "");
         }
         if p.cooldowns.get(&ability).is_some_and(|t| *t > now) {
-            return self.fail(id, "That is not ready yet.");
+            return self.refuse(id, ability, "That is not ready yet.");
         }
         if p.power + 0.01 < a.cost {
             let res = p
                 .class
                 .and_then(|c| self.content.class(c))
                 .map(|c| c.resource);
-            return self.fail(
+            return self.refuse(
                 id,
+                ability,
                 match res {
                     Some(Resource::Rage) => "Not enough rage.",
                     Some(Resource::Energy) => "Not enough energy.",
@@ -218,18 +233,18 @@ impl State {
             );
         }
         if a.buff.is_some_and(|b| b.kind == BuffKind::Stealth) && p.combat_until > now {
-            return self.fail(id, "You cannot hide while in combat.");
+            return self.refuse(id, ability, "You cannot hide while in combat.");
         }
         // abilities that hit a target need one in range
         let needs_target = needs_target(&a);
         let target = if needs_target {
             let Some(t) = target.filter(|t| self.entities.get(t).is_some_and(|e| e.mob.is_some()))
             else {
-                return self.fail(id, "You have no target.");
+                return self.refuse(id, ability, "You have no target.");
             };
             let e = &self.entities[&t];
             if dist(e.pos, p.pose.pos) > a.range + 1.0 {
-                return self.fail(id, "Out of range.");
+                return self.refuse(id, ability, "Out of range.");
             }
             Some(t)
         } else {
@@ -352,6 +367,7 @@ impl State {
         // finishers spend combo points; with none there is nothing to finish
         let combo = if a.combo < 0 {
             if p.combo == 0 || (target.is_some() && p.combo_on != target) {
+                p.send(&ServerMsg::Refused { ability: a.id });
                 p.send(&ServerMsg::System {
                     text: "No combo points on that target.".into(),
                 });
