@@ -18,7 +18,7 @@ This document is the contract every part of the migration builds to.
 | Animation poses (`anim.rs`, procedural per skeleton) | Animation clip JSON on named bones; checked by a pack test, not the compiler |
 | Detail shapes (`detail.rs`: roofs, timber, props, windows, cloth) | `.vox` shape assets with variant rules in block definitions |
 | Terrain tags (`terrain_mesh.rs`: terrain, paving, chamfer) | Tags in block definitions |
-| Sounds (`audio.rs`, synthesised) | WAV assets |
+| Sounds (`audio.rs`, synthesised) | WAV assets, described by `audio.json` (docs/design/audio.md) |
 | Fonts (embedded TTFs) | Font assets |
 | Render look (shader constants: leaf, relief, grade) | A render-settings asset |
 | The content pack (`include_str!` of hearthblock.json) | Sent by the server only |
@@ -47,7 +47,8 @@ content/
   rigs/*.json          # skeletons: bones, parents, pivots, part → model mapping
   anims/*.json         # clips per skeleton
   shapes/*.vox         # detail shapes for blocks (fine voxels)
-  sounds/*.wav
+  audio.json           # sound events: files, bus, level (docs/design/audio.md)
+  sounds/*/*.wav
   fonts/*.ttf
   stamps/*.dstamp      # block volumes for buildings and sites (§5)
   world/layout.json    # where stamps go; terrain operations; vegetation tables
@@ -156,6 +157,8 @@ progress. A second join with nothing changed downloads nothing
 | 0.7.0, before figures and shapes moved to the pack | 4,290,976 |
 | figures, clips and shapes as pack data, uncompressed | 12,485,452 |
 | compressed, compact clips, creatures and held items streamed | 3,037,774 |
+| 0.10.0, with armour sets and the interface | 3,746,571 |
+| new feedback sounds at 22050 Hz; world and ambience sounds streamed | 2,657,074 |
 
 The cache also keeps
 the last manifest, so the title screen shows the last world's stage, news
@@ -271,6 +274,10 @@ when one of them is replaced.
   server walks them (`routines.rs`) and tells clients with `EntityMoves`
   and `Act::Emote`; what an NPC holds is `hold` in `figures.json`.
 - **Sounds:** WAV (16-bit PCM). Bake today's synthesised sounds to files.
+  **Built:** `audio.json` names every sound event and its variant files;
+  steps, interface and combat sounds come with the join, and
+  `sounds/world/` and `sounds/amb/` stream when an event first needs them
+  (docs/design/audio.md).
 - **Textures:** PNG, 32 px per block face, atlases built by the client at load.
 - **Stamps** (`.dstamp`): a header (size, anchor) and RLE block IDs.
 - **Water** (`render.json`, `water`; drawn by `water.rs`):

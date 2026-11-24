@@ -1,7 +1,7 @@
 //! Window, input, screens (connect, joining, playing) and the HUD.
 
 use crate::anim::{self, Anim, Book as Anims};
-use crate::audio::{Audio, Sfx};
+use crate::audio::Audio;
 use crate::front::{self, Front, FrontCmd};
 use crate::game::{self, Input, Player, PlayerPose, Remote, Remotes, Target};
 use crate::light::Light;
@@ -35,6 +35,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{CursorGrabMode, Window, WindowId};
 
 mod hud;
+mod sound;
 
 const ACCENT: Color32 = Color32::from_rgb(240, 138, 60);
 
@@ -77,6 +78,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         settings,
         gfx: None,
         audio: Audio::new(),
+        heard: Default::default(),
         egui_ctx: crate::theme::new_context(),
         egui_state: None,
         screen: Screen::Menu,
@@ -93,7 +95,7 @@ pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
         app.front.query(i, token, None);
     }
 
-    app.audio.volume = app.settings.volume;
+    crate::options::set_sound(crate::options::Sound::of(&app.settings));
     event_loop.run_app(&mut app).map_err(|e| e.to_string())?;
     if let Some(h) = app.host.take() {
         h.stop();
@@ -514,6 +516,16 @@ fn use_action(p: &mut Play, i: usize) {
             Anim::CastRelease
         };
         p.anims.me(now).play_fresh(now, act);
+        // what the server will refuse sounds like a refusal
+        let cooling = p
+            .cooldowns
+            .get(ability)
+            .is_some_and(|(until, _)| *until > Instant::now() + Duration::from_millis(300));
+        if cooling || p.power + 0.01 < a.cost {
+            crate::audio::emit("ui.error");
+        } else if a.weapon > 0.0 {
+            crate::audio::emit("combat.swing");
+        }
     }
     let _ = p.conn.tx.send(msg);
 }
@@ -1187,10 +1199,6 @@ fn weathered(mut s: render::Sky, kind: u8, strength: f32) -> render::Sky {
     s
 }
 
-fn material_of(b: w::BlockId) -> w::Material {
-    w::block(b).material
-}
-
 struct Tunnel {
     child: Child,
     url: Arc<Mutex<Option<String>>>,
@@ -1227,6 +1235,8 @@ impl Host {
 
 struct App {
     audio: Audio,
+    /// what the last frame sounded like (app/sound.rs)
+    heard: sound::Heard,
     settings: Settings,
     menu: Menu,
     gfx: Option<Gfx>,
@@ -1907,7 +1917,7 @@ impl App {
                         g.begin_world(&p.world);
                     }
                     self.screen = Screen::Playing(Box::new(p));
-                    self.audio.play(Sfx::Join, 0.5);
+                    self.audio.play("ui.join", 1.0);
                     self.set_capture(true);
                 }
                 Ok(Err(e)) => {
@@ -1950,7 +1960,7 @@ impl App {
                             }
                         }
                         ServerMsg::PlayerJoined(info) => {
-                            self.audio.play(Sfx::Join, 0.4);
+                            self.audio.play("ui.join", 0.8);
                             if info.id != p.my_id {
                                 let mut r = Remote::new(info.name, info.pose);
                                 r.look = info.look;
@@ -2018,6 +2028,7 @@ impl App {
                         }
                         // someone (or something) does something: everyone sees it
                         ServerMsg::Act { actor, act } => {
+                            sound::act(&mut self.audio, p, &actor, &act);
                             let now = p.anims.now();
                             match actor {
                                 dyno_protocol::Actor::Player(pid) if pid != p.my_id => {
@@ -2066,7 +2077,7 @@ impl App {
                         }
                         ServerMsg::TradeAsk { from } => {
                             p.trade_ask = Some(from);
-                            self.audio.play(Sfx::Click, 0.8);
+                            self.audio.play("ui.chat", 1.0);
                             release = true;
                         }
                         ServerMsg::Trade(view) => {
@@ -2078,7 +2089,7 @@ impl App {
                         }
                         ServerMsg::Invite { from } => {
                             p.invite = Some(from);
-                            self.audio.play(Sfx::Click, 0.8);
+                            self.audio.play("ui.chat", 1.0);
                             release = true;
                         }
                         ServerMsg::Block { pos, block } => {
@@ -2101,9 +2112,9 @@ impl App {
                                         10,
                                         pos[0] as u32 ^ (pos[2] as u32) << 8,
                                     );
-                                    self.audio.play(Sfx::Break(material_of(old)), gain);
+                                    self.audio.play(&sound::of_block("break", old), gain);
                                 } else {
-                                    self.audio.play(Sfx::Place(material_of(block)), gain);
+                                    self.audio.play(&sound::of_block("place", block), gain);
                                 }
                             }
                         }
@@ -2120,7 +2131,7 @@ impl App {
                             }
                         }
                         ServerMsg::Chat { from, text } => {
-                            self.audio.play(Sfx::Chat, 0.6);
+                            self.audio.play("ui.chat", 1.0);
                             p.chat.push(Chat {
                                 at: Instant::now(),
                                 from: Some(from),
@@ -2154,11 +2165,11 @@ impl App {
                             );
                             let gain = (1.0 - c.distance(p.player.eye()) / 48.0).clamp(0.2, 1.0);
                             let m = if block == w::AIR {
-                                Sfx::Break(w::Material::Stone)
+                                "break.stone".to_string()
                             } else {
-                                Sfx::Place(material_of(block))
+                                sound::of_block("place", block)
                             };
-                            self.audio.play(m, gain);
+                            self.audio.play(&m, gain);
                         }
                         ServerMsg::Teleport { pos } => {
                             p.player.pos = Vec3::from(pos);
@@ -2198,7 +2209,7 @@ impl App {
                             if p.chest.is_some() && !p.picker_open {
                                 p.picker_open = true;
                                 p.selected = None;
-                                self.audio.play(Sfx::Place(w::Material::Wood), 0.5);
+                                // (the panel opening is heard: sound.rs)
                                 release = true;
                             }
                         }
@@ -2249,7 +2260,7 @@ impl App {
                                 let gain = (1.0 - at.distance(p.player.pos) / 32.0).clamp(0.0, 1.0);
                                 if c.hostile {
                                     spawn_motes(&mut p.particles, at, [0.62, 0.42, 0.95], 26, id);
-                                    self.audio.play(Sfx::Dissolve, 0.8 * gain);
+                                    self.audio.play_at("combat.kill", at, 1.0);
                                 } else if gain > 0.0
                                     && e.hurt_at
                                         .is_some_and(|t| t.elapsed() < Duration::from_secs(2))
@@ -2258,15 +2269,14 @@ impl App {
                                 }
                             }
                             if picked_by == Some(p.my_id) {
-                                self.audio.play(Sfx::Pop, 0.7);
+                                self.audio.play("ui.item_pick", 1.0);
                             }
                         }
                         ServerMsg::EntityHurt { id } => {
                             if let Some(e) = p.entities.get_mut(&id) {
                                 e.hurt_at = Some(Instant::now());
                                 let at = e.pos();
-                                let gain = (1.0 - at.distance(p.player.pos) / 32.0).clamp(0.0, 1.0);
-                                self.audio.play(Sfx::Hit, 0.8 * gain);
+                                self.audio.play_at("combat.hit", at, 1.0);
                             }
                         }
                         ServerMsg::Power { value, max } => {
@@ -2309,10 +2319,10 @@ impl App {
                             animate_caster(p, a, color);
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
-                                self.audio.play(Sfx::Dissolve, 0.5);
+                                self.audio.play_at("combat.burst", a, 1.0);
                             } else {
                                 spawn_bolt(&mut p.particles, a, b, color);
-                                self.audio.play(Sfx::Hit, 0.4);
+                                self.audio.play_at("combat.bolt", a, 1.0);
                             }
                         }
                         ServerMsg::Equipment(e) => {
@@ -2333,7 +2343,7 @@ impl App {
                                 p.world_event = None;
                             } else {
                                 if p.world_event.is_none() {
-                                    self.audio.play(Sfx::Horn, 0.9);
+                                    self.audio.play("world.dusk", 1.0);
                                 }
                                 p.world_event = Some((title, text, progress));
                             }
@@ -2404,14 +2414,15 @@ impl App {
                             // a blow on your auto-attack target is your swing
                             // (not a damage-over-time tick: those come slower)
                             let now = p.anims.now();
-                            if entity.is_some()
+                            let swung = entity.is_some()
                                 && entity == p.attacking
-                                && now - p.anims.last_swing > 0.75
-                            {
+                                && now - p.anims.last_swing > 0.75;
+                            if swung {
                                 let swing = anim::attack_for(p.anims.grip);
                                 p.anims.me(now).play_fresh(now, swing);
                                 p.anims.last_swing = now;
                             }
+                            sound::struck(&mut self.audio, p, entity, crit, swung);
                             let (text, col) = match entity {
                                 Some(_) if crit => {
                                     (format!("{:.0}!", amount), Color32::from_rgb(255, 230, 80))
@@ -2454,6 +2465,7 @@ impl App {
                                 ));
                             }
                             if money > 0 {
+                                self.audio.play("ui.coin", 1.0);
                                 p.combat_log.push((
                                     Instant::now(),
                                     format!(
@@ -2481,7 +2493,7 @@ impl App {
                         }
                         ServerMsg::LevelUp { player, level } => {
                             if player == p.my_id {
-                                self.audio.play(Sfx::Chime, 1.0);
+                                self.audio.play("ui.level_up", 1.0);
                                 hud::level_up(p, level);
                             }
                         }
@@ -2506,7 +2518,7 @@ impl App {
                             let old_done =
                                 std::mem::replace(&mut p.quests_done, done.into_iter().collect());
                             if hud::quests_changed(p, &old, &old_done) {
-                                self.audio.play(Sfx::Join, 0.7);
+                                // (each change has its sound: hud::quests_changed)
                             }
                         }
                         ServerMsg::Rested { pool } => p.rested = pool,
@@ -2517,7 +2529,7 @@ impl App {
                                 }
                             } else {
                                 if p.loot.is_none() {
-                                    self.audio.play(Sfx::Click, 0.6);
+                                    // (the window opening is heard: sound.rs)
                                 }
                                 p.loot = Some((id, money, items));
                                 release = true;
@@ -2534,10 +2546,10 @@ impl App {
                         }
                         ServerMsg::DayEvent { dusk, day } => {
                             if dusk {
-                                self.audio.play(Sfx::Horn, 0.9);
+                                self.audio.play("world.dusk", 1.0);
                                 p.title = Some((Instant::now(), "Dusk is coming".into()));
                             } else {
-                                self.audio.play(Sfx::Chime, 0.8);
+                                self.audio.play("world.dawn", 1.0);
                                 p.title = Some((Instant::now(), format!("Day {day}")));
                             }
                         }
@@ -2545,9 +2557,11 @@ impl App {
                             animate_blow(p);
                             p.hurt_flash = (0.4 + amount * 0.08).min(1.0);
                             p.player.vel += Vec3::from(push);
-                            self.audio.play(Sfx::Break(w::Material::Cloth), 0.9);
+                            self.audio
+                                .play("combat.hurt", (0.5 + amount * 0.05).min(1.0));
                         }
                         ServerMsg::Died { message } => {
+                            self.audio.play("combat.death", 1.0);
                             p.dead = Some(message);
                             p.dig = None;
                             p.picker_open = false;
@@ -2555,7 +2569,7 @@ impl App {
                         }
                         ServerMsg::Milestone { title } => {
                             p.toast(format!("Journal: {title}"));
-                            self.audio.play(Sfx::Join, 0.7);
+                            self.audio.play("ui.quest_step", 1.0);
                         }
                         ServerMsg::Digging { player, pos } => {
                             let now = p.anims.now();
@@ -2810,7 +2824,7 @@ impl App {
                 p.heart_clock -= dt;
                 if p.heart_clock <= 0.0 {
                     p.heart_clock = 0.6 + p.health * 0.1;
-                    self.audio.play(Sfx::Heartbeat, 0.9);
+                    self.audio.play("world.heartbeat", 1.0);
                 }
             }
             p.toasts
@@ -2905,12 +2919,15 @@ impl App {
                                     14,
                                     (pos[0] * 31 + pos[1] * 7 + pos[2]) as u32,
                                 );
-                                self.audio.play(Sfx::Break(material_of(b)), 0.9);
+                                self.audio.play(&sound::of_block("break", b), 1.0);
                             } else if (*done / 0.25).floor() != ((*done - dt) / 0.25).floor() {
-                                self.audio.play(Sfx::Step(material_of(b)), 0.45);
+                                self.audio.play(&sound::of_block("dig", b), 1.0);
                             }
                         }
                         (_, Some(total)) => {
+                            // (its sounds stream: ask before the block gives)
+                            self.audio.want(&sound::of_block("dig", b));
+                            self.audio.want(&sound::of_block("break", b));
                             p.dig = Some((pos, 0.0, total));
                             let _ = p.conn.tx.send(ClientMsg::DigStart { pos });
                             if p.tier_hint != Some(pos)
@@ -2942,7 +2959,7 @@ impl App {
                         p.player.pos.z.floor() as i32,
                     );
                     if below != w::AIR {
-                        self.audio.play(Sfx::Step(material_of(below)), 0.5);
+                        sound::footstep(&mut self.audio, p, below);
                     }
                 }
             }
@@ -3052,7 +3069,7 @@ impl App {
                 p.next_cricket -= dt;
                 if p.next_cricket <= 0.0 {
                     p.next_cricket = 2.0 + (t * 7.3).sin().abs() * 5.0;
-                    self.audio.play(Sfx::Cricket, 0.25 * night);
+                    self.audio.play("amb.cricket", night);
                 }
             } else {
                 p.fireflies.clear();
@@ -3105,18 +3122,18 @@ impl App {
                 let day = tod < 0.5;
                 let roll = (p.fps.0.elapsed().as_millis() % 1000) as f32 / 1000.0;
                 if raining && outside {
-                    self.audio.play(Sfx::Rain, 0.5 * p.weather_mix);
+                    self.audio.play("amb.rain", p.weather_mix);
                 } else if outside && day && p.weather.0 != 2 && roll < 0.35 {
-                    self.audio.play(Sfx::Bird, 0.35);
+                    self.audio.play("amb.bird", 1.0);
                 }
                 if outside && roll > 0.8 {
                     self.audio.play(
-                        Sfx::Wind,
-                        0.25 + 0.3 * if p.weather.0 == 2 { p.weather_mix } else { 0.0 },
+                        "amb.wind",
+                        0.5 + 0.5 * if p.weather.0 == 2 { p.weather_mix } else { 0.0 },
                     );
                 }
                 if near_town && day && roll > 0.55 && roll < 0.7 {
-                    self.audio.play(Sfx::Hammer, 0.18);
+                    self.audio.play("amb.hammer", 1.0);
                 }
             }
             // particles
@@ -3458,6 +3475,11 @@ impl App {
             );
         });
         state.handle_platform_output(&window, out.platform_output.clone());
+        let playing = match &self.screen {
+            Screen::Playing(p) => Some(&**p),
+            _ => None,
+        };
+        sound::frame(&mut self.audio, &mut self.heard, playing, &ctx, dt);
         gfx.frame(view, &sky_now, &boxes, &lines, &ctx, out);
         for a in actions {
             self.act(a);
@@ -3474,7 +3496,7 @@ impl App {
                         match c {
                             screens::ScreenCmd::Equip(i) => {
                                 let _ = p.conn.tx.send(ClientMsg::Equip { from: i });
-                                self.audio.play(Sfx::Place(w::Material::Cloth), 0.6);
+                                self.audio.play("ui.item_drop", 1.0);
                             }
                             screens::ScreenCmd::Unequip(i) => {
                                 let _ = p.conn.tx.send(ClientMsg::Unequip { place: i });
@@ -3514,7 +3536,7 @@ impl App {
                                         count: 0,
                                     });
                                 }
-                                self.audio.play(Sfx::Click, 0.6);
+                                self.audio.play("ui.item_drop", 1.0);
                             }
                             screens::ScreenCmd::SellJunk => {
                                 for (i, s) in p.pack.iter().enumerate() {
@@ -3523,7 +3545,7 @@ impl App {
                                         let _ = p.conn.tx.send(ClientMsg::Sell { from: i as u8 });
                                     }
                                 }
-                                self.audio.play(Sfx::Click, 0.6);
+                                self.audio.play("ui.sell", 1.0);
                             }
                             screens::ScreenCmd::Switch(t) => p.screen_tab = Some(t),
                             screens::ScreenCmd::Close => {
@@ -3554,7 +3576,7 @@ impl App {
                         match c {
                             rpg_ui::RpgCmd::Accept(q) => {
                                 let _ = p.conn.tx.send(ClientMsg::AcceptQuest { quest: q });
-                                self.audio.play(Sfx::Click, 0.7);
+                                // (heard when the log changes: hud::quests_changed)
                             }
                             rpg_ui::RpgCmd::Complete(q, ch) => {
                                 let _ = p.conn.tx.send(ClientMsg::CompleteQuest {
@@ -3574,7 +3596,7 @@ impl App {
                             }
                             rpg_ui::RpgCmd::Buy(npc, item, count) => {
                                 let _ = p.conn.tx.send(ClientMsg::Buy { npc, item, count });
-                                self.audio.play(Sfx::Click, 0.6);
+                                self.audio.play("ui.buy", 1.0);
                             }
                             rpg_ui::RpgCmd::Loot(id, slot) => {
                                 let _ = p.conn.tx.send(ClientMsg::LootTake { id, slot });
@@ -3602,6 +3624,7 @@ impl App {
                     for c in cmds {
                         match c {
                             PackCmd::Move(a, b, n) => {
+                                self.audio.play("ui.item_drop", 1.0);
                                 let _ = p.conn.tx.send(ClientMsg::Move {
                                     from: a,
                                     to: b,
@@ -3609,6 +3632,7 @@ impl App {
                                 });
                             }
                             PackCmd::Throw(a, n) => {
+                                self.audio.play("ui.item_drop", 1.0);
                                 let _ = p.conn.tx.send(ClientMsg::Throw { from: a, count: n });
                             }
                             PackCmd::Craft(r, n) => {
@@ -3616,7 +3640,7 @@ impl App {
                                     recipe: r,
                                     times: n,
                                 });
-                                self.audio.play(Sfx::Place(w::Material::Wood), 0.6);
+                                self.audio.play("ui.item_pick", 1.0);
                             }
                             PackCmd::Creative(item) => {
                                 let _ = p.conn.tx.send(ClientMsg::CreativeSet {
@@ -3668,6 +3692,9 @@ impl App {
             Action::Graphics => {
                 // the options panel changed something: apply and save
                 crate::options::interface().into(&mut self.settings);
+                if let Some(s) = crate::options::sound() {
+                    s.into(&mut self.settings);
+                }
                 if let Some(o) = crate::options::get() {
                     o.into(&mut self.settings);
                     let _ = self.settings.save();
@@ -3962,7 +3989,7 @@ impl App {
                     14,
                     (pos[0] * 31 + pos[1] * 7 + pos[2]) as u32,
                 );
-                self.audio.play(Sfx::Break(material_of(old)), 0.9);
+                self.audio.play(&sound::of_block("break", old), 1.0);
                 p.undo.push((pos, old, w::AIR));
                 let _ = p.conn.tx.send(ClientMsg::Dig { pos });
             }
@@ -3992,7 +4019,7 @@ impl App {
                     && p.held_block().is_none()
                 {
                     let _ = p.conn.tx.send(ClientMsg::UseHeld);
-                    self.audio.play(Sfx::Step(w::Material::Foliage), 0.8);
+                    self.audio.play("dig.foliage", 1.0);
                     return;
                 }
                 let Some(block) = p.held_block() else { return };
@@ -4008,7 +4035,7 @@ impl App {
                     p.world.set(pos[0], pos[1], pos[2], block);
                     p.minimap.block_changed(pos);
                     p.work.block(pos, block);
-                    self.audio.play(Sfx::Place(material_of(block)), 0.9);
+                    self.audio.play(&sound::of_block("place", block), 1.0);
                     if p.creative() {
                         p.undo.push((pos, here, block));
                         if p.undo.len() > 64 {
@@ -4034,7 +4061,7 @@ impl App {
                         slot: p.slot as u8,
                         item: b as u16,
                     });
-                    self.audio.play(Sfx::Click, 0.6);
+                    // (a click is heard on its own: sound.rs)
                 }
             }
             _ => {}

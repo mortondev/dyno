@@ -206,6 +206,8 @@ pub fn level_up(p: &mut Play, level: u8) {
     }
     if !learned.is_empty() {
         p.ui.tips.fire("ability");
+        // (after the level's own fanfare)
+        crate::audio::emit_in("ui.ability_new", 2.4);
     }
     p.ui.tips.fire("level");
     p.ui.level_up = Some(LevelUp {
@@ -293,6 +295,17 @@ pub fn quests_changed(
     for (text, colour) in lines {
         p.ui.notice(text, colour);
     }
+    // the weightiest change is the one heard
+    let sound = ["quest_done", "quest_ready", "quest_accepted", "quest_step"]
+        .into_iter()
+        .find(|e| events.contains(e));
+    match sound {
+        Some("quest_done") => crate::audio::emit("ui.quest_complete"),
+        Some("quest_ready") => crate::audio::emit("ui.quest_ready"),
+        Some("quest_accepted") => crate::audio::emit("ui.quest_accept"),
+        Some(_) => crate::audio::emit("ui.quest_step"),
+        None => {}
+    }
     for e in events {
         p.ui.tips.fire(e);
     }
@@ -334,6 +347,9 @@ fn count_loot(p: &mut Play) {
         while p.ui.loots.len() > 6 {
             p.ui.loots.remove(0);
         }
+        if any {
+            crate::audio::emit("ui.loot");
+        }
         if gear {
             p.ui.tips.fire("gear");
         } else if any {
@@ -347,6 +363,7 @@ fn count_loot(p: &mut Play) {
 pub fn health_changed(p: &mut Play, old: f32, new: f32) {
     let gain = new - old;
     if p.dead.is_none() && old > 0.0 && gain >= 3.0 && gain >= p.max_health * 0.04 {
+        crate::audio::emit("combat.heal");
         p.combat_text
             .push((Instant::now(), None, format!("+{gain:.0}"), theme::GOOD));
         p.combat_log.push((
