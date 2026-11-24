@@ -239,21 +239,24 @@ def birchrise_field_wall():
 @recipe
 def birchrise_crag():
     """One wall of the pass: a ridge of stepped rock 26 m long (along z),
-    7 m wide and 5-8 m high, grass and stone on its ledges. It carries its
+    9 m wide and 3-9 m high, terraced, grass and stone on its ledges. It carries its
     base down to the ground (place it "fit": "float")."""
     v = Vol("prop")
     v.foundation = "stone"
-    for i, cz in enumerate(range(-11, 12, 4)):
-        cx = (rnd(i, 0, 0, 101) % 3) - 1
-        h = 3.2 + (rnd(i, 1, 0, 102) % 30) / 10
-        blob(v, cx, 1.0, cz, 3.0, h, "stone", 103 + i)
-    blob(v, 2, 0, -4, 2.2, 1.6, "cobble", 110)
-    blob(v, -2, 0, 7, 2.0, 1.4, "cobble", 111)
+    # a solid ridge: each 1 m slice along z is a stack of terraces whose
+    # half-width narrows by a metre every other course
+    for z in range(-12, 13):
+        top = 4 + (rnd(0, 0, z // 3, 101) % 5) - (2 if abs(z) >= 11 else 0)
+        sx = (rnd(0, 1, z // 4, 102) % 3) - 1
+        for y in range(top + 1):
+            hw = 4 - y // 2
+            for x in range(-hw, hw + 1):
+                v.set(x + sx, y, z, pick(x, y, z, ["stone", "stone", "cobble", "stone_bricks"], 103))
     v.c = {k: b for k, b in v.c.items() if k[1] >= 0}
     for (x, y, z) in list(v.c):
         if (x, y + 1, z) not in v.c:
             r = rnd(x, y, z, 112) % 5
-            v.c[(x, y, z)] = "grass" if r < 2 else "cobble" if r == 2 else "stone"
+            v.c[(x, y, z)] = "grass" if r < 3 else "stone"
     return v
 
 
