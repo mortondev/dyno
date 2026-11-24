@@ -1,0 +1,736 @@
+# Round 2: the five cart drop-offs, ridden by hand (dyno play, a rogue on main's content, 24 November 2026).
+# NPC and bag lists are cut; everything else is as printed. The character was given XP and money by operator command:
+# this run checks the rides, not the road. Its three deaths on the way are in the write-up.
+Joined 127.0.0.1:7712 as Carta. Type 'help' for commands.
+Events:
+  You are the first player here, so you own this world: you can use /gamemode, /time, /give and /reload.
+  You are now a Rogue. Your abilities are on keys 1 to 7.
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 06:00 day | at 2,0 (from hearth; north is -z)
+Carta lv1 Rogue | HP 50/50 | Energy 100/100 | XP 0/400 | 0c | rested 0 | bags 4/36
+[ready]
+> say /xp 9000
+say: done (waited) in 1 s, +9000 xp, LEVEL 6
+Events:
+  LEVEL UP: you are now level 6
+  Carta reached level 6!
+== Hearthstead (safe) lv1-1 | 09:00 day | at 2,0 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1400/3600 | 0c | rested 0 | bags 4/36
+[ready]
+> say /money 400
+say: done (waited) in 1 s
+== Hearthstead (safe) lv1-1 | 09:00 day | at 2,0 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1400/3600 | 4s 0c | rested 0 | bags 4/36
+[ready]
+> talk jeb
+talk Carter Jeb: done (talked) in 7 s
+Carter Jeb <Carter>: "Legs tired? I drive to anywhere you've already walked to. I don't go looking for new places."
+  sells: Cart ride to Garrick's Camp 30c, Cart ride to Ostrin's Farm 30c, Cart ride to Fisher's Landing 40c, Cart ride to Miner's Rest 40c
+== Hearthstead (safe) lv1-1 | 09:00 day | at 36,5 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1400/3600 | 4s 0c | rested 0 | bags 4/36
+[ready]
+> goto ostrin
+goto Farmer Ostrin: done (arrived) in 84 s, +115 xp
+Events:
+  Entered Hearthmeadow
+  Discovered: Hearthmeadow (+25 XP)
+  Entered Mirrormere
+  Discovered: Mirrormere (+45 XP)
+  Entered Ostrin's Farm (safe)
+  Discovered: Ostrin's Farm (+45 XP)
+== Ostrin's Farm (safe) lv3-3 | 11:00 day | at 65,483 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1515/3600 | 4s 0c | rested 3 | bags 4/36
+Creatures within 60m (1):
+  #64 Grazer lv3 50/50 51m NW
+[ready]
+> goto wenna
+goto Old Wenna: done (arrived) in 54 s, +55 xp
+Events:
+  Entered Mirrormere
+  Entered Fisher's Landing (safe)
+  Discovered: Fisher's Landing (+55 XP)
+== Fisher's Landing (safe) lv4-4 | 12:00 day | at -147,680 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1570/3600 | 4s 0c | rested 3 | bags 4/36
+[ready]
+> talk corwin
+talk Ferryman Corwin: done (talked) in 0 s
+Ferryman Corwin <Carter>: "Boat's laid up, but the cart still runs. Anywhere you've been, for a few coppers."
+  sells: Cart ride to Hearthstead 15c, Cart ride to Garrick's Camp 30c, Cart ride to Ostrin's Farm 30c, Cart ride to Miner's Rest 40c
+== Fisher's Landing (safe) lv4-4 | 12:00 day | at -147,678 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1570/3600 | 4s 0c | rested 3 | bags 4/36
+[ready]
+> buy ride_hearthstead
+Nobody sells 'ride_hearthstead'.
+== Fisher's Landing (safe) lv4-4 | 12:00 day | at -147,678 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1570/3600 | 4s 0c | rested 3 | bags 4/36
+[ready]
+> talk jeb
+talk Carter Jeb: done (talked) in 143 s, +25 xp
+Carter Jeb <Carter>: "Legs tired? I drive to anywhere you've already walked to. I don't go looking for new places."
+  sells: Cart ride to Garrick's Camp 30c, Cart ride to Ostrin's Farm 30c, Cart ride to Fisher's Landing 40c, Cart ride to Miner's Rest 40c
+Events:
+  Entered Mirrormere
+  Entered Hearthmeadow
+  Entered The Broken Tower
+  Discovered: The Broken Tower (+25 XP)
+  Entered Hearthmeadow
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 15:00 day | at 36,8 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1595/3600 | 4s 0c | rested 3 | bags 4/36
+[ready]
+> buy ride_windmill
+Nobody sells 'ride_windmill'.
+== Hearthstead (safe) lv1-1 | 15:00 day | at 36,8 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1595/3600 | 4s 0c | rested 3 | bags 4/36
+[ready]
+> buy Cart ride to Ostrin
+buy Cart ride to Ostrin's Farm x1 (30c each) from Carter Jeb: done (talked) in 0 s
+Events:
+  Dusk is coming. Find light.
+  Nightfall: Shades gather at the north gate of Hearthstead!
+  World event: Nightfall Incursion
+  Wave 1 of 3 pours out of the dark!
+  Wave 2 of 3 pours out of the dark!
+  Cart ride to Ostrin's Farm: you pay 30c and climb aboard.
+  Entered Ostrin's Farm (safe)
+== Ostrin's Farm (safe) lv3-3 | 19:00 NIGHT | at 60,494 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1595/3600 | 3s 70c | rested 12 | bags 4/36
+World event: Nightfall Incursion: Wave 2 of 3: 9 Shades destroyed
+[ready]
+> buy Cart ride to Fisher
+buy Cart ride to Fisher's Landing x1 (40c each) from Carter Pip: done (talked) in 0 s
+Events:
+  Cart ride to Fisher's Landing: you pay 40c and climb aboard.
+  Entered Fisher's Landing (safe)
+== Fisher's Landing (safe) lv4-4 | 19:00 NIGHT | at -148,676 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1595/3600 | 3s 30c | rested 12 | bags 4/36
+World event: Nightfall Incursion: Wave 2 of 3: 9 Shades destroyed
+[ready]
+> buy Cart ride to Hearthstead
+buy Cart ride to Hearthstead x1 (15c each) from Ferryman Corwin: done (talked) in 0 s
+Events:
+  Cart ride to Hearthstead: you pay 15c and climb aboard.
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 19:00 NIGHT | at 40,4 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 1595/3600 | 3s 15c | rested 12 | bags 4/36
+World event: Nightfall Incursion: Wave 2 of 3: 9 Shades destroyed
+[ready]
+> goto garrick
+goto Foreman Garrick: INTERRUPTED, attacked by something. Use 'attack' to fight back.
+Events:
+  Entered Hearthmeadow
+== Hearthmeadow lv1-2 | 20:00 NIGHT | at -24,-99 (from hearth; north is -z)
+Carta lv6 Rogue | HP 71/75 | Energy 100/100 | XP 1595/3600 | 3s 15c | rested 12 | bags 4/36
+World event: Nightfall Incursion: Wave 2 of 3: 9 Shades destroyed
+Creatures within 60m (6):
+  #95 Grazer lv1 32/32 40m W
+  #101 Grazer lv2 41/41 44m NE
+  #97 Grazer lv1 32/32 52m NE
+  #96 Grazer lv1 32/32 56m W
+  #100 Grazer lv2 41/41 58m W
+  #94 Grazer lv1 32/32 58m SW
+[ready]
+> attack
+fight Shade #109: done (it died) in 14 s, +22 xp (took 15 damage, 2 casts)
+Events:
+  Entered North Gate Rocks
+  Discovered: North Gate Rocks (+25 XP)
+  Wave 3 of 3 pours out of the dark!
+  Entered Hearthmeadow
+  Entered Hearthstead (safe)
+  Killed Shade (+22 xp)
+  (auto-defend) fighting Shade
+== Hearthstead (safe) lv1-1 | 21:00 NIGHT | at -2,-52 (from hearth; north is -z)
+Carta lv6 Rogue | HP 57/75 | Energy 1/100 | XP 1642/3600 | 3s 15c | rested 1 | bags 4/36
+World event: Nightfall Incursion: Wave 3 of 3: 10 Shades destroyed
+Fighting: Shade lv2 27/51 1m N
+Creatures within 60m (5):
+  #107 Shade lv2 27/51 1m N hostile
+  #110 Shade lv1 39/40 1m SW hostile
+  #105 Shade lv2 50/51 1m SE hostile
+  #108 Shade lv2 51/51 13m S hostile
+  #106 Shade lv1 40/40 13m S hostile
+Lootable corpses: Shade corpse #112 1m SE (yours)
+[ready]
+auto-defend: done (it died) in 4 s, +12 xp (took 27 damage, 2 casts)
+Events:
+  You feel normal again.
+  Killed Shade (+12 xp)
+  (auto-defend) fighting Shade
+== Hearthstead (safe) lv1-1 | 21:00 NIGHT | at -2,-52 (from hearth; north is -z)
+Carta lv6 Rogue | HP 33/75 | Energy 6/100 | XP 1654/3600 | 3s 15c | rested 0 | bags 4/36
+World event: Nightfall Incursion: Wave 3 of 3: 11 Shades destroyed
+Fighting: Shade lv1 34/40 1m N
+Creatures within 60m (4):
+  #105 Shade lv2 50/51 1m SE hostile
+  #110 Shade lv1 34/40 1m N hostile
+  #108 Shade lv2 51/51 25m S hostile
+  #106 Shade lv1 40/40 25m S hostile
+Lootable corpses: Shade corpse #112 1m SE (yours); Shade corpse #113 1m NE (yours)
+[ready]
+auto-defend: done (it died) in 4 s (took 14 damage, 1 casts)
+Events:
+  (auto-defend) fighting Shade
+  Shade died, but you got no credit
+== Hearthstead (safe) lv1-1 | 21:00 NIGHT | at -2,-52 (from hearth; north is -z)
+Carta lv6 Rogue | HP 15/75 | Energy 7/100 | XP 1654/3600 | 3s 15c | rested 0 | bags 4/36
+World event: Nightfall Incursion: Wave 3 of 3: 12 Shades destroyed
+Fighting: Shade lv2 50/51 1m SE
+Creatures within 60m (3):
+  #105 Shade lv2 50/51 1m SE hostile
+  #108 Shade lv2 51/51 34m S hostile
+  #106 Shade lv1 40/40 34m S hostile
+Lootable corpses: Shade corpse #112 1m SE (yours); Shade corpse #113 1m NE (yours); Shade corpse #114 1m N (yours)
+[ready]
+auto-defend: done (it died) in 7 s, +11 xp (took 16 damage, 2 casts)
+Events:
+  Killed Shade (+11 xp)
+== Hearthstead (safe) lv1-1 | 21:00 NIGHT | at -2,-52 (from hearth; north is -z)
+Carta lv6 Rogue | HP 3/75 | Energy 18/100 | XP 1665/3600 | 3s 15c | rested 0 | bags 4/36
+World event: Nightfall Incursion: Wave 3 of 3: 13 Shades destroyed
+Creatures within 60m (2):
+  #106 Shade lv1 40/40 34m S hostile
+  #108 Shade lv2 50/51 34m S hostile
+Lootable corpses: Shade corpse #112 1m SE (yours); Shade corpse #113 1m NE (yours); Shade corpse #114 1m N (yours); Shade corpse #115 1m SW (yours)
+[ready]
+> goto garrick
+goto Foreman Garrick: INTERRUPTED, attacked by Shade #128. Use 'attack' to fight back.
+Events:
+  Entered Hearthmeadow
+  The Watch holds! Hearthstead stands through the night.
+  Entered North Gate Rocks
+  Entered Hearthmeadow
+  Entered Birchrise
+  Discovered: Birchrise (+35 XP)
+== Birchrise lv2-3 | 00:00 NIGHT | at -194,-338 (from hearth; north is -z)
+Carta lv6 Rogue | HP 70/75 | Energy 99/100 | XP 2210/3600 | 4s 35c | rested 0 | bags 4/36
+Creatures within 60m (1):
+  #128 Shade lv3 62/62 2m W hostile
+[ready]
+> attack
+fight Shade #128: done (it died) in 1 s, +20 xp (took 0 damage, 2 casts)
+Events:
+  Killed Shade (+20 xp)
+== Birchrise lv2-3 | 00:00 NIGHT | at -194,-338 (from hearth; north is -z)
+Carta lv6 Rogue | HP 70/75 | Energy 36/100 | XP 2230/3600 | 4s 35c | rested 0 | bags 4/36
+Lootable corpses: Shade corpse #129 1m W (yours)
+[ready]
+> attack
+fight Old Tusk #124: FAILED (dead) after 26 s (took 84 damage, 5 casts)
+Events:
+  DIED: You fell to a Old Tusk.
+  Carta fell to a Old Tusk.
+== Birchrise lv2-3 | 01:00 NIGHT | at -118,-300 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 32/100 | XP 2230/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 129/276 1m E hostile
+  #133 Shade lv2 51/51 14m S hostile
+  #119 Thornboar lv3 75/75 31m E hostile
+  #121 Thornboar lv3 75/75 46m E hostile
+  #122 Thornboar lv3 75/75 50m E hostile
+[ready]
+> attack
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Birchrise lv2-3 | 01:00 NIGHT | at -118,-300 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 32/100 | XP 2230/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 129/276 1m E hostile
+  #133 Shade lv2 51/51 14m S hostile
+  #119 Thornboar lv3 75/75 31m E hostile
+  #121 Thornboar lv3 75/75 46m E hostile
+  #122 Thornboar lv3 75/75 50m E hostile
+[ready]
+> eat
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Birchrise lv2-3 | 01:00 NIGHT | at -118,-300 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 32/100 | XP 2230/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 129/276 1m E hostile
+  #133 Shade lv2 51/51 14m S hostile
+  #119 Thornboar lv3 75/75 31m E hostile
+  #121 Thornboar lv3 75/75 46m E hostile
+  #122 Thornboar lv3 75/75 50m E hostile
+[ready]
+> goto garrick
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Birchrise lv2-3 | 01:00 NIGHT | at -118,-300 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 32/100 | XP 2230/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 129/276 1m E hostile
+  #133 Shade lv2 51/51 14m S hostile
+  #119 Thornboar lv3 75/75 31m E hostile
+  #121 Thornboar lv3 75/75 46m E hostile
+  #122 Thornboar lv3 75/75 50m E hostile
+[ready]
+> respawn
+respawn: done (alive) in 0 s
+Events:
+  You are alive again
+  Entered Hearthstead (safe)
+  Old Tusk died, but you got no credit
+== Hearthstead (safe) lv1-1 | 01:00 NIGHT | at 2,0 (from hearth; north is -z)
+Carta lv6 Rogue | HP 45/75 | Energy 100/100 | XP 2230/3600 | 4s 35c | rested 0 | bags 4/36
+[ready]
+> goto holt
+goto Sergeant Holt: INTERRUPTED, attacked by Shade #138. Use 'attack' to fight back.
+Events:
+  Entered Hearthmeadow
+== Hearthmeadow lv1-2 | 02:00 NIGHT | at -7,-164 (from hearth; north is -z)
+Carta lv6 Rogue | HP 72/75 | Energy 100/100 | XP 2230/3600 | 4s 35c | rested 0 | bags 4/36
+Creatures within 60m (8):
+  #138 Shade lv2 51/51 1m W hostile
+  #104 Grazer lv2 41/41 27m E
+  #102 Grazer lv2 41/41 29m SE
+  #101 Grazer lv2 41/41 42m SE
+  #97 Grazer lv1 32/32 49m E
+  #117 Grazer lv1 32/32 53m E
+  #98 Grazer lv1 32/32 56m SE
+[ready]
+auto-defend: done (it died) in 0 s, +11 xp (took 0 damage, 1 casts)
+Events:
+  (auto-defend) fighting Shade
+  Killed Shade (+11 xp)
+== Hearthmeadow lv1-2 | 02:00 NIGHT | at -7,-164 (from hearth; north is -z)
+Carta lv6 Rogue | HP 72/75 | Energy 66/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+Creatures within 60m (7):
+  #104 Grazer lv2 41/41 27m E
+  #102 Grazer lv2 41/41 29m SE
+  #101 Grazer lv2 41/41 43m SE
+  #97 Grazer lv1 32/32 49m E
+  #117 Grazer lv1 32/32 52m E
+  #98 Grazer lv1 32/32 56m SE
+  #134 Grazer lv1 32/32 59m E
+Lootable corpses: Shade corpse #139 1m W (yours)
+[ready]
+> goto -110,-340
+goto -110,-340: INTERRUPTED, attacked by Thornboar #119. Use 'attack' to fight back.
+Events:
+  Entered Birchrise
+== Birchrise lv2-3 | 03:00 NIGHT | at -81,-283 (from hearth; north is -z)
+Carta lv6 Rogue | HP 69/75 | Energy 96/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+Creatures within 60m (5):
+  #119 Thornboar lv3 75/75 1m W hostile
+  #121 Thornboar lv3 75/75 11m SE hostile
+  #140 Shade lv2 51/51 25m E hostile
+  #120 Thornboar lv2 61/61 29m NE hostile
+  #122 Thornboar lv3 75/75 33m N hostile
+[ready]
+> goto garrick
+goto Foreman Garrick: INTERRUPTED, attacked by Old Tusk #124. Use 'attack' to fight back.
+== Birchrise lv2-3 | 04:00 NIGHT | at -119,-324 (from hearth; north is -z)
+Carta lv6 Rogue | HP 63/75 | Energy 96/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+Creatures within 60m (7):
+  #124 Old Tusk lv4 276/276 1m N hostile
+  #141 Shade lv2 51/51 31m SE hostile
+  #122 Thornboar lv3 75/75 34m E hostile
+  #130 Thornboar lv3 75/75 37m NE hostile
+  #119 Thornboar lv3 75/75 56m SE hostile
+  #131 Thornboar lv2 61/61 58m NE hostile
+  #120 Thornboar lv2 61/61 59m SE hostile
+[ready]
+> attack
+fight Old Tusk #124: FAILED (dead) after 11 s (took 72 damage, 5 casts)
+Events:
+  DIED: You fell to a Old Tusk.
+  Carta fell to a Old Tusk.
+== Birchrise lv2-3 | 04:00 NIGHT | at -120,-324 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 27/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 133/276 1m N hostile
+  #141 Shade lv2 51/51 22m SE hostile
+  #130 Thornboar lv3 75/75 33m NE hostile
+  #122 Thornboar lv3 75/75 33m E hostile
+  #131 Thornboar lv2 61/61 58m NE hostile
+[ready]
+> goto garrick
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Birchrise lv2-3 | 04:00 NIGHT | at -120,-324 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 27/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 133/276 1m N hostile
+  #141 Shade lv2 51/51 22m SE hostile
+  #130 Thornboar lv3 75/75 33m NE hostile
+  #122 Thornboar lv3 75/75 33m E hostile
+  #131 Thornboar lv2 61/61 58m NE hostile
+[ready]
+> attack
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Birchrise lv2-3 | 04:00 NIGHT | at -120,-324 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 27/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 133/276 1m N hostile
+  #141 Shade lv2 51/51 22m SE hostile
+  #130 Thornboar lv3 75/75 33m NE hostile
+  #122 Thornboar lv3 75/75 33m E hostile
+  #131 Thornboar lv2 61/61 58m NE hostile
+[ready]
+> goto garrick
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Birchrise lv2-3 | 04:00 NIGHT | at -120,-324 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 32/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 133/276 1m N hostile
+  #141 Shade lv2 51/51 22m SE hostile
+  #130 Thornboar lv3 75/75 33m NE hostile
+  #122 Thornboar lv3 75/75 33m E hostile
+  #131 Thornboar lv2 61/61 58m NE hostile
+[ready]
+> attack
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Birchrise lv2-3 | 04:00 NIGHT | at -120,-324 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 32/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 133/276 1m N hostile
+  #141 Shade lv2 51/51 22m SE hostile
+  #130 Thornboar lv3 75/75 33m NE hostile
+  #122 Thornboar lv3 75/75 33m E hostile
+  #131 Thornboar lv2 61/61 58m NE hostile
+[ready]
+> goto garrick
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== Birchrise lv2-3 | 04:00 NIGHT | at -120,-324 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 38/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Old Tusk.). Type 'respawn'.
+Creatures within 60m (5):
+  #124 Old Tusk lv4 133/276 1m N hostile
+  #141 Shade lv2 51/51 22m SE hostile
+  #130 Thornboar lv3 75/75 33m NE hostile
+  #122 Thornboar lv3 75/75 33m E hostile
+  #131 Thornboar lv2 61/61 58m NE hostile
+[ready]
+> respawn
+respawn: done (alive) in 0 s
+Events:
+  You are alive again
+== Birchrise lv2-3 | 04:00 NIGHT | at 2,0 (from hearth; north is -z)
+Carta lv6 Rogue | HP 45/75 | Energy 100/100 | XP 2241/3600 | 4s 35c | rested 0 | bags 4/36
+[ready]
+> eat
+eat: done (waited) in 1 s
+Events:
+  Entered Hearthstead (safe)
+== Hearthstead (safe) lv1-1 | 04:00 NIGHT | at 2,0 (from hearth; north is -z)
+Carta lv6 Rogue | HP 68/75 | Energy 100/100 | XP 2241/3600 | 4s 35c | rested 3 | bags 4/36
+[ready]
+> goto holt
+goto Sergeant Holt: done (arrived) in 43 s, +35 xp
+Events:
+  Entered Hearthmeadow
+  Entered The North Watch (safe)
+  Discovered: The North Watch (+35 XP)
+== The North Watch (safe) lv2-3 | 05:00 day | at 1,-248 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 2276/3600 | 4s 35c | rested 3 | bags 4/36
+[ready]
+> goto -30,-350
+goto -30,-350: done (arrived) in 23 s, +35 xp
+Events:
+  Day 2 dawns in the valley.
+  Entered Hearthmeadow
+  Entered Birchrise
+  Entered Watch Hill Lookout
+  Discovered: Watch Hill Lookout (+35 XP)
+== Watch Hill Lookout lv2-3 | 06:00 day | at -29,-349 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 100/100 | XP 2311/3600 | 4s 35c | rested 3 | bags 4/36
+Creatures within 60m (1):
+  #131 Thornboar lv2 61/61 42m NW hostile
+[ready]
+> goto -120,-410
+goto -120,-410: INTERRUPTED, attacked by Thornboar #132. Use 'attack' to fight back.
+Events:
+  Entered Birchrise
+== Birchrise lv2-3 | 06:00 day | at -103,-396 (from hearth; north is -z)
+Carta lv6 Rogue | HP 70/75 | Energy 100/100 | XP 2311/3600 | 4s 35c | rested 3 | bags 4/36
+Creatures within 60m (3):
+  #132 Thornboar lv2 61/61 1m SW hostile
+  #130 Thornboar lv3 75/75 24m SW hostile
+  #131 Thornboar lv2 61/61 27m SE hostile
+[ready]
+auto-defend: done (it died) in 2 s, +14 xp (took 5 damage, 3 casts)
+Events:
+  (auto-defend) fighting Thornboar
+  You feel normal again.
+  Killed Thornboar (+14 xp)
+== Birchrise lv2-3 | 06:00 day | at -103,-396 (from hearth; north is -z)
+Carta lv6 Rogue | HP 65/75 | Energy 16/100 | XP 2325/3600 | 4s 35c | rested 0 | bags 4/36
+Creatures within 60m (2):
+  #130 Thornboar lv3 75/75 23m SW hostile
+  #131 Thornboar lv2 61/61 24m SE hostile
+Lootable corpses: Thornboar corpse #143 1m SW (yours)
+[ready]
+> goto garrick
+goto Foreman Garrick: done (arrived) in 24 s, +45 xp
+Events:
+  Entered Garrick's Logging Camp (safe)
+  Discovered: Garrick's Logging Camp (+45 XP)
+== Garrick's Logging Camp (safe) lv3-3 | 07:00 day | at -222,-423 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 96/100 | XP 2370/3600 | 4s 35c | rested 0 | bags 4/36
+[ready]
+> talk nan
+talk Carter Nan: done (talked) in 1 s
+Carter Nan <Carter>: "Timber goes out, people come back. Been somewhere on foot? Then I can take you."
+  sells: Cart ride to Hearthstead 15c, Cart ride to Ostrin's Farm 30c, Cart ride to Fisher's Landing 40c, Cart ride to Miner's Rest 40c
+== Garrick's Logging Camp (safe) lv3-3 | 07:00 day | at -218,-419 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 96/100 | XP 2370/3600 | 4s 35c | rested 0 | bags 4/36
+[ready]
+> buy Cart ride to Hearthstead
+buy Cart ride to Hearthstead x1 (15c each) from Carter Nan: done (talked) in 0 s
+Events:
+  Cart ride to Hearthstead: you pay 15c and climb aboard.
+== Garrick's Logging Camp (safe) lv3-3 | 07:00 day | at 40,4 (from hearth; north is -z)
+Carta lv6 Rogue | HP 75/75 | Energy 96/100 | XP 2370/3600 | 4s 20c | rested 3 | bags 4/36
+[ready]
+> goto bree
+goto Quartermaster Bree: INTERRUPTED, attacked by Ashcloak Bandit #159. Use 'attack' to fight back.
+Events:
+  Entered Hearthstead (safe)
+  Entered Hearthmeadow
+  Entered The East Road
+  Discovered: The East Road (+55 XP)
+== The East Road lv4-5 | 09:00 day | at 478,52 (from hearth; north is -z)
+Carta lv6 Rogue | HP 66/75 | Energy 96/100 | XP 2425/3600 | 4s 20c | rested 3 | bags 4/36
+Creatures within 60m (3):
+  #159 Ashcloak Bandit lv5 106/106 2m NW hostile
+  #161 Ashcloak Bandit lv5 106/106 15m N hostile
+  #160 Ashcloak Bandit lv5 106/106 25m N hostile
+[ready]
+auto-defend: done (it died) in 9 s, +43 xp (took 18 damage, 5 casts)
+Events:
+  (auto-defend) fighting Ashcloak Bandit
+  You feel normal again.
+  Killed Ashcloak Bandit (+43 xp)
+== The East Road lv4-5 | 09:00 day | at 469,46 (from hearth; north is -z)
+Carta lv6 Rogue | HP 48/75 | Energy 6/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 106/106 12m NE hostile
+  #160 Ashcloak Bandit lv5 106/106 22m NE hostile
+Lootable corpses: Ashcloak Bandit corpse #162 3m NW (yours)
+[ready]
+> attack
+fight Ashcloak Bandit #161: FAILED (dead) after 13 s (took 53 damage, 3 casts)
+Events:
+  DIED: You fell to a Ashcloak Bandit.
+  Carta fell to a Ashcloak Bandit.
+== The East Road lv4-5 | 09:00 day | at 480,30 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 37/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Ashcloak Bandit.). Type 'respawn'.
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 4/106 1m N hostile
+  #160 Ashcloak Bandit lv5 106/106 8m NW hostile
+Lootable corpses: Ashcloak Bandit corpse #162 20m SW (yours)
+[ready]
+> attack
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== The East Road lv4-5 | 09:00 day | at 480,30 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 37/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Ashcloak Bandit.). Type 'respawn'.
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 4/106 1m N hostile
+  #160 Ashcloak Bandit lv5 106/106 8m NW hostile
+Lootable corpses: Ashcloak Bandit corpse #162 20m SW (yours)
+[ready]
+> goto bree
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== The East Road lv4-5 | 09:00 day | at 480,30 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 37/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Ashcloak Bandit.). Type 'respawn'.
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 4/106 1m N hostile
+  #160 Ashcloak Bandit lv5 106/106 8m NW hostile
+Lootable corpses: Ashcloak Bandit corpse #162 20m SW (yours)
+[ready]
+> attack
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== The East Road lv4-5 | 09:00 day | at 480,30 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 42/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Ashcloak Bandit.). Type 'respawn'.
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 4/106 1m N hostile
+  #160 Ashcloak Bandit lv5 106/106 8m NW hostile
+Lootable corpses: Ashcloak Bandit corpse #162 20m SW (yours)
+[ready]
+> goto bree
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== The East Road lv4-5 | 09:00 day | at 480,30 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 42/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Ashcloak Bandit.). Type 'respawn'.
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 4/106 1m N hostile
+  #160 Ashcloak Bandit lv5 106/106 8m NW hostile
+Lootable corpses: Ashcloak Bandit corpse #162 20m SW (yours)
+[ready]
+> buy Cart ride to Garrick
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== The East Road lv4-5 | 09:00 day | at 480,30 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 47/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Ashcloak Bandit.). Type 'respawn'.
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 4/106 1m N hostile
+  #160 Ashcloak Bandit lv5 106/106 8m NW hostile
+Lootable corpses: Ashcloak Bandit corpse #162 20m SW (yours)
+[ready]
+> buy Cart ride to Miner
+You are dead. Type 'respawn' to return to the hearth (you keep everything).
+== The East Road lv4-5 | 09:00 day | at 480,30 (from hearth; north is -z)
+Carta lv6 Rogue | HP 0/75 | Energy 47/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+YOU ARE DEAD (You fell to a Ashcloak Bandit.). Type 'respawn'.
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 4/106 1m N hostile
+  #160 Ashcloak Bandit lv5 106/106 8m NW hostile
+Lootable corpses: Ashcloak Bandit corpse #162 20m SW (yours)
+[ready]
+> respawn
+respawn: done (alive) in 0 s
+Events:
+  You are alive again
+  Ashcloak Bandit died, but you got no credit
+== The East Road lv4-5 | 09:00 day | at 2,0 (from hearth; north is -z)
+Carta lv6 Rogue | HP 45/75 | Energy 100/100 | XP 2468/3600 | 4s 20c | rested 0 | bags 4/36
+[ready]
+> say /xp 30000
+say: done (waited) in 1 s, +30000 xp, LEVEL 11
+Events:
+  Entered Hearthstead (safe)
+  LEVEL UP: you are now level 11
+  Carta reached level 11!
+== Hearthstead (safe) lv1-1 | 09:00 day | at 2,0 (from hearth; north is -z)
+Carta lv11 Rogue | HP 100/100 | Energy 100/100 | XP 4868/8900 | 4s 20c | rested 0 | bags 4/36
+[ready]
+> say /give keen_dagger
+say: done (waited) in 1 s
+Events:
+  +1 Keen Dagger
+  Carta gave themselves 1 Keen Dagger
+== Hearthstead (safe) lv1-1 | 09:00 day | at 2,0 (from hearth; north is -z)
+Carta lv11 Rogue | HP 100/100 | Energy 100/100 | XP 4868/8900 | 4s 20c | rested 0 | bags 5/36
+[ready]
+> say /give ranger_jerkin
+say: done (waited) in 1 s
+Events:
+  +1 Ranger's Leather Jerkin
+  Carta gave themselves 1 Ranger's Leather Jerkin
+== Hearthstead (safe) lv1-1 | 09:00 day | at 2,0 (from hearth; north is -z)
+Carta lv11 Rogue | HP 100/100 | Energy 100/100 | XP 4868/8900 | 4s 20c | rested 0 | bags 6/36
+[ready]
+> equip best
+Equipping Keen Dagger, Ranger's Leather Jerkin
+Events:
+  Equipped Keen Dagger
+  Equipped Ranger's Leather Jerkin
+== Hearthstead (safe) lv1-1 | 09:00 day | at 2,0 (from hearth; north is -z)
+Carta lv11 Rogue | HP 100/100 | Energy 100/100 | XP 4868/8900 | 4s 20c | rested 0 | bags 6/36
+[ready]
+> eat
+eat: done (waited) in 1 s
+Events:
+  +1 Rusty Dagger
+  +1 Footpad's Jerkin
+== Hearthstead (safe) lv1-1 | 09:00 day | at 2,0 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4868/8900 | 4s 20c | rested 8 | bags 6/36
+[ready]
+> goto 430,0
+goto 430,0: done (arrived) in 74 s
+Events:
+  Entered Hearthmeadow
+  Entered The East Road
+== The East Road lv4-5 | 11:00 day | at 429,0 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4868/8900 | 4s 20c | rested 8 | bags 6/36
+Creatures within 60m (2):
+  #161 Ashcloak Bandit lv5 4/106 59m SE hostile
+  #160 Ashcloak Bandit lv5 106/106 59m SE hostile
+[ready]
+> goto 520,0
+goto 520,0: done (arrived) in 18 s, +55 xp
+Events:
+  Entered Emberford Bridge
+  Discovered: Emberford Bridge (+55 XP)
+  Entered The East Road
+== The East Road lv4-5 | 11:00 day | at 519,0 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4923/8900 | 4s 20c | rested 8 | bags 6/36
+Creatures within 60m (1):
+  #160 Ashcloak Bandit lv5 106/106 49m SW hostile
+[ready]
+> goto bree
+goto Quartermaster Bree: done (arrived) in 33 s, +65 xp
+Events:
+  Entered Miner's Rest (safe)
+  Discovered: Miner's Rest (+65 XP)
+== Miner's Rest (safe) lv5-5 | 12:00 day | at 634,51 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 4s 20c | rested 8 | bags 6/36
+[ready]
+> attack
+Nothing to attack matches ''.
+== Miner's Rest (safe) lv5-5 | 12:00 day | at 634,51 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 4s 20c | rested 8 | bags 6/36
+[ready]
+> goto bree
+goto Quartermaster Bree: done (arrived) in 0 s
+== Miner's Rest (safe) lv5-5 | 12:00 day | at 634,51 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 4s 20c | rested 8 | bags 6/36
+[ready]
+> buy Cart ride to Garrick
+buy Cart ride to Garrick's Camp x1 (30c each) from Carter Ada: done (talked) in 2 s
+Events:
+  Cart ride to Garrick's Camp: you pay 30c and climb aboard.
+  Entered Garrick's Logging Camp (safe)
+== Garrick's Logging Camp (safe) lv3-3 | 12:00 day | at -217,-417 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 90c | rested 8 | bags 6/36
+[ready]
+> buy Cart ride to Miner
+buy Cart ride to Miner's Rest x1 (40c each) from Carter Nan: done (talked) in 0 s
+Events:
+  Cart ride to Miner's Rest: you pay 40c and climb aboard.
+== Garrick's Logging Camp (safe) lv3-3 | 12:00 day | at 648,41 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 50c | rested 8 | bags 6/36
+[ready]
+> probe -60,-225
+ground heights from the hearth (^: canopy above, ~: under water); path from Some([1672, 62, 1065]): 153 steps, partial true, expanded 120001
+Events:
+  Entered Miner's Rest (safe)
+== Miner's Rest (safe) lv5-5 | 12:00 day | at 648,41 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 50c | rested 8 | bags 6/36
+[ready]
+> buy Cart ride to Hearthstead
+buy Cart ride to Hearthstead x1 (15c each) from Carter Ada: done (talked) in 0 s
+Events:
+  Cart ride to Hearthstead: you pay 15c and climb aboard.
+== Miner's Rest (safe) lv5-5 | 12:00 day | at 40,4 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 35c | rested 8 | bags 6/36
+[ready]
+> goto holt
+goto Sergeant Holt: done (arrived) in 45 s
+Events:
+  Entered Hearthstead (safe)
+  Entered Hearthmeadow
+  Entered The North Watch (safe)
+== The North Watch (safe) lv2-3 | 13:00 day | at 3,-248 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 35c | rested 8 | bags 6/36
+[ready]
+> probe -60,-225
+ground heights from the hearth (^: canopy above, ~: under water); path from Some([1027, 62, 776]): 63 steps, partial false, expanded 69
+== The North Watch (safe) lv2-3 | 13:00 day | at 3,-248 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 35c | rested 8 | bags 6/36
+[ready]
+> probe -150,-270
+ground heights from the hearth (^: canopy above, ~: under water); path from Some([1027, 62, 776]): 153 steps, partial false, expanded 160
+== The North Watch (safe) lv2-3 | 13:00 day | at 3,-248 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 35c | rested 8 | bags 6/36
+[ready]
+> probe 100,-320
+ground heights from the hearth (^: canopy above, ~: under water); path from Some([1027, 62, 776]): 98 steps, partial false, expanded 110
+== The North Watch (safe) lv2-3 | 13:00 day | at 3,-248 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 35c | rested 8 | bags 6/36
+[ready]
+> probe 85,-215
+ground heights from the hearth (^: canopy above, ~: under water); path from Some([1027, 62, 776]): 82 steps, partial false, expanded 85
+== The North Watch (safe) lv2-3 | 13:00 day | at 3,-248 (from hearth; north is -z)
+Carta lv11 Rogue | HP 105/105 | Energy 100/100 | XP 4988/8900 | 3s 35c | rested 8 | bags 6/36
+[ready]

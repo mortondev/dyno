@@ -1,5 +1,5 @@
 {
- "version": 5,
+ "version": 6,
  "size": [2048, 256, 2048],
  "design": [2048, 256, 2048],
  "seed": 20261123,
@@ -13,6 +13,13 @@
    {"scale": 18, "amp": 0.7}
   ],
   "hills": [
+   {"at": [262, -118], "radius": [95, 70], "rise": 15, "rough": 0.4},
+   {"at": [176, 34], "radius": [85, 60], "rise": 11, "rough": 0.3},
+   {"at": [150, 418], "radius": [85, 70], "rise": 15, "rough": 0.4},
+   {"at": [-18, 418], "radius": [60, 55], "rise": 10, "rough": 0.3},
+   {"at": [398, -96], "radius": [70, 60], "rise": 14, "rough": 0.4},
+   {"at": [566, -78], "radius": [70, 60], "rise": 13, "rough": 0.4},
+   {"at": [404, 92], "radius": [60, 55], "rise": 11, "rough": 0.3},
    {
     "at": [-150, -480],
     "radius": [320, 230],
@@ -450,7 +457,7 @@
  },
  "ways": {
   "road": {
-   "width": 7,
+   "width": 6,
    "surface": {"cobble": 12, "mossy_cobble": 1},
    "kerb": "stone_bricks",
    "lamp": "lamp_post",
@@ -528,7 +535,7 @@
     "blend": 26
    },
    "plaza": {
-    "radius": 15,
+    "radius": 13,
     "surface": {"cobble": 14, "mossy_cobble": 1}
    },
    "stamps": [
@@ -555,6 +562,13 @@
     {"stamp": "haystack", "at": [-30, -44]},
     {"stamp": "log_pile", "at": [44, -30], "rot": 1},
     {"stamp": "town_wall", "at": [0, 0]},
+    {"stamp": "inn_sign", "at": [22, 12]},
+    {"stamp": "inn_sign", "at": [24, -18], "rot": 1},
+    {"stamp": "fence_run", "at": [-28, 44]},
+    {"stamp": "fence_run", "at": [30, -56], "rot": 1},
+    {"stamp": "fence_run", "at": [12, 90], "rot": 1, "fit": "ground"},
+    {"stamp": "fence_run", "at": [-12, -90], "rot": 1, "fit": "ground"},
+    {"stamp": "fence_run", "at": [90, -12], "fit": "ground"},
     {"stamp": "gate", "at": [0, -78]},
     {"stamp": "townhouse", "at": [-15, -65], "rot": 3},
     {"stamp": "townhouse_slate", "at": [16, -69], "rot": 1},
@@ -708,24 +722,22 @@
     "radius": [26, 30]
    },
    "stamps": [
-    {"stamp": "hut", "at": [-9, -5]},
-    {"stamp": "boulders", "at": [-22, 4], "fit": "ground"},
+    {"stamp": "hut", "at": [-19, -9]},
+    {"stamp": "fence_run", "at": [14, 16], "fit": "ground"},
     {"stamp": "sawmill", "at": [2, -20], "rot": 1},
     {"stamp": "log_pile", "at": [9, 5]},
     {"stamp": "birch_pile", "at": [-3, 8]},
-    {"stamp": "tent_white", "at": [-20, -4], "rot": 1},
+    {"stamp": "tent_white", "at": [-16, 18], "rot": 1},
     {"stamp": "stumps", "at": [18, 8]},
     {"stamp": "campfire", "at": [4, 5]},
-    {"stamp": "log_pile", "at": [-16, 12], "rot": 1},
+    {"stamp": "log_pile", "at": [-8, 14], "rot": 1},
     {"stamp": "cart", "at": [12, 11]}
    ],
    "was": {
     "at": [-45, -87],
     "radius": 14
    },
-   "trees": [
-    {"species": "birch", "at": [16, -12]}
-   ]
+   "trees": []
   },
   {
    "key": "hollow_oak",
@@ -741,8 +753,8 @@
     {"stamp": "hollow_oak", "at": [0, 0]},
     {"stamp": "outcrop", "at": [-18, -12]},
     {"stamp": "fallen_log", "at": [10, -14], "rot": 1},
-    {"stamp": "pond", "at": [15, 14]},
-    {"stamp": "boulders", "at": [-13, 12]}
+    {"stamp": "pond_big", "at": [-14, 34]},
+    {"stamp": "boulders", "at": [15, 16]}
    ],
    "was": {
     "at": [-95, -54],
@@ -769,11 +781,10 @@
    },
    "stamps": [
     {"stamp": "old_barrow", "at": [0, 0]},
-    {"stamp": "pond", "at": [27, 17], "fit": "ground"},
+    {"stamp": "pond_big", "at": [24, 14], "fit": "ground"},
     {"stamp": "fallen_log", "at": [24, -4], "fit": "ground"},
-    {"stamp": "boulders", "at": [24, 12], "fit": "ground"},
     {"stamp": "boulders", "at": [-6, -22], "rot": 1, "fit": "ground"},
-    {"stamp": "standing_stones", "at": [26, -14], "fit": "ground"}
+    {"stamp": "standing_stones", "at": [30, -18], "fit": "ground"}
    ],
    "was": {
     "at": [-128, 10],
@@ -826,11 +837,12 @@
     {"stamp": "windmill", "at": [-10, -3]},
     {"stamp": "stone_wall", "at": [2, -21], "fit": "ground"},
     {"stamp": "hedge", "at": [27, 4], "rot": 1, "fit": "ground"},
-    {"stamp": "hedge", "at": [-2, 21], "fit": "ground"},
     {"stamp": "farmhouse", "at": [13, -9]},
     {"stamp": "field", "at": [12, 9]},
-    {"stamp": "haystack", "at": [-4, 12]},
-    {"stamp": "cart", "at": [-16, 10]},
+    {"stamp": "haystack", "at": [-23, 1]},
+    {"stamp": "cart", "at": [14, 22]},
+    {"stamp": "pond_big", "at": [-7, 13]},
+    {"stamp": "pond", "at": [-20, -22], "fit": "ground"},
     {"stamp": "signpost", "at": [-28, -6], "fit": "ground"}
    ],
    "trees": [
@@ -856,13 +868,11 @@
    "trees": [
     {"species": "hero_oak", "at": [-24, -8]},
     {"species": "birch", "at": [-22, 12]},
-    {"species": "willow", "at": [-6, 22]},
-    {"species": "willow", "at": [14, -10]},
-    {"species": "willow", "at": [17, -21]}
+    {"species": "willow", "at": [-6, 22]}
    ],
    "stamps": [
     {"stamp": "fisher_hut", "at": [-9, -8]},
-    {"stamp": "fisher_hut", "at": [-10, 7], "rot": 3},
+    {"stamp": "fisher_hut", "at": [-24, 16], "rot": 3, "fit": "ground"},
     {"stamp": "dock", "at": [9, 0], "rot": 3},
     {"stamp": "dock", "at": [7, 15], "rot": 3},
     {"stamp": "boat", "at": [13, -8], "dy": -1},
@@ -871,6 +881,8 @@
     {"stamp": "drying_rack", "at": [-3, 16]},
     {"stamp": "fisher_hut", "at": [-12, -18], "rot": 1},
     {"stamp": "banner_pole", "at": [4, -9]},
+    {"stamp": "inn_sign", "at": [-4, -3]},
+    {"stamp": "fence_run", "at": [-18, 14], "rot": 1},
     {"stamp": "boat", "at": [16, 9], "dy": -1},
     {"stamp": "drying_rack", "at": [0, -13]},
     {"stamp": "campfire", "at": [-5, 6]},
@@ -962,9 +974,7 @@
     "at": [62, 62],
     "radius": 16
    },
-   "trees": [
-    {"species": "oak", "at": [7, 32]}
-   ]
+   "trees": []
   },
   {
    "key": "emberford_toll_hut",
@@ -1024,15 +1034,18 @@
    },
    "stamps": [
     {"stamp": "miners_lodge", "at": [-11, -15]},
-    {"stamp": "hut", "at": [-13, 7]},
+    {"stamp": "hut", "at": [-15, 5]},
     {"stamp": "tent_white", "at": [11, 6], "rot": 2},
     {"stamp": "ore_cart", "at": [14, -6]},
     {"stamp": "falls", "at": [16, 22], "rot": 2},
     {"stamp": "rail_track", "at": [14, 5]},
     {"stamp": "ore_cart", "at": [-4, -6]},
+    {"stamp": "brook", "at": [-8, 15]},
+    {"stamp": "mine_head", "at": [19, -14]},
     {"stamp": "banner_pole_red", "at": [-3, 9]},
-    {"stamp": "boulders", "at": [6, -17]},
     {"stamp": "campfire", "at": [2, 7]},
+    {"stamp": "fence_run", "at": [-18, 20]},
+    {"stamp": "inn_sign", "at": [-3, -9]},
     {"stamp": "signpost", "at": [-6, 5]},
     {"stamp": "lamp_post", "at": [6, 3]},
     {"stamp": "log_pile", "at": [16, -4], "rot": 1}
@@ -1041,9 +1054,7 @@
     "at": [129, 9],
     "radius": 14
    },
-   "trees": [
-    {"species": "pine", "at": [14, -13]}
-   ]
+   "trees": []
   },
   {
    "key": "ridge_cut",
@@ -1091,9 +1102,7 @@
     "at": [155, -17],
     "radius": 12
    },
-   "trees": [
-    {"species": "pine", "at": [1, -11]}
-   ]
+   "trees": []
   },
   {
    "key": "meadow_farm_1",
@@ -1637,6 +1646,6 @@
  "water": [
   {"kind": "shrine", "place": "sunken_shrine", "radius": [26, 18], "feather": 0.4},
   {"kind": "barrow", "place": "old_barrow", "radius": [34, 40]},
-  {"kind": "oak", "place": "hollow_oak", "at": [15, 14], "radius": [16, 14]}
+  {"kind": "oak", "place": "hollow_oak", "at": [-14, 34], "radius": [16, 14]}
  ]
 }

@@ -510,59 +510,67 @@ def windmill():
 
 @recipe
 def sawmill():
-    """The sawmill: a long plank shed open on one side, a great water
-    wheel on its east wall turning in a stone race, logs waiting and
-    planks stacked."""
+    """The sawmill: a long plank shed open to the yard, and on its east
+    wall a great water wheel turning in a stone race that runs the length
+    of the building, with a sluice gate at its head."""
     v = house(-5, -8, 5, 8, 1, "plank", ridge_x=False, door=("s", -1), windows=False)
     v.foundation = "cobble"
-    # open the west side between the posts: the saw floor
-    for z in range(-6, 7):
-        if z % 4:
-            v.col(-5, z, 0, 2, "air")
+    # the saw floor inside
     for z in range(-5, 6):
-        v.set(-2, 0, z, "planks") if abs(z) != 3 else None
+        if abs(z) != 3:
+            v.set(-2, 0, z, "planks")
     v.set(-2, 1, 0, "timber_beam")
     v.set(-2, 2, 0, "timber_beam")
-    for z in (-6, -5, 5, 6):
-        v.set(2, 0, z, "log")
-        v.set(3, 0, z, "log")
-    v.set(3, 1, -6, "log")
     v.set(0, 2, 0, "lantern")
-    # the wheel on the east wall: a rim of timber 5 m in radius, spokes, an axle
-    cx, cy, cz = 7, 3, 0
-    for a in range(0, 360, 6):
-        import math as _m
-        y = cy + round(_m.sin(_m.radians(a)) * 5)
-        z = cz + round(_m.cos(_m.radians(a)) * 5)
-        v.set(cx, y, z, "dark_planks")
+    # the wheel: a rim 5 m in radius, eight spokes, on an axle through the wall
+    cx, cy, cz = 8, 3, 0
+    for a in range(0, 360, 5):
+        y = cy + round(math.sin(math.radians(a)) * 5)
+        z = cz + round(math.cos(math.radians(a)) * 5)
+        v.set(cx, y, z, "birch_planks")
+        v.set(cx + 1, y, z, "birch_planks")
     for k in range(-4, 5):
         v.set(cx, cy + k, cz, "timber_beam")
         v.set(cx, cy, cz + k, "timber_beam")
         if abs(k) <= 3:
             v.set(cx, cy + k, cz + k, "timber_beam")
             v.set(cx, cy + k, cz - k, "timber_beam")
-    v.set(6, cy, cz, "timber_beam")
-    v.set(8, cy, cz, "timber_beam")
-    v.col(9, cz, 0, cy, "stone_bricks")
-    # the race: a stone channel of water under the wheel, and the flume above
-    for z in range(-12, 13):
-        for x in (6, 8):
-            v.set(x, -1, z, "stone_bricks")
-            v.set(x, -2, z, "stone_bricks")
-        v.set(7, -3, z, "stone_bricks")
-        v.set(7, -2, z, "water")
-        v.set(7, -1, z, "water")
-        if z != cz and abs(z - cz) > 5:
-            v.set(7, 0, z, "air")
-    for z in range(-12, -4):
-        v.set(7, 8, z, "planks")
-        v.set(7, 9, z, "water") if z > -11 else None
-        v.set(6, 9, z, "dark_planks")
-        v.set(8, 9, z, "dark_planks")
-        if z % 4 == 0:
-            v.col(6, z, 0, 8, "timber_beam")
-    for y in range(4, 9):
-        v.set(7, y, -4, "water")
+    for x in (6, 7, 10):
+        v.set(x, cy, cz, "timber_beam")
+    v.col(11, cz, 0, cy, "stone_bricks")
+    # the race: a broad stone channel of water under the wheel, open to the sky
+    for z in range(-14, 15):
+        for x in (6, 11):
+            v.set(x, -1, z, pick(x, 0, z, MASONRY))
+            v.set(x, 0, z, pick(x, 1, z, MASONRY)) if z % 5 == 0 else None
+        for x in range(7, 11):
+            v.set(x, -3, z, "cobble")
+            v.set(x, -2, z, "water")
+            v.set(x, -1, z, "water")
+            if abs(z - cz) > 5:
+                v.set(x, 0, z, "air")
+    # the sluice at the head of the race, and a mill pond behind it
+    for x in range(6, 12):
+        v.col(x, -15, -1, 2, "timber_beam" if x in (6, 11) else "dark_planks")
+    for x in range(4, 14):
+        for z in range(-22, -15):
+            d = ((x - 8.5) / 5) ** 2 + ((z + 18.5) / 3.6) ** 2
+            if d <= 1.0:
+                v.set(x, -1, z, "water")
+                v.set(x, -2, z, "water")
+                v.set(x, -3, z, "cobble")
+            elif d <= 1.5:
+                v.set(x, -1, z, pick(x, 2, z, ["cobble", "mossy_cobble", "sand"]))
+    # timber waiting and planks stacked on the yard side
+    for z in (-7, -6, -5):
+        v.set(-7, 0, z, "log")
+        v.set(-8, 0, z, "log")
+    v.set(-7, 1, -6, "log")
+    for z in (4, 5, 6):
+        v.set(-7, 0, z, "planks")
+        v.set(-7, 1, z, "planks")
+    v.col(13, 2, 0, 3, "timber_beam")
+    v.set(13, 4, 2, "lantern")
     v.points["wheel"] = (cx, cy, cz)
     v.points["saw"] = (-3, 0, 2)
     return v
@@ -1111,36 +1119,51 @@ def cart():
     return v
 
 
+def wagon(v, x0, z0, tilt=False):
+    """A covered wagon, its tongue to the east: a plank bed on four wheels
+    under canvas hoops."""
+    for x in range(x0, x0 + 7):
+        for z in range(z0, z0 + 3):
+            v.set(x, 1, z, "planks")
+        v.set(x, 2, z0, "dark_planks")
+        v.set(x, 2, z0 + 2, "dark_planks")
+    # wheels: a spoked disc at each corner, standing clear of the bed
+    for wx in (x0 + 1, x0 + 5):
+        for wz in (z0 - 1, z0 + 3):
+            for (dx, dy) in ((0, 0), (0, 1), (0, 2), (-1, 1), (1, 1)):
+                v.set(wx + dx, dy, wz, "dark_planks")
+            v.set(wx, 1, wz, "timber_beam")
+    # the canvas: hoops over the bed, torn open at the back
+    for x in range(x0 + (2 if tilt else 0), x0 + 7):
+        for (z, y) in ((z0, 3), (z0, 4), (z0 + 1, 5), (z0 + 2, 4), (z0 + 2, 3)):
+            if not (tilt and (x + y) % 3 == 0):
+                v.set(x, y, z, "white")
+    for k in (1, 2, 3):
+        v.set(x0 + 6 + k, 1 if k < 3 else 0, z0 + 1, "timber_beam")
+
+
 @recipe
 def wrecked_caravan():
-    """Two wagons run off the road: one on its side, its load spilled."""
+    """The wrecked caravan: one covered wagon run off the road and standing,
+    a second on its side with its canvas torn, the load spilled between."""
     v = Vol("ruin")
-    # the wagon that stands, its cover torn
-    for x in range(-6, -1):
-        for z in (0, 1, 2):
-            v.set(x, 1, z, "planks")
-        v.set(x, 2, 0, "dark_planks")
-        v.set(x, 2, 2, "dark_planks")
-        if x % 2 == 0:
-            v.set(x, 3, 0, "white")
-            v.set(x, 4, 1, "white")
-    for (x, z) in ((-6, -1), (-2, -1), (-6, 3), (-2, 3)):
-        v.set(x, 0, z, "dark_planks")
-    v.set(-1, 1, 1, "timber_beam")
-    v.set(0, 0, 1, "timber_beam")
-    # the one on its side
-    for x in range(3, 8):
+    wagon(v, -9, -1)
+    # the second: on its side
+    for x in range(3, 10):
         for y in (0, 1, 2):
-            v.set(x, y, -3, "planks")
-        v.set(x, 0, -2, "dark_planks")
-    v.set(3, 3, -3, "dark_planks")
-    v.set(7, 3, -3, "dark_planks")
-    for (x, y, z) in ((2, 0, 0), (4, 0, 1), (5, 0, -1), (4, 1, 1), (8, 0, 0), (1, 0, 3), (6, 0, 3), (-4, 2, 1)):
-        v.set(x, y, z, pick(x, y, z, ["crate", "barrel", "crate"]))
-    v.set(5, 0, 2, "black")
-    v.set(0, 0, -2, "black")
-    v.set(-8, 0, 2, "lantern")
-    v.points["wreck"] = (1, 0, 1)
+            v.set(x, y, -4, "planks")
+        v.set(x, 0, -3, "dark_planks")
+        v.set(x, 3, -4, "white") if x % 2 else None
+    for wx in (4, 8):
+        for (dx, dz) in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
+            v.set(wx + dx, 3, -5 + dz, "dark_planks")
+    for (x, y, z) in ((1, 0, 1), (3, 0, 2), (4, 0, 0), (3, 1, 2), (10, 0, 0), (0, 0, 4), (6, 0, 3), (5, 0, 1), (11, 0, -2)):
+        v.set(x, y, z, pick(x, y, z, ["crate", "barrel", "crate", "hay_bale"]))
+    v.set(5, 0, 4, "black")
+    v.set(-1, 0, -3, "black")
+    v.col(-11, 3, 0, 2, "timber_beam")
+    v.set(-11, 3, 3, "lantern")
+    v.points["wreck"] = (2, 0, 2)
     return v
 
 
@@ -1449,6 +1472,74 @@ def miners_hut():
     v.col(3, 5, 0, 2, "timber_beam")
     v.set(3, 3, 5, "lantern")
     v.set(-3, 0, 5, "crate")
+    return v
+
+
+@recipe
+def pond_big():
+    """A still pool 18 m across with a stony margin."""
+    v = Vol("prop")
+    for x in range(-11, 12):
+        for z in range(-9, 10):
+            d = (x / 9) ** 2 + (z / 7) ** 2
+            if d <= 1.0:
+                v.set(x, -1, z, "water")
+                v.set(x, -2, z, "water" if d < 0.6 else "clay")
+                v.set(x, -3, z, "clay")
+            elif d <= 1.3:
+                v.set(x, -1, z, pick(x, 0, z, ["clay", "cobble", "mossy_cobble", "sand", "clay"]))
+    for (x, z) in ((9, 3), (-9, -3), (4, -7), (-5, 7)):
+        v.set(x, 0, z, "mossy_cobble")
+    return v
+
+
+@recipe
+def brook():
+    """A brook in a stony bed, 30 m long, with a plank footbridge over it."""
+    v = Vol("prop")
+    for x in range(-15, 16):
+        w = 2 if rnd(x // 4, 0, 0, 41) % 2 else 1
+        for z in range(-w - 1, w + 2):
+            if abs(z) <= w:
+                v.set(x, -1, z, "water")
+                v.set(x, -2, z, "cobble")
+            else:
+                v.set(x, -1, z, pick(x, 0, z, ["cobble", "mossy_cobble", "clay", "stone"]))
+        if rnd(x, 0, 0, 42) % 7 == 0:
+            v.set(x, 0, w + 2, "mossy_cobble")
+    # the footbridge
+    for x in range(-2, 3):
+        for z in range(-4, 5):
+            v.set(x, 0, z, "planks")
+    for z in (-5, 5):
+        for x in (-3, 3):
+            v.col(x, z, 0, 2, "timber_beam")
+            v.set(x, 3, z, "lantern") if z == -5 else None
+    v.points["bridge"] = (0, 1, 0)
+    return v
+
+
+@recipe
+def fence_run():
+    """A length of post-and-rail fence."""
+    v = Vol("prop")
+    for x in range(-6, 7):
+        v.set(x, 0, 0, "timber_beam")
+        if x % 3 == 0:
+            v.set(x, 1, 0, "timber_beam")
+    return v
+
+
+@recipe
+def inn_sign():
+    """A hanging sign on a post, a lantern over it."""
+    v = Vol("prop")
+    v.col(0, 0, 0, 4, "timber_beam")
+    v.set(1, 4, 0, "timber_beam")
+    v.set(2, 4, 0, "timber_beam")
+    v.set(2, 3, 0, "red_banner")
+    v.set(2, 2, 0, "red_banner")
+    v.set(0, 5, 0, "lantern")
     return v
 
 

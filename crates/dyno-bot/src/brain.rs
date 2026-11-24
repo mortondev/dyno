@@ -222,6 +222,8 @@ pub struct Scripted {
     next_invite: Instant,
     /// camps we reached and found empty (we only see creatures near us), and when
     empty_camps: Vec<([i32; 2], Instant)>,
+    /// when we may next try a cart ride
+    next_ride: Instant,
 }
 
 /// What a party leader is doing, for its follower to copy.
@@ -241,8 +243,10 @@ pub type Link = std::sync::Arc<std::sync::Mutex<LeaderView>>;
 #[derive(Clone, Debug)]
 pub struct PartyRole {
     pub leader: bool,
-    /// the other member's name
+    /// the other member's name (for a follower, the leader)
     pub mate: String,
+    /// a leader's further members
+    pub others: Vec<String>,
     pub link: Link,
 }
 
@@ -279,6 +283,7 @@ impl Scripted {
             party: None,
             next_invite: Instant::now() + Duration::from_secs(3),
             empty_camps: Vec::new(),
+            next_ride: Instant::now(),
         }
     }
 
@@ -338,6 +343,16 @@ impl Scripted {
             if !grouped && now >= self.next_invite && self.mate_pos(a).is_some() {
                 self.next_invite = now + Duration::from_secs(15);
                 a.body.say(&format!("/invite {}", role.mate));
+            } else if grouped && now >= self.next_invite {
+                // a party of three or more: one invitation at a time
+                let missing = role
+                    .others
+                    .iter()
+                    .find(|m| !a.body.party.iter().any(|p| p.eq_ignore_ascii_case(m)));
+                if let Some(m) = missing {
+                    self.next_invite = now + Duration::from_secs(8);
+                    a.body.say(&format!("/invite {m}"));
+                }
             }
             // publish what we do
             let mut v = role.link.lock().unwrap();
@@ -744,6 +759,9 @@ impl Scripted {
         if (self.kind != Personality::Grinder || self.rng.f32() < 0.7)
             && let Some(t) = self.objective(a)
         {
+            if let Some(r) = self.ride_for(a, &t) {
+                return Some(r);
+            }
             return Some(t);
         }
         // 9. nothing to do for quests: explore or grind
@@ -824,6 +842,14 @@ impl Scripted {
                 return Some(Task::Recall { sent: None });
             }
         }
+        // a long way to a hub we have walked to before: take the cart
+        if d > 220.0
+            && let Some(p) = a.body.npc_pos(npc)
+            && let Some(t) = self.ride(a, p)
+        {
+            return Some(t);
+        }
+        let b = &a.body;
         let n = b.content.npc(npc)?;
         if !n.sells.is_empty() || b.free_slots() < 8 {
             deals.push(Deal::SellJunk);
@@ -843,6 +869,70 @@ impl Scripted {
         a.doing = format!("visiting {name}: {}", what.join(", "));
         self.purpose = Purpose::Npc(npc);
         Some(Task::talk(npc, deals))
+    }
+
+    /// A cart ride towards where a task is taking us, if that is far.
+    fn ride_for(&mut self, a: &mut Agent, t: &Task) -> Option<Task> {
+        let to = match t {
+            Task::Goto {
+                to: Target::Pos(p), ..
+            } => *p,
+            Task::Goto {
+                to: Target::Npc(n), ..
+            }
+            | Task::Talk { npc: n, .. } => a.body.npc_pos(*n)?,
+            _ => return None,
+        };
+        if a.body.pos().distance(to) <= 220.0 {
+            return None;
+        }
+        self.ride(a, to)
+    }
+
+    /// A carter within reach who sells a ride to a place we have found, at a
+    /// price we can pay, that saves 200 m or more of the way to `to`: go
+    /// and buy it.
+    fn ride(&mut self, a: &mut Agent, to: Vec3) -> Option<Task> {
+        let b = &a.body;
+        let now = Instant::now();
+        if now < self.next_ride || b.in_combat() {
+            return None;
+        }
+        let me = b.pos();
+        let afoot = me.distance(to);
+        let mut best: Option<(f32, u16, u16, String)> = None;
+        for n in &b.content.npcs {
+            let Some(at) = b.npc_pos(n.id) else { continue };
+            let walk = at.distance(me);
+            if walk > 90.0 {
+                continue;
+            }
+            for (item, price) in &n.sells {
+                let it = b.content.item(*item);
+                let Some(r) = a.ride_of(*item) else { continue };
+                // found on foot: we were told its name when we walked in
+                let found = r.area.as_ref().is_none_or(|key| {
+                    b.content
+                        .areas
+                        .iter()
+                        .find(|ar| &ar.key == key)
+                        .is_some_and(|ar| a.tel.areas.contains(&ar.name))
+                });
+                let off = b.rel2(r.at).distance(to);
+                if found
+                    && walk + off + 200.0 < afoot
+                    && *price + 20 <= b.money
+                    && best.as_ref().is_none_or(|x| walk + off < x.0)
+                {
+                    best = Some((walk + off, n.id, *item, it.name.to_string()));
+                }
+            }
+        }
+        let (_, carter, item, name) = best?;
+        self.next_ride = now + Duration::from_secs(90);
+        a.doing = format!("taking a cart: {name}");
+        self.purpose = Purpose::Npc(carter);
+        Some(Task::talk(carter, vec![Deal::Buy(item, 1)]))
     }
 
     fn can_recall(&self, a: &Agent) -> bool {
@@ -1046,6 +1136,33 @@ impl Scripted {
                     "only at night: waiting for dark",
                 );
                 return None;
+            }
+            // where the rules name the dark's haunts, the nearest one for our level
+            let haunt = b
+                .content
+                .areas
+                .iter()
+                .filter(|ar| ar.dark && ar.levels[0] <= b.level + 1)
+                .map(|ar| (b.rel2(ar.at), ar.name.clone(), ar.radius))
+                .min_by(|x, y| b.dist(x.0).total_cmp(&b.dist(y.0)));
+            if let Some((p, name, radius)) = haunt {
+                let d = b.dist(p);
+                if d > radius * 0.5 {
+                    return Some((
+                        d,
+                        Task::Goto {
+                            to: Target::Pos(p),
+                            range: radius * 0.4,
+                            why: name.clone(),
+                        },
+                        format!("go to {name} for {}", c.name),
+                    ));
+                }
+                return Some((
+                    d,
+                    Task::wait(4.0, true),
+                    format!("wait for a {} to rise", c.name),
+                ));
             }
             // out into the dark meadow, away from the hearth's light
             let ang = self.rng.range(0.0, std::f32::consts::TAU);
