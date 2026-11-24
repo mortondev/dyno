@@ -158,7 +158,7 @@ progress. A second join with nothing changed downloads nothing
 | figures, clips and shapes as pack data, uncompressed | 12,485,452 |
 | compressed, compact clips, creatures and held items streamed | 3,037,774 |
 | 0.10.0, with armour sets and the interface | 3,746,571 |
-| new feedback sounds at 22050 Hz; world and ambience sounds streamed | 2,657,074 |
+| new feedback sounds at 22050 Hz; world and ambience sounds streamed (with ability icons and sounds) | 2,947,175 |
 
 The cache also keeps
 the last manifest, so the title screen shows the last world's stage, news

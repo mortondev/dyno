@@ -740,9 +740,7 @@ fn spellbook_tab(ui: &mut egui::Ui, v: &View) {
                 );
                 let icon = Rect::from_min_size(row.min + Vec2::splat(6.0), Vec2::splat(44.0));
                 theme::slot_well(p, icon);
-                if let Some(item) = c.item_by_key(&a.icon) {
-                    survival::item_icon(p, icon.shrink(5.0), c, item);
-                }
+                survival::ability_icon(p, icon.shrink(5.0), c, a);
                 if !known {
                     p.rect_filled(icon.shrink(2.0), 3.0, Color32::from_black_alpha(165));
                 }

@@ -176,6 +176,9 @@ pub struct AudioData {
     pub targets: BTreeMap<String, Target>,
     pub events: BTreeMap<String, Event>,
     pub footsteps: Footsteps,
+    /// how the sounds the rules name are played (an ability's `sound`):
+    /// the files are `<file><name>_<n>.wav`, up to `variants` of them
+    pub named: Option<Event>,
 }
 
 impl AudioData {
@@ -339,8 +342,12 @@ pub struct Mixer {
     /// the bus levels as they are now (they glide to `volumes`)
     level: [f32; 4],
     limit: Limit,
-    /// the limiter's memory of the last peak
+    /// the limiter: the level it is holding down; the frames it is
+    /// looking ahead of and the gain each asked for (rings)
     peak: f32,
+    ahead: Vec<[f32; 2]>,
+    wants: Vec<f32>,
+    ahead_at: usize,
     /// the most the limiter has had to take off so far (1: nothing)
     pub held: f32,
 }
@@ -354,6 +361,11 @@ impl Mixer {
             level: [1.0; 4],
             limit: Limit::default(),
             peak: 0.0,
+            // (1.5 ms: long enough to turn down smoothly, far too short
+            // to hear as a delay)
+            ahead: vec![[0.0; 2]; (rate as usize * 3 / 2000).max(8)],
+            wants: vec![1.0; (rate as usize * 3 / 2000).max(8)],
+            ahead_at: 0,
             held: 1.0,
         }
     }
@@ -428,16 +440,41 @@ impl Mixer {
             }
             self.voices
                 .retain(|v| (v.at as usize) < v.clip.samples.len() - 1);
-            // the limiter: it follows the peaks with no delay, so nothing
-            // gets past it, and lets go slowly
+            // the limiter: it sees each peak a moment before it plays (the
+            // sound is held back by `ahead`), turns down smoothly in that
+            // moment, and lets go slowly: no peak passes the ceiling and
+            // none is cut flat
             let ceiling = self.limit.ceiling.clamp(0.1, 1.0);
             let fall = (-1.0 / (self.limit.release.max(0.005) * self.rate as f32)).exp();
+            let span = self.ahead.len();
             for f in block.as_chunks_mut::<2>().0 {
-                self.peak = (self.peak * fall).max(f[0].abs()).max(f[1].abs());
-                if self.peak > ceiling {
-                    let g = ceiling / self.peak;
-                    f[0] *= g;
-                    f[1] *= g;
+                let late = std::mem::replace(&mut self.ahead[self.ahead_at], *f);
+                // the level held down is never under any frame still
+                // waiting to play, and falls away slowly after them
+                let waiting = self
+                    .ahead
+                    .iter()
+                    .fold(0.0f32, |m, w| m.max(w[0].abs()).max(w[1].abs()));
+                self.peak = (self.peak * fall)
+                    .max(waiting)
+                    .max(late[0].abs().max(late[1].abs()));
+                self.wants[self.ahead_at] = if self.peak > ceiling {
+                    ceiling / self.peak
+                } else {
+                    1.0
+                };
+                self.ahead_at = (self.ahead_at + 1) % span;
+                // the gain is the mean of what the frames since asked for:
+                // every one of them asked for enough for this frame, so it
+                // is enough, and it moves without a step
+                let mut g = self.wants.iter().sum::<f32>() / span as f32;
+                // (a last guard against rounding)
+                let out = late[0].abs().max(late[1].abs()) * g;
+                if out > ceiling {
+                    g *= ceiling / out;
+                }
+                *f = [late[0] * g, late[1] * g];
+                if g < 0.9999 {
                     self.held = self.held.min(g);
                 }
             }
@@ -616,10 +653,16 @@ impl Audio {
 
     /// A file of the pack, decoded. None (and asked for) until it arrives.
     fn clip(&mut self, path: &str) -> Option<Arc<Clip>> {
-        let Some(bytes) = assets::get(path) else {
+        let clip = self.arrived(path);
+        if clip.is_none() {
             assets::request(path);
-            return None;
-        };
+        }
+        clip
+    }
+
+    /// A file of the pack, decoded, if it has arrived.
+    fn arrived(&mut self, path: &str) -> Option<Arc<Clip>> {
+        let bytes = assets::get(path)?;
         if let Some((from, clip)) = self.clips.get(path)
             && Arc::ptr_eq(from, &bytes)
         {
@@ -647,22 +690,9 @@ impl Audio {
     /// to the side it is on.
     pub fn play_at(&mut self, key: &str, at: Vec3, gain: f32) {
         let Some(d) = data() else { return };
-        let reach = d
-            .events
-            .get(key)
-            .and_then(|e| e.reach)
-            .unwrap_or(d.reach)
-            .max(1.0);
-        let to = at - self.ear.0;
-        let dist = to.length();
-        // full within arm's reach, then falling away to nothing at `reach`
-        let near = (1.0 - (dist - 1.5).max(0.0) / reach).clamp(0.0, 1.0);
-        let side = if dist > 0.3 {
-            (to / dist).dot(self.ear.1)
-        } else {
-            0.0
-        };
-        self.start(key, gain * near * near, side);
+        let reach = d.events.get(key).and_then(|e| e.reach).unwrap_or(d.reach);
+        let (near, side) = self.placed(at, reach);
+        self.start(key, gain * near, side);
     }
 
     /// The footstep of the block with this key.
@@ -676,24 +706,64 @@ impl Audio {
         self.start(key, gain, 0.0);
     }
 
+    /// Play a sound the rules name (an ability's `sound`), at a place.
+    /// These stream: the first time one is wanted it is asked for, and
+    /// this is false until it has arrived (or if the pack has none), so
+    /// the caller can fall back to a plain sound.
+    pub fn play_named_at(&mut self, name: &str, at: Vec3, gain: f32) -> bool {
+        let Some(d) = data() else { return false };
+        let Some(e) = &d.named else { return false };
+        // (how many variants a name has is not written down: those that
+        // are there play, and none is asked for twice once one has come)
+        let ready: Vec<(u8, Arc<Clip>)> = (0..e.variants)
+            .filter_map(|v| Some((v, self.arrived(&format!("{}{name}_{v}.wav", e.file))?)))
+            .collect();
+        if ready.is_empty() {
+            for v in 0..e.variants {
+                assets::request(&format!("{}{name}_{v}.wav", e.file));
+            }
+            return false;
+        }
+        let (near, side) = self.placed(at, e.reach.unwrap_or(d.reach));
+        self.voice(name, e, ready, gain * near, side);
+        true
+    }
+
+    /// How much of a sound at `at` is heard (0 to 1), and how far to the
+    /// right it is (-1 to 1).
+    fn placed(&self, at: Vec3, reach: f32) -> (f32, f32) {
+        let to = at - self.ear.0;
+        let dist = to.length();
+        // full within arm's reach, then falling away to nothing at `reach`
+        let near = (1.0 - (dist - 1.5).max(0.0) / reach.max(1.0)).clamp(0.0, 1.0);
+        let side = if dist > 0.3 {
+            (to / dist).dot(self.ear.1)
+        } else {
+            0.0
+        };
+        (near * near, side)
+    }
+
     fn start(&mut self, key: &str, gain: f32, side: f32) {
         let Some(d) = data() else { return };
         let Some(e) = d.events.get(key) else { return };
-        let g = gain * e.gain;
-        if g < 0.004 {
-            return;
-        }
-        let (last, when) = self.last.get(key).copied().unwrap_or((u8::MAX, -1e9));
-        if self.clock - when < e.gap as f64 {
-            return;
-        }
         // (every variant is looked at, so the missing ones are asked for)
         let ready: Vec<(u8, Arc<Clip>)> = e
             .paths()
             .enumerate()
             .filter_map(|(i, p)| Some((i as u8, self.clip(&p)?)))
             .collect();
-        if ready.is_empty() {
+        self.voice(key, e, ready, gain, side);
+    }
+
+    /// Start one of the variants that are `ready`.
+    fn voice(&mut self, key: &str, e: &Event, ready: Vec<(u8, Arc<Clip>)>, gain: f32, side: f32) {
+        let g = gain * e.gain;
+        if g < 0.004 || ready.is_empty() {
+            return;
+        }
+        let (last, when) = self.last.get(key).copied().unwrap_or((u8::MAX, -1e9));
+        if self.clock - when < e.gap as f64 {
             return;
         }
         // never the same variant twice running
@@ -836,6 +906,82 @@ mod tests {
     }
 
     #[test]
+    fn a_rising_peak_is_turned_down_not_cut_flat() {
+        // a tone that swells to twice full scale: under the ceiling
+        // throughout, and still a tone (no run of samples pinned there)
+        let frames = 20_000;
+        let samples: Vec<f32> = (0..frames)
+            .map(|i| {
+                let swell = (i as f32 / 4000.0).min(2.0);
+                swell * (i as f32 * 0.05).sin()
+            })
+            .collect();
+        let mut m = Mixer::new(RATE);
+        m.apply(Cmd::Play {
+            clip: Arc::new(Clip {
+                channels: 1,
+                rate: RATE,
+                samples,
+            }),
+            bus: Bus::Effects,
+            gain: [1.0, 1.0],
+            pitch: 1.0,
+        });
+        let mut out = vec![0.0; frames * 2];
+        m.render(&mut out);
+        let ceiling = Limit::default().ceiling;
+        let left: Vec<f32> = out.iter().step_by(2).copied().collect();
+        let top = left.iter().fold(0.0f32, |a, b| a.max(b.abs()));
+        assert!(top <= ceiling + 1e-6 && top > ceiling * 0.9, "peak {top}");
+        let pinned = left
+            .windows(3)
+            .filter(|w| w.iter().all(|s| s.abs() > ceiling - 1e-4))
+            .count();
+        assert_eq!(pinned, 0, "flat tops");
+        assert!(m.held < 0.6, "it had to halve the level: {}", m.held);
+    }
+
+    #[test]
+    fn the_device_is_fed_what_the_mixer_makes() {
+        // the path a player hears: messages in, samples out
+        let (tx, rx) = channel();
+        let mut device = Output {
+            rx,
+            mixer: Mixer::new(RATE),
+            buf: [0.0; 512],
+            at: 512,
+        };
+        use rodio::Source;
+        assert_eq!(
+            (device.channels().get(), device.sample_rate().get()),
+            (2, RATE)
+        );
+        assert!(
+            device.by_ref().take(2000).all(|s| s == 0.0),
+            "silence first"
+        );
+        tx.send(Cmd::Play {
+            clip: clip(0.5, 4000),
+            bus: Bus::Ui,
+            gain: [1.0, 0.25],
+            pitch: 1.0,
+        })
+        .unwrap();
+        tx.send(Cmd::Volumes(Volumes {
+            master: 0.5,
+            ..Volumes::FULL
+        }))
+        .unwrap();
+        let heard: Vec<f32> = device.by_ref().take(6000).collect();
+        let (left, right) = (heard[5000], heard[5001]);
+        assert!((left - 0.25).abs() < 0.01, "left {left}");
+        assert!((right - 0.0625).abs() < 0.01, "right {right}");
+        // and it never ends, with or without the game
+        drop(tx);
+        assert!(device.next().is_some());
+    }
+
+    #[test]
     fn each_slider_moves_its_own_bus() {
         for bus in Bus::ALL {
             let mut m = Mixer::new(RATE);
@@ -893,7 +1039,8 @@ mod tests {
         let json = r#"{ "reach": 20, "events": {
             "test.streamed": { "file": "sounds/test/streamed", "variants": 3, "bus": "ui", "gap": 0 },
             "test.placed": { "file": "sounds/test/placed", "variants": 1, "once": true, "gap": 0 }
-        }, "footsteps": { "default": "test.placed", "blocks": { "grass": "test.streamed" } } }"#;
+        }, "footsteps": { "default": "test.placed", "blocks": { "grass": "test.streamed" } },
+           "named": { "file": "sounds/test/named/", "variants": 3, "gain": 0.5, "gap": 0 } }"#;
         assets::insert(AUDIO_JSON, json.as_bytes().to_vec());
         guard
     }
@@ -932,7 +1079,7 @@ mod tests {
         for _ in 0..12 {
             a.play("test.streamed", 1.0);
             let out = a.render(0.02);
-            heard.push((out[100] * 32767.0 * std::f32::consts::SQRT_2).round() as i32 / 1000);
+            heard.push((out[400] * 32767.0 * std::f32::consts::SQRT_2).round() as i32 / 1000);
         }
         for w in heard.windows(2) {
             assert_ne!(w[0], w[1], "{heard:?}");
@@ -947,7 +1094,7 @@ mod tests {
         a.play("test.streamed", 1.0);
         let out = a.render(0.02);
         assert_eq!(
-            (out[100] * 32767.0 * std::f32::consts::SQRT_2).round() as i32,
+            (out[400] * 32767.0 * std::f32::consts::SQRT_2).round() as i32,
             2000
         );
     }
@@ -971,6 +1118,25 @@ mod tests {
         assert!(l2 > 0.0 && l2 < 0.3 * 0.5, "far: {l2}");
         let (l3, r3) = hear(Vec3::new(0.0, 0.0, -30.0));
         assert_eq!((l3, r3), (0.0, 0.0), "out of reach");
+    }
+
+    #[test]
+    fn a_named_sound_is_asked_for_once_and_then_plays() {
+        let _pack = test_pack();
+        let mut a = Audio::offline(RATE);
+        let here = Vec3::new(0.0, 0.0, -1.0);
+        // not arrived: the caller is told to fall back, and it is asked for
+        assert!(!a.play_named_at("spark", here, 1.0));
+        let asked = assets::take_requests(|p| p.starts_with("sounds/test/named/"));
+        assert_eq!(asked.len(), 3, "{asked:?}");
+        // it has one variant: that plays, and the others are not asked for
+        // again every time
+        assets::insert("sounds/test/named/spark_0.wav", wav(&[16000; 2000], RATE));
+        assert!(a.play_named_at("spark", here, 1.0));
+        let out = a.render(0.03);
+        let want = 16000.0 / 32767.0 * 0.5 * std::f32::consts::FRAC_1_SQRT_2;
+        assert!((out[400] - want).abs() < 1e-3, "{} {want}", out[400]);
+        assert!(assets::take_requests(|p| p.starts_with("sounds/test/named/")).is_empty());
     }
 
     #[test]

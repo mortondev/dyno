@@ -110,11 +110,27 @@ fn every_sound_event_has_its_files() {
             used.insert(path);
         }
     }
+    // the sounds the rules name (an ability's `sound`): each has a first
+    // variant, in the place and within the count `named` gives
+    let named = d.named.as_ref().expect("how named sounds are played");
+    let content = dyno_world::content::Content::default_pack();
+    for a in content.abilities.iter().filter(|a| !a.sound.is_empty()) {
+        for v in 0..named.variants {
+            let path = format!("{}{}_{v}.wav", named.file, a.sound);
+            if v > 0 && !pack().join(&path).exists() {
+                break;
+            }
+            let clip = decode_wav(&read(&path))
+                .unwrap_or_else(|| panic!("{path} (ability {}): not 16-bit PCM", a.key));
+            assert!(!clip.samples.is_empty(), "{path} is empty");
+            used.insert(path);
+        }
+    }
     // and no file is left that nothing plays
     for path in wavs("sounds") {
         assert!(
             used.contains(&path),
-            "{path}: no event in {AUDIO_JSON} plays it"
+            "{path}: no event in {AUDIO_JSON} and no ability in the rules plays it"
         );
     }
 }
@@ -267,6 +283,8 @@ fn sounds_for_the_first_minute_come_with_the_join_and_the_rest_stream() {
             }
         }
     }
+    let named = d.named.as_ref().unwrap();
+    assert!(streams(&named.file), "{}: named sounds stream", named.file);
     // (before compression; the join itself is held in tests/streaming.rs)
     assert!(join < 2_300_000, "{join} bytes of sound in the join");
 }
@@ -296,6 +314,36 @@ fn each_event_keeps_to_the_level_of_its_bus() {
         assert!(
             db <= target.peak_db + 0.05,
             "{key}: peaks at {db:.1} dB, over the {bus} bus's {} dB",
+            target.peak_db
+        );
+    }
+    // the sounds the rules name keep to the effects bus's level too
+    let target = d.targets["effects"];
+    let content = dyno_world::content::Content::default_pack();
+    let mut names: Vec<&str> = content
+        .abilities
+        .iter()
+        .map(|a| a.sound.as_str())
+        .filter(|s| !s.is_empty())
+        .collect();
+    names.sort();
+    names.dedup();
+    assert!(!names.is_empty());
+    audio.listener(glam::Vec3::ZERO, glam::Vec3::X);
+    for name in names {
+        let mut top = 0.0f32;
+        for _ in 0..6 {
+            assert!(
+                audio.play_named_at(name, glam::Vec3::ZERO, 1.0),
+                "ability sound `{name}` did not play"
+            );
+            let out = audio.render(2.0);
+            top = out.iter().fold(top, |a, b| a.max(b.abs()));
+        }
+        let db = 20.0 * top.log10();
+        assert!(
+            top > 0.0 && db <= target.peak_db + 0.05,
+            "ability sound `{name}`: peaks at {db:.1} dB (effects: {} dB)",
             target.peak_db
         );
     }

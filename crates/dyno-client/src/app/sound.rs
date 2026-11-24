@@ -70,11 +70,9 @@ pub fn frame(audio: &mut Audio, heard: &mut Heard, p: Option<&Play>, ctx: &egui:
 
 /// Someone else (or something) swings or shoots: heard from where they are.
 pub fn act(audio: &mut Audio, p: &Play, actor: &Actor, act: &Act) {
-    let key = match act {
-        Act::Swing => "combat.swing",
-        Act::Shoot => "combat.shoot",
-        _ => return,
-    };
+    if !matches!(act, Act::Swing | Act::Shoot) {
+        return;
+    }
     let at = match actor {
         Actor::Player(id) if *id != p.my_id => {
             p.remotes.get(id).map(|r| Vec3::from(r.current().pos))
@@ -82,8 +80,10 @@ pub fn act(audio: &mut Audio, p: &Play, actor: &Actor, act: &Act) {
         Actor::Entity(id) => p.entities.get(id).map(|e| e.pos()),
         _ => None,
     };
-    if let Some(at) = at {
-        audio.play_at(key, at, 0.8);
+    match (at, act) {
+        (Some(at), Act::Swing) => audio.play_at("combat.swing", at, 0.8),
+        (Some(at), _) => audio.play_at("combat.shoot", at, 0.8),
+        _ => {}
     }
 }
 

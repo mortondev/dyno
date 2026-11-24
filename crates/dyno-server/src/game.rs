@@ -87,6 +87,9 @@ pub struct Player {
     /// when each ability is ready again
     pub cooldowns: HashMap<u16, Instant>,
     pub gcd_until: Instant,
+    /// an ability pressed just before the global cooldown or a cast ended:
+    /// it goes off as soon as it can
+    pub queued: Option<(u16, Option<u32>)>,
     pub casting: Option<crate::abilities::Casting>,
     /// worn gear, by paper-doll place
     pub equip: Vec<Option<Stack>>,
@@ -874,6 +877,7 @@ impl State {
             power_clock: 0.0,
             cooldowns: HashMap::new(),
             gcd_until: Instant::now(),
+            queued: None,
             casting: None,
             equip: {
                 let mut v = store::pack_from_keys(&self.content, &data.equip).slots;
@@ -1821,14 +1825,41 @@ impl State {
         if p.mode == Mode::Creative || p.dead || amount <= 0.0 {
             return;
         }
+        use dyno_world::content::BuffKind;
         let ward: f32 = p
             .auras
             .iter()
-            .filter_map(|a| a.buff)
-            .filter(|b| b.kind == dyno_world::content::BuffKind::Ward)
-            .map(|b| b.amount)
+            .filter(|a| a.buff.is_some_and(|b| b.kind == BuffKind::Ward))
+            .map(|a| a.amount)
             .sum();
-        let amount = amount * (1.0 - (ward / 100.0).min(0.9));
+        let mut amount = amount * (1.0 - (ward / 100.0).min(0.9));
+        // a shield soaks up the blow first, and breaks when it is spent
+        let mut auras_changed = crate::abilities::drop_stealth(&mut p.auras);
+        let mut soaked = 0.0;
+        for a in p.auras.iter_mut() {
+            if a.buff.is_some_and(|b| b.kind == BuffKind::Absorb) && amount > 0.0 {
+                let take = a.amount.min(amount);
+                a.amount -= take;
+                amount -= take;
+                soaked += take;
+            }
+        }
+        if soaked > 0.0 {
+            let n = p.auras.len();
+            p.auras
+                .retain(|a| a.buff.is_none_or(|b| b.kind != BuffKind::Absorb) || a.amount > 0.01);
+            auras_changed |= p.auras.len() != n;
+            p.send(&ServerMsg::System {
+                text: format!("Your shield absorbs {soaked:.0}."),
+            });
+            p.combat_until = Instant::now() + Duration::from_secs(6);
+        }
+        if auras_changed {
+            self.send_auras(id);
+        }
+        if amount <= 0.0 {
+            return;
+        }
         let act = |a| ServerMsg::Act {
             actor: proto::Actor::Player(id),
             act: a,

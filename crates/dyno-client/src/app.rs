@@ -504,6 +504,26 @@ fn use_action(p: &mut Play, i: usize) {
     if let Some(t) = target {
         p.focus = Some(t);
     }
+    // what the server will refuse sounds like a refusal: still cooling
+    // down, too little rage or mana, or the target too far (as the bar
+    // shows it: hud::slot_look)
+    let mut refused = false;
+    if let ClientMsg::Cast { ability, .. } = &msg
+        && let Some(a) = p.content.ability(*ability)
+    {
+        let cooling = p
+            .cooldowns
+            .get(ability)
+            .is_some_and(|(until, _)| *until > Instant::now() + Duration::from_millis(300));
+        let far = a.range > 0.0
+            && target
+                .and_then(|id| p.entities.get(&id))
+                .is_some_and(|e| e.pos().distance(p.player.pos) > a.range + 1.0);
+        refused = cooling || far || p.power + 0.01 < a.cost;
+        if refused {
+            crate::audio::emit("ui.error");
+        }
+    }
     // instant abilities: a weapon strike or a flick of the hands, at once
     if let ClientMsg::Cast { ability, .. } = &msg
         && let Some(a) = p.content.ability(*ability)
@@ -516,15 +536,10 @@ fn use_action(p: &mut Play, i: usize) {
             Anim::CastRelease
         };
         p.anims.me(now).play_fresh(now, act);
-        // what the server will refuse sounds like a refusal
-        let cooling = p
-            .cooldowns
-            .get(ability)
-            .is_some_and(|(until, _)| *until > Instant::now() + Duration::from_millis(300));
-        if cooling || p.power + 0.01 < a.cost {
-            crate::audio::emit("ui.error");
-        } else if a.weapon > 0.0 {
+        if a.weapon > 0.0 && !refused {
             crate::audio::emit("combat.swing");
+            // (the blow's own message must not swing again)
+            p.anims.last_swing = now;
         }
     }
     let _ = p.conn.tx.send(msg);
@@ -2266,6 +2281,7 @@ impl App {
                                         .is_some_and(|t| t.elapsed() < Duration::from_secs(2))
                                 {
                                     spawn_motes(&mut p.particles, at, c.color, 10, id);
+                                    self.audio.play_at("combat.kill", at, 1.0);
                                 }
                             }
                             if picked_by == Some(p.my_id) {
@@ -2310,6 +2326,7 @@ impl App {
                             p.gcd = (now + Duration::from_secs_f32(global), global);
                         }
                         ServerMsg::Effect {
+                            ability,
                             color,
                             from,
                             to,
@@ -2319,10 +2336,35 @@ impl App {
                             animate_caster(p, a, color);
                             if radius > 0.0 {
                                 spawn_burst(&mut p.particles, a, color, radius);
-                                self.audio.play_at("combat.burst", a, 1.0);
                             } else {
                                 spawn_bolt(&mut p.particles, a, b, color);
-                                self.audio.play_at("combat.bolt", a, 1.0);
+                            }
+                            // the ability's own sound from the pack, or the
+                            // plain bolt or burst
+                            let own = ability
+                                .and_then(|i| p.content.ability(i))
+                                .map(|x| x.sound.clone())
+                                .filter(|s| !s.is_empty());
+                            let played = own.is_some_and(|s| self.audio.play_named_at(&s, a, 1.0));
+                            if !played {
+                                if radius > 0.0 {
+                                    self.audio.play_at("combat.burst", a, 1.0);
+                                } else {
+                                    self.audio.play_at("combat.bolt", a, 1.0);
+                                }
+                            }
+                        }
+                        ServerMsg::Healed { amount } => {
+                            if amount >= 0.5 {
+                                self.audio.play("combat.heal", 1.0);
+                                let green = Color32::from_rgb(110, 235, 120);
+                                p.floaters
+                                    .push((Instant::now(), format!("+{amount:.0}"), green));
+                                p.combat_log.push((
+                                    Instant::now(),
+                                    format!("You are healed for {amount:.0}."),
+                                    green,
+                                ));
                             }
                         }
                         ServerMsg::Equipment(e) => {
@@ -3694,6 +3736,7 @@ impl App {
                 crate::options::interface().into(&mut self.settings);
                 if let Some(s) = crate::options::sound() {
                     s.into(&mut self.settings);
+                    let _ = self.settings.save();
                 }
                 if let Some(o) = crate::options::get() {
                     o.into(&mut self.settings);

@@ -59,7 +59,7 @@ fn the_worst_case_never_clips_and_each_bus_keeps_its_level() {
     assert!(top > 0.3, "and it is loud: {top}");
     // the limiter is a guard, not part of the sound: even here it takes
     // off little
-    let off = -20.0 * a.held().log10();
+    let off = (-20.0 * a.held().log10()).abs();
     assert!(off < 6.0, "the limiter took off {off:.1} dB");
     println!(
         "worst case, sliders full: peak {:.1} dBFS, loudness {:.1} dB, limiter took off {off:.1} dB at most",

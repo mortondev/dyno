@@ -10,6 +10,7 @@
   "stage": "stage/title.dynw"
  },
  "stream": [
+  "sounds/abilities/",
   "models/creatures/",
   "models/held/",
   "rigs/multileg",

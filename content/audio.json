@@ -26,9 +26,9 @@
   "ui.loot": {"file": "sounds/ui/loot", "variants": 3, "bus": "ui", "gain": 0.42, "gap": 0.25},
   "ui.error": {"file": "sounds/ui/error", "variants": 3, "bus": "ui", "gain": 0.5, "pitch": 0.03, "gap": 0.3},
   "ui.quest_step": {"file": "sounds/ui/quest_step", "variants": 3, "bus": "ui", "gain": 0.5, "gap": 0.2},
-  "ui.quest_accept": {"file": "sounds/ui/quest_accept", "variants": 1, "bus": "ui", "gain": 0.6, "once": true, "gap": 0.5},
-  "ui.quest_ready": {"file": "sounds/ui/quest_ready", "variants": 1, "bus": "ui", "gain": 0.6, "once": true, "gap": 0.5},
-  "ui.quest_complete": {"file": "sounds/ui/quest_complete", "variants": 1, "bus": "ui", "gain": 0.7, "once": true, "gap": 0.5},
+  "ui.quest_accept": {"file": "sounds/ui/quest_accept", "variants": 3, "bus": "ui", "gain": 0.6, "gap": 0.5},
+  "ui.quest_ready": {"file": "sounds/ui/quest_ready", "variants": 3, "bus": "ui", "gain": 0.6, "gap": 0.5},
+  "ui.quest_complete": {"file": "sounds/ui/quest_complete", "variants": 3, "bus": "ui", "gain": 0.7, "gap": 0.5},
   "ui.level_up": {"file": "sounds/ui/level_up", "variants": 1, "bus": "ui", "gain": 0.78, "once": true, "gap": 1.0},
   "ui.ability_new": {"file": "sounds/ui/ability_new", "variants": 1, "bus": "ui", "gain": 0.6, "once": true, "gap": 1.0},
   "ui.chat": {"file": "sounds/ui/chat", "variants": 4, "bus": "ui", "gain": 1.0, "gap": 0.2},
@@ -73,6 +73,7 @@
   "amb.wind": {"file": "sounds/amb/wind", "variants": 4, "bus": "ambience", "gain": 0.18, "pitch": 0.05, "gap": 0.5},
   "amb.hammer": {"file": "sounds/amb/hammer", "variants": 4, "bus": "ambience", "gain": 0.5, "pitch": 0.04}
  },
+ "named": {"file": "sounds/abilities/", "variants": 3, "bus": "effects", "gain": 0.6, "pitch": 0.04},
  "footsteps": {
   "default": "step.dirt",
   "wade": "step.water",

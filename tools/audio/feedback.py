@@ -213,9 +213,12 @@ def ui_quest_step(r, v):
 
 def ui_quest_accept(r, v):
     # a question asked: two plucked notes rising a fifth, a low string under
+    # (each variant is the same phrase played again: other strings, other
+    # timing, the same notes)
     low = lp(pluck(midi(50), 0.9, r, 0.4, 0.997), 2500)
+    at = 0.16 + r.uniform(-0.015, 0.02)
     return reverb(
-        mix((low, 0, 0.6), (harp(62, 0.7, r), 0.0, 0.8), (harp(69, 0.9, r), 0.16, 0.9), (glock(81, 0.6, r, 0.3), 0.16, 1.0)),
+        mix((low, 0, 0.6), (harp(62, 0.7, r), 0.0, 0.8), (harp(69, 0.9, r), at, 0.9), (glock(81, 0.6, r, 0.3), at, 1.0)),
         0.24,
         tail=0.5,
     )
@@ -223,14 +226,14 @@ def ui_quest_accept(r, v):
 
 def ui_quest_ready(r, v):
     # the work is done: three notes up the chord
-    parts = [(harp(n, 0.8, r), 0.11 * i, 0.8) for i, n in enumerate((62, 66, 69))]
-    return reverb(mix(*parts, (glock(81, 0.7, r, 0.35), 0.22, 1.0)), 0.24, tail=0.5)
+    parts = [(harp(n, 0.8, r), 0.11 * i + r.uniform(0, 0.015), 0.8) for i, n in enumerate((62, 66, 69))]
+    return reverb(mix(*parts, (glock(81, 0.7, r, 0.35), 0.23, 1.0)), 0.24, tail=0.5)
 
 
 def ui_quest_complete(r, v):
     # the answer: a rolled chord, a bell on top, a warm horn fifth under it
     chord = (50, 57, 62, 66, 69, 74)
-    parts = [(harp(n, 1.5, r), 0.055 * i, 0.7) for i, n in enumerate(chord)]
+    parts = [(harp(n, 1.5, r), 0.055 * i + r.uniform(0, 0.012), 0.7) for i, n in enumerate(chord)]
     horns = mix((horn(midi(50), 1.5, r, 0.8), 0, 0.5), (horn(midi(57), 1.5, r, 0.8), 0, 0.4), (horn(midi(62), 1.5, r, 0.7), 0, 0.3))
     bells = mix((glock(86, 1.2, r), 0.33, 0.5), (glock(90, 1.0, r), 0.45, 0.35))
     return reverb(mix(*parts, (lp(horns, 1800), 0.05, 0.45), (bells, 0, 1.0)), 0.3, tail=0.9)
@@ -424,9 +427,9 @@ SOUNDS = [
     ("ui", "loot", 3, ui_loot, 0.7),
     ("ui", "error", 3, ui_error, 0.6),
     ("ui", "quest_step", 3, ui_quest_step, 0.6),
-    ("ui", "quest_accept", 1, ui_quest_accept, 0.7),
-    ("ui", "quest_ready", 1, ui_quest_ready, 0.7),
-    ("ui", "quest_complete", 1, ui_quest_complete, 0.8),
+    ("ui", "quest_accept", 3, ui_quest_accept, 0.7),
+    ("ui", "quest_ready", 3, ui_quest_ready, 0.7),
+    ("ui", "quest_complete", 3, ui_quest_complete, 0.8),
     ("ui", "level_up", 1, ui_level_up, 0.8),
     ("ui", "ability_new", 1, ui_ability_new, 0.7),
     ("combat", "swing", 4, combat_swing, 0.6),
