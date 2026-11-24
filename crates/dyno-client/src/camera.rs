@@ -547,7 +547,7 @@ mod tests {
         let mut worst: f32 = 0.0;
         for _ in 0..150 {
             head += vel * DT;
-            let v = c.update(&solid, head, d, vel, 9.0, DT);
+            let v = c.update(solid, head, d, vel, 9.0, DT);
             assert!(clear(&solid, v.eye, MARGIN - 1e-3), "inside at {head:?}");
             if let Some(l) = last {
                 worst = worst.max(v.eye.distance(l));

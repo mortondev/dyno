@@ -907,7 +907,7 @@ impl Driver {
                     .map(|v| v.parse::<f32>())
                     .collect::<Result<_, _>>()
                     .map_err(|_| "walk-path X Z [X Z ...]")?;
-                if nums.is_empty() || nums.len() % 2 != 0 {
+                if nums.is_empty() || !nums.len().is_multiple_of(2) {
                     return Err("walk-path X Z [X Z ...]".into());
                 }
                 self.walk_path(&nums)
