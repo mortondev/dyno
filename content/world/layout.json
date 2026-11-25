@@ -1390,8 +1390,8 @@
    },
    "stamps": [
     {"stamp": "ashcloak_stockade_keep", "at": [0, 0]},
-    {"stamp": "ashcloak_ash_flag", "at": [-7, 18], "rot": 2},
-    {"stamp": "ashcloak_ash_flag", "at": [7, 18]},
+    {"stamp": "ashcloak_war_banner", "at": [-7, 18], "rot": 2},
+    {"stamp": "ashcloak_war_banner", "at": [7, 18]},
     {"stamp": "campfire", "at": [-12, 22], "fit": "ground"},
     {"stamp": "tent_red", "at": [14, 24], "rot": 2, "fit": "ground"},
     {"stamp": "ashcloak_charred_stumps", "at": [-30, -25], "fit": "ground"},
@@ -1492,8 +1492,8 @@
     "radius": 10
    },
    "trees": [
-    {"species": "willow", "at": [14, 8]},
-    {"species": "willow", "at": [-13, -10]}
+    {"species": "willow", "at": [24, 13]},
+    {"species": "willow", "at": [-17, -15]}
    ]
   },
   {
@@ -1726,6 +1726,7 @@
     {"stamp": "ridge_cliff_face", "at": [12, -3]},
     {"stamp": "hollow_mines", "at": [11, -3]},
     {"stamp": "mine_portal", "at": [12, -3]},
+    {"stamp": "ridge_vein_seat", "at": [11, -3]},
     {"stamp": "ridge_mine_head", "at": [6, 25], "rot": 3, "dy": 11},
     {"stamp": "ridge_adit_brazier", "at": [11, -10]},
     {"stamp": "ridge_adit_brazier", "at": [11, 4]},

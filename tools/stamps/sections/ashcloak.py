@@ -136,14 +136,16 @@ def ashcloak_stockade_keep():
     brazier by the leader's tent, weapon racks and crate stacks."""
     v = R["stockade"]()
     a = 13
-    # ash cloth instead of the red flame banners: two flat 2 x 3 sheets
-    # hanging from the gate walk, black with a red ember hem
+    # Ashcloak heraldry instead of the red flame banners: two flat 2 x 3
+    # sheets hanging from the gate walk, a red field with an ember band of
+    # orange across the middle (full rows, one plane). No black field: big
+    # black sheets read as holes in the wall at night.
     for k, b in list(v.c.items()):
         if b == "red_banner":
             del v.c[k]
     for x in (-2, -1, 1, 2):
         for y in (4, 5, 6):
-            v.set(x, y, a + 1, "black" if y > 4 else "red")
+            v.set(x, y, a + 1, "orange" if y == 5 else "red")
     # the inner row: a plank wall behind the log posts, 4 m
     b = a - 1
     for i in range(-b, b + 1):
@@ -170,6 +172,23 @@ def ashcloak_stockade_keep():
     for (x, z, h) in ((10, -2, 2), (11, -2, 1), (10, -1, 1), (11, 0, 2), (9, 1, 1)):
         for y in range(h):
             v.set(x, y, z, pick(x, y, z, ["crate", "crate", "barrel"], 5))
+    return v
+
+
+@recipe
+def ashcloak_war_banner():
+    """The stockade's gate standards: a 7 m timber pole with a lantern on
+    top and a 2 x 4 flag in Ashcloak colours on the +x side: a red field
+    with an orange ember band and a single black row of ash at the head
+    (full rows in one vertical plane; never a black field, which reads as a
+    hole at night). 3 x 8 x 1."""
+    v = Vol("prop")
+    v.col(0, 0, 0, 6, "timber_beam")
+    rows = {6: "black", 5: "red", 4: "orange", 3: "red"}
+    for y, b in rows.items():
+        v.set(1, y, 0, b)
+        v.set(2, y, 0, b)
+    v.set(0, 7, 0, "lantern")
     return v
 
 

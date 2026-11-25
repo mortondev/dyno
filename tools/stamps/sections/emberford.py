@@ -121,7 +121,10 @@ def emberford_bridge_arch():
         for z in range(-4, 5):
             edge = abs(z) == 4
             # the walking surface
-            top = "terracotta" if edge else "flagstones"
+            # the old bridge's paving: cobbles with a stone-brick setts mix
+            # (the shaped cobbles give the deck its relief), a terracotta
+            # course under the parapets
+            top = "terracotta" if edge else pick(x, 0, z, ["cobble", "cobble", "cobble", "stone_bricks"])
             v.set(x, r, z, top)
             # the body under it: arches open to the water, piers to the bed,
             # abutments down into the banks
@@ -163,8 +166,9 @@ def emberford_bridge_arch():
         # an ash rag tied below the brazier, outside face
         v.set(0, 6, z + sz, "black")
         v.set(0, 5, z + sz, "red")
-    # lantern pillars at the ends and where the deck first steps up
-    for x in (-L, -13, 13, L):
+    # lantern pillars at the ends, where the deck first steps up, and over
+    # the river piers: a lantern every 6-7 m along both parapets
+    for x in (-L, -13, -6, 6, 13, L):
         for z in (-4, 4):
             r = _rise(x)
             v.col(x, z, r + 1, r + 3, "stone_bricks")
