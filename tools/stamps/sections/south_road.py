@@ -177,34 +177,42 @@ def south_road_mere_shrine():
 
 @recipe
 def south_road_windmill():
-    """The windmill with its sails as a + (up, down, left, right) in the
-    plane south of the wall: each arm a timber spar 9 m long with a solid
-    3 m wide cloth panel on its trailing side, striped in whole rows or
-    columns (white with a yellow tip band). No cube diagonals."""
+    """The windmill with four lattice sails on its north face, the side the
+    road comes up (the windmill_farm camera's): a 2 x 2 hub boss on a shaft
+    through the wall, and from it four arms as a + (up, down, left, right),
+    each a timber stock 10 m long carrying a lattice on its trailing side:
+    an outer timber rail 4 m off the stock, timber bars across at the head,
+    the middle and the tip, and the bays between them clothed (white, the
+    tip bay yellow). Every cell sits in the one sail plane, in whole rows
+    and columns: no cube diagonals."""
     v = R["windmill"]()
     hy = v.points["sails"][1]
-    # strip the old diagonal sails (everything in the sail plane z = 6, and
-    # anything hanging off it in the air) but keep the hub
+    # strip the base mill's diagonal sails and its shaft (the south plane)
     for (x, y, z) in list(v.c):
-        if z == 6 and y >= 3:
+        if (z == 6 and y >= 3) or (z == 5 and (x, y) == (0, hy)):
             del v.c[(x, y, z)]
-    v.set(0, hy, 5, "timber_beam")
-    v.set(0, hy, 6, "timber_beam")
-    # a 2 x 2 hub boss
+    S = -6                                   # the sail plane, north of the wall
+    v.set(0, hy, S + 1, "timber_beam")       # the shaft out of the cap
     for (x, y) in ((0, hy), (1, hy), (0, hy + 1), (1, hy + 1)):
-        v.set(x, y, 6, "dark_planks")
-    # arms: (spar direction, panel direction)
-    arms = (((0, 1), (1, 0)), ((1, 0), (0, -1)), ((0, -1), (-1, 0)), ((-1, 0), (0, 1)))
-    base = {(0, 1): (0, hy + 1), (1, 0): (1, hy), (0, -1): (1, hy), (-1, 0): (0, hy + 1)}
+        v.set(x, y, S, "dark_planks")        # the hub boss
+    # arms: (stock direction, lattice direction), each from its boss corner
+    arms = (((0, 1), (-1, 0)), ((-1, 0), (0, -1)), ((0, -1), (1, 0)), ((1, 0), (0, 1)))
+    base = {(0, 1): (1, hy + 1), (-1, 0): (0, hy + 1), (0, -1): (0, hy), (1, 0): (1, hy)}
     for (dx, dy), (px, py) in arms:
         ox, oy = base[(dx, dy)]
-        for i in range(1, 10):
+        for i in range(1, 11):
             sx, sy = ox + dx * i, oy + dy * i
-            v.set(sx, sy, 6, "timber_beam")
-            if i >= 3:
-                for k in range(1, 4):
-                    cloth = "yellow" if i >= 8 else "white"
-                    v.set(sx + px * k, sy + py * k, 6, cloth)
+            v.set(sx, sy, S, "timber_beam")              # the stock
+            if i < 3:
+                continue
+            bar = i in (3, 6, 10)
+            for k in range(1, 5):
+                cx, cy = sx + px * k, sy + py * k
+                if k == 4 or bar:
+                    v.set(cx, cy, S, "timber_beam")      # rail and bars
+                else:
+                    v.set(cx, cy, S, "yellow" if i >= 9 else "white")
+    v.points["sails"] = (0, hy, S)
     return v
 
 

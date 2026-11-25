@@ -252,54 +252,107 @@ def mirrormere_shells():
 
 # ---------------------------------------------------------------- the shrine
 
+# Ruin stone toned to the world's darker masonry (the barrow's cobble and
+# moss) rather than all pale dressed stone_bricks: mossy only at the
+# waterline. No plain `stone` (a terrain block, drawn as smoothed ground).
+RUIN_HI = ["cobble", "cobble", "stone_bricks"]
+RUIN_LO = ["mossy_cobble", "cobble", "cobble"]
+
+
+def _baked(name):
+    """The cells of a baked stamp (content/stamps/<name>.dstamp), keyed by
+    their offset from its anchor."""
+    import json, os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..",
+                        "content", "stamps", name + ".dstamp")
+    b = open(path, "rb").read()
+    nl = b.index(b"\n", 6)
+    head = json.loads(b[6:nl])
+    data = b[nl + 1:]
+    sx, sy, sz = head["size"]
+    ax, ay, az = head["anchor"]
+    n = sx * sy * sz
+    cells = bytearray(n)
+    i = p = 0
+    while i < n:
+        val = data[p]
+        p += 1
+        run = sh = 0
+        while True:
+            c = data[p]
+            p += 1
+            run |= (c & 0x7F) << sh
+            sh += 7
+            if not c & 0x80:
+                break
+        cells[i:i + run] = bytes([val]) * run
+        i += run
+    out = {}
+    for y in range(sy):
+        for z in range(sz):
+            for x in range(sx):
+                val = cells[(y * sz + z) * sx + x]
+                if val:
+                    out[(x - ax, y - ay, z - az)] = head["palette"][val]
+    return out
+
+
 @recipe
 def mirrormere_shrine_heart():
     """The heart of the Sunken Shrine, built on the baked stamp (same anchor,
     placed at [0, 0] with dy -1, so y = -1 is the water's top layer and y = -2
-    the drowned floor): a stepped dais rising out of the water to an
-    emberstone altar ringed with lanterns; one tall broken arch behind it on
-    the north side (13 m over the water); a toppled pillar lying in the
-    shallows to the west and a leaning one stepped against the east; rubble
-    breaking the island's straight south edge."""
+    the drowned floor): the baked stamp's dressed stone re-laid in the
+    world's darker ruin masonry; a stepped dais rising out of the water to an
+    emberstone altar ringed with lanterns; behind it on the north side the
+    stumps of a fallen arch: a west pier snapped off in steps at 10-12 m with
+    one corbel left, an east pier broken at the spring, and the arch's stones
+    lying in the shallows between and beyond them; a toppled pillar in the
+    west shallows and a leaning one stepped against the east; rubble breaking
+    the island's straight south edge."""
     v = Vol("ruin")
-    v.foundation = "stone_bricks"
+    v.foundation = "cobble"
+    # the baked shrine's pale dressed stone, re-laid above the drowned floor
+    for (x, y, z), b in _baked("sunken_shrine").items():
+        if b == "stone_bricks" and y >= -2:
+            v.set(x, y, z, pick(x, y, z, RUIN_LO if y <= 0 else RUIN_HI, 27))
     # the dais, stepped 9-7-5-3
     for y, r in ((-1, 4), (0, 3), (1, 2), (2, 1)):
         for x in range(-r, r + 1):
             for z in range(-r, r + 1):
                 if y <= 0 and max(abs(x), abs(z)) == r:
-                    b = pick(x, y, z, ["mossy_cobble", "stone_bricks", "cobble"], 21)
+                    b = pick(x, y, z, RUIN_LO, 21)
                 else:
                     b = "stone_bricks"
                 v.set(x, y, z, b)
     v.set(0, 3, 0, "emberstone")
     for (x, z) in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
         v.set(x, 3, z, "lantern")
-    # the broken arch on the north side, two cells deep (z = -6, -5)
+    # the fallen arch on the north side, two cells deep (z = -6, -5)
     for z in (-6, -5):
-        # the west pier stands whole, 14 cells from the water's top layer
+        # the west pier, snapped off in steps: highest at its outer corner
         for x in (-5, -4):
-            for y in range(-1, 13):
-                v.set(x, y, z, pick(x, y, z, MASONRY if y < 2 else ["stone_bricks"] * 4 + ["cobble"], 22))
+            top = {(-5, -6): 12, (-5, -5): 11, (-4, -6): 10, (-4, -5): 9}[(x, z)]
+            for y in range(-1, top + 1):
+                v.set(x, y, z, pick(x, y, z, RUIN_LO if y < 2 else RUIN_HI, 22))
         # the east pier broke off at the spring of the arch
         for x, top in ((4, 7), (5, 6)):
             for y in range(-1, top + 1):
-                v.set(x, y, z, pick(x, y, z, MASONRY if y < 2 else ["stone_bricks"], 23))
-        v.set(3, 7, z, "stone_bricks")          # the east springer
-        # the arch from the west pier, stepped corbels then the lintel,
-        # snapped off past the middle
-        for y, x1 in ((8, -3), (9, -2), (10, -1), (11, 1), (12, 0)):
-            for x in range(-3, x1 + 1):
-                v.set(x, y, z, "stone_bricks")
-        v.set(-5, 13, z, "stone_bricks")
-    v.set(-4, 13, -6, "stone_bricks")
-    v.set(-1, 9, -5, "lantern")                 # a lamp still hung in the arch
+                v.set(x, y, z, pick(x, y, z, RUIN_LO if y < 2 else RUIN_HI, 23))
+        v.set(3, 7, z, "cobble")                 # the east springer
+    v.set(-3, 8, -6, "cobble")                   # one corbel left on the west
+    # the arch's stones where they fell: in the shallows between the piers
+    # and a run of the lintel lying north of them, each on the bed
+    for (x, y, z) in ((-3, -1, -5), (-2, -1, -5), (-2, 0, -5), (-2, -1, -6),
+                      (-1, -1, -6), (0, -1, -5), (1, -1, -6), (2, -1, -5),
+                      (-3, -1, -7), (-2, -1, -8), (-1, -1, -8), (0, -1, -8),
+                      (-1, 0, -8), (1, -1, -9), (3, -1, -8)):
+        v.set(x, y, z, pick(x, y, z, ["cobble", "stone_bricks", "mossy_cobble"], 28))
     # the toppled pillar in the west shallows: a 2 x 2 drum lying east-west
     # with its capital at the far end
     for x in range(-10, -5):
         for z in (2, 3):
             for y in (-1, 0):
-                v.set(x, y, z, pick(x, y, z, ["stone_bricks", "stone_bricks", "mossy_cobble"], 24))
+                v.set(x, y, z, pick(x, y, z, ["cobble", "stone_bricks", "mossy_cobble"], 24))
     for z in range(1, 5):
         for y in (-1, 0, 1):
             v.set(-11, y, z, "stone_bricks")
@@ -309,7 +362,7 @@ def mirrormere_shrine_heart():
         for x in (x0, x0 + 1):
             for z in (-3, -2):
                 for y in (2 * i - 1, 2 * i):
-                    v.set(x, y, z, pick(x, y, z, ["stone_bricks", "mossy_cobble"], 25))
+                    v.set(x, y, z, pick(x, y, z, ["cobble", "stone_bricks", "mossy_cobble"], 25))
     # rubble breaking the island's south edge (clear of the keeper at [3, 8])
     for (x, y, z) in ((-7, 0, 7), (-6, 0, 7), (-6, 1, 7), (-5, 0, 8), (-7, 0, 6),
                       (-4, 0, 7), (-3, 0, 7), (-3, 1, 7), (-2, 0, 7),

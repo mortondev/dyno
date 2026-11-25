@@ -90,34 +90,75 @@ _named(f"{KEY}_cocoons", _cocoons)
 # 4 m of either, so the porch is re-faced in place rather than built out.
 
 
+# Ruin stone toned to the barrow's own cobble and moss (no pale dressed
+# stone_bricks against the dark kerbs); mossy only at the base courses. No
+# plain `stone` (a terrain block, drawn as smoothed ground).
+RUIN_HI = ["cobble", "cobble", "cobble", "stone_bricks"]
+RUIN_LO = ["mossy_cobble", "cobble", "cobble"]
+
+
+def _baked(name):
+    """The cells of a baked stamp (content/stamps/<name>.dstamp), keyed by
+    their offset from its anchor."""
+    import json, os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..",
+                        "content", "stamps", name + ".dstamp")
+    b = open(path, "rb").read()
+    nl = b.index(b"\n", 6)
+    head = json.loads(b[6:nl])
+    data = b[nl + 1:]
+    sx, sy, sz = head["size"]
+    ax, ay, az = head["anchor"]
+    n = sx * sy * sz
+    cells = bytearray(n)
+    i = p = 0
+    while i < n:
+        val = data[p]
+        p += 1
+        run = sh = 0
+        while True:
+            c = data[p]
+            p += 1
+            run |= (c & 0x7F) << sh
+            sh += 7
+            if not c & 0x80:
+                break
+        cells[i:i + run] = bytes([val]) * run
+        i += run
+    out = {}
+    for y in range(sy):
+        for z in range(sz):
+            for x in range(sx):
+                val = cells[(y * sz + z) * sx + x]
+                if val:
+                    out[(x - ax, y - ay, z - az)] = head["palette"][val]
+    return out
+
+
 @recipe
 def old_barrow_crown():
-    """The barrow's crest marker, seen over the canopy: a stone_bricks
-    trilithon facing the trail (east), a fire on a stepped plinth framed in
-    its gate. Placed at [0, 0] with dy 8, its floor slab (y = -1) lies on the
-    mound's top course (barrow y 7). 3 x 9 x 7."""
+    """The barrow's crest marker, seen over the canopy: a squat trilithon of
+    the barrow's own dark cobble facing the trail (east), 4 m to the top of
+    its lintel, a fire on a low plinth framed in its gate. Placed at [0, 0]
+    with dy 8, its floor slab (y = -1) lies on the mound's top course
+    (barrow y 7). 3 x 9 x 5."""
     v = Vol("landmark")
     # the bedding slab on the crest, so nothing stands on air
     for x in range(-1, 2):
         for z in range(-3, 4):
-            v.set(x, -1, z, "mossy_cobble" if (x + z) % 3 == 0 else "stone_bricks")
-    # two 2 x 1 posts with a 3 m gate between them, 7 m tall
+            v.set(x, -1, z, pick(x, -1, z, RUIN_LO, 31))
+    # two 2 x 1 posts with a 3 m gate between them, 3 m tall
     for z in (-3, -2, 2, 3):
-        for y in range(0, 7):
-            v.set(0, y, z, "mossy_cobble" if y < 2 and z in (-3, 3) else "stone_bricks")
-    # the lintel, overhanging the posts by a metre each side
+        for y in range(0, 3):
+            v.set(0, y, z, pick(0, y, z, RUIN_LO if y == 0 else RUIN_HI, 32))
+    # the lintel, a slab overhanging the posts by a metre each side
     for z in range(-4, 5):
-        v.set(0, 7, z, "stone_bricks")
-    # a stepped plinth in the gate and the fire on it
+        v.set(0, 3, z, "cobble")
+    # a low plinth in the gate and the fire on it
     for z in (-1, 0, 1):
-        v.set(-1, 0, z, "stone_bricks")
-        v.set(0, 0, z, "stone_bricks")
-        v.set(1, 0, z, "stone_bricks")
-    v.col(0, 0, 1, 2, "stone_bricks")
-    v.set(0, 3, 0, "brazier")
-    # lanterns hung under the lintel ends
-    v.set(0, 6, -4, "lantern")
-    v.set(0, 6, 4, "lantern")
+        for x in (-1, 0, 1):
+            v.set(x, 0, z, "cobble")
+    v.set(0, 1, 0, "brazier")
     return v
 
 
@@ -129,6 +170,10 @@ def old_barrow_dromos():
     The approach stays at grade: the threshold and the forecourt are made
     flush (the stray earth heap in front of the door goes)."""
     v = Vol("ruin")
+    # the baked porch's pale dressed stone, re-laid in the barrow's cobble
+    for (x, y, z), b in _baked("old_barrow").items():
+        if b == "stone_bricks" and y >= 0:
+            v.set(x, y, z, pick(x, y, z, RUIN_LO if y == 0 else RUIN_HI, 33))
     # -- the door: 3 wide (z -1..1), 3 clear (y 0..2), open from x 12 out
     for x in range(12, 18):
         for z in (-1, 0, 1):
@@ -142,10 +187,10 @@ def old_barrow_dromos():
     for x in (12, 13):
         for z in (-2, 2):
             for y in range(0, 3):
-                v.set(x, y, z, "stone_bricks" if y else "mossy_cobble")
+                v.set(x, y, z, pick(x, y, z, RUIN_HI, 36) if y else "mossy_cobble")
         for z in range(-2, 3):
-            v.set(x, 3, z, "stone_bricks")
-            v.set(x, 4, z, "mossy_cobble" if z in (-2, 2) else "stone_bricks")
+            v.set(x, 3, z, "cobble")
+            v.set(x, 4, z, "cobble")
     # the lantern hung from the lintel's face (the baked one, kept) and the
     # door point's column left open above it
     v.set(14, 3, 0, "lantern")
@@ -159,21 +204,24 @@ def old_barrow_dromos():
             v.set(x, 4, z, "grass")
     # -- the façade: orthostats either side, 4 m and more off the axis,
     # stepping down outward; the horns of the mound are built up behind them
-    north = [(-4, 5), (-5, 5), (-6, 4), (-7, 4), (-8, 3)]
+    # (the north wing, beside the forecourt where one stands at the door,
+    # is broken down to kerb height so it does not wall in the view)
+    north = [(-4, 3), (-5, 2), (-6, 2), (-7, 1), (-8, 1)]
     south = [(4, 5), (5, 5), (6, 4), (7, 4), (8, 3)]
     for z, h in north + south:
         for y in range(0, h):
-            v.set(13, y, z, "mossy_cobble" if (y + z) % 3 == 0 or y == 0 else "stone")
-        v.set(13, h - 1, z, "mossy_cobble")
+            v.set(13, y, z, "mossy_cobble" if y == 0 else pick(13, y, z, RUIN_HI, 34))
     # dry-stone between the jambs and the first orthostats
     for z in (-3, 3):
         for y in range(0, 4):
-            v.set(13, y, z, pick(13, y, z, ["cobble", "mossy_cobble", "stone_bricks"]))
+            v.set(13, y, z, pick(13, y, z, RUIN_HI, 35))
         for y in range(0, 4):
             v.set(12, y, z, "cobble")
     # the horns: earth stepped up behind the stones to the mound
     for z in list(range(-8, -2)) + list(range(3, 9)):
         top = 4 if abs(z) <= 5 else 3 if abs(z) <= 7 else 2
+        if z < 0:
+            top = 2 if z >= -6 else 1
         for x in range(9, 13):
             h = top if x >= 11 else top - 1
             for y in range(0, h):
@@ -184,8 +232,42 @@ def old_barrow_dromos():
     # braziers on plinths at the ends of the façade
     for (x, z) in ((15, -7), (15, 7)):
         v.set(x, -1, z, "cobble")
-        v.set(x, 0, z, "stone_bricks")
+        v.set(x, 0, z, "cobble")
         v.set(x, 1, z, "brazier")
+    return v
+
+
+@recipe
+def old_barrow_shelter():
+    """The vigil's shelter in place of a cloth tent: a timber-framed
+    lean-to open to the fire on its -x side, a dark plank back wall and
+    flat plank roof stepped down a course to the front (whole cubes, no
+    cloth slope), low cobble cheek walls, a bedroll and a lantern hung
+    under the eave. 4 x 5 x 4."""
+    v = Vol("prop")
+    for x in range(0, 4):
+        for z in range(-2, 3):
+            v.set(x, -1, z, "dirt")
+    # corner posts: front pair 2 m, back pair 3 m
+    for z in (-2, 2):
+        v.col(0, z, 0, 1, "timber_beam")
+        v.col(3, z, 0, 2, "timber_beam")
+    # the back wall
+    for z in range(-1, 2):
+        for y in range(0, 3):
+            v.set(3, y, z, "dark_planks")
+    # cheek walls, knee high
+    for x in (1, 2):
+        for z in (-2, 2):
+            v.set(x, 0, z, "cobble")
+    # the roof: the back half a course higher than the front
+    for z in range(-2, 3):
+        for x in (-1, 0, 1):
+            v.set(x, 2, z, "dark_planks")
+        for x in (2, 3, 4):
+            v.set(x, 3, z, "dark_planks")
+    v.set(2, 0, 0, "bed")
+    v.set(-1, 1, 0, "lantern")
     return v
 
 

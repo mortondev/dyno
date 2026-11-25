@@ -1013,7 +1013,7 @@
     {"stamp": "fallen_log", "at": [34, -12], "rot": 1, "fit": "ground"},
     {"stamp": "boulders", "at": [-16, -26], "rot": 1, "fit": "ground"},
     {"stamp": "standing_stones", "at": [36, -30], "fit": "ground"},
-    {"stamp": "tent_white", "at": [30, 10], "rot": 3, "fit": "ground"},
+    {"stamp": "old_barrow_shelter", "at": [30, 10], "fit": "ground"},
     {"stamp": "campfire", "at": [25, 11], "fit": "ground"},
     {"stamp": "old_barrow_vigil", "at": [20, 8], "fit": "ground"},
     {"stamp": "wayshrine", "at": [28, -9], "fit": "ground"},
