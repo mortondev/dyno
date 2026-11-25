@@ -497,3 +497,267 @@ def hearthstead_townhouse_slate():
     v.set(0, STOREY + 2, 0, "lantern")
     v.set(2, 3, 6, "lantern")
     return v
+
+
+# ---------------------------------------------------------------- the east quarter's lots
+# Each lot is one house with what its people keep round it (a garden, a
+# fence, a woodpile, a lean-to), so no two lots in the quarter repeat. Roofs
+# cluster: red tile next to the inn, slate on the stone house, thatch toward
+# the wall. The house is the stamp's base, so its doors, storeys and
+# foundation stand as house() made them.
+
+STYLES["hearthstead_tile_stone"] = dict(base="cobble", wall="stone_bricks", frame="timber_beam", roof="red_roof_tiles", floor="planks")
+STYLES["hearthstead_thatch"] = dict(base="cobble", wall="plaster", frame="timber_beam", roof="thatch", floor="planks")
+STYLES["hearthstead_stone"] = dict(base="stone_bricks", wall="stone_bricks", frame="dark_planks", roof="slate_roof", floor="flagstones")
+
+
+def _rail(v, x0, z0, x1, z1, gaps=()):
+    """A post-and-rail fence along a straight run (x or z), posts every 3 m
+    a metre higher, open at the cells in `gaps`."""
+    pts = [(x, z0) for x in range(x0, x1 + 1)] if z0 == z1 else [(x0, z) for z in range(z0, z1 + 1)]
+    for i, (x, z) in enumerate(pts):
+        if (x, z) in gaps:
+            continue
+        v.set(x, 0, z, "timber_beam")
+        if i % 3 == 0:
+            v.set(x, 1, z, "timber_beam")
+
+
+def _beds(v, x0, z0, x1, z1):
+    """Kitchen-garden rows: flower beds on tilled dirt, a path of dirt
+    between every pair of rows (rows run along x)."""
+    for z in range(z0, z1 + 1):
+        for x in range(x0, x1 + 1):
+            v.set(x, -1, z, "dirt")
+            if (z - z0) % 2 == 0:
+                v.set(x, 0, z, "flower_bed")
+
+
+def _woodpile(v, x, z, n=3):
+    for i in range(n):
+        v.set(x + i, 0, z, "log")
+    v.set(x, 1, z, "log")
+
+
+@recipe
+def hearthstead_lot_cottage():
+    """A low cottage of stone bricks under red tiles, its door on the long side to
+    the lane, with a fenced kitchen garden behind it and a woodpile by the
+    gable. House 9 x 7."""
+    from build import furnish_home
+    v = house(-4, -3, 4, 3, 1, "hearthstead_tile_stone", ridge_x=True, door=("s", -1), chimney=(3, -3))
+    furnish_home(v, -4, -3, 4, 3)
+    # the back garden (north), fenced, a gate on the east
+    _beds(v, -3, -9, 3, -6)
+    _rail(v, -5, -10, 5, -10)
+    _rail(v, -5, -9, -5, -5)
+    _rail(v, 5, -9, 5, -5, gaps={(5, -7), (5, -8)})
+    _woodpile(v, 6, -1)
+    v.set(6, 0, 1, "barrel")
+    return v
+
+
+@recipe
+def hearthstead_lot_thatch():
+    """A small square cottage of plaster under thatch, out toward the wall:
+    a fenced dooryard in front with a bench and flower beds, a hay bale and
+    a lean-to woodshed on its side. House 7 x 7."""
+    from build import furnish_home
+    v = house(-3, -3, 3, 3, 1, "hearthstead_thatch", ridge_x=False, door=("s", -1), chimney=(0, -3))
+    furnish_home(v, -3, -3, 3, 3)
+    # the dooryard: worn ground, a low rail with a gate in line with the door
+    for x in range(-4, 5):
+        for z in range(4, 8):
+            if (x, z) not in ((-1, 4), (0, 4)):
+                v.set(x, -1, z, "dirt" if (x + z) % 3 else "grass")
+    _rail(v, -4, 8, 4, 8, gaps={(-1, 8), (0, 8)})
+    _rail(v, -4, 5, -4, 7)
+    _rail(v, 4, 5, 4, 7)
+    v.set(2, 0, 6, "planks")
+    v.set(3, 0, 6, "planks")
+    v.set(-3, 0, 6, "flower_bed")
+    v.set(-2, 0, 7, "flower_bed")
+    # the lean-to on the east wall: posts, a thatch slab, logs under it
+    for z in (-2, 1):
+        v.col(5, z, 0, 1, "timber_beam")
+    for z in range(-2, 2):
+        v.set(4, 2, z, "thatch")
+        v.set(5, 2, z, "thatch")
+        v.set(5, 0, z, "log" if z < 1 else "hay_bale")
+    return v
+
+
+@recipe
+def hearthstead_lot_longhouse():
+    """A long, low house of dark planks under thatch along the wall, a
+    store at one end: a cart and hay at the barn door, a water butt by the
+    house door, a dirt yard before it. House 13 x 7."""
+    from build import furnish_home
+    v = house(-6, -3, 6, 3, 1, "plank", ridge_x=True, door=("s", 1), chimney=(-6, 0))
+    furnish_home(v, -6, -3, 0, 3)
+    for x in range(-6, 7):
+        for z in range(4, 8):
+            v.set(x, -1, z, "dirt" if rnd(x, 0, z, 61) % 5 else "cobble")
+    # the store's wide door on the west end of the south wall
+    for x in (-5, -4, -3):
+        v.col(x, 3, 0, 2, "air")
+    v.c.pop((-4, 0, 4), None)   # house()'s window bed, in the store's way
+    v.set(-4, 0, 5, "hay_bale")
+    v.set(-5, 0, 5, "hay_bale")
+    v.set(-5, 1, 5, "hay_bale")
+    v.set(-3, 0, 6, "crate")
+    v.set(4, 0, 4, "barrel")
+    _woodpile(v, 7, -2)
+    return v
+
+
+@recipe
+def hearthstead_lot_stone():
+    """A tall square house of stone under slate, a merchant's: two storeys,
+    a walled front garden on flagstones with a bench and a clipped hedge.
+    House 9 x 9."""
+    from build import furnish_home
+    v = house(-4, -4, 4, 4, 2, "hearthstead_stone", ridge_x=True, door=("s", -1), chimney=(-4, 0))
+    furnish_home(v, -4, -4, 4, 4)
+    stairs(v, 3, 0, 2, 0, -1)
+    v.set(0, STOREY + 2, 0, "lantern")
+    for x in range(-5, 6):
+        for z in range(5, 9):
+            v.set(x, -1, z, "flagstones" if (x * 3 + z) % 5 else "cobble")
+    for x in range(-5, 6):
+        if x not in (-1, 0):
+            v.set(x, 0, 9, "stone_bricks")
+    for z in range(5, 9):
+        v.set(-5, 0, z, "stone_bricks")
+        v.set(5, 0, z, "stone_bricks")
+    for x in (-4, -3, 3, 4):
+        v.set(x, 0, 8, "leaves")
+        if x in (-4, 4):
+            v.set(x, 1, 8, "leaves")
+    v.set(-3, 0, 6, "planks")
+    v.set(-2, 0, 6, "planks")
+    return v
+
+
+@recipe
+def hearthstead_lot_tall():
+    """A narrow two-storey house of plaster under red tiles, its gable to
+    the lane, a lean-to scullery under thatch at the back and a drying line
+    of washing in the yard. House 7 x 9."""
+    from build import furnish_home
+    v = house(-3, -4, 3, 4, 2, "tile", ridge_x=False, door=("s", -1), chimney=(0, -4))
+    furnish_home(v, -3, -4, 3, 4)
+    stairs(v, 2, 0, 3, 0, -1)
+    # the scullery on the north: low walls, a thatch slab
+    for x in range(-2, 3):
+        for z in (-7, -6, -5):
+            if x in (-2, 2) or z == -7:
+                v.col(x, z, 0, 1, "planks" if (x + z) % 4 else "timber_beam")
+            v.set(x, 2, z, "thatch")
+    v.set(0, 0, -6, "barrel")
+    # the drying line: two posts, a white sheet hung flat between them
+    v.col(-6, -3, 0, 2, "timber_beam")
+    v.col(-6, 3, 0, 2, "timber_beam")
+    for z in range(-2, 3):
+        v.set(-6, 2, z, "white")
+        v.set(-6, 1, z, "white")
+    _woodpile(v, 4, 2, 2)
+    return v
+
+
+@recipe
+def hearthstead_lane_bend():
+    """A 3 m dirt lane that turns a corner: 8 m east from the anchor, then
+    8 m south, the corner's inside cut in two steps."""
+    v = Vol("prop")
+    for x in range(-8, 2):
+        for z in (-1, 0, 1):
+            v.set(x, -1, z, "dirt")
+    for z in range(-1, 9):
+        for x in (-1, 0, 1):
+            v.set(x, -1, z, "dirt")
+    for (x, z) in ((-2, 2), (-3, 2), (-2, 3)):
+        v.set(x, -1, z, "dirt")
+    for (x, z) in ((-4, 1), (-6, -1), (0, 5), (1, 7)):
+        v.set(x, -1, z, "cobble")
+    return v
+
+
+# ---------------------------------------------------------------- the plaza's rim
+
+@recipe
+def hearthstead_plaza_tree():
+    """A little tree in a stone ring at the plaza's edge: a stepped ring of
+    stone bricks a metre high round a bed of grass and flowers, the tree
+    built in the stamp. 7 x 7."""
+    v = Vol("prop")
+    ring = [(x, z) for x in range(-3, 4) for z in range(-3, 4)
+            if max(abs(x), abs(z)) == 3 and not (abs(x) == 3 and abs(z) == 3)]
+    for (x, z) in ring:
+        v.set(x, 0, z, "stone_bricks")
+    for (x, z) in ((-3, -3), (3, -3), (-3, 3), (3, 3)):
+        v.set(x, -1, z, "cobble")
+    for x in range(-2, 3):
+        for z in range(-2, 3):
+            v.set(x, -1, z, "grass")
+            if (x + z) % 2 and abs(x) + abs(z) > 1:
+                v.set(x, 0, z, "flower_bed")
+    # the tree (built here: the plaza is paved, and planted trees keep off
+    # paving): a trunk with two boughs, a crown of leaves 4-8 m up, wide in
+    # the middle, ragged at the edge, a few cells of blossom
+    v.col(0, 0, 0, 5, "log")
+    v.set(1, 4, 0, "log")
+    v.set(-1, 5, 1, "log")
+    for (y, r) in ((4, 2), (5, 3), (6, 3), (7, 2), (8, 1)):
+        for x in range(-r, r + 1):
+            for z in range(-r, r + 1):
+                d = abs(x) + abs(z)
+                if d > r + 1 or (d == r + 1 and rnd(x, y, z, 72) % 3 == 0):
+                    continue
+                if y == 4 and d < 2:
+                    continue
+                v.set(x, y, z, "blossom_leaves" if rnd(x, y, z, 71) % 5 == 0 else "leaves")
+    return v
+
+
+@recipe
+def hearthstead_planter():
+    """A long planter on the plaza: a kerb of stone bricks round a bed of
+    flowers and two clipped shrubs, a bench along its front. 6 x 3."""
+    v = Vol("prop")
+    for x in range(-3, 3):
+        for z in (-1, 0, 1):
+            edge = x in (-3, 2) or z in (-1, 1)
+            v.set(x, 0, z, "stone_bricks" if edge else "flower_bed")
+    v.set(1, 1, 0, "leaves")
+    for x in (-2, -1, 0, 1):
+        v.set(x, 0, 2, "planks")
+    return v
+
+
+# ---------------------------------------------------------------- Hearth Farm's track
+
+@recipe
+def hearthstead_track():
+    """A 6 m length of farm track (z), two wheel ruts of dirt with grass
+    between: laid in short lengths, each fitted to the ground, it steps
+    down a slope in terraces instead of cutting one long trench."""
+    v = Vol("prop")
+    for z in range(-3, 3):
+        for x in (-1, 1):
+            v.set(x, -1, z, "dirt")
+        v.set(0, -1, z, "dirt" if rnd(0, 0, z, 81) % 3 == 0 else "grass")
+    return v
+
+
+@recipe
+def hearthstead_farm_gate():
+    """A farm gate on the track: two tall posts, a lantern on one, a
+    rail swung open against the fence line."""
+    v = Vol("prop")
+    for x in (-2, 2):
+        v.col(x, 0, 0, 2, "timber_beam")
+    v.set(-2, 3, 0, "lantern")
+    for z in (1, 2, 3):
+        v.set(2, 1, z, "timber_beam")
+    return v
