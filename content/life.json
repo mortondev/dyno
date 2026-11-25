@@ -249,7 +249,7 @@
     {"critter": "bird", "ahead": 55, "group": [2, 3], "spread": 4, "where": {"time": [0.985, 0.52]}},
     {"critter": "bird", "cell": 150, "chance": 0.5, "group": [2, 3], "spread": 5, "where": {"time": [0.985, 0.52]}},
     {"critter": "gull", "cell": 150, "chance": 0.5, "group": [2, 3], "spread": 5, "where": {"areas": ["mirrormere", "fishers_landing", "sunken_shrine"], "time": [0.0, 0.52]}},
-    {"critter": "bat", "cell": 40, "chance": 0.6, "group": [2, 3], "spread": 3, "where": {"areas": ["barrowwood", "hollow_oak"], "time": [0.38, 0.99]}},
+    {"critter": "bat", "cell": 40, "chance": 0.6, "group": [2, 3], "spread": 3, "where": {"areas": ["barrowwood", "hollow_oak"], "not_areas": ["old_barrow"], "time": [0.38, 0.99]}},
     {"critter": "butterfly_orange", "cell": 16, "chance": 0.5, "group": [1, 2], "spread": 2.5, "where": {"not_areas": ["barrowwood", "hollow_mines"], "ground": ["grass"], "open": true, "time": [0.04, 0.46]}},
     {"critter": "butterfly_blue", "cell": 22, "chance": 0.45, "group": [1, 2], "spread": 2.5, "where": {"not_areas": ["barrowwood", "hollow_mines"], "ground": ["grass"], "open": true, "time": [0.04, 0.46]}},
     {"critter": "butterfly_white", "cell": 18, "chance": 0.45, "group": [1, 2], "spread": 2.5, "where": {"not_areas": ["barrowwood", "hollow_mines"], "ground": ["grass"], "open": true, "time": [0.04, 0.46]}},
