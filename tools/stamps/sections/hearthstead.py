@@ -506,7 +506,7 @@ def hearthstead_townhouse_slate():
 # the wall. The house is the stamp's base, so its doors, storeys and
 # foundation stand as house() made them.
 
-STYLES["hearthstead_brick"] = dict(base="cobble", wall="brick", frame="timber_beam", roof="red_roof_tiles", floor="planks")
+STYLES["hearthstead_tile_stone"] = dict(base="cobble", wall="stone_bricks", frame="timber_beam", roof="red_roof_tiles", floor="planks")
 STYLES["hearthstead_thatch"] = dict(base="cobble", wall="plaster", frame="timber_beam", roof="thatch", floor="planks")
 STYLES["hearthstead_stone"] = dict(base="stone_bricks", wall="stone_bricks", frame="dark_planks", roof="slate_roof", floor="flagstones")
 
@@ -540,12 +540,12 @@ def _woodpile(v, x, z, n=3):
 
 
 @recipe
-def hearthstead_lot_brick():
-    """A low brick cottage under red tiles, its door on the long side to
+def hearthstead_lot_cottage():
+    """A low cottage of stone bricks under red tiles, its door on the long side to
     the lane, with a fenced kitchen garden behind it and a woodpile by the
     gable. House 9 x 7."""
     from build import furnish_home
-    v = house(-4, -3, 4, 3, 1, "hearthstead_brick", ridge_x=True, door=("s", -1), chimney=(3, -3))
+    v = house(-4, -3, 4, 3, 1, "hearthstead_tile_stone", ridge_x=True, door=("s", -1), chimney=(3, -3))
     furnish_home(v, -4, -3, 4, 3)
     # the back garden (north), fenced, a gate on the east
     _beds(v, -3, -9, 3, -6)
@@ -601,6 +601,7 @@ def hearthstead_lot_longhouse():
     # the store's wide door on the west end of the south wall
     for x in (-5, -4, -3):
         v.col(x, 3, 0, 2, "air")
+    v.c.pop((-4, 0, 4), None)   # house()'s window bed, in the store's way
     v.set(-4, 0, 5, "hay_bale")
     v.set(-5, 0, 5, "hay_bale")
     v.set(-5, 1, 5, "hay_bale")
@@ -659,8 +660,7 @@ def hearthstead_lot_tall():
     v.col(-6, 3, 0, 2, "timber_beam")
     for z in range(-2, 3):
         v.set(-6, 2, z, "white")
-        if abs(z) < 2:
-            v.set(-6, 1, z, "white")
+        v.set(-6, 1, z, "white")
     _woodpile(v, 4, 2, 2)
     return v
 
