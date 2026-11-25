@@ -3,7 +3,11 @@
 # a fresh world whose operator is this character. Every `expect` is a state
 # the step before must have caused.
 
-# --- 1. arrive: a tip shows; walk to the quest giver; talk; accept ---------
+# --- 1. arrive: the first-login intro plays; Escape skips it; a tip shows;
+# walk to the quest giver; talk; accept ---------
+wait 1
+key Escape
+wait 1
 expect tip move
 walk-to npc brannoc 3
 look-at npc brannoc
