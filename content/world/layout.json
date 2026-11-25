@@ -464,6 +464,18 @@
    "lamp": "waymarker",
    "lamp_every": 90,
    "ford": true
+  },
+  "footpath": {
+   "width": 2,
+   "surface": {"dirt": 1},
+   "lamp": "waymarker",
+   "lamp_every": 90,
+   "ford": true
+  },
+  "footpath_worn": {
+   "width": 3,
+   "surface": {"dirt": 1},
+   "ford": true
   }
  },
  "roads": [
@@ -524,48 +536,68 @@
   },
   {
    "key": "quarry_trail",
-   "way": "trail",
-   "path": ["north_road_glade_1", [-17, -178], [-31, -180], [-46, -175], [-60, -170], [-74, -166], [-88, -159], [-103, -166], [-117, -165], [-131, -160], "old_quarry"]
+   "way": "footpath",
+   "path": ["north_road_glade_1", [-17, -178], [-31, -180], [-46, -172], [-60, -170], [-74, -166], [-88, -159], [-103, -166], [-117, -165], [-131, -160], "old_quarry"]
   },
   {
    "key": "westfold_lane",
-   "way": "trail",
+   "way": "footpath",
    "path": [[-262, -12], [-262, 8], [-258, 25], [-260, 42], [-268, 58], [-273, 74], [-270, 89], [-267, 101], "meadow_farm_1"]
   },
   {
    "key": "southfold_lane",
-   "way": "trail",
+   "way": "footpath",
    "path": [[-126, 302], [-110, 304], [-96, 306], [-82, 311], [-66, 315], [-50, 313], [-34, 308], [-18, 310], [-2, 316], [14, 320], [30, 320]]
   },
   {
    "key": "eastfold_trail",
    "way": "trail",
-   "path": [[232, -45], [229, -60], [232, -76], [241, -90], [243, -105], [237, -119], [240, -133], [251, -143], [264, -148], [266, -164]]
+   "path": [[232, -45], [237, -60], [234, -76], [241, -90], [243, -105], [237, -119], [245, -129], [257, -134], [263, -143], [266, -164]]
   },
   {
    "key": "quarry_trail_mouth",
-   "way": "trail",
-   "path": ["north_road_glade_1", [-17, -177], [-31, -179], [-46, -175]]
+   "way": "footpath_worn",
+   "path": ["north_road_glade_1", [-17, -178], [-31, -180], [-46, -172]]
+  },
+  {
+   "key": "quarry_trail_bend",
+   "way": "footpath_worn",
+   "path": [[-74, -166], [-88, -159], [-103, -166], [-117, -165]]
   },
   {
    "key": "quarry_trail_yard",
-   "way": "trail",
-   "path": [[-117, -165], [-131, -159], [-142, -161]]
+   "way": "footpath_worn",
+   "path": [[-117, -165], [-131, -160], "old_quarry"]
+  },
+  {
+   "key": "westfold_lane_mouth",
+   "way": "footpath_worn",
+   "path": [[-262, -12], [-262, 8], [-258, 25]]
   },
   {
    "key": "westfold_lane_bend",
-   "way": "trail",
-   "path": [[-260, 42], [-269, 57], [-274, 73], [-273, 74]]
+   "way": "footpath_worn",
+   "path": [[-260, 42], [-268, 58], [-273, 74], [-270, 89]]
+  },
+  {
+   "key": "westfold_lane_gate",
+   "way": "footpath_worn",
+   "path": [[-267, 101], "meadow_farm_1"]
+  },
+  {
+   "key": "southfold_lane_gate",
+   "way": "footpath_worn",
+   "path": [[-126, 302], [-110, 304], [-96, 306]]
   },
   {
    "key": "southfold_lane_bend",
-   "way": "trail",
-   "path": [[-66, 315], [-50, 314], [-34, 309], [-33, 308]]
+   "way": "footpath_worn",
+   "path": [[-66, 315], [-50, 313], [-34, 308], [-18, 310]]
   },
   {
-   "key": "eastfold_trail_bend",
-   "way": "trail",
-   "path": [[241, -90], [244, -105], [238, -120], [237, -119]]
+   "key": "southfold_lane_mouth",
+   "way": "footpath_worn",
+   "path": [[-2, 316], [14, 320], [30, 320]]
   }
  ],
  "places": [

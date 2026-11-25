@@ -801,7 +801,7 @@
       "tint": [[0.66, 0.72, 0.38], [0.86, 0.86, 0.5]]
     },
     {
-      "name": "flowers crowding in over the edges of earth paths, in clumps (dirt is under all grass, so verges are found from the path side)",
+      "name": "flowers crowding in over the edges of earth paths, in clumps, in the farmed and travelled country only (dirt is under all grass, so verges are found from the path side)",
       "kinds": ["daisy", "buttercup", "poppy", "lupin", "daisy"],
       "on": ["dirt"],
       "per_block": 0.55,
@@ -815,7 +815,70 @@
         "blocks": ["grass"],
         "within": 1
       },
-      "far": 0.3
+      "far": 0.3,
+      "areas": {
+        "hearthmeadow": {
+          "density": 1.0
+        },
+        "westfold_farm": {
+          "density": 1.0
+        },
+        "eastfold_farm": {
+          "density": 1.0
+        },
+        "southfold_farm": {
+          "density": 1.0
+        },
+        "wrecked_caravan": {
+          "density": 1.0
+        },
+        "old_quarry": {
+          "density": 1.0
+        },
+        "logging_camp": {
+          "density": 1.0
+        },
+        "woodcutters_well": {
+          "density": 1.0
+        },
+        "trappers_camp": {
+          "density": 1.0
+        },
+        "watch_hill": {
+          "density": 1.0
+        },
+        "broken_tower": {
+          "density": 1.0
+        },
+        "gate_rocks": {
+          "density": 1.0
+        },
+        "beacon_rocks": {
+          "density": 1.0
+        },
+        "listening_stones": {
+          "density": 1.0
+        },
+        "mere_wayshrine": {
+          "density": 1.0
+        },
+        "mirrormere": {
+          "density": 1.0
+        },
+        "fishers_landing": {
+          "density": 1.0
+        },
+        "bluebell_glade": {
+          "density": 1.0
+        },
+        "birchrise": {
+          "density": 0.4
+        },
+        "hunters_rest": {
+          "density": 0.4
+        }
+      },
+      "elsewhere": 0.0
     },
     {
       "name": "stones kicked to the side of earth paths",
