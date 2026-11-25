@@ -781,6 +781,122 @@
           "density": 1.3
         }
       }
+    },
+    {
+      "name": "tongues of grass reaching into earth paths, so their edges wander",
+      "kinds": ["grass", "grass_tall", "grass_short", "grass"],
+      "on": ["dirt"],
+      "per_block": 1.6,
+      "patch": {
+        "scale": 5,
+        "from": 0.55,
+        "to": 0.75,
+        "seed": 31
+      },
+      "near": {
+        "blocks": ["grass"],
+        "within": 1
+      },
+      "far": 0.1,
+      "tint": [[0.66, 0.72, 0.38], [0.86, 0.86, 0.5]]
+    },
+    {
+      "name": "flowers crowding in over the edges of earth paths, in clumps, in the farmed and travelled country only (dirt is under all grass, so verges are found from the path side)",
+      "kinds": ["daisy", "buttercup", "poppy", "lupin", "daisy"],
+      "on": ["dirt"],
+      "per_block": 0.55,
+      "patch": {
+        "scale": 6,
+        "from": 0.5,
+        "to": 0.75,
+        "seed": 32
+      },
+      "near": {
+        "blocks": ["grass"],
+        "within": 1
+      },
+      "far": 0.3,
+      "areas": {
+        "hearthmeadow": {
+          "density": 1.0
+        },
+        "westfold_farm": {
+          "density": 1.0
+        },
+        "eastfold_farm": {
+          "density": 1.0
+        },
+        "southfold_farm": {
+          "density": 1.0
+        },
+        "wrecked_caravan": {
+          "density": 1.0
+        },
+        "old_quarry": {
+          "density": 1.0
+        },
+        "logging_camp": {
+          "density": 1.0
+        },
+        "woodcutters_well": {
+          "density": 1.0
+        },
+        "trappers_camp": {
+          "density": 1.0
+        },
+        "watch_hill": {
+          "density": 1.0
+        },
+        "broken_tower": {
+          "density": 1.0
+        },
+        "gate_rocks": {
+          "density": 1.0
+        },
+        "beacon_rocks": {
+          "density": 1.0
+        },
+        "listening_stones": {
+          "density": 1.0
+        },
+        "mere_wayshrine": {
+          "density": 1.0
+        },
+        "mirrormere": {
+          "density": 1.0
+        },
+        "fishers_landing": {
+          "density": 1.0
+        },
+        "bluebell_glade": {
+          "density": 1.0
+        },
+        "birchrise": {
+          "density": 0.4
+        },
+        "hunters_rest": {
+          "density": 0.4
+        }
+      },
+      "elsewhere": 0.0
+    },
+    {
+      "name": "stones kicked to the side of earth paths",
+      "kinds": ["rock_small", "cobbles", "rock_small"],
+      "on": ["dirt"],
+      "per_block": 0.3,
+      "patch": {
+        "scale": 4,
+        "from": 0.6,
+        "to": 0.8,
+        "seed": 33
+      },
+      "near": {
+        "blocks": ["grass"],
+        "within": 1
+      },
+      "far": 0.5,
+      "tint": [[0.9, 0.9, 0.9], [1.05, 1.05, 1.05]]
     }
   ]
 }

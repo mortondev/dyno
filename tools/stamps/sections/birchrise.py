@@ -58,15 +58,19 @@ def birchrise_tent():
 
 @recipe
 def birchrise_yard():
-    """A trodden dirt yard, about 22 x 16 m, flush with the ground: dirt
-    with a little gravel and a ragged edge into the grass."""
+    """The working patch by the mill's east end, about 15 x 7 m, between
+    the chopping block and the log pile, flush with the ground: trodden dirt with a stone or two, its edge bitten by
+    tongues of grass and a few bare scuffs out in the turf, so the meadow
+    and its flowers come right up to the work."""
     v = Vol("prop")
-    for x in range(-12, 13):
-        for z in range(-9, 10):
-            d = (x / 11.0) ** 2 + (z / 8.0) ** 2
+    for x in range(-9, 10):
+        for z in range(-5, 6):
+            d = (x / 7.5) ** 2 + (z / 3.8) ** 2
             j = (rnd(x, 0, z, 41) % 100) / 100
-            if d <= 0.75 + 0.35 * j:
-                v.set(x, -1, z, pick(x, 0, z, ["dirt", "dirt", "dirt", "dirt", "dirt", "dirt", "cobble"], 42))
+            if d <= 0.55 + 0.45 * j:
+                v.set(x, -1, z, pick(x, 0, z, ["dirt"] * 9 + ["cobble"], 42))
+            elif d <= 1.6 and rnd(x, 0, z, 43) % 100 < 14:
+                v.set(x, -1, z, "dirt")
     return v
 
 
