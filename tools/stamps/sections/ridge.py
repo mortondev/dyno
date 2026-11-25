@@ -5,7 +5,7 @@ Build with:
         ridge_ore_chute ridge_mine_head ridge_cliff_face ridge_adit_brazier \
         ridge_rock_cut ridge_lookout ridge_ore_pile ridge_cart_wreck \
         ridge_intruders_camp ridge_barricade ridge_boarded_adit ridge_beacon \
-        ridge_prospect ridge_trial_shaft ridge_rail_spur ridge_clear_10 ridge_clear_14
+        ridge_prospect ridge_trial_shaft ridge_rail_spur ridge_vein_seat ridge_clear_10 ridge_clear_14
 
 Everything is whole cubes: rock is layered columns stepped into ledges,
 braces are stairs of blocks touching face to face, round things are
@@ -393,15 +393,25 @@ PORTAL_FRONT = [(0, 0), (1, 9), (1e9, 11)]
 HEAD_AT = (6, 25)                # the headframe's plateau (place)
 
 
+# The cliff starts at the portal and wraps south only: north of the adit
+# the yard opens onto the natural hillside, so the hollow_mines camera
+# (standing just north-west of the portal, looking south) is not walled in.
+# The portal block covers the adit (its tunnel runs at place z -5..-1) with
+# a row of rock either side, and steps down toward its north end (4 m on
+# the row north of the tunnel, then 6, 8 and the full height).
+PORTAL_NORTH = [(1, 4), (2, 6), (3, 8), (1e9, 11)]
+RING_FROM = -10                  # bearing of the ring's north end
+
+
 def cliff_height(x, z):
     r = math.hypot(x, z)
     th = math.degrees(math.atan2(z, x))
     best = 0
-    if 12 <= x <= 30 and -10 <= z <= 4:
-        best = tier(x - 12, PORTAL_FRONT)
-    if -40 <= th <= 104 and r >= 13:
+    if 12 <= x <= 30 and -6 <= z <= 3:
+        best = min(tier(x - 12, PORTAL_FRONT), tier(z + 6, PORTAL_NORTH))
+    if RING_FROM <= th <= 104 and r >= 13:
         R0 = 15.5 + jit(x, z, 61)
-        e = min(th + 40, 104 - th) * math.pi / 180 * r
+        e = min(th - RING_FROM, 104 - th) * math.pi / 180 * r
         b = R0 + 15 + jit(x, z, 63, 4) - r
         h = min(tier(r - R0, CLIFF_FRONT), tier(e, ENDS[:-1] + [(1e9, 11)]),
                 tier(b, BACK[:-1] + [(1e9, 11)]))
@@ -475,33 +485,50 @@ def cut_frame(x, z):
     return d2, (-1 if s2 < 0 else 1), t2
 
 
-WALL_IN = [(0, 0), (1.5, 4), (3, 7), (1e9, 10)]
+# The cut's banks: a grass verge 5 m wide each side of the 3 m trail, then
+# a stepped rock face rising a metre or two a step to 6 m, then a long
+# turfed back slope down to the meadow in 1 m terraces, so from the air it
+# reads as a road cut through a grassy shoulder, not a slot between walls.
+WALL_IN = [(0, 0), (1.5, 1), (3, 3), (4.5, 4), (6, 5), (1e9, 6)]
+CUT_BACK = [(0, 0), (2.5, 1), (5, 2), (7.5, 3), (10, 4), (12.5, 5), (1e9, 6)]
+CUT_ENDS = [(0, 0), (3, 1), (6, 2), (9, 3), (12, 4), (15, 5), (1e9, 6)]
 
 
 def cut_height(x, z):
     d, side, t = cut_frame(x, z)
-    if not (-17 <= t <= 19):
+    if not (-22 <= t <= 22):
         return 0
     if side < 0 and -5 <= t <= 4:
         return 0                     # the gap for the lookout
-    inner = 4.5 + jit(x, z, 71, 2, 0.6)
-    width = 7 + jit(x, z, 72, 4)
+    inner = 6.5 + jit(x, z, 71, 2, 0.6)
+    width = 15 + jit(x, z, 72, 4)
     a = d - inner
     b = inner + width - d
-    e = min(t + 17, 19 - t)
+    e = min(t + 22, 22 - t)
     if side < 0:
-        e = min(e, abs(t + 5) if t < -5 else abs(t - 4))
-    return min(tier(a, WALL_IN), tier(b, BACK[:-1] + [(1e9, 10)]),
-               tier(e, ENDS[:-2] + [(8, 9), (1e9, 10)]))
+        e = min(e, abs(t + 5) * 1.5 if t < -5 else abs(t - 4) * 1.5)
+    return min(tier(a, WALL_IN), tier(b, CUT_BACK), tier(e, CUT_ENDS))
 
 
 @recipe
 def ridge_rock_cut():
-    """The Ridge Cut: stepped walls of layered rock 4-10 m high either
-    side of the mine trail where it climbs through the ridge's shoulder,
-    with a gap on the west side where the lookout faces the valley.
-    Anchored at the cut's centre; place with fit float."""
-    return massif((0, 0), ((-30, 30), (-30, 30)), cut_height, 73)
+    """The Ridge Cut: the mine trail climbs through a cutting in the
+    ridge's shoulder. Grass verges 5 m wide each side, then stepped faces of
+    layered rock up to 6 m, turf on every ledge and over the top, and a long
+    terraced back slope to the meadow; a gap on the west side where the
+    lookout faces the valley. Anchored at the cut's centre; place with fit
+    float."""
+    v = Vol("landmark")
+    v.foundation = "stone"
+    for z in range(-40, 41):
+        for x in range(-40, 41):
+            h = cut_height(x, z)
+            if h > 0:
+                rock(v, x, z, h, 73, soil=0)
+                v.set(x, h - 1, z, "grass")
+                if h >= 3:
+                    v.set(x, h - 2, z, "dirt")
+    return v
 
 
 @recipe
@@ -582,6 +609,39 @@ def ridge_cart_wreck():
     v.set(0, 0, -3, "timber_beam")
     v.set(-2, 0, 3, "crate")
     v.set(-3, 0, 4, "planks")
+    return v
+
+
+# The baked hollow_mines dig carries an ore vein that once lay inside the
+# hillside; the yard's pad cut the hill away and left its lumps hanging in
+# the air (Pell, who swings at the nearest coal and iron, ended up perched on
+# one). Cells in hollow_mines-stamp coordinates (place minus (11, -3)).
+VEIN_FLOATING_NEAR_STAND = [(-6, 2, -4), (-5, 2, -4), (-5, 2, -5), (-5, 3, -4),
+                            (-4, 2, -4), (-2, 1, -4), (-1, 1, -5)]
+VEIN_SEAT = [(-13, 0, -1), (-12, 0, -2), (-12, 0, 0), (-12, 0, -1),
+             (-12, 2, -2), (-11, 0, -3), (-11, 1, -3), (-11, 2, -3),
+             (-11, 0, -2), (-11, 1, -2), (-11, 2, -2), (-10, 0, -4),
+             # a stepped stone foot on the west and north, away from Pell
+             (-13, 0, -2), (-13, 0, -3), (-12, 0, -3), (-12, 0, -4),
+             (-11, 0, -4), (-12, 1, -3), (-11, 1, -4), (-13, 1, -2)]
+
+
+@recipe
+def ridge_vein_seat():
+    """Seats the Hollow Mines' exposed ore vein on the yard floor: stone
+    under every lump of the vein west of the portal, so it stands as one
+    outcrop from the ground up (no stems, no overhangs), a coal lump and an
+    iron lump at its foot facing Pell's post (the nearest ore to her, so she
+    works it standing on the ground), and the stray lumps hanging in the air
+    beside the camera stand north of the portal cleared. Place it at the
+    hollow_mines stamp's own anchor, right after the dig and the portal."""
+    v = Vol("prop")
+    for (x, y, z) in VEIN_FLOATING_NEAR_STAND:
+        v.set(x, y, z, "air")
+    for (x, y, z) in VEIN_SEAT:
+        v.set(x, y, z, pick(x, y, z, ["stone", "stone", "cobble"], 95))
+    v.set(-10, 0, -3, "coal_ore")     # place (1, -6)
+    v.set(-9, 0, -4, "iron_ore")      # place (2, -7)
     return v
 
 
