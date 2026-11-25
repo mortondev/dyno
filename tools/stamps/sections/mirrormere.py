@@ -304,9 +304,9 @@ def mirrormere_shrine_heart():
     the drowned floor): the baked stamp's dressed stone re-laid in the
     world's darker ruin masonry; a stepped dais rising out of the water to an
     emberstone altar ringed with lanterns; behind it on the north side the
-    stumps of a fallen arch: a west pier snapped off in steps at 10-12 m with
-    one corbel left, an east pier broken at the spring, and the arch's stones
-    lying in the shallows between and beyond them; a toppled pillar in the
+    stumps of a fallen arch: a west pier snapped off in steps at 10-12 m, an
+    east pier broken at the spring, and the arch's stones lying at the west
+    pier's foot, on the dais steps and in the shallows beyond; a toppled pillar in the
     west shallows and a leaning one stepped against the east; rubble breaking
     the island's straight south edge."""
     v = Vol("ruin")
@@ -321,6 +321,8 @@ def mirrormere_shrine_heart():
             for z in range(-r, r + 1):
                 if y <= 0 and max(abs(x), abs(z)) == r:
                     b = pick(x, y, z, RUIN_LO, 21)
+                elif y <= 0:
+                    b = "cobble"
                 else:
                     b = "stone_bricks"
                 v.set(x, y, z, b)
@@ -339,10 +341,12 @@ def mirrormere_shrine_heart():
             for y in range(-1, top + 1):
                 v.set(x, y, z, pick(x, y, z, RUIN_LO if y < 2 else RUIN_HI, 23))
         v.set(3, 7, z, "cobble")                 # the east springer
-    v.set(-3, 8, -6, "cobble")                   # one corbel left on the west
-    # the arch's stones where they fell: in the shallows between the piers
-    # and a run of the lintel lying north of them, each on the bed
-    for (x, y, z) in ((-3, -1, -5), (-2, -1, -5), (-2, 0, -5), (-2, -1, -6),
+    # the arch's stones where they fell: at the west pier's foot on the near
+    # side, on the dais steps, in the shallows between the piers and a run
+    # of the lintel lying north of them, each on the bed or a step
+    for (x, y, z) in ((-6, -1, -4), (-6, 0, -4), (-7, -1, -4), (-5, -1, -3),
+                      (-6, -1, -3), (-7, -1, -2), (-8, -1, -3), (-4, 0, -4),
+                      (-3, 1, -3), (-3, -1, -5), (-2, -1, -5), (-2, 0, -5), (-2, -1, -6),
                       (-1, -1, -6), (0, -1, -5), (1, -1, -6), (2, -1, -5),
                       (-3, -1, -7), (-2, -1, -8), (-1, -1, -8), (0, -1, -8),
                       (-1, 0, -8), (1, -1, -9), (3, -1, -8)):

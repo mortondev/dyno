@@ -138,27 +138,24 @@ def _baked(name):
 @recipe
 def old_barrow_crown():
     """The barrow's crest marker, seen over the canopy: a squat trilithon of
-    the barrow's own dark cobble facing the trail (east), 4 m to the top of
-    its lintel, a fire on a low plinth framed in its gate. Placed at [0, 0]
+    the barrow's own dark cobble facing the trail (east), 3 m to the top of
+    its lintel, a fire framed in its gate. Placed at [0, 0]
     with dy 8, its floor slab (y = -1) lies on the mound's top course
-    (barrow y 7). 3 x 9 x 5."""
+    (barrow y 7). 3 x 9 x 4."""
     v = Vol("landmark")
     # the bedding slab on the crest, so nothing stands on air
     for x in range(-1, 2):
         for z in range(-3, 4):
             v.set(x, -1, z, pick(x, -1, z, RUIN_LO, 31))
-    # two 2 x 1 posts with a 3 m gate between them, 3 m tall
+    # two 2 x 1 posts with a 3 m gate between them, 2 m tall
     for z in (-3, -2, 2, 3):
-        for y in range(0, 3):
+        for y in range(0, 2):
             v.set(0, y, z, pick(0, y, z, RUIN_LO if y == 0 else RUIN_HI, 32))
     # the lintel, a slab overhanging the posts by a metre each side
     for z in range(-4, 5):
-        v.set(0, 3, z, "cobble")
-    # a low plinth in the gate and the fire on it
-    for z in (-1, 0, 1):
-        for x in (-1, 0, 1):
-            v.set(x, 0, z, "cobble")
-    v.set(0, 1, 0, "brazier")
+        v.set(0, 2, z, "cobble")
+    # the fire on the slab in the gate
+    v.set(0, 0, 0, "brazier")
     return v
 
 
@@ -210,7 +207,7 @@ def old_barrow_dromos():
     south = [(4, 5), (5, 5), (6, 4), (7, 4), (8, 3)]
     for z, h in north + south:
         for y in range(0, h):
-            v.set(13, y, z, "mossy_cobble" if y == 0 else pick(13, y, z, RUIN_HI, 34))
+            v.set(13, y, z, "mossy_cobble" if y == 0 and z > 0 else pick(13, y, z, RUIN_HI, 34))
     # dry-stone between the jambs and the first orthostats
     for z in (-3, 3):
         for y in range(0, 4):
