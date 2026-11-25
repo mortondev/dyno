@@ -396,8 +396,9 @@ HEAD_AT = (6, 25)                # the headframe's plateau (place)
 # The cliff starts at the portal and wraps south only: north of the adit
 # the yard opens onto the natural hillside, so the hollow_mines camera
 # (standing just north-west of the portal, looking south) is not walled in.
-# The portal block spans only the adit's own width (behind the facade's
-# middle) and steps down toward its north end (4/6/8 m).
+# The portal block covers the adit (its tunnel runs at place z -5..-1) with
+# a row of rock either side, and steps down toward its north end (4 m on
+# the row north of the tunnel, then 6, 8 and the full height).
 PORTAL_NORTH = [(1, 4), (2, 6), (3, 8), (1e9, 11)]
 RING_FROM = -10                  # bearing of the ring's north end
 
@@ -406,8 +407,8 @@ def cliff_height(x, z):
     r = math.hypot(x, z)
     th = math.degrees(math.atan2(z, x))
     best = 0
-    if 12 <= x <= 30 and -4 <= z <= 3:
-        best = min(tier(x - 12, PORTAL_FRONT), tier(z + 4, PORTAL_NORTH))
+    if 12 <= x <= 30 and -6 <= z <= 3:
+        best = min(tier(x - 12, PORTAL_FRONT), tier(z + 6, PORTAL_NORTH))
     if RING_FROM <= th <= 104 and r >= 13:
         R0 = 15.5 + jit(x, z, 61)
         e = min(th - RING_FROM, 104 - th) * math.pi / 180 * r
