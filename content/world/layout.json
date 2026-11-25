@@ -1461,8 +1461,8 @@
    },
    "stamps": [
     {"stamp": "ashcloak_stockade_keep", "at": [0, 0]},
-    {"stamp": "ashcloak_war_banner", "at": [-7, 18], "rot": 2},
-    {"stamp": "ashcloak_war_banner", "at": [7, 18]},
+    {"stamp": "banner_pole_red", "at": [-7, 18]},
+    {"stamp": "banner_pole_red", "at": [7, 18]},
     {"stamp": "campfire", "at": [-12, 22], "fit": "ground"},
     {"stamp": "tent_red", "at": [14, 24], "rot": 2, "fit": "ground"},
     {"stamp": "ashcloak_charred_stumps", "at": [-30, -25], "fit": "ground"},

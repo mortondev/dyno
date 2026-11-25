@@ -129,23 +129,14 @@ def ashcloak_ford_stones():
 
 @recipe
 def ashcloak_stockade_keep():
-    """The Ashcloak Stockade, faction-correct: the base stockade with its
-    flame banners swapped for black-and-red ash cloth, the palisade made solid
+    """The Ashcloak Stockade: the base stockade with its flame banners, the palisade made solid
     and two rows thick (a plank wall behind the log posts), a 50 cm-step
     sharpened timber tip on every other post, and a lived-in yard: a second
     brazier by the leader's tent, weapon racks and crate stacks."""
     v = R["stockade"]()
     a = 13
-    # Ashcloak heraldry instead of the red flame banners: two flat 2 x 3
-    # sheets hanging from the gate walk, a red field with an ember band of
-    # orange across the middle (full rows, one plane). No black field: big
-    # black sheets read as holes in the wall at night.
-    for k, b in list(v.c.items()):
-        if b == "red_banner":
-            del v.c[k]
-    for x in (-2, -1, 1, 2):
-        for y in (4, 5, 6):
-            v.set(x, y, a + 1, "orange" if y == 5 else "red")
+    # the base stockade's red flame banners stay: a blind judge read the
+    # flat cloth sheets that replaced them as unfinished
     # the inner row: a plank wall behind the log posts, 4 m
     b = a - 1
     for i in range(-b, b + 1):
