@@ -751,8 +751,12 @@ fn select(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
             }
         });
     // drag to turn the character
+    // (whether the pointer is over a window is asked first: it takes the
+    // context's lock, which ctx.input already holds inside its closure, so
+    // asking in there deadlocks the client on every click)
+    let over_ui = ctx.is_pointer_over_area();
     let drag = ctx.input(|i| {
-        if i.pointer.primary_down() && !ctx.is_pointer_over_area() {
+        if i.pointer.primary_down() && !over_ui {
             i.pointer.delta().x
         } else {
             0.0
@@ -1016,8 +1020,12 @@ fn create(ctx: &egui::Context, f: &mut Front, out: &mut Vec<FrontCmd>) {
                 });
             });
         });
+    // (whether the pointer is over a window is asked first: it takes the
+    // context's lock, which ctx.input already holds inside its closure, so
+    // asking in there deadlocks the client on every click)
+    let over_ui = ctx.is_pointer_over_area();
     let drag = ctx.input(|i| {
-        if i.pointer.primary_down() && !ctx.is_pointer_over_area() {
+        if i.pointer.primary_down() && !over_ui {
             i.pointer.delta().x
         } else {
             0.0
@@ -1417,5 +1425,65 @@ mod name_tests {
         assert!(name_blocked("SirAdmin", &blocked));
         assert!(!name_blocked("Selald", &blocked));
         assert!(!name_blocked("Selald", &[]));
+    }
+}
+
+#[cfg(test)]
+mod click_tests {
+    use super::*;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    /// One frame of every front page with the left button held down over open
+    /// ground: it must finish. (Asking egui whether the pointer was over a
+    /// window from inside `ctx.input` deadlocked the client on the character
+    /// screens, on every click.)
+    #[test]
+    fn every_page_takes_a_held_click() {
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            for page in [
+                Page::Title,
+                Page::Realms,
+                Page::Select,
+                Page::Class,
+                Page::Appearance,
+                Page::Name,
+            ] {
+                let ctx = crate::theme::new_context();
+                crate::theme::apply(&ctx);
+                let mut f = Front::new(&[], "");
+                f.page = page;
+                let at = egui::pos2(900.0, 500.0);
+                let mut input = egui::RawInput {
+                    screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(1280.0, 720.0))),
+                    ..Default::default()
+                };
+                input.events = vec![
+                    egui::Event::PointerMoved(at),
+                    egui::Event::PointerButton {
+                        pos: at,
+                        button: egui::PointerButton::Primary,
+                        pressed: true,
+                        modifiers: Default::default(),
+                    },
+                ];
+                let mut out = Vec::new();
+                let _ = ctx.run(input, |ctx| ui(ctx, &mut f, "test", "", false, &mut out));
+                // and a second frame with the button still down
+                let mut out = Vec::new();
+                let _ = ctx.run(egui::RawInput::default(), |ctx| {
+                    ui(ctx, &mut f, "test", "", false, &mut out)
+                });
+            }
+            let _ = tx.send(());
+        });
+        match rx.recv_timeout(Duration::from_secs(20)) {
+            Ok(()) => {}
+            Err(mpsc::RecvTimeoutError::Timeout) => panic!("a front page froze on a held click"),
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("a front page panicked (see above)")
+            }
+        }
     }
 }

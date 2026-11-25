@@ -43,7 +43,51 @@ mod sound;
 
 const ACCENT: Color32 = Color32::from_rgb(240, 138, 60);
 
+/// DYNO_WATCHDOG=SECS: if no frame starts for that long, interrupt this
+/// process (SIGINT), so a debugger running it stops and can show every
+/// thread's stack. For finding freezes; off unless set.
+mod watchdog {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+    static LAST: AtomicU64 = AtomicU64::new(0);
+
+    fn now_ms() -> u64 {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_millis() as u64)
+    }
+
+    pub fn beat() {
+        LAST.store(now_ms(), Ordering::Relaxed);
+    }
+
+    pub fn start() {
+        let Some(secs) = std::env::var("DYNO_WATCHDOG")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+        else {
+            return;
+        };
+        beat();
+        std::thread::spawn(move || {
+            loop {
+                std::thread::sleep(Duration::from_millis(500));
+                let last = LAST.load(Ordering::Relaxed);
+                if now_ms().saturating_sub(last) > secs * 1000 {
+                    eprintln!("watchdog: no frame for {secs} s; interrupting");
+                    let _ = std::process::Command::new("kill")
+                        .args(["-INT", &std::process::id().to_string()])
+                        .status();
+                    std::thread::sleep(Duration::from_secs(30));
+                }
+            }
+        });
+    }
+}
+
 pub fn run(prefill: Option<String>, update_note: String) -> Result<(), String> {
+    watchdog::start();
     let event_loop = EventLoop::new().map_err(|e| format!("cannot open a window: {e}"))?;
     let mut settings = Settings::load();
     crate::options::set_interface(crate::options::Interface::of(&settings));
@@ -2974,6 +3018,7 @@ impl App {
     }
 
     fn frame(&mut self) {
+        watchdog::beat();
         // DYNO_AUTOJOIN=1 joins the prefilled address at start (for scripted tests and agents)
         if matches!(self.screen, Screen::Menu)
             && std::env::var_os("DYNO_AUTOJOIN").is_some()

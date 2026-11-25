@@ -1311,7 +1311,12 @@ pub fn drive(o: DriveOptions) -> Result<String, String> {
     }))?;
     let mut gfx = Gfx::new_headless(o.size.0, o.size.1)?;
     // as a join does: this world's textures, then its meshes as they are made
-    let world = new_play(j);
+    let mut world = new_play(j);
+    // a new character gets the first-login intro, as a join from the
+    // character screen does (App::joining_new)
+    if !exists {
+        world.intro = Some(Instant::now());
+    }
     crate::textures::reload();
     gfx.begin_world(&world.world);
     probe::enable();
