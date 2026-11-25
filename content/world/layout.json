@@ -525,22 +525,47 @@
   {
    "key": "quarry_trail",
    "way": "trail",
-   "path": ["north_road_glade_1", [-60, -170], [-110, -160], "old_quarry"]
+   "path": ["north_road_glade_1", [-17, -178], [-31, -180], [-46, -175], [-60, -170], [-74, -166], [-88, -159], [-103, -166], [-117, -165], [-131, -160], "old_quarry"]
   },
   {
    "key": "westfold_lane",
    "way": "trail",
-   "path": [[-262, -12], [-266, 90], "meadow_farm_1"]
+   "path": [[-262, -12], [-262, 8], [-258, 25], [-260, 42], [-268, 58], [-273, 74], [-270, 89], [-267, 101], "meadow_farm_1"]
   },
   {
    "key": "southfold_lane",
    "way": "trail",
-   "path": [[-126, 302], [-60, 312], [30, 320]]
+   "path": [[-126, 302], [-110, 304], [-96, 306], [-82, 311], [-66, 315], [-50, 313], [-34, 308], [-18, 310], [-2, 316], [14, 320], [30, 320]]
   },
   {
    "key": "eastfold_trail",
    "way": "trail",
-   "path": [[232, -45], [250, -100], [264, -146], [266, -164]]
+   "path": [[232, -45], [229, -60], [232, -76], [241, -90], [243, -105], [237, -119], [240, -133], [251, -143], [264, -148], [266, -164]]
+  },
+  {
+   "key": "quarry_trail_mouth",
+   "way": "trail",
+   "path": ["north_road_glade_1", [-17, -177], [-31, -179], [-46, -175]]
+  },
+  {
+   "key": "quarry_trail_yard",
+   "way": "trail",
+   "path": [[-117, -165], [-131, -159], [-142, -161]]
+  },
+  {
+   "key": "westfold_lane_bend",
+   "way": "trail",
+   "path": [[-260, 42], [-269, 57], [-274, 73], [-273, 74]]
+  },
+  {
+   "key": "southfold_lane_bend",
+   "way": "trail",
+   "path": [[-66, 315], [-50, 314], [-34, 309], [-33, 308]]
+  },
+  {
+   "key": "eastfold_trail_bend",
+   "way": "trail",
+   "path": [[241, -90], [244, -105], [238, -120], [237, -119]]
   }
  ],
  "places": [
@@ -920,7 +945,7 @@
     "radius": [26, 30]
    },
    "stamps": [
-    {"stamp": "birchrise_yard", "at": [-6, -5]},
+    {"stamp": "birchrise_yard", "at": [9, -5]},
     {"stamp": "hut", "at": [-19, -9]},
     {"stamp": "fence_run", "at": [14, 16], "fit": "ground"},
     {"stamp": "birchrise_sawmill", "at": [2, -20], "rot": 1},
@@ -1337,7 +1362,6 @@
    "stamps": [
     {"stamp": "meadow_east_caravan", "at": [-3, -12], "fit": "ground"},
     {"stamp": "meadow_east_spill", "at": [-3, -6], "fit": "ground"},
-    {"stamp": "meadow_east_rut", "at": [-10, -8], "fit": "ground"},
     {"stamp": "campfire", "at": [0, -14], "fit": "ground"},
     {"stamp": "meadow_east_ash_flag", "at": [-16, -24], "fit": "ground"},
     {"stamp": "meadow_east_dropped", "at": [28, -7], "fit": "ground"},
